@@ -1,0 +1,22 @@
+Installation
+------------
+
+There is no proper install facility as yet.
+
+Ensure you have libqt3-dev installed
+
+Unpack the code into a fresh directory
+
+Try the following:
+
+$ qmake
+$ make
+
+
+That should create something called 'maxview'
+
+./maxview <test_dir>
+
+
+where <test_dir> is the location of your .max files
+

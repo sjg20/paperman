@@ -1,0 +1,401 @@
+<ui version="4.0" >
+ <class>Printopt</class>
+ <widget class="QFrame" name="Printopt" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>456</width>
+    <height>267</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>Maxview</string>
+  </property>
+  <property name="frameShape" >
+   <enum>QFrame::StyledPanel</enum>
+  </property>
+  <property name="frameShadow" >
+   <enum>QFrame::Raised</enum>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_3" >
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2" >
+     <item>
+      <widget class="QGroupBox" name="groupBox" >
+       <property name="title" >
+        <string>Page Control</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2" >
+        <item>
+         <widget class="QCheckBox" name="printOdd" >
+          <property name="toolTip" >
+           <string>Print odd pages</string>
+          </property>
+          <property name="whatsThis" >
+           <string>Select this to print the odd pages. If you turn this off, then odd pages will be omitted from the output</string>
+          </property>
+          <property name="text" >
+           <string>Odd Pages</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="printEven" >
+          <property name="toolTip" >
+           <string>Print even pages</string>
+          </property>
+          <property name="whatsThis" >
+           <string>Select this to print the even pages. If you turn this off, then even pages will be omitted from the output</string>
+          </property>
+          <property name="text" >
+           <string>Even Pages</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="sepSheet" >
+          <property name="enabled" >
+           <bool>true</bool>
+          </property>
+          <property name="toolTip" >
+           <string>In duplex mode, ensure that each stack starts on a new sheet</string>
+          </property>
+          <property name="whatsThis" >
+           <string>When printing duplex (two sides to a sheet), stacks with an odd number of pages will finish with the back page unused.
+Normally, the next stack to be printed would then start on this back page. This option causes the back page to be left blank, which means that every stack will start printing on a front page. It only has an effect when duplex is also enabled.</string>
+          </property>
+          <property name="text" >
+           <string>Each stack on separate sheet</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="shrinkFit" >
+          <property name="toolTip" >
+           <string>Shrink the page to fit on the paper</string>
+          </property>
+          <property name="whatsThis" >
+           <string>Select this option to shrink each page to fit within the printer margins. This ensures that nothing is missed out, at the cost of some reduction in size. This option is needed because scanners can scan right to the edge of the paper but printers generally cannot print there.
+If you turn this option off, then some part of the page around the edged will be omitted. This is seldom a problem since the original is often blank in those areas anyway. Normally this option should be disabled.</string>
+          </property>
+          <property name="text" >
+           <string>Shrink to fit</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="expandFit" >
+          <property name="toolTip" >
+           <string>Expand the page to fill the paper</string>
+          </property>
+          <property name="whatsThis" >
+           <string>For pages which are smaller than the output paper size, this option can be used to expand them up to fill the paper. The image is scaled up to just fit within the page.
+
+If shrink to fit is set, then this option will operate only within print margins, otherwise it will expand right to the edge of the paper, and some (hopefully blank) area around the image will not be printed.</string>
+          </property>
+          <property name="text" >
+           <string>Expand to fit</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_2" >
+          <property name="orientation" >
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0" >
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox_2" >
+       <property name="title" >
+        <string>Annotations</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout" >
+        <item>
+         <widget class="QCheckBox" name="printNumbers" >
+          <property name="toolTip" >
+           <string>Print page numbers at bottom right of page</string>
+          </property>
+          <property name="whatsThis" >
+           <string>Select this option to print page numbers on each sheet. This will print the page number and total number of pages for each stack.</string>
+          </property>
+          <property name="text" >
+           <string>Page numbers</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="printNames" >
+          <property name="toolTip" >
+           <string>Print stack and page names</string>
+          </property>
+          <property name="whatsThis" >
+           <string>Select this option to print the stack name and page name in the bottom centre of each page</string>
+          </property>
+          <property name="text" >
+           <string>Stack and page names</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="printSeq" >
+          <property name="toolTip" >
+           <string>Print job sequence number on every page</string>
+          </property>
+          <property name="whatsThis" >
+           <string>When printing a large number of stacks, this option allows every page to be globally numbered, from 1 to the total number of pages in the print job.
+This is called the sequence number and it is useful for ensuring that all printed pages are kept together and in order. Select this option to print the sequence number (and total number of pages) on each page.</string>
+          </property>
+          <property name="text" >
+           <string>Sequence information</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="printImageInfo" >
+          <property name="toolTip" >
+           <string>Print information about image size, resolution and depth</string>
+          </property>
+          <property name="whatsThis" >
+           <string>Select this option to print the image size in Megapixels, the width and height in pixels, the depth in bits per pixel (bpp, normally 2 for monochrome, 8 for greyscale and 24 for colour) and the size in bytes. This information is individual to each page. The total size in bytes of each stack is also displayed.
+
+The format is: aMP, bxc d ebpp, fMB of gMB
+where
+a is Megapixels
+b is width in pixels
+c is height in pixels
+d is 'Mono/Grey/Colour'
+e is size in bytes
+f is size of stack in bytes</string>
+          </property>
+          <property name="text" >
+           <string>Image information</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="printTimestamp" >
+          <property name="toolTip" >
+           <string>Print the date/time for each page</string>
+          </property>
+          <property name="whatsThis" >
+           <string>This option shows the date/time for each page. This is normally the timestamp for when it was first scanned into the computer.</string>
+          </property>
+          <property name="text" >
+           <string>Image timestamp</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_3" >
+     <item>
+      <widget class="QLineEdit" name="textFont" >
+       <property name="enabled" >
+        <bool>true</bool>
+       </property>
+       <property name="sizePolicy" >
+        <sizepolicy vsizetype="Fixed" hsizetype="Maximum" >
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize" >
+        <size>
+         <width>60</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="toolTip" >
+        <string>Double click to set annoation font</string>
+       </property>
+       <property name="whatsThis" >
+        <string>This is the font used to draw the text annotations. Double click on the sample text to change it</string>
+       </property>
+       <property name="text" >
+        <string>abc123</string>
+       </property>
+       <property name="readOnly" >
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_3" >
+       <property name="text" >
+        <string>Text Font</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="textColour" >
+       <property name="sizePolicy" >
+        <sizepolicy vsizetype="Maximum" hsizetype="Maximum" >
+         <horstretch>20</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize" >
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize" >
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="baseSize" >
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="toolTip" >
+        <string>Click to set text colour</string>
+       </property>
+       <property name="whatsThis" >
+        <string>This is the text colour for the printed annotation text. Click on the colour box to change it.</string>
+       </property>
+       <property name="text" >
+        <string/>
+       </property>
+       <property name="iconSize" >
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
+       <property name="default" >
+        <bool>false</bool>
+       </property>
+       <property name="flat" >
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label" >
+       <property name="text" >
+        <string>Text Colour</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2" >
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0" >
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="fillColour" >
+       <property name="sizePolicy" >
+        <sizepolicy vsizetype="Maximum" hsizetype="Maximum" >
+         <horstretch>20</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize" >
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize" >
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="baseSize" >
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="toolTip" >
+        <string>Click to select background colour</string>
+       </property>
+       <property name="whatsThis" >
+        <string>This is the background colour for the printed annotation text. Click on the colour box to change it.</string>
+       </property>
+       <property name="text" >
+        <string/>
+       </property>
+       <property name="iconSize" >
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
+       <property name="default" >
+        <bool>false</bool>
+       </property>
+       <property name="flat" >
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_2" >
+       <property name="text" >
+        <string>Text Background</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer" >
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0" >
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer" >
+     <property name="orientation" >
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0" >
+      <size>
+       <width>148</width>
+       <height>254</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

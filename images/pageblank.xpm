@@ -1,0 +1,29 @@
+/* XPM */
+static char *pageblank[] = {
+/* columns rows colors chars-per-pixel */
+"16 18 5 1",
+"  c #FEFF00",
+". c #FFFE01",
+"X c #FEFF01",
+"o c #FFFE02",
+"O c None",
+/* pixels */
+"OOOOOOOOOoOOOOOO",
+"OOOOOOOOooOOOOOO",
+"OOOOOOOOoooOOOOO",
+"OOOOOOOOoXoOOOOO",
+"OOOOOOoo. oooooo",
+"OOOoooo.   XXooO",
+"OOOOooX     ooOO",
+"OOOOOooX   XoOOO",
+"OOOOOOo.    oOOO",
+"OOOOOOoXXooXoOOO",
+"OOOOOOooooooooOO",
+"OOOOOOooOOOOooOO",
+"OOOOOOoOOOOOOOOO",
+"OOOOOOOOOOOOOOOO",
+"OOOOOOOOOOOOOOOO",
+"OOOOOOOOOOOOOOOO",
+"OOOOOOOOOOOOOOOO",
+"OOOOOOOOOOOOOOOO"
+};

@@ -1,0 +1,10 @@
+#ifndef PODOFO_PDFVERSION_H
+#define PODOFO_PDFVERSION_H
+
+#define PODOFO_MAJOR 0
+#define PODOFO_MINOR 7
+#define PODOFO_REVISION 0
+
+#define PODOFO_VERSION_STRING "0.7.0"
+
+#endif

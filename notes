@@ -1,0 +1,946 @@
+Simon notes
+
+
+27/9/05
+
+Looking at 8bpp preview
+
+Have 4x 192x192 300dpi 8bpp images
+
+white, black, mid, check
+
+Previews are all 8x8 (64) pixels data:
+
+white        ff ff 2f
+black        f0 f0 20
+mid          f8 f8 28
+check        f0 f0 f0 f0
+             0f 0f 0f 0f
+             f0 f0 f0 f0
+             0f 0f 0f 0f
+             f0 f0 f0 f0
+             0f 0f 0f 0f
+             f0 f0 f0 f0
+             0f 0f 0f 0f
+hstripe      4f 40 4f 40
+             4f 40 4f 40
+vstripe      0f 0f 0f 0f
+             0f 0f 0f 0f
+             0f 0f 0f 0f
+             0f 0f 0f 0f
+             0f 0f 0f 0f
+             0f 0f 0f 0f
+             0f 0f 0f 0f
+             0f 0f 0f 0f
+dark         f4 f4 24
+dark32       f2 f2 22
+dark16       f1 f1 21
+dark16:
+
+192x168      f1 d1   (8x7=56)
+48x48        11 30 11 30  (2x2=4)
+96x96        21 20
+             21 20
+             21 20
+             21 20  (4x4=16)
+192x144      f1 91  (8x6=48)
+192x96       f1 11  (8x4=32)
+192x48       81     (8x2=16)
+192x24       41     (8x1=8)
+
+halfcheck    0f f0 f0 f0
+             f0 0f 0f 0f
+             0f f0 f0 f0
+             f0 0f 0f 0f
+             01 0f f0 10
+
+halfchecktop
+             f0 10 0f 0f
+             0f 0f 0f f0
+             f0 f0 f0 0f
+             0f 0f 0f f0
+             f0 f0 01 f0
+
+8x7=56
+f1 = 31 x 1
+d1 = 26 x 1
+
+
+
+31/10/08
+
+make[1]: Entering directory `/home/sglass/max/sane/cvs/sane-backends/frontend'
+gcc -o .libs/scanimage scanimage.o stiff.o  ../lib/liblib.a ../backend/.libs/libsane.so -lpthread /usr/lib/libtiff.so /usr/lib/libjpeg.so -lz -lc /usr/lib/libieee1284.so /usr/lib/libgphoto2.so /usr/lib/libgphoto2_port.so /usr/lib/libltdl.so -ldl /usr/lib/libexif.so -lm /usr/lib/libusb.so
+../backend/.libs/libsane.so: undefined reference to `sanei_check_value'
+collect2: ld returned 1 exit status
+
+
+Had to add sanei_constrain_value.lo to sane-backends/backends/Makefile
+
+EXTRA = sane_strstatus.lo ../sanei/sanei_init_debug.lo ../sanei/sanei_config.lo ../sanei/sanei_constrain_value.lo
+
+
+
+
+11/5/09
+
+Working on QT4 version of software
+
+To do:
+done - dragging stacks around
+done - wheel should scroll window by less
+done - drop stacks on stacks
+- moving stacks between directories
+- click to deselect all stacks
+done - confirmation of delete
+done - unstack all
+done - confirmation of unstack all when more than one stack selected
+done - unstack page
+done - stack pages
+
+poppler PDF library
+http://doc.trolltech.com/qq/qq27-poppler.html
+
+undo/redo
+http://doc.trolltech.com/qq/qq25-undo.html
+
+
+20/5/09
+
+Model and view implemented with a decent view delegate. There are a few
+small problems (e.g. the view doesn't like overlapping items) but it
+is going ok.
+
+About half the popup menu items work. Now I want to take a detour and
+implement undo/redo. It doesn't seem too hard.
+
+Complications with undo
+- changing model from one directory to another
+    - this will have to be in the undo stack
+    - the alternative is to clear the undo stack whenever the user changes
+         directory which probably renders it useless???
+- must use filenames for model indexes, since anything else can change
+- deleted pages/stacks will need to be stored in a trash folder
+    - this is probably an overdue feature anyway
+- problem of having two models: directory and contents
+    - if the user renames a directory, then moves a file they expect undo
+         to undo both. This involves two models
+     - possible solution: attach a global sequence number to all operations
+         and make the top-level undo() function call undo on whichever
+         model has the most recent operation
+- use a class derived from QUndoCommand
+
+
+- now implemented undo and it seems to work well
+
+
+
+
+4/6/09
+
+Have completed
+- printing
+- preview, double click, etc.
+
+
+todo:
+
+done - reset should turn off global and redisplay current dir
+
+5/6/09
+
+done - locate needs to scroll to the located item & select it
+done - find button should work
+done - check that maxdesk.ini is only written when it should be
+done - get model updating working in Desktopdelegate
+done - context menu enable/disable items
+done - test all operations
+done - deleting an unknown file should work - currently gives signature failure
+done - display pixmap outline instead of invalid pixmap (crosshatched)
+done - store current page number for each stack in maxdesk.ini
+done - fix horiz scrollbar to be correct width when loading a new dir
+
+scanning
+done - test
+done - turn preview widget into a scroll widget, displaying multiple pages at once
+done - allow user to scroll this up and down
+done - ctrl + wheel to zoom in / out
+done - delay scaling of page images
+done - only rescale after the user hasn't changed the scale for 0.5 seconds
+done - allow selection between single page and multipage views (done with splitter)
+done - click on a page to view preview
+done - zooming of preview
+
+
+8/6/09
+
+Created a scanner simulator
+- fiddling with the paper size problem again
+
+
+was 9914 = 209.84633333333333
+
+now 9922 = 210.01566666666666
+
+25.4 / 1200 = 0.021166667
+   FIX = 1387
+   UNFIX = 0.02116394
+   FIX = 1387
+
+1388 would be 0.021179199
+   gives 9915
+   =
+
+real value should be 9921
+
+UNFIX (13762560) = 210
+
+val_c = 13762560
+   UNFIX = 210
+   FIXED_MM_TO_SCANNER_UNIT = 210
+
+
+215.9
+ - 215.872192383
+
+
+14147400
+
+
+9/6/09
+
+Started thinking about threaded scanning
+
+10/6/09
+
+Implementing threaded scanning
+- done
+
+done - show scrolling preview frame as scan proceeds
+done - autoscroll it downwards as the scan proceeds
+done - show scan stats / annotations at bottom of each page
+done- preview stays visible at end
+done - show scan updates in status bar when in quickscan mode (no pscan)
+done - allow pages to be manually marked for deletion / keeping
+done - fix segfault when running with no params
+done - only scroll down during scanning when window is scrolled to bottom (to allow user to override)
+done - show scan results as reading is done!
+done - fix up window scrolling while scanning
+done - speed up scanning preview by only generating the updated part of the pixmap
+done - speed up scanning preview by only drawing the updated part of the pixmap
+done - support scanning preview for colour & grey images (move code into maxdesk)
+done - only update scanning preview if new scanlines are generated
+done - fix pixmap memory leak
+done - scan cancel button
+
+14/6/09
+
+done - fix grey image scanning from simulscan
+done - check page coverage for mono images
+done - check page coverage for grey and colour images
+
+16/6/09
+
+done - timestamp each page when scanning
+done - show page timestamp through Maxdesk::getImageInfo
+done - page coverage for JPEG compression
+done - 'save' button to commit scan (deletes blank pages)
+done - check scanning preview works for different strides, etc.
+done - page info should show based on change in selection, not just clicking
+
+
+
+Page 1: id 00000 roswell 010c0 image 000e0 title 01080
+Page 2: id 00001 roswell 02240 image 01260 title 02200
+Page 3: id 00002 roswell 03420 image 023e0 title 033e0
+Page 4: id 00003 roswell 03c80 image 035c0 title 03c40
+Page 5: id 00004 roswell 044e0 image 03e20 title 044a0
+Page 6: id 00005 roswell 05680 image 04680 title 05640
+Page 7: id 00006 roswell 06820 image 05820 title 067e0
+Page 8: id 00007 roswell 07080 image 069c0 title 07040
+Page 9: id 00008 roswell 08280 image 07220 title 08240
+Page 10: id 00009 roswell 09440 image 08420 title 09400
+Page 11: id 0000a roswell 0a600 image 095e0 title 0a5c0
+Page 12: id 0000b roswell 0ae60 image 0a7a0 title 0ae20
+Pagemodel::reset: _stackindex QModelIndex(111,0,0x8407ea0,Desktopmodel(0x82d85a8) )
+page 3: titlestr = (nil)
+page 4: titlestr = (nil)
+page 5: titlestr = (nil)
+
+Page 1: id 00000 roswell 010c0 image 000e0 title 01080
+Page 2: id 00001 roswell 02240 image 01260 title 02200
+Page 3: id 00002 roswell 03420 image 023e0 title 033e0
+Page 4: id 00003 roswell 03c80 image 035c0 title 03c40
+Page 5: id 00007 roswell 07080 image 069c0 title 07040
+Page 6: id 0000b roswell 0ae60 image 0a7a0 title 0ae20
+Page 7: id 00000 roswell 00000 image 00064 title 00000
+Page 8: id 00002 roswell 0001a image 00061 title ffffffff
+Page 9: id ffffffff roswell ffffffff image 00000 title 00000
+Pagemodel::reset: _stackindex QModelIndex(111,0,0x8407ea0,Desktopmodel(0x82d85a8) )
+find_page_chunk: chunk->start = 0xe0, page->image = 0x40588000
+find_page_chunk: chunk->start = 0xe0, page->image = 0x40588000
+find_page_chunk: chunk->start = 0xe0, page->image = 0x40588000
+find_page_chunk: chunk->start = 0xe0, page->image = 0x40588000
+
+
+done - show threshold when doing mono/dither
+done - select scan stack as it starts scanning
+
+20/6/09
+
+done - pscan window should stay on top
+done - need to commit scan when selecting a different directory
+done - need to commit scan when starting a new scan
+done - crash when creating new directories
+done - add autopop so that after scanning we return to the previous view
+
+Found loads and loads of bugs
+
+done - 3 preview view buttons should affect the entire desktop
+done - printing crash due to model being wrong type
+done - scanning a page often appears on top of the previous page
+done - scan with blank pages, then select new directory, then scan again = crash
+
+
+21/6/09
+
+done - implement revert button
+not needed? - emit layoutAboutToBeChanged(); and layoutChanged() in models
+not needed? - save and restore persistent indexes
+done - deleting a stack crashes!
+done - using arrow to move to next page changes page twice due to autorepeat while preview is updating
+done - slow down scrolling of pagewidget window
+- cvs commit
+
+
+done - page number should be centred wrt pixmap
+done - only display/calculate stack pixmaps when they are visible
+done - a scanned stack dragged to another directory should be committed
+done - a scanned stack stacked onto another stack should be committed
+done - changing directories while scanning should not commit the scan, and should commit it later when done
+done - 'losing' the scan should cause Pagewidget to revert to the original mode
+no - changing directories while scanning then changing back should restart the preview
+
+cvs commit
+
+22/6/09
+done - clicking in space should clear selection
+done - dragging an item beyond the left margin should not crash
+done - clicking on an item and dragging should drag the item, not start a selection drag
+done - reinstate PDF menus
+done - dragging a stack over the previously selected stack causes a slow redraw, but should't
+done - support moving a directory into another with a warning
+done - dragging into a dirview closes it, but shouldn't
+   (hacked this by opening the first top level one again, not a good solution)
+done - clicking in space should clear selection (but not if shift or ctrl held down)
+done - check we cope with operations on stacks before they are valid
+
+cvs commit
+
+Workflow features
+
+incoming paper:
+- big red button to open inbox
+- flashes for 10 seconds, then turns red when there is something in it, green when empty
+- click to open the inbox, which appears in a scrolling bit at the top of the main stack area
+- scrolls left to right, with each stack autoarranged in that space
+- can also view inbox in main viewer
+- can drag stacks from inbox to main viewer, in which case they are removed from inbox
+- inbox stacks have a sender name in green and a note from the sender visible
+
+- inbox popup menu: accept (moves to current viewer), view inbox
+
+outgoing paper:
+- outgoing box button in toolbar allows selection of default destination
+- 'send to' option (and 'copy to') in popup menu to send stacks
+- configurable send destinations (directories within the main root)
+- after selecting send, documents appear in scrolling bit at bottom
+- can click on an item to edit the note underneath
+- 'send' button to actually send the docs
+- can also drag things back out of send box
+
+configuration
+- site.maxview file xml lists location of document roots, inboxes, destinations, etc.
+- can open this file to configure maxview
+
+paper icon
+- shows image of first page
+- note underneath
+- sender / recipient in green on top
+- icon to show if moved or copied
+
+
+23/6/09
+
+done - display author, etc. for each stack
+
+25/6/09
+
+done - allow saving of author, etc. for each stack
+
+commit
+
+done - revert should work for annots
+done - deselecting all stacks should affect pagewidget
+done - text / image splitter
+done - support displaying of OCR text
+
+commit
+
+done - don't try to read text from pdf
+done - ocrtool bar
+done - save screen layout including ocr stuff
+done - flip view button
+done - clear button
+done - ocr button
+done - copy button: select text option for page and stack (copies to clipboard)
+
+commit
+
+26/6/09
+
+Started minor rewrite of the maxdesk setup, to turn it into C++
+- ended up doing the same with decpp
+- renamed maxdesk to desk
+- turned files into a class
+- added File and subclasses for different file types
+- moved lots of code into Filemax
+- rewrote large chunks of the code in Filemax and Desk
+- made more use of C++ file structure
+- enhanced Desktopmodel to support multiple desks active at once
+- introduced masses of bugs
+
+So it has become a major rewrite
+
+30/6/09
+
+Have it sort-of back together but loads of bugs
+
+done - duplicate / undo crash
+
+1/7/09
+
+done - stacking doesn't display correctly
+done - moving / undo
+done - unstack then undo, doesn't but should
+
+done - duplicate should select the newly created items
+done - selecting an item should select the right one
+
+done - get scanning working again
+done - get proxies / filtering working again
+done - get printing working again
+done - test stack operations
+
+ready to commit now I think
+
+- committed
+
+2/7/09
+
+done - PDF thumnails
+done - PDF images
+
+
+[sidetrack on pdf
+
+Unfortunately poppler does not support PDF creation
+
+Could license Acrobat library, fine for our company, but that would severely
+limit the ability of others to use this s/w, and hence changes of getting
+others to do enhancements.
+
+
+http://www.cogniview.com/convert-pdf-to-excel/post/pdf-editing-creation-50-open-sourcefree-alternatives-to-adobe-acrobat
+
+Adobe
+- cost unknown, royalty unknown
+
+  31. PJ: Etymon’s PJ, the parent of PJX, is one of the earliest open source attempts to make PDF’s more accessible. PJ is a class library in Java that allows parsing, manipulation, and generation of PDF files.
+- no good, don't want java
+
+  32. PDFlib: The PDFlib development tool offers a way for developers to PDF-enable software and create PDFs on their own server.
+$2k per machine runtime!
+- open source option which might have enough features?
+- looks ideal, although complex
+- might not support stack/unstack though as these features seem to be outside the open source area?
+- perhaps could use something else for that
+
+  33. mbtPdfAsm: The mbtPdfAsm application is an in line tool for assembling and merging PDF files, extracting information from them, and updating PDF metadata.
+- French comments
+- C++
+- looks like it might be enough, but not sure about creating images
+- little source documentation
+- not a library, no API
+
+  34. PDF::API2: PDF::API2 offers a “next generation” tool for creating and manipulating PDF files.
+- perl
+
+  35. PDF Clown: The PDF Clown is an open source library which includes capabilities such as document splitting, merging, and more.
+- is java/c sharp
+
+  36. iText: iText is an ideal library for developers seeking to automate PDF creation and manipulation.
+- looks good, but java
+
+  37. FreeDist: This freeware distiller can convert files into PDF as well as compose multiple files to one PDF in a specific order.
+- ugly, a distiller, perhaps like gs
+
+  38. Pdftk: This toolkit offers command-line functionality for lots of features, like merging, form filling, and encryption.
+- looks like a good command line tool
+- not maintained for 3 years though
+- not a library
+- might not handle image import
+- based on iText
+
+PDF Creator Pilot
+- commercial software, with developer license, so could potentially
+   include a binary library with maxview. No royalty so could distribute
+- not ideal, but a possibility
+- seems to support stacking, thumnailing, extract images, etc.!
+- looks good
+
+Cairo
+- seems to be only for output to PDF
+
+PoDoFo
+- looks good
+- does not render (but we can use Poppler for that)
+- handles stack, etc.
+- handles PDF creation
+- seems to support embedded images
+
+
+(found Lua, a scripting language)
+
+
+Summary:
+- pdflib looks like the best option due to open source option
+- but doesn't seem to support stack/unstack
+
+- Adobe library does not appear to have an open source option
+- Would prefer to use Adobe but that would limit the app to licensed people
+
+- pdftk is C++ (but mostly java), really want to avoid java!
+
+- which leaves mbtPdfAsm, oh dear
+
+- xpdf library, looks to be suitable, this is the source of pdfimages, etc.
+- found pdfedit which seems to be QT3-based. Uses xpdf
+
+ClibPDF - suggest Haru or pdflib
+
+- Haru looks similar to pdflib in that it doesn't seem to support modifying existing files
+
+- xpdf doesn't seem to create PDF
+
+Probably PoDoFo is best?
+
+]
+
+
+done - duplicate max and related
+
+
+done - conversion to pdf
+
+4/7/09
+
+done - get podofo image access working
+done - display PDF thumbnails if present
+done - generate thumbnails when outputting PDF
+done - duplicate PDF as PDF and max
+done - check greyscale images
+
+commit
+
+
+conversion between PDF and max now seems to work for different image sizes/depths
+need to take another look a Filepage though, it should have functions for returning
+image data in various required formats:
+
+- with either byte or word alignment of each scanline
+    - Qt and common sense requires word, PDF requires byte
+- forcing 32bpp to 24bpp
+- a jpeg-encoded image
+- thumbnails at different sizes
+- this could perhaps be used by the various viewers so there is a unified place
+      for obtaining images from files and all scaling, encoding is done in one
+      place
+- other?
+
+
+5/7/09
+
+done - pagewidget view should display hatch pattern until images are available when first opened
+
+
+8/7/09
+
+done - after scanning a page, transfer to the scan image to the page so it displays that (until updated)
+      instead of hatching
+
+commit
+
+done - save maxdesk when changing directory
+done - save maxdesk every minute
+done - rename maxdesk.ini to .desk
+done - fix moving of files between desks which are open in the model
+
+done - large memory leak when scanning colour pages
+
+done - integrate omnipage ocr
+
+15/7/09
+
+done - make it select a top level root in dirview (it does, but then deselects immediately afterwards)
+
+5/8/09
+
+done - add email, email as pdf, email as max functions
+done - fix PDF conversion so that it produces a correct thumbnail for non-word-aligned bytes per line images
+
+7/8/09
+
+done - add send option
+done - add users
+done - add transfer class
+done - add inbox and outbox
+done - add envelope info to max file
+done - implement sending to outbox
+done - add envelope to max files in outbox
+
+
+2/9/09
+
+Looking at debian/ubuntu packaging
+
+First get a list of all the contributors
+
+tif code from :
+
+ * Copyright (c) 1990-1996 Sam Leffler
+ * Copyright (c) 1991-1996 Silicon Graphics, Inc.
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and
+ * its documentation for any purpose is hereby granted without fee, provided
+ * that (i) the above copyright notices and this permission notice appear in
+ * all copies of the software and related documentation, and (ii) the names of
+ * Sam Leffler and Silicon Graphics may not be used in any advertising or
+ * publicity relating to the software without the specific, prior written
+ * permission of Sam Leffler and Silicon Graphics.
+ *
+ * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
+ * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
+ * ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
+ * OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+ * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF
+ * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+ * OF THIS SOFTWARE.
+
+Quite insane:
+
+/***************************************************************************
+                          qscanner.cpp  -  description
+                             -------------------
+    begin                : Thu Jul 6 2000
+    copyright            : (C) 2000 by Michael Herder
+    email                : crapsite@gmx.net
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License version 2 as     *
+ *   published by the Free Software Foundation.                            *
+ *                                                                         *
+ ***************************************************************************/
+
+podofo
+PoDoFo library, tools and tests:
+   Dominik Seichter <domseichter@web.de>
+   Leonard Rosenthol <leonardr@pdfsages.com>
+   Craig Ringer <craig@postnewspapers.com.au>
+
+PoDoFoImpose:
+   Contributed by Pierre Marchand <pierre@moulindetouvois.com> as `pdfimpose'
+   Qt-to-STL conversion by Craig Ringer <craig@postnewspapers.com.au>
+
+/***************************************************************************
+ *   Copyright (C) 2006 by Dominik Seichter                                *
+ *   domseichter@web.de                                                    *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU Library General Public License as       *
+ *   published by the Free Software Foundation; either version 2 of the    *
+ *   License, or (at your option) any later version.                       *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU Library General Public     *
+ *   License along with this program; if not, write to the                 *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
+
+
+zip library
+/****************************************************************************
+** Filename: zip.cpp
+** Last updated [dd/mm/yyyy]: 01/02/2007
+**
+** pkzip 2.0 file compression.
+**
+** Some of the code has been inspired by other open source projects,
+** (mainly Info-Zip and Gilles Vollant's minizip).
+** Compression and decompression actually uses the zlib library.
+**
+** Copyright (C) 2007-2008 Angius Fabrizio. All rights reserved.
+**
+** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+**
+** This file may be distributed and/or modified under the terms of the
+** GNU General Public License version 2 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.
+**
+** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
+** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+**
+** See the file LICENSE.GPL that came with this software distribution or
+** visit http://www.gnu.org/copyleft/gpl.html for GPL licensing information.
+**
+**********************************************************************/
+
+
+md5:
+/* md5.c - Functions to compute MD5 message digest of files or memory blocks
+   according to the definition of MD5 in RFC 1321 from April 1992.
+   Copyright (C) 1995, 1996, 2001, 2003, 2004 Free Software Foundation, Inc.
+   NOTE: The canonical source of this file is maintained with the GNU C
+   Library.  Bugs can be reported to bug-glibc@prep.ai.mit.edu.
+
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2, or (at your option) any
+   later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+
+/* Written by Ulrich Drepper <drepper@gnu.ai.mit.edu>, 1995.  */
+
+
+epeglite:
+//
+//  EpegWrapperPublic.h
+//  Epeg
+//
+//  Created by Marc Liyanage on Fri Jan 16 2004.
+//  Copyright (c) 2004 __MyCompanyName__. All rights reserved.
+//
+
+Found another version in the bowels of Enlightenment - OLD direction
+
+The Rasterman (Carsten Haitzler) <raster@rasterman.com>
+Jerome Foucher <jerome.foucher@mipsys.com>
+Michal Kowalczuk, Wirtualna Polska <sammael@wp-sa.pl>
+
+It appears to include a free software license, but not one I recognise
+
+Emailed author at web.2009@entropy.ch
+
+Hello Simon,
+
+Since my code (EpegWrapper) is just a thin wrapper around the epeg library from the enlightenment project, you can consider it covered by exactly the same license as epeg itself. You're encouraged to give credit to me and/or link to EpegWrapper's URL at http://www.entropy.ch/software/macosx/#epegwrapper, but you're not required to.
+
+I haven't worked on it in a long time, and I suspect that these days Apple's CoreImage frameworks might be faster, especially on modern machines. You might want to look into my CoreImageTool for playing around with that:
+
+    http://www.entropy.ch/software/Macosx/coreimagetool/
+
+
+
+Cheers & good luck with your software
+
+Marc
+
+
+So my full credits looks like this:
+
+tif code from :
+   Copyright (c) 1990-1996 Sam Leffler
+   Copyright (c) 1991-1996 Silicon Graphics, Inc.
+
+Quite insane:
+   copyright            : (C) 2000 by Michael Herder
+   email                : crapsite@gmx.net
+
+podofo:
+PoDoFo library, tools and tests:
+   Copyright (C) 2006 by Dominik Seichter
+   Dominik Seichter <domseichter@web.de>
+   Leonard Rosenthol <leonardr@pdfsages.com>
+   Craig Ringer <craig@postnewspapers.com.au>
+
+PoDoFoImpose:
+   Contributed by Pierre Marchand <pierre@moulindetouvois.com> as `pdfimpose'
+   Qt-to-STL conversion by Craig Ringer <craig@postnewspapers.com.au>
+
+Zip library:
+   Copyright (C) 2007-2008 Angius Fabrizio. All rights reserved.
+
+md5 Library:
+   Copyright (C) 1995, 1996, 2001, 2003, 2004 Free Software Foundation, Inc.
+
+epeglite:
+   Created by Marc Liyanage on Fri Jan 16 2004.
+   Copyright (c) 2004 __MyCompanyName__. All rights reserved.
+   epeglite is a veneer on EPEG from enlightenment
+     - see http://www.enlightenment.org/
+
+
+chch-kiwi@users.sourceforge.net
+
+Need to remove:
+ctlTreeView.cpp,h
+qtdirectorybrowser-1.0-enterprise
+
+
+- add 'send' function to mark files to be sent
+
+done - start delivery agent
+
+
+10/9/09
+
+Dapper packaging
+
+Build QT 4.5.2 on Dapper
+added backports to install cmake
+also zlib1g-dev libtiff4-dev libttf-dev libcppunit-dev libfreetype6-dev libfontconfig1-dev
+remove gdbmacros
+
+Gave up on Dapper package. It does not have QT4, which I built, but poppler
+needs either cairo or splash backend and I gave up at that point.
+
+
+16/9/09
+
+Enhancing PDF support
+
+done - implement stacking
+- implement unstacking
+
+
+
+delivery agent
+
+done (not needed) - get it reading max files
+done - scan for files to move to transfer area
+(not needed?) - move to transfer area
+- deliver
+- accept connections
+- make connections to other agents
+- exchange info about users
+- exchange files
+- exchange delivery reports
+- create log file
+- write to log file
+- delivery report
+- read report
+- processing report
+
+
+- sent box
+- new delegate to show sender info on side of pixmap
+- sent box shows delivery reports
+
+
+- operations on a subdir desk should work correctly (e.g. delete is ok, but then undo adds to the pwd
+    instead of the original file's dir)
+
+- return to desktop button should be more obvious, or highlight
+
+- one day should increase preview scale factor to 16 instead of 24
+    - but will need to handle displaying preview images on Desktopview
+         at a fixed scale instead of just using the preview size
+- saving annotations should only happen if changed
+- purge desk files or pixmaps when we change directory (to save memory)
+- or perhaps purge the whole desk and leave a hole in the model
+
+- save ocr text back to max file
+- keyboard shortcuts for scanning
+- perhaps allow reordering of pages
+- try OpenGL
+- implement notes
+- item search when clicking in Desktopview needs a revisit:
+     - use the more restrictive multiple bounding boxes for clicking
+     - if an item is selected, then it should get priority (clicking over it should always return that item)
+
+valgrind --num-callers=20 --error-limit=no
+
+
+
+
+sudo pbuilder create --distribution jaunty --othermirror "deb http://archive.ubuntu.com/ubuntu jaunty main restricted universe multiverse"
+
+COLLECT_GCC_OPTIONS='-v' '-o' 'maxview' '-Lpodofo-build/src' '-L/usr/local/lib/nuance-omnipage-csdk-15.5' '-L/usr/local/Trolltech/Qt-4.5.2/lib' '-L/usr/local/Trolltech/Qt-4.5.2/lib' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-L/usr/X11R6/lib' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-pthread' '-shared-libgcc' '-mtune=generic'
+
+ /usr/lib/gcc/i486-linux-gnu/4.3.3/collect2 -m elf_i386 --hash-style=both -Bdynamic -o maxview -z relro /usr/lib/gcc/i486-linux-gnu/4.3.3/../../../../lib/crt1.o /usr/lib/gcc/i486-linux-gnu/4.3.3/../../../../lib/crti.o /usr/lib/gcc/i486-linux-gnu/4.3.3/crtbeginT.o -Lpodofo-build/src -L/usr/local/lib/nuance-omnipage-csdk-15.5 -L/usr/local/Trolltech/Qt-4.5.2/lib -L/usr/local/Trolltech/Qt-4.5.2/lib -L/usr/X11R6/lib -L/usr/lib/gcc/i486-linux-gnu/4.3.3 -L/usr/lib/gcc/i486-linux-gnu/4.3.3 -L/usr/lib/gcc/i486-linux-gnu/4.3.3/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/i486-linux-gnu/4.3.3/../../.. -rpath /usr/local/Trolltech/Qt-4.5.2/lib .obj/desktopwidget.o .obj/mainwidget.o .obj/desk.o .obj/maxview.o .obj/pagewidget.o .obj/desktopitem.o .obj/md5.o .obj/qscannersetupdlg.o .obj/qscanner.o .obj/qxmlconfig.o .obj/saneconfig.o .obj/motranslator.o .obj/qsanestatusmessage.o .obj/qscandialog.o .obj/qcombooption.o .obj/previewwidget.o .obj/qbooloption.o .obj/qbuttonoption.o .obj/qdevicesettings.o .obj/qextensionwidget.o .obj/qlistviewitemext.o .obj/qoptionscrollview.o .obj/qreadonlyoption.o .obj/qsaneoption.o .obj/qscrollbaroption.o .obj/qstringoption.o .obj/qwordarrayoption.o .obj/qwordcombooption.o .obj/sanefixedoption.o .obj/saneintoption.o .obj/sanewidgetholder.o .obj/scanarea.o .obj/checklistitemext.o .obj/previewupdatewidget.o .obj/ruler.o .obj/scanareacanvas.o .obj/imagebuffer.o .obj/imageiosupporter.o .obj/imagedetection.o .obj/scanareatemplate.o .obj/qdoublespinbox.o .obj/qcurvewidget.o .obj/canvasrubberrectangle.o .obj/sanefixedspinbox.o .obj/qqualitydialog.o .obj/qimageioext.o .obj/qsplinearray.o .obj/paperstack.o .obj/err.o .obj/mem.o .obj/op.o .obj/sliderspin.o .obj/desktopmodel.o .obj/epeglite.o .obj/options.o .obj/pscan.o .obj/mainwindow.o .obj/pagetools.o .obj/dirmodel.o .obj/dirview.o .obj/desktopview.o .obj/desktopdelegate.o .obj/desktopundo.o .obj/printopt.o .obj/pagemodel.o .obj/pageview.o .obj/pagedelegate.o .obj/utils.o .obj/ocr.o .obj/dmop.o .obj/dmuserop.o .obj/file.o .obj/filemax.o .obj/filepdf.o .obj/fileother.o .obj/pdfio.o .obj/ocrtess.o .obj/ocromni.o .obj/zip.o .obj/senddialog.o .obj/transfer.o .obj/gdbmacros.o .obj/moc_desktopwidget.o .obj/moc_mainwidget.o .obj/moc_pagewidget.o .obj/moc_desktopitem.o .obj/moc_qscannersetupdlg.o .obj/moc_qscanner.o .obj/moc_saneconfig.o .obj/moc_qsanestatusmessage.o .obj/moc_qscandialog.o .obj/moc_qcombooption.o .obj/moc_previewwidget.o .obj/moc_qbooloption.o .obj/moc_qbuttonoption.o .obj/moc_qdevicesettings.o .obj/moc_qextensionwidget.o .obj/moc_qreadonlyoption.o .obj/moc_qsaneoption.o .obj/moc_qscrollbaroption.o .obj/moc_qstringoption.o .obj/moc_qwordarrayoption.o .obj/moc_qwordcombooption.o .obj/moc_sanefixedoption.o .obj/moc_saneintoption.o .obj/moc_previewupdatewidget.o .obj/moc_scanareacanvas.o .obj/moc_qdoublespinbox.o .obj/moc_qcurvewidget.o .obj/moc_sanefixedspinbox.o .obj/moc_qqualitydialog.o .obj/moc_paperstack.o .obj/moc_op.o .obj/moc_sliderspin.o .obj/moc_desktopmodel.o .obj/moc_options.o .obj/moc_pscan.o .obj/moc_mainwindow.o .obj/moc_pagetools.o .obj/moc_dirmodel.o .obj/moc_dirview.o .obj/moc_desktopview.o .obj/moc_desktopdelegate.o .obj/moc_printopt.o .obj/moc_pagemodel.o .obj/moc_pageview.o .obj/moc_pagedelegate.o .obj/moc_file.o .obj/moc_filemax.o .obj/moc_filepdf.o .obj/moc_fileother.o .obj/moc_senddialog.o .obj/qrc_maxview.o .obj/qmake_image_collection.o -ltiff -lsane -lpoppler-qt4 -lpodofo -lQt3Support -lQtSql -lQtNetwork -lQtXml -lQtGui -lpng -lfreetype -lSM -lICE -lXrender -lfontconfig -lXext -lX11 -lQtCore -lz -lgthread-2.0 -lrt -lglib-2.0 -ldl -lpthread -ljpeg -lpoppler -lX11 -lfreetype -lX11 -lxml2 -lxcb -lxml2 -lexpat -lXau -lXdmcp -lstdc++ -lm --start-group -lgcc -lgcc_eh -lpthread -lc --end-group /usr/lib/gcc/i486-linux-gnu/4.3.3/crtend.o /usr/lib/gcc/i486-linux-gnu/4.3.3/../../../../lib/crtn.o
+
+skype dynamic vs statis
+ sglass@ellesmere:~$ diff 1 2
+2d1
+< libaudio.so.2
+10d8
+< libgobject-2.0.so.0
+16d13
+< libpng12.so.0
+18,22d14
+< libQtCore.so.4
+< libQtDBus.so.4
+< libQtGui.so.4
+< libQtNetwork.so.4
+< libQtXml.so.4
+31a24,25
+> libXi.so.6
+> libXrandr.so.2
+34d27
+< libXt.so.6
+sglass@ellesmere:~$
+sglass@ellesmere:~$
+
+
+4/2/10
+
+done - remove display of .max extension on files (should be suppressed)
+
+
+3/4/10
+
+done - sometimes first item in directory is shown as corrupted
+
+This happens when Desktopview::currentChanged() is called on an item not
+currently visible. For example, if you open a long viewer and the first item
+is not visible, QT selects it as the current item even though it isn't valid
+yet
+
+
+done - filter without subdir set is flaky
+done - opening a new directory should scroll so that at least some items are visible
+done- subdir search inserts double slashes in the filename of files
+
+
+- double click on a stack to open page view. Then print - crashes. Should print current page.
+

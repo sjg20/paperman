@@ -1,0 +1,28 @@
+#! /bin/sh
+
+# this is a simply configure script, it just runs qmake
+
+QMAKE=`which qmake`
+
+# we need qmake to create our Makefile
+# this is a perfectly reasonable requirement
+if [ "$QMAKE" = "" ]; then
+   echo "Cannot find qmake. Try installing qmake-qt4 with:"
+   echo
+   echo "   sudo apt-get install qmake-qt4"
+   exit
+fi
+
+CMAKE=`which cmake`
+
+# we need cmake for building podofo
+# I wish we didn't
+if [ "$CMAKE" = "" ]; then
+   echo "Cannot find cmake. Try installing cmake with:"
+   echo
+   echo "   sudo apt-get install cmake"
+   exit
+fi
+
+# if this fails we hope the user can figure it out
+qmake maxview.pro

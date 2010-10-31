@@ -1,0 +1,152 @@
+/*
+License: GPL-2
+  An electronic filing cabinet: scan, print, stack, arrange
+ Copyright (C) 2009 Simon Glass, chch-kiwi@users.sourceforge.net
+ .
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
+ Public License can be found in the /usr/share/common-licenses/GPL file.
+*/
+/*
+   Project:    Maxview
+   Author:     Simon Glass
+   Copyright:  2001-2009 Bluewater Systems Ltd, www.bluewatersys.com
+   File:       utils.h
+   Started:    5/6/09
+
+   This file contains utility functions which don't belong anywhere else.
+*/
+
+
+#ifndef __utils_h
+#define __utils_h
+
+
+#include <QList>
+#include <QString>
+
+
+typedef unsigned char byte;
+
+typedef struct cpoint
+   {
+   int x, y;
+   } cpoint;
+
+
+
+
+/** retrieves a list of sizes from the Qt settings file.
+
+    The setting used is base + "splitter/n/size" where n runs from
+    1 to however many it finds.
+
+    This function returns true if any records can be read, and updates
+    the size array with a list of the numbers read.
+
+    \param base      base name for setting
+    \param size      size array to add to */
+bool getSettingsSizes (QString base, QList<int> &size);
+
+/** writes the given size settings out to the Qt settings file.
+
+    The setting used is base + "splitter/n/size" where n runs from
+    1 to the number of elements in the list */
+void setSettingsSizes (QString base, QList<int> &size);
+
+/** make a thumbnail of a JPEG file (quickly)
+
+   The preview is taken from the current image scalled by PREVIEW_SIZE in each direction. The output
+   buffer is either a 1 byte per pixel greyscale preview, or a 3 byte per pixel colour preview. In
+   the latter case, the order of red and green is swapped from normal, as required by maxview format.
+
+   Preview data is inverted - that means that the bottom row of the image appears first.
+
+   \param data      data buffer containing JPEG file
+   \param insize    data buffer size (number of bytes of JPEG data)
+   \param *destp    returns an allocated buffer containing the preview data
+   \param *dest_sizep  returns the allocated buffer size
+   \param *sizep    returns the preview size
+
+   \returns the last valid row of JPEG data decoded (can be used to crop the image) */
+int jpeg_thumbnail (byte *data, int insize, byte **destp, int *dest_sizep, cpoint *sizep);
+
+/** decode JPEG data into an image
+
+   \param data        the JPEG data to decode
+   \param size        the size of the data buffer
+   \param dest        destimation buffer (which must be big enough)
+   \param line_bytes  number of bytes per line in the output */
+void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp);
+
+QString removeExtension (QString &fname, QString &ext);
+
+void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
+            int bpp, int line_bytes, int quality);
+
+void memtest (const char *name);
+
+QImage utilConvertImageToGrey (QImage &image);
+
+QImage util_smooth_scale_image (QImage &image, QSize size);
+
+/** creates a temporary file and returns its name. You should allocate
+PATH_MAX + 1 bytes for the input string
+
+   \param tmp  place to put temporary file
+   \returns error, or NULL if all ok */
+struct err_info *util_get_tmp (char *tmp);
+
+/** build a zip file from a list of files
+
+   \param zip     zip file
+   \param fnamelist list of filenames to add to the zip (without their path) */
+err_info *util_buildZip (QString &zip, const QStringList &fnamelist);
+
+/** given a filename, try to make it unique by adding numbers, etc.
+
+   \param fname    the original filename (excluding extension)
+   \param dir      the directory to check
+   \param ext      the file extension with dot - e.g. ".max"
+   \param returns  the unique filename (without extension or directory), or
+                     null if nothing unique can be found (probably a
+                     filesystem fault) */
+QString util_findNextFilename (QString fname, QString dir, QString ext);
+
+/** increment a filename
+
+   There are various rules. It will increment numbers on the end of a filename, but only if
+   single digit, or preceeded by _. Otherwise it will append a number, or _ + number if a number
+   already exists
+
+   \param name   old name, returns new name
+   \param useNum true to use a number on the end of the name, else append _ if a number is present */
+void util_incrementFilename (QString &name, bool useNum = true);
+
+/* given a filename, check that it is unique with the supplied directory. If 
+not, mangle the name with numbers until if becomes unique. Keep the extension
+the same */
+QString util_getUnique (QString fname, QString dir, QString ext);
+
+/** get the login name of the current user 
+
+   \param userName   returns user name, or "whoami" if not found
+   \returns error, or NULL if ok */
+err_info *util_getUsername (QString &userName);
+
+
+#endif
+

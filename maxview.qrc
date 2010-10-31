@@ -1,0 +1,38 @@
+<RCC>
+  <qresource prefix="/images" >
+    <file>images/find.xpm</file>
+    <file>images/unknown.xpm</file>
+    <file>images/no_access.xpm</file>
+    <file>images/info.xpm</file>
+    <file>images/left.xpm</file>
+    <file>images/right.xpm</file>
+    <file>images/pages.xpm</file>
+    <file>images/document-revert.xpm</file>
+    <file>images/document-save.xpm</file>
+    <file>images/scanmode.xpm</file>
+    <file>images/hand.xpm</file>
+    <file>images/pointer.xpm</file>
+    <file>images/pageblank.xpm</file>
+    <file>images/pagekeep.xpm</file>
+    <file>images/pageremove.xpm</file>
+    <file>images/maxview.xpm</file>
+    <file>images/zoom-best-fit.xpm</file>
+    <file>images/zoom-in.xpm</file>
+    <file>images/zoom-out.xpm</file>
+    <file>images/zoom-original.xpm</file>
+    <file>images/find.xpm</file>
+    <file>images/hflip.xpm</file>
+    <file>images/next.xpm</file>
+    <file>images/options.xpm</file>
+    <file>images/pnext.xpm</file>
+    <file>images/pprev.xpm</file>
+    <file>images/prev.xpm</file>
+    <file>images/print.xpm</file>
+    <file>images/rleft.xpm</file>
+    <file>images/rright.xpm</file>
+    <file>images/scan-go.xpm</file>
+    <file>images/scan.xpm</file>
+    <file>images/swap.xpm</file>
+    <file>images/vflip.xpm</file>
+  </qresource>
+</RCC>

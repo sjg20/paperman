@@ -1,0 +1,152 @@
+MaxView
+=======
+
+For some years now I have been merrily scanning paper into PaperPort
+and then throwing it away. PaperPort was a great piece of software
+that made this relatively easy. I assumed that PaperPort would always
+be available on my platform of choice.
+
+Unfortunately, I got sick of Windows falling over and moved to Linux a
+few years ago. PaperPort wasn't available for Linux, so I lost easy
+access to this paper, and had to reboot to Windows to use it.
+
+MaxView aims to provide a facility to view PaperPort (.max) files in a
+Linux environment, or in fact any other QT-supported platform such as
+Unix and Mac.
+
+If anyone from ScanSoft is listening, please take pity on your poor
+Mac and Linux users, we are humans too.
+
+The software has been ported to the Mac, but the diffs are not included
+here. I will get into this once I can get my son's Mac Mini to play ball.
+
+
+Features
+--------
+
+Before you try it, here's what to look for:
+
+- fairly primitive GUI, inspired by PaperPort
+- navigate through directories
+- view previews and browse through pages
+- double click to view full size page image
+- simple print option
+
+new in 0.4:
+- basic scanning
+- partial creation of .max files (but monochrome images are uncompressed)
+       (also it doesn't create greyscale/colour previews)
+
+
+new in 0.5:
+- better scanning, should now work properly with SANE and most scanners
+- stacking/unstacking, moving files between directories, etc.
+- colour previews are created (greyscale still not sorry)
+- PDF, JPEG and TIFF conversion supported. Results may vary
+- View quality menu to trade speed for quality
+
+
+new in 0.7:
+- better multithreaded scanning
+- undo/redo
+- better PDF support
+- preview panes
+- OCR engine
+- zooming in and out in preview windows (hold down control and use mouse wheel)
+- rewritten for QT4
+- many many other changes and improvements
+
+
+
+Future Features
+---------------
+
+Here's what I'd like it to support:
+
+- more operations on images
+- support for more image types
+
+
+
+Building
+--------
+
+You will need these packages:
+
+- libqt4-dev
+
+QT4.4 is needed. This is quite a new version. You may need to enable
+backports to get it on Ubuntu 8.04 (Hardy) for example.
+
+- libpoppler-qt4-dev
+
+This is used for PDF rendering
+
+- podofo
+
+This is embedded within the code. It should build automatically when you
+type 'qmake', but if not, try 'make podofo'
+
+- libsane-dev
+
+This is the sane scanner library.
+
+- libtiff4-dev
+
+This is the tiff library
+
+- cmake
+
+This is needed to build podofo
+
+
+
+To prepare on Debian or Ubuntu:
+
+   sudo apt-get install qtcreator g++ qt4-qmake libqt4-dev libpoppler-qt4-dev libsane-dev libtiff4-dev cmake
+
+For Red Hat / Centos you will try some other approach.
+
+
+To build:
+
+   qmake maxview.pro
+   make
+
+You may get an error 'WARNING: Failure to find: /usr/share/qtcreator/gdbmacros/gdbmacros.cpp'. You
+can install qtcreator if you like to remove this warning.
+
+
+But if you have QT3 installed:
+
+$ qmake -v
+Qmake version: 1.07a (Qt 3.3.8b)
+Qmake is free software from Trolltech ASA.
+
+
+then you will need to force QT4:
+
+   qmake-qt4
+   make
+
+
+Nuance Omnipage
+---------------
+
+There is the beginnings of support for this excellent commercial OCR library.
+To use this you will need to purchase a license which will cost several
+hundred US$. Please contact me if you are interested in this and I will see
+what I can arrange.
+
+To use this support, see config.h and you will need to install the license
+file.
+
+
+
+If you have other ideas then feel free to let me know...
+
+
+Simon Glass
+chch-kiwi@users.sf.net
+Sep-09
+
