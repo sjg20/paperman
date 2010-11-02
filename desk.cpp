@@ -94,7 +94,7 @@ Desk::Desk (void)
 Desk::Desk (const QString &dirPath, const QString &trashPath,
    bool do_readDesk, bool read_sizes, bool writeDesk)
    {
-   qDebug () << "new Desk" << dirPath << -90 % 360;
+   //qDebug () << "new Desk" << dirPath << -90 % 360;
    setup ();
    _do_writeDesk = writeDesk;
    _dir = dirPath;

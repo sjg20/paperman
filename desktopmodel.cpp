@@ -1750,6 +1750,9 @@ void Desktopmodel::getScaledImage (const QModelIndex &ind, int pagenum,
       int bpp;
 
       err = getImage (ind, pagenum, false, image, isize, tsize, bpp, blank);
+      //qDebug () << "Desktopmodel::getScaledImage" << image.width () << image.height ()
+      //        << image.bits () << image.size ();
+      mem_check ();
       if (err)
          ;
       // do we need to scale?

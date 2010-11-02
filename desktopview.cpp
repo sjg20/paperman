@@ -538,9 +538,9 @@ void Desktopview::scrollToLast (void)
    QScrollBar *vs = verticalScrollBar ();
    QRect r = rect ();
    int value = bottomy - r.height () + 200;
-   qDebug () << "scrollToLast" << "bottom" << bottomy
-         << "height" << r.height ()
-         << "result" << value;
+   //qDebug () << "scrollToLast" << "bottom" << bottomy
+   //      << "height" << r.height ()
+   //      << "result" << value;
 
    /* the scroll bar maximum may not have been set yet, so manually fix it here */
    if (value > vs->maximum ())
@@ -548,7 +548,7 @@ void Desktopview::scrollToLast (void)
    //if (value >= 0)
       vs->setValue (value > 0 ? value : 0);
 
-   qDebug () << "scroll bars" << horizontalScrollBar ()->value () << verticalScrollBar ()->value ();
+   // qDebug () << "scroll bars" << horizontalScrollBar ()->value () << verticalScrollBar ()->value ();
 //   scrollTo (bottom);
    }
 

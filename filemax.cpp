@@ -1552,7 +1552,8 @@ err_info *Filemax::decode_tile (chunk_info &chunk,
             case 8 :
             case 24 :
                // decode raw JPEG file here
-               jpeg_decode (data, size, ptr, chunk.line_bytes, 32);
+               // need to restrict output to width tile_size->x
+               jpeg_decode (data, size, ptr, chunk.line_bytes, 32, tile_size.x);
                break;
 
             default :
@@ -1694,7 +1695,7 @@ static void calc_true_size (chunk_info *chunk, QSize &true_size)
 
 
 err_info *Filemax::decode_tiledata (chunk_info &chunk,
-                   decode_info &decode, byte *&imagep)
+                   decode_info &decode, byte *&imagep, QSize *image_size)
    {
    part_info *part;
    int x, y, pos, size;
@@ -1798,6 +1799,19 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
             && (debug->num_tiles == INT_MAX
                 || tilenum < debug->start_tile + debug->num_tiles))
             {
+            int startx = chunk.tile_size.x * x;
+
+            /* reduce the tile width if it extends past the right size of the image.
+               This should only happen for JPEG images where the image size is always
+               encode as a multiple of 8 pixels */
+            if (image_size && startx + tile_size.x > image_size->width ())
+               {
+               debug3 (("truncating tile from %d to %d to fit in image width %d\n",
+                        tile_size.x, image_size->width () - startx,
+                        image_size->width ()));
+               tile_size.x = image_size->width () - startx;
+               }
+
             debug2 (("decoding tile %d at %x: code %x (%d, %d), "
                      "size %d x %d (0x%x x 0x%x)\n", tilenum, pos, code, x, y,
                   tile_size.x, tile_size.y, tile_size.x, tile_size.y));
@@ -2113,7 +2127,7 @@ err_info *Filemax::decode_preview (chunk_info &chunk, int flip,
    }
 
 
-err_info *Filemax::decode_image (chunk_info &chunk, byte *&imagep)
+err_info *Filemax::decode_image (chunk_info &chunk, byte *&imagep, QSize *image_size)
    {
    decode_info decode;
 
@@ -2123,7 +2137,7 @@ err_info *Filemax::decode_image (chunk_info &chunk, byte *&imagep)
    // this is just for the benefit of free_tables()
    memset (&decode, '\0', sizeof (decode));
    CALL (chunk_ensure (chunk));
-   CALL (decode_tiledata (chunk, decode, imagep));
+   CALL (decode_tiledata (chunk, decode, imagep, image_size));
 
    free_tables (decode);
    return NULL;
@@ -3232,7 +3246,7 @@ err_info *Filemax::show_file (FILE *f)
          old = debug_level;
 //         debug_level = 3;
          debugf = f;
-         CALL (decode_image (chunk, image));
+         CALL (decode_image (chunk, image, NULL));
          debugf = stdout;
          debug_level = old;
 
@@ -7056,10 +7070,12 @@ err_info *Filemax::getImage (int pagenum, bool do_scale,
    // get the actual image data
    byte *imagep = image.bits ();
 
+   //qDebug () << "Filemax::getImage" << (void *)imagep << image.numBytes () << (void *)(imagep + image.numBytes ());
+
    chunk_info *chunk;
 
    CALL (find_page_chunk (pagenum, chunk, NULL, NULL));
-   CALL (decode_image (*chunk, imagep));
+   CALL (decode_image (*chunk, imagep, &trueSize));
 
    // the QImage 'owns' the bitmap, so remove it from the chunk, otherwise we free twice
    chunk->image = NULL;
@@ -7076,8 +7092,8 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
    bool temp;  //!< chunk is temporarily allocated
 
    //! really we should cache this information rather than reading from the file each time
-   if (debug_level >= 3)
-      show_file (stderr);
+   //if (debug_level >= 3)
+//      show_file (stderr);
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    Size = QSize (chunk->preview_size.x, chunk->preview_size.y);
    bpp = chunk->bits == 24 ? 24 : 8;

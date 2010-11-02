@@ -165,7 +165,8 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
    connect (_ocr_edit, SIGNAL (textChanged ()),
       this, SLOT (slotAnnotChanged ()));
 
-   QVBoxLayout *lay2 = new QVBoxLayout (this);
+   QVBoxLayout *lay2 = new QVBoxLayout (_ocr_area);  //w  (was (this)
+   //QLayout *lay2 = this->layout ();
    lay2->addWidget (_ocrbar_frame);
    lay2->addWidget (_ocr_edit);
    _ocr_area->setLayout (lay2);
@@ -1244,7 +1245,7 @@ void MyScrollArea::paintEvent (QPaintEvent *event)
       exposedRect = QRect (exposedRect.y (), exposedRect.x (), exposedRect.height (), exposedRect.width ());
 
    // the adjust is to account for half pixels along edges
-   qDebug () << "exposed" << exposedRect << "image" << _image.size () << "scale" << _scale << "tp" << tp;
+   //qDebug () << "exposed" << exposedRect << "image" << _image.size () << "scale" << _scale << "tp" << tp;
    QPointF target = QPointF (0, 0);
 
    // set up the blanking rectangles so that the page is clearly visible

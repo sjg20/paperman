@@ -29,6 +29,19 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mem.h"
 
 
+void mem_check (void)
+{
+    void *ptr;
+    int i;
+
+    for (i = 0; i < 50; i++)
+    {
+        ptr = malloc (rand () % 100000);
+        free (ptr);
+    }
+}
+
+
 err_info *mem_alloc (void **ptr, int size, const char *func_name)
    {
    *ptr = NULL;

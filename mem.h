@@ -36,3 +36,5 @@ struct err_info *mem_str (void **ptr, const char *str, const char *func_name);
 
 /** reallocate memory for string: free (*ptr); *ptr = strdup (str) */
 err_info *mem_restr (void **ptr, const char *str, const char *func_name);
+
+void mem_check (void);

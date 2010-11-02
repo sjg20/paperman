@@ -532,7 +532,7 @@ void Desktopwidget::selectDir (QModelIndex &index)
    if (index == QModelIndex ())
       index = _model->index (0, 0, QModelIndex ());
 
-   qDebug () << _model->data (index, Qt::DisplayRole).toString ();
+   //qDebug () << "Desktopwidget::selectDir" << _model->data (index, Qt::DisplayRole).toString ();
    _dir->setCurrentIndex (index);
    _dir->setExpanded (index, true);
     dirSelected (index, false);

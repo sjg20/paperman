@@ -355,12 +355,15 @@ private:
             cpoint &tile_size, int diff_if_uncomp);
 
    err_info *decode_tiledata (chunk_info &chunk,
-                     decode_info &decode, byte *&imagep);
+                     decode_info &decode, byte *&imagep, QSize *image_size);
 
    err_info *decode_preview (chunk_info &chunk, int flip,
             byte **previewp);
 
-   err_info *decode_image (chunk_info &chunk, byte *&imagep);
+   /** decode an image from a chunk into the given byte buffer. If image_size is
+       not NULL then it specifies the image size of the destination buffer, which
+       may be smaller in the x dimension only */
+   err_info *decode_image (chunk_info &chunk, byte *&imagep, QSize *image_size);
 
    err_info *decode_init (decode_info &decode, chunk_info &chunk,
                         byte *data, byte *image, int stride, cpoint &tile_size);

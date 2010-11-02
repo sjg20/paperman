@@ -148,7 +148,7 @@ void File::updateFilename (const QString &fname)
       _basename = _leaf;
    else
       _basename = _filename;
-   qDebug () << _dir << _filename << _basename;
+   qDebug () << "File::updateFilename" << _dir << _filename << _basename;
    }
 
 

@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QImage>
 #include <QSettings>
 
+#include <sys/types.h>
 
 #include <limits.h>
 #include <pwd.h>
@@ -40,6 +41,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "config.h"
 #include "err.h"
+#include "mem.h"
 #include "utils.h"
 #include "zip.h"
 
@@ -189,16 +191,13 @@ static void my_error_exit (j_common_ptr cinfo)
 }
 
 
-void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp)
+void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp, int max_width)
    {
    struct jpeg_decompress_struct cinfo;
    JSAMPARRAY buffer;/* Output row buffer */
    jpeg_source_info source;
    int tile_bytes;
    struct my_error_mgr jerr;
-   int i;
-   byte *in;
-   unsigned *out;
 
    jpeg_create_decompress(&cinfo);
    cinfo.err = jpeg_std_error(&jerr.mgr);
@@ -237,9 +236,19 @@ void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp)
          jpeg_read_scanlines(&cinfo, buffer, 1);
          if (cinfo.output_components == 3 && bpp == 32)
             {
-            for (i = cinfo.output_width, in = (byte *)buffer [0], out = (unsigned *)dest; i != 0;
+            byte *in;
+            u_int32_t *out;
+            int i;
+
+            mem_check ();
+            in = (byte *)buffer [0];
+            i = cinfo.output_width;
+            if (max_width != -1 && i > max_width)
+                i = max_width;
+            for (out = (u_int32_t *)dest; i != 0;
                  i--, in += 3)
                *out++ = in [2] | (in [1] << 8) | (in [0] << 16);
+            mem_check ();
             }
          else
             memcpy (dest, buffer[0], tile_bytes);
@@ -341,7 +350,7 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
        if (bpp == 32)
           {
           int i;
-          unsigned *in;
+          u_int32_t *in;
           byte *out;
 
           for (i = cinfo.image_width, in = (unsigned *)ptr, out = buff; i != 0;
@@ -426,6 +435,8 @@ QImage util_smooth_scale_image (QImage &image, QSize size)
       && size.height () * 4 < oldsize.height () * 4)
       {
       oldsize = size * 4;
+      // qDebug () << "util_smooth_scale_image1" << image.width () << image.height () << image.bits () << image.size ();
+      // qDebug () << "util_smooth_scale_image2" << img.width () << img.height () << img.bits () << img.size ();
       img = img.scaled (oldsize, Qt::KeepAspectRatio);
       }
    img = img.scaled (size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
