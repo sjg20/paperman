@@ -1,0 +1,5 @@
+maxview (0.7-1) karmic; urgency=low
+
+  * Initial release (first packaged)
+
+ -- Simon Glass <chch-kiwi@users.sourceforge.net>  Wed, 02 Sep 2009 21:23:29 +0100

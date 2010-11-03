@@ -47,6 +47,8 @@ RESOURCES = maxview.qrc
 
 TRANSLATIONS = maxview_en.ts
 
+QMAKE_CLEAN += -r podofo-build
+
 HEADERS += desktopwidget.h \
    mainwidget.h \
    desk.h \

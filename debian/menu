@@ -1,0 +1,2 @@
+?package(maxview):needs="X11|text|vc|wm" section="Applications/Graphics"\
+  title="maxview" command="/usr/bin/maxview"
