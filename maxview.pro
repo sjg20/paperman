@@ -207,8 +207,12 @@ SOURCES += desktopwidget.cpp \
  ocromni.cpp \
  zip.cpp \
  senddialog.cpp \
- transfer.cpp \
- /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
+ transfer.cpp
+
+contains (podofo, YES) {
+ # add qtcreator debug macros if we are debugging
+ SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
+}
 
 #The following line was changed from FORMS to FORMS3 by qt3to4
 FORMS = mainwindow.ui \
