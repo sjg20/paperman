@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# script to build maxview for all available distributions and architectures
+
+set -e
+
+RESULTDIR=../../release.latest
+#RESULTDIR=$1
+[ -d $RESULTDIR ] || mkdir $RESULTDIR
+
+DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
+
+for chrootdir in $DISTLIST
+do
+    #sudo cowbuilder --update --basepath $chrootdir
+    DIST=$(basename $chrootdir | cut -d'-' -f1)
+    echo $DIST
+    #[ -d $RESULTDIR/$DIST ] || mkdir $RESULTDIR/$DIST
+    #DIST=$DIST pdebuild --pbuilder cowbuilder\
+    #                    --buildresult $RESULTDIR/$DIST\
+    #                    -- --basepath $chrootdir
+    DIST=jaunty ARCH=i386 git-pbuilder
+
+    # generates
+    # -rw-rw-r--  1 sglass sglass       898 2010-11-03 20:51 maxview_0.7-1.diff.gz
+    #-rw-r--r--  1 sglass sglass       848 2010-11-03 20:51 maxview_0.7-1.dsc
+    #-rw-------  1 nobody nogroup     1464 2010-11-03 20:56 maxview_0.7-1_i386.changes
+    #-rw-------  1 nobody nogroup  1159314 2010-11-03 20:56 maxview_0.7-1_i386.deb
+    echo mv ../maxview_* $RESULTDIR/$DIST/.
+
+done
+

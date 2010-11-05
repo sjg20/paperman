@@ -1,0 +1,34 @@
+#!/bin/bash
+
+ARCHS="i386 amd64"
+#UDISTS="hardy jaunty karmic lucid maverick"
+UDISTS="hardy"
+#intrepid
+DISTS="lenny sid"
+
+# should remove /var/cache/pbuilder first
+
+setup () {
+	NAME=$dist-$arch.cow
+	echo
+	echo $NAME
+	echo
+	COMMON="ARCH=$arch DIST=$dist cowbuilder --create --distribution $dist --basepath /var/cache/pbuilder/base-$NAME --architecture $arch --debootstrapopts --exclude=udev,pcmciautils,initramfs-tools --debootstrapopts --arch --debootstrapopts $arch"
+    }
+
+sudo mkdir -p /var/cache/pbuilder/log
+for arch in $ARCHS
+do
+    for dist in $DISTS
+    do
+	setup
+	sudo $COMMON >/var/cache/pbuilder/log/$NAME
+    done
+
+    for dist in $UDISTS
+    do
+	setup
+	sudo $COMMON --debootstrapopts --include=gpgv --components "main universe" >/var/cache/pbuilder/log/$NAME
+    done
+done
+
