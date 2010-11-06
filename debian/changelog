@@ -1,4 +1,9 @@
-maxview (0.7-1) karmic; urgency=low
+maxview (0.7-2) karmic; urgency=low
+
+  * Update with various bug fixes and slightly wider distribution selection
+
+ -- Simon Glass <chch-kiwi@users.sourceforge.net>  Sat, 06 Nov 2010 11:46:00 -0700
+
 
   * Initial release (first packaged)
 

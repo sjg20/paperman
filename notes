@@ -944,3 +944,38 @@ done- subdir search inserts double slashes in the filename of files
 
 - double click on a stack to open page view. Then print - crashes. Should print current page.
 
+31oct10
+
+
+Building for multiple architectures:
+
+Want to support:
+
+Ubuntu:
+hardy
+intrepid
+jaunty
+karmic
+lucid
+maverick
+
+Debian:
+lenny
+
+Would be nice to support Redhat, Mandrake, SUSE also
+
+
+For each:
+sudo DIST=hardy pbuilder create
+
+https://wiki.ubuntu.com/PbuilderHowto
+
+Set up git repository
+
+cd max/git
+git push sf master
+
+http://sourceforge.net/apps/trac/sourceforge/wiki/Git
+
+
+git log --pretty=format:"%h: %cn, %cD: %s"

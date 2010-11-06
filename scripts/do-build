@@ -4,29 +4,40 @@
 
 set -e
 
-RESULTDIR=../../release.latest
+RESULTDIR=../release
+LOGDIR=../release/log
 #RESULTDIR=$1
 [ -d $RESULTDIR ] || mkdir $RESULTDIR
+[ -d $LOGDIR ] || mkdir $LOGDIR
 
 DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
 
+# output filename
+OUT="../maxview_*.deb"
+
 for chrootdir in $DISTLIST
 do
+    rm -f ../maxview_*
     #sudo cowbuilder --update --basepath $chrootdir
-    DIST=$(basename $chrootdir | cut -d'-' -f1)
-    echo $DIST
+    DIST=$(basename $chrootdir | cut -d'-' -f2)
+    ARCH=$(basename $chrootdir | cut -d'-' -f3)
+    ARCH=${ARCH%.cow}
     #[ -d $RESULTDIR/$DIST ] || mkdir $RESULTDIR/$DIST
     #DIST=$DIST pdebuild --pbuilder cowbuilder\
     #                    --buildresult $RESULTDIR/$DIST\
     #                    -- --basepath $chrootdir
-    DIST=jaunty ARCH=i386 git-pbuilder
+    echo $DIST $ARCH
+    mkdir -p $RESULTDIR/$DIST
+    DIST=jaunty ARCH=i386 git-pbuilder > $LOGDIR/$DIST-$ARCH.log
 
     # generates
     # -rw-rw-r--  1 sglass sglass       898 2010-11-03 20:51 maxview_0.7-1.diff.gz
     #-rw-r--r--  1 sglass sglass       848 2010-11-03 20:51 maxview_0.7-1.dsc
     #-rw-------  1 nobody nogroup     1464 2010-11-03 20:56 maxview_0.7-1_i386.changes
     #-rw-------  1 nobody nogroup  1159314 2010-11-03 20:56 maxview_0.7-1_i386.deb
-    echo mv ../maxview_* $RESULTDIR/$DIST/.
-
+    sudo chmod 664 $OUT
+    mv -f $OUT $RESULTDIR/$DIST/
 done
 
+#DIST=jaunty ARCH=i386 git-pbuilder -- --buildresult ../release.latest/jaunty
+#ARCH=i386 git-buildpackage --git-dist=karmic

@@ -1,7 +1,7 @@
 This package was debianized by Simon Glass <chch-kiwi@users.sourceforge.net> on
 Wed, 02 Sep 2009 21:23:29 +0100.
 
-It was downloaded from <url://example.com>
+It was downloaded git://maxview.git.sourceforge.net/gitroot/maxview/maxview
 
 Upstream Author(s):
 
@@ -9,7 +9,7 @@ Upstream Author(s):
 
 Copyright:
 
-    <Copyright (C) 2009 Simon Glass>
+    <Copyright (C) 2010 Simon Glass>
 
 License:
 
@@ -39,23 +39,23 @@ TIFF code license:
  * Copyright (c) 1988-1996 Sam Leffler
  * Copyright (c) 1991-1996 Silicon Graphics, Inc.
  *
- * Permission to use, copy, modify, distribute, and sell this software and 
+ * Permission to use, copy, modify, distribute, and sell this software and
  * its documentation for any purpose is hereby granted without fee, provided
  * that (i) the above copyright notices and this permission notice appear in
  * all copies of the software and related documentation, and (ii) the names of
  * Sam Leffler and Silicon Graphics may not be used in any advertising or
  * publicity relating to the software without the specific, prior written
  * permission of Sam Leffler and Silicon Graphics.
- * 
- * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND, 
- * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY 
- * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  
- * 
+ *
+ * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
+ * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ *
  * IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
  * ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
  * OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
- * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF 
- * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE 
+ * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF
+ * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
 
@@ -73,7 +73,7 @@ podofo is GPL2:
    PoDoFoImpose:
       Contributed by Pierre Marchand <pierre@moulindetouvois.com> as `pdfimpose'
       Qt-to-STL conversion by Craig Ringer <craig@postnewspapers.com.au>
-   
+
 Zip library is GPL2:
    Copyright (C) 2007-2008 Angius Fabrizio. All rights reserved.
 
@@ -83,7 +83,7 @@ md5 Library is GPL2:
 epeglite is GPL2:
    Created by Marc Liyanage on Fri Jan 16 2004.
    Copyright (c) 2004 __MyCompanyName__. All rights reserved.
-   epeglite is a veneer on EPEG from enlightenment 
+   epeglite is a veneer on EPEG from enlightenment
      - see http://www.enlightenment.org/
 
 

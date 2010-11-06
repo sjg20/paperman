@@ -1,0 +1,24 @@
+2010-11-04  Simon Glass <chch-kiwi@users.sourceforge.net>
+
+  * scripts/do-build, scripts/setup-pbuilder: Added build scripts
+
+2010-11-03  Simon Glass <chch-kiwi@users.sourceforge.net>
+
+  * maxview.pro: Removed gdbmacros from normal build
+
+2010-11-02  Simon Glass <chch-kiwi@users.sourceforge.net>
+
+  * debian/README.Debian, debian/changelog, debian/compat, debian/control,
+  debian/copyright, debian/dirs, debian/docs, debian/maxview.doc-base.EX,
+  debian/maxview.pod, debian/menu, debian/rules, debian/watch, maxview.pro:
+  Added debian files
+
+2010-11-01  Simon Glass <chch-kiwi@users.sourceforge.net>
+
+  * README: Small change to README (version bump)
+
+  * desk.cpp, desktopmodel.cpp, desktopview.cpp, desktopwidget.cpp, file.cpp,
+  filemax.cpp, filemax.h, maxview.cpp, mem.cpp, mem.h, pagewidget.cpp,
+  utils.cpp, utils.h: Fixed nasty JPEG decompression memory overwrite bug
+  Removed some stdout debugging Fixed Pagewidget layout warning message (needs
+  more testing)
