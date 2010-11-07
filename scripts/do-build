@@ -40,7 +40,10 @@ do
     RESULT=$RESULTDIR/$DIST
     mkdir -p $RESULT
     chmod 777 $RESULT
-    #DIST=$DIST ARCH=$ARCH scripts/git-pbuilder-maxview $RESULT > $LOGDIR/$DIST-$ARCH.log
+
+    # we are now using cowbuilder but it seems incompatible with 
+    # git-buildpackage, so use git-pbuilder instead for now :-(
+    DIST=$DIST ARCH=$ARCH scripts/git-pbuilder-maxview $RESULT > $LOGDIR/$DIST-$ARCH.log
     if [ $? -ne 0 ]; then
 	echo "- error"
     else
@@ -64,5 +67,14 @@ do
 done
 
 
+#git-buildpackage
+#git-pbuilder             <---
+#calls pbuilder
+
+
 #DIST=jaunty ARCH=i386 git-pbuilder -- --buildresult ../release.latest/jaunty
 #ARCH=i386 git-buildpackage --git-dist=karmic
+
+# we have to do hardy manually as it is on a 'hardy' branch
+# should figure this out...
+#DIST=hardy pdebuild --pbuilder cowbuilder --buildresult ../release/hardy/ --debbuildopts "-i'(?:^|/)\\.git(attributes)?(?:\$|/.*\$)' -I.git $*" -- --basepath /var/cache/pbuilder/base-hardy-i386.cow/
