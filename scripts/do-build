@@ -2,22 +2,32 @@
 
 # script to build maxview for all available distributions and architectures
 
-set -e
+#set -e
 
 RESULTDIR=../release
+ALLDIR=$RESULTDIR/all
 LOGDIR=../release/log
 #RESULTDIR=$1
 [ -d $RESULTDIR ] || mkdir $RESULTDIR
 [ -d $LOGDIR ] || mkdir $LOGDIR
 
+# the pbuilder runs as nobody and needs write access
+chmod 777 $RESULTDIR
+mkdir -p $ALLDIR
+
 DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
 
-# output filename
-OUT="../maxview_*.deb"
+# get version. don't you just love this ugly stuff
+VERSION=`grep "^maxview" debian/changelog |head -1 | awk -F "[()]" '{print $2}'`
+echo Version $VERSION
+
+# or maybe you would prefer this? I think it is worse
+#grep "^maxview" debian/changelog |head -1 | sed "s/.*(\(.*\)).*/\\1/"
 
 for chrootdir in $DISTLIST
 do
-    rm -f ../maxview_*
+
+    #rm -f ../maxview_*
     #sudo cowbuilder --update --basepath $chrootdir
     DIST=$(basename $chrootdir | cut -d'-' -f2)
     ARCH=$(basename $chrootdir | cut -d'-' -f3)
@@ -27,17 +37,32 @@ do
     #                    --buildresult $RESULTDIR/$DIST\
     #                    -- --basepath $chrootdir
     echo $DIST $ARCH
-    mkdir -p $RESULTDIR/$DIST
-    DIST=jaunty ARCH=i386 git-pbuilder > $LOGDIR/$DIST-$ARCH.log
+    RESULT=$RESULTDIR/$DIST
+    mkdir -p $RESULT
+    chmod 777 $RESULT
+    #DIST=$DIST ARCH=$ARCH scripts/git-pbuilder-maxview $RESULT > $LOGDIR/$DIST-$ARCH.log
+    if [ $? -ne 0 ]; then
+	echo "- error"
+    else
+	#rename "s#\$$RESULT/(.*).deb#${RESULT}/\$1_${DIST}.deb#" $RESULT/*.deb
+	DEB=$RESULT/maxview_${VERSION}_$ARCH.deb
+	sudo chmod a+r $DEB
+	#ls -l $DEB
+
+	# copy into the 'all' directory with a _dist filename
+	cp $DEB $ALLDIR/maxview_${VERSION}_${ARCH}_$DIST.deb
+    fi
+    echo
 
     # generates
     # -rw-rw-r--  1 sglass sglass       898 2010-11-03 20:51 maxview_0.7-1.diff.gz
     #-rw-r--r--  1 sglass sglass       848 2010-11-03 20:51 maxview_0.7-1.dsc
     #-rw-------  1 nobody nogroup     1464 2010-11-03 20:56 maxview_0.7-1_i386.changes
     #-rw-------  1 nobody nogroup  1159314 2010-11-03 20:56 maxview_0.7-1_i386.deb
-    sudo chmod 664 $OUT
-    mv -f $OUT $RESULTDIR/$DIST/
+    #sudo chmod 664 $OUT
+    #mv -f $OUT $RESULTDIR/$DIST/
 done
+
 
 #DIST=jaunty ARCH=i386 git-pbuilder -- --buildresult ../release.latest/jaunty
 #ARCH=i386 git-buildpackage --git-dist=karmic
