@@ -73,19 +73,199 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
    {
-//    QColor col = qRgb (224, 224, 224);
-
    _model = new Dirmodel ();
 //    _model->setLazyChildCount (true);
-//    printf ("%d\n", (int)_model->supportedDropActions ());
    _dir = new Dirview (this);
    _dir->setModel (_model);
-//    printf ("Dirview = %p\n", _dir);
-
-//   _dir->setPaletteBackgroundColor (col);
 
    _contents = new Desktopmodel (this);
 
+   QWidget *group = createToolbar();
+
+   _view = new Desktopview (group);
+   QVBoxLayout *lay = new QVBoxLayout (group);
+   lay->setContentsMargins (0, 0, 0, 0);
+   lay->setSpacing (2);
+   lay->addWidget (_toolbar);
+   lay->addWidget (_view);
+
+   connect (_view, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
+         this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
+
+#ifdef USE_PROXY
+   _proxy = new Desktopproxy (this);
+   _proxy->setSourceModel (_contents);
+   _view->setModel (_proxy);
+//    printf ("contents=%p, proxy=%p\n", _contents, _proxy);
+
+   // set up the model converter
+   _modelconv = new Desktopmodelconv (_contents, _proxy);
+
+   // setup another one for Desktopmodel, which only allows assertions
+   _modelconv_assert = new Desktopmodelconv (_contents, _proxy, false);
+#else
+   _proxy = 0;
+   _view->setModel (_contents);
+   _modelconv = new Desktopmodelconv (_contents);
+
+   // setup another one for Desktopmodel, which only allows assertions
+   _modelconv_assert = new Desktopmodelconv (_contents, false);
+#endif
+
+   _view->setModelConv (_modelconv);
+
+   _contents->setModelConv (_modelconv_assert);
+
+   _delegate = new Desktopdelegate (_modelconv, this);
+   _view->setItemDelegate (_delegate);
+   connect (_delegate, SIGNAL (itemClicked (const QModelIndex &, int)),
+         this, SLOT (slotItemClicked (const QModelIndex &, int)));
+   connect (_delegate, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
+         this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
+   connect (_delegate, SIGNAL (itemDoubleClicked (const QModelIndex &)),
+      this, SLOT (openStack (const QModelIndex &)));
+
+   connect (_contents, SIGNAL (undoChanged ()),
+      this, SIGNAL (undoChanged ()));
+   connect (_contents, SIGNAL (dirChanged (QString&, QModelIndex&)),
+      this, SLOT (slotDirChanged (QString&, QModelIndex&)));
+   connect (_contents, SIGNAL (beginningScan (const QModelIndex &)),
+      this, SLOT (slotBeginningScan (const QModelIndex &)));
+   connect (_contents, SIGNAL (endingScan (bool)),
+      this, SLOT (slotEndingScan (bool)));
+
+    // position the items when the model is reset, otherwise things
+    // move and look ugly for a while
+    connect (_contents, SIGNAL (modelReset ()), _view, SLOT (setPositions ()));
+
+   createPage();
+
+   // and when there are no selected items
+   connect (_view, SIGNAL (pageLost()), _page, SLOT (slotReset ()));
+
+   _parent = parent;
+   _pendingMatch = QString::null;
+   _updating = false;
+
+   // setup the preview timer
+   _timer = new QTimer ();
+   _timer->setSingleShot (true);
+   connect (_timer, SIGNAL(timeout()), this, SLOT(updatePreview()));
+
+   connect (_dir, SIGNAL (clicked (const QModelIndex&)),
+            this, SLOT (dirSelected (const QModelIndex&)));
+   connect (_dir, SIGNAL (activated (const QModelIndex&)),
+            this, SLOT (dirSelected (const QModelIndex&)));
+   connect (_model, SIGNAL(droppedOnFolder(const QMimeData *, QString &)),
+            this, SLOT(slotDroppedOnFolder(const QMimeData *, QString &)));
+
+   /* notice when the current directory is fully displayed so we can handle
+      any pending action */
+   connect (_contents, SIGNAL (updateDone()), this, SLOT (slotUpdateDone()));
+
+   // connect signals from the directory tree
+   connect (_dir->_new, SIGNAL (triggered ()), this, SLOT (newDir ()));
+   connect (_dir->_rename, SIGNAL (triggered ()), this, SLOT (renameDir ()));
+   connect (_dir->_delete, SIGNAL (triggered ()), this, SLOT (deleteDir ()));
+   connect (_dir->_refresh, SIGNAL (triggered ()), this, SLOT (refreshDir ()));
+
+   setResizeMode (_dir, KeepSize);
+
+   QList<int> size;
+
+   if (!getSettingsSizes ("desktopwidget/", size))
+      {
+      size.append (200);
+      size.append (1000);
+      size.append (400);
+      }
+   setSizes (size);
+
+   connect (_view, SIGNAL (popupMenu (QModelIndex &)),
+         this, SLOT (slotPopupMenu (QModelIndex &)));
+
+   // allow top level to see our view messages
+   connect (_view, SIGNAL (newContents (QString)), this, SIGNAL (newContents (QString)));
+
+   addActions();
+
+   /* unfortunately when we first run maxview it starts with the main window
+      un-maximised. This means that scrollToLast() doesn't quite scroll far
+      enough for the maximised view which appears soon afterwards. As a hack
+      for the moment, we do another scroll 1 second after starting up */
+   QTimer::singleShot(1000, _view, SLOT (scrollToLast()));
+   }
+
+
+void Desktopwidget::createPage(void)
+   {
+   _page = new Pagewidget (_modelconv, "desktopwidget/", this);
+   _page->setSmoothing (false);
+
+   // allow top level to see our preview messages
+   connect (_page, SIGNAL (newContents (QString)), this, SIGNAL (newContents (QString)));
+
+   connect (_page, SIGNAL (modeChanging (int, int)),
+      this, SLOT (slotModeChanging (int, int)));
+
+   _page->init ();
+
+   // alert the page widget whenever a new page is finished scanning
+   connect (_contents, SIGNAL (newScannedPage (const QString &, bool)),
+      _page, SLOT (slotNewScannedPage (const QString &, bool)));
+
+   // alert the page widget whenever we start to scan a new page
+   connect (_contents, SIGNAL (beginningPage ()),
+      _page, SLOT (slotBeginningPage ()));
+
+   // and when we have a new preview image fragment for the page being scanned
+   connect (_contents, SIGNAL (newScaledImage (const QImage &, int)),
+      _page, SLOT (slotNewScaledImage (const QImage &, int)));
+
+   // and when we change a stack
+   connect (_contents, SIGNAL (dataChanged (const QModelIndex &, const QModelIndex &)),
+      _page, SLOT (slotStackChanged (const QModelIndex &, const QModelIndex &)));
+
+   // and when we delete any stacks
+   connect (_contents, SIGNAL (rowsRemoved (const QModelIndex &, int, int)),
+      _page, SLOT (slotReset ()));
+
+   // and when we want to commit the stack
+   connect (_contents, SIGNAL (commitScanStack ()),
+      _page, SLOT (slotCommitScanStack ()));
+   }
+
+
+void Desktopwidget::addActions(void)
+   {
+   // use translatable version of keys
+   addAction (_act_duplicate, "&Duplicate", SLOT(duplicate ()), "Ctrl+D");
+   addAction (_act_locate, "&Locate folder",  SLOT(locateFolder ()), "Ctrl+L");
+   addAction (_act_delete, "D&elete stack",  SLOT(deleteStacks ()), "Delete");
+
+   addAction (_act_stack, "&Stack", SLOT(stackPages()), "Ctrl+G");
+   addAction (_act_unstack_page, "Unstack &page", SLOT(unstackPage()), "Ctrl+I");
+   addAction (_act_unstack_all, "&Unstack all", SLOT(unstackStacks ()), "Ctrl+U");
+   addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
+   addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
+
+   addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
+   addAction (_act_duplicate_max, "as &Max", SLOT (duplicateMax ()), "Ctrl+Shift+D");
+   addAction (_act_duplicate_pdf, "as &PDF", SLOT (duplicatePdf ()), "Ctrl+Shift+P");
+   //    addAction (_act_duplicate_tiff, "as &Tiff", SLOT (duplicateTiff ()), "Ctrl+Shift+T");
+   addAction (_act_duplicate_odd, "&odd pages only", SLOT (duplicateOdd ()), "");
+   addAction (_act_duplicate_even, "&even pages only", SLOT (duplicateEven ()), "");
+
+   addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
+   addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
+   addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
+   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
+   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
+   }
+
+
+QWidget *Desktopwidget::createToolbar(void)
+   {
    QWidget *group = new QWidget (this);
 
    /* create the desktop toolbar. We are doing this manually since we can't
@@ -152,10 +332,6 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    label->setText(QApplication::translate("Mainwindow", "Filter:", 0, QApplication::UnicodeUTF8));
 
-//    _find->setText(QApplication::translate("Mainwindow", "...", 0, QApplication::UnicodeUTF8));
-//    _global->setText(QApplication::translate("Mainwindow", "Global", 0, QApplication::UnicodeUTF8));
-//    _reset->setText(QApplication::translate("Mainwindow", "Reset", 0, QApplication::UnicodeUTF8));
-
 #ifndef QT_NO_TOOLTIP
    _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0, QApplication::UnicodeUTF8));
    _find->setToolTip(QApplication::translate("Mainwindow", "Search for the name", 0, QApplication::UnicodeUTF8));
@@ -176,203 +352,8 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 "To reset the filter, click the 'reset' button.", 0, QApplication::UnicodeUTF8));
    _reset->setWhatsThis(QApplication::translate("Mainwindow", "Press this button to reset the filter string and display stacks in the current directory", 0, QApplication::UnicodeUTF8));
 #endif // QT_NO_WHATSTHIS
-
-//    hboxLayout2->addWidget (_reset);
-
-   _view = new Desktopview (group);
-   QVBoxLayout *lay = new QVBoxLayout (group);
-   lay->setContentsMargins (0, 0, 0, 0);
-   lay->setSpacing (2);
-   lay->addWidget (_toolbar);
-   lay->addWidget (_view);
-
-#ifdef USE_PROXY
-   _proxy = new Desktopproxy (this);
-   _proxy->setSourceModel (_contents);
-   _view->setModel (_proxy);
-//    printf ("contents=%p, proxy=%p\n", _contents, _proxy);
-
-   // set up the model converter
-   _modelconv = new Desktopmodelconv (_contents, _proxy);
-
-   // setup another one for Desktopmodel, which only allows assertions
-   _modelconv_assert = new Desktopmodelconv (_contents, _proxy, false);
-#else
-   _proxy = 0;
-   _view->setModel (_contents);
-   _modelconv = new Desktopmodelconv (_contents);
-
-   // setup another one for Desktopmodel, which only allows assertions
-   _modelconv_assert = new Desktopmodelconv (_contents, false);
-#endif
-
-   _view->setModelConv (_modelconv);
-
-   _contents->setModelConv (_modelconv_assert);
-
-   _delegate = new Desktopdelegate (_modelconv, this);
-   _view->setItemDelegate (_delegate);
-   connect (_delegate, SIGNAL (itemClicked (const QModelIndex &, int)),
-         this, SLOT (slotItemClicked (const QModelIndex &, int)));
-   connect (_delegate, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
-         this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
-   connect (_delegate, SIGNAL (itemDoubleClicked (const QModelIndex &)),
-      this, SLOT (openStack (const QModelIndex &)));
-
-   connect (_contents, SIGNAL (undoChanged ()),
-      this, SIGNAL (undoChanged ()));
-   connect (_contents, SIGNAL (dirChanged (QString&, QModelIndex&)),
-      this, SLOT (slotDirChanged (QString&, QModelIndex&)));
-   connect (_contents, SIGNAL (beginningScan (const QModelIndex &)),
-      this, SLOT (slotBeginningScan (const QModelIndex &)));
-   connect (_contents, SIGNAL (endingScan (bool)),
-      this, SLOT (slotEndingScan (bool)));
-
-    // position the items when the model is reset, otherwise things
-    // move and look ugly for a while
-    connect (_contents, SIGNAL (modelReset ()), _view, SLOT (setPositions ()));
-
-//    _view->setPositions ();
-
-//   _view->setPaletteBackgroundColor (col); //_dir->colorGroup ().light ());
-//    _contents->setAutoArrange (false);
-//    _contents->setPaletteBackgroundColor (col); //_dir->colorGroup ().light ());
-//    if (!contents_font)
-//       {
-//       contents_font = new QFont ();
-//       contents_font->setPointSize (8);
-//       }
-//    _contents->setFont (*contents_font);
-//    _contents->setWordWrapIconText (false);
-
-   _page = new Pagewidget (_modelconv, "desktopwidget/", this);
-   _page->setSmoothing (false);
-
-   // allow top level to see our preview messages
-   connect (_page, SIGNAL (newContents (QString)), this, SIGNAL (newContents (QString)));
-
-   connect (_page, SIGNAL (modeChanging (int, int)),
-      this, SLOT (slotModeChanging (int, int)));
-
-   _page->init ();
-
-   // alert the page widget whenever a new page is finished scanning
-   connect (_contents, SIGNAL (newScannedPage (const QString &, bool)),
-      _page, SLOT (slotNewScannedPage (const QString &, bool)));
-
-   // alert the page widget whenever we start to scan a new page
-   connect (_contents, SIGNAL (beginningPage ()),
-      _page, SLOT (slotBeginningPage ()));
-
-   // and when we have a new preview image fragment for the page being scanned
-   connect (_contents, SIGNAL (newScaledImage (const QImage &, int)),
-      _page, SLOT (slotNewScaledImage (const QImage &, int)));
-
-   // and when we change a stack
-   connect (_contents, SIGNAL (dataChanged (const QModelIndex &, const QModelIndex &)),
-      _page, SLOT (slotStackChanged (const QModelIndex &, const QModelIndex &)));
-
-   // and when we delete any stacks
-   connect (_contents, SIGNAL (rowsRemoved (const QModelIndex &, int, int)),
-      _page, SLOT (slotReset ()));
-
-   // and when we want to commit the stack
-   connect (_contents, SIGNAL (commitScanStack ()),
-      _page, SLOT (slotCommitScanStack ()));
-
-   // and when there are no selected items
-   connect (_view, SIGNAL (pageLost()), _page, SLOT (slotReset ()));
-
-   _parent = parent;
-   _pendingMatch = QString::null;
-   _updating = false;
-
-   // setup the preview timer
-   _timer = new QTimer ();
-   _timer->setSingleShot (true);
-   connect (_timer, SIGNAL(timeout()), this, SLOT(updatePreview()));
-
-   connect (_dir, SIGNAL (clicked (const QModelIndex&)),
-            this, SLOT (dirSelected (const QModelIndex&)));
-   connect (_dir, SIGNAL (activated (const QModelIndex&)),
-            this, SLOT (dirSelected (const QModelIndex&)));
-   connect (_model, SIGNAL(droppedOnFolder(const QMimeData *, QString &)),
-            this, SLOT(slotDroppedOnFolder(const QMimeData *, QString &)));
-
-   /* notice when the current directory is fully displayed so we can handle
-      any pending action */
-   connect (_contents, SIGNAL (updateDone()), this, SLOT (slotUpdateDone()));
-
-   /* notice when anything about the model changes since we need to
-      re=position the items. Qt seems to reposition everything after a
-      change! */
-//       not needed (yet)
-//    connect (_contents, SIGNAL (modelChanged()), _view, SLOT (slotModelChanged()));
-
-//    connect (_view, SIGNAL (clicked(QModelIndex &)), this, SLOT (clicked (QModelIndex &)));
-//    connect (this, SIGNAL (itemSelected (const QModelIndex &)),
-//          this, SLOT (slotItemSelected(const QModelIndex &)));
-
-//    connect (_connects, SIGNAL (viewRefreshed ()), this, SLOT (slotViewRefreshed ()));
-
-   // connect signals from the directory tree
-   connect (_dir->_new, SIGNAL (triggered ()), this, SLOT (newDir ()));
-   connect (_dir->_rename, SIGNAL (triggered ()), this, SLOT (renameDir ()));
-   connect (_dir->_delete, SIGNAL (triggered ()), this, SLOT (deleteDir ()));
-   connect (_dir->_refresh, SIGNAL (triggered ()), this, SLOT (refreshDir ()));
-
-   setResizeMode (_dir, KeepSize);
-
-   QList<int> size;
-
-   if (!getSettingsSizes ("desktopwidget/", size))
-      {
-      size.append (200);
-      size.append (1000);
-      size.append (400);
-      }
-   setSizes (size);
-
-//   QBoxLayout *lay = new QHBoxLayout (this, 11, 6, "fred");
-//   lay->addWidget (_split);
-
-   connect (_view, SIGNAL (popupMenu (QModelIndex &)),
-         this, SLOT (slotPopupMenu (QModelIndex &)));
-
-   // allow top level to see our view messages
-   connect (_view, SIGNAL (newContents (QString)), this, SIGNAL (newContents (QString)));
-
-   // use translatable version of keys
-   addAction (_act_duplicate, "&Duplicate", SLOT(duplicate ()), "Ctrl+D");
-   addAction (_act_locate, "&Locate folder",  SLOT(locateFolder ()), "Ctrl+L");
-   addAction (_act_delete, "D&elete stack",  SLOT(deleteStacks ()), "Delete");
-
-   addAction (_act_stack, "&Stack", SLOT(stackPages()), "Ctrl+G");
-   addAction (_act_unstack_page, "Unstack &page", SLOT(unstackPage()), "Ctrl+I");
-   addAction (_act_unstack_all, "&Unstack all", SLOT(unstackStacks ()), "Ctrl+U");
-   addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
-   addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
-
-   addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
-   addAction (_act_duplicate_max, "as &Max", SLOT (duplicateMax ()), "Ctrl+Shift+D");
-   addAction (_act_duplicate_pdf, "as &PDF", SLOT (duplicatePdf ()), "Ctrl+Shift+P");
-//    addAction (_act_duplicate_tiff, "as &Tiff", SLOT (duplicateTiff ()), "Ctrl+Shift+T");
-   addAction (_act_duplicate_odd, "&odd pages only", SLOT (duplicateOdd ()), "");
-   addAction (_act_duplicate_even, "&even pages only", SLOT (duplicateEven ()), "");
-   
-   addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
-   addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
-   addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
-   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
-   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
-
-   /* unfortunately when we first run maxview it starts with the main window
-      un-maximised. This means that scrollToLast() doesn't quite scroll far
-      enough for the maximised view which appears soon afterwards. As a hack
-      for the moment, we do another scroll 1 second after starting up */
-   QTimer::singleShot(1000, _view, SLOT (scrollToLast()));
+   return group;
    }
-
 
 Desktopwidget::~Desktopwidget ()
    {
@@ -485,27 +466,7 @@ bool Desktopwidget::getCurrentFile (QModelIndex &index)
    }
 
 
-bool Desktopwidget::setCurrentFile (file_info *file)
-   {
-#if 0//p
-   Desktopitem *item = (Desktopitem *)_contents->currentItem ();
-
-   for (item = (Desktopitem *)_contents->firstItem(); item; item = (Desktopitem *)item->nextItem())
-      {
-      if (item->userData () == file)
-         {
-         // select just this item
-         _contents->setSelected (item, TRUE);
-         _contents->setCurrentItem (item);
-         return true;
-         }
-      }
-#endif
-   return false;
-   }
-
-
-void Desktopwidget::setDir (QString dirname)
+void Desktopwidget::addDir (QString dirname)
    {
    QDir dir (dirname);
 
@@ -515,12 +476,6 @@ void Desktopwidget::setDir (QString dirname)
 // printf ("dir = %s\n", dirname.latin1 ());
    if (!_model->addDir (dirname))
       printf ("Could not find directory '%s'\n", dirname.latin1 ());
-//    QModelIndex index = _model->index (dirname);
-
-//    dirSelected (index);
-//    _dir->setRootIndex (_model->index (dirname));
-
-//   _dir->openFolder (dirname, true);
    }
 
 
@@ -655,7 +610,6 @@ void Desktopwidget::newDir ()
    if ( ok && !text.isEmpty() )
       {
       QModelIndex index = _dir->menuGetModelIndex ();
-//       QDir dir;
 
 //       printf ("mkdir  %s\n", _model->filePath (index).latin1 ());
       index = _model->mkdir (index, text);
@@ -706,9 +660,7 @@ void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
    _modelconv->assertIsSource (0, &deskind, 0);
    QModelIndex ind = deskind;
    _modelconv->indexToProxy (ind.model (), ind);
-   const QAbstractItemModel *proxy = ind.model ();
 
-//    _view->reset ();
    _view->setRootIndex (ind);
 
    // ensure that the correct item is displayed
@@ -1005,7 +957,7 @@ void Desktopwidget::slotItemClicked (const QModelIndex &index, int which)
    }
 
 
-void Desktopwidget::slotItemPreview (const QModelIndex &index, int which, bool now)
+void Desktopwidget::slotItemPreview (const QModelIndex &index, int, bool now)
    {
    if (index != QModelIndex ())
       {

@@ -128,6 +128,13 @@ signals:
    /** emitted when there are no pages selected */
    void pageLost (void);
 
+   /** indicate that an item should be previewed
+
+      \param index      item clicked
+      \param which      which part of it was clicked
+      \param now        true to preview now (else waits for user to finish clicking) */
+   void itemPreview (const QModelIndex &index, int which, bool now);
+
 public slots:
    /** set up the position of each item
 

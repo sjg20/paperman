@@ -283,7 +283,7 @@ int main (int argc, char *argv[])
 	 // add all the directories to the tree view
 	 //	 while (optind < argc)
 	 for (c = argc - 1; c >= optind; c--)
-	    desktop->setDir (argv [c]);
+            desktop->addDir (argv [c]);
 
 	 me->show ();
          QModelIndex ind = QModelIndex ();

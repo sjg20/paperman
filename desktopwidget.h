@@ -65,7 +65,7 @@ struct file_info;
 
 
 /** a DesktopWidget is a splitter with a directory tree on the left and a
-Desktopviewer on the right (containing thumbnails). Users can navigate the
+Desktopview on the right (containing thumbnails). Users can navigate the
 directory tree, and click on a directory, which then becomes the current
 directory. This class will then display that directory and allow the user
 to work with the thumbnails in it. The parent is a Mainwidget */
@@ -80,8 +80,13 @@ public:
    /** destroy a desktop widget */
    ~Desktopwidget ();
 
+   /** constructor helper functions */
+   QWidget *createToolbar(void);
+   void createPage(void);
+   void addActions(void);
+
    /** add a new 'root' directory to the tree of directories */
-   void setDir (QString dirname);
+   void addDir (QString dirname);
 
    /** returns a pointer to the model, which contains the items being displayed */
    Desktopmodel *getModel (void) { return _contents; }
@@ -108,12 +113,6 @@ public:
       \param subdirs true to check subdirectories, else just filter current one
       \param reset   true to reset and redisplay current directory */
    void matchUpdate (QString match, bool subdirs, bool reset = false);
-
-   /** sets the selected file in the viewer. All other items are deselected
-
-      \param file   file to search for
-      \returns true if found, false if not */
-   bool setCurrentFile (file_info *file);
 
    void closing (void);
 
@@ -321,16 +320,6 @@ private:
    void complete (QModelIndex parent, err_info *err);
 
 private:
-#ifdef USE_CTL
-   //! the directory tree viewer
-   ctlTreeView *_dir;
-
-   /** the directory tree item relating to the open context menu. If no
-       context menu is open then this value is not valid. It is set up
-       when a context menu is opened. When an action is chosen from the menu,
-       this is the item which will be actioned (renamed, or whatever) */
-   ctlTreeViewItem *_contextItem;
-#endif
    /** this is the model for the directories tree */
    Dirmodel *_model;
 

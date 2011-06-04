@@ -93,7 +93,7 @@ QModelIndex Desktopview::rootIndexSource (void)
    }
 
 
-void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &previous)
+void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &)
    {
    if (index == QModelIndex ())
       emit pageLost (); // no longer displaying a page
@@ -101,6 +101,7 @@ void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &p
       {
       QString str = index.model ()->data (index, Desktopmodel::Role_message).toString ();
       emit newContents (str);
+      emit itemPreview (index, 0, false);
       }
    }
 
@@ -218,7 +219,7 @@ QModelIndex Desktopview::indexAt (const QPoint &in_point) const
             // check we really are inside the item - the delegate knows
             if (del->containsPoint (opt, ind, point))
                {
-               static int upto = 0;
+               //static int upto = 0;
 
 //                qDebug () << upto++ << "row" << ind.row ();
                return ind;
