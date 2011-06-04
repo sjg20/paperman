@@ -234,21 +234,6 @@ void Mainwidget::stackLeft (void)
    _desktop->stackLeft ();
    if (visibleWidget () == _page && _desktop->getCurrentFile (index))
       showPage (index, true);
-#if 0
-   Desk *maxdesk;
-   file_info *f;
-
-   if (_desktop->getCurrentFile (maxdesk, f))
-      {
-      f = maxdesk->findPrevFile (f);
-      if (f)
-         {
-         _desktop->setCurrentFile (f);
-         if (visibleWidget () == _page)
-            showPage (maxdesk, f, true);
-         }
-      }
-#endif
    }
 
 
@@ -259,18 +244,6 @@ void Mainwidget::stackRight (void)
    _desktop->stackRight ();
    if (visibleWidget () == _page && _desktop->getCurrentFile (index))
       showPage (index, true);
-#if 0
-   if (_desktop->getCurrentFile (maxdesk, f))
-      {
-      f = maxdesk->findNextFile (f);
-      if (f)
-         {
-         _desktop->setCurrentFile (f);
-         if (visibleWidget () == _page)
-            showPage (maxdesk, f, true);
-         }
-      }
-#endif
    }
 
 
@@ -636,7 +609,7 @@ void Mainwidget::slotReloadOptions(void)
    }
 
 
-void Mainwidget::slotSetOption (int num)
+void Mainwidget::slotSetOption (int)
    {
 //   printf ("change %d\n", num);
    if (_pscan)
