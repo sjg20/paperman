@@ -35,7 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "maxview.h"
 
 
-#define NEW_MODEL
+//#define TRACE_INDEX
 
 
 Diritem::Diritem (QDirModel *model)
@@ -72,7 +72,9 @@ QModelIndex Diritem::index (void) const
    }
 
 
-Dirmodel::Dirmodel (QObject * parent) : QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot, QDir::IgnoreCase, parent)
+Dirmodel::Dirmodel (QObject * parent)
+      : QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot,
+                   QDir::IgnoreCase, parent)
    {
    QStringList filters;
 
@@ -159,11 +161,12 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
     if (newDir.absolutePath() != dir.absolutePath() || !dir.mkdir(name))
         return QModelIndex(); // nothing happened
 
-#ifdef NEW_MODEL
+    qDebug() << "Dirmodel::mkdir" << parent << isRoot (parent) << parent.isValid ();
     if (isRoot (parent))
        parent = _item [parent.row ()]->index ();
-#endif
-    refresh (parent);
+    qDebug() << "Dirmodel::mkdir2" << parent << isRoot (parent) << parent.isValid ();
+    if (parent.isValid ())
+       refresh (parent);
 
 //     printf ("looking for '%s'\n", childName.latin1 ());
     QModelIndex i = index (path + QLatin1Char('/') + childName);
@@ -212,7 +215,7 @@ err_info *Dirmodel::moveDir (QString src, QString dst)
 }
 
 
-bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction action,
+bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
                              int /* row */, int /* column */, const QModelIndex &parent)
 {
 //     if (!d->indexValid(parent) || isReadOnly())
@@ -260,9 +263,11 @@ bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     }
 
     if (success)
+       {
+       _parent = index(to);
         refresh (_parent);
 //     emit operationComplete (_parent);
-
+       }
     return success;
 }
 
@@ -275,9 +280,9 @@ Qt::DropActions Dirmodel::supportedDropActions () const
 
 bool Dirmodel::addDir (QString &dir)
    {
-   Diritem *item = new Diritem (this, dir);
+   Diritem *item = new Diritem (this);
 
-   bool ok = item->valid ();
+   bool ok = item->setDir(dir);
    if (ok)
       _item.append (item);
    return ok;
@@ -304,26 +309,14 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
       }
 
    int i = findIndex (index);
-#ifdef NEW_MODEL
    if (isRoot (index))
       index = _item [i]->index ();
-#endif
    if (role == Qt::DisplayRole || role == Qt::EditRole)
       {
       switch (index.column())
          {
          case 0:
-#ifdef NEW_MODEL
-               return QDirModel::data (index, role);
-#else
-            if (i != -1)
-               {
-//                printf ("   data %p %d dir %s\n", index.internalPointer (), i, _item [i]->dir ().latin1 ());
-               return QVariant (_item [i]->dir ());
-               }
-            else
-               return QDirModel::data (index, role);
-#endif
+            return QDirModel::data (index, role);
 //       case 1: return d->size(index);
 //       case 2: return d->type(index);
 //       case 3: return d->time(index);
@@ -335,12 +328,6 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
 
    if (index.column() == 0)
       {
-#ifdef NEW_MODEL
-//       if (!index.internalPointer ())
-//          index = _item [index.row ()]->index ();
-#endif
-//       if (role == FileIconRole)
-//          return fileIcon(index);
       if (role == FilePathRole)
          {
 //          //QString (_item [index.row ()].dir ());
@@ -356,51 +343,23 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
    return QVariant();
    }
 
-/*
-   if (role != Qt::DisplayRole && role != Qt::EditRole && role != QDirModel::FileNameRole)
-      {
-      printf ("data bad role %d\n", role);
-      QVariant v = QDirModel::data (index, role);
-      printf ("   %s\n", v.typeName ());
-      return QVariant();
-      }
-
-   if (!index.parent ().isValid())
-      {
-      printf ("data root\n");
-      return QVariant ("Root");
-      }
-
-   // root item
-//    int i = findIndex (index);
-   if (i != -1)
-      {
-      printf ("data dir %s\n", _item [i]->dir ().latin1 ());
-      return QVariant (_item [i]->dir ());
-      }
-   printf ("data\n");
-   return QDirModel::data (index, role);
-   }
-*/
-
 
 void Dirmodel::traceIndex (const QModelIndex &index) const
    {
    QString fname;
+   bool first = true;
 
    printf ("trace: ");
    QModelIndex ind = index;
    do
       {
-#ifdef NEW_MODEL
       if (isRoot (ind))
-         fname = index.row () == -1 ? "" : _item [index.row ()]->dir ();
+         fname = ind.row () == -1 ? "" : _item [ind.row ()]->dir ();
       else
-#else
          fname = fileName (ind);
-#endif
-      printf ("%p:%s, ", ind.internalPointer (), fname.latin1 ());
+      printf ("%s%p:%d:%s", first ? "" : ", ", ind.internalPointer (), ind.row(), fname.latin1 ());
       ind = parent (ind);
+      first = false;
       } while (ind != QModelIndex ());
    printf ("\n");
    }
@@ -429,7 +388,7 @@ Qt::ItemFlags Dirmodel::flags(const QModelIndex &index) const
    }
 
 
-QVariant Dirmodel::headerData(int section, Qt::Orientation orientation,
+QVariant Dirmodel::headerData(int, Qt::Orientation orientation,
                                 int role) const
    {
 // printf ("headerData\n");
@@ -445,53 +404,34 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
    {
    QModelIndex ind;
 
-//    printf ("index: ");
-//    if (hasIndex (row, column, parent))
+   // parent is root node - the children are our special nodes from _item
+   if (parent == QModelIndex ())
       {
-      // parent is root node - the children are our special nodes from _item
-      if (parent == QModelIndex ()) //_root) //(!parent.parent ().isValid())
-         // root item
+      if (row >= 0 && row < _item.size ())
          {
-#ifdef NEW_MODEL
-         if (row >= 0 && row < _item.size ())
-            {
-            ind = _item [row]->index ();
-            ind = createIndex (row, column, ind.internalPointer ());
-            }
-#else
-         /* the row number here depends on where the directory is in order
-            within its parent. So it is not related to _item[] at all. This
-            is a bug which NEW_MODEL aims to fix */
          ind = _item [row]->index ();
-         ind = createIndex (row, column, ind.internalPointer ()); // attempt to fix it
-//          printf ("row %d, col %d, %p\n", row, column, ind.internalPointer ());
-#endif
+         ind = createIndex (row, column, ind.internalPointer ());
          }
-#ifdef NEW_MODEL
-      // parent is a special node - we just do a redirect
-      else if (isRoot (parent))
-         {
-         int i;
-
-         i = findIndex (parent);
-         ind = QDirModel::index (row, column, _item [i]->index ());
-         }
-#endif
-      else
-         ind = QDirModel::index (row, column, parent);
       }
-//    else  // we will get this with QT in debug mode due to some asserts in the QT code
-//       qWarning ("bad index %p %s row %d", parent.internalPointer (),
-//          data (parent).toString ().latin1 (), row);
+   // parent is a special node - we just do a redirect
+   else if (isRoot (parent))
+      {
+      int i;
+
+      i = findIndex (parent);
+      ind = QDirModel::index (row, column, _item [i]->index ());
+      }
+   else
+      ind = QDirModel::index (row, column, parent);
    QVariant v = data (ind, QDirModel::FileNameRole);
-//    printf ("   index  '%s' row %d: %p %s\n", data (parent).toString ().latin1 (),
-//       row, ind.internalPointer (), v.toString ().latin1 ());
-//    traceIndex (ind);
+#ifdef TRACE_INDEX
+   printf ("   index  '%s' row %d: %p %s\n", data (parent).toString ().latin1 (),
+      row, ind.internalPointer (), v.toString ().latin1 ());
+   traceIndex (ind);
+#endif
    return ind;
    }
 
-
-#ifdef NEW_MODEL
 
 bool Dirmodel::hasChildren (const QModelIndex &parent) const
    {
@@ -500,16 +440,12 @@ bool Dirmodel::hasChildren (const QModelIndex &parent) const
    return QDirModel::hasChildren (parent);
    }
 
-#endif
-
 
 QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    {
    QModelIndex ind = item->index ();
 
-#ifdef NEW_MODEL
    ind = createIndex (row, 0, ind.internalPointer ());
-#endif
 
 //    printf ("findPath '%s'\n", path.latin1 ());
 
@@ -533,7 +469,7 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    }
 
 
-QModelIndex Dirmodel::index (const QString & path, int column) const
+QModelIndex Dirmodel::index (const QString & path, int) const
    {
 // printf ("my index %s\n", path.latin1 ());
 //    QModelIndex index = QDirModel::index (path, column);
@@ -562,18 +498,9 @@ QModelIndex Dirmodel::index (const QString & path, int column) const
 
 int Dirmodel::findIndex(const QModelIndex &index) const
    {
-#ifdef NEW_MODEL
    for (int i = 0; i < _item.size (); i++)
       if (index.internalPointer () == _item [i]->index ().internalPointer ())
          return i;
-//    if (parent () == QModelIndex ()
-//       && index.row () >= 0 && index.row () < _item.size ())
-//       return index.row ();
-#else
-   for (int i = 0; i < _item.size (); i++)
-      if (index == _item [i]->index ())
-         return i;
-#endif
    return -1;
    }
 
@@ -601,7 +528,6 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
 //    printf ("[parent: ");
    if (index.isValid())
       {
-#ifdef NEW_MODEL
       if (isRoot (index))
          // it is a top level node, then the parent is the root
          ind = QModelIndex ();
@@ -616,14 +542,6 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
             ind = createIndex (i, 0, ind.internalPointer ());
             }
          }
-#else
-      // if the index is one of our special ones, then return the root
-      if (findIndex (index) != -1)
-         ind = QModelIndex ();  //_root;
-      else
-         // otherwise just use the normal model
-         ind = QDirModel::parent (index);
-#endif
       }
 //    printf ("%p %s = %p %s] ",
 //          index.internalPointer (), data (index).toString ().latin1 (),
@@ -638,39 +556,17 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
 
    if (parent == QModelIndex ()) //(!parent.parent ().isValid ())
       count = _item.size ();
-#ifdef NEW_MODEL
    else if (isRoot (parent))
       {
       int item = findIndex (parent);
 
       count = QDirModel::rowCount (_item [item]->index ());
       }
-#endif
    else
       count = QDirModel::rowCount (parent);
 //    QVariant v = data (parent, QDirModel::FileNameRole);
 //    printf ("   row count %p %s, %d\n", parent.internalPointer (), v.toString ().latin1 (), count);
    return count;
-//    int id = parent.internalId ();
-//    printf ("rowCount id %d\n", id);
-/*   QModelIndex index = _model->index (_item [id]);
-
-   int count = _model [id]->rowCount (index);
-   printf ("   count %d\n", count);
-   return count;
-   printf ("rowCount %p\n", parent.internalPointer ());*/
-//    return 1;
-
-//      TreeItem *parentItem;
-//      if (parent.column() > 0)
-//          return 0;
-//
-//      if (!parent.isValid())
-//          parentItem = rootItem;
-//      else
-//          parentItem = static_cast<TreeItem*>(parent.internalPointer());
-//
-//      return parentItem->childCount();
  }
 
 

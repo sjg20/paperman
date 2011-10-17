@@ -49,19 +49,11 @@ Dirview::Dirview (QWidget *parent)
    setDragEnabled (true);
    setAcceptDrops (true);
 
+   // We can't use shortcuts here as they conflict with main view
    _new = new QAction ("&New subdirectory", this);
-//    _new->setShortcut (Qt::CTRL+Qt::Key_N);
-
    _rename = new QAction ("&Rename", this);
-//    _rename->setShortcut (Qt::CTRL+Qt::Key_R);
-
    _delete = new QAction ("&Delete", this);
-   // conflicts with main view
-//    _delete->setShortcut (Qt::Key_Delete);
-//    _delete->setShortcut (Qt::CTRL+Qt::Key_D);
-
    _refresh = new QAction ("Re&fresh", this);
-//    _refresh->setShortcut (Qt::Key_F3);
 
    addAction (_new);
    addAction (_rename);
