@@ -33,6 +33,9 @@ public:
    Diritem (QDirModel *model);
    ~Diritem ();
 
+   void setRecent(QModelIndex index);
+   bool isRecent(void) { return _recent; }
+
 //    QPersistentModelIndex index (void) const { return _index; }
    QModelIndex index (void) const;
    QString dir (void) { return _dir; }
@@ -49,6 +52,8 @@ private:
    QDirModel *_model; //!< the directory model
 //   QPersistentModelIndex _index;  //!< the index of this directory in the model
    bool _valid;      //!< true if the directory is valid
+   bool _recent;     //!< true if this item displays a 'recent' list
+   QModelIndex _index;  //!< index of this item, if _recent
    };
 
 
@@ -114,6 +119,9 @@ public:
                                  int role) const;
    Qt::ItemFlags flags(const QModelIndex &index) const;
 
+   /** returns the string for the given role for the 'recent' node */
+   QString getRecent(int role) const;
+
    /** finds the index which corresponds to the 'root' for this index. This
        root index is in our _items list, and has a null parent
 
@@ -155,6 +163,11 @@ public:
 
    bool hasChildren (const QModelIndex &parent) const;
 
+   /** add a new index to the recent list
+
+      \param index    index to add */
+   void addToRecent (QModelIndex &index);
+
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
        Stops if count > max
@@ -171,6 +184,7 @@ signals:
 private:
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndex _root;   //!< the model index of the root node
+   QModelIndexList _recent;   //!< list of recent directories
    };
 
 

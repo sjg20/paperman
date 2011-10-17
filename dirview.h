@@ -58,7 +58,7 @@ public slots:
 
 public:
    // the menu actions which the user can select
-   QAction *_new, *_delete, *_rename, *_refresh;
+   QAction *_new, *_delete, *_rename, *_refresh, *_add_recent;
 
 private:
    QPersistentModelIndex _context;

@@ -168,6 +168,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_dir->_rename, SIGNAL (triggered ()), this, SLOT (renameDir ()));
    connect (_dir->_delete, SIGNAL (triggered ()), this, SLOT (deleteDir ()));
    connect (_dir->_refresh, SIGNAL (triggered ()), this, SLOT (refreshDir ()));
+   connect (_dir->_add_recent, SIGNAL (triggered ()), this, SLOT (addToRecent ()));
 
    setResizeMode (_dir, KeepSize);
 
@@ -483,9 +484,10 @@ void Desktopwidget::selectDir (QModelIndex &index)
    {
 //    int count = _model->rowCount (QModelIndex ());
 
-   // use the first directory if there is nothing supplied
+   /* use the second directory if there is nothing supplied, since the first
+      is 'Recent items' */
    if (index == QModelIndex ())
-      index = _model->index (0, 0, QModelIndex ());
+      index = _model->index (1, 0, QModelIndex ());
 
    //qDebug () << "Desktopwidget::selectDir" << _model->data (index, Qt::DisplayRole).toString ();
    _dir->setCurrentIndex (index);
@@ -559,6 +561,15 @@ void Desktopwidget::refreshDir ()
 
    // update the model with this new directory
    _model->refresh (index);
+   }
+
+
+void Desktopwidget::addToRecent ()
+   {
+   QModelIndex index = _dir->menuGetModelIndex ();
+
+   // update the model with this new directory
+   _model->addToRecent (index);
    }
 
 

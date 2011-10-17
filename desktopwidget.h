@@ -249,6 +249,9 @@ private slots:
    //! refresh the current directory
    void refreshDir ();
 
+   //! add to the list of recent directories
+   void addToRecent (void);
+
    void updatePreview (void);
 
    //! duplicate the selected items

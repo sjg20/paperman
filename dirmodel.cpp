@@ -41,12 +41,21 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Diritem::Diritem (QDirModel *model)
    {
    _model = model;
+   _recent = false;
    }
 
 
 Diritem::~Diritem ()
    {
    }
+
+
+void Diritem::setRecent(QModelIndex index)
+{
+   _recent = true;
+   _index = index;
+   _dir = "/_recent";
+}
 
 
 bool Diritem::setDir(QString &dir)
@@ -66,7 +75,12 @@ bool Diritem::setDir(QString &dir)
 
 QModelIndex Diritem::index (void) const
    {
-   QModelIndex ind = _model->index (_dir);
+   QModelIndex ind;
+
+   if (_recent)
+      ind = _index;
+   else
+      ind = _model->index (_dir);
 
    return ind;
    }
@@ -79,6 +93,11 @@ Dirmodel::Dirmodel (QObject * parent)
    QStringList filters;
 
    _root = index ("/");
+
+   // Create the 'recent dirs' item at the top
+   Diritem *item = new Diritem (this);
+   item->setRecent(createIndex(0, 0, item));
+   _item.append (item);
    }
 
 
@@ -91,6 +110,18 @@ Dirmodel::~Dirmodel ()
 //     inline bool indexValid(const QModelIndex &index) const {
 //          return (index.row() >= 0) && (index.column() >= 0) && (index.model() == q_func());
 //     }
+
+
+void Dirmodel::addToRecent (QModelIndex &index)
+{
+   if (!_recent.contains(index))
+      {
+      QModelIndex parent = _item[0]->index ();
+      beginInsertRows(parent, _recent.size(), _recent.size());
+      _recent.append(index);
+      endInsertRows();
+      }
+}
 
 
 int Dirmodel::count_files (QString path, int count, int max)
@@ -298,9 +329,16 @@ int Dirmodel::columnCount (const QModelIndex &parent) const
    }
 
 
+QString Dirmodel::getRecent(int role) const
+   {
+   return "Recent items";
+   }
+
+
 QVariant Dirmodel::data(const QModelIndex &ind, int role) const
    {
    QModelIndex index = ind;
+   bool recent = false;
 
    if (!index.isValid())
       {
@@ -310,13 +348,16 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
 
    int i = findIndex (index);
    if (isRoot (index))
+      {
       index = _item [i]->index ();
+      recent = _item [i]->isRecent ();
+      }
    if (role == Qt::DisplayRole || role == Qt::EditRole)
       {
       switch (index.column())
          {
          case 0:
-            return QDirModel::data (index, role);
+            return recent ? getRecent(role) : QDirModel::data (index, role);
 //       case 1: return d->size(index);
 //       case 2: return d->type(index);
 //       case 3: return d->time(index);
@@ -332,10 +373,10 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
          {
 //          //QString (_item [index.row ()].dir ());
 //          printf ("filepathrole %d\n", i);
-         return QDirModel::data (index, role);
+         return recent ? getRecent(role) : QDirModel::data (index, role);
          }
       if (role == FileNameRole)
-         return QDirModel::data (index, role);
+         return recent ? getRecent(role) : QDirModel::data (index, role);
       }
 
    if (index.column() == 1 && Qt::TextAlignmentRole == role)
@@ -419,7 +460,13 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
       int i;
 
       i = findIndex (parent);
-      ind = QDirModel::index (row, column, _item [i]->index ());
+      if (_item [i]->isRecent ())
+         {
+         if (row >= 0 && row < _recent.size ())
+            ind = _recent [row];
+         }
+      else
+         ind = QDirModel::index (row, column, _item [i]->index ());
       }
    else
       ind = QDirModel::index (row, column, parent);
@@ -560,7 +607,10 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
       {
       int item = findIndex (parent);
 
-      count = QDirModel::rowCount (_item [item]->index ());
+      if (_item [item]->isRecent())
+         count = _recent.size();
+      else
+         count = QDirModel::rowCount (_item [item]->index ());
       }
    else
       count = QDirModel::rowCount (parent);

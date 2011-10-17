@@ -54,11 +54,13 @@ Dirview::Dirview (QWidget *parent)
    _rename = new QAction ("&Rename", this);
    _delete = new QAction ("&Delete", this);
    _refresh = new QAction ("Re&fresh", this);
+   _add_recent = new QAction ("&Add to recent", this);
 
    addAction (_new);
    addAction (_rename);
    addAction (_delete);
    addAction (_refresh);
+   addAction (_add_recent);
    }
 
 
@@ -95,6 +97,7 @@ void Dirview::contextMenuEvent (QContextMenuEvent * e)
    menu->addAction (_rename);
    menu->addAction (_delete);
    menu->addAction (_refresh);
+   menu->addAction (_add_recent);
    menu->exec (e->globalPos());
    }
 
