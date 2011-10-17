@@ -30,13 +30,19 @@ struct err_info;
 class Diritem
    {
 public:
-   Diritem (QDirModel *model, QString &dir);
+   Diritem (QDirModel *model);
    ~Diritem ();
 
 //    QPersistentModelIndex index (void) const { return _index; }
    QModelIndex index (void) const;
    QString dir (void) { return _dir; }
-   bool valid (void) { return _valid; }
+//   bool valid (void) { return _valid; }
+
+   /** Sets the directory, returning true if ok.
+
+    \param dir    directory to set
+    \returns true if valid, false if directory is invalid */
+   bool setDir(QString &dir);
 
 private:
    QString _dir;      //!< the directory

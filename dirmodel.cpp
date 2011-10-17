@@ -38,24 +38,29 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define NEW_MODEL
 
 
-Diritem::Diritem (QDirModel *model, QString &dir)
+Diritem::Diritem (QDirModel *model)
    {
    _model = model;
-
-   QDir qd (dir);
-
-   _dir = qd.canonicalPath ();
-//    printf ("addDir %s\n", _dir.latin1 ());
-//    _index = QPersistentModelIndex (_model->index (_dir));
-   QModelIndex index = _model->index (_dir);
-   _valid = index != QModelIndex ();
-   if (!_valid)
-      qDebug () << "Diritem invalid";
    }
 
 
 Diritem::~Diritem ()
    {
+   }
+
+
+bool Diritem::setDir(QString &dir)
+   {
+   QDir qd (dir);
+
+   _dir = qd.canonicalPath ();
+   QModelIndex index = _model->index (_dir);
+   bool valid = index != QModelIndex ();
+   //    printf ("addDir %s\n", _dir.latin1 ());
+   //    _index = QPersistentModelIndex (_model->index (_dir));
+   if (!valid)
+      qDebug () << "Diritem invalid";
+   return valid;
    }
 
 
