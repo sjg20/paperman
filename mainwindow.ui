@@ -140,7 +140,7 @@
     </property>
     <widget class="QMenu" name="menuArrange">
      <property name="toolTip">
-      <string/>
+      <string>Arrange stacks in this folder</string>
      </property>
      <property name="title">
       <string>Arrange</string>
@@ -253,6 +253,9 @@
    <property name="toolTip">
     <string>Arrange stacks by Position</string>
    </property>
+   <property name="statusTip">
+    <string>Arrange stacks by Position</string>
+   </property>
   </action>
   <action name="actionByDate">
    <property name="text">
@@ -261,12 +264,18 @@
    <property name="toolTip">
     <string>Arrange stacks by Date</string>
    </property>
+   <property name="statusTip">
+    <string>Arrange stacks by Date</string>
+   </property>
   </action>
   <action name="actionByName">
    <property name="text">
     <string>by Name</string>
    </property>
    <property name="toolTip">
+    <string>Arrange stacks by Name</string>
+   </property>
+   <property name="statusTip">
     <string>Arrange stacks by Name</string>
    </property>
   </action>
@@ -468,15 +477,24 @@
    <property name="toolTip">
     <string>Recalculate the size of all stacks in the current view</string>
    </property>
+   <property name="statusTip">
+    <string>Recalculate the size of all stacks in the current view</string>
+   </property>
   </action>
   <action name="actionUndo">
    <property name="text">
     <string>Undo</string>
    </property>
+   <property name="toolTip">
+    <string>Undo last operation</string>
+   </property>
   </action>
   <action name="actionRedo">
    <property name="text">
     <string>Redo</string>
+   </property>
+   <property name="toolTip">
+    <string>Redo last operation</string>
    </property>
   </action>
   <action name="actionClear_Selection">
@@ -513,6 +531,9 @@
   <action name="actionFullScreen">
    <property name="text">
     <string>Full Screen</string>
+   </property>
+   <property name="toolTip">
+    <string>Go into full screen mode</string>
    </property>
    <property name="shortcut">
     <string>F11</string>
