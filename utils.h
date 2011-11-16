@@ -148,6 +148,12 @@ QString util_getUnique (QString fname, QString dir, QString ext);
    \returns error, or NULL if ok */
 err_info *util_getUsername (QString &userName);
 
+/* Remove single quotes ' at the start and end of a string if present.
+
+  \param str   String to process
+  \returns string without quotes, or unchanged if there are no quotes */
+QString utilRemoveQuotes (QString str);
+
 
 #endif
 

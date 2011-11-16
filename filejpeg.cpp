@@ -28,7 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QProcess>
 
 #include "filejpeg.h"
-
+#include "utils.h"
 
 
 #define DPI 300.0
@@ -158,7 +158,7 @@ err_info *Filejpeg::load_annot (void)
    QStringList args;
 
    args << "-t" << "-s" << "-Author" << "-ImageDescription" << "-Keywords"
-           << "-Notes" << _pathname;
+           << _pathname;
    CALL (run_exiftool (process, "load annotations", args));
    _annot_loaded = TRUE;
 
@@ -181,19 +181,17 @@ err_info *Filejpeg::load_annot (void)
          e_annot annot = fromTag (list [0]);
 
          if (annot != Annot_none)
-            {
-            QString str = list [1];
-
-            // Remove quotes
-            if (str.length () >= 2 && str [0] == '\'')
-               {
-               str.chop (1);
-               str.remove (0, 1);
-               }
-            _annot_data [annot] = str;
-            }
+            _annot_data [annot] = utilRemoveQuotes (list [1]);
          }
       } while (list.size () == 2);
+
+   // Now get the notes
+   args.clear ();
+   args << "-b" << "-Notes" << _pathname;
+   CALL (run_exiftool (process, "load notes", args));
+   _annot_loaded = TRUE;
+   _annot_data [Annot_notes] = utilRemoveQuotes (process.readAllStandardOutput ());
+
    return NULL;
    }
 
@@ -259,15 +257,9 @@ err_info *Filejpeg::getPageText (int pagenum, QString &str)
    QProcess process;
    QStringList args;
 
-   args << "-t" << "-s" << "-TextLayerText" << _pathname;
-   CALL (run_exiftool (process, "load annotations", args));
-   str = "<no-TextLayerText>";
-   QByteArray ba = process.readLine ();
-
-   QString line = ba.constData ();
-   QStringList list = line.split ('\t');
-   if (list.size () == 2)
-      str = list [1];
+   args << "-b" << "-TextLayerText" << _pathname;
+   CALL (run_exiftool (process, "load ocr text (TextLayerText)", args));
+   str = utilRemoveQuotes (process.readAllStandardOutput ());
    return NULL;
    }
 

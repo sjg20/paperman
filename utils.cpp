@@ -607,3 +607,14 @@ err_info *util_getUsername (QString &userName)
    return NULL;
    }
 
+QString utilRemoveQuotes (QString str)
+   {
+   // Remove quotes
+   if (str.length () >= 2 && str [0] == '\'')
+      {
+      str.chop (1);
+      str.remove (0, 1);
+      }
+   return str;
+   }
+
