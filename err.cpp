@@ -94,7 +94,10 @@ static const char *err_msg [ERR_count] =
    "Not supported in delivermv",
    "Cannot read from envelope file '%s': %s",
    "Socket error %d",
-   "File '%s' not loaded yet"
+   "File '%s' not loaded yet",
+   "File type '%s' not supported",
+   "File type '%s' only supports a single page",
+   "Cannot %s: Exif tool error '%s'",
    };
 
 

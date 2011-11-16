@@ -107,6 +107,10 @@ enum
    ERR_cannot_read_from_envelope_file2,
    ERR_socket_error1,
    ERR_file_not_loaded_yet1,
+   ERR_file_type_unsupported1,
+   ERR_file_type_only_supports_a_single_page1,
+   ERR_cannot_exiftool_error2,
+
    ERR_count
    };
 

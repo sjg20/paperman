@@ -33,10 +33,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "config.h"
 #include "desk.h"
+#include "err.h"
 #include "file.h"
+#include "filejpeg.h"
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
+#include "maxview.h"
 #include "mem.h"
 #include "op.h"
 #include "utils.h"
@@ -153,13 +156,18 @@ void File::updateFilename (const QString &fname)
 
 QString File::typeName (e_type type)
    {
-   return QString ("Other,Max,PDF").section (',', type, type);
+   return QString ("Other,Max,PDF,JPEG").section (',', type, type);
    }
 
 
+QString File::typeName (void)
+   {
+   return typeName (_type);
+   }
+
 QString File::typeExt (e_type type)
    {
-   return QString (",.max,.pdf").section (',', type, type);
+   return QString (",.max,.pdf,.jpg").section (',', type, type);
    }
 
 
@@ -174,6 +182,8 @@ File::e_type File::typeFromName (const QString &fname)
       type = File::Type_max;
    else if (ext == "pdf")
       type = File::Type_pdf;
+   else if (ext == "jpg" || ext == "jpeg")
+      type = File::Type_jpeg;
    else
       type = File::Type_other;
    return type;
@@ -214,9 +224,18 @@ File *File::createFile (const QString &dir, const QString fname, Desk *desk, e_t
          f = new Filepdf (dir, fname, desk);
          break;
 
+      case Type_jpeg :
+         f = new Filejpeg (dir, fname, desk);
+         break;
+
       case Type_other :
          f = new Fileother (dir, fname, desk);
          break;
+
+      default :
+         err_complain (err_make (ERRFN, ERR_file_type_unsupported1,
+                                 qPrintable(typeName (type))));
+         f = new Fileother (dir, fname, desk);
       }
    return f;
    }

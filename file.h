@@ -76,7 +76,7 @@ public:
       Type_max,      // max file
       Type_pdf,      // pdf file
 //       Type_tiff,     // tiff file  (to be implemented)
-//       Type_jpeg,     // JPEG file  (to be implemented)
+      Type_jpeg,     // JPEG file  (to be implemented)
 //       Type_djvu,     // djvu file  (to be implemented)
       // other?
 
@@ -101,7 +101,8 @@ public:
       Annot_keywords,
       Annot_notes,
 
-      Annot_count
+      Annot_count,
+      Annot_none = Annot_count
       };
 
    // envelope types
@@ -221,6 +222,9 @@ public:
 
    /** returns the type name */
    static QString typeName (e_type type);
+
+   /** returns the type name of this file (JPEG, PDF, etc.) */
+   QString typeName (void);
 
    /** returns the extension of file type including the . (for example
        Type_pdf is .pdf) */
