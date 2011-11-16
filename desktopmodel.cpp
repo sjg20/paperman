@@ -270,6 +270,11 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
 
       case Role_notes :
          return getAnnot (index, File::Annot_notes);
+
+      case Role_error :
+         if (f->err ())
+            return f->err ()->errstr;
+         break;
       }
 
    return QVariant();
@@ -725,10 +730,12 @@ void Desktopmodel::aboutToQuit (void)
 QString Desktopmodel::getAnnot (QModelIndex ind, File::e_annot type) const
    {
    File *f = getFile (ind);
+   QString text;
 
-   return f
-      ? f->getAnnot (type)
-      : "";
+   text.clear ();
+   if (f)
+      f->setErr (f->getAnnot (type, text));
+   return text;
    }
 
 

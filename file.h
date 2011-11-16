@@ -150,7 +150,7 @@ public:
 
    virtual err_info *getPageTitle (int pagenum, QString &title) = 0;
 
-   virtual QString getAnnot (e_annot type) = 0;
+   virtual err_info *getAnnot (e_annot type, QString &text)= 0;
 
    virtual err_info *putAnnot (QHash<int, QString> &updates) = 0;
 
@@ -287,6 +287,12 @@ public:
    int pagenum (void);
 
    err_info *err (void);
+
+   /** Set the error for this file
+
+     \param err   Error to set, or NULL To clear error
+     \returns the error passed in */
+   err_info *setErr (err_info *err);
 
    static void colour_image_for_blank (QImage &image);
 

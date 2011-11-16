@@ -6685,24 +6685,17 @@ err_info *Filemax::load ()  // was desk->ensureMax
    }
 
 
-QString Filemax::getAnnot (e_annot type)
+err_info *Filemax::getAnnot (e_annot type, QString &text)
    {
-   err_info *err = 0;
-   QString str;
-
    if (!_valid)
-      str = QString ("<error: no max>");
-   else
-      {
-      if (!_annot_loaded)
-         err = load_annot ();
-      Q_ASSERT (type >= 0 && type < Annot_count);
-      if (err)
-         str = QString ("<error %1>").arg (err->errstr);
-      else if (type < _annot_data.size ())
-         str = _annot_data [type];
-      }
-   return str;
+      return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                       qPrintable (_filename));
+   if (!_annot_loaded)
+      CALL (load_annot ());
+   Q_ASSERT (type >= 0 && type < Annot_count);
+   if (type < _annot_data.size ())
+      text = _annot_data [type];
+   return NULL;
    }
 
 

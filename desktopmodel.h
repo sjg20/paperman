@@ -141,6 +141,7 @@ public:
       Role_title,             // QString  the title (filename with perhaps some special characters like /)
       Role_keywords,          // QString  the keywords
       Role_notes,             // QString  the notes
+      Role_error,             // QString  an error message, if available
 
       Role_count
       };
@@ -510,8 +511,13 @@ public:
 
    /** returns an annotation text item on a stack
 
+     If an error occurs then this will be stored with the file and available
+     through the Role_error role.
+
       \param ind     index to check
-      \param type    annotation type to return (File::e_annot) */
+      \param type    annotation type to return (File::e_annot)
+      \returns returns text for annotation, if no error and it is available
+   */
    QString getAnnot (QModelIndex ind, File::e_annot type) const;
 
    /*********************** UNDO / REDO operations **********************/

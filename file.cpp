@@ -465,6 +465,19 @@ err_info *File::err (void)
    return _err;
    }
 
+err_info *File::setErr (err_info *err)
+   {
+   if (!err)
+      _err = err;
+   else
+      {
+      if (!_err)
+         _err = &_serr;
+      *_err = *err;
+      }
+   return err;
+   }
+
 /*
 QString File::getAnnot (e_annot type)
    {

@@ -182,14 +182,11 @@ err_info *Filepdf::getPageTitle (int pagenum, QString &title)
 
 
 
-QString Filepdf::getAnnot (e_annot type)
+err_info *Filepdf::getAnnot (e_annot type, QString &text)
    {
    QString name = getAnnotName (type);
-   QString str;
-   err_info *err;
 
-   err = _pdfio->getAnnot (name, str);
-   return str;
+   return _pdfio->getAnnot (name, text);
    }
 
 

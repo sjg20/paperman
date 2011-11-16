@@ -61,7 +61,7 @@ public:
 
    virtual err_info *getPageTitle (int pagenum, QString &title);
 
-   virtual QString getAnnot (e_annot type);
+   virtual err_info *getAnnot (e_annot type, QString &text);
 
    virtual err_info *putAnnot (QHash<int, QString> &updates);
 

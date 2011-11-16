@@ -136,13 +136,19 @@ static err_info *run_exiftool (QProcess &process, const char *operation,
    {
    qDebug () << args;
    process.start ("exiftool", args);
-   if (!process.waitForFinished(500))
-      return err_make (ERRFN, ERR_cannot_exiftool_error2,
-                          "load annotations", "process stuck");
-   if (process.exitStatus () != QProcess::NormalExit ||
+
+   if (!process.waitForFinished(500) ||
+         process.exitStatus () != QProcess::NormalExit ||
          process.exitCode () != 0)
+      {
+      QByteArray ba = process.readAllStandardError () + process.readAllStandardOutput ();
+      QString err = ba.constData ();
+
+      if (err.isEmpty ())
+         err = "Have you installed libimage-exiftool-perl?";
       return err_make (ERRFN, ERR_cannot_exiftool_error2, operation,
-                       "process exited with error");
+                       qPrintable (err));
+      }
    return NULL;
    }
 
@@ -165,6 +171,8 @@ err_info *Filejpeg::load_annot (void)
       QByteArray ba = process.readLine ();
 
       QString line = ba.constData ();
+
+      line.chop (1);
       list = line.split ('\t');
 
       qDebug () << list;
@@ -173,32 +181,33 @@ err_info *Filejpeg::load_annot (void)
          e_annot annot = fromTag (list [0]);
 
          if (annot != Annot_none)
-            _annot_data [annot] = list [1];
+            {
+            QString str = list [1];
+
+            // Remove quotes
+            if (str.length () >= 2 && str [0] == '\'')
+               {
+               str.chop (1);
+               str.remove (0, 1);
+               }
+            _annot_data [annot] = str;
+            }
          }
       } while (list.size () == 2);
    return NULL;
    }
 
-//Artist, kImageDescription, kKeywords, kMakerNote
-
-QString Filejpeg::getAnnot (e_annot type)
+err_info *Filejpeg::getAnnot (e_annot type, QString &text)
    {
-   err_info *err = 0;
-   QString str;
-
    if (!_valid)
-      str = QString ("<error: no jpeg>");
-   else
-      {
-      if (!_annot_loaded)
-         err = load_annot ();
-      Q_ASSERT (type >= 0 && type < Annot_count);
-      if (err)
-         str = QString ("<error %1>").arg (err->errstr);
-      else if (type < _annot_data.size ())
-         str = _annot_data [type];
-      }
-   return str;
+      return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                       qPrintable (_filename));
+   if (!_annot_loaded)
+      CALL (load_annot ());
+   Q_ASSERT (type >= 0 && type < Annot_count);
+   if (type < _annot_data.size ())
+      text = _annot_data [type];
+   return NULL;
    }
 
 

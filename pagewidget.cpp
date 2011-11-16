@@ -131,6 +131,7 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
    _textframe = new QFrame (this);
    _pageattr = new Ui_Pageattr ();
    _pageattr->setupUi (_textframe);
+   _pageattr->errorMsg->setVisible (false);
    connect (_pageattr->author, SIGNAL (textEdited (const QString&)),
       this, SLOT (slotAnnotChanged ()));
    connect (_pageattr->title, SIGNAL (textEdited (const QString&)),
@@ -1017,6 +1018,12 @@ void Pagewidget::updateAttr (void)
    _pageattr->notes->blockSignals (true);// because setting a QTextEdit emits a signal
    _pageattr->notes->setText (_model->data (_index, Desktopmodel::Role_notes).toString ());
    _pageattr->notes->blockSignals (false);
+
+   // Update error
+   QString err = _model->data (_index, Desktopmodel::Role_error).toString ();
+
+   _pageattr->errorMsg->setVisible (!err.isEmpty ());
+   _pageattr->errorMsg->setText (err);
    }
 
 

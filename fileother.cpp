@@ -82,11 +82,11 @@ err_info *Fileother::getPageTitle (int pagenum, QString &title)
    }
 
 
-QString Fileother::getAnnot (e_annot type)
+err_info *Fileother::getAnnot (e_annot type, QString &text)
    {
-   return "";
+   text = "";
+   return NULL;
    }
-
 
 
 
