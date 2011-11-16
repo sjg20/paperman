@@ -82,6 +82,14 @@ void Desktopmodel::duplicatePdf (QModelIndexList &list, QModelIndex parent)
    }
 
 
+void Desktopmodel::duplicateJpeg (QModelIndexList &list, QModelIndex parent)
+   {
+   _modelconv->assertIsSource (0, &parent, &list);
+   if (checkScanStack (list, parent))
+      _undo->push (new UCDuplicate (this, list, parent, File::Type_jpeg));
+   }
+
+
 void Desktopmodel::trashStacks (QModelIndexList &list, QModelIndex parent)
    {
    _modelconv->assertIsSource (0, &parent, &list);

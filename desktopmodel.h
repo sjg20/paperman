@@ -367,6 +367,8 @@ public:
 
    void duplicatePdf (QModelIndexList &list, QModelIndex parent);
 
+   void duplicateJpeg (QModelIndexList &list, QModelIndex parent);
+
    /** duplicate a file as a .max file
 
       \param item       item to duplicate (NULL means the current item in the viewer)

@@ -256,6 +256,7 @@ void Desktopwidget::addActions(void)
    //    addAction (_act_duplicate_tiff, "as &Tiff", SLOT (duplicateTiff ()), "Ctrl+Shift+T");
    addAction (_act_duplicate_odd, "&odd pages only", SLOT (duplicateOdd ()), "");
    addAction (_act_duplicate_even, "&even pages only", SLOT (duplicateEven ()), "");
+   addAction (_act_duplicate_jpeg, "as &JPEG", SLOT (duplicateJpeg ()), "Ctrl+Shift+J");
 
    addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
    addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
@@ -871,6 +872,9 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    submenu->addAction (_act_duplicate_odd);
    _act_duplicate_odd->setEnabled (at_least_one);
 
+   submenu->addAction (_act_duplicate_jpeg);
+   _act_duplicate_jpeg->setEnabled (at_least_one);
+
 //  submenu->insertItem( "as &Tiff", this, SLOT(duplicateTiff()), Qt::CTRL+Qt::Key_T );
    
    submenu = context_menu->addMenu (tr ("&Email..."));
@@ -1026,6 +1030,16 @@ void Desktopwidget::duplicatePdf (void)
    QModelIndexList slist = _view->getSelectedListSource ();
 
    _contents->duplicatePdf (slist, parent);
+   complete (parent, NULL);
+   }
+
+
+void Desktopwidget::duplicateJpeg (void)
+   {
+   QModelIndex parent = _view->rootIndexSource ();
+   QModelIndexList slist = _view->getSelectedListSource ();
+
+   _contents->duplicateJpeg (slist, parent);
    complete (parent, NULL);
    }
 

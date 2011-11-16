@@ -261,6 +261,8 @@ private slots:
 
    void duplicatePdf (void);
 
+   void duplicateJpeg (void);
+
    void duplicateEven (void);
 
    void duplicateOdd (void);
@@ -372,6 +374,7 @@ private:
    QAction *_act_rename_stack, *_act_rename_page, *_act_duplicate_page;
    QAction *_act_duplicate_max, *_act_duplicate_pdf, *_act_duplicate_tiff;
    QAction *_act_duplicate_odd, *_act_duplicate_even;
+   QAction *_act_duplicate_jpeg;
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
    QAction *_act_send, *_act_deliver_out;
 
