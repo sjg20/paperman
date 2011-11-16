@@ -176,8 +176,32 @@ public:
    // image related
    virtual QPixmap pixmap (bool recalc = false) = 0;
 
+   /** returns the preview image for a particular page.
+
+     If 'blank' then the image should be returned blank, either by using
+     colour_image_for_blank() or setting the palette.
+
+      \param pagenum    page number within stack
+      \param pixmap     returns pixmap
+      \param do_scale always false, not used (TODO: remove?)
+      \param blank      true to show image as 'blank'
+      \returns error, or NULL if none */
    virtual err_info *getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank) = 0;
 
+   /** returns the image for a particular page.
+
+     If 'blank' then the image should be returned blank, either by using
+     colour_image_for_blank() or setting the palette.
+
+      \param pagenum    page number within stack
+      \param do_scale   always false, not used (TODO: remove?)
+      \param image      returns image result
+      \param Size     returns original size of image (image may be slightly
+                           larger to accomodate padding margins)
+      \param trueSize returns actual size of image (including padding margins)
+      \param bpp      returns number of bits per pixel in orginal image
+      \param blank      true to show image as 'blank'
+      \returns error, or NULL if none */
    virtual err_info *getImage (int pagenum, bool do_scale,
                QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank) = 0;
 

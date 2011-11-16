@@ -957,7 +957,7 @@ public:
 
       \param ind      model index to read
       \param pagenum  page number to read
-      \param do_scale
+      \param do_scale always false, not used (TODO: remove?)
       \param *imagep  returns pointer to allocated image (must be deleted by caller)
       \param Size     returns original size of image (image may be slightly
                            larger to accomodate padding margins)

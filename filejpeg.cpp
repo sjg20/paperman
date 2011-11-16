@@ -252,11 +252,19 @@ err_info *Filejpeg::putEnvelope (QStringList &)
    }
 
 
+err_info *Filejpeg::checkPage (int pagenum)
+   {
+   if (pagenum != 0)
+      return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum, 0);
+   return NULL;
+   }
+
 err_info *Filejpeg::getPageText (int pagenum, QString &str)
    {
    QProcess process;
    QStringList args;
 
+   CALL (checkPage (pagenum));
    args << "-b" << "-TextLayerText" << _pathname;
    CALL (run_exiftool (process, "load ocr text (TextLayerText)", args));
    str = utilRemoveQuotes (process.readAllStandardOutput ());
@@ -272,8 +280,9 @@ int Filejpeg::getSize (void)
    }
 
 
-err_info *Filejpeg::renamePage (int, QString &name)
+err_info *Filejpeg::renamePage (int pagenum, QString &)
    {
+   CALL (checkPage (pagenum));
    return not_impl ();
    }
 
@@ -282,6 +291,7 @@ err_info *Filejpeg::getImageInfo (int pagenum, QSize &size,
       QSize &true_size, int &bpp, int &image_size, int &compressed_size,
       QDateTime &timestamp)
    {
+   CALL (checkPage (pagenum));
    size = _image.size ();
    true_size = size;
    bpp = _image.depth ();
@@ -294,6 +304,7 @@ err_info *Filejpeg::getImageInfo (int pagenum, QSize &size,
 
 err_info *Filejpeg::getPreviewInfo (int pagenum, QSize &size, int &bpp)
    {
+   CALL (checkPage (pagenum));
    size = _image.size () / 24;
    bpp = _image.depth ();
    return NULL;
@@ -316,21 +327,27 @@ err_info *Filejpeg::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    QSize size;
    QImage image;
 
+   CALL (checkPage (pagenum));
    size = _image.size () / 24;
    image = _image.scaled (size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+   if (blank)
+      colour_image_for_blank (image);
    pixmap = QPixmap (image);
 //    qDebug () << "pixmap" << pixmap.width () << pixmap.height ();
    return NULL;
    }
 
 
-err_info *Filejpeg::getImage (int pagenum, bool do_scale,
+err_info *Filejpeg::getImage (int pagenum, bool,
             QImage &image, QSize &size, QSize &trueSize, int &bpp, bool blank)
    {
+   CALL (checkPage (pagenum));
    image = _image;
    size = _image.size ();
    trueSize = size = image.size ();
    bpp = image.depth ();
+   if (blank)
+      colour_image_for_blank (image);
 //    qDebug () << "pixmap" << pixmap.width () << pixmap.height ();
    return NULL;
    }
@@ -349,14 +366,15 @@ err_info *Filejpeg::addPage (const Filepage *mp, bool do_flush)
                        qPrintable(typeName ()));
    mp->getImage (_image);
    _image.bits ();   // force deep copy
+   if (do_flush)
+      CALL (flush ());
    return NULL;
    }
 
 
 
 
-err_info *Filejpeg::removePages (QBitArray &pages,
-      QByteArray &del_info, int &count)
+err_info *Filejpeg::removePages (QBitArray &, QByteArray &, int &)
    {
    return not_impl ();
    }
@@ -364,8 +382,7 @@ err_info *Filejpeg::removePages (QBitArray &pages,
 
 
 
-err_info *Filejpeg::restorePages (QBitArray &pages,
-   QByteArray &del_info, int count)
+err_info *Filejpeg::restorePages (QBitArray &, QByteArray &, int)
    {
    return not_impl ();
    }
@@ -373,8 +390,16 @@ err_info *Filejpeg::restorePages (QBitArray &pages,
 
 
 
-err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
-            File *fdest)
+err_info *Filejpeg::unstackPages (int pagenum, int, bool, File *)
+   {
+   CALL (checkPage (pagenum));
+   return not_impl ();
+   }
+
+
+
+
+err_info *Filejpeg::stackStack (File *)
    {
    return not_impl ();
    }
@@ -382,16 +407,8 @@ err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
 
 
 
-err_info *Filejpeg::stackStack (File *fsrc)
-   {
-   return not_impl ();
-   }
-
-
-
-
-err_info *Filejpeg::duplicate (File *&fnew, File::e_type type, const QString &uniq,
-      int odd_even, Operation &op, bool &supported)
+err_info *Filejpeg::duplicate (File *&, File::e_type, const QString &,
+      int, Operation &, bool &supported)
    {
    supported = false;
    return NULL;

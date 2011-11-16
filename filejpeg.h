@@ -120,6 +120,13 @@ private:
 
    QString toTag (e_annot annot);
 
+   /** Check if a page number is valid. This returns an error unless the
+     page is 0.
+
+     \param pagenum  page number to check
+     \return NULL if ok, else an error */
+   err_info *checkPage (int pagenum);
+
 
 private:
    QImage _image;
