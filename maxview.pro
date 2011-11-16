@@ -5,26 +5,14 @@ QT += qt3support
 unix:target.path = /usr/bin
 INSTALLS += target
 
-podofo = $$(NO_PODOFO)
-
-contains (podofo, YES) {
-    message("Skipping podofo for development purposes")
-}else {
-    PRE_TARGETDEPS = podofo
-    #message("Configuring Makefile to build podogo")
-}
-
 message ("Type 'make' to build maxview")
 
 OCRINCPATH = /usr/local/include/nuance-omnipage-csdk-15.5
 OCRLIBPATH = /usr/local/lib/nuance-omnipage-csdk-15.5
 
-QMAKE_CXXFLAGS += -DPODOFO_EXTRA_CHECKS
-
 CONFIG += qt warn_on debug
 
 #QMAKE_LFLAGS += -static
-
 
 LIBS += -lpoppler-qt4
 
@@ -37,17 +25,17 @@ LIBS += -ltiff -lsane
 INCLUDEPATH += qi /usr/local/lib /usr/include/poppler/qt4
 INCLUDEPATH += $$OCRINCPATH
 
-LIBPATH += podofo-build/src
-LIBPATH += $$OCRLIBPATH
-INCLUDEPATH += podofo-svn
+#LIBPATH += $$OCRLIBPATH
+QMAKE_LIBDIR += $$OCRLIBPATH
 
-QMAKE_EXTRA_UNIX_TARGETS += dox podofolib
+INCLUDEPATH += /usr/include/podofo
+
+#QMAKE_EXTRA_UNIX_TARGETS += dox
+QMAKE_EXTRA_TARGETS += dox
 
 RESOURCES = maxview.qrc
 
 TRANSLATIONS = maxview_en.ts
-
-QMAKE_CLEAN += -r podofo-build
 
 HEADERS += desktopwidget.h \
    mainwidget.h \
@@ -126,7 +114,8 @@ HEADERS += desktopwidget.h \
  zip_p.h \
  zipentry_p.h \
  senddialog.h \
- transfer.h
+ transfer.h \
+    filejpeg.h
 
 SOURCES += desktopwidget.cpp \
    mainwidget.cpp \
@@ -207,12 +196,13 @@ SOURCES += desktopwidget.cpp \
  ocromni.cpp \
  zip.cpp \
  senddialog.cpp \
- transfer.cpp
+ transfer.cpp \
+    filejpeg.cpp
 
-contains (podofo, YES) {
- # add qtcreator debug macros if we are debugging
- SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
-}
+# add qtcreator debug macros if we are debugging
+SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
+
+
 
 #The following line was changed from FORMS to FORMS3 by qt3to4
 FORMS = mainwindow.ui \
@@ -252,22 +242,9 @@ unix {
 #The following line was inserted by qt3to4
 QT += xml
 
-# Build PoDoFo's Makefile
-!exists(podofo-build/Makefile){
-    system(mkdir podofo-build; cd podofo-build; cmake ../podofo-svn)
-}
-
-# custom target for PoDoFo
-podofolib.target = podofo
-podofolib.commands = make -C podofo-build
-podofolib.depends =
-
-#podofo-build/src/libpodofo.a
-
 # custom target 'doc' in *.pro file
 dox.target = doc
 dox.commands = doxygen Doxyfile; \
     test -d doxydoc/html/images || mkdir doxydoc/html/images; \
     cp documentation/images/* doxydoc/html/images
 dox.depends =
-
