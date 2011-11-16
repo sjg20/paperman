@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>Mainwindow</class>
- <widget class="QMainWindow" name="Mainwindow" >
-  <property name="geometry" >
+ <widget class="QMainWindow" name="Mainwindow">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,45 +10,45 @@
     <height>821</height>
    </rect>
   </property>
-  <property name="sizePolicy" >
-   <sizepolicy vsizetype="Preferred" hsizetype="Preferred" >
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>MaxView</string>
   </property>
-  <widget class="QWidget" name="centralwidget" >
-   <layout class="QVBoxLayout" >
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout">
     <item>
-     <layout class="QVBoxLayout" >
-      <property name="spacing" >
+     <layout class="QVBoxLayout">
+      <property name="spacing">
        <number>3</number>
       </property>
       <item>
-       <widget class="Mainwidget" name="_main" >
-        <property name="sizePolicy" >
-         <sizepolicy vsizetype="Preferred" hsizetype="Preferred" >
+       <widget class="Mainwidget" name="_main">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>
           <verstretch>1</verstretch>
          </sizepolicy>
         </property>
-        <property name="palette" >
+        <property name="palette">
          <palette>
           <active>
-           <colorrole role="Base" >
-            <brush brushstyle="SolidPattern" >
-             <color alpha="255" >
+           <colorrole role="Base">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
               <red>255</red>
               <green>255</green>
               <blue>255</blue>
              </color>
             </brush>
            </colorrole>
-           <colorrole role="Window" >
-            <brush brushstyle="SolidPattern" >
-             <color alpha="255" >
+           <colorrole role="Window">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
               <red>255</red>
               <green>252</green>
               <blue>248</blue>
@@ -56,18 +57,18 @@
            </colorrole>
           </active>
           <inactive>
-           <colorrole role="Base" >
-            <brush brushstyle="SolidPattern" >
-             <color alpha="255" >
+           <colorrole role="Base">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
               <red>255</red>
               <green>255</green>
               <blue>255</blue>
              </color>
             </brush>
            </colorrole>
-           <colorrole role="Window" >
-            <brush brushstyle="SolidPattern" >
-             <color alpha="255" >
+           <colorrole role="Window">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
               <red>255</red>
               <green>252</green>
               <blue>248</blue>
@@ -76,18 +77,18 @@
            </colorrole>
           </inactive>
           <disabled>
-           <colorrole role="Base" >
-            <brush brushstyle="SolidPattern" >
-             <color alpha="255" >
+           <colorrole role="Base">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
               <red>255</red>
               <green>252</green>
               <blue>248</blue>
              </color>
             </brush>
            </colorrole>
-           <colorrole role="Window" >
-            <brush brushstyle="SolidPattern" >
-             <color alpha="255" >
+           <colorrole role="Window">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
               <red>255</red>
               <green>252</green>
               <blue>248</blue>
@@ -97,10 +98,10 @@
           </disabled>
          </palette>
         </property>
-        <property name="frameShape" >
+        <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
-        <property name="frameShadow" >
+        <property name="frameShadow">
          <enum>QFrame::Raised</enum>
         </property>
        </widget>
@@ -109,390 +110,415 @@
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menubar" >
-   <property name="geometry" >
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
      <width>874</width>
-     <height>30</height>
+     <height>25</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile" >
-    <property name="title" >
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionPrint" />
-    <addaction name="actionExit" />
-    <addaction name="separator" />
-    <addaction name="separator" />
+    <addaction name="actionPrint"/>
+    <addaction name="actionExit"/>
+    <addaction name="separator"/>
+    <addaction name="separator"/>
    </widget>
-   <widget class="QMenu" name="menuView" >
-    <property name="title" >
+   <widget class="QMenu" name="menuView">
+    <property name="title">
      <string>View</string>
     </property>
+    <addaction name="actionFullScreen"/>
    </widget>
-   <widget class="QMenu" name="menuTools" >
-    <property name="title" >
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
      <string>Tools</string>
     </property>
-    <widget class="QMenu" name="menuArrange" >
-     <property name="toolTip" >
+    <widget class="QMenu" name="menuArrange">
+     <property name="toolTip">
       <string/>
      </property>
-     <property name="title" >
+     <property name="title">
       <string>Arrange</string>
      </property>
-     <addaction name="actionByPosition" />
-     <addaction name="actionByDate" />
-     <addaction name="actionByName" />
-     <addaction name="separator" />
-     <addaction name="actionResize_all" />
+     <addaction name="actionByPosition"/>
+     <addaction name="actionByDate"/>
+     <addaction name="actionByName"/>
+     <addaction name="separator"/>
+     <addaction name="actionResize_all"/>
     </widget>
-    <addaction name="menuArrange" />
+    <addaction name="menuArrange"/>
    </widget>
-   <widget class="QMenu" name="menuHelp" >
-    <property name="title" >
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
      <string>Help</string>
     </property>
-    <addaction name="actionAbout" />
+    <addaction name="actionAbout"/>
    </widget>
-   <widget class="QMenu" name="menuEdit" >
-    <property name="title" >
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
      <string>Edit</string>
     </property>
-    <addaction name="actionUndo" />
-    <addaction name="actionRedo" />
-    <addaction name="actionFind" />
-    <addaction name="separator" />
-    <addaction name="actionSelectall" />
+    <addaction name="actionUndo"/>
+    <addaction name="actionRedo"/>
+    <addaction name="actionFind"/>
+    <addaction name="separator"/>
+    <addaction name="actionSelectall"/>
    </widget>
-   <addaction name="menuFile" />
-   <addaction name="menuEdit" />
-   <addaction name="menuView" />
-   <addaction name="menuTools" />
-   <addaction name="menuHelp" />
+   <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuView"/>
+   <addaction name="menuTools"/>
+   <addaction name="menuHelp"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar" />
-  <widget class="QToolBar" name="toolBar" >
-   <property name="windowTitle" >
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
     <string>toolBar</string>
    </property>
-   <attribute name="toolBarArea" >
+   <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
-   <attribute name="toolBarBreak" >
+   <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionSwap" />
-   <addaction name="actionPrint" />
-   <addaction name="separator" />
-   <addaction name="actionOptions" />
-   <addaction name="actionScango" />
-   <addaction name="actionPscan" />
-   <addaction name="separator" />
-   <addaction name="actionRleft" />
-   <addaction name="actionRright" />
-   <addaction name="actionHflip" />
-   <addaction name="actionVflip" />
+   <addaction name="actionSwap"/>
+   <addaction name="actionPrint"/>
+   <addaction name="separator"/>
+   <addaction name="actionOptions"/>
+   <addaction name="actionScango"/>
+   <addaction name="actionPscan"/>
+   <addaction name="separator"/>
+   <addaction name="actionRleft"/>
+   <addaction name="actionRright"/>
+   <addaction name="actionHflip"/>
+   <addaction name="actionVflip"/>
   </widget>
-  <action name="actionPrint" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/print.xpm</iconset>
+  <action name="actionPrint">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/print.xpm</normaloff>:/images/images/print.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>Print</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Print this stack</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+P</string>
    </property>
   </action>
-  <action name="actionExit" >
-   <property name="text" >
+  <action name="actionExit">
+   <property name="text">
     <string>Exit</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Exit Maxview</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+Q</string>
    </property>
   </action>
-  <action name="actionFind" >
-   <property name="text" >
+  <action name="actionFind">
+   <property name="text">
     <string>Find</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Find a stack by name</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+F</string>
    </property>
   </action>
-  <action name="actionSelectall" >
-   <property name="text" >
+  <action name="actionSelectall">
+   <property name="text">
     <string>Select all</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Select all stacks</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+A</string>
    </property>
   </action>
-  <action name="actionByPosition" >
-   <property name="text" >
+  <action name="actionByPosition">
+   <property name="text">
     <string>by Position</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Arrange stacks by Position</string>
    </property>
   </action>
-  <action name="actionByDate" >
-   <property name="text" >
+  <action name="actionByDate">
+   <property name="text">
     <string>by Date</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Arrange stacks by Date</string>
    </property>
   </action>
-  <action name="actionByName" >
-   <property name="text" >
+  <action name="actionByName">
+   <property name="text">
     <string>by Name</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Arrange stacks by Name</string>
    </property>
   </action>
-  <action name="actionAbout" >
-   <property name="text" >
+  <action name="actionAbout">
+   <property name="text">
     <string>About</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Provides information about Maxview</string>
    </property>
   </action>
-  <action name="actionSwap" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/swap.xpm</iconset>
+  <action name="actionSwap">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/swap.xpm</normaloff>:/images/images/swap.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>Swap</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Swap between desktop and page view</string>
    </property>
   </action>
-  <action name="actionPrev" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/prev.xpm</iconset>
+  <action name="actionPrev">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/prev.xpm</normaloff>:/images/images/prev.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>Prev</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Move to previous page</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>PgUp</string>
    </property>
   </action>
-  <action name="actionNext" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/next.xpm</iconset>
+  <action name="actionNext">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/next.xpm</normaloff>:/images/images/next.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>Next</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Move to next page</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>PgDown</string>
    </property>
   </action>
-  <action name="actionPprev" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/pprev.xpm</iconset>
+  <action name="actionPprev">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/pprev.xpm</normaloff>:/images/images/pprev.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>pprev</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Move to previous stack</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+PgUp</string>
    </property>
   </action>
-  <action name="actionPnext" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/pnext.xpm</iconset>
+  <action name="actionPnext">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/pnext.xpm</normaloff>:/images/images/pnext.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>pnext</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Move to next stack</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+PgDown</string>
    </property>
   </action>
-  <action name="actionOptions" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/options.xpm</iconset>
+  <action name="actionOptions">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/options.xpm</normaloff>:/images/images/options.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>options</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Change scanning options</string>
    </property>
   </action>
-  <action name="actionScango" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/scan-go.xpm</iconset>
+  <action name="actionScango">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/scan-go.xpm</normaloff>:/images/images/scan-go.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>scango</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Perform a scan immediately using current settings</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>F8</string>
    </property>
   </action>
-  <action name="actionPscan" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/scan.xpm</iconset>
+  <action name="actionPscan">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/scan.xpm</normaloff>:/images/images/scan.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>pscan</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Bring up the scanning dialogue</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>F9</string>
    </property>
   </action>
-  <action name="actionRleft" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/rleft.xpm</iconset>
+  <action name="actionRleft">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/rleft.xpm</normaloff>:/images/images/rleft.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>rleft</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Rotate each page in the stack left</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Alt+Left</string>
    </property>
-   <property name="visible" >
+   <property name="visible">
     <bool>false</bool>
    </property>
-   <property name="iconVisibleInMenu" stdset="0" >
+   <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
   </action>
-  <action name="actionRright" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/rright.xpm</iconset>
+  <action name="actionRright">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/rright.xpm</normaloff>:/images/images/rright.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>rright</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Rotate each page in the stack right</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Alt+Right</string>
    </property>
-   <property name="visible" >
+   <property name="visible">
     <bool>false</bool>
    </property>
   </action>
-  <action name="actionHflip" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/hflip.xpm</iconset>
+  <action name="actionHflip">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/hflip.xpm</normaloff>:/images/images/hflip.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>hflip</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Flip each page in the stack horizontally</string>
    </property>
-   <property name="visible" >
+   <property name="visible">
     <bool>false</bool>
    </property>
   </action>
-  <action name="actionVflip" >
-   <property name="icon" >
-    <iconset resource="maxview.qrc" >:/images/images/vflip.xpm</iconset>
+  <action name="actionVflip">
+   <property name="icon">
+    <iconset resource="maxview.qrc">
+     <normaloff>:/images/images/vflip.xpm</normaloff>:/images/images/vflip.xpm</iconset>
    </property>
-   <property name="text" >
+   <property name="text">
     <string>vflip</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Flip each page in the stack vertically</string>
    </property>
-   <property name="visible" >
+   <property name="visible">
     <bool>false</bool>
    </property>
   </action>
-  <action name="actionResize_all" >
-   <property name="text" >
+  <action name="actionResize_all">
+   <property name="text">
     <string>Resize all</string>
    </property>
-   <property name="toolTip" >
+   <property name="toolTip">
     <string>Recalculate the size of all stacks in the current view</string>
    </property>
   </action>
-  <action name="actionUndo" >
-   <property name="text" >
+  <action name="actionUndo">
+   <property name="text">
     <string>Undo</string>
    </property>
   </action>
-  <action name="actionRedo" >
-   <property name="text" >
+  <action name="actionRedo">
+   <property name="text">
     <string>Redo</string>
    </property>
   </action>
-  <action name="actionClear_Selection" >
-   <property name="text" >
+  <action name="actionClear_Selection">
+   <property name="text">
     <string>Clear Selection</string>
    </property>
   </action>
-  <action name="actionUndo_2" >
-   <property name="text" >
+  <action name="actionUndo_2">
+   <property name="text">
     <string>Undo</string>
    </property>
   </action>
-  <action name="actionRedo_2" >
-   <property name="text" >
+  <action name="actionRedo_2">
+   <property name="text">
     <string>Redo</string>
    </property>
   </action>
-  <action name="actionFind_2" >
-   <property name="text" >
+  <action name="actionFind_2">
+   <property name="text">
     <string>Find</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+F</string>
    </property>
   </action>
-  <action name="actionSelect_All" >
-   <property name="text" >
+  <action name="actionSelect_All">
+   <property name="text">
     <string>Select All</string>
    </property>
-   <property name="shortcut" >
+   <property name="shortcut">
     <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="actionFullScreen">
+   <property name="text">
+    <string>Full Screen</string>
+   </property>
+   <property name="shortcut">
+    <string>F11</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
  </widget>
@@ -505,7 +531,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="maxview.qrc" />
+  <include location="maxview.qrc"/>
  </resources>
  <connections/>
 </ui>

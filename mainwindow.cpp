@@ -69,7 +69,11 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _desktop = _main->getDesktop ();
    QSettings qs;
 
+   setWindowState(windowState() ^ Qt::WindowFullScreen);
+   setWindowState(windowState() ^ Qt::WindowMaximized);
+
    restoreGeometry(qs.value("mainwindow/geometry").toByteArray());
+   restoreState(qs.value("mainwindow/state").toByteArray());
 
    // to stop the status bar rising all the time, set its maximum size
    QSize size = QSize (5000, 20);
@@ -130,6 +134,7 @@ void Mainwindow::saveSettings ()
    QSettings settings;
 
    settings.setValue("mainwindow/geometry", saveGeometry());
+   settings.setValue("mainwindow/state", saveState());
    _main->closing ();
    }
 
@@ -177,8 +182,10 @@ void Mainwindow::on_actionAbout_activated()
    widget->exec ();
 }
 
-
-
+void Mainwindow::on_actionFullScreen_activated()
+{
+   setWindowState(windowState() ^ Qt::WindowFullScreen);
+}
 
 Desktopwidget * Mainwindow::getDesktop()
 {
