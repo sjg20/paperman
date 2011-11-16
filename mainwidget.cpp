@@ -174,6 +174,7 @@ void Mainwidget::saveSettings (void)
 void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
    {
    // TODO: Work out whether delay_smoothing is needed
+   delay_smoothing = delay_smoothing;
 #if 0
    if (!f->max)
       {
@@ -646,9 +647,13 @@ void Mainwidget::selectScanner (void)
       }
 */
    QScannerSetupDlg ssd(_scanner, 0);
+
+   /* TODO: tidy up this wierdness - it should be possible to cancel but
+      at present this casues a crash */
    _scanner = 0;
    ssd.show ();
    ok = ssd.exec () == QDialog::Accepted;
+
    _scanner = ssd.scanner ();
    if (_scanner && _scanner->isOpen ())
       {
@@ -807,9 +812,9 @@ err_info *Mainwidget::printPage (int seq, QModelIndex &ind,
 //    ypos -= bottom;
 
    // draw a white background for the text
-   QRect textrect = QRect (_printable.left(),
-         _printable.bottom() - _painter->fontMetrics().height() - 1,
-         _printable.width (), _painter->fontMetrics().height() + 1);
+//   QRect textrect = QRect (_printable.left(),
+//         _printable.bottom() - _painter->fontMetrics().height() - 1,
+//         _printable.width (), _painter->fontMetrics().height() + 1);
 //    QRect newrect = textrect;
 //    newrect.translate (0, -100);
 
