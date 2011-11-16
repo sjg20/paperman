@@ -91,8 +91,8 @@ int main (int argc, char *argv[])
    {
    Mainwindow *me;
    Desktopwidget *desktop;
-   bool verbose = false, force = false, reloc = false, hack = false;
-   int debug = 0;
+   //bool verbose = false, force = false, reloc = false, hack = false;
+   //int debug = 0;
    char *dir = 0;
 //    err_info *e;
    static struct option long_options[] = {
@@ -137,12 +137,13 @@ int main (int argc, char *argv[])
             bad = true;
 	    break;
 
-	 case 'd' : debug = atoi (optarg); break;
-
+/*
+         case 'd' : debug = atoi (optarg); break;
 	 case 'v' : verbose = true; break;
 	 case 'f' : force = true; break;
 	 case 'r' : reloc = true; break;
 	 case 'z' : hack = true; break;
+*/
 	 }
 
    if (optind < argc)

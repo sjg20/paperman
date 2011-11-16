@@ -173,6 +173,7 @@ void Mainwidget::saveSettings (void)
 
 void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
    {
+   // TODO: Work out whether delay_smoothing is needed
 #if 0
    if (!f->max)
       {
