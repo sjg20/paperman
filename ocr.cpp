@@ -55,7 +55,7 @@ Ocr::~Ocr ()
    }
 
 
-Ocr::Ocr *Ocr::getOcr (err_info *&err)
+Ocr *Ocr::getOcr (err_info *&err)
    {
    Ocr *ocr;
 
