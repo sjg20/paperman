@@ -10,3 +10,14 @@
 *.lai
 *.la
 *.a
+
+*.moc
+*.obj
+*.ui
+/Makefile
+/maxview
+/qrc_maxview.cpp
+/qmake_image_collection.cpp
+/maxview.pro.user
+/qmeta-build-desktop
+/test
