@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>492</width>
-    <height>86</height>
+    <height>92</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -108,6 +108,9 @@
      </item>
      <item>
       <widget class="QToolButton" name="infoMode">
+       <property name="toolTip">
+        <string>Info mode: Review and update author and notes</string>
+       </property>
        <property name="text">
         <string>...</string>
        </property>
