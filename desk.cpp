@@ -864,12 +864,12 @@ err_info *Desk::moveFromDir (QString &src, QString &trashname, QString &filename
    // move the file with the new name
    filename = uniq + ext;
    QDir dir;
-   QString from = from;
+   QString from = trashname;
    QString to = _dir + filename;
    if (!dir.rename (from, to))
       return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (from),
             qPrintable (to));
-   fnew = createFile (_dir, uniq + ext);
+   fnew = createFile (_dir, filename);
    newFile (fnew);
    return NULL;
    }
