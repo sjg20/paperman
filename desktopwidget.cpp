@@ -473,32 +473,32 @@ bool Desktopwidget::getCurrentFile (QModelIndex &index)
    }
 
 
-void Desktopwidget::addDir (QString dirname)
+err_info *Desktopwidget::addDir (QString in_dirname)
    {
-   QDir dir (dirname);
+   QDir dir (in_dirname);
 
 //    dirname = dir.absPath () + "/";
-   dirname = dir.canonicalPath ();
+   QString dirname = dir.canonicalPath ();
    if (dirname.isEmpty ())
-      {
-      printf ("Directory '%s' is invalid or not present\n",
-              qPrintable(dirname));
-      return;
-      }
+      return err_make (ERRFN, ERR_directory_not_found1,
+                       qPrintable(in_dirname));
    dirname += "/";
 
 // printf ("dir = %s\n", dirname.latin1 ());
    QModelIndex index = _model->index (dirname, 0);
 
    if (index != QModelIndex ())
-      printf ("Directory '%s' already present\n", qPrintable (dirname));
+      return err_make (ERRFN, ERR_directory_is_already_present_as2,
+                       qPrintable(in_dirname), qPrintable(dirname));
    else if (_model->addDir (dirname))
       {
       QModelIndex index = _model->index (dirname);
       selectDir (index);
       }
    else
-      printf ("Could not find directory '%s'\n", dirname.latin1 ());
+      return err_make (ERRFN, ERR_directory_could_not_be_added1,
+                       qPrintable(in_dirname));
+   return NULL;
    }
 
 
@@ -616,10 +616,8 @@ void Desktopwidget::slotAddRepository ()
         tr("Select folder to use as a new repository"));
 
    if (!dir.isEmpty ())
-      {
-      addDir (dir);
-      updateSettings ();
-      }
+      if (err_complain (addDir (dir)))
+         updateSettings ();
    }
 
 void Desktopwidget::slotRemoveRepository ()

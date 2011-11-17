@@ -98,6 +98,8 @@ static const char *err_msg [ERR_count] =
    "File type '%s' not supported",
    "File type '%s' only supports a single page",
    "Cannot %s: Exif tool error '%s'",
+   "Directory '%s' is already present as '%s'",
+   "Directory '%s' could not be added",
    };
 
 

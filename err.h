@@ -110,6 +110,8 @@ enum
    ERR_file_type_unsupported1,
    ERR_file_type_only_supports_a_single_page1,
    ERR_cannot_exiftool_error2,
+   ERR_directory_is_already_present_as2,
+   ERR_directory_could_not_be_added1,
 
    ERR_count
    };

@@ -85,8 +85,11 @@ public:
    void createPage(void);
    void addActions(void);
 
-   /** add a new 'root' directory to the tree of directories */
-   void addDir (QString dirname);
+   /** add a new 'root' directory to the tree of directories
+
+     \param dirname  Full path of directory to add
+     \returns NULL if ok, else error */
+   err_info *addDir (QString dirname);
 
    /** returns a pointer to the model, which contains the items being displayed */
    Desktopmodel *getModel (void) { return _contents; }

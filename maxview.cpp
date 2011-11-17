@@ -291,23 +291,43 @@ int main (int argc, char *argv[])
 	 // add all the directories to the tree view
 	 //	 while (optind < argc)
          QSettings qs;
+         QList<err_info> err_list;
+         err_info *err;
 
          int size = qs.beginReadArray ("repository");
          for (int i = 0; i < size; i++)
             {
             qs.setArrayIndex (i);
-            desktop->addDir (qs.value ("path").toString ());
+            err = desktop->addDir (qs.value ("path").toString ());
+            if (err)
+               err_list << *err;
             }
          qs.endArray ();
 
          /* Add dirs for any arguments */
 	 for (c = argc - 1; c >= optind; c--)
-            desktop->addDir (argv [c]);
+            {
+            err = desktop->addDir (argv [c]);
+            if (err)
+               err_list << *err;
+            }
 
 	 me->show ();
          QModelIndex ind = QModelIndex ();
          desktop->selectDir (ind);
-	 app.exec ();
+         qDebug () << err_list.size ();
+
+         if (err_list.size ())
+            {
+            QString msg;
+
+            msg = app.tr ("%n error(s) on startup", "", err_list.size ());
+            msg.append (":\n");
+            foreach (const err_info &err, err_list)
+               msg.append (QString ("%1\n").arg (err.errstr));
+            QMessageBox::warning (0, "Maxview", msg);
+            }
+         app.exec ();
 
          // write back any configuration changes (scanner type, etc.)
          if (xmlConfig)
