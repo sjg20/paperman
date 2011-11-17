@@ -95,8 +95,9 @@ public:
 
    /** add a new repository directory to the list
 
+      \param ignore_error  add the dir even if it doesn't exist
       \returns true on success, else false */
-   bool addDir (QString &dir);
+   bool addDir (QString &dir, bool ignore_error = false);
 
    /** Remove a repository directory from the list
 

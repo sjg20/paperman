@@ -473,15 +473,20 @@ bool Desktopwidget::getCurrentFile (QModelIndex &index)
    }
 
 
-err_info *Desktopwidget::addDir (QString in_dirname)
+err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
    {
+   err_info *err = NULL;
+
    QDir dir (in_dirname);
 
 //    dirname = dir.absPath () + "/";
    QString dirname = dir.canonicalPath ();
    if (dirname.isEmpty ())
-      return err_make (ERRFN, ERR_directory_not_found1,
-                       qPrintable(in_dirname));
+      {
+      dirname = in_dirname;
+      err = err_make (ERRFN, ERR_directory_not_found1,
+                       qPrintable(dirname));
+      }
    dirname += "/";
 
 // printf ("dir = %s\n", dirname.latin1 ());
@@ -490,15 +495,17 @@ err_info *Desktopwidget::addDir (QString in_dirname)
    if (index != QModelIndex ())
       return err_make (ERRFN, ERR_directory_is_already_present_as2,
                        qPrintable(in_dirname), qPrintable(dirname));
-   else if (_model->addDir (dirname))
+   else if (err && !ignore_error)
+      ;
+   else if (_model->addDir (dirname, ignore_error))
       {
       QModelIndex index = _model->index (dirname);
       selectDir (index);
       }
    else
-      return err_make (ERRFN, ERR_directory_could_not_be_added1,
+      err = err_make (ERRFN, ERR_directory_could_not_be_added1,
                        qPrintable(in_dirname));
-   return NULL;
+   return err;
    }
 
 

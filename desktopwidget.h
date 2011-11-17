@@ -87,9 +87,10 @@ public:
 
    /** add a new 'root' directory to the tree of directories
 
-     \param dirname  Full path of directory to add
+     \param dirname        Full path of directory to add
+     \param ignore_error   true to add it anyway, even on error
      \returns NULL if ok, else error */
-   err_info *addDir (QString dirname);
+   err_info *addDir (QString dirname, bool ignore_error = false);
 
    /** returns a pointer to the model, which contains the items being displayed */
    Desktopmodel *getModel (void) { return _contents; }

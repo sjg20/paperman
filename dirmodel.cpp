@@ -60,10 +60,15 @@ void Diritem::setRecent(QModelIndex index)
 
 bool Diritem::setDir(QString &dir)
    {
+   QModelIndex index;
    QDir qd (dir);
 
+   // Try to get the canonical path, but if not, use the one supplied
    _dir = qd.canonicalPath ();
-   QModelIndex index = _model->index (_dir);
+   if (_dir.isEmpty ())
+      _dir = dir;
+
+   index = _model->index (_dir);
    bool valid = index != QModelIndex ();
    //    printf ("addDir %s\n", _dir.latin1 ());
    //    _index = QPersistentModelIndex (_model->index (_dir));
@@ -310,12 +315,12 @@ Qt::DropActions Dirmodel::supportedDropActions () const
    }
 
 
-bool Dirmodel::addDir (QString &dir)
+bool Dirmodel::addDir (QString &dir, bool ignore_error)
    {
    Diritem *item = new Diritem (this);
 
    bool ok = item->setDir(dir);
-   if (ok)
+   if (ok || ignore_error)
       {
       beginInsertRows(QModelIndex (), _item.size(), _item.size());
       _item.append (item);
@@ -356,6 +361,7 @@ QString Dirmodel::getRecent(int) const
 QVariant Dirmodel::data(const QModelIndex &ind, int role) const
    {
    QModelIndex index = ind;
+   QString name;
    bool recent = false;
 
    if (!index.isValid())
@@ -364,19 +370,40 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
       return QVariant();
       }
 
+   if (index.column() != 0)
+      return QVariant ();
+
    int i = findIndex (index);
    if (isRoot (index))
       {
       index = _item [i]->index ();
+      if (i && index == QModelIndex ())
+         {
+         /*
+          * special case where an invalid / non-existent dir was added. It
+          * might be a mount point that has gone away, so keep it around
+          * to avoid annoying the user
+          */
+         name = _item [i]->dir ();
+         if (role != FilePathRole)
+            {
+            QDir dir (name);
+
+            name = dir.dirName ();
+            }
+         }
       recent = _item [i]->isRecent ();
       }
 
-   if (index.column() == 0) switch (role)
+   switch (role)
       {
+      case FilePathRole :
       case Qt::DisplayRole :
       case Qt::EditRole :
-      case FilePathRole :
       case FileNameRole :
+         if (!name.isEmpty ())
+            return QVariant (name);
+
          return recent ? getRecent(role) : QDirModel::data (index, role);
       }
 

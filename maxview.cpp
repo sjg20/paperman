@@ -298,7 +298,7 @@ int main (int argc, char *argv[])
          for (int i = 0; i < size; i++)
             {
             qs.setArrayIndex (i);
-            err = desktop->addDir (qs.value ("path").toString ());
+            err = desktop->addDir (qs.value ("path").toString (), true);
             if (err)
                err_list << *err;
             }
