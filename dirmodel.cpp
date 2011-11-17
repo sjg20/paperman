@@ -117,6 +117,22 @@ Dirmodel::~Dirmodel ()
 //     }
 
 
+err_info *Dirmodel::checkOverlap (QString &dirname, QString &user_dirname)
+   {
+   foreach (const Diritem *item, _item)
+      {
+      const QString dir = item->dir ();
+
+      if (dir.startsWith (dirname) ||
+          dirname.startsWith (dir))
+         return err_make (ERRFN, ERR_directories_and_overlap3,
+                          qPrintable (dir), qPrintable(dirname),
+                          qPrintable (user_dirname));
+      }
+   return NULL;
+   }
+
+
 void Dirmodel::addToRecent (QModelIndex &index)
 {
    if (!_recent.contains(index))
@@ -326,6 +342,8 @@ bool Dirmodel::addDir (QString &dir, bool ignore_error)
       _item.append (item);
       endInsertRows();
       }
+   else
+      delete item;
    return ok;
    }
 

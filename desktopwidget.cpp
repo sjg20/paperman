@@ -487,9 +487,11 @@ err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
       err = err_make (ERRFN, ERR_directory_not_found1,
                        qPrintable(dirname));
       }
+
+   // Check that the dirname isn't overlapping another
+   CALL (_model->checkOverlap (dirname, in_dirname));
    dirname += "/";
 
-// printf ("dir = %s\n", dirname.latin1 ());
    QModelIndex index = _model->index (dirname, 0);
 
    if (index != QModelIndex ())

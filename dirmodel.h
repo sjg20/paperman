@@ -38,7 +38,7 @@ public:
 
 //    QPersistentModelIndex index (void) const { return _index; }
    QModelIndex index (void) const;
-   QString dir (void) { return _dir; }
+   QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 
    /** Sets the directory, returning true if ok.
@@ -175,6 +175,14 @@ public:
 
       \param index    index to add */
    void addToRecent (QModelIndex &index);
+
+   /** check that a dirname does not overlap any existing top-level dirnames.
+     This means that it must not contain or be contained by any of them
+
+     \param dirname  Dir to check
+     \param user_dirname   Dir name as supplied by user (not canonical)
+     \returns NULL if ok, else error */
+   err_info *checkOverlap (QString &dirname, QString &user_dirname);
 
 private:
    /** counts the number of files in 'path', adds it to count and returns it.

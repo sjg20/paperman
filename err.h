@@ -112,6 +112,7 @@ enum
    ERR_cannot_exiftool_error2,
    ERR_directory_is_already_present_as2,
    ERR_directory_could_not_be_added1,
+   ERR_directories_and_overlap3,
 
    ERR_count
    };
