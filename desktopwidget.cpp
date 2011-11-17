@@ -599,12 +599,13 @@ void Desktopwidget::updateSettings ()
    int count = _model->rowCount (QModelIndex ());
    QSettings qs;
 
+   qs.remove ("repository");
    qs.beginWriteArray ("repository");
    for (int i = 1; i < count; i++)
       {
       QModelIndex index = _model->index (i, 0, QModelIndex ());
 
-      qs.setArrayIndex (i);
+      qs.setArrayIndex (i - 1);
       qs.setValue ("path", _model->data (index, Dirmodel::FilePathRole));
       }
    qs.endArray ();
