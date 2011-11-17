@@ -117,6 +117,7 @@ void Dirmodel::addToRecent (QModelIndex &index)
    if (!_recent.contains(index))
       {
       QModelIndex parent = _item[0]->index ();
+
       beginInsertRows(parent, _recent.size(), _recent.size());
       _recent.append(index);
       endInsertRows();
@@ -315,8 +316,25 @@ bool Dirmodel::addDir (QString &dir)
 
    bool ok = item->setDir(dir);
    if (ok)
+      {
+      beginInsertRows(QModelIndex (), _item.size(), _item.size());
       _item.append (item);
+      endInsertRows();
+      }
    return ok;
+   }
+
+
+bool Dirmodel::removeDirFromList (const QModelIndex &index)
+   {
+   if (!isRoot (index))
+      return false;
+   int itemnum = findIndex (index);
+
+   beginRemoveRows(QModelIndex (), itemnum, itemnum);
+   _item.removeAt (itemnum);
+   endRemoveRows();
+   return true;
    }
 
 
@@ -329,7 +347,7 @@ int Dirmodel::columnCount (const QModelIndex &parent) const
    }
 
 
-QString Dirmodel::getRecent(int role) const
+QString Dirmodel::getRecent(int) const
    {
    return "Recent items";
    }
@@ -669,5 +687,3 @@ QStringList Dirmodel::mimeTypes() const
    types << "application/vnd.text.list";
    return types;
    }
-
-

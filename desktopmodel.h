@@ -218,7 +218,7 @@ public:
       \param fname   filename to look up
       \param parent  parent index (must be an index of a desk)
       \returns the model index for that filename, which is null if not found */
-   QModelIndex index (QString &fname, QModelIndex parent) const;
+   QModelIndex index (const QString &fname, QModelIndex parent) const;
 
    /** returns the parent of a given index
 
@@ -226,6 +226,14 @@ public:
 
       \returns the parent of the item */
    QModelIndex parent (const QModelIndex& index) const;
+
+   /** remove a Desk and all its children and File objects
+
+     This only updates our internal data - it does not delete any files on disk.
+
+     \param index    Index of Desk to delete (must be a top-level item)
+      \returns true on success, false on failure (which would be bad) */
+   bool removeDesk (const QString &pathname);
 
    //* returns a list of mime types that we can generate */
    QStringList mimeTypes() const;
@@ -952,6 +960,9 @@ public:
 
    //! returns the current directory path being displayed
    QString &getDirPath (void);
+
+   /** clear the current directory path */
+   void resetDirPath (void);
 
    /** read an image for page 'pagenum' of the file
 

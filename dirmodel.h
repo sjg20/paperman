@@ -93,10 +93,15 @@ public:
    bool dropMimeData(const QMimeData *data, Qt::DropAction action,
                              int /* row */, int /* column */, const QModelIndex &parent);
 
-   /** add a new directory to the list
+   /** add a new repository directory to the list
 
       \returns true on success, else false */
    bool addDir (QString &dir);
+
+   /** Remove a repository directory from the list
+
+     \param index    model index of directory to remove */
+   bool removeDirFromList (const QModelIndex &index);
 
    /** make a new directory
 
@@ -141,6 +146,8 @@ public:
    int findIndex (const QModelIndex &index) const;
 
    /** checks if the index given is one of our special root indices
+
+     These are the top level repositories which appear in the dir tree.
 
       \returns true if this index is a root index */
    int isRoot (const QModelIndex &index) const;

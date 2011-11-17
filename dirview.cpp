@@ -55,12 +55,16 @@ Dirview::Dirview (QWidget *parent)
    _delete = new QAction ("&Delete", this);
    _refresh = new QAction ("Re&fresh", this);
    _add_recent = new QAction ("&Add to recent", this);
+   _add_repository = new QAction ("Add repository", this);
+   _remove_repository = new QAction ("Remove repository", this);
 
    addAction (_new);
    addAction (_rename);
    addAction (_delete);
    addAction (_refresh);
    addAction (_add_recent);
+   addAction (_add_repository);
+   addAction (_remove_repository);
    }
 
 
@@ -98,6 +102,9 @@ void Dirview::contextMenuEvent (QContextMenuEvent * e)
    menu->addAction (_delete);
    menu->addAction (_refresh);
    menu->addAction (_add_recent);
+   menu->addSeparator ();
+   menu->addAction (_add_repository);
+   menu->addAction (_remove_repository);
    menu->exec (e->globalPos());
    }
 

@@ -252,6 +252,12 @@ private slots:
    //! add to the list of recent directories
    void addToRecent (void);
 
+   //! Ask the user for a directory and add it to the list of repositories
+   void slotAddRepository ();
+
+   //! Remove the selected respository
+   void slotRemoveRepository ();
+
    void updatePreview (void);
 
    //! duplicate the selected items

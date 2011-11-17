@@ -168,7 +168,12 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_dir->_rename, SIGNAL (triggered ()), this, SLOT (renameDir ()));
    connect (_dir->_delete, SIGNAL (triggered ()), this, SLOT (deleteDir ()));
    connect (_dir->_refresh, SIGNAL (triggered ()), this, SLOT (refreshDir ()));
-   connect (_dir->_add_recent, SIGNAL (triggered ()), this, SLOT (addToRecent ()));
+   connect (_dir->_add_recent, SIGNAL (triggered ()), this,
+            SLOT (addToRecent ()));
+   connect (_dir->_add_repository, SIGNAL (triggered ()), this,
+            SLOT (slotAddRepository ()));
+   connect (_dir->_remove_repository, SIGNAL (triggered ()), this,
+            SLOT (slotRemoveRepository ()));
 
    setResizeMode (_dir, KeepSize);
 
@@ -573,6 +578,29 @@ void Desktopwidget::addToRecent ()
    _model->addToRecent (index);
    }
 
+
+void Desktopwidget::slotAddRepository ()
+   {
+   QString dir = QFileDialog::getExistingDirectory(this,
+        tr("Select folder to use as a new repository"));
+
+   if (!dir.isEmpty ())
+      {
+      addDir (dir);
+      QModelIndex index = _model->index (dir);
+      selectDir (index);
+      }
+   }
+
+void Desktopwidget::slotRemoveRepository ()
+   {
+   QString path = _dir->menuGetPath ();
+   QModelIndex index = _dir->menuGetModelIndex ();
+
+   _contents->removeDesk (path);
+   _model->removeDirFromList (index);
+   _contents->resetDirPath ();
+   }
 
 void Desktopwidget::deleteDir ()
    {

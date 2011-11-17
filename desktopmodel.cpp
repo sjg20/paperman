@@ -136,9 +136,9 @@ Desktopmodel::~Desktopmodel()
 /** index points to a File */
 #define IS_FILE(ind) ((unsigned)(ind).internalId () >= MAX_ID)
 
-#define DESK_INDEX(row) createIndex (row, 0, row + 10);
+#define DESK_INDEX(row) createIndex (row, 0, row + 10)
 
-#define FILE_INDEX(row,f) createIndex (row, 0, (void *)f);
+#define FILE_INDEX(row,f) createIndex (row, 0, (void *)f)
 
 
 QVariant Desktopmodel::data(const QModelIndex &index, int role) const
@@ -160,7 +160,7 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
       {
       Desktopmodel *model = (Desktopmodel *)this;
 
-      // don't add if already there (can happy with multiple redraws of an item)
+      // don't add if already there (can happen with multiple redraws of an item)
       if (!model->_pending_scan_list.contains (index))
          {
          // restart the timer if not running
@@ -424,7 +424,7 @@ QModelIndex Desktopmodel::index (int row, int column, const QModelIndex &parent)
    }
 
 
-QModelIndex Desktopmodel::index (QString &fname, QModelIndex parent) const
+QModelIndex Desktopmodel::index (const QString &fname, QModelIndex parent) const
    {
    if (parent == QModelIndex ())
       {
@@ -466,6 +466,30 @@ QModelIndex Desktopmodel::parent(const QModelIndex &item) const
    return QModelIndex ();
    }
 
+
+bool Desktopmodel::removeDesk (const QString &pathname)
+   {
+   QModelIndex ind = index (pathname + "/", QModelIndex ());
+
+   // TODO: check that when re-adding it reuses the same Desk
+   if (!IS_DESK (ind))
+      {
+      qDebug() << "Cannot removeDesk() on a non-Desk";
+      return false;
+      }
+
+   Desk *desk = getDesk (ind);
+
+   Q_ASSERT (desk);
+
+   int item = ind.row ();
+
+   beginRemoveRows (ind.parent (), ind.row (), ind.row ());
+   delete desk;
+   _desks.removeAt(item);
+   endRemoveRows ();
+   return true;
+   }
 
 void Desktopmodel::setModelConv (Desktopmodelconv *modelconv)
    {
@@ -1360,6 +1384,11 @@ QString &Desktopmodel::getDirPath (void)
    return _dirPath;
    }
 
+
+void Desktopmodel::resetDirPath (void)
+   {
+   _dirPath.clear ();
+   }
 
 void Desktopmodel::flushAllDesks (void)
    {
