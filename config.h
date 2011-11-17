@@ -70,7 +70,7 @@ details */
 
 
 // version numbers
-#define CONFIG_version_str "0.7"
+#define CONFIG_version_str "0.8"
 #define CONFIG_version 70
 
 
