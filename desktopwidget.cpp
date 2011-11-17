@@ -478,10 +478,26 @@ void Desktopwidget::addDir (QString dirname)
    QDir dir (dirname);
 
 //    dirname = dir.absPath () + "/";
-   dirname = dir.canonicalPath () + "/";
+   dirname = dir.canonicalPath ();
+   if (dirname.isEmpty ())
+      {
+      printf ("Directory '%s' is invalid or not present\n",
+              qPrintable(dirname));
+      return;
+      }
+   dirname += "/";
 
 // printf ("dir = %s\n", dirname.latin1 ());
-   if (!_model->addDir (dirname))
+   QModelIndex index = _model->index (dirname, 0);
+
+   if (index != QModelIndex ())
+      printf ("Directory '%s' already present\n", qPrintable (dirname));
+   else if (_model->addDir (dirname))
+      {
+      QModelIndex index = _model->index (dirname);
+      selectDir (index);
+      }
+   else
       printf ("Could not find directory '%s'\n", dirname.latin1 ());
    }
 
@@ -578,6 +594,21 @@ void Desktopwidget::addToRecent ()
    _model->addToRecent (index);
    }
 
+void Desktopwidget::updateSettings ()
+   {
+   int count = _model->rowCount (QModelIndex ());
+   QSettings qs;
+
+   qs.beginWriteArray ("repository");
+   for (int i = 1; i < count; i++)
+      {
+      QModelIndex index = _model->index (i, 0, QModelIndex ());
+
+      qs.setArrayIndex (i);
+      qs.setValue ("path", _model->data (index, Dirmodel::FilePathRole));
+      }
+   qs.endArray ();
+   }
 
 void Desktopwidget::slotAddRepository ()
    {
@@ -587,8 +618,7 @@ void Desktopwidget::slotAddRepository ()
    if (!dir.isEmpty ())
       {
       addDir (dir);
-      QModelIndex index = _model->index (dir);
-      selectDir (index);
+      updateSettings ();
       }
    }
 
@@ -600,6 +630,7 @@ void Desktopwidget::slotRemoveRepository ()
    _contents->removeDesk (path);
    _model->removeDirFromList (index);
    _contents->resetDirPath ();
+   updateSettings ();
    }
 
 void Desktopwidget::deleteDir ()

@@ -471,6 +471,12 @@ bool Desktopmodel::removeDesk (const QString &pathname)
    {
    QModelIndex ind = index (pathname + "/", QModelIndex ());
 
+   if (ind == QModelIndex ())
+      {
+      qDebug () << "Cannot find desk for" << pathname;
+      return false;
+      }
+
    // TODO: check that when re-adding it reuses the same Desk
    if (!IS_DESK (ind))
       {

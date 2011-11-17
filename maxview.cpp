@@ -30,6 +30,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <getopt.h>
 
 #include <QDebug>
+#include <QSettings>
 #include <QTranslator>
 
 #include "qapplication.h"
@@ -60,8 +61,7 @@ extern "C" int test_main (void);
 bool err_complain (err_info *err)
    {
    if (err)
-      QMessageBox::warning (0, "Maxview",
-               err->errstr);
+      QMessageBox::warning (0, "Maxview", err->errstr);
    return err != NULL;
    }
 
@@ -69,13 +69,16 @@ bool err_complain (err_info *err)
 static void usage (void)
    {
    printf ("maxview - An electronic filing cabinet: scan, print, stack, arrange\n\n");
-   printf ("(C) 2009 Simon Glass, chch-kiwi@users.sourceforge.net, v%s\n\n", CONFIG_version_str);
+   printf ("(C) 2011 Simon Glass, chch-kiwi@users.sourceforge.net, v%s\n\n", CONFIG_version_str);
    printf ("Usage:  maxview <opts>  <dir/file>\n\n");
+/*
    printf ("   -p|--pdf        convert given file to .pdf\n");
    printf ("   -m|--max        convert given file to .max\n");
    printf ("   -j|--jpeg       convert given file to .jpg\n");
    printf ("   -v|--verbose    be verbose\n");
+*/
    printf ("   -h|--help       display this usage information\n");
+/*
    printf ("   -d|--debug <n>  set debug level (0-3)\n");
    printf ("   -f|--force      force overwriting of existing file\n");
    printf ("   -r|--relocate   move a processed file into a 'xxx.old' subdirectory\n");
@@ -84,6 +87,7 @@ static void usage (void)
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
           "mode, displaying\nthumbails of the given directory\n");
+*/
    }
 
 
@@ -94,28 +98,30 @@ int main (int argc, char *argv[])
    //bool verbose = false, force = false, reloc = false, hack = false;
    //int debug = 0;
    char *dir = 0;
+   bool need_gui = false;
 //    err_info *e;
    static struct option long_options[] = {
-     {"pdf", 0, 0, 'p'},
-     {"jpg", 0, 0, 'j'},
-     {"test", 0, 0, 't'},
-     {"max", 0, 0, 'm'},
-     {"sum", 0, 0, 's'},
-     {"debug", 1, 0, 'd'},
-     {"verbose", 0, 0, 'v'},
+//     {"index", 0, 0, '1'},
      {"help", 0, 0, 'h'},
+/*
+     {"jpg", 0, 0, 'j'},
+     {"debug", 1, 0, 'd'},
      {"force", 0, 0, 'f'},
-     {"relocate", 0, 0, 'r'},
      {"info", 0, 0, 'i'},
-     {"index", 0, 0, '1'},
+     {"max", 0, 0, 'm'},
+     {"pdf", 0, 0, 'p'},
+     {"relocate", 0, 0, 'r'},
+     {"sum", 0, 0, 's'},
+     {"test", 0, 0, 't'},
+     {"verbose", 0, 0, 'v'},
+*/
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
    QString index;
-   bool bad = false;
 
-   while (c = getopt_long (argc, argv,
-			   "jptmisd:vfrz", long_options, NULL), c != -1)
+   while (c = getopt_long (argc, argv, "h",
+                           long_options, NULL), c != -1)
       switch (c)
          {
 	 case 's' :
@@ -134,8 +140,8 @@ int main (int argc, char *argv[])
 
          case 'h' :
 	 case '?' :
-            bad = true;
-	    break;
+            usage ();
+            return 1;
 
 /*
          case 'd' : debug = atoi (optarg); break;
@@ -153,7 +159,7 @@ int main (int argc, char *argv[])
    //	   op_type, op_type, debug, verbose, dir ? dir : "<null>");
 
    if (!dir && op_type != 't')
-      bad = true;
+      need_gui = true;
 
 #ifdef Q_WS_X11
     bool useGUI = getenv( "DISPLAY" ) != 0 && op_type == -1;
@@ -163,13 +169,14 @@ int main (int argc, char *argv[])
    if (op_type == 't')
       useGUI = true;
 
-   if (!bad && op_type == -1 && !useGUI)
+   if (!need_gui && op_type == -1 && !useGUI)
       {
       printf ("** Warning: no display available for interactive mode\n");
       printf ("Please either run in Gnome/KDE/X or set the DISPLAY variable\n\n");
-      bad = true;
+      usage ();
+      return 1;
       }
-   if (bad)
+   if (need_gui && !useGUI)
       {
       usage ();
       return 1;
@@ -180,9 +187,9 @@ int main (int argc, char *argv[])
    translator.load("maxview_en");
    app.installTranslator(&translator);
 
-   QCoreApplication::setOrganizationName("Bluewater Systems Ltd");
-   QCoreApplication::setOrganizationDomain("bluewatersys.com");
-   QCoreApplication::setApplicationName("Maxview");
+   QCoreApplication::setOrganizationName("maxview");
+   //QCoreApplication::setOrganizationDomain("bluewatersys.com");
+   QCoreApplication::setApplicationName("maxview");
 
 // no longer used (debugging is set from maxdesk)
 //   decpp_set_debug (debug);
@@ -283,6 +290,17 @@ int main (int argc, char *argv[])
 
 	 // add all the directories to the tree view
 	 //	 while (optind < argc)
+         QSettings qs;
+
+         int size = qs.beginReadArray ("repository");
+         for (int i = 0; i < size; i++)
+            {
+            qs.setArrayIndex (i);
+            desktop->addDir (qs.value ("path").toString ());
+            }
+         qs.endArray ();
+
+         /* Add dirs for any arguments */
 	 for (c = argc - 1; c >= optind; c--)
             desktop->addDir (argv [c]);
 

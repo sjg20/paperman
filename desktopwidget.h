@@ -330,6 +330,9 @@ private:
        \param err       error to report, or NULL if no error */
    void complete (QModelIndex parent, err_info *err);
 
+   /** Update the respository list in settings */
+   void updateSettings ();
+
 private:
    /** this is the model for the directories tree */
    Dirmodel *_model;

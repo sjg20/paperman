@@ -56,7 +56,7 @@ bool getSettingsSizes (QString base, QList<int> &size)
 
 //    if (qs.contains (base + "splitter/1/size"))
    size.clear ();
-   qs.beginWriteArray (base + "splitter");
+   qs.beginReadArray (base + "splitter");
    for (int i = 0; i < count; i++)
       {
       qs.setArrayIndex (i);
