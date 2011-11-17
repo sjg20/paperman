@@ -214,7 +214,7 @@ int Printopt::countPages (void)
    }
 
 
-void Printopt::checkPagecount (bool checked)
+void Printopt::checkPagecount (bool)
    {
    int count;
 

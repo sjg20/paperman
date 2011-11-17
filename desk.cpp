@@ -850,7 +850,7 @@ err_info *Desk::moveFromTrash (QString &trashname, QString &filename,
    }
 
 
-err_info *Desk::moveFromDir (QString &src, QString &trashname, QString &filename,
+err_info *Desk::moveFromDir (QString &, QString &trashname, QString &filename,
       File *&fnew)
    {
    QString ext;
