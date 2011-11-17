@@ -370,35 +370,16 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
       index = _item [i]->index ();
       recent = _item [i]->isRecent ();
       }
-   if (role == Qt::DisplayRole || role == Qt::EditRole)
-      {
-      switch (index.column())
-         {
-         case 0:
-            return recent ? getRecent(role) : QDirModel::data (index, role);
-//       case 1: return d->size(index);
-//       case 2: return d->type(index);
-//       case 3: return d->time(index);
-         default:
-            qWarning("data: invalid display value column %d", index.column());
-            return QVariant();
-         }
-      }
 
-   if (index.column() == 0)
+   if (index.column() == 0) switch (role)
       {
-      if (role == FilePathRole)
-         {
-//          //QString (_item [index.row ()].dir ());
-//          printf ("filepathrole %d\n", i);
-         return recent ? getRecent(role) : QDirModel::data (index, role);
-         }
-      if (role == FileNameRole)
+      case Qt::DisplayRole :
+      case Qt::EditRole :
+      case FilePathRole :
+      case FileNameRole :
          return recent ? getRecent(role) : QDirModel::data (index, role);
       }
 
-   if (index.column() == 1 && Qt::TextAlignmentRole == role)
-      return Qt::AlignRight;
    return QVariant();
    }
 
