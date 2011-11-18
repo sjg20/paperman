@@ -1700,15 +1700,9 @@ static err_info *rle_decode (QString &fname, byte *buf, int size,
          break;
 
       case 1 :
-         // generate an 8bpp preview
-         width = (preview_size->x + 3) & ~3;
-         srcwidth = width;
-         break;
-
       case 8 :
          // generate an 8bpp preview
          width = (preview_size->x + 3) & ~3;
-//         width = preview_size->x;
          srcwidth = width;
          break;
 
@@ -1749,51 +1743,6 @@ static err_info *rle_decode (QString &fname, byte *buf, int size,
          {
          wrote = decode_8bpp_preview (ptr, end, out, out + bytes);
          out += wrote;
-#if 0
-         int count, val, rl;
-         byte *sol;   // start of line pointer
-         int decode_rl [16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,32};
-         printf ("preview bytes: %x %x %x %x\n", ptr [0], ptr [1], ptr [2],
-                   ptr [3]);
-         printf ("width=%d, preview x=%d\n", width, preview_size->x);
-         sol = out;
-         while (ptr < end)
-            {
-            ch = *ptr++;
-            printf ("%x", ch);
-            if (ch & 0xf)
-               {
-               printf (" ");
-               rl = (ch >> 3) & 15;
-               count = decode_rl [rl];
-               val = ch & 7;
-               val = 7 - val;
-//               count *= 2;
-//               count--;
-               while (count-- > 0)
-                  *out++ = val << 5;
-               if (out - rev > bytes)
-                  {
-                  printf ("aborted\n");
-                  break;
-                  }
-               }
-            else if (ch == 0x30)
-               {
-               printf (", wrote=%d\n", out - sol);
-               out = sol + width;
-               sol = out;
-               }
-            else
-               printf ("? ");
-//            if (ch == 0x30)
-//               count++;
-//            *out++ = ch << 4;
-//            *out++ = ch & 0xf0;
-//            *out++ = (byte << 4) | (byte & 0xf);
-//            *out++ = (byte & 0xf0) | (byte >> 4);
-            }
-#endif
          break;
          }
 
@@ -1827,8 +1776,6 @@ static err_info *rle_decode (QString &fname, byte *buf, int size,
                case 2 :
                   if (debug_count < DEBUG_MAX_COUNT)
                      printf ("   :");
-// I'm pretty sure this was a bug, will test
-//                  if (out + count * 4 - rev < bytes) while (count > 0)
                   if (out + count - rev <= bytes) while (count > 0)
                      {
                      ch = *ptr++;
@@ -2142,7 +2089,6 @@ err_info *Filemax::chunk_find (int pos, chunk_info *&chunkp, bool *tempp)
    if (tempp && pos)
       {
 //      printf ("temporary load chunk 0x%x\n", pos);
-//       CALL (mem_allocz (CV &chunkp, sizeof (chunk_info), "chunk_find"));
       chunkp = new chunk_info;
       chunk_init (*chunkp);
       *tempp = TRUE;
@@ -2151,31 +2097,6 @@ err_info *Filemax::chunk_find (int pos, chunk_info *&chunkp, bool *tempp)
 
    return err_make (ERRFN, ERR_chunk_at_pos_not_found1, pos);
    }
-
-
-#if 0
-// guess the file type based on the filename (FILET_...)
-
-static int guess_type (const char *fname)
-   {
-   char ext [20];
-   char *s;
-
-   s = strrchr (fname, '.');
-   if (s)
-      {
-      strncpy (ext, s + 1, 20);
-      ext [19] = '\0';
-      if (0 == strcmp (ext, "max"))
-         return FILET_max;
-      else if (0 == strcmp (ext, "pdf"))
-         return FILET_pdf;
-      }
-
-   // nothing
-   return FILET_none;
-   }
-#endif
 
 
 debug_info *max_new_debug (FILE *logf, int level, int max_steps,
@@ -2232,7 +2153,6 @@ err_info *Filemax::update_titlestr (page_info *page, const QString &title)
       for (j = 0; str [j] && j < TITLE_max_size - 1; j++)
          dest [j] = str [j];
       dest [j] = '\0';
-//         printf ("page %d: .%s.\n", i, title);
       CALL (max_write_data (chunk->start, chunk->buf, chunk->size));
       chunk->saved = TRUE;
       }
@@ -2256,8 +2176,6 @@ err_info *Filemax::ensure_all_chunks (void)
          {
          debug1 (("short file - only %d out of %d chunks read\n", i, _chunks.size ()));
          _chunks.resize (i);
-//          while (_chunks.size () > i)
-//             _chunks.removeLast ();
          break;
          }
       debug3 (("\nChunk %d: ", i));
@@ -2343,8 +2261,6 @@ err_info *Filemax::setup_max (void)
       }
    CALL (max_checkerr ());
 
-//   _start_pagenum = gethw (POS_start_pagenum);
-
    // read header
    _hdr.resize (_chunk0_start);
    CALL (max_read_data (0, (byte *)_hdr.data (), _hdr.size ()));
@@ -2422,14 +2338,14 @@ err_info *Filemax::setup_max (void)
          {
          page_info &page = _pages [i];
 
-   //        04 00 01 00 28 c4 0b 00 24 39 80 00   short chunkpagenum, short ??, int pos, int ??
          page.chunkid = gethw (pos);
          page.roswell = getword (pos + 4);
          page.titlestr = "";
 
          // get roswell info
          page.have_roswell = FALSE;
-//         printf ("   page %d, chunkid %d, image %d\n", i, page.chunkid, page.image);
+         //printf ("   page %d, chunkid %d, image %d\n", i, page.chunkid,
+         //        page.image);
          }
 
       for (i = 0; i < page_count; i++)
@@ -2458,12 +2374,9 @@ err_info *Filemax::max_openf (FILE *fin)
    {
    struct stat stat;
 
-//   int old_pages.size ();
-
    debugf = _debug->logf;
    debug_level = _debug->level;
 
-//   printf ("fname: %s\n", fname);
    fstat (fileno (fin), &stat);
    _size = stat.st_size;
    _timestamp.setTime_t (stat.st_ctime);
@@ -2511,8 +2424,6 @@ void Filemax::max_free (void)
    for (i = 0; i < _chunks.size (); i++)
       chunk_free (_chunks [i]);
    _chunks.clear ();
-//   if (_data)
-//      free (_data);
    max_clear_cache (_cache);
    max_clear_cache (_scache);
    if (_fin)
@@ -2561,7 +2472,6 @@ err_info *Filemax::find_page_chunk (int pagenum,
    if (tempp && page->image)
       {
 //      printf ("temporary load page %d at 0x%x\n", pagenum, page->image);
-//       CALL (mem_allocz (CV &chunkp, sizeof (chunk_info), "find_page_chunk"));
       *tempp = TRUE;
       chunkp = new chunk_info;
       chunk_init (*chunkp);
@@ -2570,21 +2480,6 @@ err_info *Filemax::find_page_chunk (int pagenum,
 
    return merr_make (ERRFN, ERR_could_not_find_image_chunk_for_page1, pagenum);
    }
-
-
-/*
-int max_get_type (void)
-   {
-   return _type;
-   }
-
-
-char *max_get_filename (void)
-   {
-   return _fname;
-   }
-*/
-
 
 err_info *Filemax::load_envelope (void)
    {
@@ -2706,7 +2601,6 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
    if (!_valid)
        return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (_filename));
 
-   //load ();
    CALL (find_page_chunk (pagenum, chunk, NULL, &page));
    size = QSize (chunk->image_size.x, chunk->image_size.y);
    compressed_size = chunk->size;
@@ -2722,22 +2616,6 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
    }
 
 
-#if 0
-err_info *Filemax::max_get_image (int pagenum, cpoint *size, cpoint *true_size,
-                     int *bpp, byte **imagep, int *image_size)
-   {
-   chunk_info *chunk;
-
-   CALL (find_page_chunk (pagenum, chunk, NULL, NULL));
-   CALL (max_get_image_info (pagenum, size, true_size, bpp, image_size, NULL, NULL));
-   *imagep = NULL;
-   CALL (decode_image (chunk, imagep));
-   return NULL;
-   }
-#endif
-
-
-
 err_info *Filemax::max_free_image (int pagenum)
    {
    chunk_info *chunk;
@@ -2751,66 +2629,10 @@ err_info *Filemax::max_free_image (int pagenum)
    return NULL;
    }
 
-/*
-err_info *max_get_preview_size (int pagenum, cpoint *size)
-   {
-   chunk_info *chunk;
-
-   CALL (find_page_chunk (pagenum, &chunk, NULL));
-   *size = chunk->preview_size;
-   return NULL;
-   }
-*/
-
-
 int Filemax::pagecount (void)
    {
    return _pages.size ();
    }
-
-
-#if 0
-bool Filemax::max_get_preview_maxsize (cpoint *size)
-   {
-   chunk_info *chunk;
-   int i, count;
-
-   if (_type == FILET_max)
-      {
-      size->x = size->y = 0;
-      for (i = count = 0, chunk = _chunk; i < _chunks.size (); i++, chunk++)
-         {
-         if (!chunk_ensure (chunk)
-            && chunk->type == CT_image)
-            {
-            if (chunk->preview_size.x > size->x)
-               size->x = chunk->preview_size.x;
-            if (chunk->preview_size.y > size->y)
-               size->y = chunk->preview_size.y;
-            count++;
-            }
-         }
-      }
-   else
-      {
-      size->x = 100;
-      size->y = 150;
-      }
-   return count > 0;
-   }
-#endif
-
-/*
-err_info *max_new (max_info **maxp)
-   {
-   max_info *max;
-
-   CALL (mem_allocz (CV &max, sizeof (max_info), "max_new"));
-   _debug = no_debug ();
-   *maxp = max;
-   return NULL;
-   }
-*/
 
 err_info *Filemax::max_open_file (const QString &infile)
    {
@@ -2827,18 +2649,8 @@ err_info *Filemax::max_open_file (const QString &infile)
       }
    setvbuf (f, NULL, _IONBF, 0);
    CALL (max_openf (f));
-//   fclose (f);
    return NULL;
    }
-
-
-/*
-void max_close (void)
-   {
-   max_free (max);
-   }
-*/
-
 
 err_info *Filemax::dodump (FILE *f, byte *ptr, int start, int count)
    {
@@ -2858,7 +2670,6 @@ err_info *Filemax::dodump (FILE *f, byte *ptr, int start, int count)
          fprintf (f, "  %1.16s  %1.16s\n        ", str, str + 16);
          memset (str, ' ', 32);
          }
-//      ch = _data [start + i];
       if (ptr)
          ch = ptr [start + 1];
       else
@@ -2885,15 +2696,6 @@ err_info *Filemax::dump (FILE *f, int start, int count)
    return dodump (f, NULL, start, count);
    }
 
-/*
-static void dumpb (FILE *f, byte *ptr, int count)
-   {
-   dodump (f, NULL, ptr, 0, count);
-   }
-*/
-
-#if 1
-
 err_info *Filemax::dumpc (FILE *f, int start)
    {
    int i, ch;
@@ -2913,9 +2715,6 @@ err_info *Filemax::dumpc (FILE *f, int start)
    return NULL;
    }
 
-#endif
-
-
 err_info *Filemax::dump_block (FILE *f, const char *name, int pos)
    {
    int size;
@@ -2934,8 +2733,7 @@ err_info *Filemax::dump_block (FILE *f, const char *name, int pos)
 void Filemax::chunk_dump (int num, chunk_info &chunk)
    {
    const char *name = check_chunk (chunk.start);
-//      if (!chunk.used && !*name)
-//         continue;
+
    printf ("%2d%s %-5x %-5x: page %-2d, type %s (%d), flags 0x%x, textflag=%x (%x) %s\n", num, chunk.used ? " " : "u", chunk.start, chunk.size,
             chunk.chunkid, chunk_namestr (chunk.type), chunk.type, chunk.flags, chunk.textflag, chunk.titletype,
             name);
@@ -2983,9 +2781,8 @@ err_info *Filemax::show_file (FILE *f)
    for (i = 0; i < _chunks.size (); i++)
       {
       chunk_info &chunk = _chunks [i];
+
       name = check_chunk (chunk.start);
-//      if (!chunk.used && !*name)
-//         continue;
       fprintf (f, "%2d%s %-5x %-5x: page %-2d, type %s (%d), flags 0x%x, textflag=%x (%x) %s", i, chunk.used ? "" : "u", chunk.start, chunk.size,
               chunk.chunkid, chunk_namestr (chunk.type), chunk.type, chunk.flags, chunk.textflag, chunk.titletype,
               name);
@@ -3019,7 +2816,6 @@ err_info *Filemax::show_file (FILE *f)
             pos = chunk.start + 0x20 + part.start;
             fprintf (f, "      %d (%s): %5x  %5x:  %5x - %5x  ", j, parttype_str [j], part.start, part.size,
                     pos, pos + part.size - 1);
-/*             len = (j == 1 || j == 3) ? part.size : 0x38; */
             len = 0x40;
             if (j != PT_tiledata) // && j != PT_preview)
                len = part.size;
@@ -3027,8 +2823,6 @@ err_info *Filemax::show_file (FILE *f)
                len = part.size;
             CALL (dump (f, pos, len));
             fprintf (f, "\n");
-
-            //!!!
             }
          old = debug_level;
 //         debug_level = 3;
@@ -3049,92 +2843,6 @@ err_info *Filemax::show_file (FILE *f)
    fflush (f);
    return NULL;
    }
-
-
-#if 0
-static void show_summary (void)
-   {
-   chunk_info *chunk;
-   part_info *part;
-   int i, j;
-
-   printf ("%-25s: ", _fname);
-   for (i = 0; i < _chunks.size (); i++)
-      {
-      chunk = _chunk + i;
-      if (!chunk->used)
-         continue;
-      if (chunk->type == CT_image)
-    {
-         printf ("(%d) ", chunk->chunkid);
-         for (j = 0; j < chunk->part_count; j++)
-            {
-            part = chunk->part + j;
-            printf ("%3x ", part->size);
-       }
-    }
-      }
-   printf ("\n");
-   }
-#endif
-
-
-#if 0
-static void decode (char *fname)
-   {
-   FILE *fin;
-   max_info *max;
-
-   fin = fopen (fname, "rb");
-   if (!fin)
-      {
-      printf ("File '%s' not found\n", fname);
-      return;
-      }
-   max = decode_file (fin);
-   _fname = fname;
-/*    show_file (max); */
-//   show_summary (max);
-   max_free (max);
-   fclose (fin);
-   }
-#endif
-
-
-#if 0
-
-int main (int argc, char **argv)
-   {
-   argv++;
-   while (*argv)
-      decode (*argv++);
-//   decode ("../max/1chq.max");
-//   decode ("../max/1.max");
-//   decode ("../max/4_3pp_a4.max");
-   //          decode ("../max/3coi.max");
-     //     decode ("../max/test.max");
-/*
-   decode ("big:Projects.paperport.1chq/max");
-   decode ("big:Projects.paperport.2chq/max");
-   decode ("big:Projects.paperport.3coi/max");
-   decode ("big:Projects.paperport.4_3pp_a4/max");
-   decode ("big:Projects.paperport.5_2pp_chqs/max");
-   decode ("big:Projects.paperport.6_13pp_prot/max");
-   decode ("big:Projects.paperport.7_1pp_col/max");
-   decode ("big:Projects.paperport.8_1pp_white/max");
-   decode ("big:Projects.paperport.9_1pp_black/max");
-   decode ("big:Projects.paperport.10_1pp_stripe/max");
-   decode ("NFS::bwf.$.temp.paperport.1/max");
-   decode ("NFS::bwf.$.temp.paperport.2/max");
-   decode ("NFS::bwf.$.temp.paperport.3/max");
-   decode ("NFS::bwf.$.temp.paperport.4/max");
-   decode ("NFS::bwf.$.temp.paperport.5/max");
-   decode ("NFS::bwf.$.temp.paperport.6/max");
-*/
-   return 0;
-   }
-
-#endif
 
 
 /* given a dimension, calculate a suitable tile size to break it into,
@@ -3159,7 +2867,6 @@ static void calc_tile_dimension (int target, int *tilep, int *countp)
       }
    *tilep = best;
    *countp = (target + best - 1) / best;
-//   printf ("waste=%d\n", best_waste);
    }
 
 
@@ -3344,15 +3051,9 @@ static int scale_24bpp (byte *image, cpoint *image_size, byte *preview,
       // we now have the line values - each represents
       // PREVIEW_SCALE x PREVIEW_SCALE pixels
       // convert to 24bpp preview
-//      printf ("\npreview_scale=%d, ysubcount=%d: \n", PREVIEW_SCALE, ysubcount);
       for (x = 0; x < preview_size->x * 3; x++)
          {
-//       if (x < 20)
-//          printf ("%d ", line [x]);
-         // scale result up by 5/2 to get a darker image
-//         result = (line [x] * 5 / PREVIEW_SCALE / 2 / ysubcount);
          result = (line [x] / PREVIEW_SCALE / ysubcount);
-//       printf ("%x ", result);
          if (result > 0xff)
             result = 0xff;
          *out++ = result;
@@ -3401,7 +3102,6 @@ static int build_preview (chunk_info &chunk, int stride, int bpp)
 
       case 24 :  // build a 24bpp colour preview padded to words at EOL
       case 32 :
-//         printf ("24bpp preview not supported\n");
          width = (chunk.preview_size.x * 3 + 3) & ~3;
          size = width * chunk.preview_size.y;
          chunk.preview_bytes = size;
