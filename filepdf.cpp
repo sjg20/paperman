@@ -192,13 +192,13 @@ err_info *Filepdf::getAnnot (e_annot type, QString &text)
 
 
 
-err_info *Filepdf::putAnnot (QHash<int, QString> &updates)
+err_info *Filepdf::putAnnot (QHash<int, QString> &)
    {
    return not_impl ();
    }
 
 
-err_info *Filepdf::putEnvelope (QStringList &env)
+err_info *Filepdf::putEnvelope (QStringList &)
    {
    return not_impl ();
    }
@@ -222,7 +222,7 @@ int Filepdf::getSize (void)
 
 
 
-err_info *Filepdf::renamePage (int pagenum, QString &name)
+err_info *Filepdf::renamePage (int, QString &)
    {
    return not_impl ();
    }
@@ -245,13 +245,7 @@ err_info *Filepdf::getImageInfo (int pagenum, QSize &size,
 
 err_info *Filepdf::getPreviewInfo (int pagenum, QSize &size, int &bpp)
    {
-   CALL (_pdfio->getImageSize (pagenum, true, size));
-
-//    qDebug () << Size;
-//    size *= DPI;
-//    size /= 72;
-//    size /= 24;
-   return NULL;
+   return _pdfio->getImageSize (pagenum, true, size, bpp);
    }
 
 
@@ -271,18 +265,22 @@ err_info *Filepdf::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    QImage image;
 
    CALL (_pdfio->getImage (_filename, pagenum, image, DPI / 24, DPI / 24, true));
+   if (blank)
+      colour_image_for_blank (image);
    pixmap = QPixmap (image);
 //    qDebug () << "pixmap" << pixmap.width () << pixmap.height ();
    return NULL;
    }
 
 
-err_info *Filepdf::getImage (int pagenum, bool do_scale,
+err_info *Filepdf::getImage (int pagenum, bool,
             QImage &image, QSize &size, QSize &trueSize, int &bpp, bool blank)
    {
    // this gives us the page size at 72dpi, but does work for our DPI
 //    CALL (_pdfio->getImageSize (pagenum, size));
    CALL (_pdfio->getImage (_filename, pagenum, image, DPI, DPI, false));
+   if (blank)
+      colour_image_for_blank (image);
    trueSize = size = image.size ();
    bpp = image.depth ();
 //    qDebug () << "pixmap" << pixmap.width () << pixmap.height ();
@@ -307,8 +305,8 @@ err_info *Filepdf::addPage (const Filepage *mp, bool do_flush)
 
 
 
-err_info *Filepdf::removePages (QBitArray &pages,
-      QByteArray &del_info, int &count)
+err_info *Filepdf::removePages (QBitArray &,
+      QByteArray &, int &)
    {
    return not_impl ();
    }
@@ -316,8 +314,8 @@ err_info *Filepdf::removePages (QBitArray &pages,
 
 
 
-err_info *Filepdf::restorePages (QBitArray &pages,
-   QByteArray &del_info, int count)
+err_info *Filepdf::restorePages (QBitArray &,
+   QByteArray &, int )
    {
    return not_impl ();
    }
@@ -352,12 +350,11 @@ err_info *Filepdf::stackStack (File *fsrc)
 
 
 
-err_info *Filepdf::duplicate (File *&fnew, File::e_type type, const QString &uniq,
-      int odd_even, Operation &op, bool &supported)
+err_info *Filepdf::duplicate (File *&, File::e_type, const QString &,
+      int, Operation &, bool &supported)
    {
    supported = false;
    return NULL;
-//    return not_impl ();
    }
 
 
