@@ -76,13 +76,13 @@ err_info *Fileother::remove (void)
 
 // accessing and changing metadata
 
-err_info *Fileother::getPageTitle (int pagenum, QString &title)
+err_info *Fileother::getPageTitle (int, QString &)
    {
    return not_impl ();
    }
 
 
-err_info *Fileother::getAnnot (e_annot type, QString &text)
+err_info *Fileother::getAnnot (e_annot, QString &text)
    {
    text = "";
    return NULL;
@@ -90,18 +90,18 @@ err_info *Fileother::getAnnot (e_annot type, QString &text)
 
 
 
-err_info *Fileother::putAnnot (QHash<int, QString> &updates)
+err_info *Fileother::putAnnot (QHash<int, QString> &)
    {
    return not_impl ();
    }
 
 
-err_info *Fileother::putEnvelope (QStringList &env)
+err_info *Fileother::putEnvelope (QStringList &)
    {
    return not_impl ();
    }
 
-err_info *Fileother::getPageText (int pagenum, QString &str)
+err_info *Fileother::getPageText (int, QString &)
    {
    return not_impl ();
    }
@@ -119,7 +119,7 @@ int Fileother::getSize (void)
 
 
 
-err_info *Fileother::renamePage (int pagenum, QString &name)
+err_info *Fileother::renamePage (int, QString &)
    {
    return not_impl ();
    }
@@ -127,9 +127,9 @@ err_info *Fileother::renamePage (int pagenum, QString &name)
 
 
 
-err_info *Fileother::getImageInfo (int pagenum, QSize &size,
-      QSize &true_size, int &bpp, int &image_size, int &compressed_size,
-      QDateTime &timestamp)
+err_info *Fileother::getImageInfo (int, QSize &,
+      QSize &, int &, int &, int &,
+      QDateTime &)
    {
    return not_impl ();
    }
@@ -137,14 +137,14 @@ err_info *Fileother::getImageInfo (int pagenum, QSize &size,
 
 
 
-err_info *Fileother::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
+err_info *Fileother::getPreviewInfo (int, QSize &, int &)
    {
    return not_impl ();
    }
 
 
 // image related
-QPixmap Fileother::pixmap (bool recalc)
+QPixmap Fileother::pixmap (bool)
    {
    return unknownPixmap ();
    }
@@ -152,7 +152,7 @@ QPixmap Fileother::pixmap (bool recalc)
 
 
 
-err_info *Fileother::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
+err_info *Fileother::getPreviewPixmap (int, QPixmap &, bool)
    {
    return not_impl ();
    }
@@ -160,8 +160,8 @@ err_info *Fileother::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 
 
 
-err_info *Fileother::getImage (int pagenum, bool do_scale,
-            QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank)
+err_info *Fileother::getImage (int, bool,
+            QImage &, QSize &, QSize &, int &, bool)
    {
    return not_impl ();
    }
@@ -173,7 +173,7 @@ err_info *Fileother::getImage (int pagenum, bool do_scale,
 
 // operations on files
 
-err_info *Fileother::addPage (const Filepage *mp, bool flush)
+err_info *Fileother::addPage (const Filepage *, bool)
    {
    return not_impl ();
    }
@@ -181,8 +181,8 @@ err_info *Fileother::addPage (const Filepage *mp, bool flush)
 
 
 
-err_info *Fileother::removePages (QBitArray &pages,
-      QByteArray &del_info, int &count)
+err_info *Fileother::removePages (QBitArray &,
+      QByteArray &, int &)
    {
    return not_impl ();
    }
@@ -190,8 +190,8 @@ err_info *Fileother::removePages (QBitArray &pages,
 
 
 
-err_info *Fileother::restorePages (QBitArray &pages,
-   QByteArray &del_info, int count)
+err_info *Fileother::restorePages (QBitArray &,
+   QByteArray &, int)
    {
    return not_impl ();
    }
@@ -199,8 +199,8 @@ err_info *Fileother::restorePages (QBitArray &pages,
 
 
 
-err_info *Fileother::unstackPages (int pagenum, int pagecount, bool remove,
-            File *dest)
+err_info *Fileother::unstackPages (int, int, bool,
+            File *)
    {
    return not_impl ();
    }
@@ -208,7 +208,7 @@ err_info *Fileother::unstackPages (int pagenum, int pagecount, bool remove,
 
 
 
-err_info *Fileother::stackStack (File *src)
+err_info *Fileother::stackStack (File *)
    {
    return not_impl ();
    }
@@ -216,12 +216,11 @@ err_info *Fileother::stackStack (File *src)
 
 
 
-err_info *Fileother::duplicate (File *&fnew, File::e_type type, const QString &uniq,
-      int odd_even, Operation &op, bool &supported)
+err_info *Fileother::duplicate (File *&, File::e_type, const QString &,
+      int, Operation &, bool &supported)
    {
    supported = false;
    return NULL;
-//    return not_impl ();
    }
 
 
