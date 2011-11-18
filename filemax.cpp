@@ -1703,7 +1703,6 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
    cpoint tile_size;
    byte *ptr, *image;
    debug_info *debug = _debug;
-   int diff = 0;
 
    // image is always in chunk 4
    part = _version_a ? NULL : &chunk.parts [PT_tiledata];
@@ -1759,37 +1758,7 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
             }
          debug2 (("code = %x, tilenum=%x\n", code, tilenum));
 
-/* work around encoder bug! */
-#define ENCODER_FIX
-#ifdef ENCODER_FIX
-         /* initially the encoder moved the right most tile some pixels to
-            the right in certain cirmcumstances. We correct there where we
-            can detect it. Files with this problem will always have
-            uncompressed data in them. This will be permanently turned off
-            once all affected files are converted (soon!) */
-         {
-         int stride = chunk.line_bytes, temp;
-         int tile_line_bytes = chunk.tile_line_bytes;
-         byte *ptr2;
-
-         ptr = get_tile_size (chunk, x, y, &tile_size, &my_tilenum, stride,
-//                  tile_line_bytes, NULL);
-                  -1, NULL);
-
-         calc_tile_bytes (tile_size.x, chunk.image_size.x, chunk.bits,
-                    &tile_line_bytes, &temp, FALSE);
-         ptr2 = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
-                  -1, &diff);
-//                  tile_line_bytes, &diff);
-
-         // calculate the error we made in compression so we can compensate for it now
-         //      if (diff)
-           //       printf ("** warning diff %d\n", diff);
-         }
-#endif
-
          ptr = get_tile_size (chunk, x, y, &tile_size, &my_tilenum, -1, -1, NULL);
-         //              ptr -= diff;
 
 //         printf ("%d: size=%d\n", my_tilenum, chunk.tile [my_tilenum].size);
          if (tilenum != my_tilenum)
@@ -1823,9 +1792,7 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
                      chunk.tile [tilenum].size, chunk.tile [tilenum].size));
             else
                CALL (decode_tile (chunk, decode, code, pos,
-                      chunk.tile [tilenum].size - 4, ptr, tile_size, diff));
-            //         *ptr |= 0x80;
-
+                      chunk.tile [tilenum].size - 4, ptr, tile_size, 0));
             }
          pos += chunk.tile [my_tilenum].size - 4;
          }
