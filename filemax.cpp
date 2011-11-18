@@ -4093,8 +4093,6 @@ static int rle_encode (byte *in, int size, byte *out_buff)
    byte *p, *end = in + size, *start, *out = out_buff;
    int debug_count = 0;
 
-//   printf ("encode\n");
-
    /* we need to search for runs of:
          0, encoded as 0
          255, encoded as 1
@@ -4245,11 +4243,7 @@ static int add_tiledata (chunk_info &chunk, part_info &part)
 
    // work out the total tile data size
    for (i = size = 0, tile = chunk.tile; i < chunk.tile_count; i++, tile++)
-      {
-//      printf ("tile %d size %d\n", i, tile->size);
       size += tile->size;
-      }
-   //   printf ("total %x\n", size);
 
    // allocate
    if (!alloc_part_buf (part, size))
@@ -4272,7 +4266,6 @@ static void add_generic_chunk_header (chunk_info &chunk, byte *buf)
    ptr [0] = 0x5a56;
    ptr [1] = chunk.size;
    ptr [2] = chunk.size >> 16;
-//   *(int *)(buf + 2) = chunk.size;  care of word alignment
    ptr [3] = chunk.chunkid;
    ptr [4] = chunk.type == CT_bermuda ? 0 : 1;
    ptr [5] = chunk.textflag;
@@ -4347,36 +4340,8 @@ err_info *Filemax::max_replace_page (page_info &page, Filemaxpage &mp)
    return flush ();
    }
 
-
-#if 0
-
-err_info *Filemax::max_update_page_image (int pagenum, int width, int height,
-                 int depth, int stride, byte *buf, int size)
-   {
-   max_page_info mp;
-   page_info *page;
-
-   CALL (find_page (pagenum, &page));
-   max_init_max_page (&mp);
-   mp.width = width;
-   mp.height = height;
-   mp.depth = depth;
-   mp.stride = stride;
-
-   //! may be dangerous if page goes away
-   CALL (ensure_titlestr (page));
-   mp.titlestr = page->titlestr;
-   CALL (max_compress_page (&mp, buf, size));
-
-   return max_replace_page (page, &mp);
-   }
-
-#endif
-
-
 err_info *Filemaxpage::compress (void)
    {
-//    part_info *part;
    int err = 0;
 
    byte *buf = (byte *)_data.constData ();
@@ -4389,21 +4354,8 @@ err_info *Filemaxpage::compress (void)
 //         _stride);
    // for JPEG, do the thumbnailing early in case we detect a shortfall in data
    if (_jpeg)
-      {
       jpeg_thumbnail (buf, size, &_chunk.preview, &_chunk.preview_bytes, &_chunk.preview_size);
-#if 0  // to do this we would need to adjust the JPEG header, which is tricky, so don't
-      // if the JPEG data didn't have enough rows, crop
-      if (rows < _height)
-         {
-         printf ("Image should have %d, but JPEG data provided only %d - cropped\n",
-            _height, rows);
-         _height = rows;
-         }
-#endif
-      }
-//   _chunk.start = ?
-// _chunk.size set later
-// _chunk.chunkid = ?
+
    _chunk.textflag = CT_text ? 0 : 3;
    _chunk.titletype = 0;  //?
    _chunk.flags = CHUNKF_image;
@@ -4497,40 +4449,12 @@ err_info *Filemaxpage::compress (void)
    _chunk.size = _size;
    debug2 (("_size=%x\n", _size));
    _maxdata = NULL;
-#if 0
-   // allocate memory for it
-   _maxdata = malloc (_size);
-   if (!_maxdata)
-      return -ENOMEM;
 
-   // add the header, then all the chunk data
-   add_image_header (chunk, _maxdata);
-   for (i = 0; i < _chunk.part_count; i++)
-      memcpy (_maxdata + 0x20 + part [i].start, part [i].buf, part [i].size);
-#endif
    /* the caller will free this supplied image, so remove it from our
       structure, otherwise we will free it too! */
    _chunk.image = NULL;
-#if 0
-   tile_info *tile;     // info about tiles
-   int image_start;  /* offset from start+0x20 to preview image */
-   int code;         // tile code
-   int after_part;  /* file pointer after part directory */
-   byte *preview;  // preview image
-#endif
    return 0;
    }
-
-
-/** increment the file position by the given size and round up to the next
-32-byte boundary */
-/*
-static void inc_pos (int *pos, int size)
-   {
-   assert (!(size & (POS_chunk_step - 1)));
-   *pos += size;
-   }
-*/
 
 
 static err_info *alloc_chunk_buf (chunk_info &chunk, byte **bufp)
@@ -4588,7 +4512,6 @@ static void write_annot (byte *buf, int size, QStringList &annot_data)
       data [POS_annot_pos / 4] = upto;
       data [POS_annot_size / 4] = len;
       strcpy ((char *)buf + upto + POS_chunk_header_size, str.latin1 ());
-//      qDebug () << str;
       }
    }
 
@@ -4605,7 +4528,6 @@ static void write_env (byte *buf, int size, QStringList &env_data)
       len = str.length () + 1;
       Q_ASSERT (upto + POS_chunk_header_size + len < size);
       strcpy ((char *)buf + upto, qPrintable (str));
-//      qDebug () << str;
       }
    }
 
@@ -4631,29 +4553,16 @@ void Filemax::write_max_header (void)
    idata [POS_envelope / 4] = _trail;
    }
 
-/*
-static err_info *alloc_chunk (chunk_info **chunkp)
-   {
-   CALL (mem_alloc (CV chunkp, sizeof (chunk_info), "alloc_chunk"));
-   memset (*chunkp, '\0', sizeof (chunk_info));
-   return NULL;
-   }
-*/
-
 /* converts the information in the various chunk->... variables into
 a buffer of chunk data in chunk->buf. What is actually written there
 depends on the type of the chunk */
-
 err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
    {
    byte *buf;
 
    // if we already have data, just update the 'used' flag
    if (chunk.buf)
-      {
-//      printf ("   (chunk %d, just updated ->used)\n", chunk - _chunk);
       chunk.buf [8] = chunk.used;
-      }
 
    if (force || !chunk.buf) switch (chunk.type)
       {
@@ -4911,7 +4820,6 @@ err_info *Filemax::insert_chunk (chunk_info &new_chunk, int *posp)
 /* creates or updates a bermuda chunk. If one already exists (_bermuda
 non-zero), then updates it. But if it is too large to fit in the currently
 allocated area, it will mark the old one as unused and create a new one */
-
 err_info *Filemax::create_bermuda (void)
    {
    chunk_info chunk;
@@ -4930,7 +4838,6 @@ err_info *Filemax::create_bermuda (void)
 /* creates or updates an annot chunk. If one already exists (_annot
 non-zero), then updates it. But if it is too large to fit in the currently
 allocated area, it will mark the old one as unused and create a new one */
-
 err_info *Filemax::create_annot (void)
    {
    chunk_info chunk;
@@ -4949,7 +4856,6 @@ err_info *Filemax::create_annot (void)
 /* creates or updates an envelope chunk. If one already exists (_env
 non-zero), then updates it. But if it is too large to fit in the currently
 allocated area, it will mark the old one as unused and create a new one */
-
 err_info *Filemax::create_envelope (void)
    {
    chunk_info chunk;
@@ -5009,52 +4915,6 @@ err_info *Filemax::create_title (page_info &page)
    return NULL;
    }
 
-
-#if 0//p
-static err_info *create_max (const char *fname, int page_count, max_info **maxp)
-   {
-   max_info *max;
-
-   CALL (max_new (&max));
-
-   _fin = fopen (fname, "w+b");
-   if (!_fin)
-      return err_make (ERRFN, ERR_cannot_open_file1, fname);
-
-   _version = MAX_VERSION;
-   _timestamp = time (NULL);
-   _fname = strdup (fname);
-   _hdr_size = 0xe0; //0xc8;  // allow room for file header
-   _chunk0_start = _hdr_size;
-   _size = _chunk0_start;
-   _pages.size () = 0; //page_count;
-   _type = FILET_max;
-   _signature = 0x46476956;
-
-   CALL (mem_alloc (CV &_hdr, _hdr_size, "create_max2"));
-   if (page_count)
-      {
-      /* in the file we will have:
-
-         - a bermuda chunk + for each page
-            - roswell
-            - image
-            - title */
-      _chunk_alloced = 1 + 3 * page_count;
-      _chunks.size () = 0;
-      CALL (mem_allocz (CV &_chunk, sizeof (chunk_info) * _chunk_alloced,
-                "build_max1"));
-
-      _page_alloced = page_count;
-      CALL (mem_allocz (CV &_page, sizeof (page_info) * _page_alloced,
-                "create_max3"));
-      }
-   *maxp = max;
-   return NULL;
-   }
-#endif
-
-
 err_info *Filemax::page_add (int chunkid, const QString &titlestr,
           page_info *&pagep)
    {
@@ -5068,36 +4928,6 @@ err_info *Filemax::page_add (int chunkid, const QString &titlestr,
    pagep = &_pages.last (); //[_pages.size () - 1];
    return NULL;
    }
-
-
-#if 0 //p
-static err_info *build_max (const char *fname, max_page_info *maxpage, int count,
-           max_info **maxp)
-   {
-   max_info *max;
-   int pagenum;
-
-   *maxp = NULL;
-   CALL (create_max (fname, count, &max));
-   *maxp = max;
-
-   // create the chunks
-   for (pagenum = 0; pagenum < count; pagenum++, maxpage++)
-      {
-      CALL (max_add_page (maxpage, FALSE));
-      }
-
-   CALL (max_flush (max));
-
-   debug2 (("page count %d, chunk count %d\n", _pages.size (), _chunks.size ()));
-
-//   debug1 (("%d chunks, file size 0x%x\n", _chunks.size (), pos));
-
-   return NULL;
-   }
-#endif
-
-
 
 err_info *Filemax::write_max (FILE *f)
    {
@@ -5127,86 +4957,6 @@ err_info *Filemax::write_max (FILE *f)
    return NULL;
    }
 
-
-#if 0
-err_info *Filemax::max_write (const char *fname, max_page_info *maxpage, int count)
-   {
-   max_info *max;
-   err_info *err;
-
-   debug1 (("max_write %s\n", fname));
-   err = build_max (fname, maxpage, count, &max);
-   if (!err)
-      err = write_max (_fin, max);
-   if (max)
-      max_close ();
-   return err;
-   }
-#endif
-
-#if 0
-static void convert_8bpp_to_2bpp (byte *in, int size, byte *out)
-   {
-   for (; size >= 4; size -= 4, in += 4)
-      *out++ = (in [0] & 0xc0)
-         | (( in [1] >> 2) & 0x30)
-         | (( in [2] >> 4) & 0x0c)
-         | (( in [3] >> 6) & 0x03);
-   }
-#endif
-
-#if 0 //p
-err_info *rle_test (void)
-   {
-   byte *buf;
-   int rle_size;
-   int wrote;
-   byte *out, *check, *preview;
-   cpoint *psize;
-   max_info *max;
-   chunk_info *chunk;
-   int size, size_bpp2, width;
-
-   CALL (max_open ("test2.max", &max));
-
-   CALL (find_page_chunk (0, &chunk, NULL, NULL));  // page 0
-   assert (chunk);
-   CALL (decode_preview (chunk, FALSE, &preview));
-   psize = &chunk->preview_size;
-
-   // the preview is 8bpp, so convert to 2bpp
-   width = (psize->x + 3) & ~3;
-   size_bpp2 = width * 2 * psize->y / 8 + 1;
-   buf = (byte *)malloc (size_bpp2);
-   convert_8bpp_to_2bpp (preview, width * psize->y, buf);
-/*
-   printf ("\n8 bpp: ");
-   for (i = 0; i < 80; i++)
-      printf ("%x ", preview [i]);
-   printf ("\n2 bpp: ");
-   for (i = 0; i < 40; i++)
-      printf ("%x ", buf [i]);
-*/
-   size = psize->x * psize->y;
-   out = (byte *)malloc (size);
-
-   rle_size = rle_encode (buf, size_bpp2, out);
-//   printf ("encode %d->%d\n", size_bpp2, rle_size);
-
-   CALL (rle_decode ("test", out, rle_size, psize, 1, &wrote, FALSE, &check));
-
-//   printf ("decode %d->%d\n", rle_size, wrote);
-
-   // need to check that the decoded image matches the originally decoded preview
-   // i.e. out matches preview
-
-   // however I don't think it does!
-   return NULL;
-   }
-
-#endif
-
-
 /* read a chunk at 'chunk_pos' from 'src' and append it to 'dest' */
 
 err_info *Filemax::merge_chunk (Filemax *src, int chunk_pos, int *new_pos)
@@ -5220,9 +4970,6 @@ err_info *Filemax::merge_chunk (Filemax *src, int chunk_pos, int *new_pos)
 
    // find source chunk
    CALL (src->chunk_find (chunk_pos, srcchunk, NULL));
-
-//   printf ("   - merging chunk type %d to chunk %d\n", srcchunk->type,
-//            dest->chunk_count);
 
    // read source chunk
    if (!srcchunk->loaded)
@@ -5294,9 +5041,7 @@ err_info *Filemax::flush (void)
    // write back any changed page titles
    CALL (flush_pages ());
 
-//   printf ("max_flush, chunks=%d\n", _chunks.size ());
    CALL (create_bermuda ());
-//    CALL (create_annot ());
 
    CALL (flush_chunks ());
 
@@ -5344,26 +5089,6 @@ err_info *Filemax::restore_page (page_info &page)
 
    return NULL;
    }
-
-#if 0
-err_info *Filemax::remove_page (page_info *page)
-   {
-   int pagenum;
-
-   free_page (page);
-
-   // remove from page list
-   pagenum = page - _page;
-   assert (pagenum >= 0 && pagenum < _pages.size ());
-   memcpy (page, page + 1, sizeof (page_info)
-        * (_pages.size () - pagenum - 1));
-   _pages.size ()--;
-
-   // now need to update header and bermuda on disc!
-   return flush ();
-   }
-#endif
-
 
 err_info *Filemax::remove_pages (int pagenum, int count)
    {
@@ -5533,7 +5258,6 @@ err_info *Filemax::load ()  // was desk->ensureMax
    if (!_valid)
       {
       _valid = true;
-//      QString path = _dir + "/" + _filename;
       QString path = _pathname;
       struct stat st;
 
@@ -5543,12 +5267,9 @@ err_info *Filemax::load ()  // was desk->ensureMax
          _timestamp = QDateTime::fromTime_t (st.st_mtime);
          }
 
-//       qDebug () << "load" << path;
       err = max_open_file (path);
-//         printf ("%s: err = %p\n", _filename.latin1 (), err);
       if (err)
          {
-//         printf ("%s: got error %s\n", _filename.latin1 (), err->errstr);
          _serr = *err;
          _err = &_serr;
          return err;
@@ -5608,31 +5329,9 @@ err_info *Filemax::renamePage (int pagenum, QString &name)
       page->titlestr = name;
       page->title_loaded = true;
       page->title_saved = false;
-//       return update_titlestr (page, name);
       }
    return NULL;
    }
-
-
-#if 0
-err_info *Filemax::max_rename_page (int pagenum, char *newname)
-   {
-   page_info *page;
-
-   if (!newname)
-      return err_make (ERRFN, ERR_invalid_null_name);
-
-   // find the page
-   CALL (find_page (pagenum, page));
-   CALL (ensure_titlestr (pagenum, *page));
-
-   // update the title
-   page->titlestr = newname;
-
-   CALL (create_title (*page));
-   return NULL;
-   }
-#endif
 
 
 err_info *Filemax::addPage (const Filepage *mp, bool do_flush)
@@ -5826,8 +5525,6 @@ err_info *Filemax::restorePages (QBitArray &pages,
 
    load ();
 
-//    const page_info *del_info = in_del_info;
-//    int count;
    int i, upto, newcount;
 
    CALL (ensure_all_chunks ());
@@ -5837,8 +5534,6 @@ err_info *Filemax::restorePages (QBitArray &pages,
    QVector<page_info> dest_pages (newcount);
 
    // count how many pages are to be deleted
-//    for (i = 0; i < _pages.size (); i++)
-//       count += del [i] != 0;
    int srcnum;
    for (i = upto = srcnum = 0; i < newcount; i++)
       if (pages.testBit (i))
@@ -5937,8 +5632,6 @@ err_info *Filemax::getImage (int pagenum, bool,
    // get the actual image data
    byte *imagep = image.bits ();
 
-   //qDebug () << "Filemax::getImage" << (void *)imagep << image.numBytes () << (void *)(imagep + image.numBytes ());
-
    chunk_info *chunk;
 
    CALL (find_page_chunk (pagenum, chunk, NULL, NULL));
@@ -5959,8 +5652,6 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
    bool temp;  //!< chunk is temporarily allocated
 
    //! really we should cache this information rather than reading from the file each time
-   //if (debug_level >= 3)
-//      show_file (stderr);
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    Size = QSize (chunk->preview_size.x, chunk->preview_size.y);
    bpp = chunk->bits == 24 ? 24 : 8;
@@ -5997,7 +5688,6 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 
    QVector<QRgb> table;
    table.reserve (256);
-//    QRgb *table = new QRgb [256];
    QImage image;
 
    // create a greyscale palette
@@ -6010,8 +5700,6 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
                   i * CONFIG_preview_col_mult, i) : qRgb (i, i, i));
 
          // create a QImage
-//          image = QImage (preview, Size.width (), Size.height (), 8, table, 256,
-//                      QImage::LittleEndian);
          image = QImage (preview, Size.width (), Size.height (), QImage::Format_Indexed8);
          image.setColorTable (table);
          break;
@@ -6026,7 +5714,6 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 
    pixmap = QPixmap (image);
    free (preview);
-//    delete table;
    return pixmap.isNull () ? err_make (ERRFN, ERR_failed_to_generate_preview_image) : NULL;
    }
 
@@ -6039,5 +5726,3 @@ QPixmap Filemax::pixmap (bool recalc)
       err = getPreviewPixmap (_pagenum, _pixmap, false);
    return err || _pixmap.isNull () ? unknownPixmap () : _pixmap;
    }
-
-
