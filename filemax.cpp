@@ -4008,11 +4008,6 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
          int tile_line_bytes;
 
          // recalculate tile_line_bytes each time
-//         encode.tile_line_bytes = chunk.tile_line_bytes;
-         /* oops this is circular, will fix later
-
-             get_tile_size() needs encode.tile_line_bytes, works out tile_size
-             calc_tile_bytes() needs tile_size, works out encode.tile_line_bytes */
          ptr = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
                   encode.tile_line_bytes);
 
@@ -4020,8 +4015,6 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
                     &tile_line_bytes, &temp, FALSE);
 //       printf ("tile_size.x=%d, encode.tile_line_bytes=%d, tlb=%d\n",
 //               tile_size.x, encode.tile_line_bytes, tile_line_bytes);
-         ptr = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
-                  encode.tile_line_bytes);
          if (tilenum >= debug.start_tile
             && (debug.num_tiles == INT_MAX
                 || tilenum < debug.start_tile + debug.num_tiles))
