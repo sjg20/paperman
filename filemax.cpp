@@ -497,7 +497,7 @@ Filemax::~Filemax ()
 
 /** ensure that the page has a title loaded, if there is one */
 
-err_info *Filemax::ensure_titlestr (int pagenum, page_info &page)
+err_info *Filemax::ensure_titlestr (int, page_info &page)
    {
    chunk_info *chunk;
    bool has_chars = FALSE;
@@ -606,11 +606,6 @@ static int make_err (const char *func, int err)
 
 
 #define ERR(err) make_err (__PRETTY_FUNCTION__, err)
-
-
-static void breakpoint (void)
-   {
-   }
 
 
 void Filemax::debug_page (page_info *page)
@@ -2771,7 +2766,7 @@ err_info *Filemax::load_envelope (void)
    chunk_info *chunk = 0;
    bool temp;
    QByteArray ba;
-   int pos, apos, size, type;
+   int pos;
 
    // clear out the annotation info
    _env_loaded = TRUE;
@@ -4144,7 +4139,6 @@ Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32 bits, int *badp)
   int a1 = (PIXEL(bp, 0) != 0 ? 0 : finddiff(bp, 0, bits, 0));
   int b1 = (PIXEL(rp, 0) != 0 ? 0 : finddiff(rp, 0, bits, 0));
   int a2, b2;
-  int type = -1;
 
   *badp = 0;
   for (;;) {
@@ -4154,7 +4148,6 @@ Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32 bits, int *badp)
       int32 d = b1 - a1;
       if (!(-3 <= d && d <= 3)) {   /* horizontal mode */
    a2 = finddiff2(bp, a1, (int)bits, PIXEL(bp,a1));
-   type = 0;
    putcode(tif, &horizcode);
    // if (!a0 && !a1)
    //   *badp = 1;
@@ -4179,14 +4172,12 @@ Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32 bits, int *badp)
    //             break;
    //            if (!a1)
    //               *badp = 1;
-   type = 1;
    debug3 (("  2v: a1=%d, b1=%d: ", a1, b1));
    putcode(tif, &vcodes[d+3]);
    debug3 (("a0=%d, a1=%d, a2=%d, b1=%d, b2=%d\n", a0, a1, a2, b1, b2));
    a0 = a0p = a1;
       }
     } else {            /* pass mode */
-      type = 2;
       debug3 (("  2p: pass b2=%d: ", b2));
       putcode(tif, &passcode);
       a0 = a0p = b2;
@@ -5042,17 +5033,13 @@ err_info *encode_tile (chunk_info &chunk, encode_info &encode, int *sizep,
 static int build_tiledata (chunk_info &chunk, int stride, int bpp,
                            debug_info &debug)
    {
-   part_info *part;
-   int x, y, pos, size;
-   int code, ret, temp;
+   int x, y, size;
+   int ret, temp;
    cpoint tile_size;
-   byte *ptr, *image;
+   byte *ptr;
    encode_info encode;
-   byte *buff;
    tile_info *tile;
    err_info *e;
-
-   pos = pos; part = part; code = code; buff = buff; image = image;
 
    // ensure image width is a multiple of 32 bits
    chunk.line_bytes = (chunk.line_bytes + 3) & ~3;
@@ -5073,7 +5060,6 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
       for (x = 0; x < chunk.tile_extent.x; x++, tile++)
          {
          int tilenum;
-         byte *end;
          int tile_line_bytes;
 
          // recalculate tile_line_bytes each time
@@ -5091,12 +5077,6 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
 //               tile_size.x, encode.tile_line_bytes, tile_line_bytes);
          ptr = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
                   encode.tile_line_bytes, NULL);
-
-         end = ptr + stride * (tile_size.y - 1) +
-                 tile_size.x * chunk.bits / 8;
-//         printf ("ptr=%p: %d, end=%p: %d\n", ptr, ptr - chunk.image,
-//                  end, end - chunk.image);
-
          if (tilenum >= debug.start_tile
             && (debug.num_tiles == INT_MAX
                 || tilenum < debug.start_tile + debug.num_tiles))
@@ -5154,7 +5134,7 @@ static int alloc_part_buf (part_info &part, int size)
    }
 
 
-static int add_colourmap (chunk_info &chunk, part_info &part)
+static int add_colourmap (chunk_info &, part_info &part)
    {
    if (!alloc_part_buf (part, 0x41c))
       return ERR (-ENOMEM);
@@ -5459,7 +5439,7 @@ err_info *Filemax::max_update_page_image (int pagenum, int width, int height,
 err_info *Filemaxpage::compress (void)
    {
 //    part_info *part;
-   int err, i;
+   int err = 0;
 
    byte *buf = (byte *)_data.constData ();
    int size = _size;
@@ -5472,9 +5452,7 @@ err_info *Filemaxpage::compress (void)
    // for JPEG, do the thumbnailing early in case we detect a shortfall in data
    if (_jpeg)
       {
-      int rows;
-
-      rows = jpeg_thumbnail (buf, size, &_chunk.preview, &_chunk.preview_bytes, &_chunk.preview_size);
+      jpeg_thumbnail (buf, size, &_chunk.preview, &_chunk.preview_bytes, &_chunk.preview_size);
 #if 0  // to do this we would need to adjust the JPEG header, which is tricky, so don't
       // if the JPEG data didn't have enough rows, crop
       if (rows < _height)
@@ -5550,26 +5528,26 @@ err_info *Filemaxpage::compress (void)
       _chunk.image_bytes = size;
 
       // create the preview
-      err = build_preview (_chunk, _stride, _depth);
+      err |= build_preview (_chunk, _stride, _depth);
 
       // and the compressed tile data
       debug_level = _debug.level;
    //   printf ("_depth=%d\n", _depth);
-      err = build_tiledata (_chunk, _stride, _depth, _debug);
+      err |= build_tiledata (_chunk, _stride, _depth, _debug);
       }
 
    // set up the chunks
-   err = add_colourmap (_chunk, _chunk.parts [0]);
-   err = add_preview (_chunk, _chunk.parts [1]);
-   err = add_notes (_chunk, _chunk.parts [2]);
-   err = add_tileinfo (_chunk, _chunk.parts [3]);
-   err = add_tiledata (_chunk, _chunk.parts [4]);
+   err |= add_colourmap (_chunk, _chunk.parts [0]);
+   err |= add_preview (_chunk, _chunk.parts [1]);
+   err |= add_notes (_chunk, _chunk.parts [2]);
+   err |= add_tileinfo (_chunk, _chunk.parts [3]);
+   err |= add_tiledata (_chunk, _chunk.parts [4]);
 
    //! should check err each time above
 
    // work out the total data size
    _size = POS_part0 + 8 * _chunk.parts.size ();
-   for (i = 0; i < _chunk.parts.size (); i++)
+   for (int i = 0; i < _chunk.parts.size (); i++)
       {
       part_info &part = _chunk.parts [i];
 
@@ -5745,7 +5723,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
       case CT_bermuda :
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + 0x16 + 0xc * _pages.size ());
-#warning "need to free old buf here"
+         //TODO: need to free old buf here
          CALL (alloc_chunk_buf (chunk, &buf));
          add_generic_chunk_header (chunk, buf);
          write_bermuda (buf);
@@ -5760,7 +5738,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
             count += 1 + strlen (_annot_data [type]);
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + 0x45 + count);
-#warning "need to free old buf here"
+         //TODO: need to free old buf here
          CALL (alloc_chunk_buf (chunk, &buf));
          add_generic_chunk_header (chunk, buf);
          write_annot (buf, chunk.size, _annot_data);
@@ -5776,7 +5754,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
             count += 1 + strlen (_env_data [type]);
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + POS_env_string0 + count);
-#warning "need to free old buf here"
+         //TODO: need to free old buf here
          CALL (alloc_chunk_buf (chunk, &buf));
          add_generic_chunk_header (chunk, buf);
          write_env (buf, chunk.size, _env_data);
@@ -6765,7 +6743,6 @@ err_info *Filemax::stackStack (File *fsrc)
    int destpage = _pagenum;
    int pagenum;
    QVector <page_info> pages;
-   int page_count;
 
    printf ("merging %d pages, destpage=%d, destchunks=%d\n", src->_pages.size (),
          destpage, _chunks.size ());
@@ -6780,7 +6757,6 @@ err_info *Filemax::stackStack (File *fsrc)
    _chunks.reserve (_chunks.size () + src->_pages.size () * 5 + 1);
 
    // copy pages up to destpage
-   page_count = 0;
    for (pagenum = 0; pagenum < destpage; pagenum++)
       pages << _pages [pagenum];
 
@@ -6960,8 +6936,8 @@ err_info *Filemax::restorePages (QBitArray &pages,
    }
 
 
-err_info *Filemax::duplicate (File *&fnew, File::e_type type, const QString &uniq,
-      int odd_even, Operation &op, bool &supported)
+err_info *Filemax::duplicate (File *&, File::e_type , const QString &,
+      int, Operation &, bool &supported)
    {
    // we don't add anything of value here, so just let File do it
    supported = false;
@@ -7015,7 +6991,7 @@ Filemaxpage::~Filemaxpage (void)
    }
 
 
-err_info *Filemax::getImage (int pagenum, bool do_scale,
+err_info *Filemax::getImage (int pagenum, bool,
             QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank)
    {
    int num_bytes;
