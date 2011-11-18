@@ -478,3 +478,43 @@ void UCUpdateAnnot::undo (void)
 
    err_complain (_model->opUpdateAnnot (ind, _old));
    }
+
+
+UCAddRepository::UCAddRepository (Desktopmodel *model, QString dirPath)
+      : Desktopundocmd (model)
+   {
+   _dirpath = dirPath;
+   setText (QApplication::translate("UCAddRepository", "Add Repository"));
+   }
+
+
+void UCAddRepository::redo (void)
+   {
+   _model->opUpdateRepositoryList (_dirpath, true);
+   }
+
+
+void UCAddRepository::undo (void)
+   {
+   _model->opUpdateRepositoryList (_dirpath, false);
+   }
+
+
+UCRemoveRepository::UCRemoveRepository (Desktopmodel *model, QString dirPath)
+      : Desktopundocmd (model)
+   {
+   _dirpath = dirPath;
+   setText (QApplication::translate("UCRemoveRepository", "Remove Repository"));
+   }
+
+
+void UCRemoveRepository::redo (void)
+   {
+   _model->opUpdateRepositoryList (_dirpath, false);
+   }
+
+
+void UCRemoveRepository::undo (void)
+   {
+   _model->opUpdateRepositoryList (_dirpath, true);
+   }

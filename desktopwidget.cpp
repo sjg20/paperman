@@ -133,6 +133,8 @@ Desktopwidget::Desktopwidget (QWidget *parent)
       this, SLOT (slotBeginningScan (const QModelIndex &)));
    connect (_contents, SIGNAL (endingScan (bool)),
       this, SLOT (slotEndingScan (bool)));
+   connect (_contents, SIGNAL(updateRepositoryList (QString &, bool)),
+            this, SLOT(slotUpdateRepositoryList (QString &, bool)));
 
     // position the items when the model is reset, otherwise things
     // move and look ugly for a while
@@ -620,25 +622,44 @@ void Desktopwidget::updateSettings ()
    qs.endArray ();
    }
 
+void Desktopwidget::slotUpdateRepositoryList (QString &dirname, bool add_not_delete)
+   {
+   err_info *err = NULL;
+
+   if (add_not_delete)
+      err = addDir (dirname);
+   else
+      {
+      QModelIndex index = _model->index (dirname, 0);
+
+      if (index != QModelIndex ())
+         {
+         _contents->removeDesk (dirname);
+         _model->removeDirFromList (index);
+         _contents->resetDirPath ();
+         }
+      else
+         qDebug () << "slotUpdateRepositoryList: Could not find dirname"
+               << dirname << "in model index: ";
+      }
+   if (!err_complain (err))
+      updateSettings ();
+   }
+
 void Desktopwidget::slotAddRepository ()
    {
    QString dir = QFileDialog::getExistingDirectory(this,
         tr("Select folder to use as a new repository"));
 
    if (!dir.isEmpty ())
-      if (err_complain (addDir (dir)))
-         updateSettings ();
+      _contents->addRepository (dir);
    }
 
 void Desktopwidget::slotRemoveRepository ()
    {
-   QString path = _dir->menuGetPath ();
-   QModelIndex index = _dir->menuGetModelIndex ();
+   QString dir = _dir->menuGetPath ();
 
-   _contents->removeDesk (path);
-   _model->removeDirFromList (index);
-   _contents->resetDirPath ();
-   updateSettings ();
+   _contents->removeRepository (dir);
    }
 
 void Desktopwidget::deleteDir ()

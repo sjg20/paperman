@@ -102,6 +102,8 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCRenamePage;
    friend class UCDeletePages;
    friend class UCUpdateAnnot;
+   friend class UCAddRepository;
+   friend class UCRemoveRepository;
 
 public:
    Desktopmodel(QObject *parent);
@@ -499,6 +501,16 @@ public:
       \param newname new name for page */
    void renamePage (const QModelIndex &index, QString newname);
 
+   /** add a new repository to the list. Supports undo.
+
+     \param dirPath  path to repository */
+   void addRepository (QString dir_path);
+
+   /** remove a repository from the list. Supports undo.
+
+     \param dirPath  path to repository */
+   void removeRepository (QString dir_path);
+
    /** arrange the selected items in the given order. Supports undo
 
       Commits any pending scan
@@ -765,6 +777,12 @@ protected:
       \param updates updates to make, indexed by type (MAXA_...) */
    err_info *opUpdateAnnot (QModelIndex &ind, QHash<int, QString> &updates);
 
+   /** update the list of repositories by adding/removing a dir
+
+     \param dirpath        Directory to add / delete
+     \param add_not_delete true to add, false to delete */
+   void opUpdateRepositoryList (QString &dirpath, bool add_not_delete);
+
 public:
    // this is public since it is called from outside the undo system
    
@@ -909,6 +927,13 @@ signals:
    /** request that the scan stack be commited, because we are about to
        operate on it */
    void commitScanStack (void);
+
+   /** request an update to the repository list
+
+     \param dirpath        Directory to add to / delete from list
+     \param add_not_delete true to add, false to delete
+     */
+   void updateRepositoryList (QString &dirpath, bool add_not_delete);
 
 private:
    bool getNewScaledImage (Paperscan &scan, const PPage *page, const char *data,

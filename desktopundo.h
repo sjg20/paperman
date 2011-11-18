@@ -339,3 +339,33 @@ private:
    QHash<int, QString> _old;      //!< old details
    QHash<int, QString> _new;      //!< new details
    };
+
+
+/** this adds a new repository to the list
+
+Undoing this removes the repository */
+
+class UCAddRepository : public Desktopundocmd
+   {
+public:
+   UCAddRepository (Desktopmodel *model, QString dirPath);
+   void redo();
+   void undo();
+private:
+   QString _dirpath;   //!< the new directory
+   };
+
+
+/** this removes a new repository from the list
+
+Undoing this adds the repository back */
+
+class UCRemoveRepository : public Desktopundocmd
+   {
+public:
+   UCRemoveRepository (Desktopmodel *model, QString dirPath);
+   void redo();
+   void undo();
+private:
+   QString _dirpath;   //!< the directory to remove
+   };

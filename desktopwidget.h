@@ -256,10 +256,11 @@ private slots:
    //! add to the list of recent directories
    void addToRecent (void);
 
-   //! Ask the user for a directory and add it to the list of repositories
+   /** Ask the user for a directory and add it to the list of repositories.
+      Supports undo */
    void slotAddRepository ();
 
-   //! Remove the selected respository
+   //! Remove the selected respository. Supported undo.
    void slotRemoveRepository ();
 
    void updatePreview (void);
@@ -318,6 +319,12 @@ private slots:
 
    /** adjust our splitter size according to the new mode */
    void slotModeChanging (int new_mode, int old_mode);
+
+   /** update the list of repositories by adding/removing a dir
+
+     \param dirname        Directory to add / delete
+     \param add_not_delete true to add, false to delete */
+   void slotUpdateRepositoryList (QString &dirname, bool add_not_delete);
 
 private:
    void emailFiles (QString &fname, QStringList &fnamelist);

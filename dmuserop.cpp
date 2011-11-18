@@ -195,3 +195,12 @@ void Desktopmodel::renamePage (const QModelIndex &index, QString newname)
    }
 
 
+void Desktopmodel::addRepository (QString dir_path)
+   {
+   _undo->push (new UCAddRepository (this, dir_path));
+   }
+
+void Desktopmodel::removeRepository (QString dir_path)
+   {
+   _undo->push (new UCRemoveRepository (this, dir_path));
+   }

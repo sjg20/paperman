@@ -557,3 +557,10 @@ err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist
          }
    return e;
 }
+
+
+void Desktopmodel::opUpdateRepositoryList (QString &dirpath, bool add_not_delete)
+   {
+   // Tell our controller (Desktopwidget) what to do
+   emit updateRepositoryList (dirpath, add_not_delete);
+   }
