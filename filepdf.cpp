@@ -234,9 +234,8 @@ err_info *Filepdf::getImageInfo (int pagenum, QSize &size,
    {
    if (!_pdfio)
       return NULL;
-   CALL (_pdfio->getImageSize (pagenum, false, size));
+   CALL (_pdfio->getImageSize (pagenum, false, size, bpp));
    true_size = size;
-   bpp = 24;
    image_size = size.width () * size.height () * bpp / 8;
    compressed_size = -1;
    timestamp = _timestamp;

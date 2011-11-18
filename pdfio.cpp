@@ -284,7 +284,8 @@ err_info *Pdfio::getPageText (int pagenum, QString &str)
    }
 
 
-err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size)
+err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
+                               int &bpp)
    {
    mytry
       {
@@ -297,7 +298,7 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size)
          obj = get_image_obj (pagenum, dict);
       if (obj)
          {
-         int width, height, bpp;
+         int width, height;
 
          get_image_details (dict, width, height, bpp);
          size = QSize (width, height);
@@ -323,6 +324,7 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size)
       fsize *= 300;
       fsize /= 72;      // make some assumptions!
       size = fsize.toSize ();
+      bpp = 24;
 #else
       return err_make (ERRFN, ERR_pdf_previewing_requires_poppler);
 #endif

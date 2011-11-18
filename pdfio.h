@@ -93,8 +93,9 @@ public :
        \param pagenum   page number to check
        \param preview   true to return info on preview, false to look at image
        \param size      returns size
+       \param bpp       returns bits per pixels
        \returns error, or NULL if ok */
-   err_info *getImageSize (int pagenum, bool preview, QSize &size);
+   err_info *getImageSize (int pagenum, bool preview, QSize &size, int &bpp);
    err_info *getPageText (int pagenum, QString &str);
    err_info *getPageTitle (int pagenum, QString &title);
    err_info *getAnnot (QString type, QString &str);
