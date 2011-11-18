@@ -277,6 +277,7 @@ QWidget *Desktopwidget::createToolbar(void)
    {
    QWidget *group = new QWidget (this);
 
+   //TODO: Move this to use the designer
    /* create the desktop toolbar. We are doing this manually since we can't
       seem to get Qt to insert a QLineEdit into a toolbar */
    _toolbar = new QToolBar (group);
@@ -294,6 +295,8 @@ QWidget *Desktopwidget::createToolbar(void)
    findgroup->setLayout (hboxLayout2);
 
    QLabel *label = new QLabel (findgroup);
+   label->setText(QApplication::translate("Mainwindow", "Filter:", 0,
+                                          QApplication::UnicodeUTF8));
    label->setObjectName(QString::fromUtf8("label"));
 
    hboxLayout2->addWidget(label);
@@ -332,14 +335,12 @@ QWidget *Desktopwidget::createToolbar(void)
 
    hboxLayout2->addWidget(_global);
 
-   addAction (_reset, "Clear filter", SLOT(resetFilter ()), "", findgroup);
+   addAction (_reset, "Reset", SLOT(resetFilter ()), "", findgroup);
    QToolButton *reset = new QToolButton (findgroup);
    reset->setDefaultAction (_reset);
    hboxLayout2->addWidget (reset);
 
    _toolbar->addWidget (findgroup);
-
-   label->setText(QApplication::translate("Mainwindow", "Filter:", 0, QApplication::UnicodeUTF8));
 
 #ifndef QT_NO_TOOLTIP
    _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0, QApplication::UnicodeUTF8));
@@ -1391,4 +1392,9 @@ void Desktopwidget::pageRight (void)
       }
    }
 
-
+void Desktopwidget::activateFind ()
+   {
+   _match->clear ();
+   _match->setFocus (Qt::OtherFocusReason);
+   _global->setChecked (true);
+   }

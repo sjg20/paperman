@@ -182,6 +182,11 @@ void Mainwindow::on_actionAbout_activated()
    widget->exec ();
 }
 
+void Mainwindow::on_actionFind_activated()
+   {
+   getDesktop()->activateFind ();
+   }
+
 void Mainwindow::on_actionFullScreen_activated()
 {
    setWindowState(windowState() ^ Qt::WindowFullScreen);
@@ -305,53 +310,6 @@ void Mainwindow::on_actionVflip_activated()
    _main->flip (0);
 }
 
-
-
-#if 0
-void Mainwindow::matchUpdate()
-{
-   _main->matchUpdate (match->text (), global->isChecked ());
-}
-
-void Mainwindow::on_reset_clicked()
-{
-    // reset the match
-    match->setText ("");
-    global->setChecked (false);
-    _main->resetSearch ();
-}
-
-
-void Mainwindow::on_find_clicked ()
-   {
-   }
-
-
-void Mainwindow::matchChange( const QString & )
-{
-    if (!global->isChecked ())
-      _main->matchUpdate (match->text (), false);
-}
-
-
-void Mainwindow::on_actionPprev_activated()
-{
-   _main->stackLeft ();
-}
-
-
-void Mainwindow::on_actionPnext_activated()
-{
-   _main->stackRight ();
-}
-
-
-
-void Mainwindow::on_actionFind_activated()
-{
-   matchUpdate ();
-}
-#endif
 
 
 void Mainwindow::on_actionOptions_activated()

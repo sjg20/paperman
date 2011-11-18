@@ -63,6 +63,7 @@ public slots:
     virtual void on_actionHflip_activated();
     virtual void on_actionVflip_activated();
     virtual void on_actionOptions_activated();
+    virtual void on_actionFind_activated();
     void on_actionFullScreen_activated();
 
     void welcome ();

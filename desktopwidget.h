@@ -130,6 +130,9 @@ public:
    void addAction (QAction *&_act, const char *text, const char *slot,
          const QString &shortcut, QWidget *parent = 0, const char *icon = 0);
 
+   /** activate the find feature */
+   void activateFind ();
+
 protected:
 
 signals:
