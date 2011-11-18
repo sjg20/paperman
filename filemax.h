@@ -352,7 +352,7 @@ private:
 
    err_info *decode_tile (chunk_info &chunk,
             struct decode_info &decode, int code, int pos, int size, byte *ptr,
-            cpoint &tile_size, int diff_if_uncomp);
+            cpoint &tile_size);
 
    err_info *decode_tiledata (chunk_info &chunk,
                      decode_info &decode, byte *&imagep, QSize *image_size);

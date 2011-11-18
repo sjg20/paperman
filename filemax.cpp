@@ -64,8 +64,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 static FILE *debugf = 0;
 static int debug_level = 0;
-static int hack = 0;
-static int hacked;
 
 #define warning(x) do {if (debug_level >= 0) dprintf x; } while (0)
 #define debug1(x) do {if (debug_level >= 1) dprintf x; } while (0)
@@ -383,8 +381,6 @@ enum
 
 typedef unsigned short ushort;
 
-// #include "decpp.h"
-
 extern "C" {
 #include "ztab.h"
 #include "btab.h"
@@ -410,8 +406,6 @@ enum
 
 typedef struct decode_info
    {
-//   max_info *max;  // max info
-//   int nbits;   // number of bits left in 'word'
    int version_a;  // true if an old version A file
    int used;      // number of bits used in 'word'
    unsigned word;  // current data word being processed
@@ -420,7 +414,6 @@ typedef struct decode_info
    int y;         // current ypos
    int width;     // image width in pixels
    byte *outptr;  // output data pointer
-//   int pos;       // current input pointer
    byte *inptr;   // current input pointer
    cpoint image_size; // image size
    short *table_data;      // table data
@@ -440,7 +433,6 @@ typedef struct decode_info
 
 
 // info used when encoding tiles
-
 typedef struct encode_info
    {
    byte *buff;    // output data buffer
@@ -468,7 +460,6 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
    : File (dir, filename, desk, Type_max)
    {
    _version = -1;
-//    _hdr_size = 0;
    _chunk0_start = 0;
    _size = 0;
    _signature = -1;
@@ -477,11 +468,8 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
    _fin = NULL;
    max_clear_cache (_cache);
    max_clear_cache (_scache);
-//    _cache_4k = NULL;
-//    _cache_4k_pos = 0;
    _bermuda = _tunguska = _annot = _trail = _b0 = _b4 = 0;
    _envelope = 0;
-//    _hdr = NULL;
    _chunkid_next = 0;
    _hdr_updated = false;
    _version_a = false;
@@ -496,7 +484,6 @@ Filemax::~Filemax ()
 
 
 /** ensure that the page has a title loaded, if there is one */
-
 err_info *Filemax::ensure_titlestr (int, page_info &page)
    {
    chunk_info *chunk;
@@ -528,16 +515,14 @@ err_info *Filemax::ensure_titlestr (int, page_info &page)
          if (!has_chars)   // ignore a title with only spaces
             j = 0;
          title [j] = '\0';
-   //         printf ("page %d: .%s.\n", i, title);
-   // if temporarily loaded, free it now
          }
       }
 
+   // if temporarily loaded, free it now
    if (temp)
       chunk_free (*chunk);
 
    page.titlestr = title;
-//      printf ("%d: title %x: %s\n", i, page->title, title);
 
    return e;
    }
@@ -642,15 +627,10 @@ err_info *Filemax::getworde (int pos, int *wordp)
    {
    int word;
    byte *p;
-/*  */
-/*    fseek (f, pos, SEEK_SET); */
-/*    return word; */
+
    if (pos < 0 || pos > _size - 4)
       return err_make (ERRFN, ERR_file_position_out_of_range3, pos, 0,
                _size);
-//      printf ("%s: readw from position %d (size %d)\n", _fname, pos, _size);
-//      breakpoint ();
-//      exit (1);
    p = GET_DATA (pos);
    if (p)
       word = *p | (p [1] << 8) | (p [2] << 16) | ((unsigned)p [3] << 24);
@@ -751,16 +731,6 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
    {
    int n;
 
-   // alloc the cache
-/*
-   if (cache.alloced < size)
-      {
-      if (cache.buff)
-         free (cache.buff);
-      CALL (mem_alloc (CV &cache.buff, size, "max_cache_data"));
-      cache.alloced = size;
-      }
-*/
    cache.buff.resize (size);
 
    // read the data
@@ -778,7 +748,6 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
    if (datap)
       *datap = (byte *)cache.buff.data ();
    cache.pos = pos;
-//    cache.size = size;
    return NULL;
    }
 
@@ -822,19 +791,6 @@ err_info *Filemax::max_write_data (int pos, byte *data, int size)
    // write the data
    fseek (_fin, pos, SEEK_SET);
    count = fwrite (data, 1, size, _fin);
-/*
-   if (count == size)
-      {
-      char buff [4096];
-
-      fseek (_fin, pos, SEEK_SET);
-      fread (buff, 1, 4096, _fin);
-      if (0 != memcmp (buff, data, 4096))
-         {
-         printf ("write error\n");
-         }
-      }
-*/
    max_clear_cache (_scache, pos, size);
    max_clear_cache (_cache, pos, size);
 
@@ -976,8 +932,8 @@ err_info *Filemax::decomp (decode_info &decode, byte *inptr, int bits_used, int 
       debug3 (("word=%08x, 7bits=%x, data=%x, entry=%x, now %x",
                bits, (bits >> (bits_left - 7)) & 0x7f,
                (bits >> (bits_left - len)) & ((1 << len) - 1), entry, bits_left));
-      bits_left -= len; //entry & 0xffff;
-      if (!len) //(!(entry & 0xffff))
+      bits_left -= len;
+      if (!len)
          return err_make (ERRFN, ERR_decompression_invalid_data);
       code = (entry >> 16) - 3;
       switch (code)
@@ -1006,7 +962,7 @@ err_info *Filemax::decomp (decode_info &decode, byte *inptr, int bits_used, int 
                            x, bits, (bits >> (bits_left - 13)) & 0x1fff,
                            (bits >> (bits_left - len)) & ((1 << len) - 1), entry, bits_left,
                            x + (entry >> 16)));
-                  bits_left -= len; //entry & 0xffff;
+                  bits_left -= len;
                   count = entry >> 16;
                   x += count;
                   } while (count > 0x3f);
@@ -1053,7 +1009,7 @@ void Filemax::output (short *table, byte *destptr, int width)
    int entry;
    byte *out;
 
-   if (*tab == -1)  //!
+   if (*tab == -1)
       return;
    assert (*tab != -1);
 
@@ -1095,7 +1051,6 @@ err_info *Filemax::do_compressed (decode_info &decode)
    decode.inptr += (bits_used / 8) & 0xfe;
    decode.used = bits_used & 0xf;
    output (decode.table + 1, decode.outptr, decode.width);
-   //decode.used++;
    return NULL;
    }
 
@@ -1202,7 +1157,6 @@ void Filemax::do_single (decode_info &decode)
       *tab++ = ch;
       }
 
-   // 221
    tab [0] = tab [1] = decode.width;
    output (decode.table + 1, decode.outptr, decode.width);
    decode.inptr = ptr;
@@ -1268,9 +1222,10 @@ err_info *Filemax::decode_init (decode_info &decode, chunk_info &chunk,
       return err;
       }
 
-/*    printf ("tile is %d x %d\n", chunk->tile_size.x, */
-/*       chunk->tile_size.y); */
-
+/*
+   printf ("tile is %d x %d\n", chunk->tile_size.x,
+       chunk->tile_size.y);
+*/
    // now decode */
    decode.used = 0;
    decode.y = 0;
@@ -1282,10 +1237,6 @@ err_info *Filemax::decode_init (decode_info &decode, chunk_info &chunk,
 
 err_info *Filemax::decode_compressed_tile (decode_info &decode, int size)
    {
-#if 0
-   CALL (decode_g4 (decode.inptr, decode.line_bytes, decode.inptr + size,
-                   &decode.image_size, decode.outptr, decode.stride));
-#else
    unsigned data;
    short *temp;
    int used, diff, type;
@@ -1317,16 +1268,6 @@ err_info *Filemax::decode_compressed_tile (decode_info &decode, int size)
       else
          type = getbits (decode, 2);
 
-      if (debug)
-         {
-//         if (type != 2)
-//            {
-//            printf ("error - not decomp\n");
-//            return NULL;
-//            exit (1);
-//            }
-         }
-
       switch (type)
          {
          case 0 : // uncompressed
@@ -1343,7 +1284,6 @@ err_info *Filemax::decode_compressed_tile (decode_info &decode, int size)
          case 2 : // compressed
             debug3 (("comp\n"));
             CALL (do_compressed (decode));
-//               decode.y = decode.image_size.y;  // error occured so abort
             break;
 
          case 3 : // blank lines
@@ -1395,7 +1335,6 @@ err_info *Filemax::decode_compressed_tile (decode_info &decode, int size)
    if (debug->step != debug->max_steps)
       if (diff < -4 || diff > 1)
          warning (("   ** decode diff %d: used %d bytes, should be %d\n", diff, used, size));
-#endif
    return NULL;
    }
 
@@ -1408,7 +1347,6 @@ err_info *Filemax::decode_tileinfo (chunk_info &chunk)
    if (_version_a)
       {
       // doesn't have chunks?
-
       pos = chunk.start;
       chunk.code = 0;
       chunk.tile_size = chunk.image_size;
@@ -1458,62 +1396,14 @@ err_info *Filemax::decode_tileinfo (chunk_info &chunk)
    return NULL;
    }
 
-
-#if 0
-// reverse bytes in a buffer
-
-static void reverse (byte *start, int count)
-   {
-   byte *end = start + count - 1, temp;
-
-   while (start < end)
-      {
-      temp = *start;
-      *start = *end;
-      *end = temp;
-      start++, end--;
-      }
-   }
-
-
-static int bitrev (int x)
-   {
-   int out;
-
-   out = ((x >> 7) & 0x01)
-         | ((x >> 5) & 0x02)
-         | ((x >> 3) & 0x04)
-         | ((x >> 1) & 0x08)
-         | ((x << 1) & 0x10)
-         | ((x << 3) & 0x20)
-         | ((x << 5) & 0x40)
-         | ((x << 7) & 0x80);
-   return out;
-   }
-#endif
-
-
 err_info *Filemax::decode_tile (chunk_info &chunk,
          decode_info &decode, int code, int pos, int size, byte *ptr,
-         cpoint &tile_size, int diff_if_uncomp)
+         cpoint &tile_size)
    {
    byte *data;
    err_info *e;
 
-   // align to next halfword boundary (testing)
-/*
-   if (pos & 1)
-      {
-      pos++;
-      size--;
-      debug2 (("position rounded up to %x\n", pos));
-      }
-*/
-   // load the tile data (cache doesn't work this way anymore
-   // so have commented out GET_DATA() use
-//    data = GET_DATA (pos);
-//    if (!data)
-      CALL (max_cache_data (_cache, pos, size, size, &data));
+   CALL (max_cache_data (_cache, pos, size, size, &data));
    debug3 (("decode_tile: source data extends from %p to %p\n", data,
          data + size));
 /*
@@ -1526,19 +1416,8 @@ err_info *Filemax::decode_tile (chunk_info &chunk,
          switch (chunk.bits)
             {
             case 1 :
-              //              printf ("%d %d\n", size, (chunk.tile_line_bytes - 4) * chunk.tile_size.y);
-              // apply the diff fix if this is an uncompressed tile
-               if (size >= (chunk.tile_line_bytes - 4) * chunk.tile_size.y)
-                  {
-                  if (hack)
-                     {
-                     ptr -= diff_if_uncomp;
-                     hacked++;
-                     }
-                  }
                CALL (decode_init (decode, chunk, data, ptr,
                                     chunk.line_bytes, tile_size));
-//               CALL (decode_compressed_tile (decode, size - 4));
                e = decode_compressed_tile (decode, size - 4);
                if (e)
                   printf ("warning: %s\n", e->errstr);
@@ -1563,8 +1442,6 @@ err_info *Filemax::decode_tile (chunk_info &chunk,
 
          /* it seems that for 24bpp images in fact only 8bpp are stored.
             Not sure about the encoding though */
-//               free (image);03 00
-//               dump (pos, 0x80);
          for (y = 0, out = ptr, in = data; y < chunk.tile_size.y; y++)
             {
             if (in + chunk.tile_line_bytes >= data + size)
@@ -1577,15 +1454,9 @@ err_info *Filemax::decode_tile (chunk_info &chunk,
                for (x = 0; x < tile_size.x; x++)
                   {
                   pixel = in [x];
-#if 1
                   out [x * 3 + 0] = pixel & 0xc0;
                   out [x * 3 + 1] = pixel << 2;
                   out [x * 3 + 2] = pixel << 5;
-#else
-                  out [x * 4 + 0] = pixel & 0xc0;
-                  out [x * 4 + 1] = pixel << 2;
-                  out [x * 4 + 2] = pixel << 5;
-#endif
                   out [x * 4 + 0] = pixel;
                   out [x * 4 + 1] = pixel;
                   out [x * 4 + 2] = pixel;
@@ -1631,25 +1502,17 @@ position in the image of the top left of the tile
    \param tilenum    returns the tile number
    \param stride     image stride (line_bytes) value, pass as -1 to use
                             chunk->line_bytes */
-
 static byte *get_tile_size (chunk_info &chunk, int x, int y, cpoint *tile_size,
-                  int *tilenum, int stride, int tile_stride, int *diffp)
+                  int *tilenum, int stride, int tile_stride)
    {
    byte *ptr;
-   int diff;
 
    if (stride == -1)
       stride = chunk.line_bytes;
    if (tile_stride == -1)
       tile_stride = chunk.tile_line_bytes;
-   //!!   ptr = chunk.image + (tile_stride * x)  : SG I think this is the scanning bug  !!!
    ptr = chunk.image + (tile_stride /*chunk.tile_line_bytes*/ * x)
       + (stride * y * chunk.tile_size.y);
-
-   //   diff = chunk.tile_line_bytes * x - tile_stride * x;
-   diff = 0;
-   //   if (diff)
-   //      printf ("%c: x=%d, y=%d, diff = %d\n", comp ? 'C' : 'D', x, y, diff);
 
    /* work out the size of the tile to encode/decode. In most cases this is
       just chunk.tilesize, but for the rightmost and bottom tiles, it
@@ -1662,16 +1525,6 @@ static byte *get_tile_size (chunk_info &chunk, int x, int y, cpoint *tile_size,
       tile_size->x = chunk.tile_size.x;
    tile_size->x = (tile_size->x + 7) & ~7;
    *tilenum = chunk.tile_extent.x * y + x;  // tile sequence number
-
-   //   if (tile_size->x < chunk.tile_size.x)
-   //      {
-   //      diff = chunk.tile_size.x - tile_size->x;
-      //      printf ("%c: x=%d, y=%d, diff = %d\n", comp ? 'C' : 'D', x, y, diff);
-      //      ptr -= diff / 2;
-   //      }
-
-   if (diffp)
-      *diffp = diff;
    return ptr;
    }
 
@@ -1679,7 +1532,6 @@ static byte *get_tile_size (chunk_info &chunk, int x, int y, cpoint *tile_size,
 /* given a raw image size, calculate its true size in terms of pixels, taking account of the
 word-alignment requirements for each line - i.e. the width will expand such that the stride
 is a multiple of 4 bytes */
-
 static void calc_true_size (chunk_info *chunk, QSize &true_size)
    {
    int x = chunk->image_size.x;
@@ -1714,10 +1566,6 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
             chunk.tile_extent.x, chunk.tile_extent.y,
             chunk.tile_size.x, chunk.tile_size.y));
 
-   /* we used to allocate enough for the last tile, but it is always truncated to fit within
-      the image size so we calculate the correct image size, in case the caller has only
-      allocated that much, and our memset (a few lines below) messes up malloc() */
-//   size = chunk.line_bytes * chunk.tile_extent.y * chunk.tile_size.y;
    size = chunk.line_bytes * chunk.image_size.y;
 
    debug2 (("tile_line_bytes = %d, line_bytes = %d, total bytes = %d\n",
@@ -1725,13 +1573,11 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
    if (!imagep)
       CALL (mem_alloc (CV &imagep, size, "decode_tiledata"));
    image = imagep;
-//    printf ("decode_tiledata: image size %d\n", size);
    memset (image, '\0', size);
    chunk.image = image;
    chunk.image_bytes = size;
    debug3 (("image buffer extends from %p to %p\n", image, image + size));
 
-   hacked = 0;
    pos = _version_a ? chunk.start + 0x42 : chunk.start + 0x20 + part->start;
    for (y = 0; y < chunk.tile_extent.y; y++)
       for (x = 0; x < chunk.tile_extent.x; x++)
@@ -1753,12 +1599,10 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
             }
          debug2 (("code = %x, tilenum=%x\n", code, tilenum));
 
-         ptr = get_tile_size (chunk, x, y, &tile_size, &my_tilenum, -1, -1, NULL);
+         ptr = get_tile_size (chunk, x, y, &tile_size, &my_tilenum, -1, -1);
 
-//         printf ("%d: size=%d\n", my_tilenum, chunk.tile [my_tilenum].size);
          if (tilenum != my_tilenum)
             ;
-//            printf ("   - bad %d %d\n", tilenum, my_tilenum);
          else if (tilenum >= debug->start_tile
             && (debug->num_tiles == INT_MAX
                 || tilenum < debug->start_tile + debug->num_tiles))
@@ -1787,29 +1631,10 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
                      chunk.tile [tilenum].size, chunk.tile [tilenum].size));
             else
                CALL (decode_tile (chunk, decode, code, pos,
-                      chunk.tile [tilenum].size - 4, ptr, tile_size, 0));
+                      chunk.tile [tilenum].size - 4, ptr, tile_size));
             }
          pos += chunk.tile [my_tilenum].size - 4;
          }
-#if 0
-   if (flags & 1)
-      {
-      byte *in, *out, *end;
-
-      printf ("line bytes: real=%x, chunk=%x\n", real_line_bytes, chunk.line_bytes);
-
-      real_line_bytes = (real_line_bytes + 3) & ~3;
-      printf ("line bytes: real=%x, chunk=%x\n", real_line_bytes, chunk.line_bytes);
-      for (y = 0, out = image, in = image; y < chunk.image_size.y; y++)
-         {
-         for (end = in + real_line_bytes; in < end; in++)
-            *out++ = *in; //bitrev (*in);
-         in += chunk.line_bytes - real_line_bytes;
-         }
-      }
-#endif
-   if (hacked)
-     printf (" *** hacked=%d\n", hacked);
    imagep = image;
    return NULL;
    }
@@ -5069,14 +4894,14 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
              get_tile_size() needs encode.tile_line_bytes, works out tile_size
              calc_tile_bytes() needs tile_size, works out encode.tile_line_bytes */
          ptr = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
-                  encode.tile_line_bytes, NULL);
+                  encode.tile_line_bytes);
 
          calc_tile_bytes (tile_size.x, chunk.image_size.x, bpp,
                     &tile_line_bytes, &temp, FALSE);
 //       printf ("tile_size.x=%d, encode.tile_line_bytes=%d, tlb=%d\n",
 //               tile_size.x, encode.tile_line_bytes, tile_line_bytes);
          ptr = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
-                  encode.tile_line_bytes, NULL);
+                  encode.tile_line_bytes);
          if (tilenum >= debug.start_tile
             && (debug.num_tiles == INT_MAX
                 || tilenum < debug.start_tile + debug.num_tiles))
@@ -5680,7 +5505,6 @@ void Filemax::write_max_header (void)
 
    // hack so we can distinguish our own .max files
    _signature = 0x12345678;
-   //   _signature = 0x46476956;
 
    idata [0] = _signature;
    idata [POSn_version / 4] = MAX_VERSION; //_version;
@@ -6538,12 +6362,6 @@ err_info *Filemax::max_unload (int pagenum)
 void decpp_set_debug (int d)
    {
    debug_level = d;
-   }
-
-
-void decpp_set_hack (int h)
-   {
-   hack = h;
    }
 
 
