@@ -69,7 +69,8 @@ bool err_complain (err_info *err)
 static void usage (void)
    {
    printf ("maxview - An electronic filing cabinet: scan, print, stack, arrange\n\n");
-   printf ("(C) 2011 Simon Glass, chch-kiwi@users.sourceforge.net, v%s\n\n", CONFIG_version_str);
+   printf ("(C) 2011 Simon Glass, chch-kiwi@users.sourceforge.net, v%s\n\n",
+           CONFIG_version_str);
    printf ("Usage:  maxview <opts>  <dir/file>\n\n");
 /*
    printf ("   -p|--pdf        convert given file to .pdf\n");
