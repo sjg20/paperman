@@ -486,6 +486,8 @@ err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
    if (dirname.isEmpty ())
       {
       dirname = in_dirname;
+      if (dirname.endsWith ("/"))
+         dirname.chop (1);
       err = err_make (ERRFN, ERR_directory_not_found1,
                        qPrintable(dirname));
       }
