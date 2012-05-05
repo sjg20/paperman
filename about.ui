@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>About Maxview</string>
+   <string>About Paper Manager</string>
   </property>
   <property name="windowIconText">
    <string/>
@@ -25,7 +25,7 @@
         <string/>
        </property>
        <property name="pixmap">
-        <pixmap resource="maxview.qrc">:/images/images/maxview.xpm</pixmap>
+        <pixmap resource="maxview.qrc">:/images/images/maxview.png</pixmap>
        </property>
        <property name="scaledContents">
         <bool>false</bool>
@@ -65,9 +65,9 @@
        <item>
         <widget class="QLabel" name="textLabel1">
          <property name="text">
-          <string>Maxview aims to turn your computer into an electronic filing cabinet for paper.
+          <string>Paper Manager aims to turn your computer into an electronic filing cabinet for paper.
 
-Maxview allows you to:
+Paper Manager allows you to:
 
 &lt;ul&gt;
 &lt;li&gt;Quickly scan and file paper into your computer
@@ -75,7 +75,7 @@ Maxview allows you to:
 &lt;li&gt;Stack, arrange and name your scanned paper
 &lt;li&gt;Easily print and view your scanned paper&lt;li&gt;Convert to / from PDF and other formats&lt;/ul&gt;
 
-Maxview version 0.7 by Simon Glass &amp;lt;chch-kiwi@users.sourceforge.net&amp;gt;
+Paper Manager version 0.8 by Simon Glass &amp;lt;chch-kiwi@users.sourceforge.net&amp;gt;
 &lt;p&gt;
 &lt;p&gt;TIFF code Copyright (c) 1990-1996 Sam Leffler, Copyright (c) 1991-1996 Silicon Graphics, Inc.
 &lt;p&gt;Quite insane copyright (C) 2000 by Michael Herder crapsite@gmx.net

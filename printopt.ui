@@ -10,7 +10,7 @@
    </rect>
   </property>
   <property name="windowTitle" >
-   <string>Maxview</string>
+   <string>Paper Manager</string>
   </property>
   <property name="frameShape" >
    <enum>QFrame::StyledPanel</enum>

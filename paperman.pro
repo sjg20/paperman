@@ -5,7 +5,7 @@ QT += qt3support
 unix:target.path = /usr/bin
 INSTALLS += target
 
-message ("Type 'make' to build maxview")
+message ("Type 'make' to build paperman")
 
 OCRINCPATH = /usr/local/include/nuance-omnipage-csdk-15.5
 OCRLIBPATH = /usr/local/lib/nuance-omnipage-csdk-15.5
@@ -200,7 +200,7 @@ SOURCES += desktopwidget.cpp \
     filejpeg.cpp
 
 # add qtcreator debug macros if we are debugging
-SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
+#SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
 
 
 
