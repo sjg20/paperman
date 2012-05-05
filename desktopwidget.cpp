@@ -281,6 +281,8 @@ QWidget *Desktopwidget::createToolbar(void)
    /* create the desktop toolbar. We are doing this manually since we can't
       seem to get Qt to insert a QLineEdit into a toolbar */
    _toolbar = new QToolBar (group);
+//   _toolbar = new QWidget (group);
+//   _toolbar = group;
    addAction (_actionPprev, "Previous page", SLOT(pageLeft ()), "", _toolbar, "pprev.xpm");
    addAction (_actionPprev, "Next page", SLOT(pageRight ()), "", _toolbar, "pnext.xpm");
    addAction (_actionPprev, "Previous stack", SLOT(stackLeft ()), "", _toolbar, "prev.xpm");
@@ -309,13 +311,45 @@ QWidget *Desktopwidget::createToolbar(void)
    sizePolicy2.setHeightForWidth(_match->sizePolicy().hasHeightForWidth());
    _match->setSizePolicy(sizePolicy2);
    _match->setMinimumSize(QSize(50, 0));
-   _match->setDragEnabled(true);
+   //_match->setDragEnabled(true);
 
    connect (_match, SIGNAL (returnPressed()),
         this, SLOT (matchUpdate ()));
    connect (_match, SIGNAL (textChanged(const QString&)),
         this, SLOT (matchChange (const QString &)));
+   //_reset_filter = new QAction (this);
+   //_reset_filter->setShortcut (Qt::Key_Escape);
+   //connect (_reset_filter, SIGNAL (triggered()), this, SLOT (resetFilter()));
+   //_match->addAction (_reset_filter);
+   //_match->installEventFilter (this);
 
+   // When ESC is pressed, clear the field
+   QStateMachine *machine = new QStateMachine (this);
+   QState *s1 = new QState (machine);
+
+//   QSignalTransition *pressed_esc = new QSignalTransition(_match,
+//                                       SIGNAL(textChanged(const QString&)));
+   QKeyEventTransition *pressed_esc = new QKeyEventTransition(_match,
+                           QEvent::KeyPress, Qt::Key_Escape);
+   s1->addTransition (pressed_esc);
+   connect(pressed_esc, SIGNAL(triggered()), this, SLOT(resetFilter()));
+   machine->setInitialState (s1);
+   machine->start ();
+#if 0
+  QPushButton *test = new QPushButton (findgroup);
+  test->setText ("hello");
+  hboxLayout2->addWidget (test);
+
+   QStateMachine *test_machine = new QStateMachine (this);
+   QState *test_s1 = new QState (test_machine);
+
+   QSignalTransition *trans = new QSignalTransition(test, SIGNAL(clicked()));
+   test_s1->addTransition (trans);
+   connect(trans, SIGNAL(triggered()), this, SLOT(resetFilter()));
+   test_machine->setInitialState (test_s1);
+   test_machine->start ();
+#endif
+    // and change the state
    hboxLayout2->addWidget(label);
 
    hboxLayout2->addWidget (_match);
@@ -786,6 +820,7 @@ void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
 
 void Desktopwidget::resetFilter (void)
    {
+   qDebug () << "resetFilter";
    _match->setText ("");
    _global->setChecked (false);
    matchUpdate ("", false, true);
@@ -1398,3 +1433,22 @@ void Desktopwidget::activateFind ()
    _match->setFocus (Qt::OtherFocusReason);
    _global->setChecked (true);
    }
+
+#if 0
+bool Desktopwidget::eventFilter (QObject *watched_object, QEvent *e)
+   {
+   bool filtered = false;
+
+   if (e->type () == QEvent::KeyPress)
+      {
+      QKeyEvent* k = (QKeyEvent*) e;
+
+      if (k->key () == Qt::Key_Escape)
+         {
+         qDebug() << "here";
+         filtered = true; //eat event
+         }
+      }
+  return filtered;
+  }
+#endif

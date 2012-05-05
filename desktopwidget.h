@@ -134,6 +134,7 @@ public:
    void activateFind ();
 
 protected:
+   //bool eventFilter (QObject *watched_object, QEvent *e);
 
 signals:
    void newContents (QString str);
@@ -402,6 +403,7 @@ private:
    QAction *_act_send, *_act_deliver_out;
 
    QToolBar *_toolbar;
+   //QWidget *_toolbar;
 
    // more actions (toolbar)
    QAction *_actionPprev;
