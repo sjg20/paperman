@@ -298,8 +298,14 @@ image is saved to .scantemp.pnm.*/
    \returns pointer to QSaneOption, or 0 if none */
   QSaneOption *findOption (QString name, int option_type = -1);
 
-  /** set the value of an option as a string */
-  void setOption (QSaneOption *opt, QString str);
+  /**
+   * set the value of an option as a string
+   *
+   * \param opt     Option to set
+   * \param str     Value for that option
+   * \return true if ok, false if option not found
+   */
+  bool setOption (QSaneOption *opt, QString str);
 
   /** set the value of an option as an integer */
   void setOption (QSaneOption *opt, int value);

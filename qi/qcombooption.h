@@ -39,8 +39,15 @@ public:
 	~QComboOption();
   /**  */
   void appendItem(const char* item);
-  /**  */
-  void setCurrentValue(const char*item);
+    /**
+     * Set the current value of an combo item
+     *
+     * This works by looking through the list of options and selecting the
+     * matching one.
+     *
+     * @return true if set ok, false if value could not be found
+    */
+    bool setCurrentValue(const char*item);
   /**  */
   QString getCurrentText();
   /**  */

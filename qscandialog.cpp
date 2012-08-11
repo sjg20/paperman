@@ -3930,16 +3930,19 @@ void QScanDialog::checkOptionValidity(int opt_num)
 }
 
 
-void QScanDialog::setOption (QSaneOption *opt, QString str)
+bool QScanDialog::setOption (QSaneOption *opt, QString str)
 {
   QComboOption *wh = (QComboOption *)opt;
 
 //   qDebug () << "setOption" << str;
   if (opt)
   {
-     wh->setCurrentValue (str.latin1 ());
+     if (!wh->setCurrentValue (str.latin1 ()))
+         return false;
      slotOptionChanged (wh->optionNumber ());
   }
+
+  return true;
 }
 
 
@@ -3972,7 +3975,13 @@ void QScanDialog::setFormat (format_t f, bool select_compression)
    QString fred = QString ("Lineart,Halftone,Gray,Color").section (',', f, f);
    QComboOption *wh = (QComboOption *)mOptionCompression;
 
-   setOption (mOptionFormat, fred);
+    if (!setOption (mOptionFormat, fred))
+    {
+        // Try Binary for Lineart
+        if (fred == "Lineart")
+            setOption (mOptionFormat, "Binary");
+    }
+
    bool want_jpeg = select_compression && (f != mono && f != dither);
    setOption (mOptionCompression, want_jpeg ? "JPEG" : "None");
    QString msg;

@@ -75,10 +75,10 @@ void QComboOption::appendItem(const char* item)
 	mpSelectionCombo->insertItem(item,-1);
 }
 /**  */
-void QComboOption::setCurrentValue(const char* item)
+bool QComboOption::setCurrentValue(const char* item)
 {
 	QString qs(item);
-  QString qs2;
+    QString qs2;
 	int cnt;
 	for(cnt=0;cnt<mpSelectionCombo->count();cnt++)
 	{
@@ -87,9 +87,11 @@ void QComboOption::setCurrentValue(const char* item)
 		{
 			mpSelectionCombo->setCurrentItem(cnt);
       slotChangeTooltip(cnt);
-			break;
+            return true;
 		}
 	}
+
+    return false;
 }
 /**  */
 QString QComboOption::getCurrentText()
