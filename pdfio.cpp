@@ -87,15 +87,18 @@ err_info *Pdfio::open (void)
    if (_pop->isLocked ())
       return err_make (ERRFN, ERR_cannot_open_document_as_it_is_locked1, _pathname.latin1 ());
 #endif
+   PoDoFo::PdfMemDocument *doc = 0;
+
    try
       {
-      _doc = new PdfMemDocument ();
-      _doc->Load (_pathname.latin1 ());
+      doc = new PdfMemDocument ();
+      doc->Load (_pathname.latin1 ());
       }
    catch (const PdfError &eCode)
       {
       return make_error (eCode);
       }
+   _doc = doc;
 #ifndef CONFIG_use_poppler
    return err_make (ERRFN, ERR_pdf_previewing_requires_poppler);
 #endif
