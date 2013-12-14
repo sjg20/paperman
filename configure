@@ -25,4 +25,5 @@ if [ "$CMAKE" = "" ]; then
 fi
 
 # if this fails we hope the user can figure it out
-qmake maxview.pro
+qmake paperman.pro
+
