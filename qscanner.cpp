@@ -39,6 +39,7 @@ extern "C"
 #include <sane/saneopts.h>
 #include <limits.h>
 #include <math.h>
+#include <unistd.h>
 
 #include <QDebug>
 

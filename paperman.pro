@@ -20,7 +20,7 @@ LIBS += -lpoppler-qt4
 #LIBS += -lkernelapi -Wl,-rpath-link,$$OCRLIBPATH,-rpath,$$OCRLIBPATH
 
 LIBS += -lpodofo
-LIBS += -ltiff -lsane
+LIBS += -ltiff -lsane -ljpeg -lz
 
 INCLUDEPATH += qi /usr/local/lib /usr/include/poppler/qt4
 INCLUDEPATH += $$OCRINCPATH
