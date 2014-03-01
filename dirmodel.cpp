@@ -322,7 +322,8 @@ bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
     if (success)
        {
        _parent = index(to);
-        refresh (_parent);
+       if (_parent != QModelIndex())
+          refresh (_parent);
 //     emit operationComplete (_parent);
        }
     return success;
@@ -539,7 +540,6 @@ bool Dirmodel::hasChildren (const QModelIndex &parent) const
 QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    {
    QModelIndex ind = item->index ();
-
    ind = createIndex (row, 0, ind.internalPointer ());
 
 //    printf ("findPath '%s'\n", path.latin1 ());
@@ -548,14 +548,21 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    QStringList dirs = path.split ('/');
    for (int i = 0; i < dirs.size (); i++)
       {
+      bool found = false;
+
       int child_count = rowCount (ind);
 //       printf ("   %d children\n", child_count);
       for (int j = 0; j < child_count; j++)
          {
          QModelIndex child = index (j, 0, ind);
          if (dirs [i] == fileName (child))
+            {
             ind = child;
+            found = true;
+            }
 //             printf ("   - found '%s' at %d\n", dirs [i].latin1 (), j);
+         if (!found)
+             return QModelIndex ();
          }
 //      ind = QDirModel::index (path);
       }
@@ -564,7 +571,7 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    }
 
 
-QModelIndex Dirmodel::index (const QString & path, int) const
+QModelIndex Dirmodel::index (const QString &in_path, int) const
    {
 // printf ("my index %s\n", path.latin1 ());
 //    QModelIndex index = QDirModel::index (path, column);
@@ -573,6 +580,10 @@ QModelIndex Dirmodel::index (const QString & path, int) const
 //    printf ("index of path '%s'\n", path.latin1 ());
 
    // search all the items for the path which matches
+   QString path = in_path;
+
+   if (path.right(1) == "/")
+       path.truncate(path.length() - 1);
    for (int i = 0; i < _item.size (); i++)
       {
       QString dir = _item [i]->dir ();
@@ -582,7 +593,7 @@ QModelIndex Dirmodel::index (const QString & path, int) const
          {
          // we found a match, so now we need to search for the model index in this item
 //          printf ("found item\n");
-         return findPath (i, _item [i], path.mid (dir.length ()));
+         return findPath (i, _item [i], path.mid(dir.length ()));
 //         return _item [i]->index ();
          }
       }
