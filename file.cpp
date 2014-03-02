@@ -849,6 +849,13 @@ bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
    return true;
 }
 
+QString File::encodePageNumber (const QString &base, int pagenum)
+   {
+   pagenum++;
+   return QString ("%1_p%2%3").arg (base).arg (pagenum).
+         arg (typeExt (type ()));
+   }
+
 bool File::claimFileAsNewPage (const QString &, QString &, int)
    {
    return false;

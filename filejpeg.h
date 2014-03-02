@@ -130,6 +130,9 @@ private:
      \return NULL if ok, else an error */
    err_info *checkPage (int pagenum);
 
+   err_info *getPage (int pagenum, const Filejpegpage *&page);
+   err_info *getPage (int pagenum, Filejpegpage *&page);
+
    /**
     * Add the given filename as a new page in this File
     *
@@ -150,6 +153,8 @@ private:
     * \return error, or 0 if OK
     */
    err_info *loadPage (int pagenum, QImage &image);
+
+   err_info *setFilename (int pagenum, QString fname);
 
 private:
    QString _page_title; /* Title of first (only) page */
@@ -223,9 +228,12 @@ public:
     */
    int size (void) const;
 
+   QString pathname (const QString &dir) const;
+
+   void setFilename (const QString &fname);
+
 private:
    QString _filename;   //!< Filename of this JPEG
    QImage _image;       //!< Image, if loaded
-   QPixmap _pixmap;     //!< Pixmap of Image
    bool _changed;       //!< true if the image has been changed
    };

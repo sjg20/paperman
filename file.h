@@ -107,6 +107,17 @@ public:
    static bool decodePageNumber (const QString &fname, QString &base,
                                  int &pagenum, QString &ext);
 
+   /**
+    * Create a new filename which encodes the given page number
+    *
+    * The extension is taken from the file type.
+    *
+    * \param base       Base filename
+    * \param pagenum    Page number to encode (0..n-1)
+    * \return encoded filename
+    */
+   QString encodePageNumber (const QString &base, int pagenum);
+
    void setup (void);
 
    // annotation types

@@ -272,6 +272,32 @@ err_info *Filejpeg::checkPage (int pagenum)
    return NULL;
    }
 
+err_info *Filejpeg::getPage (int pagenum, const Filejpegpage *&page)
+   {
+   CALL (checkPage (pagenum));
+   page = _pages [pagenum];
+
+   return NULL;
+   }
+
+err_info *Filejpeg::getPage (int pagenum, Filejpegpage *&page)
+   {
+   CALL (checkPage (pagenum));
+   page = _pages [pagenum];
+
+   return NULL;
+   }
+
+err_info *Filejpeg::setFilename (int pagenum, QString fname)
+{
+   Filejpegpage *page;
+
+   CALL (getPage (pagenum, page));
+   page->setFilename (fname);
+
+   return 0;
+}
+
 err_info *Filejpeg::getPageText (int pagenum, QString &str)
    {
    QProcess process;
@@ -400,7 +426,9 @@ err_info *Filejpeg::addPage (const Filepage *mp, bool do_flush)
 
    mp->getImage (image);
 
-   addSubPage("", pagenum);
+   QString fname = encodePageNumber (_base_fname, pagenum);
+
+   addSubPage(fname, pagenum);
    _pages [pagenum]->setImage (image);
 
    if (do_flush)
@@ -428,10 +456,62 @@ err_info *Filejpeg::restorePages (QBitArray &, QByteArray &, int)
 
 
 
-err_info *Filejpeg::unstackPages (int pagenum, int, bool, File *)
+err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
+                                  File *fdest)
    {
-   CALL (checkPage (pagenum));
-   return not_impl ();
+   Filejpeg *dest = (Filejpeg *)fdest;
+   int cur_page = pagenum;
+
+   for (int i = 0; i < pagecount; i++)
+      {
+      const Filejpegpage *page;
+
+      CALL (getPage (cur_page, page));
+
+      QString src_path = page->pathname (_dir);
+      QString dest_fname = encodePageNumber (dest->_base_fname, i);
+      QString dest_path = _dir + dest_fname;
+
+      QFile file (src_path);
+      if (remove)
+         {
+         if (!file.rename (dest_path))
+            return err_make (ERRFN, ERR_could_not_rename_file2,
+                             qPrintable (src_path), qPrintable (dest_path));
+         _pages.removeAt (pagenum);
+         }
+      else
+         {
+         if (!file.copy (dest_path))
+            return err_make (ERRFN, ERR_could_not_copy_file2,
+                             qPrintable (src_path), qPrintable (dest_path));
+         cur_page++;
+         }
+      dest->setFilename (i, dest_fname);
+      }
+
+   // Rename all the files beyond the ones that were removed
+   if (remove)
+      {
+      for (; cur_page < _pages.size(); cur_page++)
+         {
+         const Filejpegpage *page;
+
+         CALL (getPage (cur_page, page));
+
+         QString src_fname = page->pathname (_dir);
+         QString dest_fname = encodePageNumber (_base_fname, cur_page);
+         QString dest_page = _dir + dest_fname;
+         QFile file (page->pathname (_dir));
+         if (!file.rename (dest_page))
+            return err_make (ERRFN, ERR_could_not_rename_file2,
+                             qPrintable (src_fname), qPrintable (dest_page));
+         setFilename (cur_page, dest_fname);
+         }
+      }
+   CALL (dest->flush ());
+
+   return 0;
    }
 
 
@@ -524,10 +604,10 @@ err_info *Filejpegpage::compress (void)
 
 err_info *Filejpegpage::load (const QString &dir)
    {
-   QString pathname = dir + _filename;
+   QString path = pathname (dir);
 
-   if (!_image.load (pathname, "JPG"))
-      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (pathname));
+   if (!_image.load (path, "JPG"))
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (path));
 
    _changed = false;
 
@@ -536,11 +616,11 @@ err_info *Filejpegpage::load (const QString &dir)
 
 err_info *Filejpegpage::flush (const QString &dir)
    {
-   QString pathname = dir + _filename;
+   QString path = pathname (dir);
 
-   if (_changed && !_image.save (pathname, "JPG"))
+   if (_changed && !_image.save (path, "JPG"))
       return err_make (ERRFN, ERR_could_not_write_image_to_as2,
-                       qPrintable (pathname), "JPEG");
+                       qPrintable (path), "JPEG");
 
    return 0;
    }
@@ -559,4 +639,16 @@ void Filejpegpage::setImage (const QImage &image)
 int Filejpegpage::size (void) const
 {
    return _image.byteCount ();
+}
+
+QString Filejpegpage::pathname (const QString &dir) const
+{
+   return dir + _filename;
+}
+
+void Filejpegpage::setFilename (const QString &fname)
+{
+   _filename = fname;
+   _image = QImage ();
+   _changed = false;
 }
