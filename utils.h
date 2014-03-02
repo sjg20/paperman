@@ -93,7 +93,7 @@ int jpeg_thumbnail (byte *data, int insize, byte **destp, int *dest_sizep, cpoin
    \param max_width   if not -1, then this is the maximum width available in the destination */
 void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp, int max_width);
 
-QString removeExtension (QString &fname, QString &ext);
+QString removeExtension (const QString &fname, QString &ext);
 
 void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
             int bpp, int line_bytes, int quality);

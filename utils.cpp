@@ -380,7 +380,7 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
 #endif
 
 
-QString removeExtension (QString &fname, QString &ext)
+QString removeExtension (const QString &fname, QString &ext)
    {
    int pos;
 
