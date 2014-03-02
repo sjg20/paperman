@@ -359,7 +359,6 @@ void Desktopview::timerEvent (QTimerEvent *event)
       }
 
    QPoint pos = _mouse_pos; //event->pos ();
-   QRect r = rect ();
 
 //    printf ("rect: %d, %d - %d, %d: pos %d, %d\n", r.left (), r.top (),
 //       r.width (), r.height (), pos.x (), pos.y ());
