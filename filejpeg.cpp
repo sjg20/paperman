@@ -533,11 +533,32 @@ err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
    }
 
 
-
-
-err_info *Filejpeg::stackStack (File *)
+err_info *Filejpeg::stackStack (File *fsrc)
    {
-   return not_impl ();
+   Filejpeg *src = (Filejpeg *)fsrc;
+   int count = src->_pages.size ();
+
+   // 'Make space' by renaming files out of the way
+   for (int pagenum = _pages.size() - 1; pagenum >= _pagenum; pagenum--)
+      {
+      QString dest_fname;
+      int dest_pagenum = pagenum + count;
+
+      CALL (copyOrMovePageFile (this, pagenum, dest_pagenum, op_move,
+                                dest_fname));
+      setFilename (pagenum, dest_fname);
+      }
+
+   for (int pagenum = 0; pagenum < src->_pages.size (); pagenum++)
+      {
+      int cur_page = _pagenum + pagenum;
+      QString dest_fname;
+
+      CALL (copyOrMovePageFile (src, pagenum, cur_page, op_copy, dest_fname));
+      _pages.insert (_pages.begin () + cur_page, new Filejpegpage (dest_fname));
+      }
+
+   return 0;
    }
 
 
@@ -548,7 +569,6 @@ err_info *Filejpeg::duplicate (File *&, File::e_type, const QString &,
    {
    supported = false;
    return NULL;
-//    return not_impl ();
    }
 
 bool Filejpeg::addSubPage(const QString &filename, int pagenum)
