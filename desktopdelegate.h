@@ -149,7 +149,7 @@ private:
       measure_info &measure, QPoint *offset, bool size_only = false) const;
 
 private:
-   int _hitwhich;       //!< which item was hit (enum e_point)
+   e_point _hitwhich;       //!< which item was hit (enum e_point)
    bool _userbusy;      //!< true if user is busy scrolling through pages
    QTimer *_timer;      //!< used for autorepeat on left/right button
    QPersistentModelIndex _hit;   //!< item clicked on for popup menu
