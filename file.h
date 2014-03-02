@@ -430,7 +430,7 @@ class Filepage
    {
 public:
    Filepage ();
-   ~Filepage ();
+   virtual ~Filepage ();
 
    void setPaperstack (Paperstack *stack);
 
