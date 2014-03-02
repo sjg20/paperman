@@ -55,7 +55,8 @@ public:
 
    virtual err_info *remove (void);
 
-   bool claimFileAsNewPage (QString fname, QString &base_fname, int pagenum);
+   bool claimFileAsNewPage (const QString &fname, QString &base_fname,
+                            int pagenum);
 
    // accessing and changing metadata
 
@@ -129,8 +130,25 @@ private:
      \return NULL if ok, else an error */
    err_info *checkPage (int pagenum);
 
+   /**
+    * Add the given filename as a new page in this File
+    *
+    * If there is already a page in this position, this function ignores the
+    * new page and the old filename remains the same.
+    *
+    * \param filename   Filename to add
+    * \param pagenum    Page number to add it at (0..n-1)
+    * \return true if OK, false if there was already a page there
+    */
    bool addSubPage(const QString &filename, int pagenum);
 
+   /**
+    * Load the image for a page
+    *
+    * \param pagenum    Page number (0..n-1)
+    * \param image      Returns image for the page
+    * \return error, or 0 if OK
+    */
    err_info *loadPage (int pagenum, QImage &image);
 
 private:

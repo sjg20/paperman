@@ -849,7 +849,7 @@ bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
    return true;
 }
 
-bool File::claimFileAsNewPage (QString, QString &, int)
+bool File::claimFileAsNewPage (const QString &, QString &, int)
    {
    return false;
    }

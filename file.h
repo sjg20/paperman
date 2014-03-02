@@ -90,6 +90,20 @@ public:
    //! given a filename, deduce its type from its extension
    static e_type typeFromName (const QString &fname);
 
+   /**
+    * Decode the base and page number from a filename
+    *
+    * This decodes filenames of the form <base>_p<page>.<ext>
+    *
+    * The _p is a sign that there is an embedded page number. Note that <page>
+    * goes from 1..n, but we subtract one to return a proper 0-based value.
+    *
+    * \param fname      Filename to process
+    * \param base       Returns base filename <base>
+    * \param pagenum    Returns decoded page number (0..n-1)
+    * \param ext        Returns extension without the '.', e.g. ("JPEG")
+    * \return true if a page number was decoded, false if not
+    */
    static bool decodePageNumber (const QString &fname, QString &base,
                                  int &pagenum, QString &ext);
 
@@ -154,11 +168,12 @@ public:
     *
     * If found, then the file is added as a new page
     *
+    * \param fname           Filename of the file to check
     * \param base_fname      Filename to check (stripped of ext and page number)
     * \param pagenum         Page number for file (0..n-1)
     * \return true if found, false if not
     */
-   virtual bool claimFileAsNewPage (QString fname, QString &base_fname,
+   virtual bool claimFileAsNewPage (const QString &fname, QString &base_fname,
                                     int pagenum);
 
    // accessing and changing metadata

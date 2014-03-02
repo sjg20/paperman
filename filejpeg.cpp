@@ -471,7 +471,7 @@ bool Filejpeg::addSubPage(const QString &filename, int pagenum)
    return true;
 }
 
-bool Filejpeg::claimFileAsNewPage (QString fname, QString &base_fname,
+bool Filejpeg::claimFileAsNewPage (const QString &fname, QString &base_fname,
                                    int pagenum)
    {
    // We must have a page number ourselves
