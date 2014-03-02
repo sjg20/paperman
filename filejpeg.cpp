@@ -36,9 +36,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 Filejpeg::Filejpeg (const QString &dir, const QString &filename, Desk *desk)
-   : File (dir, filename, desk, Type_pdf)
+       : File (dir, filename, desk, Type_jpeg)
    {
-   _changed = false;
+   QString base, ext;
+   int pagenum;
+
+   _has_pagenum = decodePageNumber (filename, _base_fname, pagenum, ext);
+   addSubPage(filename, _has_pagenum ? pagenum : 0);
    }
 
 
@@ -48,10 +52,15 @@ Filejpeg::~Filejpeg ()
 
 err_info *Filejpeg::load (void)
    {
-   if (!_valid)
-      _valid = _image.load (_pathname, "JPG");
-   _changed = false;
-   return NULL;
+   err_info *err = 0;
+
+   if (!_valid && _pages.size ())
+      {
+      err = _pages [0]->load (_dir);
+      _valid = err == 0;
+      }
+
+   return err;
    }
 
 
@@ -62,16 +71,19 @@ err_info *Filejpeg::load (void)
 err_info *Filejpeg::create (void)
    {
    // We choose to do nothing here
-   _changed = true;
+
    return NULL;
    }
 
 
 err_info *Filejpeg::flush (void)
    {
-   if (_changed && !_image.save (_pathname, "JPG"))
-      return err_make (ERRFN, ERR_could_not_write_image_to_as2,
-                       qPrintable (_pathname), "JPEG");
+   foreach (Filejpegpage *page, _pages)
+      {
+      if (page)
+         CALL (page->flush (_dir));
+      }
+
    return NULL;
    }
 
@@ -93,7 +105,7 @@ err_info *Filejpeg::remove (void)
 
 int Filejpeg::pagecount (void)
    {
-   return _image.isNull () ? 0 : 1;
+   return _pages.size ();
    }
 
 
@@ -254,8 +266,9 @@ err_info *Filejpeg::putEnvelope (QStringList &)
 
 err_info *Filejpeg::checkPage (int pagenum)
    {
-   if (pagenum != 0)
+   if (pagenum >= _pages.size () || !_pages [pagenum])
       return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum, 0);
+
    return NULL;
    }
 
@@ -286,16 +299,31 @@ err_info *Filejpeg::renamePage (int pagenum, QString &)
    return not_impl ();
    }
 
+err_info *Filejpeg::loadPage (int pagenum, QImage &image)
+{
+   Filejpegpage *page;
+
+   CALL (checkPage (pagenum));
+   page = _pages [pagenum];
+   CALL (page->load (_dir));
+
+   image = page->getImage ();
+
+   return 0;
+}
 
 err_info *Filejpeg::getImageInfo (int pagenum, QSize &size,
       QSize &true_size, int &bpp, int &image_size, int &compressed_size,
       QDateTime &timestamp)
    {
-   CALL (checkPage (pagenum));
-   size = _image.size ();
+   QImage image;
+
+   CALL (loadPage (pagenum, image));
+
+   size = image.size ();
    true_size = size;
-   bpp = _image.depth ();
-   image_size = _image.byteCount ();
+   bpp = image.depth ();
+   image_size = image.byteCount ();
    compressed_size = -1;
    timestamp = _timestamp;
    return NULL;
@@ -304,9 +332,12 @@ err_info *Filejpeg::getImageInfo (int pagenum, QSize &size,
 
 err_info *Filejpeg::getPreviewInfo (int pagenum, QSize &size, int &bpp)
    {
-   CALL (checkPage (pagenum));
-   size = _image.size () / 24;
-   bpp = _image.depth ();
+   QImage image;
+
+   CALL (loadPage (pagenum, image));
+
+   size = image.size () / 24;
+   bpp = image.depth ();
    return NULL;
    }
 
@@ -327,9 +358,9 @@ err_info *Filejpeg::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    QSize size;
    QImage image;
 
-   CALL (checkPage (pagenum));
-   size = _image.size () / 24;
-   image = _image.scaled (size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+   CALL (loadPage (pagenum, image));
+   size = image.size () / 24;
+   image = image.scaled (size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
    if (blank)
       colour_image_for_blank (image);
    pixmap = QPixmap (image);
@@ -341,9 +372,8 @@ err_info *Filejpeg::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 err_info *Filejpeg::getImage (int pagenum, bool,
             QImage &image, QSize &size, QSize &trueSize, int &bpp, bool blank)
    {
-   CALL (checkPage (pagenum));
-   image = _image;
-   size = _image.size ();
+   CALL (loadPage (pagenum, image));
+   size = image.size ();
    trueSize = size = image.size ();
    bpp = image.depth ();
    if (blank)
@@ -361,13 +391,17 @@ err_info *Filejpeg::getImage (int pagenum, bool,
 
 err_info *Filejpeg::addPage (const Filepage *mp, bool do_flush)
    {
-   if (pagecount () > 0)
-      return err_make (ERRFN, ERR_file_type_only_supports_a_single_page1,
-                       qPrintable(typeName ()));
-   mp->getImage (_image);
-   _image.bits ();   // force deep copy
+   int pagenum = pagecount ();
+   QImage image;
+
+   mp->getImage (image);
+
+   addSubPage("", pagenum);
+   _pages [pagenum]->setImage (image);
+
    if (do_flush)
       CALL (flush ());
+
    return NULL;
    }
 
@@ -415,16 +449,60 @@ err_info *Filejpeg::duplicate (File *&, File::e_type, const QString &,
 //    return not_impl ();
    }
 
-Filejpegpage::Filejpegpage ()
+bool Filejpeg::addSubPage(const QString &filename, int pagenum)
 {
+   while (pagenum > _pages.size())
+      _pages << new Filejpegpage ();
+
+   // Cannot overwrite a page
+   if (_pages.size() > pagenum)
+      {
+      if (_pages[pagenum])
+         return false;
+      _pages[pagenum] = new Filejpegpage (filename);
+      }
+   else
+      _pages << new Filejpegpage (filename);
+
+   return true;
 }
+
+bool Filejpeg::claimFileAsNewPage (QString fname, QString &base_fname,
+                                   int pagenum)
+   {
+   // We must have a page number ourselves
+   if (!_has_pagenum)
+      return false;
+
+   if (base_fname != _base_fname)
+      return false;
+
+   if (!addSubPage (fname, pagenum))
+      return false;
+
+   qDebug () << "claimed" << base_fname << pagenum;
+
+   return true;
+   }
+
+
+Filejpegpage::Filejpegpage ()
+   {
+   _changed = false;
+   }
+
+Filejpegpage::Filejpegpage (const QString &fname)
+   {
+   _filename = fname;
+   _changed = false;
+   }
 
 Filejpegpage::~Filejpegpage (void)
-{
-}
+   {
+   }
 
 err_info *Filejpegpage::compress (void)
-{
+   {
    // Convert to JPEG if we need to, replacing the existing data
    if (!_jpeg)
       {
@@ -436,4 +514,40 @@ err_info *Filejpegpage::compress (void)
       _stride = -1;
       _jpeg = true;
       }
+
+   return 0;
+   }
+
+err_info *Filejpegpage::load (const QString &dir)
+   {
+   QString pathname = dir + _filename;
+
+   if (!_image.load (pathname, "JPG"))
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (pathname));
+
+   _changed = false;
+
+   return 0;
+   }
+
+err_info *Filejpegpage::flush (const QString &dir)
+   {
+   QString pathname = dir + _filename;
+
+   if (_changed && !_image.save (pathname, "JPG"))
+      return err_make (ERRFN, ERR_could_not_write_image_to_as2,
+                       qPrintable (pathname), "JPEG");
+
+   return 0;
+   }
+
+const QImage &Filejpegpage::getImage (void) const
+{
+   return _image;
+}
+
+void Filejpegpage::setImage (const QImage &image)
+{
+   _image = image;
+   _image.bits ();   // force deep copy
 }

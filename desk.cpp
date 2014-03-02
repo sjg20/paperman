@@ -319,6 +319,25 @@ File *Desk::createFile (const QString &dir, const QString fname)
    }
 
 
+bool Desk::addToExistingFile (QString &fname)
+{
+   QString base, ext;
+   int pagenum;
+
+   if (!File::decodePageNumber (fname, base, pagenum, ext))
+      return false;
+
+   foreach (File *f, _files)
+      {
+      if (!f->extMatchesType (ext))
+         continue;
+      if (f->claimFileAsNewPage (fname, base, pagenum))
+         return true;
+      }
+
+   return false;
+}
+
 void Desk::readDesk (bool read_sizes)
    {
    QFile oldfile;
@@ -368,12 +387,14 @@ void Desk::readDesk (bool read_sizes)
          QFile test (_dir + fname);
          if (!test.exists ())
             continue;
-         f = createFile (_dir, fname);
-         line = line.mid (pos + 1);
-         f->decodeFile (line, read_sizes);
-//         printf ("%s at %d,%d, page %d\n", f->filename.latin1 (), f->pos.x (), f->pos.y (),
-//               f->pagenum);
-         _files << f;
+
+         if (!addToExistingFile (fname))
+            {
+            f = createFile (_dir, fname);
+            line = line.mid (pos + 1);
+            f->decodeFile (line, read_sizes);
+            _files << f;
+            }
          }
       }
 
@@ -441,9 +462,21 @@ File *Desk::takeAt (int row)
 
 File *Desk::findFile (QString fileName)
    {
+   QString base, ext;
+   bool has_pagenum;
+   int pagenum;
+
+   has_pagenum = File::decodePageNumber (fileName, base, pagenum, ext);
+
    foreach (File *f, _files)
+      {
       if (f->filename () == fileName)
          return f;
+      if (!f->extMatchesType (ext))
+         continue;
+      if (f->claimFileAsNewPage (fileName, base, pagenum))
+         return f;
+      }
    return 0;
    }
 

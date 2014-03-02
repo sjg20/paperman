@@ -90,6 +90,9 @@ public:
    //! given a filename, deduce its type from its extension
    static e_type typeFromName (const QString &fname);
 
+   static bool decodePageNumber (const QString &fname, QString &base,
+                                 int &pagenum, QString &ext);
+
    void setup (void);
 
    // annotation types
@@ -142,7 +145,21 @@ public:
 
    virtual err_info *remove (void) = 0;
 
-
+   /**
+    * Check if this filename belongs within the existing file
+    *
+    * This handles the case where we see additional pages for an existing
+    * File, for those File types which don't support multiple pages such as
+    * JPEG. We look for a page marker
+    *
+    * If found, then the file is added as a new page
+    *
+    * \param base_fname      Filename to check (stripped of ext and page number)
+    * \param pagenum         Page number for file (0..n-1)
+    * \return true if found, false if not
+    */
+   virtual bool claimFileAsNewPage (QString fname, QString &base_fname,
+                                    int pagenum);
 
    // accessing and changing metadata
 
@@ -253,6 +270,8 @@ public:
    /** returns the extension of file type including the . (for example
        Type_pdf is .pdf) */
    static QString typeExt (e_type type);
+
+   bool extMatchesType (const QString &ext);
 
    QString getAnnotName (e_annot type);
 

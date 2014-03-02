@@ -34,6 +34,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "file.h"
 
+class Filejpegpage;
 
 class Filejpeg : public File
    {
@@ -54,6 +55,7 @@ public:
 
    virtual err_info *remove (void);
 
+   bool claimFileAsNewPage (QString fname, QString &base_fname, int pagenum);
 
    // accessing and changing metadata
 
@@ -127,20 +129,35 @@ private:
      \return NULL if ok, else an error */
    err_info *checkPage (int pagenum);
 
+   bool addSubPage(const QString &filename, int pagenum);
+
+   err_info *loadPage (int pagenum, QImage &image);
 
 private:
-   QImage _image;
-   QPixmap _pixmap;
    QString _page_title; /* Title of first (only) page */
-   bool _changed;       /* true if the image has been changed */
+   int _has_pagenum;    //!< true if the filename has an embedded page number
+   QList<Filejpegpage *> _pages;
+   QString _base_fname; //!< base filename for page (without ext and page num)
    };
 
 class Filejpegpage : public Filepage
 {
 public:
    Filejpegpage (void);
+   Filejpegpage (const QString &fname);
    ~Filejpegpage (void);
 
    /** compress the page */
    err_info *compress (void);
+
+   err_info *load (const QString &dir);
+   err_info *flush (const QString &dir);
+   const QImage &getImage () const;
+   void setImage (const QImage &image);
+
+private:
+   QString _filename;
+   QImage _image;
+   QPixmap _pixmap;
+   bool _changed;       /* true if the image has been changed */
    };

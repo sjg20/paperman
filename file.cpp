@@ -170,23 +170,32 @@ QString File::typeExt (e_type type)
    return QString (",.max,.pdf,.jpg").section (',', type, type);
    }
 
+File::e_type extToType (const QString &in_ext)
+{
+   QString ext = in_ext.toLower ();
+
+   //FIXME: there should be an associate config for doing this
+   if (ext == "max")
+      return File::Type_max;
+   else if (ext == "pdf")
+      return File::Type_pdf;
+   else if (ext == "jpg" || ext == "jpeg")
+      return File::Type_jpeg;
+   else
+      return File::Type_other;
+}
+
+bool File::extMatchesType (const QString &ext)
+{
+   return type () == extToType (ext);
+}
 
 File::e_type File::typeFromName (const QString &fname)
    {
    QFileInfo fi (fname);
    QString ext = fi.suffix ();
-   File::e_type type;
 
-   //FIXME: there should be an associate config for doing this
-   if (ext == "max")
-      type = File::Type_max;
-   else if (ext == "pdf")
-      type = File::Type_pdf;
-   else if (ext == "jpg" || ext == "jpeg")
-      type = File::Type_jpeg;
-   else
-      type = File::Type_other;
-   return type;
+   return extToType (ext);
    }
 
 
@@ -819,7 +828,31 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose)
    return NULL;
    }
 
+bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
+                             QString &ext)
+{
+   int pos;
 
+   base = removeExtension (fname, ext);
+   ext = ext.mid (1);   // remove .
+   pos = fname.lastIndexOf ("_p");
+   if (pos == -1)
+      return false;
+
+   pagenum = base.mid (pos + 2).toInt ();
+   if (pagenum < 1 || pagenum > 9999)
+      return false;
+
+   base = base.left (pos);
+   pagenum--;
+
+   return true;
+}
+
+bool File::claimFileAsNewPage (QString, QString &, int)
+   {
+   return false;
+   }
 
 #if 0
    QString old, uniq, path;

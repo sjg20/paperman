@@ -183,12 +183,6 @@ public:
 
    File *takeAt (int row);
 
-   /** check if a file exists in a maxdesk
-
-     \param fileName       File to search for
-     \returns pointer to file info if found, else NULL */
-   File *findFile (QString fileName);
-
    /** similar to the above but also returns the file position */
    File *findFile (QString fileName, int &pos);
 
@@ -539,6 +533,12 @@ public:
    void advance (void);
 
 private:
+   /** check if a file exists in a maxdesk
+
+     \param fileName       File to search for
+     \returns pointer to file info if found, else NULL */
+   File *findFile (QString fileName);
+
    //! set up some things for a new desk
    void setup (void);
 
@@ -550,6 +550,9 @@ private:
 
    /** returns true if the given position clashes with any existing item */
    bool clashes (QPoint &pos);
+
+   bool addToExistingFile (QString &fname);
+
 
 #if 0
    err_info *scan_file (QString dir_name, QFileInfo *fi,
