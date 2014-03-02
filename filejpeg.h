@@ -240,6 +240,8 @@ public:
 
    void setFilename (const QString &fname);
 
+   err_info *remove (const QString &dir) const;
+
 private:
    QString _filename;   //!< Filename of this JPEG
    QImage _image;       //!< Image, if loaded

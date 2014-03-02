@@ -92,14 +92,15 @@ err_info *Filejpeg::flush (void)
 
 err_info *Filejpeg::remove (void)
    {
-   //FIXME: perhaps this should be implemented by File
-   // currently only works if the object is about to be destroyed
-   QFile file (_dir + _filename);
+   while (!_pages.isEmpty ())
+      {
+      Filejpegpage *page = _pages.takeFirst ();
 
-   if (file.exists () && !file.remove ())
-      return err_make (ERRFN, ERR_could_not_remove_file2,
-                file.name ().latin1 (), file.errorString ().latin1 ());
-   return NULL;
+      CALL (page->remove (_dir));
+      delete page;
+      }
+
+   return 0;
    }
 
 
@@ -689,4 +690,15 @@ void Filejpegpage::setFilename (const QString &fname)
    _filename = fname;
    _image = QImage ();
    _changed = false;
+}
+
+err_info *Filejpegpage::remove (const QString &dir) const
+{
+   QFile file (pathname (dir));
+
+   if (file.exists () && !file.remove ())
+      return err_make (ERRFN, ERR_could_not_remove_file2,
+                file.name ().latin1 (), file.errorString ().latin1 ());
+
+   return 0;
 }
