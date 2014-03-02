@@ -463,10 +463,9 @@ File *Desk::takeAt (int row)
 File *Desk::findFile (QString fileName)
    {
    QString base, ext;
-   bool has_pagenum;
    int pagenum;
 
-   has_pagenum = File::decodePageNumber (fileName, base, pagenum, ext);
+   File::decodePageNumber (fileName, base, pagenum, ext);
 
    foreach (File *f, _files)
       {
