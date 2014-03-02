@@ -481,8 +481,8 @@ bool Filejpeg::claimFileAsNewPage (const QString &fname, QString &base_fname,
    if (base_fname != _base_fname)
       return false;
 
-   if (!addSubPage (fname, pagenum))
-      return false;
+   // Ignore return value, since it just means we already have this page
+   addSubPage (fname, pagenum);
 
    qDebug () << "claimed" << base_fname << pagenum;
 
