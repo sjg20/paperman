@@ -40,6 +40,10 @@ class Filejpeg : public File
    {
    Q_OBJECT
 public:
+   enum op_t {
+      op_copy,
+      op_move,
+   };
    Filejpeg (const QString &dir, const QString &filename, Desk *desk);
    ~Filejpeg ();
 
@@ -155,6 +159,10 @@ private:
    err_info *loadPage (int pagenum, QImage &image);
 
    err_info *setFilename (int pagenum, QString fname);
+
+   err_info *copyOrMovePageFile (Filejpeg *src, int src_pagenum,
+                                 int dst_pagenum, Filejpeg::op_t op,
+                                 QString &dest_fname);
 
 private:
    QString _page_title; /* Title of first (only) page */

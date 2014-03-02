@@ -455,6 +455,33 @@ err_info *Filejpeg::restorePages (QBitArray &, QByteArray &, int)
 
 
 
+err_info *Filejpeg::copyOrMovePageFile (Filejpeg *src, int src_pagenum,
+                                        int dst_pagenum, Filejpeg::op_t op,
+                                        QString &dest_fname)
+   {
+   const Filejpegpage *src_page;
+
+   CALL (src->getPage (src_pagenum, src_page));
+   QString src_path = src_page->pathname (src->_dir);
+   dest_fname = encodePageNumber (_base_fname, dst_pagenum);
+   QString dest_path = _dir + dest_fname;
+   QFile file (src_path);
+
+   if (op == op_copy)
+      {
+      if (!file.copy (dest_path))
+         return err_make (ERRFN, ERR_could_not_copy_file2,
+                          qPrintable (src_path), qPrintable (dest_path));
+      }
+   else
+      {
+      if (!file.rename (dest_path))
+         return err_make (ERRFN, ERR_could_not_rename_file2,
+                          qPrintable (src_path), qPrintable (dest_path));
+      }
+
+   return 0;
+   }
 
 err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
                                   File *fdest)
@@ -462,29 +489,27 @@ err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
    Filejpeg *dest = (Filejpeg *)fdest;
    int cur_page = pagenum;
 
+   // No attempt is made to rollback on error, need to consider that.
    for (int i = 0; i < pagecount; i++)
       {
-      const Filejpegpage *page;
+      QString dest_fname;
 
-      CALL (getPage (cur_page, page));
+      CALL (dest->copyOrMovePageFile (this, cur_page, i,
+                                      remove ? op_move : op_copy, dest_fname));
 
-      QString src_path = page->pathname (_dir);
-      QString dest_fname = encodePageNumber (dest->_base_fname, i);
-      QString dest_path = _dir + dest_fname;
-
-      QFile file (src_path);
       if (remove)
          {
-         if (!file.rename (dest_path))
-            return err_make (ERRFN, ERR_could_not_rename_file2,
-                             qPrintable (src_path), qPrintable (dest_path));
+         /*
+          * This is slow - we could instead create a new list as we go, but
+          * this implementation is slightly better if we get an error along
+          * the way. It's not clear that we will have JPEG stacks with
+          * large numbers of pages, and the file rename cost may dominate. We
+          * can optimise this if it becomes a problem.
+          */
          _pages.removeAt (pagenum);
          }
       else
          {
-         if (!file.copy (dest_path))
-            return err_make (ERRFN, ERR_could_not_copy_file2,
-                             qPrintable (src_path), qPrintable (dest_path));
          cur_page++;
          }
       dest->setFilename (i, dest_fname);
@@ -495,17 +520,10 @@ err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
       {
       for (; cur_page < _pages.size(); cur_page++)
          {
-         const Filejpegpage *page;
+         QString dest_fname;
 
-         CALL (getPage (cur_page, page));
-
-         QString src_fname = page->pathname (_dir);
-         QString dest_fname = encodePageNumber (_base_fname, cur_page);
-         QString dest_page = _dir + dest_fname;
-         QFile file (page->pathname (_dir));
-         if (!file.rename (dest_page))
-            return err_make (ERRFN, ERR_could_not_rename_file2,
-                             qPrintable (src_fname), qPrintable (dest_page));
+         CALL (copyOrMovePageFile (this, cur_page, cur_page, op_move,
+                                   dest_fname));
          setFilename (cur_page, dest_fname);
          }
       }
