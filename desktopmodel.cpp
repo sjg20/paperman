@@ -345,8 +345,6 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
       {
       QString pagename;
 
-//       getImagePreview (index, -1, di->pixmap, pagename); // File will take care of this
-//       updatePixmap (*di, pagename);
       f->pixmap (true);
       //FIXME: better to emit our own signal which tells Desktopdelegate to just update the pixmap
       _minor_change = true;

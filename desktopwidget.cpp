@@ -1056,13 +1056,11 @@ void Desktopwidget::slotItemClicked (const QModelIndex &index, int which)
          case Desktopdelegate::Point_left : // left
             pageLeft (index);
             changed = true;
-//             emit itemSelected (index);
             break;
 
          case Desktopdelegate::Point_right : // right
             pageRight (index);
             changed = true;
-//             emit itemSelected (index);
             break;
 
          case Desktopdelegate::Point_page : // page button
@@ -1079,7 +1077,6 @@ void Desktopwidget::slotItemClicked (const QModelIndex &index, int which)
                QVariant v = num - 1;
 
                model->setData (index, v, Desktopmodel::Role_pagenum);
-//                emit itemSelected (index);
                changed = true;
                }
             break;
