@@ -289,6 +289,10 @@ err_info *Filejpeg::getPageText (int pagenum, QString &str)
       yet flushed to the filesystem */
 int Filejpeg::getSize (void)
    {
+   _size = 0;
+   foreach (const Filejpegpage *page, _pages)
+      _size += page->size ();
+
    return _size;
    }
 
@@ -550,4 +554,9 @@ void Filejpegpage::setImage (const QImage &image)
 {
    _image = image;
    _image.bits ();   // force deep copy
+}
+
+int Filejpegpage::size (void) const
+{
+   return _image.byteCount ();
 }

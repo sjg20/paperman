@@ -140,24 +140,74 @@ private:
    QString _base_fname; //!< base filename for page (without ext and page num)
    };
 
+/**
+ * A page that holds a single JPEG image
+ */
 class Filejpegpage : public Filepage
 {
 public:
    Filejpegpage (void);
+
+   /*
+    * Create a page with a filename
+    *
+    * Multiple JPEG files can be combined into a stack, and each file has a
+    * separate filename, recorded here
+    *
+    * \param fname   Filename for this page
+    */
    Filejpegpage (const QString &fname);
    ~Filejpegpage (void);
 
    /** compress the page */
    err_info *compress (void);
 
+   /**
+    * Load the JPEG into memory
+    *
+    * The filename is _filename, the directory is passed in so that we don't
+    * have to store state from our parent.
+    *
+    * \param dir     Directory containing file
+    * \return error, or 0 if none
+    */
    err_info *load (const QString &dir);
+
+   /**
+    * Flash the JPEG to its file
+    *
+    * The filename is _filename, the directory is passed in so that we don't
+    * have to store state from our parent.
+    *
+    * \param dir     Directory containing file
+    * \return error, or 0 if none
+    */
    err_info *flush (const QString &dir);
+
+   /**
+    * Get the image for this page
+    *
+    * \return JPEG image
+    */
    const QImage &getImage () const;
+
+   /**
+    * Set the image for this page, replacing the old one
+    *
+    * \param image   New image for this page
+    */
    void setImage (const QImage &image);
 
+   /**
+    * Return the uncompressed size of this image
+    *
+    * \return uncompressed data size
+    */
+   int size (void) const;
+
 private:
-   QString _filename;
-   QImage _image;
-   QPixmap _pixmap;
-   bool _changed;       /* true if the image has been changed */
+   QString _filename;   //!< Filename of this JPEG
+   QImage _image;       //!< Image, if loaded
+   QPixmap _pixmap;     //!< Pixmap of Image
+   bool _changed;       //!< true if the image has been changed
    };
