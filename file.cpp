@@ -452,7 +452,7 @@ void File::setValid (bool valid)
    }
 
 
-QPixmap File::pixmap (bool recalc)
+QPixmap File::pixmap (bool)
    {
    return *unknown;
    }
