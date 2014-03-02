@@ -117,7 +117,12 @@ struct err_info *util_get_tmp (char *tmp);
    \param fnamelist list of filenames to add to the zip (without their path) */
 err_info *util_buildZip (QString &zip, const QStringList &fnamelist);
 
+#define UTIL_PAGE_PREFIX "_p"
+
 /** given a filename, try to make it unique by adding numbers, etc.
+
+   Any text from UTIL_PAGE_PREFIX onwards is ignored (this allows use to
+   check for files with page number suffixes.
 
    \param fname    the original filename (excluding extension)
    \param dir      the directory to check

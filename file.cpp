@@ -835,7 +835,7 @@ bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
 
    base = removeExtension (fname, ext);
    ext = ext.mid (1);   // remove .
-   pos = fname.lastIndexOf ("_p");
+   pos = fname.lastIndexOf (UTIL_PAGE_PREFIX);
    if (pos == -1)
       return false;
 
@@ -852,7 +852,7 @@ bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
 QString File::encodePageNumber (const QString &base, int pagenum)
    {
    pagenum++;
-   return QString ("%1_p%2%3").arg (base).arg (pagenum).
+   return QString ("%1" UTIL_PAGE_PREFIX "%2%3").arg (base).arg (pagenum).
          arg (typeExt (type ()));
    }
 

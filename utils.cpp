@@ -505,18 +505,27 @@ QString util_findNextFilename (QString fname, QString dir, QString ext)
    int i;
 
    for (i = 0; i < 10000; i++)
-   {
+      {
+      int pos;
+
       str = fname;
       if (str.right (1) == "_")
          str.truncate (str.length () - 1);
-      f.setFileName (dir + str + ext);
-//      printf ("checking %s\n", f.name ().latin1 ());
-      if (!f.exists ())
+      pos = str.lastIndexOf (UTIL_PAGE_PREFIX);
+
+      QStringList sl;
+      if (pos == -1)
+         sl << str + "*";
+      else
+         sl << str.left (pos) + "*";
+      QDir qdir(dir);
+      qdir.setNameFilters (sl);
+      if (!qdir.entryInfoList().size ())
          return fname;
 
    // increment filename, ignoring any numbers present
       util_incrementFilename (fname, fname != orig);
-   }
+      }
 
 // if that failed we are in trouble - try random numbers
    for (i = 0; i < 1000; i++)

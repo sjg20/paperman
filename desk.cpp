@@ -696,43 +696,11 @@ void Desk::arrangeBy (int type)
 
 QString Desk::findNextFilename (QString fname, QString dir, QString ext)
    {
-//    QString orig = fname;
-//    QString str;
-//    QFile f;
-//    int i;
-
    if (dir.isNull ())
       dir = _dir;
    if (ext.isNull ())
       ext = ".max";
    return util_findNextFilename (fname, dir, ext);
-#if 0
-   for (i = 0; i < 10000; i++)
-      {
-      str = fname;
-      if (str.right (1) == "_")
-         str.truncate (str.length () - 1);
-      f.setName (dir + str + ext);
-//      printf ("checking %s\n", f.name ().latin1 ());
-      if (!f.exists ())
-         return fname;
-
-      // increment filename, ignoring any numbers present
-      Desk::incrementFilename (fname, fname != orig);
-      }
-
-   // if that failed we are in trouble - try random numbers
-   for (i = 0; i < 1000; i++)
-      {
-      str.setNum (rand ());
-      f.setName (dir + str + ext);
-      if (!f.exists ())
-         return fname;
-      }
-
-   // things are probably broken, just return null for now - caller will get an error when using the name
-   return QString::null;
-#endif
    }
 
 
