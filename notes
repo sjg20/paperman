@@ -986,4 +986,16 @@ git log --pretty=format:"%h: %cn, %cD: %s"
 
 1mar14
 
-- collect jpeg files in a dir into a single File
+done- collect jpeg files in a dir into a single File
+done- changing from page 2 to 3 of a stack shows p1 then p3 in preview
+done- get better size estimate for jpeg
+done- fix loading of pages showing p2 as a separate file
+done- implement jpeg duplicate page
+
+opUnstackPage
+
+done- implement stacking for jpegs
+
+slotStackChanged
+
+- implement jpeg unstack
