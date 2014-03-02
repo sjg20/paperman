@@ -134,3 +134,13 @@ private:
    QString _page_title; /* Title of first (only) page */
    bool _changed;       /* true if the image has been changed */
    };
+
+class Filejpegpage : public Filepage
+{
+public:
+   Filejpegpage (void);
+   ~Filejpegpage (void);
+
+   /** compress the page */
+   err_info *compress (void);
+   };

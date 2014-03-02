@@ -979,3 +979,8 @@ http://sourceforge.net/apps/trac/sourceforge/wiki/Git
 
 
 git log --pretty=format:"%h: %cn, %cD: %s"
+
+
+1mar14
+
+- collect jpeg files in a dir into a single File

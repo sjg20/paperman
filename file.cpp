@@ -251,6 +251,10 @@ Filepage *File::createPage (e_type type)
          fp = new Filemaxpage ();
          break;
 
+      case Type_jpeg :
+         fp = new Filejpegpage ();
+         break;
+
       case Type_pdf :
       case Type_other :
       default :

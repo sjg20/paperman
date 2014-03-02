@@ -414,3 +414,26 @@ err_info *Filejpeg::duplicate (File *&, File::e_type, const QString &,
    return NULL;
 //    return not_impl ();
    }
+
+Filejpegpage::Filejpegpage ()
+{
+}
+
+Filejpegpage::~Filejpegpage (void)
+{
+}
+
+err_info *Filejpegpage::compress (void)
+{
+   // Convert to JPEG if we need to, replacing the existing data
+   if (!_jpeg)
+      {
+      QImage image;
+
+      getImageFromLines (_data.constData (), _width, _height, _depth, _stride,
+                         image, false, false);
+      _data = QByteArray ((const char *)image.bits (), image.byteCount ());
+      _stride = -1;
+      _jpeg = true;
+      }
+}
