@@ -619,8 +619,8 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
       _index = index;
 
       /* save the current page if there are any changes
-         this may cause the current stack to be changed (e.g. removing blank
-         pages, which will call slotStackChanged() and thus showPages()
+         this may cause the current stack to be changed. For example removing
+         blank pages will call slotStackChanged() and thus showPages()
          recursively! So we change the model above to avoid coming in here again
          (this will make slotStackChanged() ignore the change since is is not
          the current stack that is being changed but the old one). So just call
@@ -1059,8 +1059,9 @@ void Pagewidget::slotStackChanged (const QModelIndex &from, const QModelIndex &t
    if (!_scanning && _model && _index.row () >= from.row () && _index.row () <= to.row ())
       {
       Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+      bool minor = contents->isMinorChange ();
 
-      showPages (_model, _index, 0, -1, 0, !contents->isMinorChange ());
+      showPages (_model, _index, 0, -1, minor ? -1 : 0, !minor);
       }
    }
 
