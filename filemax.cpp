@@ -5723,6 +5723,10 @@ QPixmap Filemax::pixmap (bool recalc)
    err_info *err = NULL;
 
    if (recalc)
+      {
       err = getPreviewPixmap (_pagenum, _pixmap, false);
+      _pixmap = _pixmap.copy ();
+      }
+
    return err || _pixmap.isNull () ? unknownPixmap () : _pixmap;
    }
