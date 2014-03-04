@@ -169,6 +169,7 @@ private:
    int _has_pagenum;    //!< true if the filename has an embedded page number
    QList<Filejpegpage *> _pages;
    QString _base_fname; //!< base filename for page (without ext and page num)
+   int _base_pagenum;
    };
 
 /**

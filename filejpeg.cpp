@@ -39,10 +39,8 @@ Filejpeg::Filejpeg (const QString &dir, const QString &filename, Desk *desk)
        : File (dir, filename, desk, Type_jpeg)
    {
    QString base, ext;
-   int pagenum;
 
-   _has_pagenum = decodePageNumber (filename, _base_fname, pagenum, ext);
-   addSubPage(filename, _has_pagenum ? pagenum : 0);
+   _has_pagenum = decodePageNumber (filename, _base_fname, _base_pagenum, ext);
    }
 
 
@@ -54,8 +52,9 @@ err_info *Filejpeg::load (void)
    {
    err_info *err = 0;
 
-   if (!_valid && _pages.size ())
+   if (!_valid)
       {
+      addSubPage(_filename, _has_pagenum ? _base_pagenum : 0);
       err = _pages [0]->load (_dir);
       _valid = err == 0;
       }
@@ -106,6 +105,7 @@ err_info *Filejpeg::remove (void)
 
 int Filejpeg::pagecount (void)
    {
+   load ();
    return _pages.size ();
    }
 
@@ -114,6 +114,7 @@ int Filejpeg::pagecount (void)
 
 err_info *Filejpeg::getPageTitle (int pagenum, QString &title)
    {
+   CALL (load ());
    if (pagenum == 0)
       title = _page_title;
    return NULL;
@@ -275,6 +276,7 @@ err_info *Filejpeg::checkPage (int pagenum)
 
 err_info *Filejpeg::getPage (int pagenum, const Filejpegpage *&page)
    {
+   CALL (load ());
    CALL (checkPage (pagenum));
    page = _pages [pagenum];
 
@@ -283,6 +285,7 @@ err_info *Filejpeg::getPage (int pagenum, const Filejpegpage *&page)
 
 err_info *Filejpeg::getPage (int pagenum, Filejpegpage *&page)
    {
+   CALL (load ());
    CALL (checkPage (pagenum));
    page = _pages [pagenum];
 
@@ -316,6 +319,7 @@ err_info *Filejpeg::getPageText (int pagenum, QString &str)
       yet flushed to the filesystem */
 int Filejpeg::getSize (void)
    {
+   load ();
    _size = 0;
    foreach (const Filejpegpage *page, _pages)
       _size += page->size ();
@@ -334,8 +338,7 @@ err_info *Filejpeg::loadPage (int pagenum, QImage &image)
 {
    Filejpegpage *page;
 
-   CALL (checkPage (pagenum));
-   page = _pages [pagenum];
+   CALL (getPage (pagenum, page));
    CALL (page->load (_dir));
 
    image = page->getImage ();
@@ -600,6 +603,9 @@ bool Filejpeg::claimFileAsNewPage (const QString &fname, QString &base_fname,
    if (base_fname != _base_fname)
       return false;
 
+   if (!_pages.count ())
+      addSubPage(_filename, _has_pagenum ? _base_pagenum : 0);
+
    // Ignore return value, since it just means we already have this page
    addSubPage (fname, pagenum);
 
@@ -673,6 +679,7 @@ void Filejpegpage::setImage (const QImage &image)
 {
    _image = image;
    _image.bits ();   // force deep copy
+   _changed = true;
 }
 
 int Filejpegpage::size (void) const
