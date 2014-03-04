@@ -1029,8 +1029,6 @@ void Pagewidget::updateAttr (void)
 
 void Pagewidget::updateOcrText (void)
    {
-   err_info *err;
-
    _ocr_edit->blockSignals (true);
    if (_index.isValid ())
       {
@@ -1043,7 +1041,7 @@ void Pagewidget::updateOcrText (void)
       // update OCR text
       QString str;
 
-      err = contents->getPageText (sindex, _pagenum, str);
+      contents->getPageText (sindex, _pagenum, str);
       // ignore error, text will report it to the user
 
       _ocr_edit->setText (str);
