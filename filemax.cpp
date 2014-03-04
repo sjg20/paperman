@@ -1427,7 +1427,8 @@ err_info *Filemax::decode_tile (chunk_info &chunk,
             case 24 :
                // decode raw JPEG file here
                // need to restrict output to width tile_size->x
-               jpeg_decode (data, size, ptr, chunk.line_bytes, 32, tile_size.x);
+               jpeg_decode (data, size, ptr, chunk.line_bytes, 32, tile_size.x,
+                            tile_size.y);
                break;
 
             default :

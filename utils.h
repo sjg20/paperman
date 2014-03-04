@@ -91,7 +91,8 @@ int jpeg_thumbnail (byte *data, int insize, byte **destp, int *dest_sizep, cpoin
    \param dest        destimation buffer (which must be big enough)
    \param line_bytes  number of bytes per line in the output
    \param max_width   if not -1, then this is the maximum width available in the destination */
-void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp, int max_width);
+void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
+                  int max_width, int max_height);
 
 QString removeExtension (const QString &fname, QString &ext);
 

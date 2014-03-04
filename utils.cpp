@@ -191,7 +191,8 @@ static void my_error_exit (j_common_ptr cinfo)
 }
 
 
-void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp, int max_width)
+void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
+                  int max_width, int max_height)
    {
    struct jpeg_decompress_struct cinfo;
    JSAMPARRAY buffer;/* Output row buffer */
@@ -231,7 +232,8 @@ void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp, int
 //      printf ("width = %d, tile_bytes = %d, line_bytes = %d\n",
 //         cinfo.output_width, tile_bytes, line_bytes);
 
-      while (cinfo.output_scanline < cinfo.output_height)
+      while (cinfo.output_scanline < cinfo.output_height &&
+             cinfo.output_scanline < max_height)
          {
          jpeg_read_scanlines(&cinfo, buffer, 1);
          if (cinfo.output_components == 3 && bpp == 32)
