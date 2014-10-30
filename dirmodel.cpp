@@ -561,9 +561,9 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
             found = true;
             }
 //             printf ("   - found '%s' at %d\n", dirs [i].latin1 (), j);
-         if (!found)
-             return QModelIndex ();
          }
+      if (!found)
+          return QModelIndex ();
 //      ind = QDirModel::index (path);
       }
 //    printf ("ind = %p, path %s\n", ind.internalPointer (), filePath (ind).latin1 ());
@@ -593,7 +593,7 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
          {
          // we found a match, so now we need to search for the model index in this item
 //          printf ("found item\n");
-         return findPath (i, _item [i], path.mid(dir.length ()));
+         return findPath (i, _item [i], path.mid(dir.length () + 1));
 //         return _item [i]->index ();
          }
       }
