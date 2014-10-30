@@ -126,6 +126,7 @@ typedef struct jpeg_source_info
    byte *data;
    int pos;
    int size;
+   bool done;   //!< We have read all the data
    } jpeg_source_info;
 
 
@@ -150,9 +151,15 @@ static boolean fill_input_buffer(j_decompress_ptr cinfo)
    {
    jpeg_source_info *src = (jpeg_source_info *)cinfo->src;
 
-   src->pub.next_input_byte = src->data;
-   src->pub.bytes_in_buffer = src->size;
-   return TRUE;
+   if (!src->done)
+      {
+       src->pub.next_input_byte = src->data;
+       src->pub.bytes_in_buffer = src->size;
+       src->done = TRUE;
+       return TRUE;
+       }
+
+   return FALSE;
    }
 
 
@@ -208,6 +215,7 @@ void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
 //   source.chunk = chunk;
    source.data = data;
    source.size = size;
+   source.done = FALSE;
 //   source.pos = pos;
    source.pub.init_source = init_source;
    source.pub.fill_input_buffer = fill_input_buffer;
