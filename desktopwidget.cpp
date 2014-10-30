@@ -719,18 +719,13 @@ void Desktopwidget::deleteDir ()
    if ( ok == QMessageBox::Ok)
       {
       printf ("delete dir\n");
+      err_info *err;
       QDir dir;
 
-      if (!_model->rmdir (index))
-         {
-         QModelIndex parent = _model->parent (index);
-
-         if (err_systemf ("rm -rf '%s'", path.latin1 ()) == 0)
-            _model->refresh (parent);  // indicates current item is gone
-         else
-            QMessageBox::warning (0, "Maxview",
-               tr("Could not remove directory %1").arg (path));
-         }
+      qDebug () << "remove dir" << _model->filePath (index);
+      err = _model->rmdir (index);
+      if (err)
+          QMessageBox::warning (0, "Maxview", err->errstr);
       }
    }
 

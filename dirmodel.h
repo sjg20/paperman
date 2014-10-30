@@ -184,6 +184,8 @@ public:
      \returns NULL if ok, else error */
    err_info *checkOverlap (QString &dirname, QString &user_dirname);
 
+   err_info *rmdir (const QModelIndex &index);
+
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
        Stops if count > max

@@ -678,6 +678,22 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
    return count;
  }
 
+err_info *Dirmodel::rmdir (const QModelIndex &index)
+   {
+   if (!QDirModel::rmdir (index))
+      {
+      QString path = filePath (index);
+
+      int err = err_systemf ("rm -rf '%s'", path.latin1 ());
+
+      if (err)
+         return err_make (ERRFN, ERR_could_not_remove_dir1, path.latin1());
+
+      refresh (parent (index));
+      }
+
+   return 0;
+   }
 
 void dirmodel_tests (void)
    {
