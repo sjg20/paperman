@@ -101,6 +101,7 @@ static const char *err_msg [ERR_count] =
    "Directory '%s' is already present as '%s'",
    "Directory '%s' could not be added",
    "Directories '%s' and '%s' ('%s') overlap - dropping the latter",
+   "Could not remove directory '%s'",
    };
 
 
