@@ -2396,6 +2396,7 @@ static void tile_free (tile_info *tile)
    {
    if (tile->buf)
       {
+      debug2 (("tile_free: %p", tile->buf));
       free (tile->buf);
       tile->buf = NULL;
       }
@@ -2410,11 +2411,20 @@ void Filemax::chunk_free (chunk_info &chunk)
       tile_free (&chunk.tile [i]);
 
    if (chunk.tile)
+      {
       free (chunk.tile);
+      chunk.tile = 0;
+      }
    if (chunk.preview)
+      {
       free (chunk.preview);
+      chunk.preview = 0;
+      }
    if (chunk.image)
+      {
       free (chunk.image);
+      chunk.image = 0;
+      }
    chunk.parts.resize (0);
    }
 
@@ -4043,7 +4053,8 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
             *(short *)(tile->buf + 2) = 0x43;
             memcpy (tile->buf + 4, encode.buff, size);
 
-            debug2 (("tile %d,%d: encoded to %d bytes\n", x, y, tile->size));
+            debug2 (("tile %d,%d: encoded to %d bytes: %p\n", x, y, tile->size,
+                     tile->buf));
             }
          else
             {
@@ -5117,8 +5128,10 @@ err_info *Filemax::max_setup_page (page_info &page, const Filemaxpage &maxpage)
    // first the image chunk
    chunk_info chunk;
 
+   // This takes over _chunk.tile, _chunk.image and other allocate data
    chunk = maxpage._chunk;
 
+   // Copy the tiles
    chunk.chunkid = _chunkid_next;
 
    // add the header, then all the chunk data
@@ -5131,6 +5144,7 @@ err_info *Filemax::max_setup_page (page_info &page, const Filemaxpage &maxpage)
       memcpy (buf + 0x20 + part.start, part.buf, part.size);
       }
    CALL (insert_chunk (chunk, &page.image));
+
    debug2 (("image chunk->size=0x%x\n", chunk.size));
    chunk.buf = NULL;  // so we won't free it in maxpage->chunk
 
@@ -5170,8 +5184,7 @@ err_info *Filemax::chunk_unload (int pos)
    for (i = 0; i < chunk->tile_count; i++)
       {
       tile = &chunk->tile [i];
-      if (tile->buf)
-         mem_free (CV &tile->buf);
+      tile_free (tile);
       }
    for (i = 0; i < chunk->parts.size (); i++)
       {
@@ -5614,8 +5627,7 @@ Filemaxpage::Filemaxpage (void)
 
 Filemaxpage::~Filemaxpage (void)
    {
-   if (_chunk.tile)
-      mem_free (CV &_chunk.tile);
+   // We don't free chunk.tile here, since the memory has been 'taken over'
    }
 
 
