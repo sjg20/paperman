@@ -696,7 +696,7 @@ err_info *Filemax::getbytee (int pos, int *bytep)
    {
    byte *data;
 
-   if (!(pos >= 0 && pos < _size))
+   if (pos < 0 || pos > _size - 1)
       return err_make (ERRFN, ERR_file_position_out_of_range3, pos, 0,
                _size);
    data = GET_DATA (pos);
