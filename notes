@@ -1009,3 +1009,13 @@ done- implement jpeg unstack
 4323e682
 WIP
 
+
+16mar14
+
+Things to improve
+
+- Implement my own QDirModel
+   - or make Dirmodel do everything I want and stop using QDirModel
+- Scan in cheque book at A5 duplex and fix bugs / crashes that appear
+- Sometimes exposure changes to 0 after going from colour
+
