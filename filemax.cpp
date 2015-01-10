@@ -4040,6 +4040,11 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
                printf ("encode_tile() failed, tile %d\n", tilenum);
                break;
                }
+            if (size > encode.size)
+               {
+               printf("Encode size %d, buffer only %d\n", size, encode.size);
+               return ERR (-ENOMEM);
+               }
             tile->size = size + 4;
             tile->buf = (byte *)malloc (tile->size);
             if (!tile->buf)

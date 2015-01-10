@@ -142,6 +142,7 @@ err_info *Paperstack::confirmImage (Filepage *&mp, QMutex &mutex)
             }
       }
 
+   // This is passed back to the caller
    mp = new Filemaxpage;
 
    mp->setPaperstack (this);
@@ -802,6 +803,7 @@ void Paperscan::scan ()
                }
             Filepage *mp;
 
+            // mp is destroyed by the receive, we do not destroy it here
             err = _stack->confirmImage (mp, _mutex);
             if (err)
                break;
