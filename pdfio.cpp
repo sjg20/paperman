@@ -463,6 +463,9 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
          case ePdfContentsType_Variant :
             stack << var;
             break;
+
+         case ePdfContentsType_ImageData:
+            break;
          }
       }
 //    qDebug () << "decoding done" << image_only << image_name;
