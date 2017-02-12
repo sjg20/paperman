@@ -43,7 +43,7 @@ class Ocr
    {
 public:
    Ocr (void);
-   ~Ocr ();
+   virtual ~Ocr ();
 
    //! engine in use
    enum e_engine
