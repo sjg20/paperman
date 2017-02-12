@@ -24,7 +24,7 @@ QSaneStatusMessage::QSaneStatusMessage(SANE_Status status, QWidget*parent)
                    :QMessageBox(parent)
 {
   mSaneStatus = status;
-  setCaption(tr("SANE Message"));
+  setWindowTitle(tr("SANE Message"));
   setMessage();
 }
 
