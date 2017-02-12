@@ -239,7 +239,6 @@ QVector <int> ImageDetection::findHorizontalLines(int top,int bottom,double std_
 /** No descriptions */
 QVector<double> ImageDetection::autoSelect()
 {
-  double tlx,tly,brx,bry;
   double std_dev_max;
   double std_dev_min;
   QVector <int> lines;
@@ -320,10 +319,6 @@ QVector<double> ImageDetection::autoSelect()
   qDebug("std_dev_max: %.2f",std_dev_max);
   qDebug("std_dev_min: %.2f",std_dev_min);
   qDebug("std_dev: %.2f",std_dev);
-  tlx = 1.0;
-  tly = 1.0;
-  brx = 0.0;
-  bry = 0.0;
 
   lines = findVerticalLines(std_dev);
   for(int c=0;c<int(lines.size())-1;c+=2)
