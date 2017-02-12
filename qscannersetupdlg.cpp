@@ -388,8 +388,6 @@ void QScannerSetupDlg::slotDeviceSelected()
   {
      qDebug("option-map IS empty");
   }
-  //try to load the translations for the backend
-  loadBackendTranslation(dev);
   //Create a QScanDialog with the selected scanner
   setCursor(Qt::waitCursor);
 /*s
@@ -440,8 +438,6 @@ bool QScannerSetupDlg::setupLast()
   {
      qDebug("option-map IS empty");
   }
-  //try to load the translations for the backend
-  loadBackendTranslation(dev);
   return true;
 }
 
@@ -1016,135 +1012,7 @@ void QScannerSetupDlg::slotQuit()
   }
   close();
 }
-/** No descriptions */
-void QScannerSetupDlg::loadBackendTranslation(QString name)
-{
-  return;   //s   this function crashes the program for me
 
-  QString filename;
-  QString dev_name;
-  QString opts_name;
-  QString sane_path;
-  QString locale;
-  bool old_backend_translation = true;
-  QString inst_dir;
-#ifdef INSTALL_DIR
-  inst_dir = INSTALL_DIR;
-#else
-  inst_dir = "/usr/local/";
-#endif
-  bool opts_loaded;
-  bool dev_loaded;
-  opts_loaded = false;
-  dev_loaded = false;
-  if(!xmlConfig->boolValue("ENABLE_BACKEND_TRANSLATIONS",true))
-    return;
-  //locale e.g. de,ru,fr ...
-  locale = QTextCodec::locale();
-  locale = locale.left(2);
-
-  SaneConfig* sc = new SaneConfig(0);
-  QString pref = sc->prefix();
-  delete sc;
-  MoTranslator* motrans = 0;
-  if(!pref.isEmpty())
-  {
-    pref = pref.stripWhiteSpace();
-    if(pref.right(1) != "/")
-      pref += "/";
-    QString sane_translation_path = pref + "share/locale/"+locale;
-    sane_translation_path += "/LC_MESSAGES/sane-backends.mo";
-    qDebug("Sane translation path: %s",sane_translation_path.latin1());
-    motrans = new MoTranslator(qApp);
-    if(motrans->loadMoFile(sane_translation_path,"QScanner"))
-    {
-      qApp->installTranslator((QTranslator*)motrans);
-      qDebug("Translator installed");
-      old_backend_translation = false;
-    }
-    else
-      delete motrans;
-  }
-  if(old_backend_translation == false)
-    return;
-
-  dev_name = name;
-  qDebug("dev_name: %s",dev_name.latin1());
-  if(dev_name.contains(":libusb:"))
-    dev_name = dev_name.left(dev_name.findRev(":libusb:"));
-  if(dev_name.contains(":"))
-    dev_name = dev_name.left(dev_name.findRev(":"));
-  if(dev_name.contains(":"))
-    dev_name = dev_name.right(dev_name.length() - dev_name.findRev(":") - 1);
-  dev_name += "."+locale+".qm";
-  opts_name = "saneopts."+locale+".qm";
-
-  qDebug("dev_name: %s",dev_name.latin1());
-  //did the user set a path ?
-  bool b = xmlConfig->boolValue("USE_BACKEND_TRANSLATIONS_PATH",false);
-  if(b)
-  {
-    sane_path = xmlConfig->stringValue("BACKEND_TRANSLATIONS_PATH",QString::null);
-    if(sane_path.right(1) != "/")
-      sane_path += "/";
-    if(!sane_path.isEmpty() && b)
-    {
-      filename = sane_path + dev_name;
-      if(QFile::exists(filename))
-      {
-         QTranslator* translator = new QTranslator(0);
-         if(translator)
-         {
-         printf ("1filename=%s\n", filename.latin1 ());
-           translator->load(filename);
-           qApp->installTranslator(translator);
-           dev_loaded = true;
-         }
-      }
-      filename = sane_path + opts_name;
-      if(QFile::exists(filename))
-      {
-         QTranslator* translator = new QTranslator(0);
-         if(translator)
-         {
-         printf ("2filename=%s\n", filename.latin1 ());
-           translator->load(filename);
-           qApp->installTranslator(translator);
-           opts_loaded = true;
-         }
-      }
-    }
-  }
-  //If a translation file isn't loaded, try again under default path
-  sane_path = inst_dir;
-  if(sane_path.right(1) != "/")
-    sane_path += "/";
-  sane_path += "share/quiteinsane/locale/";
-  filename = sane_path + dev_name;
-  if(QFile::exists(filename))
-  {
-     QTranslator* translator = new QTranslator(0);
-     if(translator)
-     {
-         printf ("3filename=%s\n", filename.latin1 ());
-       translator->load(filename);
-       qApp->installTranslator(translator);
-       dev_loaded = true;
-     }
-  }
-  filename = sane_path + opts_name;
-  if(QFile::exists(filename))
-  {
-     QTranslator* translator = new QTranslator(0);
-     if(translator)
-     {
-         printf ("4filename=%s\n", filename.latin1 ());
-       translator->load(filename);
-       qApp->installTranslator(translator);
-       opts_loaded = true;
-     }
-  }
-}
 /** First we iterate over the list and test, whether a device
     matches the device name of the previous session. If there's
     no such device, we try to find a device with the same vendor/model.

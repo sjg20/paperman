@@ -46,7 +46,6 @@ HEADERS += desktopwidget.h \
    qscanner.h \
    qxmlconfig.h \
    saneconfig.h \
-   motranslator.h \
    qsanestatusmessage.h \
    qscandialog.h \
    qi/qcombooption.h \
@@ -128,7 +127,6 @@ SOURCES += desktopwidget.cpp \
    qscanner.cpp \
    qxmlconfig.cpp \
    saneconfig.cpp \
-   motranslator.cpp \
    qsanestatusmessage.cpp \
    qscandialog.cpp \
    qi/qcombooption.cpp \
