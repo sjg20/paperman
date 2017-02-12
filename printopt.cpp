@@ -216,10 +216,8 @@ int Printopt::countPages (void)
 
 void Printopt::checkPagecount (bool)
    {
-   int count;
-
    // we try to change the page count, but this seems to be ignored
-   _printer->setFromTo (1, count);
+   //_printer->setFromTo (1, count);
    }
 
 
