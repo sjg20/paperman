@@ -886,6 +886,8 @@ err_info *Desktopmodel::addPageToScan (const Filepage *mp, const QString &covera
 
 void Desktopmodel::pageStarting (Paperscan &scan, const PPage *page)
    {
+   UNUSED (scan);
+   UNUSED (page);
    if (_scan_err)
       return;
 //    qDebug () << "pageStarting" << scan.getPagenum (page);
@@ -1129,6 +1131,7 @@ void Desktopmodel::insertRows (QList<File *> &flist, QModelIndex parent)
    beginInsertRows (parent, row, desk->fileCount () - 1);
    foreach (fnew, flist)
       {
+      UNUSED (fnew);
       qDebug () << "build item" << row;
       buildItem (index (row++, 0, parent));
 //       list << createIndex (row, 0, (void *)&_items [row]);
@@ -1214,6 +1217,7 @@ bool Desktopmodel::checkScanStack (QModelIndexList &list, QModelIndex parent)
    Desk *desk = getDesk (parent);
    QModelIndex ind;
 
+   UNUSED (list);
    /* if the proposed operation is happening on the same desk as we are 
       scanning to, stop it */
    if (_scan_desk == desk)
@@ -1405,6 +1409,7 @@ void Desktopmodel::cloneModel (Desktopmodel *contents, QModelIndex parent)
 {
    QModelIndex ind;
 
+   UNUSED (parent);
    _cloned = true;
    beginInsertRows (ind, 0, contents->_desks.size () - 1);
    _desks = contents->_desks;
