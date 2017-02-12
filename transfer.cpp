@@ -343,6 +343,7 @@ err_info *Tfile::scanEnvelope (const QString &dir, const QString &fname)
       if (tag == "version")
          {
          version = value.toInt ();
+         UNUSED (version);
          continue;
          }
       else if (tag == "from")
