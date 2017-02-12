@@ -15,9 +15,12 @@
 *.obj
 *.ui
 /Makefile
-/maxview
+/paperman
 /qrc_maxview.cpp
 /qmake_image_collection.cpp
 /maxview.pro.user
 /qmeta-build-desktop
 /test
+/.paperdesk
+/paperman.pro.user
+
