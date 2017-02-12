@@ -402,7 +402,7 @@ void PPage::setupJpeg (void)
    _decomp_avail = 0;
 
    /* Make a sample array as required by the jpeg library */
-   _buffer = new (JSAMPROW [_height]);
+   _buffer = new JSAMPROW [_height];
    for (i = 0; i < _height; i++)
       _buffer [i] = (JSAMPLE *)(_decomp.data () + _stride * i);
 
