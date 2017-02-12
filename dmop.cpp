@@ -229,6 +229,7 @@ err_info *Desktopmodel::opDeleteStacks (QModelIndexList &list, QModelIndex paren
    QModelIndexList del_list;   // list of indexes to delete
 //    Desk *desk = getDesk (parent);
 
+   UNUSED (parent);
 //    _model_invalid = true;
    foreach (ind, list) if (getFile (ind))
       {
