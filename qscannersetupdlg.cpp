@@ -926,12 +926,7 @@ void QScannerSetupDlg::slotProcessEvents()
 
 void QScannerSetupDlg::initScanner()
 {
-  if(mpScanner)
-  {
-    mpScanner->close();
-    mpScanner->exitScanner();
-    delete mpScanner;
-  }
+  uninitScanner();
   mpScanner = new QScanner();
   if(mpScanner)
   {
@@ -944,6 +939,16 @@ void QScannerSetupDlg::initScanner()
 	                "<center>Press Quit to quit QuiteInsane.</center>"),
                tr("&Quit"));
   slotQuit();
+}
+
+void QScannerSetupDlg::uninitScanner()
+{
+    if(mpScanner)
+    {
+      mpScanner->close();
+      mpScanner->exitScanner();
+      delete mpScanner;
+    }
 }
 
 /**  */

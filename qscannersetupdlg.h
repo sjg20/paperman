@@ -62,6 +62,9 @@ public:
 
   /** */
   static void initConfig();
+
+  /** Uninit the scanner, if any */
+  void uninitScanner();
 private:
   /** */
   int mStyle;

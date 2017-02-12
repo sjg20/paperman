@@ -654,7 +654,8 @@ void Mainwidget::selectScanner (void)
    ssd.show ();
    ok = ssd.exec () == QDialog::Accepted;
 
-   _scanner = ssd.scanner ();
+   if (ok)
+      _scanner = ssd.scanner ();
    if (_scanner && _scanner->isOpen ())
       {
       connectScanner ();
@@ -668,8 +669,7 @@ void Mainwidget::selectScanner (void)
       if (_pscan)
          delete _pscan;
       _pscan = 0;
-      if (_scanner)
-         delete _scanner;
+      ssd.uninitScanner();
       _scanner = 0;
       }
    }
