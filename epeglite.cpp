@@ -21,6 +21,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include "err.h"
 #include "epeglite.h"
 
 
@@ -422,7 +423,7 @@ of each line - the image is copied accordingly */
 
 int epeg_raw(Epeg_Image *im, int stride)
 {
-    int ret, size, nc;
+    int ret, size;
     char *p;
 
     if ((ret = _epeg_decode(im)) != 0)
@@ -431,7 +432,6 @@ int epeg_raw(Epeg_Image *im, int stride)
         return 1;
 
     // work out stride
-    nc = im->in.jinfo.output_components;
     size = stride * im->out.h;
 //printf ("size = %d, %d, stride = %d, bytes = %d, in_stride = %d\n",im->out.w, im->out.h ,stride, size, in_stride);
     *im->out.mem.size = size;
@@ -856,6 +856,7 @@ static int _epeg_scale(Epeg_Image *im)
 // -------------------------------- JPG callbacks -------------------------
 METHODDEF(void)	_jpeg_init_source(j_decompress_ptr cinfo)
 {
+    UNUSED(cinfo);
 }
 
 METHODDEF(boolean) _jpeg_fill_input_buffer(j_decompress_ptr cinfo)
@@ -880,6 +881,7 @@ METHODDEF(void)	_jpeg_skip_input_data(j_decompress_ptr cinfo, long num_bytes)
 
 METHODDEF(void)	_jpeg_term_source(j_decompress_ptr cinfo)
 {
+    UNUSED(cinfo);
 }
 
 static void _epeg_fatal_error_handler(j_common_ptr cinfo)
