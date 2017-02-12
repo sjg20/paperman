@@ -22,7 +22,6 @@
 #include <qstring.h>
 #include <qstringlist.h>
 #include <qmap.h>
-#include <q3valuelist.h>
 
 class QDomElement;
 class QXmlConfig;
@@ -71,13 +70,13 @@ public:
   QStringList stringList(const QString& key,
                          QStringList default_list=QStringList());
   //int value list
-  void setIntValueList(const QString& key,Q3ValueList<int> list);
-  Q3ValueList<int> intValueList(const QString& key,
-                  Q3ValueList<int> default_list=Q3ValueList<int>());
+  void setIntValueList(const QString& key,QList<int> list);
+  QList<int> intValueList(const QString& key,
+                  QList<int> default_list=QList<int>());
   //uint value list
-  void setUintValueList(const QString& key,Q3ValueList<unsigned int> list);
-  Q3ValueList<unsigned int> uintValueList(const QString& key,
-               Q3ValueList<unsigned int> default_list=Q3ValueList<unsigned int>());
+  void setUintValueList(const QString& key,QList<unsigned int> list);
+  QList<unsigned int> uintValueList(const QString& key,
+               QList<unsigned int> default_list=QList<unsigned int>());
 
   // remove a key/value from the preferences
   void removeKey(const QString& key);

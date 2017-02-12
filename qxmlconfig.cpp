@@ -19,11 +19,8 @@
 #include <qdom.h>
 #include <qfile.h>
 #include <qfileinfo.h>
-#include <q3textstream.h>
 
 #include "qxmlconfig.h"
-//Added by qt3to4:
-#include <Q3ValueList>
 
 QXmlConfig* xmlConfig=0;
 //Read in the configuration file filename. Creates the file, if it
@@ -274,7 +271,7 @@ void QXmlConfig::writeConfigFile()
     //create an option element
     option = doc.createElement("config_item");
     option.setAttribute("key", it.key());
-    option.setAttribute("value", it.data());
+    option.setAttribute("value", it.value());
     root.appendChild(option);
   }
   doc.appendChild(root);
@@ -335,7 +332,7 @@ bool QXmlConfig::isEmpty()
 QString QXmlConfig::absConfDirPath()
 {
   QString qs;
-  qs = QFileInfo(mFilePath).dirPath(true);
+  qs = QFileInfo(mFilePath).absolutePath();
   if(qs.right(1) != "/")
     qs += "/";
   return qs;
@@ -377,7 +374,7 @@ QStringList QXmlConfig::stringList(const QString& key,
   int index;
   while(!ready)
   {
-    index = mTempString.find("|");
+    index = mTempString.indexOf("|");
     if(index == -1)
     {
       ready = true;
@@ -393,10 +390,10 @@ QStringList QXmlConfig::stringList(const QString& key,
   return list;
 }
 
-void QXmlConfig::setIntValueList(const QString& key,Q3ValueList<int> list)
+void QXmlConfig::setIntValueList(const QString& key,QList<int> list)
 {
   QString qs;
-  Q3ValueList<int>::Iterator it;
+  QList<int>::Iterator it;
   mTempString = QString::null;
   for(it=list.begin();it!=list.end();++it)
     mTempString += qs.setNum(*it) + " ";
@@ -404,13 +401,13 @@ void QXmlConfig::setIntValueList(const QString& key,Q3ValueList<int> list)
   mModified = true;
 }
 
-Q3ValueList<int> QXmlConfig::intValueList(const QString& key,
-                                         Q3ValueList<int> default_list)
+QList<int> QXmlConfig::intValueList(const QString& key,
+                                         QList<int> default_list)
 {
   QString qs;
   if(!mConfMap.contains(key))
   {
-    Q3ValueList<int>::Iterator it;
+    QList<int>::Iterator it;
     mTempString = QString::null;
     for(it=default_list.begin();it!=default_list.end();++it)
       mTempString += qs.setNum(*it) + " ";
@@ -418,10 +415,10 @@ Q3ValueList<int> QXmlConfig::intValueList(const QString& key,
     mModified = true;
     return default_list;
   }
-  Q3ValueList<int> list;
+  QList<int> list;
   mTempString = mConfMap[key];
-  mTempString = mTempString.stripWhiteSpace();
-  mTempString = mTempString.simplifyWhiteSpace();
+  mTempString = mTempString.trimmed();
+  mTempString = mTempString.simplified();
 
   bool ok;
   bool ready = false;
@@ -429,7 +426,7 @@ Q3ValueList<int> QXmlConfig::intValueList(const QString& key,
   int value;
   while(!ready)
   {
-    index = mTempString.find(" ");
+    index = mTempString.indexOf(" ");
     if(index == -1)
     {
       ready = true;
@@ -447,10 +444,10 @@ Q3ValueList<int> QXmlConfig::intValueList(const QString& key,
   return list;
 }
 
-void QXmlConfig::setUintValueList(const QString& key,Q3ValueList<unsigned int> list)
+void QXmlConfig::setUintValueList(const QString& key,QList<unsigned int> list)
 {
   QString qs;
-  Q3ValueList<unsigned int>::Iterator it;
+  QList<unsigned int>::Iterator it;
   mTempString = QString::null;
   for(it=list.begin();it!=list.end();++it)
     mTempString += qs.setNum(*it) + " ";
@@ -458,13 +455,13 @@ void QXmlConfig::setUintValueList(const QString& key,Q3ValueList<unsigned int> l
   mModified = true;
 }
 
-Q3ValueList<unsigned int> QXmlConfig::uintValueList(const QString& key,
-                                                   Q3ValueList<unsigned int> default_list)
+QList<unsigned int> QXmlConfig::uintValueList(const QString& key,
+                                                   QList<unsigned int> default_list)
 {
   QString qs;
   if(!mConfMap.contains(key))
   {
-    Q3ValueList<unsigned int>::Iterator it;
+    QList<unsigned int>::Iterator it;
     mTempString = QString::null;
     for(it=default_list.begin();it!=default_list.end();++it)
       mTempString += qs.setNum(*it) + " ";
@@ -472,10 +469,10 @@ Q3ValueList<unsigned int> QXmlConfig::uintValueList(const QString& key,
     mModified = true;
     return default_list;
   }
-  Q3ValueList<unsigned int> list;
+  QList<unsigned int> list;
   mTempString = mConfMap[key];
-  mTempString = mTempString.stripWhiteSpace();
-  mTempString = mTempString.simplifyWhiteSpace();
+  mTempString = mTempString.trimmed();
+  mTempString = mTempString.simplified();
 
   bool ok;
   bool ready = false;
@@ -483,7 +480,7 @@ Q3ValueList<unsigned int> QXmlConfig::uintValueList(const QString& key,
   unsigned int value;
   while(!ready)
   {
-    index = mTempString.find(" ");
+    index = mTempString.indexOf(" ");
     if(index == -1)
     {
       ready = true;
