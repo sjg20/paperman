@@ -64,6 +64,7 @@ Pageview::~Pageview ()
 
 void Pageview::currentChanged (const QModelIndex &index, const QModelIndex &previous)
    {
+   UNUSED (previous);
    emit showInfo (index);
    }
 
