@@ -16,6 +16,7 @@
 
 #include <QTextStream>
 
+#include "err.h"
 #include "checklistitemext.h"
 #include "imagebuffer.h"
 #include "imagedetection.h"
@@ -1005,7 +1006,7 @@ void PreviewWidget::slotZoomOff()
 /** No descriptions */
 void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
 {
-  QPoint unused = p; //s unused
+  UNUSED (p);
   if(!li)
     return;
   CheckListItemExt* ci;
