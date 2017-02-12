@@ -327,7 +327,7 @@ public:
 
    void encodeFile (QTextStream &stream);
 
-   QString &filename (void);
+   QString filename (void) const;
    QString &basename (void);
    QString &leaf (void);
 
@@ -343,12 +343,12 @@ public:
 
    QString pathname (void);
 
-   int order (void);
+   int order (void) const;
    void setOrder (int order);
 
    void setTime (QDateTime dt);
 
-   QDateTime time (void);
+   QDateTime time (void) const;
 
    bool valid (void);
    void setValid (bool valid);

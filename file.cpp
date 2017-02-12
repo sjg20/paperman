@@ -365,7 +365,7 @@ void File::encodeFile (QTextStream &stream)
    }
 
 
-QString &File::filename (void)
+QString File::filename (void) const
    {
    return _filename;
    }
@@ -409,7 +409,7 @@ QString File::pathname (void)
    }
 
 
-int File::order (void)
+int File::order (void) const
    {
    return _order;
    }
@@ -427,7 +427,7 @@ void File::setTime (QDateTime dt)
    }
 
 
-QDateTime File::time (void)
+QDateTime File::time (void) const
    {
    return _timestamp;
    }
