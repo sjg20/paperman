@@ -26,11 +26,7 @@
   *@author Michael Herder
   */
 
-#ifndef USE_QT3
-class QProcessBackport;
-#else
-class Q3Process;
-#endif
+class QProcess;
 
 class SaneConfig : public QObject
 {
@@ -46,7 +42,7 @@ private:
 #ifndef USE_QT3
   QProcessBackport* mpProcess;
 #else
-  Q3Process* mpProcess;
+  QProcess* mpProcess;
 #endif
 private slots: // Private slots
   /** No descriptions */

@@ -15,24 +15,23 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QProcess>
+#include <QVariant>
+
 #include "saneconfig.h"
 
 #include <qapplication.h>
-#ifndef USE_QT3
-#include "3rdparty/qtbackport/q3process.h"
-#else
-#include <q3process.h>
-#endif
 #include <qtimer.h>
 
 SaneConfig::SaneConfig(QObject* parent,const char* name)
-           :QObject(parent,name)
+           :QObject(parent)
 {
+  setProperty ("name", QVariant(name));
   mRun = false;
 #ifndef USE_QT3
   mpProcess = new QProcessBackport(parent);
 #else
-  mpProcess = new Q3Process(parent);
+  mpProcess = new QProcess(parent);
 #endif
   connect(mpProcess,SIGNAL(processExited()),
           this,SLOT(slotExited()));
@@ -47,9 +46,11 @@ void SaneConfig::run()
 {
   if(mRun == true)
     return;
-  mpProcess->addArgument("sane-config");
-  mpProcess->addArgument("--prefix");
-  if(!mpProcess->start())
+  QStringList arguments;
+
+  arguments << "--prefix";
+  mpProcess->start("sane-config", arguments);
+  if (mpProcess->waitForStarted (1000))
   {
     mRun = true;
     return;
@@ -65,14 +66,14 @@ void SaneConfig::slotExited()
 /** No descriptions */
 void SaneConfig::slotForceStop()
 {
-  if(mpProcess->isRunning())
+  if(mpProcess->state() == QProcess::Running)
     mpProcess->kill();
   mRun = true;
 }
 /** No descriptions */
 void SaneConfig::slotReadStdout()
 {
-  QString qs(mpProcess->readStdout());
+  QString qs(mpProcess->readAllStandardOutput());
   mPrefix = qs;
   mRun = true;
 }
@@ -81,7 +82,7 @@ QString& SaneConfig::prefix()
 {
   if(mRun == false)
     run();
-  while(mpProcess->isRunning() || (mRun == false))
+  while (mpProcess->state() == QProcess::Running || (mRun == false))
   {
     qApp->processEvents();
   }
