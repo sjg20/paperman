@@ -1,6 +1,5 @@
 TEMPLATE = app
 LANGUAGE = C++
-QT += qt3support
 QT += widgets
 
 unix:target.path = /usr/bin
