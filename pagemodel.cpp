@@ -250,6 +250,7 @@ QModelIndex Pagemodel::index (int row, int column, const QModelIndex &parent) co
 
 QModelIndex Pagemodel::parent(const QModelIndex &item) const
    {
+   UNUSED (item);
    // this is a single level model
    return QModelIndex ();
    }
