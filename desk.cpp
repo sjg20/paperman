@@ -38,6 +38,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QBitArray>
 #include <QDateTime>
 #include <QDebug>
+#include <QLinkedList>
 
 #include "qdir.h"
 #include "qfile.h"
@@ -47,8 +48,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qpainter.h"
 #include "qpixmap.h"
 #include "qstring.h"
-//Added by qt3to4:
-#include <Q3PtrList>
 
 #include "desk.h"
 #include "file.h"
@@ -590,45 +589,48 @@ void Desk::advance (void)
 
 //FIXME: should port this to QT4
 
-template<class type>
-class myPtrList : public Q3PtrList<type>
+class myPtrList : public QList<File *>
    {
 public:
      myPtrList () {}
      ~myPtrList () {}
      void setType (int ty) {_type = ty; }
-     int compareItems ( Q3PtrCollection::Item item1, Q3PtrCollection::Item item2 );
+     static bool lessThan (const File *f1, const File *f2);
+     void sort ();
 
    private:
-     int _type;
+     static int _type;
    };
 
 
-template<class type>
-int myPtrList<type>::compareItems ( Q3PtrCollection::Item item1, Q3PtrCollection::Item item2 )
-   {
-   File *f1 = (File *)item1;
-   File *f2 = (File *)item2;
+int myPtrList::_type;
 
+bool myPtrList::lessThan (const File *f1, const File *f2)
+   {
    switch (_type)
       {
       case 0: // pos
-	 return f1->order () - f2->order ();
+     return f1->order () < f2->order ();
 
       case 1 : // name
-	 return strcmp (f1->filename ().latin1 (), f2->filename ().latin1 ());
+     return f1->filename () < f2->filename ();
 
       case 2 : // date
-	 return f1->time ().toTime_t () - f2->time ().toTime_t ();
+     return f1->time () < f2->time ();
       }
    return 0;
    }
 
+void myPtrList::sort ()
+   {
+   qStableSort (begin (), end (), lessThan);
+   }
 
 void Desk::arrangeBy (int type)
    {
-   myPtrList<File> todo;
-   int order, steps = 0;
+   QLinkedList<File *> todo;
+   myPtrList sorted;
+   int order;
 
    // fill in the date & field
    File *f;
@@ -644,50 +646,59 @@ void Desk::arrangeBy (int type)
       }
 
    // now the position info
-   resetPos ();
    order = 0;
-   while (todo.count () && steps < 1000)
+
+   /*
+    * Create a list of files in the current order. This works by starting with
+    * the top left position, and adding any files which are at or 'before' that
+    * position. Then we move to the next position along and add files before
+    * that. This proceeds until we have added all files to our list.
+    */
+   resetPos ();
+   QMutableLinkedListIterator<File *> iter(todo);
+   while (todo.count ())
       {
-      for (f = todo.first (); f; f = todo.next ())
-	 {
+      // First add any files which are before the current x and y position
+      iter.toFront ();
+      while (iter.hasNext ())
+         {
+         f = iter.next ();
          if (_pos.y () >= f->pos ().y () && _pos.x () > f->pos ().x ())
-	    {
-	    f->setOrder (order++);
-	    todo.remove ();
-	    }
-	 }
+            {
+            f->setOrder (order++);
+            iter.remove ();
+            }
+         }
 
-      for (f = todo.first (); f; f = todo.next ())
-	 {
+      // Now add any files which are before the current y position
+      iter.toFront ();
+      while (iter.hasNext ())
+         {
+         f = iter.next ();
          if (_pos.y () >= f->pos ().y ())
-	    {
-	    f->setOrder (order++);
-	    todo.remove ();
-	    }
-	 }
+            {
+            f->setOrder (order++);
+            iter.remove ();
+            }
+         }
 
+      // Skip to the next position
       advanceOne ();
-      }
-
-   // add any remaining
-   for (f = todo.first (); f; f = todo.next ())
-      {
-      f->setOrder (order++);
-      todo.remove ();
       }
 
    // we should now have an order for each item
    foreach (f, _files)
-      todo.append (f);
+      sorted.append (f);
 
    /* sort by the given key */
-   todo.setType (type);
-   todo.sort ();
+   sorted.setType (type);
+   sorted.sort ();
 
-   // add any remaining
+   // add them all at the right place
    resetPos ();
-   for (f = todo.first (); f; f = todo.next ())
+   for (int i = 0; i < sorted.size (); i++)
       {
+      f = sorted [i];
       f->setPos (_pos);
       advanceOne ();
       }
