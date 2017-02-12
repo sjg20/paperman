@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 
+#include "err.h"
 #include "qapplication.h"
 
 #include "op.h"
@@ -36,6 +37,7 @@ static QWidget *main_widget;
 
 Operation::Operation (QString name, int count, QWidget *parent)
    {
+   UNUSED (parent);
 //    setMinimumDuration (200);
 //    setFocusPolicy (Qt::NoFocus);
    _maximum = count;
@@ -77,6 +79,8 @@ bool Operation::setProgress (int upto)
 bool Operation::incProgress (int by)
    {
    setProgress (_upto + by);
+
+   return true;
    }
    
 

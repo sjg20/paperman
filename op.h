@@ -48,7 +48,9 @@ public:
 
    /** indicate that progress has moved on by a given number of steps
    
-      \param by      number of steps to increase progress by */
+      \param by      number of steps to increase progress by
+      \return true to continue, false if the user wants to cancel
+   */
    bool incProgress (int by);
 
    /** set the number of steps in the operation */
