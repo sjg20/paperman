@@ -226,7 +226,8 @@ void Desk::addMatches (const QString &dirPath, const QString &match,
          if (fi.fileName () != "." && fi.fileName () != "..")
             addMatches (dirPath + fi.fileName () + "/", match, subdirs, 0);
          }
-      else if (match == QString::null || fi.fileName ().contains (match, false))
+      else if (match == QString::null ||
+               fi.fileName ().contains (match, Qt::CaseInsensitive))
          addFile (fi, dirPath);
       }
    updateRowCount ();
@@ -346,11 +347,11 @@ void Desk::readDesk (bool read_sizes)
 
    // if there is a maxdesk.ini file, rename it to the official name
    fname = _dir + "/maxdesk.ini";
-   oldfile.setName (fname);
+   oldfile.setFileName (fname);
    if (!oldfile.exists ())
       {
       fname = _dir + "/MaxDesk.ini";
-      oldfile.setName (fname);
+      oldfile.setFileName (fname);
       }
    if (oldfile.exists ())
       {
@@ -379,7 +380,7 @@ void Desk::readDesk (bool read_sizes)
          }
 
       // add a new file
-      pos = line.find ('=');
+      pos = line.indexOf ('=');
       if (files && pos != -1)
          {
          QString fname = line.left (pos);
@@ -410,14 +411,14 @@ bool Desk::writeDesk (void)
 
    // remove any old file
    fname = _dir + "/maxdesk.ini";
-   file.setName (fname);
+   file.setFileName (fname);
    if (file.exists ())
       file.remove ();
    fname = _dir + "/MaxDesk.ini";
-   file.setName (fname);
+   file.setFileName (fname);
    if (file.exists ())
       file.remove ();
-   file.setName (_dir + DESK_FNAME);
+   file.setFileName (_dir + DESK_FNAME);
    if (file.exists ())
       file.remove ();
 
@@ -507,9 +508,10 @@ void Desk::addFile (QFileInfo &file, const QString &dir)
 //      return;
 
    // ignore maxdesk.ini and ppthumbs.ptn as these are special files
-   if (file.fileName ().find ("maxdesk.ini", 0, FALSE) != -1
-       || file.fileName ().find ("paperportsave.reg", 0, FALSE) != -1
-       || file.fileName ().find ("ppthumbs.ptn", 0, FALSE) != -1)
+   if (file.fileName ().indexOf ("maxdesk.ini", 0, Qt::CaseInsensitive) != -1
+       || file.fileName ().indexOf ("paperportsave.reg", 0,
+                                    Qt::CaseInsensitive) != -1
+       || file.fileName ().indexOf ("ppthumbs.ptn", 0, Qt::CaseInsensitive) != -1)
       return;
 
    // if not then find a good position for it, and add it
@@ -835,7 +837,7 @@ err_info *Desk::deleteFromDir (QString &src, QString &trashname)
 
    if (!file.remove ())
       return err_make (ERRFN, ERR_could_not_remove_file1,
-                path.latin1 ());
+                path.toLatin1 ().constData ());
    return NULL;
    }
 
@@ -896,7 +898,7 @@ err_info *Desk::addPaperstack (const QString &stack_name, File *&fnew, int &item
    fname = findNextFilename (name);
    if (fname.isNull ())
       return err_make (ERRFN, ERR_no_unique_filename1,
-                stack_name.latin1 ());
+                stack_name.toLatin1 ().constData ());
 //   memtest ("3");
 
    // compress the pages from the stack into a file
