@@ -241,7 +241,7 @@ void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
 //         cinfo.output_width, tile_bytes, line_bytes);
 
       while (cinfo.output_scanline < cinfo.output_height &&
-             cinfo.output_scanline < max_height)
+             cinfo.output_scanline < (unsigned)max_height)
          {
          jpeg_read_scanlines(&cinfo, buffer, 1);
          if (cinfo.output_components == 3 && bpp == 32)
@@ -407,10 +407,10 @@ QString removeExtension (const QString &fname, QString &ext)
 
 void memtest (const char *name)
    {
-//    int *test = new int [5];
+   int *test = new int [5];
 
-//    fprintf (stderr, "test %s: %p\n", name, test);
-//    Q_ASSERT ((unsigned)test < 0xb0000000);
+   fprintf (stderr, "test %s: %p\n", name, test);
+   Q_ASSERT ((unsigned long)test < 0xb0000000);
    }
 
 
