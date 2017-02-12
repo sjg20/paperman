@@ -342,7 +342,6 @@ void Pagedelegate::getPagePart (const QStyleOptionViewItem &option,
       const QModelIndex &index, int start_line, int height, QRect &rect) const
    {
    pmeasure_info measure;
-   enum e_point which;
 
    QPoint offset = QPoint (option.rect.topLeft ());
    measureItem (option, index, measure, &offset);
