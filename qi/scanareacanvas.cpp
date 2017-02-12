@@ -125,11 +125,12 @@ void ScanAreaCanvas::contentsMousePressEvent(QMouseEvent* me)
      	  if((mCursorState==2)||(mCursorState==8)) viewport()->setCursor(Qt::sizeVerCursor);
      	  if((mCursorState==3)||(mCursorState==12)) viewport()->setCursor(Qt::sizeFDiagCursor);
      	  if((mCursorState==6)||(mCursorState==9)) viewport()->setCursor(Qt::sizeBDiagCursor);
-    		if(mCursorState==0)
+            if(mCursorState==0) {
           if(mMode == 0)
       			viewport()->setCursor(Qt::sizeAllCursor);
           else
       			viewport()->setCursor(Qt::arrowCursor);
+            }
         emit signalNewActiveRect(i);
         return;
       }
@@ -218,11 +219,12 @@ void ScanAreaCanvas::contentsMouseMoveEvent(QMouseEvent* me)
    	  if((mCursorState==2)||(mCursorState==8)) viewport()->setCursor(Qt::sizeVerCursor);
    	  if((mCursorState==3)||(mCursorState==12)) viewport()->setCursor(Qt::sizeFDiagCursor);
    	  if((mCursorState==6)||(mCursorState==9)) viewport()->setCursor(Qt::sizeBDiagCursor);
-  		if(mCursorState==0)
+      if(mCursorState==0) {
         if(mMode == 0)
     			viewport()->setCursor(Qt::sizeAllCursor);
         else
     			viewport()->setCursor(Qt::arrowCursor);
+      }
     }
     else
     {
