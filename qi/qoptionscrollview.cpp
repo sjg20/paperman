@@ -14,6 +14,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
 #include "qoptionscrollview.h"
 #include <qsizepolicy.h>
 #include <qwidget.h>
@@ -26,6 +27,8 @@
 QOptionScrollView::QOptionScrollView(QWidget * parent, const char * name,Qt::WFlags f)
                   :QScrollArea(parent)
 {
+  UNUSED (f);
+  setName (name);
 //  setHScrollBarMode(AlwaysOff);
   setHorizontalScrollBarPolicy (Qt::ScrollBarAlwaysOff);
   setVerticalScrollBarPolicy (Qt::ScrollBarAlwaysOn);
