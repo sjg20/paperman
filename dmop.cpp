@@ -515,6 +515,7 @@ err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist
    int upto = 0;
    QStringList fname_list, tmp_list;
 
+   UNUSED (parent);
    Operation op ("Packaging", slist.size (), 0);
 
    // name of first file will be used for the zip name
