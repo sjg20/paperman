@@ -145,6 +145,6 @@ void err_fix_filename (const char *in, char *out);
 
 char *util_bytes_to_user (char *buff, unsigned bytes);
 
-#define UNUSED(c) (c)=(c)
+#define UNUSED(c) (void)(c)
 
 #endif
