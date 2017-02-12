@@ -26,6 +26,7 @@ extern "C"
 
 #include "config.h"
 
+#include "err.h"
 //s #include "previewwidget.h"
 #include "qscanner.h"
 #include "qxmlconfig.h"
@@ -409,9 +410,7 @@ QVector<SANE_Word> QScanner::saneWordArray(int num)
 {
   QVector<SANE_Word> a;
   a.resize(0);
-  SANE_Status status;
-  status = SANE_STATUS_INVAL;
-	if(mOpenOk != true) return a;
+  if(mOpenOk != true) return a;
   const SANE_Option_Descriptor *option_desc;
  	option_desc=do_sane_get_option_descriptor(mDeviceHandle,num);
   if(option_desc)
@@ -423,7 +422,7 @@ QVector<SANE_Word> QScanner::saneWordArray(int num)
     		case SANE_TYPE_INT:
     		case SANE_TYPE_FIXED:
           a.resize(option_desc->size/sizeof(SANE_Word));
-          status = do_sane_control_option(mDeviceHandle,num,
+          (void)do_sane_control_option(mDeviceHandle,num,
                                        SANE_ACTION_GET_VALUE,a.data(),0);
     			break;
     		default:;
@@ -438,8 +437,6 @@ QVector<SANE_Word> QScanner::saneWordList(int num)
   int i;
   QVector<SANE_Word> a;
   a.resize(0);
-  SANE_Status status;
-  status = SANE_STATUS_INVAL;
 	if(mOpenOk != true) return a;
   const SANE_Option_Descriptor *option_desc;
  	option_desc=do_sane_get_option_descriptor(mDeviceHandle,num);
@@ -2830,12 +2827,8 @@ bool QScanner::automaticOption(int num)
 QString QScanner::saneReadOnly(int num)
 {
   QString qs;
-  SANE_Status status;
-  status = SANE_STATUS_INVAL;
 	if(mOpenOk != true) return "";
   const SANE_Option_Descriptor *option_desc;
-  SANE_Char* val;
-  val = 0L;
   qs = "";
 
 	option_desc=do_sane_get_option_descriptor(mDeviceHandle,num);
@@ -3486,13 +3479,12 @@ void QScanner::setDpi (int dpi)
 
 void QScanner::set256 (int opt, int value)
 {
-   int max;
    SANE_Word word;
 
    if (opt != -1)
    {
-      max = getRangeMax (opt);
-      //      word = (int)(((double)exposure * max + 0.5) / 100);
+      //max = getRangeMax (opt);
+      //word = (int)(((double)exposure * max + 0.5) / 100);
       word = value;
       setOption (opt, &word);
    }
@@ -3514,11 +3506,11 @@ bool QScanner::get_range (int opt, int *minp, int *maxp)
 int QScanner::get256 (int opt)
 {
    int val = -1;
-   int max;
+   //int max;
 
    if (opt != -1 && isOptionActive(opt))
       {
-      max = getRangeMax (opt);
+      //max = getRangeMax (opt);
       val = saneWordValue(opt);
       //      val = (int)(((double)val * 100 + 0.5) / max);
       if (getOptionType(opt) == SANE_TYPE_FIXED)
@@ -5257,6 +5249,7 @@ void QScanner::generate_page (int pagenum, bool front, QImage &image, QByteArray
    QVector<QRgb> colours;
    int bpp, scale;
 
+   UNUSED (pagenum);
 //    qDebug () << "generate_page" << pagenum << "front" << front;
    int ppl = _simul_params.pixels_per_line;
    format = QImage::Format_Invalid;
