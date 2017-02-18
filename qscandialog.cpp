@@ -20,8 +20,10 @@
 
 #include <QDebug>
 
+#include "err.h"
+
 #include "images/setup.xpm"
-#include "images/image.xpm"
+//s #include "images/image.xpm"
 #include "images/maxview.xpm"
 #include "images/fileopen.xpm"
 //s #include "fileiosupporter.h"
@@ -4087,6 +4089,7 @@ void QScanDialog::set256 (QSaneOption *opt, int value)
 {
    int max;
 
+   UNUSED (max);
    if (opt)
    {
       max = mpScanner->getRangeMax (opt->saneOptionNumber ());
