@@ -220,10 +220,6 @@ void QScanDialog::slotScan()
 QIN::Status QScanDialog::initDialog()
 {
   if(!mpScanner) return QIN::InitFailed;
-  int groupcount;
-  groupcount =0;
-  bool valid_desc;
-  valid_desc = false;
 
   QString qs;
   QString caption_string;
@@ -331,10 +327,6 @@ QIN::Status QScanDialog::initDialog()
           this,SLOT(slotAutoName(bool)));
   connect(mpDragLineEdit,SIGNAL(textChanged(const QString&)),
           this,SLOT(slotDragFilename(const QString&)));
-	int c;
-  int c2;
-  c  = 0;
-  c2 = 0;
   createOptionWidget();
   createPreviewWidget();
 
@@ -609,18 +601,12 @@ void QScanDialog::slotReloadOptions()
   QReadOnlyOption* qroo;
   SaneIntOption* sint;
   SaneFixedOption* sfix;
-  QWidget* visible_tab;
-  visible_tab = 0;
-  QWidget* stack_widget;
-  visible_tab = 0;
-  stack_widget = 0;
   int cnt;
 //the hide/show counter, to ensure that we only use my "somewhat"
 //flickering recalculation of this widget if necessary
   int hscnt = 0;
   int sane_opt_num = -1;
   bool scan_area_changed = false;
-  int update_option = -1;
 
    static bool in_here = false;
 
@@ -687,7 +673,6 @@ void QScanDialog::slotReloadOptions()
                (mOptionWidgets[cnt]->saneOption() == (void*)mpBryOption))
             {
               scan_area_changed = true;
-              update_option = cnt;
             }
           }
           i_val = (SANE_Int)mpScanner->saneWordValue(sane_opt_num);
@@ -709,7 +694,6 @@ void QScanDialog::slotReloadOptions()
                (mOptionWidgets[cnt]->saneOption() == (void*)mpBryOption))
             {
               scan_area_changed = true;
-              update_option = cnt;
             }
           }
           qsbo->setRange(range_min,range_max,
@@ -1366,9 +1350,9 @@ void QScanDialog::slotShowOptionsWidget()
         if(visible) slotShowPreviewWidget();
       }
     }
+#if 0 //s
     int scanmode;
     scanmode = xmlConfig->intValue("SCAN_MODE");
-#if 0 //s
     if(scanmode == int(QIN::MultiScan))
     {
       if(ew.filenameGenerationChanged() && (mpMultiScanWidget != 0))
@@ -1541,15 +1525,7 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
   SANE_Int           i_val;
   SANE_Fixed         f_val;
   QString            stringval;
-  int                groupcount;
-  groupcount=0;
-  bool        valid_desc;
-  valid_desc = false;
 
-  int c;
-  int c2;
-  c  = 0;
-  c2 = 0;
 //  const char *title = mpScanner->getOptionName(opt_num);
 //  qDebug("create saneoption widget: %i, %s: %d",opt_num, title, mpScanner->isOptionSettable(opt_num));
   //check whether it's a read only option
@@ -1969,37 +1945,29 @@ printf ("separate\n");
 /**  */
 void QScanDialog::slotPreviewSize(QRect rect)
 {
-  int i1;
-  int i2;
-  int i3;
-  int i4;
   SANE_Word tlx1;
   SANE_Word tly1;
   SANE_Word brx1;
   SANE_Word bry1;
-  SANE_Word tlx2;
-  SANE_Word tly2;
-  SANE_Word brx2;
-  SANE_Word bry2;
 
-  i1 = mpTlxOption->saneOptionNumber();
+  //s i1 = mpTlxOption->saneOptionNumber();
   tlx1 = (SANE_Word) rect.left();
-  tlx2 = tlx1;
+  //s tlx2 = tlx1;
   mpTlxOption->setValueExt(tlx1);
 
-  i2 = mpTlyOption->saneOptionNumber();
+  //s i2 = mpTlyOption->saneOptionNumber();
   tly1 = (SANE_Word) rect.top();
-  tly2 = tly1;
+  //s tly2 = tly1;
   mpTlyOption->setValueExt(tly1);
 
-  i3 = mpBrxOption->saneOptionNumber();
+  //i3 = mpBrxOption->saneOptionNumber();
   brx1 = (SANE_Word) rect.right();
-  brx2 = brx1;
+  //s brx2 = brx1;
   mpBrxOption->setValueExt(brx1);
 
-  i4 = mpBryOption->saneOptionNumber();
+  //i4 = mpBryOption->saneOptionNumber();
   bry1 = (SANE_Word) rect.bottom();
-  bry2 = bry1;
+  //s bry2 = bry1;
   mpBryOption->setValueExt(bry1);
 //reset, just to be sure
   mpTlxOption->setValueExt(tlx1);
@@ -2343,7 +2311,7 @@ QIN::Status QScanDialog::status()
 void QScanDialog::slotImageInfo()
 {
   double mbsize;
-  int w,h,xres,yres;
+//  int w,h,xres,yres;
   QString qs;
   qs = mpScanner->imageInfo();
   int warn_size = xmlConfig->intValue("SCAN_SIZE_WARNING",2);
@@ -2358,13 +2326,13 @@ void QScanDialog::slotImageInfo()
   mpLabelImageInfo->setText(qs);
   if(mpMultiScanWidget)
   {
+#if 0 //s
     w = mpScanner->pixelWidth();
     h = mpScanner->pixelHeight();
     if(h <= 0) w = 0;
     xres = mpScanner->xResolutionDpi();
     yres = mpScanner->yResolutionDpi();
     if(yres == 0) yres = xres;
-#if 0 //s
     mpMultiScanWidget->setImageValues(w,h,xres,yres);
 #endif //s
   }
