@@ -807,7 +807,6 @@ void QScannerSetupDlg::loadDeviceSettings()
   bool create_empty=false;
   QString qs;
   Q3ListViewItem* li;
-  Q3ListViewItem* childitem;
 //try to load the settings file
   QDomDocument doc;
   QFile f( xmlConfig->absConfDirPath()+"devicesettings.xml" );
@@ -904,7 +903,7 @@ void QScannerSetupDlg::loadDeviceSettings()
             //Only translated the Last settings entry to avoid confusion
             //if a user specified name matches a translated string
             if(qs == "Last settings") qs = tr(qs);
-            childitem = new Q3ListViewItem(li,qs);
+            new Q3ListViewItem(li,qs);
             if(!li->isExpandable()) li->setExpandable(true);
           }
         }
