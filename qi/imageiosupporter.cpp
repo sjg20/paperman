@@ -15,6 +15,8 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
+
 #include <QImageWriter>
 #include <QImageReader>
 
@@ -377,6 +379,7 @@ bool ImageIOSupporter::saveImage(QString filename,QImage& image,QString iformat,
   QImageWriter iio;
   int quality;
 
+  UNUSED(parent);
   if(image.isNull())
     return false;
   im = image;
