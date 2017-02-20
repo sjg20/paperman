@@ -19,21 +19,20 @@
 #define CHECKLISTITEMEXT_H
 
 #include <qcolor.h>
-#include <q3listview.h>
-//Added by qt3to4:
+#include <QListWidget>
 #include <QPixmap>
 
 /**
   *@author Michael Herder
   */
 
-class CheckListItemExt : public Q3CheckListItem
+class CheckListItemExt : public QListWidgetItem
 {
 public:
-  CheckListItemExt(Q3ListView* parent,const QString& text,Type tt=Controller);
-  CheckListItemExt(Q3ListView* parent,const QString& text,const QPixmap& p);
-  CheckListItemExt(Q3ListViewItem* parent,const QString& text,Type tt=Controller);
-  CheckListItemExt(Q3ListViewItem* parent,const QString& text,const QPixmap & p);
+  CheckListItemExt(QListWidget* parent,const QString& text);
+  CheckListItemExt(QListWidget* parent,const QString& text,const QPixmap& p);
+  CheckListItemExt(QListWidgetItem* parent,const QString& text);
+  CheckListItemExt(QListWidgetItem* parent,const QString& text,const QPixmap & p);
 	~CheckListItemExt();
   /** No descriptions */
   QRgb bgColor();

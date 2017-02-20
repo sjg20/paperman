@@ -21,32 +21,39 @@
 #include <qpen.h>
 #include <qpixmap.h>
 
-CheckListItemExt::CheckListItemExt(Q3ListView* parent,const QString& text,Type tt)
-                :Q3CheckListItem(parent,text,tt)
+CheckListItemExt::CheckListItemExt(QListWidget* parent,const QString& text)
+                :QListWidgetItem(text,parent)
 {
   mBgColor = qRgb(0,0,0);
   mFgColor = qRgb(255,255,255);
   mNumber = 0;
   updatePixmap();
 }
-CheckListItemExt::CheckListItemExt(Q3ListView* parent,const QString& text,const QPixmap& p)
-                :Q3CheckListItem(parent,text,p)
-{
-  mBgColor = qRgb(0,0,0);
-  mFgColor = qRgb(255,255,255);
-  mNumber = 0;
-  updatePixmap();}
-CheckListItemExt::CheckListItemExt(Q3ListViewItem* parent,const QString& text,Type tt)
-                :Q3CheckListItem(parent,text,tt)
+CheckListItemExt::CheckListItemExt(QListWidget* parent,const QString& text,
+                                   const QPixmap& p)
+                :QListWidgetItem(QIcon(p), text,parent)
 {
   mBgColor = qRgb(0,0,0);
   mFgColor = qRgb(255,255,255);
   mNumber = 0;
   updatePixmap();
 }
-CheckListItemExt::CheckListItemExt(Q3ListViewItem* parent,const QString& text,const QPixmap& p)
-                :Q3CheckListItem(parent,text,p)
+
+CheckListItemExt::CheckListItemExt(QListWidgetItem*parent,const QString& text)
+                :QListWidgetItem(*parent)
 {
+  setText(text);
+  mBgColor = qRgb(0,0,0);
+  mFgColor = qRgb(255,255,255);
+  mNumber = 0;
+  updatePixmap();
+}
+CheckListItemExt::CheckListItemExt(QListWidgetItem* parent,const QString& text,
+                                   const QPixmap& p)
+                :QListWidgetItem(*parent)
+{
+  setText(text);
+  setIcon(QIcon(p));
   mBgColor = qRgb(0,0,0);
   mFgColor = qRgb(255,255,255);
   mNumber = 0;
@@ -88,7 +95,7 @@ void CheckListItemExt::updatePixmap()
   p.setBrush(QColor(mFgColor));
   p.drawRect(3,3,8,8);
   p.end();
-  setPixmap(0,pix);
+  setIcon(QIcon(pix));
 }
 /** No descriptions */
 void CheckListItemExt::setNumber(int i)
