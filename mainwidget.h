@@ -23,10 +23,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __mainwidget_h
 #define __mainwidget_h
 
-
 class Q3TabDialog;
 class QTimer;
-class Q3WidgetStack;
 class QPrinter;
 class QPrintDialog;
 class QScanDialog;
@@ -42,19 +40,19 @@ class PPage;
 class Pagewidget;
 class Paperscan;
 class Paperstack;
+class PreviewWidget;
 class Printopt;
 class Pscan;
-class PreviewWidget;
 
 typedef struct file_info file_info;
 struct err_info;
 struct print_info;
 
 #include <QModelIndex>
+#include <QStackedWidget>
 
 #include "desk.h"
 #include "qwidget.h"
-#include "q3widgetstack.h"
 #include "options.h"
 
 
@@ -64,7 +62,7 @@ extern "C"
 }
 
 
-class Mainwidget : public Q3WidgetStack
+class Mainwidget : public QStackedWidget
    {
    Q_OBJECT
 public:

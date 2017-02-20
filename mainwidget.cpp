@@ -36,19 +36,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qdevicesettings.h"
 #include "qdir.h"
 #include "qmessagebox.h"
-#include "q3paintdevicemetrics.h"
 #include "qpainter.h"
 #include "qprinter.h"
 #include "qsanestatusmessage.h"
 #include "qscandialog.h"
 #include "qscanner.h"
 #include "qscannersetupdlg.h"
-#include "q3simplerichtext.h"
-#include "q3stylesheet.h"
-#include "q3tabdialog.h"
-#include "q3textedit.h"
 #include "qtimer.h"
-#include "q3widgetstack.h"
 #include "qxmlconfig.h"
 #include "previewwidget.h"
 
@@ -80,19 +74,20 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 Mainwidget::Mainwidget (QWidget *parent, const char *name)
-      : Q3WidgetStack (parent, name)
+      : QStackedWidget (parent)
    {
+   setObjectName(name);
    if (!xmlConfig)
       new QXmlConfig();
    xmlConfig->setVersion(VERSION);
-   xmlConfig->setFilePath(QDir::homeDirPath()+
+   xmlConfig->setFilePath(QDir::homePath()+
                       "/.maxview/maxview_config.xml");
 
    QDir dir;
 
    qRegisterMetaType<SANE_Status>("SANE_Status");
 
-   dir.mkdir (QDir::homeDirPath()+ "/.maxview");
+   dir.mkdir (QDir::homePath()+ "/.maxview");
 
    xmlConfig->setCreator("MaxView");
 
@@ -199,7 +194,7 @@ void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
          break;
       }
 #endif
-   raiseWidget (1);
+   setCurrentIndex(1);
 //    _page->showPage (index.model (), index, delay_smoothing);
    _page->showPages (index.model (), index, 0, -1, 2);
    }
@@ -207,13 +202,13 @@ void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
 
 void Mainwidget::showDesktop ()
    {
-   raiseWidget (0);
+   setCurrentIndex(0);
    }
 
 
 void Mainwidget::pageLeft (void)
    {
-   if (visibleWidget () == _desktop)
+   if (currentWidget() == _desktop)
       _desktop->pageLeft ();
    else
       _page->pageLeft ();
@@ -222,7 +217,7 @@ void Mainwidget::pageLeft (void)
 
 void Mainwidget::pageRight (void)
    {
-   if (visibleWidget () == _desktop)
+   if (currentWidget () == _desktop)
       _desktop->pageRight ();
    else
       _page->pageRight ();
@@ -234,7 +229,7 @@ void Mainwidget::stackLeft (void)
    QModelIndex index;
 
    _desktop->stackLeft ();
-   if (visibleWidget () == _page && _desktop->getCurrentFile (index))
+   if (currentWidget () == _page && _desktop->getCurrentFile (index))
       showPage (index, true);
    }
 
@@ -244,7 +239,7 @@ void Mainwidget::stackRight (void)
    QModelIndex index;
 
    _desktop->stackRight ();
-   if (visibleWidget () == _page && _desktop->getCurrentFile (index))
+   if (currentWidget () == _page && _desktop->getCurrentFile (index))
       showPage (index, true);
    }
 
@@ -483,7 +478,7 @@ void Mainwidget::progress (const QString &str)
    {
 //    qDebug () << "progress" << str;
    if (_pscan)
-      _pscan->progress (str.latin1 ());
+      _pscan->progress (str.toLatin1 ().constData());
    else
       emit newContents (str);
    }
@@ -502,7 +497,7 @@ void Mainwidget::slotStackPageStarting (int total, const PPage *page)
 void Mainwidget::info (const QString &str)
    {
    if (_pscan)
-      _pscan->info (str.latin1 ());
+      _pscan->info (str.toLatin1 ().constData());
    }
 
 
@@ -795,9 +790,9 @@ err_info *Mainwidget::printPage (int seq, QModelIndex &ind,
       _painter->save ();
       double xscale = (double)_body.width () / size.width ();
       double yscale = (double)_body.height () / size.height ();
-      double scale = QMIN (xscale, yscale);
+      double scale = qMin (xscale, yscale);
 
-      scale = QMIN (scale, _opt->_expandFit ? 8 : 1.0);
+      scale = qMin (scale, _opt->_expandFit ? 8 : 1.0);
 
       _painter->scale (scale, scale);
       //               printf ("scale %d x %d: %1.2lf,%1.2lf: %1.2lf\n", size.x (), size.y (),
@@ -947,7 +942,7 @@ void Mainwidget::print (void)
    QModelIndex ind;
 
    // if we're on page view, just print the current page of the current stack
-   if (visibleWidget () != _desktop)
+   if (currentWidget () != _desktop)
       {
       if (_page->getCurrentIndex (ind, true))
          {
@@ -995,7 +990,7 @@ void Mainwidget::print (void)
    _dialog = &dialog;
 
    QPushButton *save = new QPushButton ("Save");
-   dialog.addButton (save);
+   dialog.layout()->addWidget(save);
    connect (save, SIGNAL (clicked ()), this, SLOT (savePrintSettings ()));
 
 #ifdef OPTION_TABS
@@ -1031,7 +1026,7 @@ void Mainwidget::print (void)
       _watchButtons = false;
       qApp->processEvents ();
 
-      Q3PaintDeviceMetrics metrics (painter.device());
+      QPaintDevice *device = painter.device();
 //       int dpiy = metrics.logicalDpiY();
       int margin = 0;  //(int) ( (0/2.54)*dpiy ); // 2 cm margins
 //       QRect view( body );
@@ -1043,7 +1038,8 @@ void Mainwidget::print (void)
 
       _from_page = _printer->fromPage () - 1;
       _to_page = _printer->toPage () - 1;
-      _body = QRect ( margin, margin, metrics.width() - 2*margin, metrics.height() - 2*margin );
+      _body = QRect ( margin, margin, device->width() - 2*margin,
+                      device->height() - 2*margin );
       _painter = &painter;
 
       if (_opt->_shrinkFit)
@@ -1162,7 +1158,7 @@ void Mainwidget::setSmoothing (bool smooth)
    {
    _smooth = smooth;
    xmlConfig->setBoolValue ("DISPLAY_SMOOTH", smooth);
-   if (visibleWidget () == _page)
+   if (currentWidget() == _page)
       {
       _page->setSmoothing (_smooth);
       return _page->redisplay ();
@@ -1172,21 +1168,21 @@ void Mainwidget::setSmoothing (bool smooth)
 
 void Mainwidget::matchUpdate (QString match, bool subdirs)
    {
-   if (visibleWidget () == _desktop)
+   if (currentWidget () == _desktop)
       _desktop->matchUpdate (match, subdirs);
    }
 
 
 void Mainwidget::resetSearch (void)
    {
-   if (visibleWidget () == _desktop)
+   if (currentWidget () == _desktop)
       _desktop->matchUpdate ("", false, true);
    }
 
 
 void Mainwidget::swapDesktop ()
    {
-   if (visibleWidget () == _desktop)
+   if (currentWidget () == _desktop)
       {
       QModelIndex index;
 
