@@ -23,12 +23,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __pagewidget_h
 #define __pagewidget_h
 
-//Added by qt3to4:
-// #include <QPixmap>
-
-
-
-//#include <Q3ScrollView>
 #include <QAbstractScrollArea>
 #include <QModelIndex>
 #include <QScrollArea>

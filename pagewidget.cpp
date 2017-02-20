@@ -32,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QGraphicsItem>
 #include <QMessageBox>
 #include <QPaintEvent>
+#include <QScrollBar>
 #include <QSettings>
 #include <QSplitter>
 #include <QTimer>
@@ -40,7 +41,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qlayout.h"
 #include "qpainter.h"
 #include "qpixmap.h"
-#include "q3scrollview.h"
 #include "qwidget.h"
 
 #include "err.h"
@@ -332,8 +332,8 @@ void Pagewidget::setMode (e_mode mode)
 
       // set the pages window scale
       int scale = qs.value (str + "pages_scale", 24).toInt ();
-      scale = QMAX (scale, 1);
-      scale = QMIN (scale, 224);
+      scale = qMax (scale, 1);
+      scale = qMin (scale, 224);
 
       slotNewScale (scale);
       }
@@ -537,14 +537,15 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
             if (!_too_big && _pixmap.size () != finalSize)
                {
 //               printf ("pixmap resize %d, %d\n", pixmap_size.width (), pixmap_size.height ());
-               _pixmap.resize (finalSize);
+               _pixmap = QPixmap(finalSize);
                _pixmap.fill ();
                }
 
             if (!_too_big && !_image.isNull ())
                {
                QImage small = _smoothing || force_smooth
-                  ? _image.smoothScale (widgetSize)
+                  ? _image.scaled(widgetSize, Qt::IgnoreAspectRatio,
+                                  Qt::SmoothTransformation)
                   : _image.scaledToWidth (widgetSize.width ());
 
                // create a pixmap of the right scale
@@ -979,7 +980,7 @@ void Pagewidget::commit (void)
    _pagemodel->updateAnnot (File::Annot_author, _pageattr->author->text ());
    _pagemodel->updateAnnot (File::Annot_title, _pageattr->title->text ());
    _pagemodel->updateAnnot (File::Annot_keywords, _pageattr->keywords->text ());
-   _pagemodel->updateAnnot (File::Annot_notes, _pageattr->notes->text ());
+   _pagemodel->updateAnnot (File::Annot_notes, _pageattr->notes->toPlainText());
    err_complain (_pagemodel->commit ());
    updatePagetools ();
    }
