@@ -50,6 +50,7 @@ Pagemodel::Pagemodel (QObject *parent)
 
    // create the pages
    _updateTimer = new QTimer (this);
+   _updateTimer->setSingleShot(true);
    connect (_updateTimer, SIGNAL (timeout()), this, SLOT (nextUpdate ()));
    }
 
@@ -322,7 +323,7 @@ void Pagemodel::getPixmap (const QModelIndex &ind, QSize &size, QPixmap &pixmap,
 
    // if this is the image being scanned, use the scan image supplied by Desktopmodel
    if (pi.scanning ())
-      pixmap = QPixmap (_scan_image);
+      pixmap = QPixmap::fromImage(_scan_image);
    else if (_stackindex.isValid ())
       _contents->getScaledImage (_stackindex, _start + ind.row (), size, pixmap, blank);
    size = _pagesize;
@@ -338,7 +339,7 @@ void Pagemodel::scheduleRescale (void)
       }
 
    // hold off rescaling for a while in case the user wants to do some more rescaling
-   _updateTimer->start (500, true);
+   _updateTimer->start (500);
    }
 
 
@@ -364,7 +365,7 @@ void Pagemodel::nextUpdate (void)
          {
          QModelIndex ind = index (pi->itemnum (), 0, QModelIndex ());
          emit dataChanged (ind, ind);
-         _updateTimer->start (0, true);
+         _updateTimer->start (0);
          break;
          }
       if (_update_upto == start)
@@ -711,7 +712,7 @@ bool Pageinfo::updatePixmap (void)
 
 void Pageinfo::updateScanImage (const QImage &image)
    {
-   _pixmap = QPixmap (image);
+   _pixmap = QPixmap::fromImage (image);
    }
 
 
