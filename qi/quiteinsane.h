@@ -17,6 +17,7 @@
 #ifndef QUITEINSANE_H
 #define QUITEINSANE_H
 
+#include <q3valuelist.h>
 #include "resource.h"
 
 #include "imagebuffer.h"

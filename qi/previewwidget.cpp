@@ -14,10 +14,11 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QListWidget>
+#include <QStackedWidget>
 #include <QTextStream>
 
 #include "err.h"
-#include "checklistitemext.h"
 #include "imagebuffer.h"
 #include "imagedetection.h"
 #include "imageiosupporter.h"
@@ -27,8 +28,6 @@
 #include "qscandialog.h"
 #include "quiteinsane.h"
 #include "qxmlconfig.h"
-//Added by qt3to4:
-#include <Q3GridLayout>
 #include <QResizeEvent>
 #include <QShowEvent>
 #include "ruler.h"
@@ -45,47 +44,39 @@
 #include "images/zoom_undo.xpm"
 #include "images/zoom_redo.xpm"
 #include "images/zoom_off.xpm"
+#include "qi/checklistitemext.h"
+#include "qlistwidgetitemiterator.h"
 
-#include <q3groupbox.h>
 #include <qapplication.h>
 #include <qcolor.h>
 #include <qcolordialog.h>
 #include <qcombobox.h>
 #include <qdom.h>
 #include <qfile.h>
-#include <q3hbox.h>
 #include <qlabel.h>
 #include <qlayout.h>
 #include <qlineedit.h>
-#include <q3listview.h>
 #include <qmessagebox.h>
 #include <qpainter.h>
-#include <q3picture.h>
 #include <qpixmap.h>
 #include <qpoint.h>
-#include <q3popupmenu.h>
 #include <qpushbutton.h>
 #include <qrect.h>
 #include <qsizepolicy.h>
 #include <qstring.h>
-#include <q3textstream.h>
 #include <qtoolbutton.h>
 #include <qtooltip.h>
-#include <q3valuelist.h>
-#include <q3whatsthis.h>
-#include <q3widgetstack.h>
 
 #include <math.h>
 #include <unistd.h>
 
 PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WFlags f)
-              :QWidget(parent,name,f)
+              :QWidget(parent,f)
 {
-  setCaption(tr("MaxView - Preview"));
+  setObjectName(name);
+  setWindowTitle(tr("MaxView - Preview"));
   mImageVectorIndex = -1;
   mTemplateVectorIndex = -1;
-  mImageVector.setAutoDelete(true);
-//  mTemplateVector.setAutoDelete(true);
   mpCurrentItem = 0;
   mMinRangeX = -1.0;
   mMaxRangeX = -1.0;
@@ -139,13 +130,14 @@ PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WFlags f)
   mPreDefs = predefs;
 
   initWidget();
-  createWhatsThisHelp();
   loadTemplates();
 }
 
 PreviewWidget::~PreviewWidget()
 {
   mImageVector.clear();
+  while (!mImageVector.isEmpty())
+      delete mImageVector.last();
   mTemplateVector.clear();
 }
 
@@ -153,32 +145,37 @@ PreviewWidget::~PreviewWidget()
 void PreviewWidget::initWidget()
 {
 //add a grid layout to this widget
-  mpMainLayout = new Q3GridLayout(this,5,2);
+  mpMainLayout = new QGridLayout(this);
   mpMainLayout->setSpacing(3);
 //create a widget with a layout that holds size options
-  mpSizeHBox = new Q3HBox(this);
-  mpScanSizeLabel = new QLabel(tr("Scan size"),mpSizeHBox);
-  mpComboStack = new Q3WidgetStack(mpSizeHBox);
+  mpSizeHBox = new QHBoxLayout(this);
+  mpScanSizeLabel = new QLabel(tr("Scan size"));
+  mpSizeHBox->addWidget(mpScanSizeLabel);
+  mpComboStack = new QStackedWidget();
+  mpSizeHBox->addWidget(mpComboStack);
   mpScanSizeCombo = new QComboBox(false,mpComboStack,"");
-
-  Q3HBox* sthbox = new Q3HBox(mpComboStack);
+  QHBoxLayout* sthbox = new QHBoxLayout(mpComboStack);
   sthbox->setSpacing(4);
 
-  mpAddButton = new QToolButton(sthbox);
+  mpAddButton = new QToolButton();
+  sthbox->addWidget(mpAddButton);
   mpAddButton->setPixmap(QPixmap((const char **)add_xpm));
 
-  mpSubButton = new QToolButton(sthbox);
+  mpSubButton = new QToolButton();
+  sthbox->addWidget(mpSubButton);
   mpSubButton->setPixmap(QPixmap((const char **)sub_xpm));
 
-  mpDelTemplatesButton = new QToolButton(sthbox);
+  mpDelTemplatesButton = new QToolButton();
+  sthbox->addWidget(mpDelTemplatesButton);
   mpDelTemplatesButton->setPixmap(QPixmap((const char **)delete_bookmarks_xpm));
 
-  mpScanTemplateCombo = new QComboBox(false,sthbox,"");
+  mpScanTemplateCombo = new QComboBox();
+  sthbox->addWidget(mpScanTemplateCombo);
   mpScanTemplateCombo->insertItem(tr("None"));
-  mpScanTemplateCombo->setCurrentItem(0);
-  mpComboStack->addWidget(mpScanSizeCombo,0);
-  mpComboStack->addWidget(sthbox,1);
-  mpComboStack->raiseWidget(0);
+  mpScanTemplateCombo->setCurrentIndex(0);
+  mpComboStack->addWidget(mpScanSizeCombo);
+  sthbox->addWidget(mpComboStack);
+  mpComboStack->setCurrentIndex(0);
   sthbox->setStretchFactor(mpScanTemplateCombo,1);
 
   connect(mpScanSizeCombo,SIGNAL(activated(int)),
@@ -188,29 +185,37 @@ void PreviewWidget::initWidget()
   mpSizeHBox->setStretchFactor(mpScanSizeLabel,1);
   mpSizeHBox->setStretchFactor(mpComboStack,1);
 
-  mpMainLayout->addMultiCellWidget(mpSizeHBox,0,0,0,1);
+  mpMainLayout->addLayout(mpSizeHBox,0,0,1,2);
 //toolbuttons
-  mpToolHBox = new Q3HBox(this);
-  mpZoomHBox = new Q3HBox(mpToolHBox);
-  mpZoomButton = new QToolButton(mpZoomHBox);
+  mpToolHBox = new QHBoxLayout(this);
+  mpZoomHBox = new QHBoxLayout(mpToolHBox);
+  mpZoomButton = new QToolButton();
+  mpZoomHBox->addWidget(mpZoomButton);
   mpZoomButton->setPixmap(QPixmap((const char **)zoom_xpm));
-  mpZoomUndoButton = new QToolButton(mpZoomHBox);
+  mpZoomUndoButton = new QToolButton();
+  mpZoomHBox->addWidget(mpZoomUndoButton);
   mpZoomUndoButton->setPixmap(QPixmap((const char **)zoom_undo_xpm));
-  mpZoomRedoButton = new QToolButton(mpZoomHBox);
+  mpZoomRedoButton = new QToolButton();
+  mpZoomHBox->addWidget(mpZoomRedoButton);
   mpZoomRedoButton->setPixmap(QPixmap((const char **)zoom_redo_xpm));
-  mpZoomOffButton = new QToolButton(mpZoomHBox);
+  mpZoomOffButton = new QToolButton();
+  mpZoomHBox->addWidget(mpZoomOffButton);
   mpZoomOffButton->setPixmap(QPixmap((const char **)zoom_off_xpm));
-  QWidget* dummy = new QWidget(mpToolHBox);
-  mpAutoSelectionButton = new QToolButton(mpToolHBox);
+  QWidget* dummy = new QWidget();
+  mpToolHBox->addWidget(dummy);
+  mpAutoSelectionButton = new QToolButton();
+  mpToolHBox->addWidget(mpAutoSelectionButton);
   mpAutoSelectionButton->setPixmap(QPixmap((const char **)autoselection_xpm));
-  mpAutoSetupButton = new QToolButton(mpToolHBox);
+  mpAutoSetupButton = new QToolButton();
+  mpToolHBox->addWidget(mpAutoSetupButton);
   mpAutoSetupButton->setPixmap(QPixmap((const char **)autoselection_setup_xpm));
-  mpMultiSelectionButton = new QToolButton(mpToolHBox);
+  mpMultiSelectionButton = new QToolButton();
+  mpToolHBox->addWidget(mpMultiSelectionButton);
   mpMultiSelectionButton->setPixmap(QPixmap((const char **)multiselection_xpm));
   mpMultiSelectionButton->setToggleButton(true);
   mpToolHBox->setStretchFactor(dummy,1);
   mpToolHBox->setSpacing(3);
-  mpMainLayout->addMultiCellWidget(mpToolHBox,1,1,0,1);
+  mpMainLayout->addLayout(mpToolHBox,1,0,1,2);
   connect(mpAutoSelectionButton,SIGNAL(clicked()),
           this,SLOT(slotAutoSelection()));
   connect(mpAutoSetupButton,SIGNAL(clicked()),
@@ -235,7 +240,7 @@ void PreviewWidget::initWidget()
 //scan area and rulers
   //metric label
   dummy = new QWidget(this);
-  Q3GridLayout* sublayout = new Q3GridLayout(dummy,2,2);
+  QGridLayout* sublayout = new QGridLayout(dummy,2,2);
   sublayout->setColStretch(1,1);
   sublayout->setRowStretch(1,1);
   mpMetricLabel = new QLabel("mm",dummy);
@@ -245,12 +250,12 @@ void PreviewWidget::initWidget()
   mpHRuler->setMinimumHeight(30);
   //Widgetstack for the scanarea canvas and a widget, which is used to
   //continously display the progress during a preview scan
-  mpPreviewStack = new Q3WidgetStack(dummy);
+  mpPreviewStack = new QStackedWidget(dummy);
   mpScanAreaWidget=new ScanAreaCanvas(mpPreviewStack);
   mpUpdateWidget=new PreviewUpdateWidget(mpPreviewStack);
-  mpPreviewStack->addWidget(mpScanAreaWidget,0);
-  mpPreviewStack->addWidget(mpUpdateWidget,1);
-  mpPreviewStack->raiseWidget(0);
+  mpPreviewStack->addWidget(mpScanAreaWidget);
+  mpPreviewStack->addWidget(mpUpdateWidget);
+  mpPreviewStack->setCurrentIndex(0);
   //vertical ruler
   mpVRuler = new Ruler(dummy,"",Qt::Vertical);
   mpVRuler->setMinimumWidth(30);
@@ -263,11 +268,11 @@ void PreviewWidget::initWidget()
   mpMainLayout->addWidget(dummy,2,0);
   connect(mpScanAreaWidget,SIGNAL(signalNewActiveRect(int)),
           this,SLOT(slotNewActiveRect(int)));
-//listview
-  mpListView = new Q3ListView(this);
-  mpListView->addColumn("");
-  mpListView->addColumn(tr("Type"));
-  mpListView->setAllColumnsShowFocus(true);
+//listview - actually we should use QTableView as there are two columns
+  mpListView = new QListWidget(this);
+//p  mpListView->addColumn("");
+//p  mpListView->addColumn(tr("Type"));
+//p  mpListView->setAllColumnsShowFocus(true);
   mpMainLayout->addWidget(mpListView,2,1);
 //load/define rect colors
   unsigned int fg_colors [20] = {16777215,16777215,16776960,16761024,49344,
@@ -288,41 +293,44 @@ void PreviewWidget::initWidget()
   mBgColorList = xmlConfig->uintValueList("PREVIEW_BG_COLOR",bg_list_def);
   for(int i=0;i<20;i++)
   {
-    CheckListItemExt* ci = new CheckListItemExt(mpListView,"",CheckListItemExt::CheckBox);
+    CheckListItemExt* ci = new CheckListItemExt(mpListView,"");
     ci->setBgColor(mBgColorList[19-i]);
     ci->setFgColor(mFgColorList[19-i]);
     mpScanAreaWidget->setRectFgColor(i,mFgColorList[i]);
     mpScanAreaWidget->setRectBgColor(i,mBgColorList[i]);
     if(i == 19)
     {
-      ci->setOn(true);
-      mpListView->setSelected(ci,true);
+      ci->setCheckState(Qt::Checked);
+      ci->setSelected(ci);
     }
-    ci->setText(1,tr("Image"));
+    ci->setText(/*1,*/ tr("Image"));
     ci->setNumber(19 - i);
   }
-  connect(mpListView,SIGNAL(rightButtonClicked(Q3ListViewItem*,const QPoint&,int)),
-          this,SLOT(slotColorPopup(Q3ListViewItem*,const QPoint&,int)));
-  connect(mpListView,SIGNAL(clicked(Q3ListViewItem*,const QPoint&,int)),
-          this,SLOT(slotListItem(Q3ListViewItem*,const QPoint&,int)));
+  connect(mpListView,SIGNAL(rightButtonClicked(QListWidgetItem*,const QPoint&,int)),
+          this,SLOT(slotColorPopup(QListWidgetItem*,const QPoint&,int)));
+  connect(mpListView,SIGNAL(clicked(QListWidgetItem*,const QPoint&,int)),
+          this,SLOT(slotListItem(QListWidgetItem*,const QPoint&,int)));
   mpListView->hide();
 //buttons
-  Q3HBox* qhb = new Q3HBox(this);
-//s  mpPreviewButton = new QPushButton(tr("Sca&n preview"),qhb);
-  dummy = new QWidget(qhb);
+  QHBoxLayout* qhb = new QHBoxLayout(this);
+  mpPreviewButton = new QPushButton(tr("Sca&n preview"));
+  qhb->addWidget(mpPreviewButton);
+  dummy = new QWidget();
+  qhb->addWidget(dummy);
   qhb->setStretchFactor(dummy,1);
   qhb->setSpacing(5);
-  mpButtonStack = new Q3WidgetStack(qhb);
-  mpCloseButton = new QPushButton(tr("&Close"),mpButtonStack);
+  mpButtonStack = new QStackedWidget();
+  qhb->addWidget(mpButtonStack);
+  mpCloseButton = new QPushButton(tr("&Close"));
   mpCancelButton = new QPushButton(tr("&Cancel"),mpButtonStack);
-  mpButtonStack->addWidget(mpCloseButton,0);
-  mpButtonStack->addWidget(mpCancelButton,1);
-  mpButtonStack->raiseWidget(0);
+  mpButtonStack->addWidget(mpCloseButton);
+  mpButtonStack->addWidget(mpCancelButton);
+  mpButtonStack->setCurrentIndex(0);
   if(mpCloseButton->sizeHint().width() < mpCancelButton->sizeHint().width())
     mpButtonStack->setMinimumWidth(mpCancelButton->sizeHint().width());
   else
     mpButtonStack->setMinimumWidth(mpCloseButton->sizeHint().width());
-  mpMainLayout->addMultiCellWidget(qhb,4,4,0,1);
+  mpMainLayout->addLayout(qhb,4,0,1,2);
 //connect signal
   connect(mpCloseButton,SIGNAL(clicked()),this,SIGNAL(signalHidePreview()));
   connect(mpCancelButton,SIGNAL(clicked()),this,SLOT(slotCancel()));
@@ -355,68 +363,30 @@ void PreviewWidget::initWidget()
   }
   resize(250,300);
 }
-/**  */
-void PreviewWidget::createWhatsThisHelp()
-{
-//auto-selection button
-  Q3WhatsThis::add(mpAutoSelectionButton,tr("Click this button to start the "
-                               "automatic image selection."));
-//auto-selection setup button
-  Q3WhatsThis::add(mpAutoSetupButton,tr("Click this button to adjust the parameters "
-                               "for the automatic image selection."));
-//scan size combo
-  Q3WhatsThis::add(mpScanSizeCombo,tr("Select a scan size."));
-//zoom button
-  Q3WhatsThis::add(mpZoomButton,tr("Zoom in to the size of the selection rectangle."));
-//zoom off button
-  Q3WhatsThis::add(mpZoomOffButton,tr("Turn off the zoomfunction. The image buffer is not "
-                                  "deleted."));
-//zoom undo button
-  Q3WhatsThis::add(mpZoomUndoButton,tr("Go back to previous zoom-level."));
-//zoom redo button
-  Q3WhatsThis::add(mpZoomRedoButton,tr("Go forward to next zoom-level."));
-//multi selection button
-  Q3WhatsThis::add(mpMultiSelectionButton,tr("Switch to multi-selection mode, which allows you to "
-                              "select up to 20 scan areas and scan them in a single pass."));
-//multi selection listview
-  Q3WhatsThis::add(mpListView,tr("You can hide/show selection rectangles by "
-                              "enabling/disabling the checkboxes. Clicking on an item with "
-                              "the right mouse button opens a menu, that you can use to "
-                              "change the back- or foreground color of a selection rectangle."));
-//add button
-  Q3WhatsThis::add(mpAddButton,tr("Click this button to add a template. "
-                               "You will be prompted for a name."));
-  QToolTip::add(mpAddButton,tr("Add template"));
-//del button
-  Q3WhatsThis::add(mpSubButton,tr("Click this button to delete the selected template. "));
-  QToolTip::add(mpSubButton,tr("Delete template"));
-//del all button
-  Q3WhatsThis::add(mpDelTemplatesButton,tr("Click this button to delete all templates. "));
-  QToolTip::add(mpDelTemplatesButton,tr("Delete all templates"));
-}
+
 /**  */
 void PreviewWidget::setMetrics(QIN::MetricSystem ms,SANE_Unit unit)
 {
   mSaneUnit = unit;
   if(unit == SANE_UNIT_PIXEL)
   {
-    mpSizeHBox->hide();
-    mpToolHBox->show();
+//p    mpSizeHBox->hide();
+//p    mpToolHBox->show();
     mpScanAreaWidget->enableSelection(true);
   }
   else if(unit == SANE_UNIT_MM)
   {
-    mpSizeHBox->show();
-    mpToolHBox->show();
+//p    mpSizeHBox->show();
+//p    mpToolHBox->show();
   	slotChangeMetricSystem(ms);
     createPredefinedSizes();
     mpScanAreaWidget->enableSelection(true);
   }
   else
   {
-    mpSizeHBox->hide();
-    mpToolHBox->hide();
-    mpMultiSelectionButton->setOn(false);
+//p    mpSizeHBox->hide();
+//p    mpToolHBox->hide();
+    mpMultiSelectionButton->setChecked(false);
     slotZoomOff();
     mpScanAreaWidget->enableSelection(false);
   }
@@ -454,11 +424,11 @@ void PreviewWidget::slotSizeComboChanged(int index)
   emit signalPredefinedSize(sca);
 }
 
-const char *PreviewWidget::getSizeName (unsigned id)
+QString PreviewWidget::getSizeName (unsigned id)
 {
   return (int)id < mSizeArray.size ()
-    ? mSizeArray[id]->getName ().latin1 ()
-    : NULL;
+    ? mSizeArray[id]->getName ()
+    : QString::null;
 }
 
 
@@ -473,7 +443,7 @@ ScanArea *PreviewWidget::getSize (unsigned id)
 void PreviewWidget::setSize (unsigned id)
 {
 //  printf ("setSize: id = %d\n", id);
-  mpScanSizeCombo->setCurrentItem(id);
+  mpScanSizeCombo->setCurrentIndex(id);
   emit slotSizeComboChanged (id);
 }
 
@@ -483,13 +453,13 @@ void PreviewWidget::slotUserSize()
 {
   if(!mpListView->isVisible())
   {
-    if((mpScanSizeCombo->currentItem() != 1) &&
+    if((mpScanSizeCombo->currentIndex() != 1) &&
        (mpScanSizeCombo->count() > 0))
-      mpScanSizeCombo->setCurrentItem(1);
+      mpScanSizeCombo->setCurrentIndex(1);
   }
   else
   {
-    mpScanTemplateCombo->setCurrentItem(0);
+    mpScanTemplateCombo->setCurrentIndex(0);
   }
 }
 /**  */
@@ -506,7 +476,7 @@ void PreviewWidget::createPredefinedSizes()
   // calculate sizes
   slotRangeChange ();
 
-  mpScanSizeCombo->setCurrentItem(1);
+  mpScanSizeCombo->setCurrentIndex(1);
   //load templates
 }
 
@@ -529,7 +499,7 @@ void PreviewWidget::slotRangeChange()
 
    for(a=0;a<SIZES;a++)
    {
-//      printf ("w=%1.1lf  h=%1.1lf: %s\n", mPreDefs[a].width, mPreDefs[a].height, mPreDefs[a].name.latin1 ());
+//      printf ("w=%1.1lf  h=%1.1lf: %s\n", mPreDefs[a].width, mPreDefs[a].height, mPreDefs[a].name.toLatin1 ());
     // check if this size fits within the limit
     valid = (mPreDefs[a].width <= (mMaxRangeX -mMinRangeX)) &&
        (mPreDefs[a].height <= (mMaxRangeY -mMinRangeY));
@@ -547,7 +517,7 @@ void PreviewWidget::slotRangeChange()
       sca = new ScanArea(mPreDefs[a].name);
       mSizeArray.resize(mSizeArray.size()+1);
       mSizeArray[mSizeArray.size()-1] = sca;
-      mpScanSizeCombo->insertItem(sca->getName(),-1);
+      mpScanSizeCombo->addItem(sca->getName(),-1);
 
       double tlx,tly,brx,bry;
       if(a == 0) //max size
@@ -563,7 +533,8 @@ void PreviewWidget::slotRangeChange()
         brx = mPreDefs[a].width/(mMaxRangeX -mMinRangeX);
         bry = mPreDefs[a].height/(mMaxRangeY -mMinRangeY);
         if (sca->getName () == "A4")
-         printf ("%s: %1.15lf, %1.15lf   %1.15lf   %1.15lf\n", sca->getName ().latin1 (), brx, bry,
+         printf ("%s: %1.15lf, %1.15lf   %1.15lf   %1.15lf\n",
+                 sca->getName ().toLatin1 ().constData(), brx, bry,
             mMinRangeX, mMaxRangeX);
       }
       sca = mSizeArray [mSizeArray.size() - 1];
@@ -752,8 +723,12 @@ void PreviewWidget::slotBryPercent(double pval)
   emit signalBryPercent(d);
 }
 /** No descriptions */
-void PreviewWidget::slotColorPopup(Q3ListViewItem* li,const QPoint& p,int i)
+void PreviewWidget::slotColorPopup(QListWidgetItem* li,const QPoint& p,int i)
 {
+  UNUSED(li);
+  UNUSED(p);
+  UNUSED(i);
+#if 0 //p port
   i = i;  //s unused
   if(!li)
     return;
@@ -780,6 +755,7 @@ void PreviewWidget::slotColorPopup(Q3ListViewItem* li,const QPoint& p,int i)
     mFgColorList[ci->number()] = rgb;
     xmlConfig->setUintValueList("PREVIEW_FG_COLOR",mFgColorList);
   }
+#endif
 }
 /** No descriptions */
 void PreviewWidget::slotShowListView(bool state)
@@ -789,18 +765,18 @@ void PreviewWidget::slotShowListView(bool state)
     if(undoAvailable())
       slotZoomOff();
     mpListView->show();
-    mpComboStack->raiseWidget(1);
+    mpComboStack->setCurrentIndex(1);
     mpScanSizeLabel->setText(tr("Template"));
   }
   else
   {
     mpListView->hide();
-    mpComboStack->raiseWidget(0);
+    mpComboStack->setCurrentIndex(0);
     mpScanSizeLabel->setText(tr("Scan size"));
   }
   mpZoomHBox->setEnabled(!state);
   mpScanAreaWidget->setMultiSelectionMode(state);
-  mpListView->setCurrentItem(mpListView->firstChild());
+  mpListView->setCurrentRow(0);
   emit signalMultiSelectionMode(state);
   redrawRulers();
 }
@@ -827,8 +803,7 @@ void PreviewWidget::addImageToQueue(QImage* image,bool overwrite_current)
       mImageVector.remove(i);
     if(!overwrite_current)
     {
-      if(mImageVector.resize(mImageVectorIndex+2))
-        mImageVector.insert(mImageVector.size()-1,imagebuffer);
+      mImageVector.append(imagebuffer);
     }
     else
     {
@@ -840,28 +815,21 @@ void PreviewWidget::addImageToQueue(QImage* image,bool overwrite_current)
       imagebuffer->setAspectRatio(mImageVector[mImageVectorIndex]->aspectRatio());
 
       mImageVector.remove(mImageVectorIndex);
-      if(mImageVector.resize(mImageVectorIndex+1))
-        mImageVector.insert(mImageVectorIndex,imagebuffer);
+      mImageVector.insert(mImageVectorIndex,imagebuffer);
     }
     mImageVectorIndex = mImageVector.size()-1;
   }
   else if(mImageVectorIndex  < 0)
   {
-    if(mImageVector.resize(mImageVector.size()+1))
-    {
-      mImageVector.insert(mImageVector.size()-1,imagebuffer);
-      mImageVectorIndex = mImageVector.size()-1;
-    }
+    mImageVectorIndex = mImageVector.size();
+    mImageVector.append(imagebuffer);
   }
   else if(mImageVectorIndex == int(mImageVector.size()) - 1)
   {
     if(!overwrite_current)
     {
-      if(mImageVector.resize(mImageVector.size()+1))
-      {
-        mImageVector.insert(mImageVector.size()-1,imagebuffer);
-        mImageVectorIndex = mImageVector.size()-1;
-      }
+      mImageVectorIndex = mImageVector.size();
+      mImageVector.append(imagebuffer);
     }
     else
     {
@@ -1004,7 +972,7 @@ void PreviewWidget::slotZoomOff()
   redrawRulers();
 }
 /** No descriptions */
-void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
+void PreviewWidget::slotListItem(QListWidgetItem* li,const QPoint& p,int c)
 {
   UNUSED (p);
   if(!li)
@@ -1013,7 +981,7 @@ void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
   ci = (CheckListItemExt *) li;
   if(c == 0)
   {
-    if(ci->isOn())
+    if(ci->checkState() == Qt::Checked)
     {
       mpScanAreaWidget->showRect(ci->number());
       mpScanAreaWidget->setUserSelected(ci->number(),true);
@@ -1033,7 +1001,7 @@ void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
       else
       {
         //first rect always stays visible
-        ci->setOn(true);
+        ci->setCheckState(Qt::Checked);
         mpListView->setCurrentItem(ci);
         mpCurrentItem = ci;
         mpScanAreaWidget->setActiveRect(ci->number());
@@ -1042,7 +1010,7 @@ void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
   }
   else
   {
-    if(ci->isOn())
+    if(ci->checkState() == Qt::Checked)
     {
       mpScanAreaWidget->setActiveRect(ci->number());
       mpCurrentItem = ci;
@@ -1055,10 +1023,10 @@ void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
   }
   else
   {
-    ci = (CheckListItemExt*) mpListView->firstChild();
+    ci = (CheckListItemExt*) mpListView->item(0);
     if(ci)
     {
-      ci->setOn(true);
+      ci->setCheckState(Qt::Checked);
       mpListView->setCurrentItem(ci);
       mpCurrentItem = ci;
       mpScanAreaWidget->setActiveRect(ci->number());
@@ -1069,18 +1037,16 @@ void PreviewWidget::slotListItem(Q3ListViewItem* li,const QPoint& p,int c)
 void PreviewWidget::slotNewActiveRect(int num)
 {
   CheckListItemExt* ci;
-  ci = (CheckListItemExt*) mpListView->firstChild();
-  while(ci)
-  {
+  for (int i = 0; i < mpListView->count(); i++) {
+    ci = (CheckListItemExt*) mpListView->item(i);
     if(ci->number() == num)
     {
       mpListView->setCurrentItem(ci);
-      if(!ci->isOn())
-        ci->setOn(true);
+      if(ci->checkState() != Qt::Checked)
+        ci->setCheckState(Qt::Checked);
       mpCurrentItem = ci;
       break;
     }
-    ci = (CheckListItemExt*) ci->nextSibling();
   }
 }
 /** No descriptions */
@@ -1171,7 +1137,7 @@ void PreviewWidget::enableMultiSelection(bool state)
 {
   mpMultiSelectionButton->setEnabled(state);
   if(!state)
-    mpMultiSelectionButton->setOn(state);
+    mpMultiSelectionButton->setChecked(state);
 }
 /**  */
 void PreviewWidget::showEvent(QShowEvent* se)
@@ -1213,8 +1179,8 @@ void PreviewWidget::enablePreviewMode(bool state)
   if(state)
   {
     mCancelled = false;
-    mpPreviewStack->raiseWidget(1);
-    mpButtonStack->raiseWidget(1);
+    mpPreviewStack->setCurrentIndex(1);
+    mpButtonStack->setCurrentIndex(1);
     mpSizeHBox->setEnabled(false);
     mpToolHBox->setEnabled(false);
 //s    mpPreviewButton->setEnabled(false);
@@ -1226,8 +1192,8 @@ void PreviewWidget::enablePreviewMode(bool state)
   }
   else
   {
-    mpPreviewStack->raiseWidget(0);
-    mpButtonStack->raiseWidget(0);
+    mpPreviewStack->setCurrentIndex(0);
+    mpButtonStack->setCurrentIndex(0);
     mpSizeHBox->setEnabled(true);
     mpToolHBox->setEnabled(true);
 //s    mpPreviewButton->setEnabled(true);
@@ -1291,7 +1257,10 @@ void PreviewWidget::slotAutoSelection()
     if(mpListView->isVisible())
     {
       CheckListItemExt* ci;
-      ci = (CheckListItemExt*) mpListView->firstChild();
+      int itemnum = 0;
+
+      ci = (CheckListItemExt*) mpListView->item(itemnum);
+      //TODO: Does item() fail nicely when itemnum is invalid?
       for(i=0;i < int(rects.size())-3;i+=4)
       {
         if(ci && (i < int(rects.size())-3) &&
@@ -1299,34 +1268,36 @@ void PreviewWidget::slotAutoSelection()
            (sizefactor < rects[i+3] - rects[i+2]))
         {
           mpListView->setCurrentItem(ci);
-          if(!ci->isOn())
-            ci->setOn(true);
+          if(ci->checkState() == Qt::Checked)
+            ci->setCheckState(Qt::Checked);
           mpScanAreaWidget->showRect(ci->number());
           mpScanAreaWidget->setActiveRect(ci->number());
           mpScanAreaWidget->setUserSelected(ci->number(),true);
           mpScanAreaWidget->setRectSize(rects[i],rects[i+2],
                                         rects[i+1],rects[i+3]);
           mpCurrentItem = ci;
-          ci = (CheckListItemExt*) ci->nextSibling();
+          itemnum++;
+          ci = (CheckListItemExt*) mpListView->item(itemnum);
         }
       }
       while(ci)
       {
         mpScanAreaWidget->hideRect(ci->number());
         mpScanAreaWidget->setUserSelected(ci->number(),false);
-        ci->setOn(false);
-        ci = (CheckListItemExt*) ci->nextSibling();
+        ci->setCheckState(Qt::Unchecked);
+        itemnum++;
+        ci = (CheckListItemExt*) mpListView->item(itemnum);
       }
-      if(ci == (CheckListItemExt*) mpListView->firstChild())
+      if(ci == (CheckListItemExt*) mpListView->item(0))
       {
-        if(!ci->isOn())
+        if(!ci->checkState() == Qt::Checked)
         {
           mpScanAreaWidget->showRect(ci->number());
           mpScanAreaWidget->setActiveRect(ci->number());
           mpScanAreaWidget->setUserSelected(ci->number(),true);
           mpScanAreaWidget->setRectSize(0.0,0.0,1.0,1.0);
           mpCurrentItem = ci;
-          ci->setOn(true);
+          ci->setCheckState(Qt::Checked);
         }
       }
     }
@@ -1371,10 +1342,11 @@ void PreviewWidget::slotAutoSelectionSetup()
 void PreviewWidget::slotAddTemplate()
 {
   QString qs;
-  QDialog d(this,0,true);
-  d.setCaption(tr("Template name"));
-  Q3GridLayout* mainlayout = new Q3GridLayout(&d,4,3);
-  mainlayout->setColStretch(1,1);
+  QDialog d(this,0);
+  d.setModal(true);
+  d.setWindowTitle(tr("Template name"));
+  QGridLayout* mainlayout = new QGridLayout(&d);
+  mainlayout->setColumnStretch(1,1);
   mainlayout->setRowStretch(2,1);
   mainlayout->setSpacing(5);
   mainlayout->setMargin(5);
@@ -1383,8 +1355,8 @@ void PreviewWidget::slotAddTemplate()
   le->setMaxLength(20);
   QPushButton* pb1 = new QPushButton(tr("&OK"),&d);
   QPushButton* pb2 = new QPushButton(tr("&Cancel"),&d);
-  mainlayout->addMultiCellWidget(label,0,0,0,1);
-  mainlayout->addMultiCellWidget(le,1,1,0,2);
+  mainlayout->addWidget(label,0,0,1,2);
+  mainlayout->addWidget(le,1,0,1,2);
   mainlayout->addWidget(pb1,3,0);
   mainlayout->addWidget(pb2,3,2);
   connect(pb1,SIGNAL(clicked()),&d,SLOT(accept()));
@@ -1405,8 +1377,8 @@ void PreviewWidget::slotAddTemplate()
     ScanAreaTemplate* st = new ScanAreaTemplate(qs);
     st->addRects(mpScanAreaWidget->scanAreas());
     mTemplateVector.append(*st);
-    mpScanTemplateCombo->insertItem(qs);
-    mpScanTemplateCombo->setCurrentItem(mpScanTemplateCombo->count() - 1);
+    mpScanTemplateCombo->addItem(qs);
+    mpScanTemplateCombo->setCurrentIndex(mpScanTemplateCombo->count() - 1);
     saveTemplates();
   }
 }
@@ -1414,14 +1386,14 @@ void PreviewWidget::slotAddTemplate()
 void PreviewWidget::slotDeleteTemplate()
 {
   QString qs = mpScanTemplateCombo->currentText();
-  if(mpScanTemplateCombo->currentItem() == 0)
+  if(mpScanTemplateCombo->currentIndex() == 0)
     return;
   for(int u=0;u<mTemplateVector.size();u++)
   {
     if(mTemplateVector[u].name() == qs)
     {
       mTemplateVector.remove(u);
-      mpScanTemplateCombo->removeItem(mpScanTemplateCombo->currentItem());
+      mpScanTemplateCombo->removeItem(mpScanTemplateCombo->currentIndex());
 //      mTemplateVector.sort();
 //      mTemplateVector.resize(mTemplateVector.size() - 1);
       saveTemplates();
@@ -1430,6 +1402,7 @@ void PreviewWidget::slotDeleteTemplate()
     }
   }
 }
+
 /** No descriptions */
 void PreviewWidget::slotDeleteAllTemplates()
 {
@@ -1441,7 +1414,7 @@ void PreviewWidget::slotDeleteAllTemplates()
   mTemplateVector.clear();
   mTemplateVector.resize(0);
   mpScanTemplateCombo->clear();
-  mpScanTemplateCombo->insertItem(tr("None"));
+  mpScanTemplateCombo->addItem(tr("None"));
   saveTemplates();
   slotUserSize();
 }
@@ -1460,12 +1433,12 @@ void PreviewWidget::slotTemplateSelected(int i)
       break;
     }
   }
-  Q3ListViewItemIterator it(mpListView);
+  QListWidgetItemIterator it(mpListView);
   ++it;
   for( ; it.current(); ++it)
   {
     CheckListItemExt* li = (CheckListItemExt*) it.current();
-    li->setOn(false);
+    li->setCheckState(Qt::Unchecked);
     mpScanAreaWidget->hideRect(li->number());
     mpScanAreaWidget->setUserSelected(li->number(),false);
   }
@@ -1473,13 +1446,13 @@ void PreviewWidget::slotTemplateSelected(int i)
   {
     ScanArea *sa = vec[u];
 
-    Q3ListViewItemIterator it(mpListView);
+    QListWidgetItemIterator it(mpListView);
     for( ; it.current(); ++it)
     {
       CheckListItemExt* li = (CheckListItemExt*) it.current();
       if(li->number() == vec[u]->number())
       {
-        li->setOn(true);
+        li->setCheckState(Qt::Checked);
         mpScanAreaWidget->setUserSelected(sa->number(),true);
         mpScanAreaWidget->showRect(sa->number());
         mpScanAreaWidget->setActiveRect(sa->number());
@@ -1488,7 +1461,7 @@ void PreviewWidget::slotTemplateSelected(int i)
       }
     }
   }
-  mpListView->setCurrentItem(mpListView->firstChild());
+  mpListView->setCurrentRow(0);
   mpScanAreaWidget->setActiveRect(0);
 }
 /** No descriptions */
@@ -1615,7 +1588,7 @@ void PreviewWidget::loadTemplates()
         }
         st->addRects(vec);
         mTemplateVector.append(*st);
-        mpScanTemplateCombo->insertItem(name);
+        mpScanTemplateCombo->addItem(name);
       }
     }
   }

@@ -17,16 +17,11 @@
 #ifndef PREVIEWWIDGET_H
 #define PREVIEWWIDGET_H
 
-//s #include <qarray.h>
-#include <q3valuelist.h>
-#include <q3ptrvector.h>
 #include <qwidget.h>
 
 #include "quiteinsanenamespace.h"
-//Added by qt3to4:
 #include <QShowEvent>
 #include <QResizeEvent>
-#include <Q3GridLayout>
 #include <QLabel>
 extern "C"
 {
@@ -39,15 +34,15 @@ extern "C"
 class CheckListItemExt;
 class ImageBuffer;
 class QComboBox;
-class Q3GridLayout;
-class Q3HBox;
+class QGridLayout;
+class QHBoxLayout;
 class QLabel;
-class Q3ListView;
-class Q3ListViewItem;
+class QListWidget;
+class QListWidgetItem;
 class QPushButton;
 class QRect;
 class QString;
-class Q3WidgetStack;
+class QStackedWidget;
 class QToolButton;
 class PreviewUpdateWidget;
 class Ruler;
@@ -101,7 +96,7 @@ public:
   bool wasCancelled();
 
   /** get name of n'th predefined size, returns NULL if none */
-  const char *getSizeName (unsigned id);
+  QString getSizeName (unsigned id);
 
   /** get the n'th predefined size, returns NULL if none */
   ScanArea *getSize (unsigned id);
@@ -114,11 +109,11 @@ public:
 
 private:
   /** */
-  Q3ValueList <unsigned int> mFgColorList;
+  QList<unsigned int> mFgColorList;
   /** */
-  Q3ValueList <unsigned int> mBgColorList;
+  QList<unsigned int> mBgColorList;
   /** */
-  Q3PtrVector <ImageBuffer> mImageVector;
+  QVector<ImageBuffer *> mImageVector;
   /** */
   int mImageVectorIndex;
   /** */
@@ -155,21 +150,21 @@ private:
   /**  */
   SANE_Unit mSaneUnit;
   /**  */
-  Q3WidgetStack* mpPreviewStack;
+  QStackedWidget* mpPreviewStack;
   /**  */
   PreviewUpdateWidget* mpUpdateWidget;
   /**  */
   ScanAreaCanvas* mpScanAreaWidget;
   /**  */
-  Q3GridLayout* mpMainLayout;
+  QGridLayout* mpMainLayout;
   /**  */
   int mInitialHeight;
   /**  */
   int mInitialWidth;
   /**  */
-  Q3WidgetStack* mpButtonStack;
+  QStackedWidget* mpButtonStack;
   /**  */
-  Q3WidgetStack* mpComboStack;
+  QStackedWidget* mpComboStack;
   /**  */
   QPushButton* mpCancelButton;
   /**  */
@@ -195,11 +190,11 @@ private:
   /**  */
   Ruler* mpHRuler;
   /**  */
-  Q3HBox* mpZoomHBox;
+  QHBoxLayout* mpZoomHBox;
   /**  */
-  Q3HBox* mpSizeHBox;
+  QHBoxLayout* mpSizeHBox;
   /**  */
-  Q3HBox* mpToolHBox;
+  QHBoxLayout* mpToolHBox;
   /**  */
   QToolButton* mpAutoSelectionButton;
   /**  */
@@ -221,7 +216,7 @@ private:
   /**  */
   QToolButton* mpDelTemplatesButton;
   /**  */
-  Q3ListView* mpListView;
+  QListWidget* mpListView;
   /**  */
   QWidget* mpResizeWidget;
 
@@ -274,13 +269,13 @@ private slots:
   /**  */
   void slotUserSize();
   /** No descriptions */
-  void slotColorPopup(Q3ListViewItem* li,const QPoint& p,int i);
+  void slotColorPopup(QListWidgetItem* li,const QPoint& p,int i);
   /** No descriptions */
   void slotShowListView(bool state);
   /** No descriptions */
   void slotZoom();
   /** No descriptions */
-  void slotListItem(Q3ListViewItem* li,const QPoint& p,int c);
+  void slotListItem(QListWidgetItem* li,const QPoint& p,int c);
   /** No descriptions */
   void slotNewActiveRect(int num);
   /** No descriptions */
