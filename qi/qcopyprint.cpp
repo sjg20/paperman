@@ -661,7 +661,7 @@ void QCopyPrint::slotPrint()
   painter.end();
   if(!cancel)
     mPrinted = true;
-  setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
   qDebug("QCopyPrint::slotPrint() END");
 }
 /**  */
