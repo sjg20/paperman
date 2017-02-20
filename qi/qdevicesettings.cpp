@@ -14,9 +14,11 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
 #include "resource.h"
 
-#include <Q3ListView>
+#include <QGroupBox>
+#include <QListWidget>
 #include <QTextStream>
 
 #include "qdevicesettings.h"
@@ -27,9 +29,6 @@
 #include <qapplication.h>
 #include <qdom.h>
 #include <qfile.h>
-#include <q3groupbox.h>
-#include <q3hbox.h>
-#include <q3header.h>
 #include <qinputdialog.h>
 #include <qlabel.h>
 #include <qlayout.h>
@@ -37,12 +36,7 @@
 #include <qmessagebox.h>
 #include <qnamespace.h>
 #include <qpushbutton.h>
-#include <q3textstream.h>
 #include <qtoolbutton.h>
-#include <q3vbox.h>
-#include <q3whatsthis.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
 
 //Define the device settings version, which this class writes.
 //This version number is not related to QuiteInsanes version.
@@ -54,9 +48,11 @@
 
 QDeviceSettings::QDeviceSettings(QScanner* s,QWidget *parent,const char *name,
                                  bool modal,Qt::WFlags f)
-                :QDialog(parent,name,modal,f)
+                :QDialog(parent,f)
 {
-  setCaption(tr("Device settings"));
+    setModal(modal);
+    setObjectName(name);
+  setWindowTitle(tr("Device settings"));
   mpScanner = s;
   initWidget();
   createContents();
@@ -69,34 +65,30 @@ QDeviceSettings::~QDeviceSettings()
 void QDeviceSettings::initWidget()
 {
   QString qs;
-  Q3GridLayout* mainlayout = new Q3GridLayout(this,3,5);
+  QGridLayout* mainlayout = new QGridLayout(this);
   mainlayout->setSpacing( 6 );
   mainlayout->setMargin( 11 );
   mainlayout->setAlignment( Qt::AlignTop );
 
-  Q3HBox* hbox1 = new Q3HBox(this);
+  QHBoxLayout* hbox1 = new QHBoxLayout(this);
   hbox1->setSpacing(4);
   qs = tr("Device: ");
   qs += mpScanner->vendor()+" "+mpScanner->model();
 //qDebug("DeviceName: %s",qs.latin1());
-  QLabel* label1 = new QLabel(qs,hbox1);
-  QToolButton* WhatsThisButton = Q3WhatsThis::whatsThisButton(hbox1);
-  WhatsThisButton->setAutoRaise(FALSE);
+  QLabel* label1 = new QLabel(qs);
+  hbox1->addWidget(label1);
   hbox1->setStretchFactor(label1,1);
-  mainlayout->addMultiCellWidget(hbox1,0,0,0,4);
-  if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))
-    WhatsThisButton->hide();
+  mainlayout->addLayout(hbox1,0,0,0,4);
 //sublayout
-  Q3GroupBox* gb = new Q3GroupBox(this);
-  Q3GridLayout* sublayout = new Q3GridLayout(gb,2,3);
+  QGroupBox* gb = new QGroupBox(this);
+  QGridLayout* sublayout = new QGridLayout(gb);
   sublayout->setSpacing( 6 );
   sublayout->setMargin( 11 );
 //the listview
-	mpListView = new Q3ListView(gb);
-  mpListView->setMinimumHeight(100);
-  mpListView->setSelectionMode(Q3ListView::Single);
-  mpListView->addColumn(tr("Available settings"));
-  sublayout->addMultiCellWidget(mpListView,0,0,0,2);
+    mpListWidget = new QListWidget(gb);
+  mpListWidget->setMinimumHeight(100);
+  mpListWidget->setSelectionMode(QListWidget::SingleSelection);
+  sublayout->addWidget(mpListWidget,0,0,0,2);
 //new button
 	mpButtonNew = new QPushButton(tr("&New"),gb);
   sublayout->addWidget(mpButtonNew,1,0);
@@ -104,9 +96,9 @@ void QDeviceSettings::initWidget()
 	mpButtonDelete = new QPushButton(tr("&Delete"),gb);
   mpButtonDelete->setEnabled(FALSE);
   sublayout->addWidget(mpButtonDelete,1,2);
-  sublayout->setColStretch(1,1);
+  sublayout->setColumnStretch(1,1);
   sublayout->setRowStretch(0,1);
-  mainlayout->addMultiCellWidget(gb,1,1,0,4);
+  mainlayout->addWidget(gb,1,1,0,4);
 //load button
 	mpButtonCancel = new QPushButton(tr("&Close"),this);
 //load button
@@ -120,25 +112,23 @@ void QDeviceSettings::initWidget()
 	mainlayout->addWidget(mpButtonCancel,2,0);
 	mainlayout->addWidget(mpButtonSave,2,2);
 	mainlayout->addWidget(mpButtonLoad,2,4);
-  mainlayout->setColStretch(1,1);
-  mainlayout->setColStretch(3,1);
+  mainlayout->setColumnStretch(1,1);
+  mainlayout->setColumnStretch(3,1);
 
   connect(mpButtonCancel,SIGNAL(clicked()),this,SLOT(reject()));
   connect(mpButtonNew,SIGNAL(clicked()),this,SLOT(slotNew()));
   connect(mpButtonSave,SIGNAL(clicked()),this,SLOT(slotSave()));
   connect(mpButtonLoad,SIGNAL(clicked()),this,SLOT(slotLoad()));
   connect(mpButtonDelete,SIGNAL(clicked()),this,SLOT(slotDelete()));
-	connect(mpListView,SIGNAL(selectionChanged()),
+    connect(mpListWidget,SIGNAL(selectionChanged()),
             this,SLOT(slotSelectionChanged()));
- 	connect(mpListView,SIGNAL(doubleClicked(Q3ListViewItem*)),
-          this,SLOT(slotDoubleClicked(Q3ListViewItem*)));
-  //help
-  createWhatsThisHelp();
+    connect(mpListWidget,SIGNAL(doubleClicked(QListWidgetItem*)),
+          this,SLOT(slotDoubleClicked(QListWidgetItem*)));
 }
 /**  */
 void QDeviceSettings::slotClearList()
 {
-	mpListView->clear();
+    mpListWidget->clear();
 }
 /**  */
 void QDeviceSettings::createContents()
@@ -176,22 +166,23 @@ void QDeviceSettings::createContents()
         {
           //We use tr(), because the previous settings are saved
           //under Last settings and this string has to be translated
-          new Q3ListViewItem(mpListView,tr(ele.attribute("username")));
+          new QListWidgetItem(tr(ele.attribute("username").toLatin1()),
+                              mpListWidget);
         }
       }
     }
   }
-  if(mpListView->childCount() > 0)
-    mpListView->setCurrentItem(mpListView->firstChild());
+  if(mpListWidget->count() > 0)
+    mpListWidget->setCurrentItem(mpListWidget->item(0));
 }
 /**  */
 void QDeviceSettings::slotDelete()
 {
-  Q3ListViewItem* li;
-  li = mpListView->currentItem();
+  QListWidgetItem* li;
+  li = mpListWidget->currentItem();
   if(!li) return;
   QString username;
-  username = mpListView->currentItem()->text(0);
+  username = mpListWidget->currentItem()->text();
 //try to load the settings file
   QDomDocument doc("maxview_device_settings");
   QFile f( xmlConfig->absConfDirPath()+"devicesettings.xml" );
@@ -260,39 +251,16 @@ void QDeviceSettings::slotDelete()
   return;
 }
 /**  */
-void QDeviceSettings::createWhatsThisHelp()
-{
-  //save
-  Q3WhatsThis::add(mpButtonSave,tr("Click this button to save the "
-                     "device settings under the currently "
-                     "selected(highlighted) name."));
-  //delete
-  Q3WhatsThis::add(mpButtonDelete,tr("Click this button to delete the "
-                     "selected(highlighted) device setting."));
-  //load
-  Q3WhatsThis::add(mpButtonLoad,tr("Click this button to load the "
-                     "selected(highlighted) device setting."));
-  //cancel
-  Q3WhatsThis::add(mpButtonCancel,tr("Click this button to close the "
-                                  "dialog."));
-  //new
-  Q3WhatsThis::add(mpButtonNew,tr("Click this button to create a new device "
-                     "setting. You will be prompted for a name. The settings are "
-                     "automatically saved."));
-  //listview
-  Q3WhatsThis::add(mpListView,tr("This listview shows the available  "
-                     "settings. Doubleclick on an item to load the setting. "));
-}
-/**  */
 void QDeviceSettings::slotSelectionChanged()
 {
-  Q3ListViewItemIterator it(mpListView);
-  for ( ; it.current(); ++it )
+  for (int i = 0; i < mpListWidget->count(); i++)
   {
-    if(it.current()->isSelected())
+    QListWidgetItem *item = mpListWidget->item(i);
+
+    if(item->isSelected())
     {
       mpButtonLoad->setEnabled(TRUE);
-      if(it.current()->text(0) != tr("Last settings"))
+      if(item->text() != tr("Last settings"))
       {
         mpButtonDelete->setEnabled(TRUE);
         mpButtonSave->setEnabled(TRUE);
@@ -314,23 +282,17 @@ void QDeviceSettings::slotNew()
 {
   bool ok = FALSE;
   QString text;
-#ifdef USE_QT3
-  text = QInputDialog::getText(tr("New entry"),
-                               tr("Please enter a name"),
-                               QLineEdit::Normal,
-                               QString::null, &ok, this );
-#else
-  text = QInputDialog::getText(tr("New entry"),
-                               tr("Please enter a name"),
-                               QString::null, &ok, this );
-#endif
+  text = QInputDialog::getText(mpListWidget, tr("New entry"),
+                               tr("Please enter a name"), QLineEdit::Normal,
+                               QString::null, &ok );
   if(!ok || text.isEmpty())return;//user entered nothing
   //the user entered a new entry
   //check, whether it has a unique name
-  Q3ListViewItemIterator it(mpListView);
-  for ( ; it.current(); ++it )
+  for (int i = 0; i < mpListWidget->count(); i++)
   {
-    if(it.current()->text(0) == text)
+    QListWidgetItem *item = mpListWidget->item(i);
+
+    if(item->text() == text)
     {
       //the name already exists
       QMessageBox::warning(this,tr("Warning"),
@@ -340,8 +302,8 @@ void QDeviceSettings::slotNew()
       return;
     }
   }
-  Q3ListViewItem* li = new Q3ListViewItem(mpListView,text);
-  mpListView->setCurrentItem(li);
+  QListWidgetItem* li = new QListWidgetItem(text, mpListWidget);
+  mpListWidget->setCurrentItem(li);
   //we save the current settings automatically if a new entry has
   //been created
   if(!saveDeviceSettings())
@@ -363,8 +325,8 @@ void QDeviceSettings::slotLoad()
 {
   QString qs;
   mOptionMap.clear();
-  Q3ListViewItem* li;
-  li = mpListView->currentItem();
+  QListWidgetItem* li;
+  li = mpListWidget->currentItem();
   if(!li) return;
 //try to load the settings file
   QDomDocument doc("maxview_device_settings");
@@ -396,9 +358,9 @@ void QDeviceSettings::slotLoad()
             qs = e.attribute("username");
             //Only translated the Last settings entry to avoid confusion
             //if a user specified name matches a translated string
-            if(qs == "Last settings") qs = tr(qs);
+            if(qs == "Last settings") qs = tr(qs.toLatin1());
             if((mpScanner->deviceSettingsName() == e.attribute("name"))  &&
-               (li->text(0) == qs))
+               (li->text() == qs))
             {
               //We found the entry.
               QDomNodeList dl = n.childNodes();
@@ -428,8 +390,8 @@ bool QDeviceSettings::saveDeviceSettings(QString uname)
   QString username;
   if(uname.isNull())
   {
-    if(!mpListView->currentItem()) return false;
-    username = mpListView->currentItem()->text(0);
+    if(!mpListWidget->currentItem()) return false;
+    username = mpListWidget->currentItem()->text();
   }
   else
     username = uname;
@@ -553,7 +515,7 @@ bool QDeviceSettings::saveDeviceSettings(QString uname)
   return true;
 }
 /**  */
-void QDeviceSettings::slotDoubleClicked(Q3ListViewItem*)
+void QDeviceSettings::slotDoubleClicked(QListWidgetItem*)
 {
   slotLoad();
 }
