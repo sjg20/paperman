@@ -17,14 +17,13 @@
 
 #include <QImageReader>
 #include <QImageWriter>
+#include <QTextStream>
 
 #include "qimageioext.h"
 
 #include <qcolor.h>
-#include <q3cstring.h>
 #include <qfile.h>
 #include <qimage.h>
-#include <q3textstream.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -628,6 +627,8 @@ void initTiffIO()
 }
 #endif
 
+#if 0
+
 /*****************************************************************************
   PBM/PGM/PPM (ASCII and RAW) image read/write functions
  *****************************************************************************/
@@ -648,7 +649,7 @@ void qis_get_dots_per_meter(QIODevice *d,int* dots_m_x,int* dots_m_y)
 {
   QString qs;
   bool ok;
-  Q3TextStream ts(d);
+  QTextStream ts(d);
   qs = ts .readLine();
   for(int i=0;i<3;i++)
   {
@@ -1384,3 +1385,4 @@ void initPnmIO()
 //s  QImageIO::defineIOHandler("PNM7","^P7 332","t",
 //s	  		                	  qis_read_pnm7_image,qis_write_pnm7_image );
 }
+#endif
