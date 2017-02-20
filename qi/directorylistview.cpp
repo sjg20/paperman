@@ -23,7 +23,7 @@ DirectoryListView::DirectoryListView(QWidget* parent,const char* name)
                   :QListView(parent,name)
 {
   addColumn(tr("Directory"));
-  mCurrentDirPath = QDir::homeDirPath();
+  mCurrentDirPath = QDir::homePath();
   mCurrentDir.setPath(mCurrentDirPath);
   createContents();
   connect(this,SIGNAL(clicked(QListViewItem*)),
