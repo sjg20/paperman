@@ -159,8 +159,6 @@ private:
   QScrollBarOption* mpHeightOption;
 
   /**  */
-  QToolButton* mpWhatsThisButton;
-  /**  */
   QMultiScan* mpMultiScanWidget;
   /**  */
   QPushButton* mpMultiScanButton;
@@ -256,8 +254,6 @@ image is saved to .scantemp.pnm.*/
   void createOptionWidget();
   /**  */
   void setAllOptions();
-  /**  */
-  void createWhatsThisHelp();
   /**  */
   QGroupBox* createOptionGroupBox(QString title,int firstoption,int lastoption);
   /**  */

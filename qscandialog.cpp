@@ -14,11 +14,15 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
 #include "resource.h"
 
 #include <QDesktopWidget>
 
 #include <QDebug>
+#include <QGroupBox>
+#include <QListWidget>
+#include <QStackedWidget>
 
 #include "err.h"
 
@@ -113,7 +117,6 @@
 #include <qtooltip.h>
 #include <q3vbox.h>
 //s #include <qvector.h>
-#include <q3whatsthis.h>
 #include <qwidget.h>
 #include <q3widgetstack.h>
 #include <limits.h>
@@ -135,8 +138,9 @@ extern "C"
 
 
 QScanDialog::QScanDialog(QScanner* s,QWidget *parent, const char *name,Qt::WFlags f)
-            :QWidget(parent,name,f)
+            :QWidget(parent,f)
 {
+  setObjectName(name);
   mMultiSelectionMode = false;
   mpScanner = s;
   mShowCnt = 0;
@@ -233,7 +237,6 @@ QIN::Status QScanDialog::initDialog()
   mpMainLayout->setMargin(3);
   mpMainLayout->setSpacing(5);
   mpMainLayout->setColStretch(0,1);
-//create mpWhatsThisButton in a HBox
   mpInfoHBox = new Q3HBox(this);
   mpInfoHBox->setSpacing(2);
   mpLabelImageInfo = new QLabel("",mpInfoHBox);
@@ -245,11 +248,7 @@ QIN::Status QScanDialog::initDialog()
 
 //s  mpHelpButton = new QPushButton(tr("&Help..."),mpInfoHBox);
 
-  mpWhatsThisButton = Q3WhatsThis::whatsThisButton(mpInfoHBox);
-  mpWhatsThisButton->setAutoRaise(FALSE);
   mpMainLayout->addWidget(mpInfoHBox,0,0);
-  if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))
-    mpWhatsThisButton->hide();
 
 #if 0 //s
 //Mode selection
@@ -415,7 +414,6 @@ QIN::Status QScanDialog::initDialog()
   {
 		mpPreviewButton->setEnabled(false);
   }
-	createWhatsThisHelp();
   connect(mpScanner,SIGNAL(signalReloadOptions()),this,SLOT(slotReloadOptions()));
   slotImageInfo();
   connect(mpScanner,SIGNAL(signalReloadParams()),this,SLOT(slotImageInfo()));
@@ -1386,92 +1384,6 @@ void QScanDialog::slotShowPreviewWidget()
   }
 }
 /**  */
-void QScanDialog::createWhatsThisHelp()
-{
-//about button
-  Q3WhatsThis::add(mpAboutButton,tr("Shows the about dialog, which "
-															"displays more information "
-															"about QuiteInsane."));
-//drag label
-#if 0 //s
-  Q3WhatsThis::add(mpDragLabel,tr("Use this label to drag the scanned "
-															"image to other applications. You can "
-															"choose the drag and drop format in "
-                              "the options window."));
-#endif //s
-
-//options button
-  Q3WhatsThis::add(mpOptionsButton,tr("Shows a dialog, which "
-															"lets you choose between several "
-															"options, e.g. save mode or view mode."));
-//preview button
-  Q3WhatsThis::add(mpPreviewButton,tr("Shows the preview window, which "
-															  "allows you to do a preview scan and "
-															  "to presicesly select the scan area."
-                                "This button is only active if the "
-                                "selected device allows to adjust the "
-                                "scan area options."));
-#if 0 //s
-//scan button
-  Q3WhatsThis::add(mpScanButton,tr("Starts scanning with the current "
-															"settings."));
-//rescue button
-  Q3WhatsThis::add(mpViewerButton,tr("Click this button to open the internal "
-															 "viewer. If possible, the last scanned "
-                               "image is automatically loaded, which is "
-                               "useful if you want to access the last "
-                               "scan without rescanning it."));
-#endif //s
-//help button
-#if 0 //s
-  Q3WhatsThis::add(mpHelpButton,tr("Click this button to open QuiteInsanes "
-														 "help in the HTML Viewer."));
-//browser button
-  Q3WhatsThis::add(mpBrowserButton,tr("Click this button to show the "
-														 "history window."));
-#endif //s
-//quit button
-  Q3WhatsThis::add(mpQuitButton,tr("Click this button to quit QuiteInsane."));
-//device button
-  Q3WhatsThis::add(mpDeviceButton,tr("Click this button to show the device "
-                        "settings dialog. You can use it to load, save "
-                        "and delete device settings."));
-//file list button
-#if 0 //s
-  Q3WhatsThis::add(mpMultiScanButton,tr("Click this button to show the multi scan "
-                                 "window. This button is only active if "
-                                 "you have selected the multi scan mode "
-                                 "in the options dialog."));
-  Q3WhatsThis::add(mpModeCombo,tr("Select one of the following modes:<br><br>"
-    "<b>Temporary/Internal viewer:</b><br>"
-		"QuiteInsane will open the scanned image in it's internal viewer. "
-    "There you can decide, where you want to save the image and "
-    "which format you want to use. It is also possible to start "
-    "optical character recognition.<br><br>"
-    "<b>Single file:</b><br>"
-		"A filedialog will show up after the image has been aquired. Specify "
-    "a filename, the format and the directory where the image "
-    "will be saved. This filedialog also shows a small preview, if you "
-    "activate the <b>Show preview</b> checkbox.<br><br>"
-    "<b>Multi scan:</b><br>"
-    "The Multi scan window will show up. Use it for scanning and saving "
-    "one or more images. You can also print the image and start OCR. The "
-    "filenames for the images and the text are generated automatically, "
-    "based on a filename template and a filename extension/image format.<br><br>"
-    "<b>Copy/Print</b><br>"
-    "A dialog will show up, which allows you to print and save the image. "
-    "It's possibel to set the margins and to scale the image.<br><br>"
-    "<b>OCR</b><br>"
-    "Optical character recognition is started on the scanned image. The "
-    "recognized text is displayed with the internal editor.<br><br>"
-    "<b>Drag and drop</b><br>"
-    "This mode allows you to directly specify a filename and an image "
-    "format. You can drag this file to other applications, like The GIMP. "
-    "This is done by dragging the <b>drag label</b> to the right side "
-    "of this combo box."));
-#endif //s
-}
-/**  */
 void QScanDialog::slotAbout()
 {
 	QPixmap qp((const char **)maxview_logo_xpm);
@@ -1537,7 +1449,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
     qroo->setOptionDescription(mpScanner->getOptionDescription(opt_num));
     qroo->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
     qroo->setSaneValueType(mpScanner->getOptionType(opt_num));
-    Q3WhatsThis::add(qroo,qroo->optionDescription());
     qroo->setText(mpScanner->saneReadOnly(opt_num));
     if(qroo->optionName() == "button-state")
       mpButtonOption = qroo;
@@ -1555,7 +1466,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
         qbo->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
         qbo->setSaneValueType(mpScanner->getOptionType(opt_num));
         qbo->setSaneOptionNumber(opt_num);
-        Q3WhatsThis::add(qbo,qbo->optionDescription());
         connect(qbo,SIGNAL(signalOptionChanged(int)),this,
                 SLOT(slotOptionChanged(int)));
         ret = (QSaneOption*)qbo;
@@ -1576,7 +1486,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
           connect(qbool,SIGNAL(signalAutomatic(int,bool)),
                   this,SLOT(slotAutoMode(int,bool)));
         }
-        Q3WhatsThis::add(qbool,qbool->optionDescription());
         connect(qbool,SIGNAL(signalOptionChanged(int)),this,
                 SLOT(slotOptionChanged(int)));
         ret = (QSaneOption*)qbool;
@@ -1604,7 +1513,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             qsb->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             qsb->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             qsb->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(qsb,qsb->optionDescription());
             connect(qsb,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)qsb;
@@ -1619,7 +1527,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             sint->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             sint->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             sint->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(sint,sint->optionDescription());
             connect(sint,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)sint;
@@ -1641,7 +1548,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             qwco->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             qwco->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             qwco->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(qwco,qwco->optionDescription());
             connect(qwco,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)qwco;
@@ -1662,7 +1568,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             qwao->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             qwao->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             qwao->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(qwao,qwao->optionDescription());
             connect(qwao,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)qwao;
@@ -1694,7 +1599,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             qsf->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             qsf->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             qsf->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(qsf,qsf->optionDescription());
             connect(qsf,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)qsf;
@@ -1709,7 +1613,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             sfix->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             sfix->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             sfix->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(sfix,sfix->optionDescription());
             connect(sfix,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)sfix;
@@ -1731,7 +1634,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
             qwco->setOptionDescription(mpScanner->getOptionDescription(opt_num));
             qwco->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
             qwco->setSaneValueType(mpScanner->getOptionType(opt_num));
-            Q3WhatsThis::add(qwco,qwco->optionDescription());
             connect(qwco,SIGNAL(signalOptionChanged(int)),this,
                     SLOT(slotOptionChanged(int)));
             ret = (QSaneOption*)qwco;
@@ -1756,7 +1658,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
           qcb->setOptionDescription(mpScanner->getOptionDescription(opt_num));
           qcb->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
           qcb->setSaneValueType(mpScanner->getOptionType(opt_num));
-          Q3WhatsThis::add(qcb,qcb->optionDescription());
           stringval = mpScanner->saneStringValue(opt_num);
           qcb->setCurrentValue((const char*)stringval);
           connect(qcb,SIGNAL(signalOptionChanged(int)),this,
@@ -1771,7 +1672,6 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
           qso->setOptionDescription(mpScanner->getOptionDescription(opt_num));
           qso->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
           qso->setSaneValueType(mpScanner->getOptionType(opt_num));
-          Q3WhatsThis::add(qso,qso->optionDescription());
           qso->setMaxLength(mpScanner->optionSize(opt_num)-1);
           stringval = mpScanner->saneStringValue(opt_num);
           qso->setText((const char*)stringval);
