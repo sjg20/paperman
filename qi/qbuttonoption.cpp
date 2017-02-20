@@ -21,7 +21,7 @@
 #include <qlayout.h>
 #include <qpushbutton.h>
 //Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
 #include <sane/saneopts.h>
 
 QButtonOption::QButtonOption(QString title,QWidget *parent, const char *name )
@@ -35,7 +35,7 @@ QButtonOption::~QButtonOption()
 /**  */
 void QButtonOption::initWidget()
 {
-	Q3GridLayout* qgl = new Q3GridLayout(this,1,3);
+    QGridLayout* qgl = new QGridLayout(this);
   mpTitleLabel = new QLabel(optionTitle(),this);
 	mpOptionButton = new QPushButton(tr("Set Option"),this);
   connect(mpOptionButton,SIGNAL(clicked()),
@@ -47,6 +47,6 @@ void QButtonOption::initWidget()
 	qgl->addWidget(mpTitleLabel,0,1);
 	qgl->addWidget(mpOptionButton,0,2);
   qgl->setSpacing(5);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
 }
