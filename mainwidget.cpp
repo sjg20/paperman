@@ -534,7 +534,7 @@ void Mainwidget::progressSize (int size)
 
 void Mainwidget::updateScanDialog (void)
    {
-   QScanDialog::format_t format;
+   QScanner::format_t format;
 
    // set up JPEG parameter
    format = _scanDialog->getFormat ();

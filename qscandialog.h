@@ -95,16 +95,11 @@ public:
   QIN::Status status();
 
   PreviewWidget *getPreview () { return mpPreviewWidget; }
-   enum format_t
-   {
-   mono, dither, grey, colour,
-   other
-   };
 
   /** get the current selected format */
-  format_t getFormat ();
+  QScanner::format_t getFormat ();
 
-  void setFormat (format_t f, bool select_compression);
+  void setFormat (QScanner::format_t f, bool select_compression);
 
   /** set adf */
   bool setAdf (bool adf);

@@ -3940,7 +3940,7 @@ void QScanDialog::setOption (QSaneOption *opt, int value)
 }
 
 
-void QScanDialog::setFormat (format_t f, bool select_compression)
+void QScanDialog::setFormat (QScanner::format_t f, bool select_compression)
 {
    QString fred = QString ("Lineart,Halftone,Gray,Color").section (',', f, f);
    QComboOption *wh = (QComboOption *)mOptionCompression;
@@ -3952,7 +3952,8 @@ void QScanDialog::setFormat (format_t f, bool select_compression)
             setOption (mOptionFormat, "Binary");
     }
 
-   bool want_jpeg = select_compression && (f != mono && f != dither);
+   bool want_jpeg = select_compression &&
+           (f != QScanner::mono && f != QScanner::dither);
    setOption (mOptionCompression, want_jpeg ? "JPEG" : "None");
    QString msg;
    
@@ -3964,20 +3965,20 @@ void QScanDialog::setFormat (format_t f, bool select_compression)
 }
 
 
-QScanDialog::format_t QScanDialog::getFormat ()
+QScanner::format_t QScanDialog::getFormat ()
 {
   QComboOption *wh = (QComboOption *)mOptionFormat;
 
   if (wh)
      {
      QString str = wh->getCurrentText ();
-     format_t i;
+     QScanner::format_t i;
 
-     for (i = mono; i <= colour; i = (format_t)(i + 1))
+     for (i = QScanner::mono; i <= QScanner::colour; i = (QScanner::format_t)(i + 1))
         if (str == QString ("Lineart,Halftone,Gray,Color").section (',', i, i))
            return i;
      }
-  return other;
+  return QScanner::other;
 }
 
 

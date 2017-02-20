@@ -163,12 +163,12 @@ void Pscan::settings_clicked()
 void Pscan::format_clicked( int )
 {
    QAbstractButton *id = format->selected ();
-   QScanDialog::format_t format = QScanDialog::mono;
+   QScanner::format_t format = QScanner::mono;
 
-   if (id == dither) format = QScanDialog::dither;
-   if (id == mono) format = QScanDialog::mono;
-   if (id == grey) format = QScanDialog::grey;
-   if (id == colour) format = QScanDialog::colour;
+   if (id == dither) format = QScanner::dither;
+   if (id == mono) format = QScanner::mono;
+   if (id == grey) format = QScanner::grey;
+   if (id == colour) format = QScanner::colour;
    if (_scanDialog)
       _scanDialog->setFormat (format, xmlConfig->boolValue ("SCAN_USE_JPEG"));
 }
@@ -229,7 +229,7 @@ void Pscan::reset_clicked()
     if (!_scanDialog)
        return;
 //    format->setButton (0);
-    _scanDialog->setFormat (QScanDialog::mono, false);
+    _scanDialog->setFormat (QScanner::mono, false);
 
 //    exposure->setValue (128);
     _scanDialog->setExposure (128);
