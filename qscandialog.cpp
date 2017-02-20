@@ -99,7 +99,6 @@
 #include <qregexp.h>
 #include <qrect.h>
 #include <qscrollbar.h>
-#include <q3scrollview.h>
 #include <qsizepolicy.h>
 #include <qstringlist.h>
 #include <qtabwidget.h>
@@ -518,7 +517,7 @@ void QScanDialog::createOptionWidget()
   if(mpScanner->optionCount()>1)
   {
     mpOptionScrollView = new QOptionScrollView(this);
-    mpOptionScrollView->setFrameStyle(Q3ScrollView::NoFrame);
+    mpOptionScrollView->setFrameStyle(QScrollArea::NoFrame);
     mpOptionScrollView->setHorizontalScrollBarPolicy (Qt::ScrollBarAlwaysOff);
 //     mpOptionScrollView->setHScrollBarMode(Q3ScrollView::AlwaysOff);
     //check whether there are grouped options
@@ -980,7 +979,7 @@ void QScanDialog::slotReloadOptions()
 //     }
 //       mpMainLayout->update ();
 //     mpMainWidget->setMinimumSize(mpMainLayout->minimumSize ());
-    QWidget *w = mpOptionScrollView->getMainWidget ();
+    QWidget *w = mpOptionScrollView->widget ();
     w->setMinimumSize(w->layout ()->minimumSize ());
   }
   if(mLayout == QIN::TabLayout)
@@ -1981,7 +1980,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     for(c=0;c<mGroupBoxArray.size();c++)
     {
       qgb=(QGroupBox*)mGroupBoxArray[c];
-      qgb->setParent(mpOptionScrollView->getMainWidget());
+      qgb->setParent(mpOptionScrollView->widget());
       qgb->move(p);
       qgb->hide();
 //       qgb->setFrameStyle(QGroupBox::StyledPanel);
@@ -2142,7 +2141,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     QGridLayout* listgrid = new QGridLayout(mpOptionListWidget);
     listgrid->setSpacing(5);
     listgrid->setColumnStretch(1,1);
-    mpOptionListView = new Q3ListView(mpOptionListWidget);
+    mpOptionListView = new QTableWidget(mpOptionListWidget);
 //p    mpOptionListView->addColumn(tr("SANE Options"));
 //p    mpOptionListView->setSorting(-1);
     mpOptionWidgetStack = new QStackedWidget(mpOptionListWidget);
@@ -2160,7 +2159,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
       }
       else
       {
-        nlv = new QListViewItemExt(mpOptionListView,(Q3ListViewItem*)nlv,
+        nlv = new QListViewItemExt(mpOptionListView,(QTableWidgetItem*)nlv,
                                         titlestring);
         nlv->setIndex(c);
       }
@@ -2191,8 +2190,8 @@ void QScanDialog::changeLayout(QIN::Layout l)
       mpOptionScrollView = 0;
     }
     mpMainLayout->addWidget(mpOptionListWidget,5,0);
-    connect(mpOptionListView,SIGNAL(selectionChanged(Q3ListViewItem*)),
-            this,SLOT(slotRaiseOptionWidget(Q3ListViewItem*)));
+    connect(mpOptionListView,SIGNAL(selectionChanged(QListWidgetItem*)),
+            this,SLOT(slotRaiseOptionWidget(QListWidgetItem*)));
     mpOptionListView->setMinimumWidth(mpOptionListView->sizeHint().width()+8);
     mpOptionListWidget->show();
     //stupid, but works (?)
@@ -2787,7 +2786,7 @@ void QScanDialog::slotDeviceSettings()
   devset.exec();
 }
 /**  */
-void QScanDialog::slotRaiseOptionWidget(Q3ListViewItem* lvi)
+void QScanDialog::slotRaiseOptionWidget(QListWidgetItem* lvi)
 {
   if(!lvi) return;
   QListViewItemExt* nlv;

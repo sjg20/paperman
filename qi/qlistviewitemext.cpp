@@ -15,81 +15,160 @@
  *                                                                         *
  ***************************************************************************/
 
+#include<QTableWidgetItem>
+
 #include "qlistviewitemext.h"
 
 /** */
-QListViewItemExt::QListViewItemExt(Q3ListView* parent)
-                 :Q3ListViewItem(parent)
+QListViewItemExt::QListViewItemExt(QTableWidget* parent)
+                 :QTableWidgetItem()
 {
+    mParent = parent;
+  mRow = parent->rowCount();
+
+  parent->insertRow(mRow);
+  parent->setItem(mRow, 0, this);
   mIndex = -1;
   mHiddenText = QString::null;
 }
 /** */
-QListViewItemExt::QListViewItemExt(Q3ListViewItem* parent)
-                 :Q3ListViewItem(parent)
+QListViewItemExt::QListViewItemExt(QTableWidgetItem* item)
+                 :QTableWidgetItem()
 {
+  QTableWidget* parent = item->tableWidget();
+  mParent = parent;
+  mRow = parent->rowCount();
+
+  parent->insertRow(mRow);
+  parent->setItem(mRow, 0, this);
   mIndex = -1;
   mHiddenText = QString::null;
 }
-QListViewItemExt::QListViewItemExt(Q3ListView* parent,Q3ListViewItem* after)
-              :Q3ListViewItem(parent,after)
+QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after)
+              :QTableWidgetItem()
 {
+    mParent = parent;
+    mRow = parent->row(after);
+
+  parent->insertRow(mRow);
+  parent->setItem(mRow, 0, this);
   mIndex = -1;
   mHiddenText = QString::null;
 }
 /** */
-QListViewItemExt::QListViewItemExt(Q3ListViewItem* parent,Q3ListViewItem* after)
-              :Q3ListViewItem(parent,after)
+QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,QTableWidgetItem* after)
+              :QTableWidgetItem()
 {
+  QTableWidget* parent = item->tableWidget();
+  mParent = parent;
+  mRow = parent->row(after);
+
+  parent->insertRow(mRow);
+  parent->setItem(mRow, 0, this);
   mIndex = -1;
   mHiddenText = QString::null;
 }
-/** */
-QListViewItemExt::QListViewItemExt(Q3ListView * parent,QString label1,
+
+void QListViewItemExt::addWidgets(QTableWidget *parent, QString label1,
                              QString label2,QString label3,
                              QString label4,QString label5,
                              QString label6,QString label7,
                              QString label8)
-                 :Q3ListViewItem(parent,label1,label2,label3,label4,
-			                          label5,label6,label7,label8)
 {
+   QTableWidgetItem *item;
+
+   item = new QTableWidgetItem(label1);
+   parent->setItem(mRow, 0, item);
+   item = new QTableWidgetItem(label2);
+   parent->setItem(mRow, 1, item);
+   item = new QTableWidgetItem(label3);
+   parent->setItem(mRow, 2, item);
+   item = new QTableWidgetItem(label4);
+   parent->setItem(mRow, 3, item);
+   item = new QTableWidgetItem(label5);
+   parent->setItem(mRow, 4, item);
+   item = new QTableWidgetItem(label6);
+   parent->setItem(mRow, 5, item);
+   item = new QTableWidgetItem(label7);
+   parent->setItem(mRow, 6, item);
+   item = new QTableWidgetItem(label8);
+   parent->setItem(mRow, 7, item);
+}
+
+/** */
+QListViewItemExt::QListViewItemExt(QTableWidget * parent,QString label1,
+                             QString label2,QString label3,
+                             QString label4,QString label5,
+                             QString label6,QString label7,
+                             QString label8)
+{
+    mParent = parent;
   mIndex = -1;
   mHiddenText = QString::null;
+  mRow = parent->rowCount();
+
+  parent->insertRow(mRow);
+  parent->setColumnCount(8);
+  addWidgets(parent, label1, label2, label3, label4, label5, label6,
+             label7, label8);
 }
 /** */
-QListViewItemExt::QListViewItemExt(Q3ListViewItem* parent,QString label1,
+QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,QString label1,
                                    QString label2,QString label3,
                                    QString label4,QString label5,
                                    QString label6,QString label7,
                                    QString label8)
-                  :Q3ListViewItem(parent,label1,label2,label3,label4,
-			                           label5,label6,label7,label8)
 {
+    QTableWidget* parent = item->tableWidget();
+    mParent = parent;
+    mIndex = -1;
+    mHiddenText = QString::null;
+    mRow = parent->rowCount();
+
+    parent->insertRow(mRow);
+    parent->setColumnCount(8);
+    addWidgets(parent, label1, label2, label3, label4, label5, label6,
+               label7, label8);
   mIndex = -1;
   mHiddenText = QString::null;
 }
 /** */
-QListViewItemExt::QListViewItemExt(Q3ListView* parent,Q3ListViewItem* after,
+QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after,
                                    QString label1,QString label2,
                                    QString label3,QString label4,
                                    QString label5,QString label6,
                                    QString label7,QString label8)
-                 :Q3ListViewItem(parent,after,label1,label2,label3,
-                                label4,label5,label6,label7,label8)
 {
+    mParent = parent;
+    mIndex = -1;
+    mHiddenText = QString::null;
+    mRow = parent->row(after);
+
+    parent->insertRow(mRow);
+    parent->setColumnCount(8);
+    addWidgets(parent, label1, label2, label3, label4, label5, label6,
+               label7, label8);
   mIndex = -1;
   mHiddenText = QString::null;
 }
 /** */
-QListViewItemExt::QListViewItemExt(Q3ListViewItem* parent,
-                                   Q3ListViewItem* after,QString label1,
+QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,
+                                   QTableWidgetItem* after,QString label1,
                                    QString label2,QString label3,
                                    QString label4,QString label5,
                                    QString label6,QString label7,
                                    QString label8)
-                 :Q3ListViewItem(parent,after,label1,label2,label3,
-                     			      label4,label5,label6,label7,label8)
 {
+    QTableWidget* parent = item->tableWidget();
+    mParent = parent;
+    mIndex = -1;
+    mHiddenText = QString::null;
+    mRow = parent->row(after);
+
+    parent->insertRow(mRow);
+    parent->setColumnCount(8);
+    addWidgets(parent, label1, label2, label3, label4, label5, label6,
+               label7, label8);
   mIndex = -1;
   mHiddenText = QString::null;
 }
@@ -126,17 +205,17 @@ QString QListViewItemExt::key(int column,bool ascending) const
   int i;
   bool ok;
 
-  qs = text(column);
+  qs = mParent->item(mRow, column)->text();
   switch(column)
   {
     //sort by name
     case 0:
     case 1:
-      qs = text(1);
+      qs = mParent->item(mRow, 2)->text();
       break;
     //sort by byte size
     case 2:
-      i = text(2).toInt(&ok);
+      i = mParent->item(mRow, 2)->text().toInt(&ok);
       if(!ok) i = 0;
       qs.sprintf("%010i",i);
       break;
