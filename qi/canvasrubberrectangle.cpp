@@ -15,24 +15,32 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
+#include <QGraphicsScene>
+
 #include "canvasrubberrectangle.h"
 
 #include <qpainter.h>
 
-CanvasRubberRectangle::CanvasRubberRectangle(Q3Canvas* canvas)
-                   :Q3CanvasRectangle(canvas)
+CanvasRubberRectangle::CanvasRubberRectangle(QGraphicsScene* canvas)
+                   :QGraphicsRectItem()
 {
   initRect();
+  canvas->addItem(this);
 }
-CanvasRubberRectangle::CanvasRubberRectangle(const QRect& rect,Q3Canvas* canvas)
-                   :Q3CanvasRectangle(rect,canvas)
+CanvasRubberRectangle::CanvasRubberRectangle(const QRect& rect,
+                                             QGraphicsScene* canvas)
+                   :QGraphicsRectItem(rect)
 {
   initRect();
+  canvas->addItem(this);
 }
-CanvasRubberRectangle::CanvasRubberRectangle(int x,int y,int width,int height,Q3Canvas* canvas)
-                   :Q3CanvasRectangle(x,y,width,height,canvas)
+CanvasRubberRectangle::CanvasRubberRectangle(int x,int y,int width,int height,
+                                             QGraphicsScene* canvas)
+                   :QGraphicsRectItem(x,y,width,height)
 {
   initRect();
+  canvas->addItem(this);
 }
 CanvasRubberRectangle::~CanvasRubberRectangle()
 {
@@ -44,8 +52,7 @@ void CanvasRubberRectangle::initRect()
   mLineOffset = 0;
   setFgColor(qRgb(255,255,255));
   setBgColor(qRgb(0,0,0));
-  setZ(0.0);
-  setAnimated(true);
+//  setAnimated(true);
   mTlx = 0.0;
   mTly = 0.0;
   mBrx = 1.0;
@@ -54,13 +61,13 @@ void CanvasRubberRectangle::initRect()
 /** No descriptions */
 void CanvasRubberRectangle::advance(int stage)
 {
-  if(!visible())
+  if(!isVisible())
     return;
   if(stage == 1)
   {
-    canvas()->setAllChanged();
+//    canvas()->setAllChanged();
   }
-  Q3CanvasRectangle::advance(stage);
+//  Q3CanvasRectangle::advance(stage);
 }
 /** No descriptions */
 void CanvasRubberRectangle::setFgColor(QRgb rgb)
@@ -76,6 +83,8 @@ void CanvasRubberRectangle::setBgColor(QRgb rgb)
 /** No descriptions */
 void CanvasRubberRectangle::drawShape(QPainter& p)
 {
+  UNUSED(p);
+#if 0
   Q3CanvasRectangle::drawShape(p);
   p.setPen(mFgPen);
   mLineOffset += 1;
@@ -117,6 +126,7 @@ void CanvasRubberRectangle::drawShape(QPainter& p)
     p.drawLine(r,t,r,b);
     p.drawLine(l,b,l,t);
   }
+#endif
 }
 /** No descriptions */
 bool CanvasRubberRectangle::userSelected()
@@ -167,4 +177,13 @@ double CanvasRubberRectangle::brx()
 double CanvasRubberRectangle::bry()
 {
   return mBry;
+}
+
+void CanvasRubberRectangle::setSize(int width, int height)
+{
+    QRectF rect = this->rect();
+
+    rect.setWidth(width);
+    rect.setHeight(height);
+    setRect(rect);
 }

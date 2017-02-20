@@ -614,8 +614,8 @@ void PreviewWidget::redrawRulers()
   min_v = mImageVector[mImageVectorIndex]->tlyOrig() * (mMaxRangeY -mMinRangeY);
   max_v = mImageVector[mImageVectorIndex]->bryOrig() * (mMaxRangeY -mMinRangeY);
 
-  int w = mpScanAreaWidget->canvas()->width();
-  int h = mpScanAreaWidget->canvas()->height();;
+  int w = mpScanAreaWidget->scene()->width();
+  int h = mpScanAreaWidget->scene()->height();;
   double f1= double(mpScanAreaWidget->width())/double(w);
   double f2= double(mpScanAreaWidget->height())/double(h);
 

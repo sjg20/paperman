@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
 #include "scanareacanvas.h"
 #include "qxmlconfig.h"
 
@@ -24,14 +25,15 @@
 #include <qpaintdevice.h>
 #include <qpen.h>
 #include <qmatrix.h>
-//Added by qt3to4:
 #include <QResizeEvent>
 #include <QPixmap>
 #include <QMouseEvent>
 
 ScanAreaCanvas::ScanAreaCanvas(QWidget* parent,const char* name,Qt::WFlags f)
-               :Q3CanvasView(0,parent,name,f)
+               :QGraphicsView(parent)
 {
+  UNUSED(f);
+  setObjectName(name);
   mTlxPercentChanged = false;
   mTlyPercentChanged = false;
   mBrxPercentChanged = false;
@@ -55,9 +57,9 @@ void ScanAreaCanvas::initWidget()
 {
   setFrameStyle(NoFrame);
   //Construct a QCanvas which is viewed through this QCanvasView
-  mpCanvas = new Q3Canvas();
+  mpCanvas = new QGraphicsScene();
 //  mpCanvas->setBackgroundColor(QColor(gray));
-  setCanvas(mpCanvas);
+  setScene(mpCanvas);
   mRectVector.clear ();
   for(int i=0;i<20;i++)
   {
@@ -75,6 +77,7 @@ void ScanAreaCanvas::initWidget()
 /**  */
 void ScanAreaCanvas::scaleRects()
 {
+#if 0 //p
   QPixmap pix = mpCanvas->backgroundPixmap();
   //resize rectangles
   for(int i=0;i<mRectVector.size();i++)
@@ -88,6 +91,7 @@ void ScanAreaCanvas::scaleRects()
     cr->setY(double(y));
     cr->setSize(w,h);
   }
+#endif
 }
 /**  */
 void ScanAreaCanvas::contentsMousePressEvent(QMouseEvent* me)
@@ -107,7 +111,7 @@ void ScanAreaCanvas::contentsMousePressEvent(QMouseEvent* me)
     {
       CanvasRubberRectangle *cr = mRectVector[i];
       if (cr->rect().contains(mOldMousePoint) &&
-          cr->visible())
+          cr->isVisible())
       {
         setActiveRect(i);
         mMustMove  = true;
@@ -116,20 +120,24 @@ void ScanAreaCanvas::contentsMousePressEvent(QMouseEvent* me)
     	 	//near top border ?
     	 	if((mOldMousePoint.y()-cr->y())<5) mCursorState+=2;
     		//near right border ?
-    		if((cr->x()+cr->width()-mOldMousePoint.x())<5)
+            if((cr->x()+cr->rect().width()-mOldMousePoint.x())<5)
           mCursorState+=4;
      		//near bottom border ?
-    		if((cr->y()+cr->height()-mOldMousePoint.y())<5)
+            if((cr->y()+cr->rect().width()-mOldMousePoint.y())<5)
           mCursorState+=8;
-     	  if((mCursorState==1)||(mCursorState==4)) viewport()->setCursor(Qt::sizeHorCursor);
-     	  if((mCursorState==2)||(mCursorState==8)) viewport()->setCursor(Qt::sizeVerCursor);
-     	  if((mCursorState==3)||(mCursorState==12)) viewport()->setCursor(Qt::sizeFDiagCursor);
-     	  if((mCursorState==6)||(mCursorState==9)) viewport()->setCursor(Qt::sizeBDiagCursor);
+          if((mCursorState==1)||(mCursorState==4))
+              viewport()->setCursor(Qt::SizeHorCursor);
+          if((mCursorState==2)||(mCursorState==8))
+              viewport()->setCursor(Qt::SizeVerCursor);
+          if((mCursorState==3)||(mCursorState==12))
+              viewport()->setCursor(Qt::SizeFDiagCursor);
+          if((mCursorState==6)||(mCursorState==9)
+                  ) viewport()->setCursor(Qt::SizeBDiagCursor);
             if(mCursorState==0) {
           if(mMode == 0)
-      			viewport()->setCursor(Qt::sizeAllCursor);
+                viewport()->setCursor(Qt::SizeAllCursor);
           else
-      			viewport()->setCursor(Qt::arrowCursor);
+      			viewport()->setCursor(Qt::ArrowCursor);
             }
         emit signalNewActiveRect(i);
         return;
@@ -210,31 +218,38 @@ void ScanAreaCanvas::contentsMouseMoveEvent(QMouseEvent* me)
   	 	//near top border ?
   	 	if((point.y()-cur->y())<5) mCursorState+=2;
   		//near right border ?
-  		if((cur->x()+cur->width()-point.x())<5)
+        if((cur->x()+cur->rect().width()-point.x())<5)
         mCursorState+=4;
    		//near bottom border ?
-  		if((cur->y()+cur->height()-point.y())<5)
+        if((cur->y()+cur->rect().height()-point.y())<5)
         mCursorState+=8;
-   	  if((mCursorState==1)||(mCursorState==4)) viewport()->setCursor(Qt::sizeHorCursor);
-   	  if((mCursorState==2)||(mCursorState==8)) viewport()->setCursor(Qt::sizeVerCursor);
-   	  if((mCursorState==3)||(mCursorState==12)) viewport()->setCursor(Qt::sizeFDiagCursor);
-   	  if((mCursorState==6)||(mCursorState==9)) viewport()->setCursor(Qt::sizeBDiagCursor);
+      if((mCursorState==1)||(mCursorState==4))
+          viewport()->setCursor(Qt::SizeHorCursor);
+      if((mCursorState==2)||(mCursorState==8))
+          viewport()->setCursor(Qt::SizeVerCursor);
+      if((mCursorState==3)||(mCursorState==12))
+          viewport()->setCursor(Qt::SizeFDiagCursor);
+      if((mCursorState==6)||(mCursorState==9))
+          viewport()->setCursor(Qt::SizeBDiagCursor);
       if(mCursorState==0) {
         if(mMode == 0)
-    			viewport()->setCursor(Qt::sizeAllCursor);
+                viewport()->setCursor(Qt::SizeAllCursor);
         else
-    			viewport()->setCursor(Qt::arrowCursor);
+    			viewport()->setCursor(Qt::ArrowCursor);
       }
     }
     else
     {
-			viewport()->setCursor(Qt::arrowCursor);
+			viewport()->setCursor(Qt::ArrowCursor);
     }
   }
   else
   {
     if(mMustMove)
     {
+      int cur_width = cur->rect().width();
+      int cur_height = cur->rect().height();
+
       dx = point.x()-mOldMousePoint.x();
       dy = point.y()-mOldMousePoint.y();
       ensureVisible (point.x(),point.y(),1,1);
@@ -242,27 +257,27 @@ void ScanAreaCanvas::contentsMouseMoveEvent(QMouseEvent* me)
       {
         if(cur->x()+dx < 0)
          dx = int(-1*cur->x());
-        if(cur->x()+dx+cur->width() > mpCanvas->width())
+        if(cur->x()+dx+cur_width > mpCanvas->width())
          dx = int(mpCanvas->width()-cur->x()-
-                  cur->width());
+                  cur_width);
         if(cur->y()+dy < 0)
          dy = int(-1*cur->y());
-        if(cur->y()+dy+cur->height() > mpCanvas->height())
+        if(cur->y()+dy+cur_height > mpCanvas->height())
          dy = int(mpCanvas->height()-cur->y()-
-              cur->height());
+              cur_height);
         cur->moveBy(dx,dy);
       }
       if(mCursorState & 1)
       {
         if(cur->x()+dx < 0)
           dx = int(-1*cur->x());
-        else if(cur->width()-dx < 1)
-          dx = -1*cur->width()+1;
+        else if(cur_width-dx < 1)
+          dx = -1*cur_width+1;
         if((cur->x()+dx) <
-           (cur->x()+cur->width() - 10))
+           (cur->x()+cur_width - 10))
         {
-          cur->setSize(cur->width()-dx,
-                                    cur->height());
+          cur->setSize(cur_width-dx,
+                                    cur_height);
           cur->setX(cur->x()+dx);
         }
       }
@@ -270,40 +285,40 @@ void ScanAreaCanvas::contentsMouseMoveEvent(QMouseEvent* me)
       {
         if(cur->y()+dy < 0)
           dy = int(-1*cur->y());
-        else if(cur->height()-dy < 1)
-          dy = cur->height()-1;
+        else if(cur_height-dy < 1)
+          dy = cur_height-1;
         if((cur->y()+dy) <
-           (cur->y()+cur->height() - 10))
+           (cur->y()+cur_height - 10))
         {
-          cur->setSize(cur->width(),
-                                    cur->height()-dy);
+          cur->setSize(cur_width,
+                                    cur_height-dy);
           cur->setY(cur->y()+dy);
         }
       }
       if(mCursorState & 4)
       {
-        if(cur->x()+dx+cur->width() > mpCanvas->width())
-          dx = int(mpCanvas->width()-cur->x()-cur->width());
-        else if(cur->width()+dx < 1)
-          dx = -1*cur->width()+1;
-        cur->setSize(cur->width()+dx,
-                                  cur->height());
-        if(cur->width() < 10)
+        if(cur->x()+dx+cur_width > mpCanvas->width())
+          dx = int(mpCanvas->width()-cur->x()-cur_width);
+        else if(cur_width+dx < 1)
+          dx = -1*cur_width+1;
+        cur->setSize(cur_width+dx,
+                                  cur_height);
+        if(cur_width < 10)
         {
-          cur->setSize(10,cur->height());
+          cur->setSize(10,cur_height);
         }
       }
       if(mCursorState & 8)
       {
-        if(cur->y()+dy+cur->height() > mpCanvas->height())
-          dy = int(mpCanvas->height()-cur->y()-cur->height());
-        else if(cur->height()+dy < 1)
-          dy = -1*cur->height()+1;
-        cur->setSize(cur->width(),
-                                  cur->height()+dy);
-        if(cur->height() < 10)
+        if(cur->y()+dy+cur_height > mpCanvas->height())
+          dy = int(mpCanvas->height()-cur->y()-cur_height);
+        else if(cur_height+dy < 1)
+          dy = -1*cur_height+1;
+        cur->setSize(cur_width,
+                                  cur_height+dy);
+        if(cur_height < 10)
         {
-          cur->setSize(cur->width(),10);
+          cur->setSize(cur_width,10);
         }
       }
 
@@ -365,7 +380,7 @@ void ScanAreaCanvas::setImage(QImage* image)
   mCanvasImage = image->copy();
   mCanvasPixmap.convertFromImage(*image);
   resizePixmap();
-  mpCanvas->setAdvancePeriod(200);
+//p  mpCanvas->setAdvancePeriod(200);
 }
 /**  */
 double ScanAreaCanvas::tlxPercent()
@@ -431,12 +446,12 @@ void ScanAreaCanvas::setActiveRect(int num)
     return;
   if(mActiveRect >= 0)
   {
-    mRectVector[mActiveRect]->setAnimated(false);
-    mRectVector[mActiveRect]->setZ(0.0);
+//p    mRectVector[mActiveRect]->setAnimated(false);
+    mRectVector[mActiveRect]->setZValue(0.0);
   }
   mActiveRect = num;
-  mRectVector[mActiveRect]->setAnimated(true);
-  mRectVector[mActiveRect]->setZ(1.0);
+//p  mRectVector[mActiveRect]->setAnimated(true);
+  mRectVector[mActiveRect]->setZValue(1.0);
 }
 /** No descriptions */
 void ScanAreaCanvas::setRectFgColor(int num,QRgb rgb)
@@ -485,7 +500,7 @@ void ScanAreaCanvas::setUserSelected(int num,bool state)
 /** No descriptions */
 void ScanAreaCanvas::resizeEvent(QResizeEvent* e)
 {
-  Q3CanvasView::resizeEvent(e);
+  QGraphicsView::resizeEvent(e);
   resizePixmap();
   viewport()->update();
   mpCanvas->update();
@@ -522,6 +537,8 @@ void ScanAreaCanvas::setBry(double value)
 /** No descriptions */
 void ScanAreaCanvas::redrawRect(int num)
 {
+  UNUSED(num);
+#if 0 //p
   if((num < 0) || (num > int(mRectVector.size())-1))
     return;
   QPixmap pix = mpCanvas->backgroundPixmap();
@@ -532,6 +549,7 @@ void ScanAreaCanvas::redrawRect(int num)
   mRectVector[num]->setX(double(x));
   mRectVector[num]->setY(double(y));
   mRectVector[num]->setSize(w,h);
+#endif
 }
 /** No descriptions */
 double ScanAreaCanvas::overallTlx()
@@ -541,7 +559,7 @@ double ScanAreaCanvas::overallTlx()
   for(int i=0;i<mRectVector.size();i++)
   {
     if((mRectVector[i]->tlx() < tlx) &&
-       mRectVector[i]->visible())
+       mRectVector[i]->isVisible())
       tlx = mRectVector[i]->tlx();
   }
   return tlx;
@@ -554,7 +572,7 @@ double ScanAreaCanvas::overallTly()
   for(int i=0;i<mRectVector.size();i++)
   {
     if((mRectVector[i]->tly() < tly) &&
-       mRectVector[i]->visible())
+       mRectVector[i]->isVisible())
       tly = mRectVector[i]->tly();
   }
   return tly;
@@ -567,7 +585,7 @@ double ScanAreaCanvas::overallBrx()
   for(int i=0;i<mRectVector.size();i++)
   {
     if((mRectVector[i]->brx() > brx) &&
-       mRectVector[i]->visible())
+       mRectVector[i]->isVisible())
       brx = mRectVector[i]->brx();
   }
   return brx;
@@ -580,7 +598,7 @@ double ScanAreaCanvas::overallBry()
   for(int i=0;i<mRectVector.size();i++)
   {
     if((mRectVector[i]->bry() > bry) &&
-       mRectVector[i]->visible())
+       mRectVector[i]->isVisible())
       bry = mRectVector[i]->bry();
   }
   return bry;
@@ -619,7 +637,7 @@ const QVector <double> ScanAreaCanvas::selectedRects()
   bry = overallBry();
   for(int ui=0;ui<mRectVector.size();ui++)
   {
-    if(mRectVector[ui]->visible())
+    if(mRectVector[ui]->isVisible())
     {
       da.resize(da.size() + 4);
       tlxm = mRectVector[ui]->tlx();
@@ -682,20 +700,21 @@ void ScanAreaCanvas::resizePixmap()
   QPixmap pix;
   if(smooth_scale == true)
   {
-    QImage im = mCanvasImage.smoothScale(nw,nh);
+    QImage im = mCanvasImage.scaled(nw,nh, Qt::IgnoreAspectRatio,
+                                    Qt::SmoothTransformation);
     pix.convertFromImage(im);
   }
   else
   {
     QMatrix m;				
     m.scale(sfh,sfv);
-  	pix = mCanvasPixmap.xForm( m );
+    pix = mCanvasPixmap.transformed( m );
   }
-  mpCanvas->resize(pix.width(),pix.height());
+  mpCanvas->setSceneRect(0, 0, pix.width(),pix.height());
   viewport()->setMaximumSize(pix.width(),pix.height());
-  resizeContents(pix.width(),pix.height());
+//p  resizeContents(pix.width(),pix.height());
   //resize rectangle
-  mpCanvas->setBackgroundPixmap(pix);
+//p  mpCanvas->setBackgroundPixmap(pix);
   viewport()->update();
 }
 /** Sets the aspect ratio: aspect = width/height */
@@ -713,13 +732,13 @@ void ScanAreaCanvas::enableSelection(bool state)
     {
       mRectVector[i]->hide();
     }
-    mpCanvas->setAdvancePeriod(2000);
+//p    mpCanvas->setAdvancePeriod(2000);
     mSelectionEnabled = false;
   }
   else
   {
     mRectVector[0]->show();
-    mpCanvas->setAdvancePeriod(200);
+//p    mpCanvas->setAdvancePeriod(200);
     mSelectionEnabled = true;
   }
 }
@@ -742,7 +761,7 @@ QVector <ScanArea*> ScanAreaCanvas::scanAreas()
   vec.resize(0);
   for(int i=0;i<mRectVector.size();i++)
   {
-    if(mRectVector[i]->visible())
+    if(mRectVector[i]->isVisible())
     {
       sca = new ScanArea(QString::null,mRectVector[i]->tlx(),mRectVector[i]->tly(),
                                        mRectVector[i]->brx(),mRectVector[i]->bry());

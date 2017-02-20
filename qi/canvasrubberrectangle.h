@@ -18,20 +18,24 @@
 #ifndef CANVASRUBBERRECTANGLE_H
 #define CANVASRUBBERRECTANGLE_H
 
-#include <q3canvas.h>
 #include <qcolor.h>
 #include <qrect.h>
+
+#include <QGraphicsRectItem>
+#include <QPen>
+
+class QGraphicsScene;
 
 /**
   *@author Michael Herder
   */
 
-class CanvasRubberRectangle : public Q3CanvasRectangle
+class CanvasRubberRectangle : public QGraphicsRectItem
 {
 public: 
- CanvasRubberRectangle(Q3Canvas* canvas);
- CanvasRubberRectangle(const QRect& rect,Q3Canvas* canvas);
- CanvasRubberRectangle(int x,int y,int width,int height,Q3Canvas* canvas);
+ CanvasRubberRectangle(QGraphicsScene* canvas);
+ CanvasRubberRectangle(const QRect& rect,QGraphicsScene* canvas);
+ CanvasRubberRectangle(int x,int y,int width,int height,QGraphicsScene* canvas);
 	~CanvasRubberRectangle();
   /** No descriptions */
   void advance(int stage);
@@ -59,6 +63,7 @@ public:
   double brx();
   /** No descriptions */
   double bry();
+  void setSize(int width, int height);
 private: // Private methods
   /** No descriptions */
   void initRect();

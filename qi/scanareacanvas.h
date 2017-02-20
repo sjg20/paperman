@@ -18,26 +18,26 @@
 #ifndef SCANAREACANVAS_H
 #define SCANAREACANVAS_H
 
+#include <QGraphicsView>
+
 #include "canvasrubberrectangle.h"
 #include "scanarea.h"
 
-//s #include <qarray.h>
-#include <q3canvas.h>
 #include <qimage.h>
 #include <qpixmap.h>
 #include <qpoint.h>
 #include <qrect.h>
 #include <qstring.h>
-#include <q3ptrvector.h>  //!s
-//Added by qt3to4:
 #include <QResizeEvent>
 #include <QMouseEvent>
+
+class QGraphicsScene;
 
 /**
   *@author M. Herder
   */
 
-class ScanAreaCanvas : public Q3CanvasView
+class ScanAreaCanvas : public QGraphicsView
 {
 Q_OBJECT
 public:
@@ -129,7 +129,7 @@ private: // Private methods
   /** No descriptions */
   void resizePixmap();
   /**The QCanvas we view with this QCanvasView */
-  Q3Canvas* mpCanvas;
+  QGraphicsScene* mpCanvas;
   /** */
   QPixmap mCanvasPixmap;
   /** */
