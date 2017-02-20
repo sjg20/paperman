@@ -212,7 +212,7 @@ private:
   /**  */
   Q3HBox* mpButtonHBox2;
   /**  */
-  Q3HBox* mpDragHBox1;
+  QHBoxLayout* mpDragHBox1;
   /**  */
   Q3HBox* mpDragHBox2;
   /**  */

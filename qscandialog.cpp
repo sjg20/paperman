@@ -281,11 +281,13 @@ QIN::Status QScanDialog::initDialog()
 //in drag mode, the user can type in the filename directly
   QPixmap setpix((const char **)setup);
 	QPixmap openpix((const char **)fileopen);
-	mpDragHBox1 = new Q3HBox(this);
-  new QLabel(tr("Save as:"),mpDragHBox1);
-  mpDragLineEdit = new QLineEdit(mpDragHBox1);
-  QPushButton* tb1 = new QPushButton(mpDragHBox1);
-  tb1->setPixmap(openpix);
+  mpDragHBox1 = new QHBoxLayout();
+  mpDragHBox1->addWidget(new QLabel(tr("Save as:")));
+  mpDragLineEdit = new QLineEdit();
+  mpDragHBox1->addWidget(mpDragLineEdit);
+  QPushButton* tb1 = new QPushButton();
+  mpDragHBox1->addWidget(tb1);
+  tb1->setIcon(openpix);
 	mpDragHBox2 = new Q3HBox(this);
   QPushButton* pb_setfn = new QPushButton(mpDragHBox2);
   pb_setfn->setPixmap(setpix);
@@ -312,7 +314,7 @@ QIN::Status QScanDialog::initDialog()
   tb2->setPixmap(setpix);
   tb2->resize(tb1->sizeHint());
   mpDragHBox2->setStretchFactor(mpAutoNameCheckBox,1);
-  mpMainLayout->addWidget(mpDragHBox1,2,0);
+  mpMainLayout->addLayout(mpDragHBox1,2,0);
   mpMainLayout->addWidget(mpDragHBox2,3,0);
   mpDragHBox1->setSpacing(3);
   mpDragHBox2->setSpacing(3);
@@ -2505,7 +2507,7 @@ void QScanDialog::slotChangeMode(int index)
 #endif
   if(scan_mode == QIN::Direct)
   {
-    mpDragHBox1->show();
+//    mpDragHBox1->show();
     mpDragHBox2->show();
     if(mMultiSelectionMode)
     {
@@ -2517,7 +2519,7 @@ void QScanDialog::slotChangeMode(int index)
   }
   else
   {
-    mpDragHBox1->hide();
+//    mpDragHBox1->hide();
     mpDragHBox2->hide();
     qApp->processEvents();
     if(!mpPreviewWidget)
