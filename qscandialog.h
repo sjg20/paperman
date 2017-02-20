@@ -214,7 +214,7 @@ private:
   /**  */
   QHBoxLayout* mpDragHBox1;
   /**  */
-  Q3HBox* mpDragHBox2;
+  QHBoxLayout* mpDragHBox2;
   /**  */
   QWidget* mpOptionListWidget;
   /**  */

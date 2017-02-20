@@ -288,16 +288,19 @@ QIN::Status QScanDialog::initDialog()
   QPushButton* tb1 = new QPushButton();
   mpDragHBox1->addWidget(tb1);
   tb1->setIcon(openpix);
-	mpDragHBox2 = new Q3HBox(this);
-  QPushButton* pb_setfn = new QPushButton(mpDragHBox2);
-  pb_setfn->setPixmap(setpix);
+  mpDragHBox2 = new QHBoxLayout(this);
+  QPushButton* pb_setfn = new QPushButton();
+  mpDragHBox2->addWidget(pb_setfn);
+  pb_setfn->setIcon(setpix);
   pb_setfn->resize(tb1->sizeHint());
-  mpAutoNameCheckBox = new QCheckBox(tr("Automatic filename &generation"),
-                                   mpDragHBox2);
-  QWidget* dummy1 = new QWidget(mpDragHBox2);
+  mpAutoNameCheckBox = new QCheckBox(tr("Automatic filename &generation"));
+  mpDragHBox2->addWidget(mpAutoNameCheckBox);
+  QWidget* dummy1 = new QWidget();
+  mpDragHBox2->addWidget(dummy1);
   dummy1->setFixedWidth(10);
-  new QLabel(tr("Image type"),mpDragHBox2);
-  mpDragTypeCombo = new QComboBox(mpDragHBox2);
+  mpDragHBox2->addWidget(new QLabel(tr("Image type")));
+  mpDragTypeCombo = new QComboBox();
+  mpDragHBox2->addWidget(mpDragTypeCombo);
 //  QList<QByteArray> lin = QImageWriter::supportedImageFormats();
   mpDragTypeCombo->insertItem(tr("by extension"));
   mpDragTypeCombo->insertItem("BMP");
@@ -310,12 +313,13 @@ QIN::Status QScanDialog::initDialog()
   mpDragTypeCombo->insertItem("PNM");
   mpDragTypeCombo->insertItem("XBM");
   mpDragTypeCombo->insertItem("XPM");
-  QPushButton* tb2 = new QPushButton(mpDragHBox2);
-  tb2->setPixmap(setpix);
+  QPushButton* tb2 = new QPushButton();
+  mpDragHBox2->addWidget(tb2);
+  tb2->setIcon(setpix);
   tb2->resize(tb1->sizeHint());
   mpDragHBox2->setStretchFactor(mpAutoNameCheckBox,1);
   mpMainLayout->addLayout(mpDragHBox1,2,0);
-  mpMainLayout->addWidget(mpDragHBox2,3,0);
+  mpMainLayout->addLayout(mpDragHBox2,3,0);
   mpDragHBox1->setSpacing(3);
   mpDragHBox2->setSpacing(3);
   mpDragTypeCombo->setCurrentItem(xmlConfig->intValue("DRAG_IMAGE_TYPE"));
@@ -2508,7 +2512,7 @@ void QScanDialog::slotChangeMode(int index)
   if(scan_mode == QIN::Direct)
   {
 //    mpDragHBox1->show();
-    mpDragHBox2->show();
+//    mpDragHBox2->show();
     if(mMultiSelectionMode)
     {
       mpAutoNameCheckBox->setChecked(true);
@@ -2520,7 +2524,7 @@ void QScanDialog::slotChangeMode(int index)
   else
   {
 //    mpDragHBox1->hide();
-    mpDragHBox2->hide();
+//    mpDragHBox2->hide();
     qApp->processEvents();
     if(!mpPreviewWidget)
       resize(width(),minimumSizeHint().height());
