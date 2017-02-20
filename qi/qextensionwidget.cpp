@@ -21,23 +21,24 @@
 #include "qextensionwidget.h"
 //s #include "qfiledialogext.h"
 #include "qxmlconfig.h"
+#include "quiteinsanenamespace.h"
+
+#include <QButtonGroup>
+#include <QFileDialog>
+#include <QListWidget>
+#include <QStackedWidget>
 
 #include <qapplication.h>
 //s #include <qarray.h>
-#include <q3buttongroup.h>
 #include <qcheckbox.h>
 #include <qcombobox.h>
 #include <qcolor.h>
 #include <qdir.h>
 #include <qfile.h>
 #include <qfileinfo.h>
-#include <q3filedialog.h> //s
-#include <q3groupbox.h>
-#include <q3hbox.h>
 #include <qlabel.h>
 #include <qlayout.h>
 #include <qlineedit.h>
-#include <q3listbox.h>
 #include <qmessagebox.h>
 #include <qnamespace.h>
 #include <qpalette.h>
@@ -47,11 +48,8 @@
 #include <qslider.h>
 #include <qspinbox.h>
 #include <qstring.h>
-#include <q3textstream.h>
 #include <qtoolbutton.h>
-#include <q3whatsthis.h>
 #include <qwidget.h>
-#include <q3widgetstack.h>
 #ifndef QIS_NO_STYLES
 #include <qcdestyle.h>
 #include <qmotifstyle.h>
@@ -59,17 +57,15 @@
 //#include <qplatinumstyle.h>
 //#include <qsgistyle.h>
 #include <qwindowsstyle.h>
-//Added by qt3to4:
-#include <Q3HBoxLayout>
-#include <Q3GridLayout>
-#include <Q3Frame>
 #endif
 
 QExtensionWidget::QExtensionWidget(QWidget* parent,const char* name,
                                    bool modal,Qt::WFlags f)
-                 :QDialog(parent,name,modal,f)
+                 :QDialog(parent,f)
 {
-  setCaption(tr("MaxView - Options"));
+    setObjectName(name);
+    setModal(modal);
+  setWindowTitle(tr("MaxView - Options"));
   mMetricSystem = QIN::Millimetre;
   mFilenameGenerationChanged = false;
   initWidget();
@@ -84,52 +80,49 @@ void QExtensionWidget::initWidget()
   QString qs;
   int subspacing;
   subspacing = 7;
-	QPixmap* pixmap = new QPixmap((const char **)fileopen);
+
+//  QPixmap* pixmap = new QPixmap((const char **)fileopen);
 //the main layout
-	mpMainLayout = new Q3GridLayout(this,5,2);
+  mpMainLayout = new QGridLayout(this);
   mpMainLayout->setMargin(8);
   mpMainLayout->setSpacing(5);
 //create mpWhatsThisButton in a HBox
 	QWidget* wtwidget = new QWidget(this);
-  Q3HBoxLayout* qhbwt = new Q3HBoxLayout( wtwidget,4);
-  mpWhatsThisButton = Q3WhatsThis::whatsThisButton(wtwidget);
-	mpWhatsThisButton->setAutoRaise(FALSE);
+  QHBoxLayout* qhbwt = new QHBoxLayout( wtwidget);
   qhbwt->addStretch(1);
-  qhbwt->addWidget(mpWhatsThisButton);
   mpMainLayout->addWidget(wtwidget,0,1);
   if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))
     wtwidget->hide();
 //mpPageListBox
-  mpPageListBox = new Q3ListBox(this);
-  mpMainLayout->addMultiCellWidget(mpPageListBox,1,4,0,0);
-
+  mpPageListBox = new QListWidget(this);
+  mpMainLayout->addWidget(mpPageListBox,1,0,5,1);
 //mpTitleLabel
   mpTitleLabel = new QLabel(this);
   mpMainLayout->addWidget(mpTitleLabel,1,1);
 
 //horizontal separator
-  Q3Frame* sep1 = new Q3Frame(this);
-  sep1->setFrameStyle(Q3Frame::HLine|Q3Frame::Sunken);
+  QFrame* sep1 = new QFrame(this);
+  sep1->setFrameStyle(QFrame::HLine|QFrame::Sunken);
   sep1->setLineWidth(2);
   mpMainLayout->addWidget(sep1,2,1);
 
 //mpPagesStack
-  mpPagesStack = new Q3WidgetStack(this);
+  mpPagesStack = new QStackedWidget(this);
   mpMainLayout->addWidget(mpPagesStack,3,1);
-
+#if 0
 //buttons
-  Q3HBox* bhb = new Q3HBox(this);
+  QHBoxLayout* bhb = new QHBoxLayout(this);
 	QPushButton* qpb1 = new QPushButton(tr("&OK"),bhb);
   connect(qpb1,SIGNAL(clicked()),this,SLOT(accept()));
   QWidget* dummy = new QWidget(bhb);
   bhb->setStretchFactor(dummy,1);
 	QPushButton* qpb2 = new QPushButton(tr("&Cancel"),bhb);
   connect(qpb2,SIGNAL(clicked()),this,SLOT(reject()));
-  mpMainLayout->addMultiCellWidget(bhb,5,5,0,1);
-
+  mpMainLayout->addMultiCellWidget(bhb,5,0,1,2);
+#endif
 //metric system
   QWidget* opage = new QWidget(mpPagesStack);
-  Q3GridLayout* sublayout = new Q3GridLayout(opage,4,1);
+  QGridLayout* sublayout = new QGridLayout(opage);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(3,1);
@@ -139,17 +132,18 @@ void QExtensionWidget::initWidget()
   sublayout->addWidget(mpRadioMM,0,0);
   sublayout->addWidget(mpRadioCM,1,0);
   sublayout->addWidget(mpRadioInch,2,0);
-  mpBGroupMetricSystem = new Q3ButtonGroup(0);
-  mpBGroupMetricSystem->insert(mpRadioMM);
-  mpBGroupMetricSystem->insert(mpRadioCM);
-  mpBGroupMetricSystem->insert(mpRadioInch);
+  mpBGroupMetricSystem = new QButtonGroup(opage);
+  mpBGroupMetricSystem->addButton(mpRadioMM, QIN::Millimetre);
+  mpBGroupMetricSystem->addButton(mpRadioCM, QIN::Centimetre);
+  mpBGroupMetricSystem->addButton(mpRadioInch, QIN::Inch);
   mpRadioMM->setChecked(TRUE);
-  mpPagesStack->addWidget(opage,0);
-  mpPageListBox->insertItem(tr("Metric system"));
+  mpPagesStack->addWidget(opage);
+  mpPageListBox->addItem(tr("Metric system"));
 
+#if 0
 //Layout
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,7,1);
+  sublayout = new QGridLayout(opage,7,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(6,1);
@@ -180,7 +174,7 @@ void QExtensionWidget::initWidget()
 
 //scanner
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,5,1);
+  sublayout = new QGridLayout(opage,5,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(4,1);
@@ -195,7 +189,7 @@ void QExtensionWidget::initWidget()
                                        opage);
   sublayout->addWidget(mpTransPathCheckBox,2,0);
 
-  Q3HBox* transhb = new Q3HBox(opage);
+  QHBoxLayout* transhb = new QHBoxLayout(opage);
   new QLabel(tr("Translation path:"),transhb);
   mpEditTransPath = new QLineEdit(transhb);
   mpEditTransPath->setText(xmlConfig->stringValue(QString::null));
@@ -215,11 +209,11 @@ void QExtensionWidget::initWidget()
 
 //OCR
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,2,1);
+  sublayout = new QGridLayout(opage,2,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(1,1);
-  Q3HBox* ocrhb = new Q3HBox(opage);
+  QHBoxLayout* ocrhb = new QHBoxLayout(opage);
   new QLabel(tr("OCR command:"),ocrhb);
   mpEditOcr = new QLineEdit(ocrhb);
   mpEditOcr->setText(xmlConfig->stringValue("GOCR_COMMAND"));
@@ -229,7 +223,7 @@ void QExtensionWidget::initWidget()
 
 //Image compression/quality
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,6,5);
+  sublayout = new QGridLayout(opage,6,5);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(5,1);
@@ -316,12 +310,12 @@ void QExtensionWidget::initWidget()
 
 //History
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,5,1);
+  sublayout = new QGridLayout(opage,5,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(4,1);
   mpCheckBoxHistory = new QCheckBox(tr("&Enable history"),opage);
-  Q3HBox* histhb = new Q3HBox(opage);
+  QHBoxLayout* histhb = new QHBoxLayout(opage);
   mpCheckBoxHistoryEntries = new QCheckBox(tr("&Maximum number of entries"),histhb);
   mpSpinHistoryNumber = new QSpinBox(1,9999,1,histhb);
   histhb->setStretchFactor(mpCheckBoxHistoryEntries,1);
@@ -343,11 +337,11 @@ void QExtensionWidget::initWidget()
           this,SLOT(slotChangePage(int)));
 //Viewer
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,3,1);
+  sublayout = new QGridLayout(opage,3,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(2,1);
-  Q3HBox* undohb = new Q3HBox(opage);
+  QHBoxLayout* undohb = new QHBoxLayout(opage);
   QLabel* undolabel = new QLabel(tr("Number of undo steps:"),undohb);
   mpUndoSpin = new QSpinBox(undohb);
   mpUndoSpin->setRange(2,25);
@@ -355,7 +349,7 @@ void QExtensionWidget::initWidget()
   undohb->setStretchFactor(undolabel,1);
   sublayout->addWidget(undohb,0,0);
 
-  Q3HBox* previewhb = new Q3HBox(opage);
+  QHBoxLayout* previewhb = new QHBoxLayout(opage);
   QLabel* previewlabel = new QLabel(tr("Maximal filter preview size:"),previewhb);
   mpFilterSizeSpin = new QSpinBox(previewhb);
   mpFilterSizeSpin->setRange(150,450);
@@ -363,7 +357,7 @@ void QExtensionWidget::initWidget()
   previewhb->setStretchFactor(previewlabel,1);
   sublayout->addWidget(previewhb,1,0);
 
-  Q3HBox* b1 = new Q3HBox(opage);
+  QHBoxLayout* b1 = new QHBoxLayout(opage);
   QLabel* previewlabel2 = new QLabel(tr("Display subsystem:"),b1);
   mpDisplaySubsystemCombo = new QComboBox(b1);
   mpDisplaySubsystemCombo->insertItem (tr("Pixmap"));
@@ -377,7 +371,7 @@ void QExtensionWidget::initWidget()
 
 //Preview
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,4,1);
+  sublayout = new QGridLayout(opage,4,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(3,1);
@@ -385,7 +379,7 @@ void QExtensionWidget::initWidget()
   sublayout->addWidget(mpSmoothPreviewCheckBox,0,0);
   mpPreviewUpdateCheckBox = new QCheckBox(tr("&Enable continous update"),opage);
   sublayout->addWidget(mpPreviewUpdateCheckBox,1,0);
-  Q3HBox* pvhbox = new Q3HBox(opage);
+  QHBoxLayout* pvhbox = new QHBoxLayout(opage);
   mpLimitPreviewCheckBox = new QCheckBox(tr("&Limit preview resolution"),pvhbox);
   mpLimitPreviewSpin = new QSpinBox(25,20000,1,pvhbox);
   pvhbox->setStretchFactor(mpLimitPreviewCheckBox,1);
@@ -395,7 +389,7 @@ void QExtensionWidget::initWidget()
   mpPageListBox->insertItem(tr("Preview"));
 //automatic selection
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,7,2);
+  sublayout = new QGridLayout(opage,7,2);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(7,1);
@@ -412,15 +406,15 @@ void QExtensionWidget::initWidget()
   mpAutoSizeSpin = new QDoubleSpinBox(opage);
   mpAutoSizeSpin->setRange(1,100);
   mpAutoSizeSpin->setValue(5);
-  Q3GroupBox* autogb = new Q3GroupBox(1,Qt::Horizontal,
+  QGroupBox* autogb = new QGroupBox(1,Qt::Horizontal,
                                     tr("Background gray value is"),opage);
-  Q3HBox* autohb1 = new Q3HBox(autogb);
+  QHBoxLayout* autohb1 = new QHBoxLayout(autogb);
   autohb1->setSpacing(5);
   mpAutoSmallerRadio = new QRadioButton(tr("smaller than (black background):"),autohb1);
   mpAutoSmallerSpin = new QSpinBox(0,255,1,autohb1);
   autohb1->setStretchFactor(mpAutoSmallerRadio,1);
 
-  Q3HBox* autohb2 = new Q3HBox(autogb);
+  QHBoxLayout* autohb2 = new QHBoxLayout(autogb);
   autohb2->setSpacing(5);
   mpAutoGreaterRadio = new QRadioButton(tr("greater than (white background):"),autohb2);
   mpAutoGreaterSpin = new QSpinBox(0,255,1,autohb2);
@@ -454,11 +448,11 @@ void QExtensionWidget::initWidget()
 
 //start dialog
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,2,1);
+  sublayout = new QGridLayout(opage,2,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(1,1);
-  Q3GroupBox* gb = new Q3GroupBox(1,Qt::Horizontal,
+  QGroupBox* gb = new QGroupBox(1,Qt::Horizontal,
                                  tr("On next program start"),opage);
 
   mpAllDevicesRadio = new QRadioButton(tr("List &all devices"),gb);
@@ -478,15 +472,15 @@ void QExtensionWidget::initWidget()
 
 //filename generation
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,4,1);
+  sublayout = new QGridLayout(opage,4,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(3,1);
-  Q3HBox* fchb = new Q3HBox(opage);
+  QHBoxLayout* fchb = new QHBoxLayout(opage);
   QLabel* fclabel = new QLabel(tr("Filecounter increment"),fchb);
   mpFileCounterStepSpinBox = new QSpinBox(1,10,1,fchb);
   fchb->setStretchFactor(fclabel,1);
-  Q3HBox* pzhb = new Q3HBox(opage);
+  QHBoxLayout* pzhb = new QHBoxLayout(opage);
   pzhb->setSpacing(4);
   mpFilePrependZerosCheckBox = new QCheckBox(tr("&Prepend zeros"),pzhb);
   new QLabel(tr("Counter width (digits)"),pzhb);
@@ -504,12 +498,12 @@ void QExtensionWidget::initWidget()
 
 //Miscelleanous
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,8,1);
+  sublayout = new QGridLayout(opage,8,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(7,1);
   QLabel* doclabel = new QLabel(tr("Documentation path:"),opage);
-  Q3HBox* dochb = new Q3HBox(opage);
+  QHBoxLayout* dochb = new QHBoxLayout(opage);
   mpEditDocPath = new QLineEdit(dochb);
   mpEditDocPath->setText(xmlConfig->stringValue("HELP_INDEX"));
   mpButtonDocPath = new QToolButton(dochb);
@@ -520,7 +514,7 @@ void QExtensionWidget::initWidget()
   sublayout->addWidget(dochb,1,0);
 
   QLabel* templabel = new QLabel(tr("Temporary directory:"),opage);
-  Q3HBox* temphb = new Q3HBox(opage);
+  QHBoxLayout* temphb = new QHBoxLayout(opage);
   mpEditTempPath = new QLineEdit(temphb);
   mpEditTempPath->setText(xmlConfig->stringValue("TEMP_PATH","/tmp"));
   mpButtonTempPath = new QToolButton(temphb);
@@ -534,7 +528,7 @@ void QExtensionWidget::initWidget()
   mpCheckBoxWarnings->setChecked(true);
   sublayout->addWidget(mpCheckBoxWarnings,4,0);
   //size warning
-  Q3HBox* warnhb = new Q3HBox(opage);
+  QHBoxLayout* warnhb = new QHBoxLayout(opage);
   mpWarningLabel = new QLabel(tr("Size warning (in MB)"),warnhb);
   mpWarningSpinBox = new QSpinBox(1,512,1,warnhb);
   warnhb->setStretchFactor(mpWarningLabel,1);
@@ -550,7 +544,7 @@ void QExtensionWidget::initWidget()
 #ifndef QIS_NO_STYLES
 //Style
   opage = new QWidget(mpPagesStack);
-  sublayout = new Q3GridLayout(opage,7,1);
+  sublayout = new QGridLayout(opage,7,1);
   sublayout->setMargin(15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(6,1);
@@ -589,6 +583,7 @@ void QExtensionWidget::initWidget()
   mpPageListBox->setMinimumWidth(mpPageListBox->maxItemWidth()+4);
   mpPagesStack->raiseWidget(0);
   createWhatsThisHelp();
+#endif
 }
 /**  */
 bool QExtensionWidget::nonBlockingIO()
@@ -599,8 +594,12 @@ bool QExtensionWidget::nonBlockingIO()
 /**  */
 void QExtensionWidget::loadSettings()
 {
-  mpBGroupMetricSystem->setButton(xmlConfig->intValue("METRIC_SYSTEM"));
+  QAbstractButton *button = mpBGroupMetricSystem->button(
+              xmlConfig->intValue("METRIC_SYSTEM"));
+  if (button)
+      button->setChecked(true);
   mMetricSystem = (QIN::MetricSystem) xmlConfig->intValue("METRIC_SYSTEM");
+#if 0
 #ifndef QIS_NO_STYLES
   mpBGroupStyle->setButton(xmlConfig->intValue("STYLE"));
 #endif
@@ -644,15 +643,16 @@ void QExtensionWidget::loadSettings()
   mpFileCounterWidthSpinBox->setValue(xmlConfig->intValue("FILE_GENERATION_COUNTER_WIDTH",3));
   mpFileFillGapCheckBox->setChecked(xmlConfig->boolValue("FILE_GENERATION_FILL_GAPS",false));
   mpExtensionOnlyCheckBox->setChecked(xmlConfig->boolValue("IMAGEBROWSER_EXTENSION_ONLY",false));
+#endif
 }
 /**  */
 void QExtensionWidget::slotChangeDocPath()
 {
 #if 0 //s
-  QFileDialogExt fd(QDir::homeDirPath(),QString::null,
+  QFileDialogExt fd(QDir::homePath(),QString::null,
                     this,"",true);
   fd.setViewMode((Q3FileDialog::ViewMode)xmlConfig->intValue("SINGLEFILE_VIEW_MODE"));
-  fd.setCaption(tr("Select the documentation path"));
+  fd.setWindowTitle(tr("Select the documentation path"));
   if(fd.exec())
   {
     mpEditDocPath->setText(fd.selectedFile());
@@ -667,7 +667,7 @@ void QExtensionWidget::slotChangeTempPath()
   QString old_temp = xmlConfig->stringValue("TEMP_PATH","/tmp");
   QFileDialogExt fd(old_temp,QString::null,this,"",true);
   fd.setMode(Q3FileDialog::DirectoryOnly);
-  fd.setCaption(tr("Select a directory"));
+  fd.setWindowTitle(tr("Select a directory"));
   fd.setViewMode((Q3FileDialog::ViewMode)xmlConfig->intValue("SINGLEFILE_VIEW_MODE"));
   if(fd.exec())
   {
@@ -683,192 +683,20 @@ void QExtensionWidget::slotChangeTempPath()
 void QExtensionWidget::slotChangeTransPath()
 {
   QString qs;
-  qs = Q3FileDialog::getExistingDirectory(xmlConfig->stringValue("BACKEND_TRANSLATIONS_PATH"),
-                                        0,0);
+  qs = QFileDialog::getExistingDirectory(0, "Translation Path",
+        xmlConfig->stringValue("BACKEND_TRANSLATIONS_PATH"));
   if(!qs.isEmpty())
 	{
     mpEditTransPath->setText(qs);
     xmlConfig->setStringValue("BACKEND_TRANSLATIONS_PATH",qs);
   }
 }
-/**  */
-void QExtensionWidget::createWhatsThisHelp()
-{
-//io mode
-  Q3WhatsThis::add(mpCheckIoMode,tr("Activate this check box to enable "
-															"non-blocking IO. If you encounter "
-															"problems with non-blocking IO, you can "
-                              "try to disable this. Be warned that this "
-                              "will result in a freeze of the GUI"
-                              "while you are scanning."));
-//translations
-  Q3WhatsThis::add(mpTranslationsCheckBox,tr("Activate this check box to enable "
-															"the backend translations. Changing this option will "
-                              "have no effect until you restart QuiteInsane."));
-//translation path
-  Q3WhatsThis::add(mpTransPathCheckBox,tr("If you activate this check box, you can "
-															"specify a path to the backend translations. Otherwise "
-                              "QuiteInsane will use the default path. Changing this "
-                              "option will have no effect until you restart QuiteInsane."));
-  Q3WhatsThis::add(mpEditTransPath,tr("Use this lineedit to specify the path to "
-															"the backend translations. Changing the path "
-                              "will have no effect until you restart QuiteInsane."));
-  Q3WhatsThis::add(mpButtonTransPath,tr("Click this button to open a file dialog "
-															"which allows you to set the path for the backend "
-                              "translations."));
-//metric system mm
-  Q3WhatsThis::add(mpRadioMM,tr("Display all linear dimensions with unit "
-														 "millimetre (mm)."));
-//metric system inch
-  Q3WhatsThis::add(mpRadioInch,tr("Display all linear dimensions with unit "
-														 "inch."));
-//metric system cm
-  Q3WhatsThis::add(mpRadioCM,tr("Display all linear dimensions with unit "
-														 "centimetre (cm)."));
-//gocr command
-  Q3WhatsThis::add(mpEditOcr,tr("Here you can specify the gocr command."
-														 "Leave this field empty, if gocr isn't "
-                             "installed on your system."));
-//doc path
-  Q3WhatsThis::add(mpEditDocPath,tr("Here you can specify the path to "
-														 "QuiteInsanes documentation. Clicking "
-                             "the home button in the help viewer will "
-                             "load this site."));
-//temp path
-  Q3WhatsThis::add(mpEditTempPath,tr("The directory where QuiteInsane will "
-														 "store temporary files."));
-//layout scrollview
-  Q3WhatsThis::add(mpRadioScrollLayout,tr("If you activate this radio button, "
-														   "QuiteInsane will display all options."
-                               "in a single scroll view."));
-//layout scrollview
-  Q3WhatsThis::add(mpRadioTabLayout,tr("If you activate this radio button, "
-														   "QuiteInsane will display every option "
-                               "group in a seperate page of a tab widget."));
-//layout scrollview
-  Q3WhatsThis::add(mpRadioMultiWindowLayout,tr("If you activate this radio button, "
-														   "QuiteInsane will display the first option "
-                               "group in the main window. Further option "
-                               "groups are placed in additional windows."));
-//layout list
-  Q3WhatsThis::add(mpRadioListLayout,tr("If you activate this radio button, "
-                               "QuiteInsane will display a listview, "
-                               "which shows the available option groups."));
-//separate preview
-  Q3WhatsThis::add(mpCheckSeparatePreview,tr("If you activate this ckeckbox, "
-														   "a separate window is used for the preview."
-                               "Otherwise, the preview is integrated in "
-                               "the main mindow."));
-//button warnings
-  Q3WhatsThis::add(mpCheckBoxWarnings,tr("<html>Reactivates all message boxes<br> "
-										   "that have been disabled with the<br>"
-                       "<b>Don't show this message again</b> checkbox.</html>"));
-//history
-//enable history
-  Q3WhatsThis::add(mpCheckBoxHistory,
-                  tr("Select this checkbox to enable the history."));
-//delete history
-  Q3WhatsThis::add(mpCheckBoxHistoryDelete,
-                  tr("If you select this checkbox, the history "
-                     "will be deleted when you quit QuiteInsane."));
-//entrie history
-  Q3WhatsThis::add(mpCheckBoxHistoryEntries,
-                  tr("If you select this checkbox, you can limit the "
-                     "number of history entries."));
-//entries history
-  Q3WhatsThis::add(mpSpinHistoryNumber,
-                  tr("Use this spinbox to select the maximum number of "
-                     "history entries."));
-//preview history
-  Q3WhatsThis::add(mpCheckBoxHistoryPreviews,
-                  tr("Select this checkbox to enable automatic preview "
-                     "image creation."));
-//viewer undo steps
-  Q3WhatsThis::add(mpUndoSpin,
-                  tr("Use this spinbox to select the maximum number of "
-                     "undo steps. Please note, that every undo step can "
-                     "use a huge amount of memory, depending on the "
-                     "image size."));
-//viewer preview size
-  Q3WhatsThis::add(mpFilterSizeSpin,
-                  tr("Use this spinbox to adjust the maximum size of "
-                     "the preview in the imagefilter dialogs."));
-//smooth scaling size
-  Q3WhatsThis::add(mpSmoothPreviewCheckBox,
-                  tr("Select this checkbox to enable smooth scaling "
-                     "for the preview window. This results in better preview images, "
-                     "but also slows down resizing of the preview window."));
-//whatsthis buttons
-  Q3WhatsThis::add(mpWhatsThisCheckBox,
-                  tr("Select this checkbox to enable the built-in context help "
-                     "buttons (\"What's this\" buttons). Disabling this option "
-                     "only makes sense, if the window-manager supplies its own "
-                     "context help buttons in the window titlebar."));
-//auto-selection color
-  Q3WhatsThis::add(mpAutoColorSpin,tr("Use this spinbox to adjust the automatic selection "
-                               "of color images. Increase the value, if the detected "
-                               "scan-area is bigger then the image size. Decrease the value, "
-                               "if the detected scan-area is smaller then the image size."));
-//auto-selection gray
-  Q3WhatsThis::add(mpAutoGraySpin,tr("Use this spinbox to adjust the automatic selection "
-                               "of grayscale images. Increase the value, if the detected "
-                               "scan-area is bigger then the image size. Decrease the value, "
-                               "if the detected scan-area is smaller then the image size."));
-//auto-selection enable
-  Q3WhatsThis::add(mpAutoCheckBox,tr("If you select this checkbox, the automatic scan-area "
-                               "selection is started after a preview scan. You can also start "
-                               "the scan-area selection manually by clicking the \"Automatic "
-                               "selection\" button in the preview window."));
-//auto-selection
-  Q3WhatsThis::add(mpAutoGreaterRadio,tr("Select this radio button, if the scanner cover is white."));
-//auto-selection
-  Q3WhatsThis::add(mpAutoSmallerRadio,tr("Select this radio button, if the scanner cover is "
-                               "black/dark."));
-//auto-selection
-  Q3WhatsThis::add(mpAutoGreaterSpin,tr("Only lines/rows with an average gray-value greater than "
-                               "the selected value are interpreted as background."));
-//auto-selection
-  Q3WhatsThis::add(mpAutoSmallerSpin,tr("Only lines/rows with an average gray-value smaller than "
-                               "the selected value are interpreted as background."));
-//auto-selection minimal size
-  Q3WhatsThis::add(mpAutoSizeSpin,tr("Use this spinbox to select the minimal size of preview images. "
-                               "The value is multiplied with the maximal image width/height. E.g. a "
-                               "value of 0.01 means, that the minimal preview size equals one "
-                               "percent of the scan-area. This value is used to ensure, that e.g "
-                               "small spots (like dust) aren't interpreted as images."));
-//size warning
-  Q3WhatsThis::add(mpWarningSpinBox,tr("When the expected scan size exceeds the adjusted size, "
-                               "then the image information in the upper left corner of the "
-                               "scan-dialog is displayed with a red background."));
-//preview update
-  Q3WhatsThis::add(mpPreviewUpdateCheckBox,tr("When you activate this checkbox, QuiteInsane "
-                               "will update the preview window continously during a "
-                               "preview scan."));
-//limit resolution
-  Q3WhatsThis::add(mpLimitPreviewCheckBox,tr("Activate this checkbox, if you want to "
-                               "limit the preview resolution which is used during a "
-                               "preview scan."));
-//limit resolution spin
-  Q3WhatsThis::add(mpLimitPreviewSpin,tr("Use this spinbox to adjust the maximal "
-                               "preview resolution which is used during a preview scan."));
-//file counter increment
-  Q3WhatsThis::add(mpFileCounterStepSpinBox,tr("Use this spinbox to specify the value "
-                               "by which the filecounter gets incremented."));
-//file counter width
-  Q3WhatsThis::add(mpFileCounterWidthSpinBox,tr("Use this spinbox to set the width "
-                               "of the filecounter."));
-//prepend zeros
-  Q3WhatsThis::add(mpFilePrependZerosCheckBox,tr("When selected, zeros are prepended "
-                               "to the filecounter."));
-//prepend zeros
-  Q3WhatsThis::add(mpFileFillGapCheckBox,tr("When selected, gaps between existing files "
-                               "are filled."));
-}
+
 /**  */
 void QExtensionWidget::slotChangePage(int index)
 {
-  mpPagesStack->raiseWidget(index);
-  mpTitleLabel->setText("<b>"+mpPageListBox->currentText()+"</b>");
+  mpPagesStack->setCurrentIndex(index);
+  mpTitleLabel->setText("<b>"+mpPageListBox->currentItem()->text()+"</b>");
 }
 /**  */
 void QExtensionWidget::accept()
@@ -961,8 +789,8 @@ void QExtensionWidget::accept()
   xmlConfig->setIntValue("DEVICE_QUERY",db);
 
   xmlConfig->setBoolValue("IO_MODE",mpCheckIoMode->isChecked());
-  xmlConfig->setIntValue("TIFF_8BIT_MODE",mpTiff8Combo->currentItem());
-  xmlConfig->setIntValue("TIFF_LINEART_MODE",mpTiffLineartCombo->currentItem());
+  xmlConfig->setIntValue("TIFF_8BIT_MODE",mpTiff8Combo->currentIndex());
+  xmlConfig->setIntValue("TIFF_LINEART_MODE",mpTiffLineartCombo->currentIndex());
   xmlConfig->setIntValue("TIFF_JPEG_QUALITY",mpTiffJpegSlider->value());
   xmlConfig->setIntValue("JPEG_QUALITY",mpJpegSlider->value());
   xmlConfig->setIntValue("PNG_COMPRESSION",mpPngSlider->value());
@@ -1013,21 +841,21 @@ void QExtensionWidget::slotPngCompression(int value)
 /**  */
 void QExtensionWidget::setPage(int index)
 {
-  mpPageListBox->setSelected(index,true);
+  mpPageListBox->setCurrentRow(index);
   slotChangePage(index);
   if(index>-1)
   {
     mpPageListBox->hide();
-    mpMainLayout->setColStretch(0,0);
-    mpMainLayout->setColStretch(1,1);
+    mpMainLayout->setColumnStretch(0,0);
+    mpMainLayout->setColumnStretch(1,1);
     mpMainLayout->activate();
     resize(minimumSizeHint().width(),height());
   }
   else
   {
     mpPageListBox->show();
-    mpMainLayout->setColStretch(0,1);
-    mpMainLayout->setColStretch(1,1);
+    mpMainLayout->setColumnStretch(0,1);
+    mpMainLayout->setColumnStretch(1,1);
   }
 }
 /**  */
