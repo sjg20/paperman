@@ -236,19 +236,21 @@ QIN::Status QScanDialog::initDialog()
   mpMainLayout = new QGridLayout(this,7,3);
   mpMainLayout->setMargin(3);
   mpMainLayout->setSpacing(5);
-  mpMainLayout->setColStretch(0,1);
-  mpInfoHBox = new Q3HBox(this);
+  mpMainLayout->setColumnStretch(0,1);
+  mpInfoHBox = new QHBoxLayout();
   mpInfoHBox->setSpacing(2);
-  mpLabelImageInfo = new QLabel("",mpInfoHBox);
-  mpLabelImageInfo->setFrameStyle(Q3Frame::StyledPanel|Q3Frame::Sunken);
+  mpLabelImageInfo = new QLabel("");
+  mpInfoHBox->addWidget(mpLabelImageInfo);
+  mpLabelImageInfo->setFrameStyle(QFrame::StyledPanel|QFrame::Sunken);
   mpInfoHBox->setStretchFactor(mpLabelImageInfo,1);
 
-  mpAboutButton = new QPushButton(tr("&About..."),mpInfoHBox);
+  mpAboutButton = new QPushButton(tr("&About..."));
+  mpInfoHBox->addWidget(mpAboutButton);
   connect(mpAboutButton,SIGNAL(clicked()),this,SLOT(slotAbout()));
 
 //s  mpHelpButton = new QPushButton(tr("&Help..."),mpInfoHBox);
 
-  mpMainLayout->addWidget(mpInfoHBox,0,0);
+  mpMainLayout->addLayout(mpInfoHBox,0,0);
 
 #if 0 //s
 //Mode selection
