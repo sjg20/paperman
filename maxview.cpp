@@ -279,7 +279,6 @@ int main (int argc, char *argv[])
       case -1 :
          {
 	 me = new Mainwindow ();
-	 app.setMainWidget (me);
          Operation::setMainWidget (me);
 
          // get the desktop (this has the directory tree and page splitter view)
