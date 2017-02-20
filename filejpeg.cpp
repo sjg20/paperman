@@ -397,7 +397,7 @@ err_info *Filejpeg::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    image = image.scaled (size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
    if (blank)
       colour_image_for_blank (image);
-   pixmap = QPixmap (image);
+   pixmap = QPixmap::fromImage(image);
 //    qDebug () << "pixmap" << pixmap.width () << pixmap.height ();
    return NULL;
    }
@@ -705,7 +705,8 @@ err_info *Filejpegpage::remove (const QString &dir) const
 
    if (file.exists () && !file.remove ())
       return err_make (ERRFN, ERR_could_not_remove_file2,
-                file.name ().latin1 (), file.errorString ().latin1 ());
+                file.fileName ().toLatin1 ().constData(),
+                file.errorString ().toLatin1 ().constData());
 
    return 0;
 }

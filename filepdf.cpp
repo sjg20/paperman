@@ -159,7 +159,8 @@ err_info *Filepdf::remove (void)
 
    if (file.exists () && !file.remove ())
       return err_make (ERRFN, ERR_could_not_remove_file2,
-                file.name ().latin1 (), file.errorString ().latin1 ());
+                file.fileName ().toLatin1 ().constData(),
+                file.errorString ().toLatin1 ().constData());
    return NULL;
    }
 
@@ -267,7 +268,7 @@ err_info *Filepdf::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    CALL (_pdfio->getImage (_filename, pagenum, image, DPI / 24, DPI / 24, true));
    if (blank)
       colour_image_for_blank (image);
-   pixmap = QPixmap (image);
+   pixmap = QPixmap::fromImage(image);
 //    qDebug () << "pixmap" << pixmap.width () << pixmap.height ();
    return NULL;
    }

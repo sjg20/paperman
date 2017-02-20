@@ -720,7 +720,7 @@ err_info *Filemax::merr_make (const char *func_name, int errnum, ...)
    va_start (ptr, errnum);
    e = err_vmake (func_name, errnum, ptr);
    va_end (ptr);
-   sprintf (str, "%s: %s", _filename.latin1 (), e->errstr);
+   sprintf (str, "%s: %s", _filename.toLatin1 ().constData(), e->errstr);
    strcpy (e->errstr, str);
    return e;
    }
@@ -1809,7 +1809,7 @@ static err_info *rle_decode (QString &fname, byte *buf, int size,
       diff = -diff;
    if (diff > preview_size->x + 3)
       warning (("%s: %d x %d, bytes = %d, wrote %d, diff %d, size %d\n",
-          fname.latin1 (), preview_size->x, preview_size->y, bytes, wrote,
+          fname.toLatin1 ().constData(), preview_size->x, preview_size->y, bytes, wrote,
                 bytes - wrote, size));
 
    // preview is always upside down, so fix it
@@ -2135,7 +2135,7 @@ void Filemax::max_set_debug_compf (debug_info *debug, FILE *compf)
 err_info *Filemax::update_titlestr (page_info *page, const QString &title)
    {
    chunk_info *chunk;
-   const char *str = title.latin1 ();
+   const char *str = title.toLatin1 ();
    bool temp;
    int j;
 
@@ -2367,7 +2367,7 @@ char *Filemax::max_get_shell_filename (void)
    {
    static char out [256];
 
-   err_fix_filename (_filename, out);
+   err_fix_filename (_filename.toLatin1(), out);
    return out;
    }
 
@@ -2651,13 +2651,13 @@ err_info *Filemax::max_open_file (const QString &infile)
    FILE *f;
 
 //   printf ("infile = %s\n", infile);
-   f = fopen (infile, "r+b");
+   f = fopen (infile.toLatin1(), "r+b");
    if (!f)
       {
       // try read-only
-      f = fopen (infile, "rb");
+      f = fopen (infile.toLatin1(), "rb");
       if (!f)
-         return err_make (ERRFN, ERR_cannot_open_file1, infile.latin1 ());
+         return err_make (ERRFN, ERR_cannot_open_file1, infile.toLatin1 ().constData());
       }
    setvbuf (f, NULL, _IONBF, 0);
    CALL (max_openf (f));
@@ -2764,7 +2764,7 @@ err_info *Filemax::show_file (FILE *f)
    int i, j, pos;
    const char *name;
 
-   fprintf (f, "\nfile: %s\n", _filename.latin1 ());
+   fprintf (f, "\nfile: %s\n", _filename.toLatin1 ().constData());
    fprintf (f, "chunk0 start %x\n", _chunk0_start);
    fprintf (f, "chunk count %d\n", _chunks.size ());
    fprintf (f, "page count %d\n", _pages.size ());
@@ -4529,7 +4529,7 @@ static void write_annot (byte *buf, int size, QStringList &annot_data)
       Q_ASSERT (upto + POS_chunk_header_size + len < size);
       data [POS_annot_pos / 4] = upto;
       data [POS_annot_size / 4] = len;
-      strcpy ((char *)buf + upto + POS_chunk_header_size, str.latin1 ());
+      strcpy ((char *)buf + upto + POS_chunk_header_size, str.toLatin1 ());
       }
    }
 
@@ -4599,7 +4599,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
 
          Q_ASSERT (_annot_loaded);
          for (type = 0; type < Annot_count; type++)
-            count += 1 + strlen (_annot_data [type]);
+            count += 1 + strlen (_annot_data [type].toLatin1());
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + 0x45 + count);
          //TODO: need to free old buf here
@@ -4615,7 +4615,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
 
          Q_ASSERT (_env_loaded);
          for (type = 0; type < Env_count; type++)
-            count += 1 + strlen (_env_data [type]);
+            count += 1 + strlen (_env_data [type].toLatin1());
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + POS_env_string0 + count);
          //TODO: need to free old buf here
@@ -4922,13 +4922,13 @@ err_info *Filemax::create_title (page_info &page)
    chunk.chunkid = page.chunkid;
    chunk.type = CT_title;
    chunk.size = ALIGN_CHUNK (POS_chunk_header_size
-                     + strlen (page.titlestr) + 1);
+                     + strlen (page.titlestr.toLatin1()) + 1);
    chunk.textflag = 0;  // not text, is title
    chunk.flags = CHUNKF_text;
    chunk.titletype = 0x80;  // page title
    CALL (alloc_chunk_buf (chunk, &buf));
    add_generic_chunk_header (chunk, buf);
-   strcpy ((char *)buf + POS_chunk_header_size, page.titlestr);
+   strcpy ((char *)buf + POS_chunk_header_size, page.titlestr.toLatin1());
    CALL (insert_chunk (chunk, &page.title));
    return NULL;
    }
@@ -5281,7 +5281,7 @@ err_info *Filemax::load ()  // was desk->ensureMax
       QString path = _pathname;
       struct stat st;
 
-      if (!stat (path.latin1 (), &st))
+      if (!stat (path.toLatin1 (), &st))
          {
          _size = st.st_size;
          _timestamp = QDateTime::fromTime_t (st.st_mtime);
@@ -5326,7 +5326,7 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
    if (!page->text)
       return NULL;
    CALL (chunk_find (page->text, chunk, &temp));
-   QByteArray ba (chunk->size);
+   QByteArray ba (chunk->size, '\0');
    CALL (max_read_data (chunk->start + POS_text_start, (byte *)ba.data (),
             chunk->size - POS_text_start));
    if (temp)
@@ -5564,7 +5564,7 @@ err_info *Filemax::restorePages (QBitArray &pages,
             sizeof (page_info));
          assert (page.titlestr.isNull ());
          CALL (restore_page (page));
-         printf ("page %d: titlestr = %p\n", i, page.titlestr.latin1 ());
+         printf ("page %d: titlestr = %p\n", i, page.titlestr.toLatin1 ().constData());
          dest_pages << page;
          }
       else
@@ -5597,7 +5597,8 @@ err_info *Filemax::remove ()
 
    if (!file.remove ())
       return err_make (ERRFN, ERR_could_not_remove_file2,
-                file.name ().latin1 (), file.errorString ().latin1 ());
+                file.fileName ().toLatin1 ().constData(),
+                file.errorString ().toLatin1 ().constData());
    return NULL;
    }
 
@@ -5611,9 +5612,10 @@ err_info *Filemax::create (void)
    _signature = 0x46476956;
    _valid = true;
 
-   _fin = fopen (_pathname, "w+b");
+   _fin = fopen (_pathname.toLatin1().constData(), "w+b");
    if (!_fin)
-      return err_make (ERRFN, ERR_cannot_open_file1, _pathname.latin1 ());
+      return err_make (ERRFN, ERR_cannot_open_file1,
+                       _pathname.toLatin1 ().constData());
 
    debug2 (("page count %d, chunk count %d\n", _pages.size (), _chunks.size ()));
    return NULL;
@@ -5724,14 +5726,13 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
          break;
 
       case 24 :
-         image = QImage (preview, Size.width (), Size.height (), 32, 0, 0,
-                     QImage::LittleEndian);
+         image = QImage (preview, Size.width (), Size.height (), QImage::Format_RGB32);
          if (blank)
             colour_image_for_blank (image);
          break;
       }
 
-   pixmap = QPixmap (image);
+   pixmap = QPixmap::fromImage(image);
    free (preview);
    return pixmap.isNull () ? err_make (ERRFN, ERR_failed_to_generate_preview_image) : NULL;
    }

@@ -673,7 +673,8 @@ err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
    QString pagename = _desk->findNextFilename (fname);
 
    if (pagename.isNull ())
-      return err_make (ERRFN, ERR_no_unique_filename1, fname.latin1 ());
+      return err_make (ERRFN, ERR_no_unique_filename1,
+                       fname.toLatin1 ().constData());
 
    // get unique filename
    uniq = pagename + typeExt (_type);

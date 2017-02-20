@@ -69,7 +69,8 @@ err_info *Fileother::remove (void)
 
    if (!file.remove ())
       return err_make (ERRFN, ERR_could_not_remove_file2,
-                file.name ().latin1 (), file.errorString ().latin1 ());
+                file.fileName ().toLatin1 ().constData(),
+                file.errorString ().toLatin1 ().constData());
    return NULL;
    }
 
