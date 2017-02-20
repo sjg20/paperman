@@ -39,8 +39,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 Printopt::Printopt (QPrinter *printer, QModelIndexList &list, QWidget* parent, const char* name, Qt::WindowFlags fl)
-    : QFrame(parent, name, fl), _list (list)
+    : QFrame(parent, fl), _list (list)
    {
+    setObjectName(name);
    _printer = printer;
    setupUi(this);
 
