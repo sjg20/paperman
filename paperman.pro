@@ -1,7 +1,7 @@
 TEMPLATE = app
 LANGUAGE = C++
 QT += qt3support
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+QT += widgets
 
 unix:target.path = /usr/bin
 INSTALLS += target
