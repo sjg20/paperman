@@ -24,8 +24,6 @@
 #include "qimageioext.h"
 #include "qqualitydialog.h"
 #include "qxmlconfig.h"
-//Added by qt3to4:
-#include <Q3StrList>
 
 #include <math.h>
 
@@ -42,8 +40,8 @@ ImageIOSupporter::ImageIOSupporter()
   mFilterMap.clear();
   mExtensionToFormatMap.clear();
   mFormatToExtensionMap.clear();
-  Q3StrList lout = QImageWriter::supportedImageFormats();
-  if(lout.find("JPEG") != -1)
+  QList<QByteArray> lout = QImageWriter::supportedImageFormats();
+  if(lout.indexOf("JPEG") != -1)
   {
     //test whether JPEG is supported
     insertInMap(mFilterMap,"JPEG (*.jpg *.jpeg)",".jpg");
@@ -51,7 +49,7 @@ ImageIOSupporter::ImageIOSupporter()
     insertInMap(mExtensionToFormatMap,".jpeg","JPEG");
     insertInMap(mFormatToExtensionMap,"JPEG",".jpg");
   }
-  if(lout.find("TIF") != -1)
+  if(lout.indexOf("TIF") != -1)
   {
     //test whether TIFF is supported
     insertInMap(mFilterMap,"TIF (*.tif *.tiff)",".tif");
@@ -87,22 +85,22 @@ ImageIOSupporter::ImageIOSupporter()
   insertInMap(mFormatToExtensionMap,"PGM",".pgm");
   insertInMap(mFormatToExtensionMap,"PPM",".ppm");
 //input formats
-  Q3StrList lin = QImageReader::supportedImageFormats();
-  if(lin.find("JPEG") != -1)
+  QList<QByteArray> lin = QImageReader::supportedImageFormats();
+  if(lin.indexOf("JPEG") != -1)
   {
     //test whether JPEG is supported
     insertInMap(mInFilterMap,"JPEG (*.jpg *.jpeg)"," *.jpg *.jpeg");
   }
-  if(lin.find("TIF") != -1)
+  if(lin.indexOf("TIF") != -1)
   {
     //test whether TIFF is supported
     insertInMap(mInFilterMap,"TIF (*.tif *.tiff)"," *.tif *.tiff");
   }
-  if(lin.find("MNG") != -1)
+  if(lin.indexOf("MNG") != -1)
   {
     insertInMap(mInFilterMap,"MNG (*.mng)"," *.mng");
   }
-  if(lin.find("GIF") != -1)
+  if(lin.indexOf("GIF") != -1)
   {
     insertInMap(mInFilterMap,"GIF (*.gif)"," *.gif");
   }
@@ -133,7 +131,7 @@ QString ImageIOSupporter::getFormatByFilename(QString filepath)
   QString ext;
   QFileInfo fi(filepath);
   if(fi.isDir()) return QString::null;
-  ext = "." + fi.extension(false);
+  ext = "." + fi.completeSuffix();
   if(ext == ".") ext = QString::null;
   if(mExtensionToFormatMap.contains(ext))
     return mExtensionToFormatMap[ext];
@@ -285,7 +283,7 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
   if((iformat == "PGM") || (iformat == "PBM") || (iformat == "PPM") ||
      (iformat == "PNM"))
   {
-    f.setName(filename);
+    f.setFileName(filename);
     if(!f.open(QIODevice::WriteOnly))
     {
       QMessageBox::warning(parent,QObject::tr("Warning"),
@@ -345,9 +343,9 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
       return false;
     }
     im.detach();
-    im = im.convertDepth(8);
+    im = im.convertToFormat(QImage::Format_Mono);
   }
-  iio.setFormat(iformat.latin1 ());
+  iio.setFormat(iformat.toLatin1 ());
   if((quality >= 0) && (quality <= 100))
     iio.setQuality(quality);
 //  iio.setImage(im);
@@ -357,7 +355,7 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
   if((iformat == "PNM") || (iformat == "PNM") || (iformat == "PNM") ||
      (iformat == "PNM"))
   {
-    ok = qis_write_pbm_image(&iio, im);
+//p    ok = qis_write_pbm_image(&iio, im);
   }
   else
     ok = iio.write(im);
@@ -387,7 +385,7 @@ bool ImageIOSupporter::saveImage(QString filename,QImage& image,QString iformat,
   if((iformat == "PGM") || (iformat == "PBM") || (iformat == "PPM") ||
      (iformat == "PNM"))
   {
-    f.setName(filename);
+    f.setFileName(filename);
     if(!f.open(QIODevice::WriteOnly))
     {
       return false;
@@ -462,14 +460,14 @@ bool ImageIOSupporter::saveImage(QString filename,QImage& image,QString iformat,
   if((iformat == "XPM") && (im.depth()>8))
   {
     im.detach();
-    im = im.convertDepth(8);
+    im = im.convertToFormat(QImage::Format_Mono);
     if(im.isNull())
     {
       return false;
     }
   }
 
-  iio.setFormat(iformat.latin1 ());
+  iio.setFormat(iformat.toLatin1 ());
   if((quality >= 0) && (quality <= 100))
     iio.setQuality(quality);
 
@@ -478,7 +476,7 @@ bool ImageIOSupporter::saveImage(QString filename,QImage& image,QString iformat,
   if((iformat == "PGM") || (iformat == "PBM") || (iformat == "PPM") ||
      (iformat == "PNM"))
   {
-    ok = qis_write_pbm_image(&iio, im);
+//p    ok = qis_write_pbm_image(&iio, im);
   }
   else
     ok = iio.write(im);
@@ -501,11 +499,13 @@ bool ImageIOSupporter::loadImage(QImage& imager,const QString& filename)
     if(!f.open(QIODevice::ReadOnly))
       return false;
     QImageReader iio((QIODevice*)&f,0);
+#if 0 //p
     QImage *image = qis_read_pbm_image(&iio);
     f.close();
     if(!image)
       return false;
     imager = *image;
+#endif
     return true;
   }
   return imager.load(filename);
@@ -517,16 +517,16 @@ QString ImageIOSupporter::validateExtension(QString file_path,QString format)
   QString ext;
   QFileInfo fi(file_path);
   mErrorString = QString::null;
-  if(!(fi.extension(false).isEmpty()))
+  if(!(fi.suffix().isEmpty()))
   {
-    ext = "." + fi.extension(false);
+    ext = "." + fi.suffix();
     if(mFormatToExtensionMap.contains(format))
     {
       if(mFormatToExtensionMap[format] != ext)
         ext = QString::null;
     }
   }
-qDebug("ImageIOSupporter: ext %s",ext.latin1());
+qDebug("ImageIOSupporter: ext %s",ext.toLatin1().constData());
 
   if(mExtensionToFormatMap.contains(ext)) //valid filename extension ?
   {
@@ -550,7 +550,8 @@ qDebug("ImageIOSupporter: ext %s",ext.latin1());
       return QString::null;
     }
   }
-qDebug("ImageIOSupporter:return new_filepath %s",new_filepath.latin1());
+qDebug("ImageIOSupporter:return new_filepath %s",new_filepath.
+       toLatin1().constData());
   return new_filepath;
 }
 /** No descriptions */
