@@ -18,7 +18,6 @@
 #ifndef PREVIEWUPDATEWIDGET_H
 #define PREVIEWUPDATEWIDGET_H
 
-#include <q3cstring.h>
 #include <qimage.h>
 #include <qpixmap.h>
 #include <qwidget.h>

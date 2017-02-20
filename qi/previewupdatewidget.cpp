@@ -17,6 +17,7 @@
 
 #include <QImageReader>
 
+#include "err.h"
 #include "previewupdatewidget.h"
 #include "qimageioext.h"
 
@@ -30,8 +31,9 @@
 #include <QPaintEvent>
 
 PreviewUpdateWidget::PreviewUpdateWidget(QWidget *parent,const char *name)
-                    :QWidget(parent,name)
+                    :QWidget(parent)
 {
+    setObjectName(name);
 }
 PreviewUpdateWidget::~PreviewUpdateWidget()
 {
@@ -39,16 +41,20 @@ PreviewUpdateWidget::~PreviewUpdateWidget()
 /** No descriptions */
 void PreviewUpdateWidget::paintEvent(QPaintEvent* e)
 {
+  UNUSED(e);
+
   if(!mPixmap.isNull())
   {
     QPainter p(this);
-    bitBlt(this,0,e->rect().y(),&mPixmap,0,e->rect().y(),mPixmap.width(),e->rect().height());
+//p    bitBlt(this,0,e->rect().y(),&mPixmap,0,e->rect().y(),mPixmap.width(),e->rect().height());
     p.end();
   }
 }
 /** No descriptions */
 void PreviewUpdateWidget::setData(QByteArray & data)
 {
+  UNUSED(data);
+#if 0 //p
   double f1,f2;
   int h,j,i;
   QPixmap pix;
@@ -77,20 +83,21 @@ void PreviewUpdateWidget::setData(QByteArray & data)
     if(f2 > 1.0) f2 = 1.0/f2;
     QMatrix m;
     m.scale(f1,f2);
-    pix = pix.xForm(m);
+//p    pix = pix.xForm(m);
     m.map(i,h,&i,&j);
-    bitBlt(&mPixmap,0,mBegin,&pix,0,0);
+//p    bitBlt(&mPixmap,0,mBegin,&pix,0,0);
     QRect r(0,mBegin,mPixmap.width(),j);
     QPaintEvent e( r);
     QApplication::sendEvent( this, &e );
     m.map(h,0,&i,&j);
     mBegin += i;
   }
+#endif
 }
 /** No descriptions */
 void PreviewUpdateWidget::clearWidget()
 {
-  mPixmap.resize(width(),height());
+//p  mPixmap.resize(width(),height());
   mPixmap.fill();
   QRect r(0,0,width(),height());
   QPaintEvent e( r);
@@ -99,7 +106,7 @@ void PreviewUpdateWidget::clearWidget()
 /** No descriptions */
 void PreviewUpdateWidget::initPixmap(int rw,int rh)
 {
-  mPixmap.resize(width(),height());
+//p  mPixmap.resize(width(),height());
   mRealWidth = rw;
   mRealHeight = rh;
   mBegin = 0;
