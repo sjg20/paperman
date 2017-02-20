@@ -57,8 +57,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>578</width>
-        <height>450</height>
+        <width>582</width>
+        <height>449</height>
        </rect>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -150,7 +150,7 @@ Paper Manager version 0.8 by Simon Glass &amp;lt;chch-kiwi@users.sourceforge.net
   <zorder>scrollArea</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
+ <pixmapfunction></pixmapfunction>
  <resources>
   <include location="maxview.qrc"/>
  </resources>
