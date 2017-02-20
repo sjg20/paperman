@@ -20,8 +20,9 @@
 #include <qvalidator.h>
 
 QDouble100SpinBox::QDouble100SpinBox(QWidget * parent,const char * name)
-               :QSpinBox(parent,name)
+               :QSpinBox(parent)
 {
+  setObjectName(name);
   QDoubleValidator* dv = new QDoubleValidator(this);
   dv->setDecimals(2);
 //s  setValidator(dv);
@@ -47,3 +48,16 @@ void QDouble100SpinBox::selectAll()
 {
   selectAll();
 }
+
+QValidator::State QDouble100SpinBox::validate(QString &input, int &pos) const
+{
+    if (!mValidator)
+        return QValidator::Acceptable;
+    return mValidator->validate(input, pos);
+}
+
+void QDouble100SpinBox::setValidator(QValidator *validator)
+{
+    mValidator = validator;
+}
+

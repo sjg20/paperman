@@ -36,8 +36,13 @@ protected: // Protected methods
   virtual int mapTextToValue(bool* ok);
 protected: // Protected methods
   /**  */
+  QValidator::State validate(QString &input, int &pos) const;
   virtual QString mapValueToText(int value);
 	~QDouble100SpinBox();
+public:
+  void setValidator(QValidator *validator);
+private:
+  QValidator *mValidator;
 };
 
 #endif
