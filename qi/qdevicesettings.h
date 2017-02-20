@@ -21,14 +21,13 @@
 #include <qmap.h>
 #include <qpoint.h>
 #include <qstring.h>
-//Added by qt3to4:
 #include <QLabel>
 /**
   *@author M. Herder
   */
 //forward declarations
-class Q3ListView;
-class Q3ListViewItem;
+class QListWidget;
+class QListWidgetItem;
 class QLabel;
 class QPushButton;
 class QScanner;
@@ -64,12 +63,12 @@ private slots: // Private slots
   /**  */
   void slotNew();
   /**  */
-  void slotDoubleClicked(Q3ListViewItem*);
+  void slotDoubleClicked(QListWidgetItem*);
 private: // Private attributes
   /** */
   QScanner* mpScanner;
   /**  */
-  Q3ListView* mpListView;
+  QListWidget* mpListWidget;
   /**  */
   QPushButton* mpButtonDelete;
   /**  */
