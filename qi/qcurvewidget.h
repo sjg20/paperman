@@ -20,10 +20,8 @@
 #include <qwidget.h>
 //s #include <qarray.h>
 #include <qrect.h>
-#include <q3pointarray.h>
 #include <qpoint.h>
 #include "qsplinearray.h"
-//Added by qt3to4:
 #include <QPaintEvent>
 #include <QMouseEvent>
 /**
@@ -44,7 +42,7 @@ public:
 	QCurveWidget(QWidget *parent=0, const char *name=0);
 	~QCurveWidget();
   /**  */
-  void setDataArray(Q3PointArray qpa);
+  void setDataArray(QPolygon qpa);
   /**  */
   void reset();
   /**  */
@@ -60,9 +58,9 @@ private:
   /**  */
   int mRectIndex;
   /**Holds the previous data  */
-  Q3PointArray mOldDataArray;
+  QPolygon mOldDataArray;
   /**Holds the line that is drawn in the widget  */
-  Q3PointArray mNewDataArray;
+  QPolygon mNewDataArray;
   /**  */
   double mGamma;
 protected:
@@ -83,7 +81,7 @@ public slots:
   void slotChangeCurveType(int index);
 public:
   /**  */
-  Q3PointArray pointArray();
+  QPolygon pointArray();
   /**  */
   void setGamma(double gamma);
 signals:
