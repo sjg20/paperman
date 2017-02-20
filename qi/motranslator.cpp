@@ -40,10 +40,10 @@ bool MoTranslator::loadMoFile(QString filename,const char* context)
   char* orig_string = 0;
   char* trans_string;
   Q_UINT32 magic_number;
-  Q_INT32 file_revision;
-  Q_INT32 string_number;
-  Q_INT32 original_offset;
-  Q_INT32 translation_offset;
+  qint32 file_revision;
+  qint32 string_number;
+  qint32 original_offset;
+  qint32 translation_offset;
   QFile mofile(filename);
 
   if(!qSysInfo(&word_size,&big_endian))
@@ -96,12 +96,12 @@ bool MoTranslator::loadMoFile(QString filename,const char* context)
   qDebug("string number: %u",string_number);
   qDebug("orig offset: %u",original_offset);
   qDebug("trans offset: %u",translation_offset);
-  QVector<Q_INT32> orig_table(string_number*2);
-  QVector<Q_INT32> trans_table(string_number*2);
+  QVector<qint32> orig_table(string_number*2);
+  QVector<qint32> trans_table(string_number*2);
   //read original table
   if(ds.device()->at(original_offset))
   {
-    for(Q_INT32 i=0;i<string_number;i++)
+    for(qint32 i=0;i<string_number;i++)
     {
       ds >> orig_table[i*2];
       ds >> orig_table[i*2+1];
@@ -112,7 +112,7 @@ bool MoTranslator::loadMoFile(QString filename,const char* context)
   //read translation table
   if(ds.device()->at(translation_offset))
   {
-    for(Q_INT32 i=0;i<string_number;i++)
+    for(qint32 i=0;i<string_number;i++)
     {
       ds >> trans_table[i*2];
       ds >> trans_table[i*2+1];
