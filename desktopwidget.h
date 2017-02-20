@@ -20,8 +20,6 @@ License: GPL-2
 X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
-//Added by qt3to4:
-// #include <QDropEvent>
 
 class QCheckBox;
 class QDirModel;
@@ -32,9 +30,7 @@ class QToolBar;
 class QToolButton;
 class QTreeView;
 
-class Q3IconView;
-class Q3IconViewItem;
-class Q3ListViewItem;
+class QListWidgetItem;
 
 class Desktopdelegate;
 class Desktopitem;
@@ -57,7 +53,6 @@ struct file_info;
 
 #include <QAbstractItemModel>
 
-#include "q3ptrlist.h"
 #include "qsplitter.h"
 #include "qstring.h"
 #include "qwidget.h"
@@ -231,7 +226,7 @@ private slots:
 
    /** handle a context menu select on a folder - this brings up a menu to
        allow the user to modify a folder (e.g. rename it) */
-   void slotTreeContextMenuRequested(Q3ListViewItem *item, const QPoint &pos ,int col);
+   void slotTreeContextMenuRequested(QListWidgetItem *item, const QPoint &pos ,int col);
 
    /** handle a folder being dropped onto another folder. In this case we
        move the source into the target, so that it becomes a subdirectory

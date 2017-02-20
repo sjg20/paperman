@@ -39,11 +39,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qlabel.h"
 #include "qlayout.h"
 #include "qpoint.h"
-#include "q3popupmenu.h"
 #include "qsplitter.h"
 #include "qtimer.h"
-#include "q3valuelist.h"
-//Added by qt3to4:
 #include <QDropEvent>
 #include <QPixmap>
 
@@ -177,7 +174,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_dir->_remove_repository, SIGNAL (triggered ()), this,
             SLOT (slotRemoveRepository ()));
 
-   setResizeMode (_dir, KeepSize);
+   setStretchFactor(indexOf(_dir), 0);
 
    QList<int> size;
 
@@ -486,7 +483,7 @@ void Desktopwidget::addAction (QAction *&act, const char *text, const char *slot
       parent = _view;
    act = new QAction (tr (text), parent);
    if (!shortcut.isEmpty ())
-      act->setShortcut (tr (shortcut));
+      act->setShortcut (tr (shortcut.toLatin1()));
    if (image)
       {
       QIcon icon;
@@ -604,8 +601,8 @@ void Desktopwidget::renameDir ()
       return;
       }
    QString text = QInputDialog::getText(
-            "Maxview", "Enter new directory name:", QLineEdit::Normal,
-            oldName, &ok, this );
+            this, "Maxview", "Enter new directory name:", QLineEdit::Normal,
+            oldName, &ok);
    if ( ok && !text.isEmpty() && text != oldName)
       {
       QDir dir;
@@ -737,8 +734,8 @@ void Desktopwidget::newDir ()
    bool ok;
 
    QString text = QInputDialog::getText(
-            "Maxview", "Enter new subdirectory name:", QLineEdit::Normal,
-            QString::null, &ok, this );
+            this, "Maxview", "Enter new subdirectory name:", QLineEdit::Normal,
+            QString::null, &ok);
    if ( ok && !text.isEmpty() )
       {
       QModelIndex index = _dir->menuGetModelIndex ();
