@@ -59,8 +59,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  *
  */
 Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
-    : QMainWindow(parent, name, fl)
+    : QMainWindow(parent, fl)
 {
+   setObjectName(name);
    _progress = 0;
    _label = 0;
    setupUi(this);
@@ -206,7 +207,7 @@ void Mainwindow::on_actionSwap_activated()
 
 void Mainwindow::statusUpdate (QString str)
 {
-    statusBar()->message (str);
+    statusBar()->showMessage (str);
 }
 
 

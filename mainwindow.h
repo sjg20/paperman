@@ -37,7 +37,8 @@ class Mainwindow : public QMainWindow, public Ui::Mainwindow
     Q_OBJECT
 
 public:
-    Mainwindow(QWidget* parent = 0, const char* name = 0, Qt::WindowFlags fl = Qt::WType_TopLevel);
+    Mainwindow(QWidget* parent = 0, const char* name = 0,
+               Qt::WindowFlags fl = Qt::Window);
     ~Mainwindow();
 
     Desktopwidget * getDesktop();
