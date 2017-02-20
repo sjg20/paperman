@@ -17,12 +17,10 @@
 #include "qbooloption.h"
 
 #include <qcheckbox.h>
-#include <q3hbox.h>
+#include <QHBoxLayout>
 #include <qlayout.h>
 #include <qpixmap.h>
 #include <qstring.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
 
 QBoolOption::QBoolOption(QString title,QWidget *parent, const char *name )
             :QSaneOption(title,parent,name)
@@ -37,22 +35,25 @@ QBoolOption::~QBoolOption()
 /**  */
 void QBoolOption::initWidget()
 {
-	Q3GridLayout* qgl = new Q3GridLayout(this,1,2);
-  Q3HBox* hbox1 = new Q3HBox(this);
-	mpOptionCheckBox = new QCheckBox(optionTitle(),hbox1);
+    QGridLayout* qgl = new QGridLayout(this);
+  QHBoxLayout* hbox1 = new QHBoxLayout();
+    mpOptionCheckBox = new QCheckBox(optionTitle());
+    hbox1->addWidget(mpOptionCheckBox);
   connect(mpOptionCheckBox,SIGNAL(clicked()),
           this,SLOT(slotEmitOptionChanged()));
-  QWidget* dummy = new QWidget(hbox1);
+  QWidget* dummy = new QWidget();
+  hbox1->addWidget(dummy);
   hbox1->setStretchFactor(dummy,1);
-  mpAutoCheckBox = new QCheckBox(tr("Automatic"),hbox1);
+  mpAutoCheckBox = new QCheckBox(tr("Automatic"));
+  hbox1->addWidget(mpAutoCheckBox);
   hbox1->setSpacing(6);
   mpAutoCheckBox->hide();
 //create pixmap
   assignPixmap();
 	qgl->addWidget(pixmapWidget(),0,0);
-	qgl->addWidget(hbox1,0,1);
+    qgl->addLayout(hbox1,0,1);
   qgl->setSpacing(5);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
   connect(mpAutoCheckBox,SIGNAL(toggled(bool)),this,SLOT(slotAutoMode(bool)));
 }
