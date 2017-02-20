@@ -215,14 +215,6 @@ FORMS = mainwindow.ui \
         pageattr.ui \
         ocrbar.ui send.ui
 
-IMAGES = images/filenew \
-   images/fileopen \
-   images/filesave \
-   images/print \
-   images/undo \
-   images/redo \
-   images/searchfind
-
 # tif_fax3sm.c   - causes tifflib to break
 
 
