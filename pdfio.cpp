@@ -67,7 +67,8 @@ Pdfio::~Pdfio ()
 err_info *Pdfio::find_page (int pagenum, Poppler::Page *& page)
    {
    if (!_pop)
-      return err_make (ERRFN, ERR_file_is_not_open1, _pathname.latin1 ());
+      return err_make (ERRFN, ERR_file_is_not_open1,
+                       _pathname.toLatin1 ().constData());
    page = _pop->page (pagenum);
 
    if (!page)
@@ -83,16 +84,18 @@ err_info *Pdfio::open (void)
 #ifdef CONFIG_use_poppler
    _pop = Poppler::Document::load (_pathname);
    if (!_pop)
-      return err_make (ERRFN, ERR_cannot_open_file1, _pathname.latin1 ());
+      return err_make (ERRFN, ERR_cannot_open_file1,
+                       _pathname.toLatin1 ().constData());
    if (_pop->isLocked ())
-      return err_make (ERRFN, ERR_cannot_open_document_as_it_is_locked1, _pathname.latin1 ());
+      return err_make (ERRFN, ERR_cannot_open_document_as_it_is_locked1,
+                       _pathname.toLatin1 ().constData());
 #endif
    PoDoFo::PdfMemDocument *doc = 0;
 
    try
       {
       doc = new PdfMemDocument ();
-      doc->Load (_pathname.latin1 ());
+      doc->Load (_pathname.toLatin1 ().constData());
       }
    catch (const PdfError &eCode)
       {
@@ -131,7 +134,7 @@ err_info *Pdfio::close (void)
    {
    try
       {
-      _doc->Write (_pathname.latin1 ());
+      _doc->Write (_pathname.toLatin1 ().constData());
       }
    catch (const PdfError &eCode)
       {
