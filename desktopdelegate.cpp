@@ -121,6 +121,7 @@ Desktopdelegate::Desktopdelegate (Desktopmodelconv *modelconv, QObject * parent)
    {
    _userbusy = false;
    _timer = new QTimer ();
+   _timer->setSingleShot(true);
    _hitwhich = Point_other;
    _modelconv = modelconv;
    connect (_timer, SIGNAL(timeout()), this, SLOT(autoRepeatTimeout()));
@@ -509,7 +510,7 @@ bool Desktopdelegate::editorEvent (QEvent * event, QAbstractItemModel *model,
          _hitwhich == Point_right)
          {
          _userbusy = true;
-         _timer->start( AUTO_REPEAT_DELAY, TRUE);
+         _timer->start( AUTO_REPEAT_DELAY);
          }
       if (_hitwhich == Point_other
          && event->type () == QEvent::MouseButtonDblClick)
@@ -618,7 +619,7 @@ void Desktopdelegate::autoRepeatTimeout()
    {
    qDebug () << "autoRepeatTimeout";
    emit itemClicked (_hit, _hitwhich);
-   _timer->start (AUTO_REPEAT_PERIOD, TRUE);
+   _timer->start (AUTO_REPEAT_PERIOD);
    }
 
 
