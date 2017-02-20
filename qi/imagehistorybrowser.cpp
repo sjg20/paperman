@@ -100,7 +100,7 @@ ImageHistoryBrowser::~ImageHistoryBrowser()
 /**  */
 void ImageHistoryBrowser::initWidget()
 {
-  mDirPath = xmlConfig->stringValue("BROWSER_PATH",QDir::homeDirPath());
+  mDirPath = xmlConfig->stringValue("BROWSER_PATH",QDir::homePath());
   int browsemode = xmlConfig->intValue("BROWSER_MODE",0);
   int viewmode = xmlConfig->intValue("BROWSER_VIEW_MODE",0);
   mBookmarkList = xmlConfig->stringList("BROWSER_BOOKMARKS");
@@ -416,7 +416,7 @@ void ImageHistoryBrowser::createListContents()
     //doesn't exist; in this case, we change to the users home dir
     if(info_list == 0)
     {
-      mDirPath = QDir::homeDirPath();
+      mDirPath = QDir::homePath();
       mDir.setPath(mDirPath);
       if(xmlConfig->boolValue("IMAGEBROWSER_EXTENSION_ONLY",false))
         mDir.setNameFilter(filter_string);
@@ -573,7 +573,7 @@ void ImageHistoryBrowser::createIconViewContents()
     //doesn't exist; in this case, we change to the users home dir
     if(info_list == 0)
     {
-      mDirPath = QDir::homeDirPath();
+      mDirPath = QDir::homePath();
       mDir.setPath(mDirPath);
       info_list = mDir.entryInfoList();
       //should not happen, but you never know
@@ -810,7 +810,7 @@ void ImageHistoryBrowser::slotCreatePreview()
       //doesn't exist; in this case, we change to the users home dir
       if(info_list == 0)
       {
-        mDirPath = QDir::homeDirPath();
+        mDirPath = QDir::homePath();
         mDir.setPath(mDirPath);
         info_list = mDir.entryInfoList();
         //should not happen, but you never know
@@ -1591,7 +1591,7 @@ void ImageHistoryBrowser::slotBookmarkSelected(const QString& bm)
 /** No descriptions */
 void ImageHistoryBrowser::slotHome()
 {
-  QString home_dir = QDir::homeDirPath();
+  QString home_dir = QDir::homePath();
   if(mDirPath == home_dir)
     return;
   QDir dir(home_dir);
