@@ -246,11 +246,11 @@ err_info *Dirmodel::moveDir (QString src, QString dst)
    QString leaf;
    int pos;
 
-   pos = src.findRev ('/');
+   pos = src.lastIndexOf('/');
    if (pos == (int)src.length () - 1)
       // remove trailing /
       src.truncate (src.length () - 1);
-   pos = src.findRev ('/');
+   pos = src.lastIndexOf ('/');
 
    if (dst.right (1) != "/")
       dst.append ("/");
@@ -260,14 +260,14 @@ err_info *Dirmodel::moveDir (QString src, QString dst)
 
 //    printf ("%s -> %s%s\n", src.latin1 (), dst.latin1 (), leaf.latin1 ());
    if (!leaf.length ())
-      return err_make (ERRFN, ERR_directory_not_found1, src.latin1 ());
+      return err_make (ERRFN, ERR_directory_not_found1, src.toLatin1 ().constData());
 
    dst += leaf;
 
    QDir dir;
 
    if (!dir.rename (src, dst))
-      return err_make (ERRFN, ERR_could_not_rename_dir1, dst.latin1 ());
+      return err_make (ERRFN, ERR_could_not_rename_dir1, dst.toLatin1 ().constData());
    return NULL;
 }
 
@@ -447,7 +447,8 @@ void Dirmodel::traceIndex (const QModelIndex &index) const
          fname = ind.row () == -1 ? "" : _item [ind.row ()]->dir ();
       else
          fname = fileName (ind);
-      printf ("%s%p:%d:%s", first ? "" : ", ", ind.internalPointer (), ind.row(), fname.latin1 ());
+      printf ("%s%p:%d:%s", first ? "" : ", ", ind.internalPointer (),
+              ind.row(), fname.toLatin1 ().constData());
       ind = parent (ind);
       first = false;
       } while (ind != QModelIndex ());
@@ -684,10 +685,11 @@ err_info *Dirmodel::rmdir (const QModelIndex &index)
       {
       QString path = filePath (index);
 
-      int err = err_systemf ("rm -rf '%s'", path.latin1 ());
+      int err = err_systemf ("rm -rf '%s'", path.toLatin1 ().constData());
 
       if (err)
-         return err_make (ERRFN, ERR_could_not_remove_dir1, path.latin1());
+         return err_make (ERRFN, ERR_could_not_remove_dir1,
+                          path.toLatin1 ().constData());
 
       refresh (parent (index));
       }
@@ -705,13 +707,14 @@ void dirmodel_tests (void)
    model.addDir (dir);
    model.addDir (dir2);
    parent = QModelIndex ();
-   printf ("%s\n", model.data (parent, Qt::DisplayRole).toString ().latin1 ());
+   printf ("%s\n", model.data (parent, Qt::DisplayRole).toString ().
+           toLatin1 ().constData());
    int rows = model.rowCount (parent);
    for (int i = 0; i < rows; i++)
       {
       ind = model.index (i, 0, parent);
-      printf ("   %s %p\n", model.data (ind, Qt::DisplayRole).toString ().latin1 (),
-         ind.internalPointer ());
+      printf ("   %s %p\n", model.data (ind, Qt::DisplayRole).toString ().
+              toLatin1 ().constData(), ind.internalPointer ());
       if (model.parent (ind) != QModelIndex ())
          {
          printf ("   - root parent bad\n");
@@ -723,7 +726,8 @@ void dirmodel_tests (void)
       for (int j = 0; j < rows2; j++)
          {
          QModelIndex ind2 = model.index (j, 0, ind);
-         printf ("       %s %p\n", model.data (ind2, Qt::DisplayRole).toString ().latin1 (),
+         printf ("       %s %p\n", model.data (ind2, Qt::DisplayRole).
+                 toString ().toLatin1 ().constData(),
             ind2.internalPointer ());
          if (model.parent (ind2) != ind)
             {
