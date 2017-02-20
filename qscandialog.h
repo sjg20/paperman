@@ -29,7 +29,6 @@ class QPushButton;
 class QTableWidget;
 
 //s #include <qarray.h>
-#include <q3listview.h>
 #include <qnamespace.h>
 #include <qwidget.h>
 #include "qscanner.h"
@@ -216,7 +215,7 @@ private:
   /**  */
   QWidget* mpOptionListWidget;
   /**  */
-  Q3ListView* mpOptionListView;
+  QTableWidget* mpOptionListView;
   /**  */
   QVBoxLayout* mpSeparator;
 
@@ -352,7 +351,7 @@ the backend  is different from the requested value. */
   /**  */
   void slotDeviceSettings();
   /**  */
-  void slotRaiseOptionWidget(Q3ListViewItem* lvi);
+  void slotRaiseOptionWidget(QListWidgetItem* lvi);
   /**  */
   void slotHidePreview();
   /**  */

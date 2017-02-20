@@ -18,45 +18,54 @@
 #ifndef QLISTVIEWITEMEXT_H
 #define QLISTVIEWITEMEXT_H
 
+#include <QTableWidgetItem>
+
 #include <qdatetime.h>
-#include <q3listview.h>
 #include <qstring.h>
 /**
   *@author Michael Herder
   */
-class QListViewItemExt : public Q3ListViewItem
+class QListViewItemExt : public QTableWidgetItem
 {
 public: 
   //constructors
-  QListViewItemExt(Q3ListView* parent);
+  QListViewItemExt(QTableWidget* parent);
   /** */
-  QListViewItemExt(Q3ListViewItem* parent);
+  QListViewItemExt(QTableWidgetItem* parent);
   /** */
-  QListViewItemExt(Q3ListView* parent,Q3ListViewItem* after);
+  QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after);
   /** */
-  QListViewItemExt(Q3ListViewItem* parent,Q3ListViewItem* after);
+  QListViewItemExt(QTableWidgetItem* parent,QTableWidgetItem* after);
   /** */
-  QListViewItemExt(Q3ListView* parent,QString,QString=QString::null,
+  QListViewItemExt(QTableWidget* parent,QString,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null);
   /** */
-  QListViewItemExt(Q3ListViewItem* parent,QString,QString=QString::null,
+  QListViewItemExt(QTableWidgetItem* parent,QString,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null);
   /** */
-  QListViewItemExt(Q3ListView* parent,Q3ListViewItem* after,QString,
+  QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after,QString,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString = QString::null);
   /** */
-  QListViewItemExt(Q3ListViewItem* parent,Q3ListViewItem* after,QString,
+  QListViewItemExt(QTableWidgetItem* parent,QTableWidgetItem* after,QString,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null,QString=QString::null,
                    QString=QString::null);
+
+private:
+  void addWidgets(QTableWidget *parent, QString label1,
+                               QString label2,QString label3,
+                               QString label4,QString label5,
+                               QString label6,QString label7,
+                               QString label8);
+public:
   //destructor
 	virtual ~QListViewItemExt();
   /**  */
@@ -80,6 +89,8 @@ private: // Private attributes
   QString mHiddenText;
   /**  */
   QDateTime mDateTime;
+  int mRow;
+  QTableWidget *mParent;
 };
 
 #endif
