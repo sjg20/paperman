@@ -204,7 +204,7 @@ private:
   /**  */
   QCheckBox* mpAutoNameCheckBox;
   /**  */
-  Q3HBox* mpInfoHBox;
+  QHBoxLayout* mpInfoHBox;
   /**  */
   Q3HBox* mpModeHBox;
   /**  */
