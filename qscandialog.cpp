@@ -233,7 +233,7 @@ QIN::Status QScanDialog::initDialog()
 
 //////////
 //main layout
-  mpMainLayout = new QGridLayout(this,7,3);
+  mpMainLayout = new QGridLayout(this);
   mpMainLayout->setMargin(3);
   mpMainLayout->setSpacing(5);
   mpMainLayout->setColumnStretch(0,1);
@@ -254,7 +254,7 @@ QIN::Status QScanDialog::initDialog()
 
 #if 0 //s
 //Mode selection
-  mpModeHBox = new Q3HBox(this);
+  mpModeHBox = new QHBoxLayout(this);
   QLabel* modelabel = new QLabel(tr("Mode"),mpModeHBox);
   mpModeHBox->setStretchFactor(modelabel,1);
   mpModeCombo = new QComboBox(FALSE,mpModeHBox);
