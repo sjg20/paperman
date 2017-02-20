@@ -40,8 +40,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  *  true to construct a modal dialog.
  */
 Options::Options(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
-    : QDialog(parent, name, modal, fl)
+    : QDialog(parent, fl)
 {
+    setObjectName(name);
+    setModal(modal);
     setupUi(this);
 
     init();
@@ -101,7 +103,7 @@ void Options::init()
    stackCount->setEnabled (stack_val > 0);
    stackCount->setValue (stack_val);
 
-   blank->setCurrentItem (xmlConfig->intValue("SCAN_BLANK"));
+   blank->setCurrentIndex (xmlConfig->intValue("SCAN_BLANK"));
    threshold->setRange (10, 5000);
    threshold->setTitle ("Blank threshold n:1");
    threshold->setValue (xmlConfig->intValue("SCAN_BLANK_THRESHOLD"));
@@ -116,13 +118,13 @@ void Options::init()
 
 void Options::ok_clicked()
 {
-   xmlConfig->setBoolValue("SCAN_USE_JPEG" ,jpeg->isOn ());
+   xmlConfig->setBoolValue("SCAN_USE_JPEG" ,jpeg->isChecked ());
 
    int single_val = limit->isChecked () ? single->value () : 0;
    int stack_val = stackLimit->isChecked () ? stackCount->value () : 0;
    xmlConfig->setIntValue("SCAN_SINGLE", single_val);
    xmlConfig->setIntValue("SCAN_STACK_COUNT", stack_val);
-   xmlConfig->setIntValue("SCAN_BLANK", blank->currentItem ());
+   xmlConfig->setIntValue("SCAN_BLANK", blank->currentIndex ());
    xmlConfig->setIntValue("SCAN_BLANK_THRESHOLD", threshold->value ());
    close ();
 }
