@@ -203,9 +203,6 @@ SOURCES += desktopwidget.cpp \
 # add qtcreator debug macros if we are debugging
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
 
-
-
-#The following line was changed from FORMS to FORMS3 by qt3to4
 FORMS = mainwindow.ui \
    pscan.ui \
    about.ui \
@@ -231,8 +228,6 @@ unix {
     OBJECTS_DIR = .obj
 }
 
-
-#The following line was inserted by qt3to4
 QT += xml
 
 # custom target 'doc' in *.pro file
