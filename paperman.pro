@@ -115,7 +115,8 @@ HEADERS += desktopwidget.h \
  zipentry_p.h \
  senddialog.h \
  transfer.h \
-    filejpeg.h
+    filejpeg.h \
+    qlistwidgetitemiterator.h
 
 SOURCES += desktopwidget.cpp \
    mainwidget.cpp \
@@ -196,7 +197,8 @@ SOURCES += desktopwidget.cpp \
  zip.cpp \
  senddialog.cpp \
  transfer.cpp \
-    filejpeg.cpp
+    filejpeg.cpp \
+    qlistwidgetitemiterator.cpp
 
 # add qtcreator debug macros if we are debugging
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
