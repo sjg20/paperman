@@ -14,20 +14,18 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QGridLayout>
+
 #include "qcombooption.h"
 
 #include <qcheckbox.h>
 #include <qcombobox.h>
 #include <qfontmetrics.h>
-#include <q3hbox.h>
 #include <qlabel.h>
 #include <qlayout.h>
-#include <q3listbox.h>
 #include <qstring.h>
 #include <qsizepolicy.h>
 #include <qtooltip.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
 
 #include <stdio.h>
 
@@ -44,35 +42,47 @@ QComboOption::~QComboOption()
 /**  */
 void QComboOption::initWidget()
 {
-  Q3GridLayout* qgl = new Q3GridLayout(this,2,2);
+  /*
+   * We use a 2x2 grid:
+   *
+   * +---------------------+----------------------+
+   * +                     |  title               |
+   * + pixmap spans 2 rows |----------------------+
+   * +                     | combo    | checkbox  |
+   * +---------------------+----------------------+
+   */
+  QGridLayout* qgl = new QGridLayout(this);
+  qgl->setContentsMargins(0, 0, 0, 0);
   mpTitleLabel = new QLabel(mTitleText,this);
-  Q3HBox* hbox1 = new Q3HBox(this);
-  mpSelectionCombo = new QComboBox(false,hbox1);
+  QHBoxLayout* hbox1 = new QHBoxLayout(this);
+  mpSelectionCombo = new QComboBox();
+  hbox1->addWidget(mpSelectionCombo);
   mpSelectionCombo->setFocusPolicy(Qt::StrongFocus);//should get focus after clicking
   connect(mpSelectionCombo,SIGNAL(activated(int)),
           this,SLOT(slotSelectionChanged(int)));
   connect(mpSelectionCombo,SIGNAL(activated(int)),
           this,SLOT(slotChangeTooltip(int)));
   hbox1->setStretchFactor(mpSelectionCombo,1);
-  mpAutoCheckBox = new QCheckBox(tr("Automatic"),hbox1);
+  mpAutoCheckBox = new QCheckBox(tr("Automatic"));
+  hbox1->addWidget(mpAutoCheckBox);
   hbox1->setSpacing(6);
   mpAutoCheckBox->hide();
 //create pixmap
   assignPixmap();
-	qgl->addMultiCellWidget(pixmapWidget(),0,1,0,0);
+    qgl->addWidget(pixmapWidget(),0,0,2,1);
 
 	qgl->addWidget(mpTitleLabel,0,1);
-	qgl->addWidget(hbox1,1,1);
+    qgl->addLayout(hbox1,1,1);
   qgl->setSpacing(5);
-	qgl->setColStretch(0,0);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(0,0);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
   connect(mpAutoCheckBox,SIGNAL(toggled(bool)),this,SLOT(slotAutoMode(bool)));
 }
 /**  */
 void QComboOption::appendItem(const char* item)
 {
-	mpSelectionCombo->insertItem(item,-1);
+    mpSelectionCombo->addItem(item);
 }
 /**  */
 bool QComboOption::setCurrentValue(const char* item)
@@ -85,7 +95,7 @@ bool QComboOption::setCurrentValue(const char* item)
     qs2 = mStringList[cnt];
 		if(qs2 == qs)
 		{
-			mpSelectionCombo->setCurrentItem(cnt);
+            mpSelectionCombo->setCurrentIndex(cnt);
       slotChangeTooltip(cnt);
             return true;
 		}
@@ -96,7 +106,7 @@ bool QComboOption::setCurrentValue(const char* item)
 /**  */
 QString QComboOption::getCurrentText()
 {
-  mCurrentText = mStringList[mpSelectionCombo->currentItem()];
+  mCurrentText = mStringList[mpSelectionCombo->currentIndex()];
 	return mCurrentText;
 }
 /**  */
@@ -144,12 +154,12 @@ void QComboOption::setStringList(const QStringList& slist)
     }
   }
   mpSelectionCombo->clear();
-  mpSelectionCombo->insertStringList(templist);
+  mpSelectionCombo->addItems(templist);
 }
 /** No descriptions */
 void QComboOption::slotChangeTooltip(int index)
 {
-  QToolTip::remove(mpSelectionCombo);
-  if(mpSelectionCombo->text(index).right(3) == "...")
-    QToolTip::add(mpSelectionCombo,mStringList[index]);
+  mpSelectionCombo->setToolTip("");
+  if(mpSelectionCombo->itemText(index).right(3) == "...")
+    mpSelectionCombo->setToolTip(mStringList[index]);
 }
