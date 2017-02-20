@@ -44,7 +44,7 @@ public slots:
     virtual void setMainwidget( Mainwidget * main );
     virtual void source_clicked();
     virtual void settings_clicked();
-    virtual void format_clicked( int );
+    virtual void on_format_buttonClicked( int );
     virtual void pendingDone();
     virtual void adf_clicked();
     virtual void duplex_clicked();

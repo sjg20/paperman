@@ -1,46 +1,47 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <author>Simon Glass</author>
  <comment>Dialogue to allow scanning of new paper</comment>
  <class>Pscan</class>
- <widget class="QDialog" name="Pscan" >
-  <property name="geometry" >
+ <widget class="QDialog" name="Pscan">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>474</width>
+    <width>521</width>
     <height>312</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>Page Scanning</string>
   </property>
-  <property name="windowIconText" >
+  <property name="windowIconText">
    <string> df</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout_2" >
+  <layout class="QHBoxLayout" name="horizontalLayout_2">
    <item>
-    <layout class="QVBoxLayout" >
+    <layout class="QVBoxLayout">
      <item>
-      <layout class="QHBoxLayout" >
+      <layout class="QHBoxLayout">
        <item>
-        <widget class="QLabel" name="textLabel1" >
-         <property name="text" >
+        <widget class="QLabel" name="textLabel1">
+         <property name="text">
           <string>Stack name</string>
          </property>
-         <property name="wordWrap" >
+         <property name="wordWrap">
           <bool>false</bool>
          </property>
         </widget>
        </item>
        <item>
         <spacer>
-         <property name="orientation" >
+         <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <property name="sizeType" >
+         <property name="sizeType">
           <enum>QSizePolicy::Minimum</enum>
          </property>
-         <property name="sizeHint" stdset="0" >
+         <property name="sizeHint" stdset="0">
           <size>
            <width>20</width>
            <height>20</height>
@@ -49,8 +50,8 @@
         </spacer>
        </item>
        <item>
-        <widget class="QLineEdit" name="stackName" >
-         <property name="toolTip" >
+        <widget class="QLineEdit" name="stackName">
+         <property name="toolTip">
           <string>Enter the name of the stack and press 'scan' to scan it</string>
          </property>
         </widget>
@@ -58,26 +59,26 @@
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" >
+      <layout class="QHBoxLayout">
        <item>
-        <widget class="QLabel" name="textLabel2" >
-         <property name="text" >
+        <widget class="QLabel" name="textLabel2">
+         <property name="text">
           <string>Page name</string>
          </property>
-         <property name="wordWrap" >
+         <property name="wordWrap">
           <bool>false</bool>
          </property>
         </widget>
        </item>
        <item>
         <spacer>
-         <property name="orientation" >
+         <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <property name="sizeType" >
+         <property name="sizeType">
           <enum>QSizePolicy::Minimum</enum>
          </property>
-         <property name="sizeHint" stdset="0" >
+         <property name="sizeHint" stdset="0">
           <size>
            <width>10</width>
            <height>20</height>
@@ -86,8 +87,8 @@
         </spacer>
        </item>
        <item>
-        <widget class="QLineEdit" name="pageName" >
-         <property name="toolTip" >
+        <widget class="QLineEdit" name="pageName">
+         <property name="toolTip">
           <string>Enter the name for each page of the stack to be scanned</string>
          </property>
         </widget>
@@ -96,13 +97,13 @@
      </item>
      <item>
       <spacer>
-       <property name="orientation" >
+       <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
-       <property name="sizeType" >
+       <property name="sizeType">
         <enum>QSizePolicy::Expanding</enum>
        </property>
-       <property name="sizeHint" stdset="0" >
+       <property name="sizeHint" stdset="0">
         <size>
          <width>21</width>
          <height>95</height>
@@ -111,38 +112,38 @@
       </spacer>
      </item>
      <item>
-      <layout class="QHBoxLayout" >
+      <layout class="QHBoxLayout">
        <item>
-        <layout class="QVBoxLayout" >
+        <layout class="QVBoxLayout">
          <item>
-          <widget class="QPushButton" name="options" >
-           <property name="toolTip" >
+          <widget class="QPushButton" name="options">
+           <property name="toolTip">
             <string>Change scan options</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>Options</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="config" >
-           <property name="toolTip" >
+          <widget class="QPushButton" name="config">
+           <property name="toolTip">
             <string>Change maxview options</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>Config</string>
            </property>
           </widget>
          </item>
          <item>
           <spacer>
-           <property name="orientation" >
+           <property name="orientation">
             <enum>Qt::Vertical</enum>
            </property>
-           <property name="sizeType" >
+           <property name="sizeType">
             <enum>QSizePolicy::Expanding</enum>
            </property>
-           <property name="sizeHint" stdset="0" >
+           <property name="sizeHint" stdset="0">
             <size>
              <width>41</width>
              <height>71</height>
@@ -153,36 +154,36 @@
         </layout>
        </item>
        <item>
-        <layout class="QVBoxLayout" >
+        <layout class="QVBoxLayout">
          <item>
-          <widget class="QPushButton" name="reset" >
-           <property name="toolTip" >
+          <widget class="QPushButton" name="reset">
+           <property name="toolTip">
             <string>Reset to default settings</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>Reset</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="source" >
-           <property name="enabled" >
+          <widget class="QPushButton" name="source">
+           <property name="enabled">
             <bool>true</bool>
            </property>
-           <property name="toolTip" >
+           <property name="toolTip">
             <string>Select a different scanner to use</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>Select scanner...</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="settings" >
-           <property name="toolTip" >
+          <widget class="QPushButton" name="settings">
+           <property name="toolTip">
             <string>Control all scanner features explicitly</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>Advanced...</string>
            </property>
           </widget>
@@ -192,18 +193,18 @@
       </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" >
+      <layout class="QVBoxLayout">
        <item>
-        <layout class="QHBoxLayout" >
+        <layout class="QHBoxLayout">
          <item>
           <spacer>
-           <property name="orientation" >
+           <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
-           <property name="sizeType" >
+           <property name="sizeType">
             <enum>QSizePolicy::Maximum</enum>
            </property>
-           <property name="sizeHint" stdset="0" >
+           <property name="sizeHint" stdset="0">
             <size>
              <width>20</width>
              <height>20</height>
@@ -212,29 +213,29 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="infoStr" >
-           <property name="sizePolicy" >
-            <sizepolicy vsizetype="Minimum" hsizetype="Minimum" >
+          <widget class="QLabel" name="infoStr">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
-           <property name="minimumSize" >
+           <property name="minimumSize">
             <size>
              <width>60</width>
              <height>0</height>
             </size>
            </property>
-           <property name="toolTip" >
+           <property name="toolTip">
             <string>Displays page coverage information</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string/>
            </property>
-           <property name="alignment" >
+           <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
-           <property name="wordWrap" >
+           <property name="wordWrap">
             <bool>false</bool>
            </property>
           </widget>
@@ -242,35 +243,35 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" >
+        <layout class="QHBoxLayout">
          <item>
-          <widget class="QLabel" name="progressStr" >
-           <property name="sizePolicy" >
-            <sizepolicy vsizetype="Expanding" hsizetype="Expanding" >
+          <widget class="QLabel" name="progressStr">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
-           <property name="toolTip" >
+           <property name="toolTip">
             <string>Displays page and stack number while scanning</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string/>
            </property>
-           <property name="wordWrap" >
+           <property name="wordWrap">
             <bool>false</bool>
            </property>
           </widget>
          </item>
          <item>
           <spacer>
-           <property name="orientation" >
+           <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
-           <property name="sizeType" >
+           <property name="sizeType">
             <enum>QSizePolicy::Maximum</enum>
            </property>
-           <property name="sizeHint" stdset="0" >
+           <property name="sizeHint" stdset="0">
             <size>
              <width>20</width>
              <height>20</height>
@@ -279,26 +280,26 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="sizeStr" >
-           <property name="sizePolicy" >
-            <sizepolicy vsizetype="Minimum" hsizetype="Minimum" >
+          <widget class="QLabel" name="sizeStr">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
-           <property name="minimumSize" >
+           <property name="minimumSize">
             <size>
              <width>60</width>
              <height>0</height>
             </size>
            </property>
-           <property name="toolTip" >
+           <property name="toolTip">
             <string>Displays total stack size in bytes</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string/>
            </property>
-           <property name="wordWrap" >
+           <property name="wordWrap">
             <bool>false</bool>
            </property>
           </widget>
@@ -308,8 +309,8 @@
       </layout>
      </item>
      <item>
-      <widget class="Q3ProgressBar" name="progressBar" >
-       <property name="toolTip" >
+      <widget class="QProgressBar" name="progressBar">
+       <property name="toolTip">
         <string>Displays scanning progress</string>
        </property>
       </widget>
@@ -317,38 +318,38 @@
     </layout>
    </item>
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout" >
+    <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout" >
+      <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QPushButton" name="cancel" >
-         <property name="toolTip" >
+        <widget class="QPushButton" name="cancel">
+         <property name="toolTip">
           <string>Cancel the current scan</string>
          </property>
-         <property name="text" >
+         <property name="text">
           <string>Cancel</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="stop" >
-         <property name="toolTip" >
+        <widget class="QPushButton" name="stop">
+         <property name="toolTip">
           <string>Stop the current scan after this page has been scanned</string>
          </property>
-         <property name="text" >
+         <property name="text">
           <string>Stop</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="scan" >
-         <property name="toolTip" >
+        <widget class="QPushButton" name="scan">
+         <property name="toolTip">
           <string>Perform a scan</string>
          </property>
-         <property name="text" >
+         <property name="text">
           <string>Scan</string>
          </property>
-         <property name="default" >
+         <property name="default">
           <bool>true</bool>
          </property>
         </widget>
@@ -356,74 +357,81 @@
       </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" >
-       <item>
-        <widget class="Q3ButtonGroup" name="format" >
-         <property name="title" >
-          <string>Format</string>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="1" column="0">
+        <widget class="QRadioButton" name="grey">
+         <property name="toolTip">
+          <string>Select greyscale scanning</string>
          </property>
-         <layout class="QGridLayout" >
-          <item row="0" column="1" >
-           <widget class="QRadioButton" name="dither" >
-            <property name="toolTip" >
-             <string>Select monochrome scanning with dithering</string>
-            </property>
-            <property name="text" >
-             <string>Dither</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0" >
-           <widget class="QRadioButton" name="mono" >
-            <property name="toolTip" >
-             <string>Select monochrome scanning (thresholded blank and white)</string>
-            </property>
-            <property name="text" >
-             <string>Mono</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1" >
-           <widget class="QRadioButton" name="colour" >
-            <property name="toolTip" >
-             <string>Select colour scanning</string>
-            </property>
-            <property name="text" >
-             <string>Colour</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0" >
-           <widget class="QRadioButton" name="grey" >
-            <property name="toolTip" >
-             <string>Select greyscale scanning</string>
-            </property>
-            <property name="text" >
-             <string>Grey</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <property name="text">
+          <string>Grey</string>
+         </property>
+         <attribute name="buttonGroup">
+          <string notr="true">format</string>
+         </attribute>
         </widget>
        </item>
+       <item row="0" column="0">
+        <widget class="QRadioButton" name="mono">
+         <property name="toolTip">
+          <string>Select monochrome scanning (thresholded blank and white)</string>
+         </property>
+         <property name="text">
+          <string>Mono</string>
+         </property>
+         <attribute name="buttonGroup">
+          <string notr="true">format</string>
+         </attribute>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QRadioButton" name="dither">
+         <property name="toolTip">
+          <string>Select monochrome scanning with dithering</string>
+         </property>
+         <property name="text">
+          <string>Dither</string>
+         </property>
+         <attribute name="buttonGroup">
+          <string notr="true">format</string>
+         </attribute>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QRadioButton" name="colour">
+         <property name="toolTip">
+          <string>Select colour scanning</string>
+         </property>
+         <property name="text">
+          <string>Colour</string>
+         </property>
+         <attribute name="buttonGroup">
+          <string notr="true">format</string>
+         </attribute>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout">
        <item>
-        <layout class="QHBoxLayout" >
+        <layout class="QHBoxLayout">
          <item>
-          <widget class="QCheckBox" name="adf" >
-           <property name="toolTip" >
+          <widget class="QCheckBox" name="adf">
+           <property name="toolTip">
             <string>Feed from the automatic document feeder</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>ADF</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QCheckBox" name="duplex" >
-           <property name="toolTip" >
+          <widget class="QCheckBox" name="duplex">
+           <property name="toolTip">
             <string>Scan both sides of the paper</string>
            </property>
-           <property name="text" >
+           <property name="text">
             <string>Duplex</string>
            </property>
           </widget>
@@ -431,20 +439,20 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" >
+        <layout class="QHBoxLayout">
          <item>
-          <widget class="QLabel" name="textLabel3" >
-           <property name="text" >
+          <widget class="QLabel" name="textLabel3">
+           <property name="text">
             <string>DPI</string>
            </property>
-           <property name="wordWrap" >
+           <property name="wordWrap">
             <bool>false</bool>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="res" >
-           <property name="toolTip" >
+          <widget class="QComboBox" name="res">
+           <property name="toolTip">
             <string>Select the dots per inch (300 gives a good scan, 200 is fax quality)</string>
            </property>
           </widget>
@@ -452,26 +460,26 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" >
+        <layout class="QHBoxLayout">
          <item>
-          <widget class="QLabel" name="textLabel3_2" >
-           <property name="text" >
+          <widget class="QLabel" name="textLabel3_2">
+           <property name="text">
             <string>Size</string>
            </property>
-           <property name="wordWrap" >
+           <property name="wordWrap">
             <bool>false</bool>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="pageSize" >
-           <property name="minimumSize" >
+          <widget class="QComboBox" name="pageSize">
+           <property name="minimumSize">
             <size>
              <width>150</width>
              <height>0</height>
             </size>
            </property>
-           <property name="toolTip" >
+           <property name="toolTip">
             <string>Select paper size</string>
            </property>
           </widget>
@@ -479,40 +487,40 @@
         </layout>
        </item>
        <item>
-        <widget class="SliderSpin" native="1" name="bright" >
-         <property name="minimumSize" >
+        <widget class="SliderSpin" name="bright" native="true">
+         <property name="minimumSize">
           <size>
            <width>210</width>
            <height>30</height>
           </size>
          </property>
-         <property name="toolTip" >
+         <property name="toolTip">
           <string>Select brightness or threshold</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="SliderSpin" native="1" name="contrast" >
-         <property name="minimumSize" >
+        <widget class="SliderSpin" name="contrast" native="true">
+         <property name="minimumSize">
           <size>
            <width>210</width>
            <height>30</height>
           </size>
          </property>
-         <property name="toolTip" >
+         <property name="toolTip">
           <string>Select contrast</string>
          </property>
         </widget>
        </item>
        <item>
         <spacer>
-         <property name="orientation" >
+         <property name="orientation">
           <enum>Qt::Vertical</enum>
          </property>
-         <property name="sizeType" >
+         <property name="sizeType">
           <enum>QSizePolicy::Expanding</enum>
          </property>
-         <property name="sizeHint" stdset="0" >
+         <property name="sizeHint" stdset="0">
           <size>
            <width>1</width>
            <height>1</height>
@@ -525,21 +533,9 @@
     </layout>
    </item>
   </layout>
-  <zorder></zorder>
  </widget>
- <layoutdefault spacing="2" margin="2" />
+ <layoutdefault spacing="2" margin="2"/>
  <customwidgets>
-  <customwidget>
-   <class>Q3ButtonGroup</class>
-   <extends>Q3GroupBox</extends>
-   <header>Qt3Support/Q3ButtonGroup</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>Q3ProgressBar</class>
-   <extends>QFrame</extends>
-   <header>Qt3Support/Q3ProgressBar</header>
-  </customwidget>
   <customwidget>
    <class>SliderSpin</class>
    <extends>QWidget</extends>
@@ -549,21 +545,29 @@
  <tabstops>
   <tabstop>stackName</tabstop>
   <tabstop>pageName</tabstop>
-  <tabstop>settings</tabstop>
-  <tabstop>source</tabstop>
+  <tabstop>mono</tabstop>
+  <tabstop>dither</tabstop>
+  <tabstop>grey</tabstop>
+  <tabstop>colour</tabstop>
   <tabstop>adf</tabstop>
   <tabstop>duplex</tabstop>
   <tabstop>res</tabstop>
-  <tabstop>reset</tabstop>
   <tabstop>pageSize</tabstop>
+  <tabstop>cancel</tabstop>
+  <tabstop>stop</tabstop>
+  <tabstop>scan</tabstop>
+  <tabstop>options</tabstop>
+  <tabstop>reset</tabstop>
+  <tabstop>config</tabstop>
+  <tabstop>source</tabstop>
+  <tabstop>settings</tabstop>
  </tabstops>
  <includes>
-  <include location="local" >mainwidget.h</include>
-  <include location="local" >qscanner.h</include>
-  <include location="local" >previewwidget.h</include>
-  <include location="local" >qscandialog.h</include>
-  <include location="local" >sliderspin.h</include>
-  <include location="local" >sliderspin.h</include>
+  <include location="local">mainwidget.h</include>
+  <include location="local">qscanner.h</include>
+  <include location="local">qscandialog.h</include>
+  <include location="local">sliderspin.h</include>
+  <include location="local">sliderspin.h</include>
  </includes>
  <resources/>
  <connections>
@@ -573,11 +577,11 @@
    <receiver>Pscan</receiver>
    <slot>brightChanged(int)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -589,11 +593,11 @@
    <receiver>Pscan</receiver>
    <slot>size_activated(int)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -605,11 +609,11 @@
    <receiver>Pscan</receiver>
    <slot>res_activated(int)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -621,11 +625,11 @@
    <receiver>Pscan</receiver>
    <slot>duplex_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -637,27 +641,11 @@
    <receiver>Pscan</receiver>
    <slot>adf_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
-     <x>20</x>
-     <y>20</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>format</sender>
-   <signal>clicked(int)</signal>
-   <receiver>Pscan</receiver>
-   <slot>format_clicked(int)</slot>
-   <hints>
-    <hint type="sourcelabel" >
-     <x>20</x>
-     <y>20</y>
-    </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -669,11 +657,11 @@
    <receiver>Pscan</receiver>
    <slot>scan_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -685,11 +673,11 @@
    <receiver>Pscan</receiver>
    <slot>settings_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -701,11 +689,11 @@
    <receiver>Pscan</receiver>
    <slot>source_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -717,11 +705,11 @@
    <receiver>Pscan</receiver>
    <slot>reset_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -733,11 +721,11 @@
    <receiver>Pscan</receiver>
    <slot>contrastChanged(int)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
@@ -749,15 +737,18 @@
    <receiver>Pscan</receiver>
    <slot>options_clicked()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>20</x>
      <y>20</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
     </hint>
    </hints>
   </connection>
  </connections>
+ <buttongroups>
+  <buttongroup name="format"/>
+ </buttongroups>
 </ui>

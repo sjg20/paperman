@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <qvariant.h>
 #include "qxmlconfig.h"
 #include "sliderspin.h"
+#include "qi/previewwidget.h"
 
 /*
  *  Constructs a Pscan as a child of 'parent', with the
@@ -39,10 +40,16 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  *  true to construct a modal dialog.
  */
 Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
-    : QDialog(parent, name, modal, fl)
+    : QDialog(parent, fl)
 {
+    setObjectName(name);
+    setModal(modal);
     setupUi(this);
     connect(cancel, SIGNAL(clicked()), this, SLOT(cancel_clicked()));
+    format->setId(mono, QScanner::mono);
+    format->setId(grey, QScanner::grey);
+    format->setId(dither, QScanner::dither);
+    format->setId(colour, QScanner::colour);
 
     init();
     QSettings qs;
@@ -81,10 +88,10 @@ void Pscan::languageChange()
 
 void Pscan::init()
 {
-    res->insertItem ("200");
-    res->insertItem ("300");
-    res->insertItem ("400");
-    res->insertItem ("Other");
+    res->addItem("200");
+    res->addItem ("300");
+    res->addItem ("400");
+    res->addItem ("Other");
 
     _scanner = 0;
     _scanDialog = 0;
@@ -111,33 +118,28 @@ void Pscan::scannerChanged (QScanner *scanner)
     adf->setDisabled(disabled);
     duplex->setDisabled(disabled);
     res->setDisabled(disabled);
-    format->setDisabled(disabled);
+    mono->setDisabled(disabled);
+    grey->setDisabled(disabled);
+    dither->setDisabled(disabled);
+    colour->setDisabled(disabled);
     if (disabled)
         return;
-    setCaption (_scanner->vendor () + " " + _scanner->model () + ": " + _scanner->name ());
+    setWindowTitle (_scanner->vendor () + " " + _scanner->model () + ": " + _scanner->name ());
     adf->setChecked(_scanner->useAdf ());
     duplex->setChecked(_scanner->duplex ());
     int dpix = _scanner->xResolutionDpi ();
     int dpiy = _scanner->yResolutionDpi ();
     if ((dpix == dpiy || !dpiy)
          && (dpix == 200 || dpix == 300 || dpix == 400))
-         res->setCurrentItem (dpix / 100 - 2);
+         res->setCurrentIndex (dpix / 100 - 2);
     else
-         res->setCurrentItem(3);
+         res->setCurrentIndex(3);
     QScanner::format_t f = _scanner->format ();
 
-    QRadioButton *b;
+    QAbstractButton *b = format->button(f);
 
-    switch (f)
-    {
-        case QScanner::dither : b = dither; break;
-        case QScanner::colour : b = colour; break;
-        case QScanner::grey : b = grey; break;
-        default :
-        case QScanner::mono : b = mono; break;
-    }
-
-    format->setButton (format->id (b));
+    if (b)
+        b->setChecked(true);
     setupBright ();
 }
 
@@ -160,15 +162,10 @@ void Pscan::settings_clicked()
 }
 
 
-void Pscan::format_clicked( int )
+void Pscan::on_format_buttonClicked( int id)
 {
-   QAbstractButton *id = format->selected ();
-   QScanner::format_t format = QScanner::mono;
+   QScanner::format_t format = (QScanner::format_t)id;
 
-   if (id == dither) format = QScanner::dither;
-   if (id == mono) format = QScanner::mono;
-   if (id == grey) format = QScanner::grey;
-   if (id == colour) format = QScanner::colour;
    if (_scanDialog)
       _scanDialog->setFormat (format, xmlConfig->boolValue ("SCAN_USE_JPEG"));
 }
@@ -275,8 +272,8 @@ void Pscan::progress (const char *str)
 {
     progressStr->setText (str);
     progressBar->setEnabled (false);
-    progressBar->setTotalSteps(100);
-    progressBar->setProgress (0);
+    progressBar->setMaximum(100);
+    progressBar->setValue(0);
 }
 
 
@@ -284,19 +281,19 @@ void Pscan::progress (const char *str)
 void Pscan::progress (int percent)
 {
     progressBar->setEnabled (true);
-    progressBar->setProgress(percent);
+    progressBar->setValue(percent);
 }
 
 
 QString Pscan::getStackName (void)
 {
-    return stackName->text ().stripWhiteSpace ();
+    return stackName->text ().trimmed ();
 }
 
 
 QString Pscan::getPageName (void)
 {
-    return pageName->text ().stripWhiteSpace ();
+    return pageName->text ().trimmed ();
 }
 
 
@@ -308,7 +305,7 @@ void Pscan::size_activated( int id)
 
 void Pscan::setPreviewWidget( PreviewWidget *widget )
 {
-   const char *name;
+   QString name;
    int i = 0;
 
    pageSize->clear ();
@@ -317,14 +314,14 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
    do
    {
       name = widget->getSizeName (i++);
-      if (name)
-         pageSize->insertItem (name);
-   } while (name);
+      if (!name.isEmpty())
+         pageSize->addItem (name);
+   } while (!name.isEmpty());
    _preview = widget;
    if (_a4_id != -1)
    {
-      _preview->setSize (_a4_id);
-      pageSize->setCurrentItem (_a4_id);
+//      _preview->setSize (_a4_id);
+      pageSize->setCurrentIndex (_a4_id);
    }
 }
 
