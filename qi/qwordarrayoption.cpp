@@ -185,8 +185,8 @@ void QWordArrayOption::calcDataArray()
   {
   //get the actual values stored in QWordArrays member
   //mPointArray
-    Q3PointArray qpa;
-    qpa = mpCurveWidget->pointArray().copy();
+    QPolygon qpa;
+    qpa = QPolygon(mpCurveWidget->pointArray());
 
     m11 = double(mDataArray.size())/255.0;
     m22 = double(mMaxVal-mMinVal)/255.0;

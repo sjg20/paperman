@@ -15,8 +15,7 @@
  ***************************************************************************/
 
 #include "qcurvewidget.h"
-//Added by qt3to4:
-#include <Q3PointArray>
+#include <QPolygon>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <math.h>
@@ -30,8 +29,9 @@
 #include <qmatrix.h>
 
 QCurveWidget::QCurveWidget(QWidget *parent, const char *name )
-             : QWidget(parent,name)
+             : QWidget(parent)
 {
+  setObjectName(name);
   mGamma = 1.0;
   setMouseTracking(TRUE);
   setFocusProxy(0);
@@ -51,8 +51,8 @@ QCurveWidget::~QCurveWidget()
 void QCurveWidget::mouseMoveEvent(QMouseEvent* me)
 {
   if (mCurveType == CurveType_Gamma) return;//do nothing
-  if ((mCurveType == CurveType_Free) && (me->state() != Qt::LeftButton)) return;
-  Q3PointArray qpa;
+  if ((mCurveType == CurveType_Free) && (me->buttons() != Qt::LeftButton)) return;
+  QPolygon qpa;
   int ax;
   int bx;
   int ay;
@@ -64,7 +64,7 @@ void QCurveWidget::mouseMoveEvent(QMouseEvent* me)
   bool cflag;
   cflag = false;
   mNewPoint = qwm.map(me->pos());//(mapFromGlobal(QCursor::pos()));
-  if ((mCurveType == CurveType_Free) && (me->state() == Qt::LeftButton))//(mLmbPressed == true))
+  if ((mCurveType == CurveType_Free) && (me->buttons() == Qt::LeftButton))//(mLmbPressed == true))
   {
     if(mOldPoint.x()<=mNewPoint.x())
     {
@@ -379,7 +379,7 @@ void QCurveWidget::slotChangeCurveType(int index)
   repaint();
 }
 /**  */
-void QCurveWidget::setDataArray(Q3PointArray qpa)
+void QCurveWidget::setDataArray(QPolygon qpa)
 {
   int i;
   for(i=0;i<int(qpa.size());i++)
@@ -420,7 +420,7 @@ void QCurveWidget::set()
 /**  */
 void QCurveWidget::calcDataArray()
 {
-  Q3PointArray qpa;
+  QPolygon qpa;
   int cnt;
   int i;
   cnt = 0;
@@ -448,7 +448,7 @@ void QCurveWidget::calcDataArray()
       mNewDataArray.setPoint(i,i,mSplineArray.point(mSplineArray.size()-1).y());
 }
 /**  */
-Q3PointArray QCurveWidget::pointArray()
+QPolygon QCurveWidget::pointArray()
 {
   return mOldDataArray;
 }
@@ -458,7 +458,7 @@ void QCurveWidget::setGamma(double gamma)
   double topval;
   double s;
   int gval;
-  unsigned int i;
+  int i;
 
   mGamma = gamma;
   topval = double(mNewDataArray.size());
