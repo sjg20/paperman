@@ -21,27 +21,25 @@
 #include <qdialog.h>
 #include <qstring.h>
 #include "quiteinsanenamespace.h"
-//Added by qt3to4:
-#include <Q3GridLayout>
 #include <QLabel>
 /**
   *@author M. Herder
   */
 
-class Q3ButtonGroup;
+class QButtonGroup;
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
-class Q3GridLayout;
+class QGridLayout;
 class QLabel;
 class QLineEdit;
-class Q3ListBox;
+class QListWidget;
 class QPushButton;
 class QRadioButton;
 class QSlider;
 class QSpinBox;
 class QToolButton;
-class Q3WidgetStack;
+class QStackedWidget;
 
 class QExtensionWidget : public QDialog
 {
@@ -78,9 +76,9 @@ private: // Private attributes
   /**  */
   QSpinBox* mpAutoGreaterSpin;
   /**  */
-  Q3ButtonGroup* mpAutoButtonGroup;
+  QButtonGroup* mpAutoButtonGroup;
   /**  */
-  Q3GridLayout* mpMainLayout;
+  QGridLayout* mpMainLayout;
   /**  */
   QCheckBox* mpWhatsThisCheckBox;
   /**  */
@@ -154,7 +152,7 @@ private: // Private attributes
   /**  */
   QRadioButton* mpSameDeviceRadio;
   /**  */
-  Q3ButtonGroup* mpDeviceButtonGroup;
+  QButtonGroup* mpDeviceButtonGroup;
   /**  */
   QSpinBox* mpFileCounterStepSpinBox;
   /**  */
@@ -172,8 +170,6 @@ private: // Private attributes
   /**  */
   QCheckBox* mpCheckBoxWarnings;
   /**  */
-  QToolButton* mpWhatsThisButton;
-  /**  */
   QLineEdit* mpEditTransPath;
   /**  */
   QLineEdit* mpEditDocPath;
@@ -182,23 +178,23 @@ private: // Private attributes
   /**  */
   QLineEdit* mpEditOcr;
   /**  */
-  Q3ButtonGroup* mpBGroupStyle;
+  QButtonGroup* mpBGroupStyle;
   /**  */
-  Q3ButtonGroup* mpBGroupDrag;
+  QButtonGroup* mpBGroupDrag;
   /**  */
-  Q3ButtonGroup* mpBGroupMetricSystem;
+  QButtonGroup* mpBGroupMetricSystem;
   /**  */
-  Q3ButtonGroup* mpBGroupLayout;
+  QButtonGroup* mpBGroupLayout;
   /**  */
   QRadioButton* mpTextRadio;
   /**  */
   QLabel* mpTitleLabel;
   /**  */
-  Q3ListBox* mpPageListBox;
+  QListWidget* mpPageListBox;
   /**  */
   QRadioButton* mpImageRadio;
   /**  */
-  Q3WidgetStack* mpPagesStack;
+  QStackedWidget* mpPagesStack;
   /**  */
   QCheckBox* mpCheckBoxHistory;
   /**  */
