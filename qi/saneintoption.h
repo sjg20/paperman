@@ -20,7 +20,6 @@
 
 #include "qsaneoption.h"
 #include "quiteinsanenamespace.h"
-//Added by qt3to4:
 #include <QLabel>
 
 extern "C"
