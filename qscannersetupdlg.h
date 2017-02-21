@@ -19,17 +19,16 @@
 
 #include <qdialog.h>
 #include <qmap.h>
-//Added by qt3to4:
 #include <QShowEvent>
 #include <QTranslator>
 /**
   *@author M. Herder
   */
 //forward declarations
+class QTreeWidget;
+class QTreeWidgetItem;
 class QRadioButton;
 class QWidget;
-class Q3ListView;
-class Q3ListViewItem;
 class QPushButton;
 class QString;
 class QScanner;
@@ -73,7 +72,7 @@ private:
   /**  */
   QScanner* mpScanner;
   /**  */
-  Q3ListView* mpListView;
+  QTreeWidget* mpListView;
   QPushButton *mpQuitButton;
   /**  */
   QPushButton* mpDeviceButton;
@@ -88,7 +87,7 @@ private:
   /**  */
   QRadioButton* mpSameDeviceRadio;
   /**  */
-  Q3ListViewItem* mpLastItem;
+  QTreeWidgetItem* mpLastItem;
   /**  */
   int mQueryType;
   /**  */
@@ -127,15 +126,15 @@ private slots: // Private slots
   /**  */
   void slotDeviceSelected();
   /**  */
-  void slotDeviceSelected(Q3ListViewItem*);
+  void slotDeviceSelected(QTreeWidgetItem*, int);
   /**  */
-  void slotListViewClicked(Q3ListViewItem*);
+  void slotListViewClicked(QTreeWidgetItem*, int);
   /**  */
   void slotAllDevices();
   /**  */
   void slotLocalDevices();
   /**  */
-  void slotDeviceGroup(int);
+  void slotDeviceGroup(int id);
   /**  */
   void slotProcessEvents();
   /**  */

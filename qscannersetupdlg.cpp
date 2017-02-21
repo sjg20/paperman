@@ -14,6 +14,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
 #include "resource.h"
 #include "motranslator.h"
 //s #include "qsanestatusmessage.h"
@@ -21,8 +22,6 @@
 #include "qscannersetupdlg.h"
 #include "qscanner.h"
 #include "qxmlconfig.h"
-//Added by qt3to4:
-#include <Q3GridLayout>
 #include <QDesktopWidget>
 #include <QShowEvent>
 #include <QTextStream>
@@ -31,23 +30,21 @@
 
 #include <stdlib.h>
 
+#include <QDialog>
+#include <QButtonGroup>
+#include <QGroupBox>
+#include <QTreeWidget>
+
 #include <qapplication.h>
 //s #include <qarray.h>
-#include <q3buttongroup.h>
 #include <qcursor.h>
-#include <q3cstring.h>
 #include <qdatastream.h>
 #include <qdir.h>
 #include <qdom.h>
 #include <qfile.h>
-#include <q3groupbox.h>
-#include <q3hbox.h>
-#include <q3header.h>
 #include <qimage.h>
 #include <qlabel.h>
 #include <qlayout.h>
-#include <q3listbox.h>
-#include <q3listview.h>
 #include <qmessagebox.h>
 #include <qnamespace.h>
 #include <qpushbutton.h>
@@ -55,11 +52,8 @@
 #include <qradiobutton.h>
 #include <qstring.h>
 #include <qtextcodec.h>
-#include <q3textstream.h>
 #include <qtranslator.h>
 #include <qtoolbutton.h>
-#include <q3valuelist.h>
-#include <q3whatsthis.h>
 #include <qwidget.h>
 #ifndef QIS_NO_STYLES
 #include <qwindowsstyle.h>
@@ -75,13 +69,15 @@
 
 QScannerSetupDlg::QScannerSetupDlg(QScanner *sc, QWidget *parent,
                                    const char *name,bool modal,Qt::WFlags f)
-                 : QDialog(parent,name,modal,f)
+                 : QDialog(parent,f)
 {
+    UNUSED(modal);
+    setObjectName(name);
   mStyle = 0;
   mpScanner = sc;
   mpScanDialog = 0;
   mQueryType = -1;
-  setCaption(QString(tr("Welcome to MaxView ")));
+  setWindowTitle(QString(tr("Welcome to MaxView ")));
   mpLastItem = 0L;
 //  initConfig();
 #ifndef QIS_NO_STYLES
@@ -89,7 +85,6 @@ QScannerSetupDlg::QScannerSetupDlg(QScanner *sc, QWidget *parent,
 #endif
   initScanner();
   initDialog();
-  createWhatsThisHelp();
   createContents(false);
   loadDeviceSettings();
 }
@@ -99,46 +94,50 @@ QScannerSetupDlg::~QScannerSetupDlg()
 /**  */
 void QScannerSetupDlg::initDialog()
 {
-  Q3ButtonGroup* DeviceButtonGroup = new Q3ButtonGroup(this);
-  DeviceButtonGroup->hide();
-  DeviceButtonGroup->setRadioButtonExclusive(true);
+  QButtonGroup * deviceButtonGroup = new QButtonGroup(this);
 
-  Q3GridLayout *qgl=new	Q3GridLayout (this,6,2);
+  /*
+   * 6 rows, 2 columns
+   */
+  QGridLayout *qgl=new QGridLayout (this);
   qgl->setSpacing(4);
   qgl->setMargin(6);
 
-  Q3HBox* hb1 = new Q3HBox(this);
-  QLabel* label1 = new QLabel(tr("Choose the device"),hb1);
+  QHBoxLayout* hb1 = new QHBoxLayout;
+  QLabel* label1 = new QLabel(tr("Choose the device"));
+  hb1->addWidget(label1);
   hb1->setStretchFactor(label1,1);
-  QToolButton* tb = Q3WhatsThis::whatsThisButton(hb1);
-  tb->setAutoRaise(FALSE);
-  qgl->addMultiCellWidget(hb1,0,0,0,1);
-  if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))
-    tb->hide();
+  qgl->addLayout(hb1,0,0,1,2);
 
-  mpListView = new Q3ListView(this);
-  mpListView->addColumn(tr("Device name"));
-  mpListView->addColumn(tr("Vendor"));
-  mpListView->addColumn(tr("Model"));
-  mpListView->addColumn(tr("Type"));
+  mpListView = new QTreeWidget(this);
+  mpListView->setColumnCount(4);
+  QStringList labels;
+  labels << tr("Device name") << tr("Vendor") << tr("Model") << tr("Type");
+  mpListView->setHeaderLabels(labels);
   mpListView->setAllColumnsShowFocus(TRUE);
   mpListView->setRootIsDecorated(true);
-  qgl->addMultiCellWidget(mpListView,1,1,0,1);
+  qgl->addWidget(mpListView,1,0,1,2);
 
-  Q3GroupBox* gb2 = new Q3GroupBox(1,Qt::Horizontal,
-                                 tr("On next program start"),this);
+  QGroupBox* gb2 = new QGroupBox(tr("On next program start"),this);
 
   mpAllDevicesRadio = new QRadioButton(tr("List &all devices"),gb2);
   mpLocalDevicesRadio = new QRadioButton(tr("List &local devices only"),gb2);
   mpLastDeviceRadio = new QRadioButton(tr("List &selected device only"),gb2);
   mpSameDeviceRadio = new QRadioButton(tr("&Use selected device, do not show dialog"),gb2);
 
-  qgl->addMultiCellWidget(gb2,2,4,0,0);
+  qgl->addWidget(gb2,2,0,3,1);
 
-  DeviceButtonGroup->insert(mpAllDevicesRadio,0);
-  DeviceButtonGroup->insert(mpLocalDevicesRadio,1);
-  DeviceButtonGroup->insert(mpLastDeviceRadio,2);
-  DeviceButtonGroup->insert(mpSameDeviceRadio,3);
+  QVBoxLayout *vbox = new QVBoxLayout;
+  vbox->addWidget(mpAllDevicesRadio);
+  vbox->addWidget(mpLocalDevicesRadio);
+  vbox->addWidget(mpLastDeviceRadio);
+  vbox->addWidget(mpSameDeviceRadio);
+  gb2->setLayout(vbox);
+
+  deviceButtonGroup->addButton(mpAllDevicesRadio, 0);
+  deviceButtonGroup->addButton(mpLocalDevicesRadio, 1);
+  deviceButtonGroup->addButton(mpLastDeviceRadio, 2);
+  deviceButtonGroup->addButton(mpSameDeviceRadio, 3);
 
   mpDeviceButton = new QPushButton(tr("L&ist all devices"),this);
   qgl->addWidget(mpDeviceButton,3,1);
@@ -146,26 +145,29 @@ void QScannerSetupDlg::initDialog()
   mpLocalDeviceButton = new QPushButton(tr("Lis&t local devices"),this);
   qgl->addWidget(mpLocalDeviceButton,4,1);
 
-  Q3HBox* hb2 = new Q3HBox(this);
-  mpQuitButton=new QPushButton(tr("&Quit"),hb2);
-  QWidget* dummy = new QWidget(hb2);
+  QHBoxLayout* hb2 = new QHBoxLayout();
+  mpQuitButton=new QPushButton(tr("&Quit"),this);
+  hb2->addWidget(mpQuitButton);
+  QWidget* dummy = new QWidget();
+  hb2->addWidget(dummy);
   hb2->setStretchFactor(dummy,1);
-  mpSelectButton=new QPushButton(tr("Select &device"),hb2);
+  mpSelectButton=new QPushButton(tr("Select &device"),this);
+  hb2->addWidget(mpSelectButton);
   mpSelectButton->setDefault(TRUE);
 
-  qgl->addMultiCellWidget(hb2,5,5,0,1);
+  qgl->addLayout(hb2,5,0,1,2);
   qgl->setRowStretch ( 1,1 );
-  qgl->setColStretch ( 0,1 );
+  qgl->setColumnStretch ( 0,1 );
   qgl->activate();
 
   mpSelectButton->setEnabled(FALSE);
   connect(mpQuitButton,SIGNAL(clicked()),SLOT(reject()));
   connect(mpSelectButton,SIGNAL(clicked()),SLOT(slotDeviceSelected()));
-  connect(mpListView,SIGNAL(doubleClicked(Q3ListViewItem*)),
-          this,SLOT(slotDeviceSelected(Q3ListViewItem*)));
-  connect(mpListView,SIGNAL(clicked(Q3ListViewItem*)),
-          this,SLOT(slotListViewClicked(Q3ListViewItem*)));
-  connect(DeviceButtonGroup,SIGNAL(clicked(int)),
+  connect(mpListView,SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)),
+          this,SLOT(slotDeviceSelected(QTreeWidgetItem*, int)));
+  connect(mpListView,SIGNAL(itemClicked(QTreeWidgetItem*, int)),
+          this,SLOT(slotListViewClicked(QTreeWidgetItem*, int)));
+  connect(deviceButtonGroup,SIGNAL(buttonClicked(int)),
           this,SLOT(slotDeviceGroup(int)));
   connect(mpDeviceButton,SIGNAL(clicked()),
           this,SLOT(slotAllDevices()));
@@ -177,10 +179,13 @@ void QScannerSetupDlg::initDialog()
 /**  */
 void QScannerSetupDlg::addLVItem(QString name,QString vendor,QString model,QString type)
 {
+  QStringList sl;
+  sl << name << vendor << model << type;
+
   if(name == xmlConfig->stringValue("LAST_DEVICE"))
-    mpLastItem = new Q3ListViewItem(mpListView,name,vendor,model,type);
+    mpLastItem = new QTreeWidgetItem(mpListView, sl);
   else
-    new Q3ListViewItem(mpListView,name,vendor,model,type);
+    new QTreeWidgetItem(mpListView,sl);
 
 }
 /**  */
@@ -193,8 +198,8 @@ QString QScannerSetupDlg::device()
 {
   QString qs;
   mOptionMap.clear();
-  Q3ListViewItem* li;
-  Q3ListViewItem* rootli;
+  QTreeWidgetItem* li;
+  QTreeWidgetItem* rootli;
   li = mpListView->currentItem();
   rootli = li;
 //We have to check, whether the user selected a root item
@@ -231,7 +236,7 @@ QString QScannerSetupDlg::device()
           if(e.tagName() == "sane_device")
           {
             qs = e.attribute("username");
-            if(qs == "Last settings") qs = tr(qs);
+            if(qs == "Last settings") qs = tr(qs.toLatin1());
             //Search the device settings.
             if(((rootli->text(1)+rootli->text(2)) == e.attribute("name"))   &&
                (li->text(0) == qs))
@@ -332,7 +337,7 @@ qDebug("could NOT open dev_settings");
   return last_dev;
 }
 /**  */
-void QScannerSetupDlg::slotListViewClicked(Q3ListViewItem*)
+void QScannerSetupDlg::slotListViewClicked(QTreeWidgetItem*, int)
 {
 	if(mpListView->currentItem() != 0L)
     mpSelectButton->setEnabled(TRUE);
@@ -359,7 +364,7 @@ void QScannerSetupDlg::slotDeviceSelected()
     mpScanner->setModel(xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null));
     mpScanner->setType(xmlConfig->stringValue("LAST_DEVICE_TYPE",QString::null));
   }
-  mpScanner->setDeviceName(dev.latin1());
+  mpScanner->setDeviceName(dev.toLatin1());
   if(!mpScanner->openDevice())
   {
     if(QScanner::msAuthorizationCancelled)
@@ -389,7 +394,7 @@ void QScannerSetupDlg::slotDeviceSelected()
      qDebug("option-map IS empty");
   }
   //Create a QScanDialog with the selected scanner
-  setCursor(Qt::waitCursor);
+  setCursor(Qt::WaitCursor);
 /*s
   mpScanDialog = new QScanDialog(mpScanner,0,0,WType_TopLevel | WStyle_Title | WStyle_ContextHelp |
                                  WStyle_NormalBorder | WStyle_SysMenu |
@@ -403,10 +408,10 @@ void QScannerSetupDlg::slotDeviceSelected()
             this,SLOT(slotChangeStyle(int)));
 #endif
     mpScanDialog->show();
-    setCursor(Qt::arrowCursor);
+    setCursor(Qt::ArrowCursor);
   }
 */
-  setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
   setEnabled(true);
   close();
 }
@@ -424,7 +429,7 @@ bool QScannerSetupDlg::setupLast()
   mpScanner->setVendor(xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString::null));
   mpScanner->setModel(xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null));
   mpScanner->setType(xmlConfig->stringValue("LAST_DEVICE_TYPE",QString::null));
-  mpScanner->setDeviceName(dev.latin1());
+  mpScanner->setDeviceName(dev.toLatin1());
   if(!mpScanner->openDevice())
   {
     return false;
@@ -443,7 +448,7 @@ bool QScannerSetupDlg::setupLast()
 
 
 /**  */
-void QScannerSetupDlg::slotDeviceSelected(Q3ListViewItem*)
+void QScannerSetupDlg::slotDeviceSelected(QTreeWidgetItem*, int)
 {
 	slotDeviceSelected();
 }
@@ -458,9 +463,8 @@ void QScannerSetupDlg::showEvent(QShowEvent * e)
   QRect qr1 = mpListView->frameRect();
   QRect qr2 = mpListView->contentsRect();
 
-  if(mpListView->contentsWidth()< qApp->desktop()->width()*2/3)
-    mpListView->setMinimumWidth(mpListView->contentsWidth()+
-                                 qr1.width()-qr2.width()+20);
+  if (qr2.width()< qApp->desktop()->width()*2/3)
+    mpListView->setMinimumWidth(qr2.width()+ qr1.width()-qr2.width()+20);
   markLastDevice();
   QDialog::showEvent(e);
 }
@@ -468,7 +472,7 @@ void QScannerSetupDlg::showEvent(QShowEvent * e)
 void QScannerSetupDlg::createContents(bool intcall)
 {
   int i;
-  setCursor(Qt::waitCursor);
+  setCursor(Qt::WaitCursor);
   clearList();
   if(mQueryType < 0)
   {
@@ -491,7 +495,7 @@ void QScannerSetupDlg::createContents(bool intcall)
               xmlConfig->stringValue("LAST_DEVICE_VENDOR"),
               xmlConfig->stringValue("LAST_DEVICE_MODEL"),
               xmlConfig->stringValue("LAST_DEVICE_TYPE"));
-    setCursor(Qt::arrowCursor);
+    setCursor(Qt::ArrowCursor);
     return;
   }
   if(mQueryType == 3)
@@ -504,7 +508,7 @@ void QScannerSetupDlg::createContents(bool intcall)
               xmlConfig->stringValue("LAST_DEVICE_VENDOR"),
               xmlConfig->stringValue("LAST_DEVICE_MODEL"),
               xmlConfig->stringValue("LAST_DEVICE_TYPE"));
-    setCursor(Qt::arrowCursor);
+    setCursor(Qt::ArrowCursor);
     return;
   }
   //query local devices only ?
@@ -520,7 +524,7 @@ void QScannerSetupDlg::createContents(bool intcall)
       QMessageBox::critical(0,QObject::tr("No local devices found"),
       QObject::tr("No local devices were found."),
        QObject::tr("&OK"));
-      setCursor(Qt::arrowCursor);
+      setCursor(Qt::ArrowCursor);
       return;
     }
   }
@@ -536,7 +540,7 @@ void QScannerSetupDlg::createContents(bool intcall)
       QMessageBox::critical(0,QObject::tr("No devices found"),
       QObject::tr("No devices were found."),
        QObject::tr("&OK"));
-      setCursor(Qt::arrowCursor);
+      setCursor(Qt::ArrowCursor);
       return;
     }
   }
@@ -550,7 +554,9 @@ void QScannerSetupDlg::createContents(bool intcall)
                 QString(mpScanner->type(i)));
     }
   }
-  setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
+  for (int i = 0; i < 4; i++)
+    mpListView->resizeColumnToContents(i);
 }
 /**  */
 void QScannerSetupDlg::slotDeviceGroup(int id)
@@ -569,7 +575,7 @@ void QScannerSetupDlg::slotAllDevices()
 {
   mQueryType = 0;
   mpSelectButton->setEnabled(FALSE);
-  if(!mpScanner || (mpListView->childCount() <= 0))
+  if(!mpScanner || (mpListView->topLevelItemCount() <= 0))
   {
     initScanner();
   }
@@ -581,7 +587,7 @@ void QScannerSetupDlg::slotLocalDevices()
 {
   mQueryType = 1;
   mpSelectButton->setEnabled(FALSE);
-  if(!mpScanner || (mpListView->childCount() <= 0))
+  if(!mpScanner || (mpListView->topLevelItemCount() <= 0))
   {
     initScanner();
   }
@@ -598,41 +604,19 @@ void QScannerSetupDlg::show()
   }
   QWidget::show();
   qApp->processEvents();
-  int x,y,h;
+  int x,y;
+#if 0
   //ensure that no parts of the dialog are outside the desktop, because I hate this
   h= height()-mpListView->height();
   if(mpListView->contentsHeight()> mpListView->viewport()->height())
     resize(width(),mpListView->contentsHeight()+h+mpListView->header()->height()+20);
+#endif
   //ensure that the dialog is centered on desktop
   x = (qApp->desktop()->width()-width())/2;
   y = (qApp->desktop()->height()-height())/2;
   move(x,y);
 }
-/**  */
-void QScannerSetupDlg::createWhatsThisHelp()
-{
-  Q3WhatsThis::add(mpAllDevicesRadio,tr("If you activate this radio button, "
-              "all devices will be queried on the next program start."));
-  Q3WhatsThis::add(mpLocalDevicesRadio,tr("If you activate this radio button, "
-              "all local devices will be queried on the next program "
-              "start."));
-  Q3WhatsThis::add(mpLastDeviceRadio,tr("If you activate this radio button, "
-              "only the device you're going to select now will be listed "
-              "on the next program start."));
-  Q3WhatsThis::add(mpSameDeviceRadio,tr("The device you're going to select now will "
-              "be used on the next program start and this dialog will not be shown anymore. You "
-              "can re-enable the dialog in the options dialog."));
-  Q3WhatsThis::add(mpQuitButton,tr("Click this button to quit QuiteInsane."));
-  Q3WhatsThis::add(mpSelectButton,tr("Click this button to select the "
-              "currently highlighted device."));
-  Q3WhatsThis::add(mpLocalDeviceButton,tr("Click this button to list all "
-              "local devices. This may take a while."));
-  Q3WhatsThis::add(mpDeviceButton,tr("Click this button to list all "
-              "devices. This may take a while."));
-  Q3WhatsThis::add(mpListView,tr("Doubleclick on a listview item to "
-              "select a device. You can also highlight an item with "
-              "a single mouse click and click the Select device button."));
-}
+
 /**  */
 void QScannerSetupDlg::initConfig()
 {
@@ -653,12 +637,12 @@ void QScannerSetupDlg::initConfig()
     temp_dir = "/tmp/";
 /*
   xmlConfig->setVersion(VERSION);
-  xmlConfig->setFilePath(QDir::homeDirPath()+
+  xmlConfig->setFilePath(QDir::homePath()+
                      "/.maxview/qmaxview_config.xml");
   xmlConfig->setCreator("MaxView");
 */
-  xmlConfig->setStringValue("CURVE_SAVE_PATH", QDir::homeDirPath());
-  xmlConfig->setStringValue("CURVE_OPEN_PATH", QDir::homeDirPath());
+  xmlConfig->setStringValue("CURVE_SAVE_PATH", QDir::homePath());
+  xmlConfig->setStringValue("CURVE_OPEN_PATH", QDir::homePath());
   //main settings
   xmlConfig->setStringValue("TEMP_PATH","/tmp/");
   xmlConfig->setIntValue("SCAN_MODE",0);
@@ -674,20 +658,20 @@ void QScannerSetupDlg::initConfig()
   xmlConfig->setIntValue("DEVICE_QUERY",0);
   xmlConfig->setIntValue("LAYOUT",int(QIN::ScrollLayout));
   xmlConfig->setBoolValue("SEPARATE_PREVIEW",true);
-  xmlConfig->setStringValue("SINGLEFILE_SAVE_PATH",QDir::homeDirPath());
-  xmlConfig->setStringValue("SINGLEFILE_OPEN_PATH",QDir::homeDirPath());
+  xmlConfig->setStringValue("SINGLEFILE_SAVE_PATH",QDir::homePath());
+  xmlConfig->setStringValue("SINGLEFILE_OPEN_PATH",QDir::homePath());
   xmlConfig->setIntValue("SINGLEFILE_VIEW_MODE",0);
   //viewer settings
   xmlConfig->setStringValue("VIEWER_IMAGE_TYPE","BMP (*.bmp)");
-  xmlConfig->setStringValue("VIEWER_SAVEIMAGE_PATH",QDir::homeDirPath());
-  xmlConfig->setStringValue("VIEWER_LOADIMAGE_PATH",QDir::homeDirPath());
-  xmlConfig->setStringValue("VIEWER_SAVETEXT_PATH",QDir::homeDirPath());
+  xmlConfig->setStringValue("VIEWER_SAVEIMAGE_PATH",QDir::homePath());
+  xmlConfig->setStringValue("VIEWER_LOADIMAGE_PATH",QDir::homePath());
+  xmlConfig->setStringValue("VIEWER_SAVETEXT_PATH",QDir::homePath());
   xmlConfig->setBoolValue("VIEWER_OCR_MODE",false);
   xmlConfig->setIntValue("VIEWER_UNDO_STEPS",5);
   xmlConfig->setIntValue("FILTER_PREVIEW_SIZE",150);
   xmlConfig->setIntValue("DISPLAY_SUBSYSTEM",0);
 
-  Q3ValueList<int> list;
+  QList<int> list;
   xmlConfig->setIntValueList("VIEWER_SPLITTER_SIZE",list);
   //viewer toolbars
   xmlConfig->setIntValue("TEXTTOOLBAR_DOCK",2);
@@ -730,7 +714,7 @@ void QScannerSetupDlg::initConfig()
   xmlConfig->setIntValue("EDITOR_PRINT_MODE",0);
   xmlConfig->setBoolValue("EDITOR_PRINT_SELECTED",false);
   //filelist settings
-  xmlConfig->setStringValue("FILELIST_SAVE_PATH",QDir::homeDirPath());
+  xmlConfig->setStringValue("FILELIST_SAVE_PATH",QDir::homePath());
   xmlConfig->setStringValue("FILELIST_TEMPLATE","QuiteInsaneImage");
   xmlConfig->setIntValue("FILELIST_IMAGE_TYPE",0);
   //help viewer settings
@@ -770,7 +754,7 @@ void QScannerSetupDlg::initConfig()
   xmlConfig->setBoolValue("MULTI_CONFIRM",false);
   xmlConfig->setBoolValue("MULTI_OWN_RESOLUTION",false);
   //filelist settings
-  xmlConfig->setStringValue("TEXTLIST_SAVE_PATH",QDir::homeDirPath());
+  xmlConfig->setStringValue("TEXTLIST_SAVE_PATH",QDir::homePath());
   xmlConfig->setStringValue("TEXTLIST_TEMPLATE","QuiteInsaneText");
   xmlConfig->setIntValue("TEXTLIST_FILE_TYPE",0);
   //warnings (that the user can switch off)
@@ -806,7 +790,6 @@ void QScannerSetupDlg::loadDeviceSettings()
 {
   bool create_empty=false;
   QString qs;
-  Q3ListViewItem* li;
 //try to load the settings file
   QDomDocument doc;
   QFile f( xmlConfig->absConfDirPath()+"devicesettings.xml" );
@@ -890,9 +873,10 @@ void QScannerSetupDlg::loadDeviceSettings()
       //Iterate over the listview items
       //to see whether there's a corresponding device.
       //We assume, that this is true if the device names are the same.
-      li = mpListView->firstChild();
-      while(li)
+      for (int i = 0; i < mpListView->topLevelItemCount(); i++)
       {
+        QTreeWidgetItem *li = mpListView->topLevelItem(i);
+
         if((li->text(1)+li->text(2)) == ele.attribute("name"))
         {
           //We found one; we create a new listview item and insert it
@@ -902,12 +886,14 @@ void QScannerSetupDlg::loadDeviceSettings()
             qs = ele.attribute("username");
             //Only translated the Last settings entry to avoid confusion
             //if a user specified name matches a translated string
-            if(qs == "Last settings") qs = tr(qs);
-            new Q3ListViewItem(li,qs);
-            if(!li->isExpandable()) li->setExpandable(true);
+            if(qs == "Last settings")
+                qs = tr(qs.toLatin1());
+            QStringList sl;
+            sl << qs;
+            new QTreeWidgetItem(li, sl);
+            li->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
           }
         }
-        li = li->nextSibling();
       }
     }
   }
@@ -978,25 +964,25 @@ void QScannerSetupDlg::slotChangeStyle(int s)
      {
        QApplication::setStyle(new QCDEStyle(true));
        QPalette p( QColor( 75, 123, 130 ) );
-       p.setColor( QPalette::Active, QColorGroup::Base, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Inactive, QColorGroup::Base, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Disabled, QColorGroup::Base, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Active, QColorGroup::Highlight, Qt::white );
-       p.setColor( QPalette::Active, QColorGroup::HighlightedText, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Inactive, QColorGroup::Highlight, Qt::white );
-       p.setColor( QPalette::Inactive, QColorGroup::HighlightedText, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Disabled, QColorGroup::Highlight, Qt::white );
-       p.setColor( QPalette::Disabled, QColorGroup::HighlightedText, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Active, QColorGroup::Foreground, Qt::white );
-       p.setColor( QPalette::Active, QColorGroup::Text, Qt::white );
-       p.setColor( QPalette::Active, QColorGroup::ButtonText, Qt::white );
-       p.setColor( QPalette::Inactive, QColorGroup::Foreground, Qt::white );
-       p.setColor( QPalette::Inactive, QColorGroup::Text, Qt::white );
-       p.setColor( QPalette::Inactive, QColorGroup::ButtonText, Qt::white );
-       p.setColor( QPalette::Disabled, QColorGroup::Foreground, Qt::lightGray );
-       p.setColor( QPalette::Disabled, QColorGroup::Text, Qt::lightGray );
-       p.setColor( QPalette::Disabled, QColorGroup::ButtonText, Qt::lightGray );
-       qApp->setPalette( p, true );
+       p.setColor( QPalette::Active, QPalette::Base, QColor( 55, 77, 78 ) );
+       p.setColor( QPalette::Inactive, QPalette::Base, QColor( 55, 77, 78 ) );
+       p.setColor( QPalette::Disabled, QPalette::Base, QColor( 55, 77, 78 ) );
+       p.setColor( QPalette::Active, QPalette::Highlight, Qt::white );
+       p.setColor( QPalette::Active, QPalette::HighlightedText, QColor( 55, 77, 78 ) );
+       p.setColor( QPalette::Inactive, QPalette::Highlight, Qt::white );
+       p.setColor( QPalette::Inactive, QPalette::HighlightedText, QColor( 55, 77, 78 ) );
+       p.setColor( QPalette::Disabled, QPalette::Highlight, Qt::white );
+       p.setColor( QPalette::Disabled, QPalette::HighlightedText, QColor( 55, 77, 78 ) );
+       p.setColor( QPalette::Active, QPalette::Foreground, Qt::white );
+       p.setColor( QPalette::Active, QPalette::Text, Qt::white );
+       p.setColor( QPalette::Active, QPalette::ButtonText, Qt::white );
+       p.setColor( QPalette::Inactive, QPalette::Foreground, Qt::white );
+       p.setColor( QPalette::Inactive, QPalette::Text, Qt::white );
+       p.setColor( QPalette::Inactive, QPalette::ButtonText, Qt::white );
+       p.setColor( QPalette::Disabled, QPalette::Foreground, Qt::lightGray );
+       p.setColor( QPalette::Disabled, QPalette::Text, Qt::lightGray );
+       p.setColor( QPalette::Disabled, QPalette::ButtonText, Qt::lightGray );
+       qApp->setPalette( p );
        break;
      }
     default:
@@ -1025,8 +1011,8 @@ void QScannerSetupDlg::slotQuit()
     If this fails too, we look for the same vendor/model only. */
 void QScannerSetupDlg::markLastDevice()
 {
-  Q3ListViewItem* li = 0;
-  Q3ListViewItem* match_li = 0;
+  QTreeWidgetItem* li = 0;
+  QTreeWidgetItem* match_li = 0;
   bool was_net = false;
   QString qs;
   QString last_dev;
@@ -1039,24 +1025,28 @@ void QScannerSetupDlg::markLastDevice()
     return;
   if(last_dev.left(4) == "net:")
     was_net = true;
+
+  if (!mpListView->topLevelItemCount())
+      return;
+  QTreeWidgetItemIterator it(mpListView);
+
   //iterate over root elements, and check whether last_dev is present
-  li = mpListView->firstChild();
-  if(li == 0)
-    return; //no elements at all
-  do
+  while (*it)
   {
+    li = *it;
     if(li->text(0) == last_dev)
     {
       match_li = li;
       break;
     }
-    li = li->nextSibling();
-  }while (li != 0);
+    it++;
+  }
   if(match_li == 0) //last device not present
   {
-    li = mpListView->firstChild();
-    do
+    it = QTreeWidgetItemIterator(mpListView);
+    while (*it)
     {
+      li = *it;
       bool is_net = false;
       if(li->text(0).left(4) == "net:")
         is_net = true;
@@ -1066,39 +1056,40 @@ void QScannerSetupDlg::markLastDevice()
         match_li = li;
         break;
       }
-      li = li->nextSibling();
-    }while (li != 0);
+      it++;
+    }
   }
   if(match_li == 0) //last attempt: check vendor/model only
   {
-    li = mpListView->firstChild();
-    do
+    it = QTreeWidgetItemIterator(mpListView);
+    while (*it)
     {
+      li = *it;
       if((li->text(1) == last_dev_vendor) && (li->text(2) == last_dev_model))
       {
         match_li = li;
         break;
       }
-      li = li->nextSibling();
-    }while (li != 0);
+      it++;
+    }
   }
   if(!match_li)
     return;
-  li = 0;
-  li = match_li->firstChild();
-  if(!li)
-    return;
-  do
+  if (!match_li->childCount())
+      return;
+
+  it = QTreeWidgetItemIterator(match_li);
+  while (*it)
   {
     if(li->text(0) == tr("Last settings"))
     {
-      li->setOpen(true);
-      mpListView->setSelected(li,true);
-      mpListView->ensureItemVisible(li);
+      li->setExpanded(true);
+      li->setSelected(true);
+      mpListView->scrollToItem(li);
       mpSelectButton->setEnabled(true);
       mpLastItem = li;
       break;
     }
-    li = li->nextSibling();
-  }while (li != 0);
+    it++;
+  }
 }
