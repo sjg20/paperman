@@ -1,5 +1,3 @@
-//Added by qt3to4:
-#include <Q3GridLayout>
 /***************************************************************************
                           qscanner.cpp  -  description
                              -------------------
@@ -43,12 +41,11 @@ extern "C"
 #include <unistd.h>
 
 #include <QDebug>
-
+#include <QProgressDialog>
 
 #include <qapplication.h>
 //s #include <qarray.h>
 #include <qbuffer.h>
-#include <q3cstring.h>
 #include <qdatastream.h>
 #include <qdialog.h>
 #include <qdir.h>
@@ -60,12 +57,9 @@ extern "C"
 #include <qlineedit.h>
 #include <qmessagebox.h>
 #include <qpixmap.h>
-#include <q3progressdialog.h>
 #include <qpushbutton.h>
 #include <qregexp.h>
 #include <qstring.h>
-#include <q3textstream.h>
-#include <q3vbox.h>
 #include <stdlib.h>
 #include <sys/poll.h>
 
@@ -284,7 +278,7 @@ bool QScanner::openDevice()
       mSaneStatus = SANE_STATUS_INVAL;
       return false;
       }
-   status = do_sane_open(mDeviceName.latin1(), &mDeviceHandle);
+   status = do_sane_open(mDeviceName.toLatin1(), &mDeviceHandle);
    if(status == SANE_STATUS_GOOD)
       {
       mOpenOk = true;
@@ -1667,7 +1661,7 @@ SANE_Status QScanner::scanImage(QString file,QWidget* parent,PreviewWidget* prev
       return SANE_STATUS_INVAL;
   }
   if(!update_preview)
-    mpProgress->setCaption(tr("Scanning..."));
+    mpProgress->setWindowTitle(tr("Scanning..."));
 
   preview_line = 0;
   line_cnt=0;
@@ -2660,7 +2654,7 @@ QString QScanner::imageInfo()
     info.sprintf("%d x %d, %.2f %s",abs(parameters.pixels_per_line),
                                     abs(parameters.lines),
                                     bytesize,
-                                    (const char*)qs);
+                                    qs.toLatin1().constData());
   else
     info.sprintf("%d x %d",abs(parameters.pixels_per_line),parameters.lines);
   qs2+=info;
@@ -2935,20 +2929,20 @@ void QScanner::setOptionsByName(QMap <QString,QString> omap)
           case SANE_TYPE_FIXED:
            if(optionValueSize(optnum)==sizeof(SANE_Word))
            {
-             sw = it.data().toInt();
+             sw = it.value().toInt();
              setOption(optnum,&sw);
            }
            if((unsigned int)optionValueSize(optnum)>sizeof(SANE_Word))
            {
              QString fname;
-             QFile qf(it.data());
+             QFile qf(it.value());
              if(qf.open(QIODevice::ReadOnly))
              {
                QDataStream ds(&qf);
                QVector <SANE_Word> a;
                a.resize(optionValueSize(optnum)/sizeof(SANE_Word));
                int i = 0;
-               Q_INT32 data;
+               qint32 data;
                while(i<a.size() && !ds.atEnd())
                {
                  ds >> data;
@@ -2961,12 +2955,12 @@ void QScanner::setOptionsByName(QMap <QString,QString> omap)
            }
            break;
           case SANE_TYPE_BOOL:
-           sw = it.data().toInt();
+           sw = it.value().toInt();
            setOption(optnum,&sw);
            break;
           case SANE_TYPE_STRING:
-           qs = it.data();
-  		     setOption(optnum,(SANE_String*)qs.latin1());
+           qs = it.value();
+             setOption(optnum,(SANE_String*)qs.toLatin1().constData());
            break;
           default:;
         }
@@ -3074,7 +3068,7 @@ void QScanner::settingsDomElement(QDomDocument doc,QDomElement domel)
              QDataStream ds(&qf);
              QVector <SANE_Word> a = saneWordArray(i);
              for(int i=0;i<a.size();i++)
-               ds << (Q_INT32)a[i];
+               ds << (qint32)a[i];
            }
            domel.appendChild(newelement);
          }
@@ -3124,10 +3118,10 @@ void QScanner::qis_authorization(SANE_String_Const resource,
 
   res_string = resource;
 
-  if(res_string.find("$MD5$") > -1) //secure
+  if(res_string.indexOf("$MD5$") > -1) //secure
   {
     is_secure = true;
-    dev_name = res_string.left(res_string.find("$MD5$"));
+    dev_name = res_string.left(res_string.indexOf("$MD5$"));
   }
   else //insecure
   {
@@ -3137,21 +3131,21 @@ void QScanner::qis_authorization(SANE_String_Const resource,
   //If password transmission is secure, we can try to read
   //the password file; if it exists, it's located under
   //~/.sane/pass
-  qs = QDir::homeDirPath();
+  qs = QDir::homePath();
   if(qs.right(1) != "/") qs += "/";
   qs += ".sane/pass";
   fileinfo.setFile(qs);
   if(fileinfo.exists())
   {
      pass_file_insecure = true;
-     if(!fileinfo.permission(QFileInfo::WriteGroup)  &&
-        !fileinfo.permission(QFileInfo::ReadGroup)   &&
-        !fileinfo.permission(QFileInfo::ExeGroup)   &&
-        !fileinfo.permission(QFileInfo::WriteOther) &&
-        !fileinfo.permission(QFileInfo::ReadOther)  &&
-        !fileinfo.permission(QFileInfo::ExeOther))
+     if(!fileinfo.permission(QFile::WriteGroup)  &&
+        !fileinfo.permission(QFile::ReadGroup)   &&
+        !fileinfo.permission(QFile::ExeGroup)   &&
+        !fileinfo.permission(QFile::WriteOther) &&
+        !fileinfo.permission(QFile::ReadOther)  &&
+        !fileinfo.permission(QFile::ExeOther))
      {
-       if(fileinfo.permission(QFileInfo::ReadUser))
+       if(fileinfo.permission(QFile::ReadUser))
          pass_file_insecure = false;
      }
      //If passfile insecure print error message, else
@@ -3172,23 +3166,23 @@ void QScanner::qis_authorization(SANE_String_Const resource,
      }
      else
      {
-       passfile.setName(qs);
+       passfile.setFileName(qs);
        if(passfile.open(QIODevice::ReadOnly))
        {
-         Q3TextStream ts(&passfile);
+         QTextStream ts(&passfile);
          QString s;
          int n = 0;
          //A valid entry in the pass file looks like this:
          //<user>:<password>:<device>
          //See e.g. "man scanimage" for reference
-         while(!ts.eof())
+         while(!ts.atEnd())
          {
            s = ts.readLine();
            //get username
-           n = s.find(":");
+           n = s.indexOf(":");
            string_username = s.left(n);
            s = s.right(s.length()-n-1);
-           n = s.find(":");
+           n = s.indexOf(":");
            string_password = s.left(n);
            s = s.right(s.length()-n-1);
            if(s == res_string.left(s.length()))
@@ -3205,9 +3199,10 @@ void QScanner::qis_authorization(SANE_String_Const resource,
   //transmission is insecure, then we have to prompt the user.
   if(ask_user)
   {
-    pd = new QDialog(0,0,true);
-    pd->setCaption(QObject::tr("QuiteInsane Authorization"));
-    Q3GridLayout* mainlayout = new Q3GridLayout(pd,4,4);
+    pd = new QDialog();
+    pd->setModal(true);
+    pd->setWindowTitle(QObject::tr("QuiteInsane Authorization"));
+    QGridLayout* mainlayout = new QGridLayout(pd);
     mainlayout->setMargin(12);
     mainlayout->setSpacing(5);
 
@@ -3219,23 +3214,23 @@ void QScanner::qis_authorization(SANE_String_Const resource,
     else
       qs += QObject::tr("<center>Password transmission is <b>insecure</b>!</center>");
     QLabel* infolabel = new QLabel(qs,pd);
-    mainlayout->addMultiCellWidget(infolabel,0,0,0,3);
+    mainlayout->addWidget(infolabel,0,0,0,3);
 
     QLabel* userlabel = new QLabel(QObject::tr("Username:"),pd);
-    mainlayout->addMultiCellWidget(userlabel,1,1,0,1);
+    mainlayout->addWidget(userlabel,1,1,0,1);
 
     QLineEdit* userle = new QLineEdit(pd);
     userle->setMaxLength(SANE_MAX_USERNAME_LEN-1);
-    mainlayout->addMultiCellWidget(userle,1,1,2,3);
+    mainlayout->addWidget(userle,1,1,2,3);
     userle->setFocus();
 
     QLabel* passlabel = new QLabel(QObject::tr("Password:"),pd);
-    mainlayout->addMultiCellWidget(passlabel,2,2,0,1);
+    mainlayout->addWidget(passlabel,2,2,0,1);
 
     QLineEdit* passle = new QLineEdit(pd);
     passle->setMaxLength(SANE_MAX_PASSWORD_LEN-1);
     passle->setEchoMode(QLineEdit::NoEcho);
-    mainlayout->addMultiCellWidget(passle,2,2,2,3);
+    mainlayout->addWidget(passle,2,2,2,3);
 
     QPushButton* okbutton = new QPushButton(QObject::tr("&OK"),pd);
     mainlayout->addWidget(okbutton,3,0);
@@ -3256,12 +3251,12 @@ void QScanner::qis_authorization(SANE_String_Const resource,
     string_password  =  passle->text();
   }
 
-  sprintf(username,"%s",string_username.latin1());
+  sprintf(username,"%s",string_username.toLatin1().constData());
   if(is_secure)
   {
-    buf = res_string.mid(res_string.find("$MD5$")+5);
-    buf += string_password.latin1();
-    md5_buffer((const char*)buf.latin1(),buf.length(), md5digest);
+    buf = res_string.mid(res_string.indexOf("$MD5$")+5);
+    buf += string_password.toLatin1();
+    md5_buffer(buf.toLatin1().constData(),buf.length(), md5digest);
     memset(password, 0, SANE_MAX_PASSWORD_LEN); /* clear password */
     sprintf(password, "$MD5$%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
             md5digest[0],  md5digest[1],  md5digest[2],  md5digest[3],
@@ -3271,7 +3266,7 @@ void QScanner::qis_authorization(SANE_String_Const resource,
   }
   else
   {
-    sprintf(password,"%s",string_password.latin1());
+    sprintf(password,"%s",string_password.toLatin1().constData());
   }
   buf = QString::null;
   qs = QString::null;
@@ -3336,7 +3331,8 @@ void QScanner::setType(QString type)
 bool QScanner::useAdf (void)
 {
    return mOptionSource != -1
-      && saneStringValue (mOptionSource).find ("ADF", 0, FALSE) != -1;
+      && saneStringValue (mOptionSource).indexOf ("ADF", 0, Qt::CaseInsensitive)
+           != -1;
 }
 
 
@@ -3344,7 +3340,8 @@ bool QScanner::duplex (void)
 {
    // use the duplex option if present
    if (mOptionDuplex != -1)
-      return saneStringValue (mOptionDuplex).find ("both", 0, FALSE) != -1;
+      return saneStringValue (mOptionDuplex).indexOf ("both", 0,
+                                                      Qt::CaseInsensitive) != -1;
 
    if (mOptionSource == -1)
       return false;
@@ -3352,8 +3349,8 @@ bool QScanner::duplex (void)
    QString val = saneStringValue (mOptionSource);
 //   printf ("source = %s", val.latin1 ());
 
-   return val.find ("duplex", 0, FALSE) != -1
-      || val.find ("both", 0, FALSE) != -1;
+   return val.indexOf ("duplex", 0, Qt::CaseInsensitive) != -1
+      || val.indexOf ("both", 0, Qt::CaseInsensitive) != -1;
 }
 
 
@@ -3361,7 +3358,7 @@ QScanner::format_t QScanner::format (void)
 {
    if (mOptionFormat == -1)
       return other;
-   QString str = saneStringValue (mOptionFormat).lower ();
+   QString str = saneStringValue (mOptionFormat).toLower ();
    if (str == "lineart")
       return mono;
 
@@ -3418,17 +3415,17 @@ bool QScanner::setAdf (bool adf)
    for (int i = 0; option == -1 && i != name.count (); i++)
       {
       if (!adf &&
-          (name [i].find ("flatbed", 0, FALSE) != -1
-           || name [i].find ("fb", 0, FALSE) != -1))
+          (name [i].indexOf ("flatbed", 0, Qt::CaseInsensitive) != -1
+           || name [i].indexOf ("fb", 0, Qt::CaseInsensitive) != -1))
          option = i;
       else if (adf &&
-         (name [i].find ("front", 0, FALSE) != -1
-          || name [i].find ("adf", 0, FALSE) != -1))
+         (name [i].indexOf ("front", 0, Qt::CaseInsensitive) != -1
+          || name [i].indexOf ("adf", 0, Qt::CaseInsensitive) != -1))
          option = i;
       }
 //   printf ("option = %d", option);
    if (option != -1)
-      setOption(mOptionSource, (void *)name [option].latin1 ());
+      setOption(mOptionSource, (void *)name [option].toLatin1 ().constData());
    return option != -1;
 }
 
@@ -3452,15 +3449,15 @@ bool QScanner::setDuplex (bool duplex)
    // find the option we need to set
    for (int i = 0; option == -1 && i != name.count (); i++)
       {
-      if (!duplex && name [i].find ("front", 0, FALSE) != -1)
+      if (!duplex && name [i].indexOf ("front", 0, Qt::CaseInsensitive) != -1)
          option = i;
       else if (duplex &&
-         (name [i].find ("both", 0, FALSE) != -1
-          || name [i].find ("duplex", 0, FALSE) != -1))
+         (name [i].indexOf ("both", 0, Qt::CaseInsensitive) != -1
+          || name [i].indexOf ("duplex", 0, Qt::CaseInsensitive) != -1))
          option = i;
       }
    if (option != -1)
-      setOption(which, (void *)name [option].latin1 ());
+      setOption(which, (void *)name [option].toLatin1 ().constData());
    return option != -1;
 }
 
