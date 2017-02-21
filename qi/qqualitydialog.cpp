@@ -17,28 +17,30 @@
 #include "qqualitydialog.h"
 #include "qxmlconfig.h"
 
+#include <QGroupBox>
+
 #include <qcombobox.h>
-#include <q3groupbox.h>
-#include <q3hbox.h>
+#include <QHBoxLayout>
 #include <qlayout.h>
 #include <qlabel.h>
 #include <qpushbutton.h>
 #include <qslider.h>
 #include <qstring.h>
 #include <qwidget.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
 
 
 QQualityDialog::QQualityDialog(ImageType t,QWidget *parent,
                                const char *name,bool modal)
-               : QDialog(parent,name,modal)
+               : QDialog(parent)
 {
+    setModal(modal);
+    setObjectName(name);
   mCompressionType = "COMPRESSION_NONE";
   mpTiff8BitCombo = 0;
   mpTiffLineartCombo = 0;
   mImageType = t;
-	setCaption(tr("Image settings"));
+	setWindowTitle(tr("Image settings"));
 	initDialog();
 }
 
@@ -49,24 +51,28 @@ QQualityDialog::~QQualityDialog()
 
 void QQualityDialog::initDialog()
 {
-  Q3GridLayout* mainlayout = new Q3GridLayout(this,2,3);
-  Q3GroupBox* qgb;
+  QGridLayout* mainlayout = new QGridLayout(this);
+  QGroupBox* qgb;
   int qual;
-  int type = 0;
+//  int type = 0;
 //the appearance depends on the image type
   switch(mImageType)
   {
     case ImageType_PNG:
     {
-      qgb = new Q3GroupBox(1,Qt::Horizontal,
-                          tr("PNG compression"),this);
-      mpQualityHBox = new Q3HBox(qgb);
+      qgb = new QGroupBox(tr("PNG compression"),this);
+      mpQualityHBox = new QHBoxLayout(qgb);
       mpQualityHBox->setSpacing(6);
-    	new QLabel(tr("low"),mpQualityHBox);
-      mpQualitySlider = new QSlider(0,9,1,6,Qt::Horizontal,
-                                  mpQualityHBox,0);
-    	new QLabel(tr("high"),mpQualityHBox);
-      mpQualityLabel = new QLabel("",mpQualityHBox);
+      mpQualityHBox->addWidget(new QLabel(tr("low")));
+      mpQualitySlider = new QSlider(Qt::Horizontal);
+      mpQualitySlider->setMinimum(0);
+      mpQualitySlider->setMaximum(9);
+      mpQualitySlider->setSingleStep(1);
+      mpQualitySlider->setPageStep(6);
+      mpQualityHBox->addWidget(mpQualitySlider);
+      mpQualityHBox->addWidget(new QLabel(tr("high")));
+      mpQualityLabel = new QLabel("");
+      mpQualityHBox->addWidget(mpQualityLabel);
       mpQualityLabel->setText("6");
       mQuality = 100-6*91/9;
       mpQualitySlider->setMinimumWidth(80);
@@ -79,15 +85,18 @@ void QQualityDialog::initDialog()
     }
     case ImageType_JPEG:
     {
-      qgb = new Q3GroupBox(1,Qt::Horizontal,
-                          tr("JPEG quality"),this);
-      mpQualityHBox = new Q3HBox(qgb);
+      qgb = new QGroupBox(tr("JPEG quality"), this);
+      mpQualityHBox = new QHBoxLayout(qgb);
       mpQualityHBox->setSpacing(6);
-    	new QLabel(tr("low"),mpQualityHBox);
-      mpQualitySlider = new QSlider(0,100,10,80,Qt::Horizontal,
-                                  mpQualityHBox,0);
-    	new QLabel(tr("high"),mpQualityHBox);
-      mpQualityLabel = new QLabel("",mpQualityHBox);
+      mpQualityHBox->addWidget(new QLabel(tr("low")));
+      mpQualitySlider = new QSlider(Qt::Horizontal);
+      mpQualitySlider->setMinimum(0);
+      mpQualitySlider->setMaximum(100);
+      mpQualitySlider->setSingleStep(10);
+      mpQualitySlider->setPageStep(80);
+      mpQualityHBox->addWidget(new QLabel(tr("high")));
+      mpQualityLabel = new QLabel("");
+      mpQualityHBox->addWidget(mpQualityLabel);
       mpQualityLabel->setText("80");
       mQuality = 80;
       mpQualitySlider->setMinimumWidth(80);
@@ -98,18 +107,19 @@ void QQualityDialog::initDialog()
       slotQualityChanged(qual);
       break;
     }
+#if 0
     case ImageType_TIFF8BIT:
     {
-      qgb = new Q3GroupBox(1,Qt::Horizontal,
+      qgb = new QGroupBox(1,Qt::Horizontal,
                           tr("TIFF compression/quality"),this);
-      Q3HBox* hb1 = new Q3HBox(qgb);
+      QHBoxLayout* hb1 = new QHBoxLayout(qgb);
       hb1->setSpacing(6);
       new QLabel(tr("Compression type:"),hb1);
       mpTiff8BitCombo = new QComboBox(false,hb1);
       mpTiff8BitCombo->insertItem(tr("none"),0);
       mpTiff8BitCombo->insertItem(tr("JPEG DCT"),1);
       mpTiff8BitCombo->insertItem(tr("packed bits"),2);
-      mpQualityHBox = new Q3HBox(qgb);
+      mpQualityHBox = new QHBoxLayout(qgb);
       mpQualityHBox->setSpacing(6);
     	new QLabel(tr("low"),mpQualityHBox);
       mpQualitySlider = new QSlider(0,100,10,80,Qt::Horizontal,
@@ -134,9 +144,9 @@ void QQualityDialog::initDialog()
     }
     case ImageType_TIFFLINEART:
     {
-      qgb = new Q3GroupBox(1,Qt::Horizontal,
+      qgb = new QGroupBox(1,Qt::Horizontal,
                           tr("TIFF compression"),this);
-      Q3HBox* hb1 = new Q3HBox(qgb);
+      QHBoxLayout* hb1 = new QHBoxLayout(qgb);
       hb1->setSpacing(6);
       new QLabel(tr("Compression type:"),hb1);
       mpTiffLineartCombo = new QComboBox(false,hb1);
@@ -152,13 +162,14 @@ void QQualityDialog::initDialog()
       slotEnableQuality(type);
       break;
     }
+#endif
     default:;
   }
 
 	QPushButton* button1 = new QPushButton(tr("OK"),this);
   button1->setDefault(true);
 
-  mainlayout->addMultiCellWidget(qgb,0,0,0,2);
+  mainlayout->addWidget(qgb,0,0,0,2);
   mainlayout->addWidget(button1,1,1);
   mainlayout->setMargin(4);
 	mainlayout->setSpacing(3);
