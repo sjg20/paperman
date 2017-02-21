@@ -20,15 +20,20 @@
 #include <qvalidator.h>
 
 SaneFixedSpinBox::SaneFixedSpinBox(QWidget * parent,const char * name)
-                 :QSpinBox(parent,name)
+                 :QSpinBox(parent)
 {
+  setObjectName(name);
   mSaneUnit = SANE_UNIT_NONE;
   mpValidator = new QDoubleValidator(-32768.0,32767.9999,4,this);
 //s  setValidator(mpValidator);
 }
 SaneFixedSpinBox::SaneFixedSpinBox(int min,int max,int step,QWidget* parent,const char * name)
-                 :QSpinBox(min,max,step,parent,name)
+                 :QSpinBox(parent)
 {
+    setMinimum(min);
+    setMaximum(max);
+    setSingleStep(step);
+    setObjectName(name);
   mSaneUnit = SANE_UNIT_NONE;
   mpValidator = new QDoubleValidator(-32768.0,32767.9999,4,this);
 //s  setValidator(mpValidator);
