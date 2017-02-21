@@ -64,11 +64,8 @@
 #include "qxmlconfig.h"
 //Added by qt3to4:
 #include <QResizeEvent>
-#include <Q3StrList>
 #include <QCloseEvent>
-#include <Q3GridLayout>
 #include <QShowEvent>
-#include <Q3VBoxLayout>
 #include "sanefixedoption.h"
 #include "saneintoption.h"
 #include "sanewidgetholder.h"
@@ -83,12 +80,8 @@
 #include <qdialog.h>
 #include <qdir.h>
 #include <qfile.h>
-#include <q3frame.h>
 #include <qfileinfo.h>
 #include <qfontmetrics.h>
-#include <q3groupbox.h>
-#include <q3header.h>
-#include <q3hbox.h>
 #include <qimage.h>
 #include <qlabel.h>
 #include <qlayout.h>
@@ -97,13 +90,11 @@
 #include <qmessagebox.h>
 #include <qnamespace.h>
 #include <qobject.h>
-#include <q3objectdict.h>
 #include <qobject.h>
 #include <qpainter.h>
 #include <qpalette.h>
 #include <qpixmap.h>
 #include <qpoint.h>
-#include <q3progressdialog.h>
 #include <qpushbutton.h>
 #include <qregexp.h>
 #include <qrect.h>
@@ -112,11 +103,8 @@
 #include <qsizepolicy.h>
 #include <qstringlist.h>
 #include <qtabwidget.h>
-#include <q3textstream.h>
 #include <qtoolbutton.h>
 #include <qtooltip.h>
-#include <q3vbox.h>
-//s #include <qvector.h>
 #include <qwidget.h>
 #include <q3widgetstack.h>
 #include <limits.h>

@@ -1,8 +1,6 @@
-//Added by qt3to4:
 #include <QLabel>
 #include <QGridLayout>
 #include <QResizeEvent>
-#include <Q3VBoxLayout>
 #include <QShowEvent>
 #include <QCloseEvent>
 /***************************************************************************
@@ -46,8 +44,7 @@ class QDragLabel;
 class QFileListWidget;
 class QGridLayout;
 class QGroupBox;
-class Q3HBox;
-class Q3VBox;
+class QHBoxLayout;
 class QHTMLView;
 class QLabel;
 class QLineEdit;
@@ -61,8 +58,6 @@ class QScrollBarOption;
 class QTimer;
 class QTabWidget;
 class QToolButton;
-class Q3VBox;
-class Q3VBoxLayout;
 class QWidget;
 class SaneWidgetHolder;
 class ScanArea;
