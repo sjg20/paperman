@@ -95,7 +95,8 @@ void QScrollBarOption::setRange(int min,int max,int quant)
     int k;
     k= (mMaxVal - mMinVal)/ mQuant;
     mpValueSlider->setRange(0,k);
-    mpValueSlider->setSteps(1,10);
+    mpValueSlider->setSingleStep(1);
+    mpValueSlider->setPageStep(10);
     mHasQuant = true;
   }
   if(mSaneValueType == SANE_TYPE_FIXED)
@@ -103,19 +104,25 @@ void QScrollBarOption::setRange(int min,int max,int quant)
     switch(mMetricSystem)
     {
       case QIN::Millimetre:
-        mpValueSlider->setSteps(1,10);
+        mpValueSlider->setSingleStep(1);
+        mpValueSlider->setPageStep(10);
         break;
       case QIN::Centimetre:
-        mpValueSlider->setSteps(10,100);
+        mpValueSlider->setSingleStep(10);
+        mpValueSlider->setPageStep(100);
         break;
       case QIN::Inch:
-        mpValueSlider->setSteps(25,254);
+        mpValueSlider->setSingleStep(25);
+        mpValueSlider->setPageStep(254);
         break;
       default:;
     }
   }
   else
-    mpValueSlider->setSteps(1,10);
+  {
+    mpValueSlider->setSingleStep(1);
+    mpValueSlider->setPageStep(10);
+  }
   //find useful size for textlabel
 	QFontMetrics fm(font());
   QString qs;
@@ -243,15 +250,25 @@ void QScrollBarOption::slotChangeMetricSystem(QIN::MetricSystem ms)
 	{
 		case QIN::Millimetre:
       mUnitString = tr("mm");
-      if(mSaneValueType == SANE_TYPE_FIXED) mpValueSlider->setSteps(1,10);
+      if(mSaneValueType == SANE_TYPE_FIXED)
+      {
+          mpValueSlider->setSingleStep(1);
+          mpValueSlider->setPageStep(10);
+      }
 			break;
 		case QIN::Centimetre:
       mUnitString = tr("cm");
-      if(mSaneValueType == SANE_TYPE_FIXED) mpValueSlider->setSteps(10,100);
+      if(mSaneValueType == SANE_TYPE_FIXED) {
+          mpValueSlider->setSingleStep(1);
+          mpValueSlider->setPageStep(100);
+      }
 			break;
 		case  QIN::Inch:
       mUnitString = tr("inch");
-      if(mSaneValueType == SANE_TYPE_FIXED) mpValueSlider->setSteps(25,254);
+      if(mSaneValueType == SANE_TYPE_FIXED) {
+          mpValueSlider->setSingleStep(25);
+          mpValueSlider->setPageStep(254);
+        }
 			break;
     default:;//do nothing--shouldn't happen
 	}
@@ -327,18 +344,18 @@ void QScrollBarOption::setValueExt(int value)
 /**  */
 void QScrollBarOption::setMinimumValue()
 {
-  mpValueSlider->setValue(mpValueSlider->minValue());
+  mpValueSlider->setValue(mpValueSlider->minimum());
 }
 /**  */
 void QScrollBarOption::setMaximumValue()
 {
-  mpValueSlider->setValue(mpValueSlider->maxValue());
+  mpValueSlider->setValue(mpValueSlider->maximum());
 }
 /**  */
 int QScrollBarOption::maxValue()
 {
   int i;
-  i = mpValueSlider->maxValue();
+  i = mpValueSlider->maximum();
   if(mHasQuant)
     i = i*mQuant + mMinVal;
   if(mSaneValueType == SANE_TYPE_FIXED)
@@ -351,7 +368,7 @@ int QScrollBarOption::maxValue()
 int QScrollBarOption::maxIntValue()
 {
   int i;
-  i = mpValueSlider->maxValue();
+  i = mpValueSlider->maximum();
   if(mHasQuant)
     i = i*mQuant + mMinVal;
   if(mSaneValueType == SANE_TYPE_FIXED)
@@ -365,7 +382,7 @@ int QScrollBarOption::maxIntValue()
 int QScrollBarOption::minValue()
 {
   int i;
-  i = mpValueSlider->minValue();
+  i = mpValueSlider->minimum();
   if(mHasQuant)
     i = i*mQuant + mMinVal;
   if(mSaneValueType == SANE_TYPE_FIXED)
