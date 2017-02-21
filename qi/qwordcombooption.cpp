@@ -16,17 +16,17 @@
 
 #include "qwordcombooption.h"
 
+#include <QGridLayout>
+#include <QHBoxLayout>
+
 #include <qcheckbox.h>
 #include <qcombobox.h>
 #include <qfontmetrics.h>
-#include <q3hbox.h>
 #include <qlabel.h>
 #include <qlayout.h>
 #include <qsizepolicy.h>
 #include <qstring.h>
 #include <qwidget.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
 
 QWordComboOption::QWordComboOption(QString title,QWidget * parent,
                                    SANE_Value_Type type,const char * name)
@@ -42,26 +42,28 @@ QWordComboOption::~QWordComboOption()
 /**  */
 void QWordComboOption::initWidget()
 {
-	Q3GridLayout* qgl = new Q3GridLayout(this,2,2);
+    QGridLayout* qgl = new QGridLayout(this);
 	mpTitleLabel = new QLabel(optionTitle(),this);
-  Q3HBox* hbox1 = new Q3HBox(this);
-	mpSelectionCombo = new QComboBox(false,hbox1);
+  QHBoxLayout* hbox1 = new QHBoxLayout(this);
+    mpSelectionCombo = new QComboBox(this);
+    hbox1->addWidget(mpSelectionCombo);
   mpSelectionCombo->setFocusPolicy(Qt::StrongFocus);//should get focus after clicking
   connect(mpSelectionCombo,SIGNAL(activated(int)),
           this,SLOT(slotValueChanged(int)));
   hbox1->setStretchFactor(mpSelectionCombo,1);
-  mpAutoCheckBox = new QCheckBox(tr("Automatic"),hbox1);
+  mpAutoCheckBox = new QCheckBox(tr("Automatic"));
+  hbox1->addWidget(mpAutoCheckBox);
   hbox1->setSpacing(6);
   mpAutoCheckBox->hide();
 //create pixmap
   assignPixmap();
-	qgl->addMultiCellWidget(pixmapWidget(),0,1,0,0);
+    qgl->addWidget(pixmapWidget(),0,0,2,0);
 
 	qgl->addWidget(mpTitleLabel,0,1);
-	qgl->addWidget(hbox1,1,1);
+    qgl->addLayout(hbox1,1,1);
   qgl->setSpacing(5);
-	qgl->setColStretch(0,0);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(0,0);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
   connect(mpAutoCheckBox,SIGNAL(toggled(bool)),this,SLOT(slotAutoMode(bool)));
 }
@@ -79,7 +81,7 @@ void QWordComboOption::appendArray(QVector <SANE_Word> qa)
       qs.sprintf("%.2f",SANE_UNFIX(val));
     else
       qs.sprintf("%d",int(val));
-    mpSelectionCombo->insertItem(qs,-1);
+    mpSelectionCombo->addItem(qs);
   }
 }
 /**  */
@@ -90,7 +92,7 @@ SANE_Value_Type QWordComboOption::getSaneType()
 /**  */
 SANE_Word QWordComboOption::getCurrentValue()
 {
-	return mValueArray[mpSelectionCombo->currentItem()];
+    return mValueArray[mpSelectionCombo->currentIndex()];
 }
 /**  */
 void QWordComboOption::setValue(SANE_Word val)
@@ -100,7 +102,7 @@ void QWordComboOption::setValue(SANE_Word val)
   {
     if(val == mValueArray[i])
     {
-      mpSelectionCombo->setCurrentItem(i);
+      mpSelectionCombo->setCurrentIndex(i);
       return;
     }
   }
