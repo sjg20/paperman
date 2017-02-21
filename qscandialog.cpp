@@ -663,7 +663,9 @@ void QScanDialog::slotReloadOptions()
     //or vice versa
     checkOptionValidity(cnt);
     qsbo = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QScrollBarOption"))
+    QObject *obj = (QObject*)(mOptionWidgets[cnt]->saneOption());
+    QString objname = obj->metaObject()->className();
+    if (objname == "QScrollBarOption")
       qsbo=(QScrollBarOption*)(mOptionWidgets[cnt]->saneOption());
     if(qsbo)
     {
@@ -731,7 +733,7 @@ void QScanDialog::slotReloadOptions()
     }
     qco = 0L;
     sint = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("SaneIntOption"))
+    if (objname == "SaneIntOption")
       sint=(SaneIntOption*)(mOptionWidgets[cnt]->saneOption());
     if(sint)
     {
@@ -759,7 +761,7 @@ void QScanDialog::slotReloadOptions()
     }
     sint = 0L;
     sfix = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("SaneFixedOption"))
+    if (objname == "SaneFixedOption")
       sfix=(SaneFixedOption*)(mOptionWidgets[cnt]->saneOption());
     if(sfix)
     {
@@ -786,7 +788,7 @@ void QScanDialog::slotReloadOptions()
       }
     }
     sfix = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QComboOption"))
+    if(objname == "QComboOption")
    	  qco=(QComboOption*)(mOptionWidgets[cnt]->saneOption());
 		if(qco)
 		{
@@ -814,7 +816,7 @@ void QScanDialog::slotReloadOptions()
       }
 		}
     qwco = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QWordComboOption"))
+    if(objname == "QWordComboOption")
       qwco=(QWordComboOption*)(mOptionWidgets[cnt]->saneOption());
     if(qwco)
 	  {
@@ -838,7 +840,7 @@ void QScanDialog::slotReloadOptions()
       }
     }
     qboolo = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QBoolOption"))
+    if(objname == "QBoolOption")
    	  qboolo=(QBoolOption*)(mOptionWidgets[cnt]->saneOption());
 		if(qboolo)
 		{
@@ -863,7 +865,7 @@ void QScanDialog::slotReloadOptions()
       }
 		}
     qbutt = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QButtonOption"))
+    if(objname == "QButtonOption")
    	  qbutt=(QButtonOption*)(mOptionWidgets[cnt]->saneOption());
   	if(qbutt)
 		{
@@ -888,7 +890,7 @@ void QScanDialog::slotReloadOptions()
 		}
     //check whether it's a string option
     qso = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QStringOption"))
+    if(objname == "QStringOption")
    	  qso=(QStringOption*)(mOptionWidgets[cnt]->saneOption());
     QString optionstring;
 	  if(qso)
@@ -897,7 +899,7 @@ void QScanDialog::slotReloadOptions()
 			if(mpScanner->isOptionActive(qso->saneOptionNumber()))
       {
 				stringval = mpScanner->saneStringValue(qso->saneOptionNumber());
-        qso->setText(stringval);
+        qso->setText(stringval.toLatin1());
         if(qso->isHidden())
         {
           qso->show();
@@ -915,8 +917,8 @@ void QScanDialog::slotReloadOptions()
       }
     }
     qwao = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QWordArrayOption"))
-   	  qwao=(QWordArrayOption*)(mOptionWidgets[cnt]->saneOption());
+    if(objname == "QWordArrayOption")
+      qwao=(QWordArrayOption*)(mOptionWidgets[cnt]->saneOption());
 		if(qwao)
 		{
 			if(mpScanner->isOptionActive(qwao->saneOptionNumber()))
@@ -942,7 +944,7 @@ void QScanDialog::slotReloadOptions()
       }
 		}
     qroo = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QReadOnlyOption"))
+    if(objname == "QReadOnlyOption")
    	  qroo=(QReadOnlyOption*)(mOptionWidgets[cnt]->saneOption());
 		if(qroo)
 		{
@@ -1161,7 +1163,9 @@ void QScanDialog::slotOptionChanged(int num)
   i = 0;
   //check whether it's a bool option
   qboolo = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QBoolOption") == true)
+  QObject *obj = (QObject*)(mOptionWidgets[num]->saneOption());
+  QString objname = obj->metaObject()->className();
+  if (objname == "QBoolOption")
     qboolo=(QBoolOption*)(mOptionWidgets[num]->saneOption());
   if(qboolo)
   {
@@ -1173,7 +1177,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a button option
   qbo = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QButtonOption") == true)
+  if (objname == "QButtonOption")
     qbo=(QButtonOption*)(mOptionWidgets[num]->saneOption());
   if(qbo)
   {
@@ -1183,7 +1187,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   v = 0L;
   qco = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QComboOption") == true)
+  if (objname == "QComboOption")
     qco=(QComboOption*)(mOptionWidgets[num]->saneOption());
   if(qco)
   {
@@ -1197,7 +1201,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a word combo option
   qwco = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QWordComboOption") == true)
+  if (objname == "QWordComboOption")
     qwco=(QWordComboOption*)(mOptionWidgets[num]->saneOption());
   if(qwco)
   {
@@ -1208,7 +1212,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a word array option
   qwao = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QWordArrayOption") == true)
+  if (objname == "QWordArrayOption")
     qwao=(QWordArrayOption*)(mOptionWidgets[num]->saneOption());
   if(qwao)
   {
@@ -1219,7 +1223,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a scrollbaroption
   qsbo = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QScrollBarOption") == true)
+  if (objname == "QScrollBarOption")
     qsbo=(QScrollBarOption*)(mOptionWidgets[num]->saneOption());
   if(qsbo)
   {
@@ -1230,7 +1234,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a sanefixedoption
   sfix = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("SaneFixedOption") == true)
+  if (objname == "SaneFixedOption")
     sfix=(SaneFixedOption*)(mOptionWidgets[num]->saneOption());
   if(sfix)
   {
@@ -1240,7 +1244,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a sanefixedoption
   sint = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("SaneIntOption") == true)
+  if (objname == "SaneIntOption")
     sint=(SaneIntOption*)(mOptionWidgets[num]->saneOption());
   if(sint)
   {
@@ -1250,7 +1254,7 @@ void QScanDialog::slotOptionChanged(int num)
   }
   //check whether it's a string option
   qso = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QStringOption") == true)
+  if (objname == "QStringOption")
     qso=(QStringOption*)(mOptionWidgets[num]->saneOption());
   if(qso)
   {
@@ -1280,7 +1284,9 @@ void QScanDialog::setAllOptions()
   {
     //check whether it's a combo option
     qco = 0L;
-    if(((QObject*)(mOptionWidgets[i]->saneOption()))->isA("QComboOption") == true)
+    QObject *obj = (QObject*)(mOptionWidgets[i]->saneOption());
+    QString objname = obj->metaObject()->className();
+    if (objname == "QComboOption")
       qco=(QComboOption*)(mOptionWidgets[i]->saneOption());
     if(qco)
     {
@@ -1291,7 +1297,7 @@ void QScanDialog::setAllOptions()
     }
     //check whether it's a scrollbaroption
     qsbo = 0L;
-    if(((QObject*)(mOptionWidgets[i]->saneOption()))->isA("QScrollBarOption") == true)
+    if (objname == "QScrollBarOption")
       qsbo=(QScrollBarOption*)(mOptionWidgets[i]->saneOption());
     if(qsbo)
     {
@@ -1765,7 +1771,9 @@ void QScanDialog::createPreviewWidget()
   for(cnt=0;cnt<int(mOptionWidgets.size());cnt++)
   {
     qsbo = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QScrollBarOption") == true)
+    QObject *obj = (QObject*)(mOptionWidgets[cnt]->saneOption());
+    QString objname = obj->metaObject()->className();
+    if (objname == "QScrollBarOption")
  	    qsbo=(QScrollBarOption*)(mOptionWidgets[cnt]->saneOption());
     if(qsbo)
 		{
@@ -2278,8 +2286,10 @@ void QScanDialog::slotInfoInexact(int num)
   for(cnt=0;cnt<int(mOptionWidgets.size());cnt++)
   {
     qsbo = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QScrollBarOption") == true)
-    qsbo=(QScrollBarOption*)(mOptionWidgets[cnt]->saneOption());
+    QObject *obj = (QObject*)(mOptionWidgets[cnt]->saneOption());
+    QString objname = obj->metaObject()->className();
+    if (objname == "QScrollBarOption")
+        qsbo=(QScrollBarOption*)(mOptionWidgets[cnt]->saneOption());
     if(qsbo)
     {
     //scrollbar option found
@@ -2302,7 +2312,7 @@ void QScanDialog::slotInfoInexact(int num)
       }
     }
     qwco = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QWordComboOption") == true)
+    if (objname == "QWordComboOption")
       qwco=(QWordComboOption*)(mOptionWidgets[cnt]->saneOption());
     if(qwco)
     {
@@ -2315,7 +2325,7 @@ void QScanDialog::slotInfoInexact(int num)
       }
     }
     qboolo = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QBoolOption") == true)
+    if (objname == "QBoolOption")
       qboolo=(QBoolOption*)(mOptionWidgets[cnt]->saneOption());
     if(qboolo)
     {
@@ -2328,7 +2338,7 @@ void QScanDialog::slotInfoInexact(int num)
     }
     //check whether it's a string option
     qso = 0L;
-    if(((QObject*)(mOptionWidgets[cnt]->saneOption()))->isA("QStringOption") == true)
+    if (objname == "QStringOption")
       qso=(QStringOption*)(mOptionWidgets[cnt]->saneOption());
     QString optionstring;
     if(qso)
@@ -2337,7 +2347,7 @@ void QScanDialog::slotInfoInexact(int num)
       if(qso->saneOptionNumber() == num)
       {
         stringval = mpScanner->saneStringValue(qso->saneOptionNumber());
-        qso->setText(stringval);
+        qso->setText(stringval.toLatin1());
         break;
       }
     }
@@ -2665,7 +2675,9 @@ void QScanDialog::slotAutoMode(int num,bool b)
   i = 0;
   v = 0L;
   qco = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QComboOption") == true)
+  QObject *obj = (QObject*)(mOptionWidgets[num]->saneOption());
+  QString objname = obj->metaObject()->className();
+  if (objname == "QComboOption")
     qco=(QComboOption*)(mOptionWidgets[num]->saneOption());
   if(qco)
   {
@@ -2682,7 +2694,7 @@ void QScanDialog::slotAutoMode(int num,bool b)
     return;
   }
   qboolo = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QBoolOption") == true)
+  if (objname == "QBoolOption")
     qboolo=(QBoolOption*)(mOptionWidgets[num]->saneOption());
   if(qboolo)
   {
@@ -2699,7 +2711,7 @@ void QScanDialog::slotAutoMode(int num,bool b)
   }
   //check whether it's a word combo option
   qwco = 0L;
-  if(((QObject*)(mOptionWidgets[num]->saneOption()))->isA("QWordComboOption") == true)
+  if (objname == "QWordComboOption")
     qwco=(QWordComboOption*)(mOptionWidgets[num]->saneOption());
   if(qwco)
   {
