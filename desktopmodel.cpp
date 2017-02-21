@@ -30,7 +30,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qinputdialog.h"
 #include "qlabel.h"
 #include "qmessagebox.h"
-//#include "q3popupmenu.h"
 #include "qtimer.h"
 
 #include <QDateTime>

@@ -23,7 +23,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __mainwidget_h
 #define __mainwidget_h
 
-class Q3TabDialog;
 class QTimer;
 class QPrinter;
 class QPrintDialog;
