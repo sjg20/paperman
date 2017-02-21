@@ -19,7 +19,7 @@
 #include <qstring.h>
 #include <qlayout.h>
 //Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
 
 QReadOnlyOption::QReadOnlyOption(QString title,QWidget *parent, const char *name )
                 :QSaneOption(title,parent,name)
@@ -33,7 +33,7 @@ QReadOnlyOption::~QReadOnlyOption()
 /**  */
 void QReadOnlyOption::initWidget()
 {
-	Q3GridLayout* qgl = new Q3GridLayout(this,1,3);
+    QGridLayout* qgl = new QGridLayout(this);
   qgl->setMargin(4);
   qgl->setSpacing(4);
   mpTitleLabel = new QLabel(mTitleText,this);
@@ -43,7 +43,7 @@ void QReadOnlyOption::initWidget()
 	qgl->addWidget(pixmapWidget(),0,0);
 	qgl->addWidget(mpTitleLabel,0,1);
 	qgl->addWidget(mpValueLabel,0,2);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
 }
 /**  */
