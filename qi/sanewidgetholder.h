@@ -19,14 +19,12 @@
 #define SANEWIDGETHOLDER_H
 
 #include <qwidget.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
 
 /**
   *@author Michael Herder
   */
 
-class Q3GridLayout;
+class QGridLayout;
 class QSaneOption;
 
 class SaneWidgetHolder : public QWidget
@@ -53,7 +51,7 @@ public:
 
 private:
   QSaneOption* mpSaneOption;
-  Q3GridLayout* mpGridLayout;
+  QGridLayout* mpGridLayout;
   bool mPending;  //!< pending change has been made while sane is busy
 };
 
