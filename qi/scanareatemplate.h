@@ -22,7 +22,6 @@
 #include "scanarea.h"
 
 #include <qstring.h>
-#include <q3ptrvector.h>  //s
 
 /**
   *@author Michael Herder
