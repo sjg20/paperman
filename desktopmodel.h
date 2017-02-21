@@ -23,7 +23,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QContextMenuEvent>
 
 #include <QMouseEvent>
-//#include <Q3PtrList>
 #include <QKeyEvent>
 
 
@@ -41,7 +40,6 @@ class QImage;
 struct err_info;
 struct max_page_info;
 
-//#include "q3iconview.h"
 #include "qstring.h"
 #include "qwidget.h"
 

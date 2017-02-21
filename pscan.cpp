@@ -21,7 +21,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
-// #include <Q3Button>
 #include <QDebug>
 #include <QSettings>
 
