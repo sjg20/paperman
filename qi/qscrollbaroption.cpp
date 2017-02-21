@@ -15,7 +15,6 @@
  ***************************************************************************/
 
 #include "qscrollbaroption.h"
-#include <q3rangecontrol.h>
 #include <qsizepolicy.h>
 #include <qlayout.h>
 #include <qfontmetrics.h>
@@ -23,7 +22,6 @@
 #include <qstring.h>
 #include <qpixmap.h>
 #include <qimage.h>
-//Added by qt3to4:
 #include <Q3GridLayout>
 #include <sane/sane.h>
 #include <sane/saneopts.h>
@@ -68,8 +66,8 @@ void QScrollBarOption::initWidget()
 	qgl->addWidget(mpTitleLabel,0,2);
 	qgl->addWidget(mpValueSlider,2,2);
 	qgl->addWidget(mpValueLabel,2,3);
-  qgl->addColSpacing(1,5);
-  qgl->setColStretch(2,1);
+  qgl->setColumnMinimumWidth(1,5);
+  qgl->setColumnStretch(2,1);
 	connect(mpValueSlider,SIGNAL(sliderMoved(int)),this,SLOT(slotSliderMoved(int)));
 	connect(mpValueSlider,SIGNAL(valueChanged(int)),this,SLOT(slotValueChanged(int)));
   qgl->activate();
