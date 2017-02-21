@@ -1963,15 +1963,15 @@ void QScanDialog::changeLayout(QIN::Layout l)
   mLayout = l;
   QGroupBox* qgb;
   QWidget* qw;
-  Q3VBoxLayout* qvbl;
-  Q3VBoxLayout* qvbl2;
+  QVBoxLayout* qvbl;
+  QVBoxLayout* qvbl2;
   QPushButton* qpb1;
   QPushButton* qpb2;
   QPoint p(0,0);
   if(mLayout == QIN::ScrollLayout)
   {
     mpOptionScrollView = new QOptionScrollView(this);
-    mpOptionScrollView->setFrameStyle(Q3ScrollView::NoFrame);
+    mpOptionScrollView->setFrameStyle(QFrame::NoFrame);
     mpOptionScrollView->setHorizontalScrollBarPolicy (Qt::ScrollBarAlwaysOff);
 //     mpOptionScrollView->setHScrollBarMode(Q3ScrollView::AlwaysOff);
     //reparent the groupboxes in mGroupBoxArray
@@ -1979,8 +1979,10 @@ void QScanDialog::changeLayout(QIN::Layout l)
     for(c=0;c<mGroupBoxArray.size();c++)
     {
       qgb=(QGroupBox*)mGroupBoxArray[c];
-      qgb->reparent(mpOptionScrollView->getMainWidget(),p,FALSE);
-//       qgb->setFrameStyle(Q3GroupBox::StyledPanel);
+      qgb->setParent(mpOptionScrollView->getMainWidget());
+      qgb->move(p);
+      qgb->hide();
+//       qgb->setFrameStyle(QGroupBox::StyledPanel);
       mpOptionScrollView->addWidget(qgb);
     }
     if(mpOptionTabWidget)
@@ -2020,10 +2022,12 @@ void QScanDialog::changeLayout(QIN::Layout l)
     for(c=0;c<mGroupBoxArray.size();c++)
     {
       qw = new QWidget(mpOptionTabWidget);
-      qvbl2 = new Q3VBoxLayout(qw,2,2);
+      qvbl2 = new QVBoxLayout(qw);
       qgb=(QGroupBox*)mGroupBoxArray[c];
-      qgb->reparent(qw,p,FALSE);
-//       qgb->setFrameStyle(Q3GroupBox::NoFrame);
+      qgb->setParent(qw);
+      qgb->move(p);
+      qgb->hide();
+//       qgb->setFrameStyle(QGroupBox::NoFrame);
       qvbl2->addWidget(qgb,0,0);
       qvbl2->addStretch(1);
       titlestring = tr("&%1. ").arg(c+1);
@@ -2066,13 +2070,16 @@ void QScanDialog::changeLayout(QIN::Layout l)
   if(mLayout == QIN::MultiWindowLayout)
   {
     mpOptionMainWidget = new QWidget(this);
-    qvbl = new Q3VBoxLayout(mpOptionMainWidget,2,2);
+    qvbl = new QVBoxLayout(mpOptionMainWidget);
     mOptionSubArray.resize(0);
     if(mGroupBoxArray.size()>=1)
     {
       qgb=(QGroupBox*)mGroupBoxArray[0];
-//       qgb->setFrameStyle(Q3GroupBox::StyledPanel);
-      qgb->reparent(mpOptionMainWidget,p,FALSE);
+//       qgb->setFrameStyle(QGroupBox::StyledPanel);
+      qgb->setParent(mpOptionMainWidget);
+      qgb->move(p);
+      qgb->hide();
+
       qvbl->addWidget(qgb);
       qvbl->setStretchFactor(qgb,1);
       for(c=1;c<mGroupBoxArray.size();c++)
@@ -2083,12 +2090,15 @@ void QScanDialog::changeLayout(QIN::Layout l)
         qvbl->addWidget(qpb1);
         mOptionSubArray.resize(mOptionSubArray.size()+1);
         mOptionSubArray[mOptionSubArray.size()-1] = new QWidget(0);
-        mOptionSubArray[c-1]->setCaption((mGroupBoxArray[c])->title());
-        qvbl2 = new Q3VBoxLayout(mOptionSubArray[c-1],2,2);
+        mOptionSubArray[c-1]->setWindowTitle((mGroupBoxArray[c])->title());
+        qvbl2 = new QVBoxLayout(mOptionSubArray[c-1]);
         connect(qpb1,SIGNAL(clicked()),mOptionSubArray[c-1],SLOT(show()));
         qgb=(QGroupBox*)mGroupBoxArray[c];
-//         qgb->setFrameStyle(Q3GroupBox::StyledPanel);
-        qgb->reparent(mOptionSubArray[c-1],p,FALSE);
+//         qgb->setFrameStyle(QGroupBox::StyledPanel);
+        qgb->setParent(mOptionSubArray[c-1]);
+        qgb->move(p);
+        qgb->hide();
+
         qvbl2->addWidget(qgb);
         qpb2 = new QPushButton(tr("&Close"),mOptionSubArray[c-1]);
         connect(qpb2,SIGNAL(clicked()),mOptionSubArray[c-1],SLOT(close()));
