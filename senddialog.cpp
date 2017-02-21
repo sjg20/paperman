@@ -152,7 +152,7 @@ err_info *Senddialog::doSend (void)
    to.truncate (to.length () - 1);  // remove final ,
    env << to;
    env << subject->text ();
-   env << notes->text ();
+   env << notes->toPlainText();
 
    return _transfer->send (env);
    }
