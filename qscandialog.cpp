@@ -302,17 +302,17 @@ QIN::Status QScanDialog::initDialog()
   mpDragTypeCombo = new QComboBox();
   mpDragHBox2->addWidget(mpDragTypeCombo);
 //  QList<QByteArray> lin = QImageWriter::supportedImageFormats();
-  mpDragTypeCombo->insertItem(tr("by extension"));
-  mpDragTypeCombo->insertItem("BMP");
-  mpDragTypeCombo->insertItem("JPEG");
-  mpDragTypeCombo->insertItem("TIF");
-  mpDragTypeCombo->insertItem("PNG");
-  mpDragTypeCombo->insertItem("PBM");
-  mpDragTypeCombo->insertItem("PGM");
-  mpDragTypeCombo->insertItem("PPM");
-  mpDragTypeCombo->insertItem("PNM");
-  mpDragTypeCombo->insertItem("XBM");
-  mpDragTypeCombo->insertItem("XPM");
+  mpDragTypeCombo->addItem(tr("by extension"));
+  mpDragTypeCombo->addItem("BMP");
+  mpDragTypeCombo->addItem("JPEG");
+  mpDragTypeCombo->addItem("TIF");
+  mpDragTypeCombo->addItem("PNG");
+  mpDragTypeCombo->addItem("PBM");
+  mpDragTypeCombo->addItem("PGM");
+  mpDragTypeCombo->addItem("PPM");
+  mpDragTypeCombo->addItem("PNM");
+  mpDragTypeCombo->addItem("XBM");
+  mpDragTypeCombo->addItem("XPM");
   QPushButton* tb2 = new QPushButton();
   mpDragHBox2->addWidget(tb2);
   tb2->setIcon(setpix);
@@ -322,7 +322,7 @@ QIN::Status QScanDialog::initDialog()
   mpMainLayout->addLayout(mpDragHBox2,3,0);
   mpDragHBox1->setSpacing(3);
   mpDragHBox2->setSpacing(3);
-  mpDragTypeCombo->setCurrentItem(xmlConfig->intValue("DRAG_IMAGE_TYPE"));
+  mpDragTypeCombo->setCurrentIndex(xmlConfig->intValue("DRAG_IMAGE_TYPE"));
   mpDragLineEdit->setText(xmlConfig->stringValue("DRAG_FILENAME"));
   mpAutoNameCheckBox->setChecked(xmlConfig->boolValue("DRAG_AUTOMATIC_FILENAME"));
   connect(tb1,SIGNAL(clicked()),this,SLOT(slotChangeFilename()));
@@ -338,16 +338,18 @@ QIN::Status QScanDialog::initDialog()
   createPreviewWidget();
 
 //first button row
-  mpButtonHBox1 = new Q3HBox(this);
+  mpButtonHBox1 = new QHBoxLayout();
   mpButtonHBox1->setSpacing(2);
 
-	mpOptionsButton = new QPushButton(tr("&Options..."),mpButtonHBox1);
+    mpOptionsButton = new QPushButton(tr("&Options..."));
+    mpButtonHBox1->addWidget(mpOptionsButton);
   connect(mpOptionsButton,SIGNAL(clicked()),this,SLOT(slotShowOptionsWidget()));
 #if 0 //s
   mpViewerButton = new QPushButton(tr("&Viewer..."),mpButtonHBox1);
   connect(mpViewerButton,SIGNAL(clicked()),this,SLOT(slotViewer()));
 #endif //s
-	mpPreviewButton = new QPushButton(tr("&Preview..."),mpButtonHBox1);
+    mpPreviewButton = new QPushButton(tr("&Preview..."));
+    mpButtonHBox1->addWidget(mpPreviewButton);
 #if 0 //s
 	mpMultiScanButton = new QPushButton(tr("&Multi scan..."),mpButtonHBox1);
   mpMultiScanButton->setEnabled(FALSE);
@@ -355,22 +357,24 @@ QIN::Status QScanDialog::initDialog()
 #endif
 
 //second button row
-  mpButtonHBox2 = new Q3HBox(this);
+  mpButtonHBox2 = new QHBoxLayout();
   mpButtonHBox2->setSpacing(2);
 #if 0 //s
   mpBrowserButton = new QPushButton(tr("History/&Browser..."),mpButtonHBox2);
   connect(mpBrowserButton,SIGNAL(clicked()),this,SLOT(slotShowBrowser()));
 #endif //s
-  mpDeviceButton = new QPushButton(tr("&Device settings..."),mpButtonHBox2);
+  mpDeviceButton = new QPushButton(tr("&Device settings..."));
+  mpButtonHBox2->addWidget(mpDeviceButton);
   connect(mpDeviceButton,SIGNAL(clicked()),this,SLOT(slotDeviceSettings()));
 #if 0 //s
 	mpScanButton = new QPushButton(tr("&Scan"),mpButtonHBox2);
   connect(mpScanButton,SIGNAL(clicked()),SLOT(slotScan()));
 #endif //s
-	mpQuitButton = new QPushButton(tr("&Close"),mpButtonHBox2);
+    mpQuitButton = new QPushButton(tr("&Close"));
+    mpButtonHBox2->addWidget(mpQuitButton);
   connect(mpQuitButton,SIGNAL(clicked()),this,SLOT(close()));
-	mpMainLayout->addWidget(mpButtonHBox1,6,0);
-	mpMainLayout->addWidget(mpButtonHBox2,7,0);
+    mpMainLayout->addLayout(mpButtonHBox1,6,0);
+    mpMainLayout->addLayout(mpButtonHBox2,7,0);
 	mpMainLayout->activate();
   slotReloadOptions();//check which options are active
 
@@ -392,21 +396,23 @@ QIN::Status QScanDialog::initDialog()
   if(mpPreviewWidget)
 	{
     //horizontal separator
-    mpSeparator = new Q3VBox(this);
-    Q3Frame* frame = new Q3Frame(mpSeparator);
-    frame->setFrameStyle(Q3Frame::VLine|Q3Frame::Sunken);
+    mpSeparator = new QVBoxLayout();
+    QFrame* frame = new QFrame();
+    mpSeparator->addWidget(frame);
+    frame->setFrameStyle(QFrame::VLine|QFrame::Sunken);
     frame->setLineWidth(2);
     mpSeparator->setMargin(5);
-	  mpMainLayout->addMultiCellWidget(mpSeparator,0,7,1,1);
-    if(mpPreviewWidget->isTopLevel())
+      mpMainLayout->addLayout(mpSeparator,0,1,8,1);
+    if(mpPreviewWidget->window() == mpPreviewWidget)
     {
-      if(mpPreviewWidget->layout()) mpPreviewWidget->layout()->setMargin(5);
-      mpSeparator->hide();
+      if(mpPreviewWidget->layout())
+          mpPreviewWidget->layout()->setMargin(5);
+//      mpSeparator->hide();
     }
     else
     {
       if(mpPreviewWidget->layout()) mpPreviewWidget->layout()->setMargin(0);
-      mpMainLayout->addMultiCellWidget(mpPreviewWidget,0,7,2,2);
+      mpMainLayout->addWidget(mpPreviewWidget,0, 2, 8, 1);
     }
 //     connect(mpPreviewWidget,SIGNAL(signalPreviewRequest(double,double,double,double,int)),
 //             this,SLOT(slotPreview(double,double,double,double,int)));
@@ -1380,7 +1386,7 @@ void QScanDialog::slotShowPreviewWidget()
       h = height();
     resize(w,h);
     mpPreviewWidget->show();
-    mpSeparator->show();
+//    mpSeparator->show();
   }
   else
   {
@@ -2774,7 +2780,7 @@ void QScanDialog::slotHidePreview()
 {
   if(mpPreviewWidget->isTopLevel()) return;
   mpPreviewWidget->hide();
-  mpSeparator->hide();
+//  mpSeparator->hide();
   qApp->processEvents();
   resize(minimumSizeHint());
 }
