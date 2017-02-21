@@ -19,15 +19,15 @@
 #include "qsaneoption.h"
 
 #include <qlayout.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
 
 SaneWidgetHolder::SaneWidgetHolder(QWidget* parent,const char* name,Qt::WFlags f)
-                 :QWidget(parent,name,f)
+                 :QWidget(parent,f)
 {
+  setObjectName(name);
   mpSaneOption = 0L;
   mPending = false;
-  mpGridLayout = new Q3GridLayout(this,1,1);
+  mpGridLayout = new QGridLayout(this);
 }
 SaneWidgetHolder::~SaneWidgetHolder()
 {
