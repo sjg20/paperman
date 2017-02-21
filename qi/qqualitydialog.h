@@ -18,7 +18,6 @@
 #define QQUALITYDIALOG_H
 
 #include <qdialog.h>
-//Added by qt3to4:
 #include <QLabel>
 
 /**
@@ -28,7 +27,7 @@ class QComboBox;
 class QSlider;
 class QLabel;
 class QString;
-class Q3HBox;
+class QHBoxLayout;
 
 class QQualityDialog : public QDialog
 {
@@ -59,7 +58,7 @@ private: // Private attributes
   /**  */
   QString mCompressionType;
   /**  */
-  Q3HBox* mpQualityHBox;
+  QHBoxLayout* mpQualityHBox;
 private: //methods
   /**  */
   void initDialog();
