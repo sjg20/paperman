@@ -795,7 +795,8 @@ void QScanDialog::slotReloadOptions()
       {
         QStringList slist = mpScanner->getStringList(qco->saneOptionNumber());
         qco->setStringList(slist);
-   		  qco->setCurrentValue((const char*)mpScanner->saneStringValue(qco->saneOptionNumber()));
+          qco->setCurrentValue(mpScanner->saneStringValue(
+                                   qco->saneOptionNumber()).toLatin1());
         if(qco->isHidden())
         {
           qco->show();
@@ -1190,7 +1191,7 @@ void QScanDialog::slotOptionChanged(int num)
     i = qco->saneOptionNumber();
     combostring = qco->getCurrentText();
 //     qDebug () << "combostring" << combostring;
-    v = (SANE_String*)combostring.latin1();
+    v = (SANE_String*)combostring.toLatin1().constData();
     if(v)mpScanner->setOption(i,v);
     return;
   }
@@ -1257,7 +1258,7 @@ void QScanDialog::slotOptionChanged(int num)
     //always string type
     i = qso->saneOptionNumber();
     optionstring = qso->text();
-    v = (SANE_String*)optionstring.latin1();
+    v = (SANE_String*)optionstring.toLatin1().constData();
     if(v)mpScanner->setOption(i,v);
   }
 }
@@ -1285,7 +1286,7 @@ void QScanDialog::setAllOptions()
     {
       v = 0L;
       combostring = qco->getCurrentText();
-      v = (SANE_String*)combostring.latin1();
+      v = (SANE_String*)combostring.toLatin1().constData();
       if(v)mpScanner->setOption(i,v);
     }
     //check whether it's a scrollbaroption
@@ -1457,7 +1458,7 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
   //check whether it's a read only option
   if(!mpScanner->isOptionSettable(opt_num) && mpScanner->isReadOnly(opt_num))
   {
-    qroo = new QReadOnlyOption((const char*)mpScanner->getOptionTitle(opt_num),parent,//qvbox,
+    qroo = new QReadOnlyOption(mpScanner->getOptionTitle(opt_num).toLatin1(),parent,//qvbox,
                                (const char*)mpScanner->getOptionName(opt_num));
     qroo->setSaneOptionNumber(opt_num);
     qroo->setOptionDescription(mpScanner->getOptionDescription(opt_num));
@@ -1657,7 +1658,8 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
       case SANE_TYPE_STRING:
         if(mpScanner->getConstraintType(opt_num) == SANE_CONSTRAINT_STRING_LIST)
         {
-          qcb = new QComboOption((const char*)mpScanner->getOptionTitle(opt_num),parent,//qvbox,
+          qcb = new QComboOption(mpScanner->getOptionTitle(opt_num).toLatin1(),
+                                 parent,//qvbox,
                                  (const char*)mpScanner->getOptionName(opt_num));
           qcb->setSaneOptionNumber(opt_num);
           QStringList slist = mpScanner->getStringList(opt_num);
@@ -1673,14 +1675,15 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
           qcb->setSaneConstraintType(mpScanner->getConstraintType(opt_num));
           qcb->setSaneValueType(mpScanner->getOptionType(opt_num));
           stringval = mpScanner->saneStringValue(opt_num);
-          qcb->setCurrentValue((const char*)stringval);
+          qcb->setCurrentValue(stringval.toLatin1());
           connect(qcb,SIGNAL(signalOptionChanged(int)),this,
                   SLOT(slotOptionChanged(int)));
           ret = (QSaneOption*)qcb;
         }
         if(mpScanner->getConstraintType(opt_num) == SANE_CONSTRAINT_NONE)
         {
-          qso = new QStringOption((const char*)mpScanner->getOptionTitle(opt_num),parent,//qvbox,
+          qso = new QStringOption(mpScanner->getOptionTitle(opt_num).toLatin1(),
+                                  parent,//qvbox,
                                   (const char*)mpScanner->getOptionName(opt_num));
           qso->setSaneOptionNumber(opt_num);
           qso->setOptionDescription(mpScanner->getOptionDescription(opt_num));
@@ -1688,7 +1691,7 @@ QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
           qso->setSaneValueType(mpScanner->getOptionType(opt_num));
           qso->setMaxLength(mpScanner->optionSize(opt_num)-1);
           stringval = mpScanner->saneStringValue(opt_num);
-          qso->setText((const char*)stringval);
+          qso->setText(stringval.toLatin1());
           connect(qso,SIGNAL(signalOptionChanged(int)),this,
                   SLOT(slotOptionChanged(int)));
           ret=(QSaneOption*)qso;
@@ -1914,16 +1917,16 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
     setPreviewRange ();
 
     // this may invalidate sca, so find it again, by name!
-    const char *name;
+    QString name;
     int i = 0;
 
     do
     {
       name = mpPreviewWidget->getSizeName (i);
-      if (QString (name) == oldname)
+      if (name == oldname)
          sca = mpPreviewWidget->getSize (i);
       i++;
-    } while (name);
+    } while (!name.isEmpty());
     if (!sca)
     {
       printf ("Warning: size lost\n");
@@ -2671,7 +2674,7 @@ void QScanDialog::slotAutoMode(int num,bool b)
     if(!b)
     {
       combostring = qco->getCurrentText();
-      v = (SANE_String*)combostring.latin1();
+      v = (SANE_String*)combostring.toLatin1().constData();
       if(v)mpScanner->setOption(i,v);
     }
     else
@@ -2818,7 +2821,7 @@ void QScanDialog::slotChangeFilename()
 
   qs = QFileInfo(mpDragLineEdit->text()).dirPath(true);
   QFileDialogExt qfd(qs,0,this,0,true);
-  qfd.setCaption(tr("Choose filename for saving"));
+  qfd.setWindowTitle(tr("Choose filename for saving"));
   format =xmlConfig->stringValue("VIEWER_IMAGE_TYPE");
   filters = iosupp.getOrderedOutFilterList(format);
   qfd.setFilters(filters);
@@ -3821,7 +3824,7 @@ bool QScanDialog::setOption (QSaneOption *opt, QString str)
 //   qDebug () << "setOption" << str;
   if (opt)
   {
-     if (!wh->setCurrentValue (str.latin1 ()))
+     if (!wh->setCurrentValue (str.toLatin1 ()))
          return false;
      slotOptionChanged (wh->optionNumber ());
   }
@@ -3910,14 +3913,14 @@ bool QScanDialog::setAdf (bool adf)
 //printf ("num %d\n", mOptionSource->saneOptionNumber ());
    for (int i = 0; option == -1 && i != name.count (); i++)
       {
-      printf ("   ** %s\n", name [i].latin1 ());
+      printf ("   ** %s\n", name [i].toLatin1 ().constData());
       if (!adf &&
-          (name [i].find ("flatbed", 0, FALSE) != -1
-           || name [i].find ("fb", 0, FALSE) != -1))
+          (name [i].indexOf ("flatbed", 0, Qt::CaseInsensitive) != -1
+           || name [i].indexOf ("fb", 0, Qt::CaseInsensitive) != -1))
          option = i;
       else if (adf &&
-         (name [i].find ("front", 0, FALSE) != -1
-          || name [i].find ("adf", 0, FALSE) != -1))
+         (name [i].indexOf ("front", 0, Qt::CaseInsensitive) != -1
+          || name [i].indexOf ("adf", 0, Qt::CaseInsensitive) != -1))
          option = i;
       }
 //   printf ("option = %d\n", option);
@@ -3947,11 +3950,11 @@ bool QScanDialog::setDuplex (bool duplex)
    for (int i = 0; option == -1 && i != name.count (); i++)
       {
 //      printf ("   * %s\n", name [i].latin1 ());
-      if (!duplex && name [i].find ("front", 0, FALSE) != -1)
+      if (!duplex && name [i].indexOf ("front", 0, Qt::CaseInsensitive) != -1)
          option = i;
       else if (duplex &&
-         (name [i].find ("both", 0, FALSE) != -1
-          || name [i].find ("duplex", 0, FALSE) != -1))
+         (name [i].indexOf ("both", 0, Qt::CaseInsensitive) != -1
+          || name [i].indexOf ("duplex", 0, Qt::CaseInsensitive) != -1))
          option = i;
       }
    if (option != -1)
@@ -3999,4 +4002,3 @@ void QScanDialog::setContrast (int value)
 {
    set256 (mOptionContrast, value);
 }
-
