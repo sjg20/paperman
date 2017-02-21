@@ -439,7 +439,7 @@ QIN::Status QScanDialog::initDialog()
   caption_string += " (";
   caption_string += mDeviceName;
   caption_string += ")";
-  setCaption(caption_string);
+  setWindowTitle(caption_string);
   i = xmlConfig->intValue("LAYOUT");
   switch(i)
   {
@@ -1348,23 +1348,30 @@ void QScanDialog::slotShowOptionsWidget()
         if(mpPreviewWidget->isTopLevel())
         {
           if(visible) mpPreviewWidget->hide();
-          mpPreviewWidget->reparent(this,0,QPoint(0,0),FALSE);
+          mpPreviewWidget->setParent(this);
+          mpPreviewWidget->move(QPoint(0,0));
+          mpPreviewWidget->hide();
           mpPreviewWidget->changeLayout(false);
-       	  mpMainLayout->addMultiCellWidget(mpPreviewWidget,0,7,2,2);
-          mpMainLayout->setColStretch(0,0);
-          mpMainLayout->setColStretch(2,1);
+          mpMainLayout->addWidget(mpPreviewWidget,0,2,8,1);
+          mpMainLayout->setColumnStretch(0,0);
+          mpMainLayout->setColumnStretch(2,1);
         }
         else
         {
           QPoint p;
           p=mpPreviewWidget->pos();
           if(visible) slotHidePreview();
-          mpPreviewWidget->reparent(this,Qt::WType_TopLevel | Qt::WStyle_Title | Qt::WStyle_ContextHelp |
+          mpPreviewWidget->setParent(this);
+          /*p
+           * ,Qt::WType_TopLevel | Qt::WStyle_Title | Qt::WStyle_ContextHelp |
                                     Qt::WStyle_DialogBorder | Qt::WStyle_SysMenu |
-                                    Qt::WStyle_Customize,p,FALSE);
+                                    Qt::WStyle_Customize
+          */
+          mpPreviewWidget->move(p);
+          mpPreviewWidget->hide();
           mpPreviewWidget->changeLayout(true);
-          mpMainLayout->setColStretch(0,1);
-          mpMainLayout->setColStretch(2,0);
+          mpMainLayout->setColumnStretch(0,1);
+          mpMainLayout->setColumnStretch(2,0);
         }
         if(visible) slotShowPreviewWidget();
       }
@@ -1404,6 +1411,7 @@ void QScanDialog::slotShowPreviewWidget()
     mpPreviewWidget->raise();
   }
 }
+
 /**  */
 void QScanDialog::slotAbout()
 {
@@ -1801,20 +1809,19 @@ void QScanDialog::createPreviewWidget()
     if((unit == SANE_UNIT_MM) || (unit == SANE_UNIT_PIXEL))
     {
       //create preview widget#endif
-
       if(xmlConfig->boolValue("SEPARATE_PREVIEW"))
       {
-        mpPreviewWidget = new PreviewWidget(this,"",Qt::WType_TopLevel | Qt::WStyle_ContextHelp |
-                                       Qt::WStyle_Title |Qt::WStyle_DialogBorder |
-                                       Qt::WStyle_SysMenu | Qt::WStyle_Customize);
-        mpMainLayout->setColStretch(0,1);
-        mpMainLayout->setColStretch(2,0);
+        mpPreviewWidget = new PreviewWidget(this, "", Qt::Window |
+            Qt::WindowContextHelpButtonHint | Qt::WindowTitleHint |
+            Qt::MSWindowsFixedSizeDialogHint | Qt::WindowSystemMenuHint);
+        mpMainLayout->setColumnStretch(0,1);
+        mpMainLayout->setColumnStretch(2,0);
       }
       else
       {
         mpPreviewWidget = new PreviewWidget(this,"",0);
-        mpMainLayout->setColStretch(0,0);
-        mpMainLayout->setColStretch(2,1);
+        mpMainLayout->setColumnStretch(0,0);
+        mpMainLayout->setColumnStretch(2,1);
       }
       mpPreviewWidget->setMetrics(QIN::Millimetre,unit);
       setPreviewRange();
@@ -1850,17 +1857,17 @@ void QScanDialog::createPreviewWidget()
 printf ("separate\n");
     if(xmlConfig->boolValue("SEPARATE_PREVIEW"))
     {
-      mpPreviewWidget = new PreviewWidget(this,"",Qt::WType_TopLevel | Qt::WStyle_ContextHelp |
-                                     Qt::WStyle_Title |Qt::WStyle_DialogBorder |
-                                     Qt::WStyle_SysMenu | Qt::WStyle_Customize);
-      mpMainLayout->setColStretch(0,1);
-      mpMainLayout->setColStretch(2,0);
+      mpPreviewWidget = new PreviewWidget(this,"",Qt::Window |
+          Qt::WindowContextHelpButtonHint | Qt::WindowTitleHint |
+          Qt::MSWindowsFixedSizeDialogHint | Qt::WindowSystemMenuHint);
+      mpMainLayout->setColumnStretch(0,1);
+      mpMainLayout->setColumnStretch(2,0);
     }
     else
     {
       mpPreviewWidget = new PreviewWidget(this,"",0);
-      mpMainLayout->setColStretch(0,0);
-      mpMainLayout->setColStretch(2,1);
+      mpMainLayout->setColumnStretch(0,0);
+      mpMainLayout->setColumnStretch(2,1);
     }
     mpPreviewWidget->setMetrics(QIN::NoMetricSystem,SANE_UNIT_NONE);
     connect(mpPreviewWidget,SIGNAL(signalHidePreview()),
@@ -2217,13 +2224,13 @@ void QScanDialog::changeLayout(QIN::Layout l)
   {
     if(mpPreviewWidget->isTopLevel())
     {
-      mpMainLayout->setColStretch(0,1);
-      mpMainLayout->setColStretch(2,0);
+      mpMainLayout->setColumnStretch(0,1);
+      mpMainLayout->setColumnStretch(2,0);
     }
     else
     {
-      mpMainLayout->setColStretch(0,0);
-      mpMainLayout->setColStretch(2,1);
+      mpMainLayout->setColumnStretch(0,0);
+      mpMainLayout->setColumnStretch(2,1);
     }
   }
 }
