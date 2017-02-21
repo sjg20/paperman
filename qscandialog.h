@@ -22,8 +22,11 @@
 #ifndef QScanDialog_H
 #define QScanDialog_H
 
-class Q3WidgetStack;
+class QListWidget;
+class QListWidgetItem;
+class QStackedWidget;
 class QPushButton;
+class QTableWidget;
 
 //s #include <qarray.h>
 #include <q3listview.h>
@@ -189,7 +192,7 @@ private:
   /**  */
   int mShowCnt;
   /**  */
-  Q3WidgetStack* mpOptionWidgetStack;
+  QStackedWidget* mpOptionWidgetStack;
   /**  */
   QDragLabel* mpDragLabel;
   /**  */

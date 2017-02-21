@@ -106,7 +106,6 @@
 #include <qtoolbutton.h>
 #include <qtooltip.h>
 #include <qwidget.h>
-#include <q3widgetstack.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -2134,7 +2133,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     mpOptionListView = new Q3ListView(mpOptionListWidget);
     mpOptionListView->addColumn(tr("SANE Options"));
     mpOptionListView->setSorting(-1);
-    mpOptionWidgetStack = new Q3WidgetStack(mpOptionListWidget);
+    mpOptionWidgetStack = new QStackedWidget(mpOptionListWidget);
     listgrid->addWidget(mpOptionListView,0,0);
     listgrid->addWidget(mpOptionWidgetStack,0,1);
     QListViewItemExt* nlv = 0;
@@ -2156,7 +2155,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
       qgb=(QGroupBox*)mGroupBoxArray[c];
 //       qgb->setFrameStyle(Q3GroupBox::StyledPanel);
       //this also reparents the widgets
-      mpOptionWidgetStack->addWidget(qgb,c);
+      mpOptionWidgetStack->addWidget(qgb);
     }
     if(mOptionSubArray.size() > 0)
     {
@@ -2191,7 +2190,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     mpOptionWidgetStack->show();
     mpOptionWidgetStack->resize(mpOptionWidgetStack->width(),
                               mpOptionWidgetStack->sizeHint().height());
-    mpOptionWidgetStack->raiseWidget(0);
+    mpOptionWidgetStack->setCurrentIndex(0);
     qApp->processEvents();
     QApplication::sendPostedEvents();
     if(!mpPreviewWidget)
@@ -2783,7 +2782,7 @@ void QScanDialog::slotRaiseOptionWidget(Q3ListViewItem* lvi)
   //to be sure
   if(!mpOptionListWidget || !mpOptionWidgetStack) return;
   nlv = (QListViewItemExt*) lvi;
-  mpOptionWidgetStack->raiseWidget(nlv->index());
+  mpOptionWidgetStack->setCurrentIndex(nlv->index());
 }
 /**  */
 void QScanDialog::slotHidePreview()
