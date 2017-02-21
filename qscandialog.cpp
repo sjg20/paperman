@@ -294,7 +294,7 @@ QIN::Status QScanDialog::initDialog()
   pb_setfn->setIcon(setpix);
   pb_setfn->resize(tb1->sizeHint());
   mpAutoNameCheckBox = new QCheckBox(tr("Automatic filename &generation"));
-  mpDragHBox2->addWidget(mpAutoNameCheckBox);
+//  mpDragHBox2->addWidget(mpAutoNameCheckBox);
   QWidget* dummy1 = new QWidget();
   mpDragHBox2->addWidget(dummy1);
   dummy1->setFixedWidth(10);
