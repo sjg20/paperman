@@ -35,8 +35,9 @@
 #include <qstring.h>
 
 QSaneOption::QSaneOption(QString title,QWidget *parent,const char *name )
-            :QWidget(parent,name)
+            :QWidget(parent)
 {
+  setObjectName(name);
   mTitleText = title;
   mOptionName = name;
   mSaneConstraintType = SANE_CONSTRAINT_NONE;

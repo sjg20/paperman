@@ -19,7 +19,6 @@
 #define QSANEOPTION_H
 
 #include <qwidget.h>
-//Added by qt3to4:
 #include <QLabel>
 #include <sane/sane.h>
 #include <sane/saneopts.h>
