@@ -17,25 +17,20 @@
 #ifndef QOPTIONSCROLLVIEW_H
 #define QOPTIONSCROLLVIEW_H
 
-//#include <q3scrollview.h>
-//Added by qt3to4:
 #include <QResizeEvent>
-#include <Q3VBoxLayout>
 #include <QScrollArea>
 
 /**
   *@author M. Herder
   */
-//forward declarations
-class Q3VBoxLayout;
+class QBoxLayout;
+
 
 class QOptionScrollView : public QScrollArea
 {
 public: 
 	QOptionScrollView(QWidget * parent=0, const char * name=0, Qt::WFlags f=0 );
 	~QOptionScrollView();
-  /**  */
-  QWidget* getMainWidget();
   void addWidget(QWidget* qw,int stretch=0);
 protected:
   /**  */
