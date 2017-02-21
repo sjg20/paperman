@@ -18,17 +18,14 @@
 #include "qdoublespinbox.h"
 #include "qwordarrayoption.h"
 #include "qcurvewidget.h"
-//Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
+#include <QHBoxLayout>
 
 #include <math.h>
 #include <qcombobox.h>
 #include <qdir.h>
-#include <q3filedialog.h>
-#include <q3hbox.h>
 #include <qlabel.h>
 #include <qlayout.h>
-#include <q3pointarray.h>
 #include <qpushbutton.h>
 #include <qpixmap.h>
 #include <qvalidator.h>
@@ -60,7 +57,7 @@ void QWordArrayOption::slotShowOption()
 /**  */
 void QWordArrayOption::initWidget()
 {
-	Q3GridLayout* qgl = new Q3GridLayout(this,1,3);
+    QGridLayout* qgl = new QGridLayout(this);
   qgl->setSpacing(4);
   qgl->setMargin(4);
   mpTitleLabel = new QLabel(optionTitle(),this);
@@ -71,7 +68,7 @@ void QWordArrayOption::initWidget()
 	qgl->addWidget(pixmapWidget(),0,0);
 	qgl->addWidget(mpTitleLabel,0,1);
 	qgl->addWidget(mpShowButton,0,2);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
 }
 /**  */
@@ -112,9 +109,9 @@ void QWordArrayOption::setCurve()
   int i;
 
   qDebug("mDataArray.size(): %u",mDataArray.size());
-  Q3PointArray qpa(mDataArray.size());
+  QPolygon qpa(mDataArray.size());
   qDebug("qpa.size(): %u",qpa.size());
-  Q3PointArray qpa2;
+  QPolygon qpa2;
 
   for(z=0;z<qpa.size();z++)
     qpa.setPoint(z,z,mDataArray[z]);
@@ -122,7 +119,7 @@ void QWordArrayOption::setCurve()
   m22 = 256.0/double(mMaxVal-mMinVal);
 
   matrix.setMatrix(m11,0.0,0.0,m22,0.0,0.0);
-  inv_matrix = matrix.invert();
+  inv_matrix = matrix.inverted();
   qpa2.resize(256);
   qDebug("qpa2.size(): %u",qpa2.size());
 
@@ -163,7 +160,7 @@ void QWordArrayOption::calcDataArray()
   double m22;
   int z;
 
-  if(mpCurveCombo->currentItem() == 0)//gamma curve
+  if(mpCurveCombo->currentIndex() == 0)//gamma curve
   {
     if(mValueType == SANE_TYPE_INT)
       topval = double(mMaxVal);
@@ -207,49 +204,56 @@ void QWordArrayOption::calcDataArray()
 /**  */
 void QWordArrayOption::createCurveWidget()
 {
-  mpArrayWidget = new QWidget(this,"",Qt::WType_TopLevel | Qt::WStyle_Title |
-                                    Qt::WStyle_DialogBorder |
-                                    Qt::WStyle_SysMenu | Qt::WStyle_Customize);
-  mpArrayWidget->setCaption(optionTitle());
-  Q3GridLayout* mainlayout = new Q3GridLayout(mpArrayWidget,4,2);
+  mpArrayWidget = new QWidget(this,Qt::Window | Qt::WindowTitleHint |
+                                    Qt::MSWindowsFixedSizeDialogHint  |
+                                    Qt::WindowSystemMenuHint);
+  mpArrayWidget->setWindowTitle(optionTitle());
+  QGridLayout* mainlayout = new QGridLayout(mpArrayWidget);
   QLabel* label = new QLabel(mpArrayWidget);
   label->setText(mpTitleLabel->text());
   mpCurveWidget = new QCurveWidget(mpArrayWidget);
   mpCurveWidget->setFixedHeight(266);
   mpCurveWidget->setFixedWidth(266);
-  mpCurveWidget->setBackgroundColor(QColor(255,255,255));
 
-  Q3HBox* qhb1 = new Q3HBox(mpArrayWidget);
-  new QLabel(tr("Curve type:"),qhb1);
-  mpCurveCombo = new QComboBox(qhb1);
-  mpCurveCombo->insertItem(tr("Gamma"));
-  mpCurveCombo->insertItem(tr("Free"));
-  mpCurveCombo->insertItem(tr("Line segments"));
-  mpCurveCombo->insertItem(tr("Interpolated"));
+  QPalette palette;
+  palette.setColor(mpCurveWidget->backgroundRole(), QColor(255,255,255));
+  mpCurveWidget->setPalette(palette);
 
-  Q3HBox* qhb2 = new Q3HBox(mpArrayWidget);
-  new QLabel(tr("Gamma:"),qhb2);
-  mpGammaSpin = new QDouble100SpinBox(qhb2);
+  QHBoxLayout* qhb1 = new QHBoxLayout(mpArrayWidget);  
+  qhb1->addWidget(new QLabel(tr("Curve type:")));
+  mpCurveCombo = new QComboBox();
+  qhb1->addWidget(mpCurveCombo);
+  mpCurveCombo->addItem(tr("Gamma"));
+  mpCurveCombo->addItem(tr("Free"));
+  mpCurveCombo->addItem(tr("Line segments"));
+  mpCurveCombo->addItem(tr("Interpolated"));
+
+  QHBoxLayout* qhb2 = new QHBoxLayout(mpArrayWidget);
+  qhb2->addWidget(new QLabel(tr("Gamma:")));
+  mpGammaSpin = new QDouble100SpinBox(mpArrayWidget);
+  qhb2->addWidget(mpGammaSpin);
   QDoubleValidator* vali = new QDoubleValidator(0.01,4.0,2,mpGammaSpin);
-#warning "need to port this"
-//  mpGammaSpin->setValidator(vali);
-  mpGammaSpin->setMaxValue(400);
-  mpGammaSpin->setMinValue(1);
+  mpGammaSpin->setValidator(vali);
+  mpGammaSpin->setMaximum(400);
+  mpGammaSpin->setMinimum(1);
   mpGammaSpin->setValue(100);
   mGamma = 1.0;
 
-  Q3HBox* qhb3 = new Q3HBox(mpArrayWidget);
-  mpSetButton = new QPushButton(tr("&Set"),qhb3);
-  mpResetButton = new QPushButton(tr("&Reset"),qhb3);
-  mpCloseButton = new QPushButton(tr("&Close"),qhb3);
+  QHBoxLayout* qhb3 = new QHBoxLayout(mpArrayWidget);
+  mpSetButton = new QPushButton(tr("&Set"));
+  qhb3->addWidget(mpSetButton);
+  mpResetButton = new QPushButton(tr("&Reset"));
+  qhb3->addWidget(mpResetButton);
+  mpCloseButton = new QPushButton(tr("&Close"));
+  qhb3->addWidget(mpCloseButton);
 
   mainlayout->setSpacing(5);
   mainlayout->setMargin(5);
   mainlayout->addWidget(label,0,0);
   mainlayout->addWidget(mpCurveWidget,1,0);
-  mainlayout->addWidget(qhb1,2,0);
-  mainlayout->addWidget(qhb2,3,0);
-  mainlayout->addWidget(qhb3,4,0);
+  mainlayout->addLayout(qhb1,2,0);
+  mainlayout->addLayout(qhb2,3,0);
+  mainlayout->addLayout(qhb3,4,0);
   mainlayout->activate();
   mpArrayWidget->setFixedSize(mpArrayWidget->sizeHint());
   connect(mpCurveCombo,SIGNAL(activated(int)),
@@ -262,7 +266,7 @@ void QWordArrayOption::createCurveWidget()
           mpArrayWidget,SLOT(close()));
   connect(mpResetButton,SIGNAL(clicked()),this,SLOT(slotReset()));
   connect(mpSetButton,SIGNAL(clicked()),this,SLOT(slotSet()));
-  mpCurveCombo->setCurrentItem(1);
+  mpCurveCombo->setCurrentIndex(1);
   mpCurveWidget->slotChangeCurveType(1);
   mpGammaSpin->setEnabled(false);
 }
@@ -272,14 +276,14 @@ void QWordArrayOption::slotReset()
   mpCurveWidget->reset();
   if(mOldGamma > -1.0)//gamma
   {
-    mpCurveCombo->setCurrentItem(0);
+    mpCurveCombo->setCurrentIndex(0);
     slotCurveCombo(0);
     mGamma = mOldGamma;
     mpGammaSpin->setValue(int(mGamma*100.0));
   }
   else
   {
-    mpCurveCombo->setCurrentItem(1);
+    mpCurveCombo->setCurrentIndex(1);
     slotCurveCombo(1);
   }
 }
@@ -288,7 +292,7 @@ void QWordArrayOption::slotSet()
 {
   mpCurveWidget->set();
   calcDataArray();
-  if(mpCurveCombo->currentItem() == 0)//gamma curve
+  if(mpCurveCombo->currentIndex() == 0)//gamma curve
   {
     mOldGamma = mGamma;
   }
@@ -298,7 +302,7 @@ void QWordArrayOption::slotSet()
   }
   slotEmitOptionChanged();
 }
-Q3PointArray QWordArrayOption::pointArray()
+QPolygon QWordArrayOption::pointArray()
 {
   return mPointArray;
 }/**  */
