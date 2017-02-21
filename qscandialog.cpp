@@ -1081,13 +1081,13 @@ void QScanDialog::slotReloadOptions()
         !mpScanner->isOptionActive(mpBrxOption->saneOptionNumber()) ||
         !mpScanner->isOptionActive(mpBryOption->saneOptionNumber()))
      {
-       mpPreviewWidget->setMetrics(QIN::NoMetricSystem,SANE_UNIT_NONE);
-       mpPreviewWidget->setAspectRatio(1.0);
+//       mpPreviewWidget->setMetrics(QIN::NoMetricSystem,SANE_UNIT_NONE);
+//       mpPreviewWidget->setAspectRatio(1.0);
      }
      else
      {
-       mpPreviewWidget->setMetrics(QIN::Millimetre,
-                           mpScanner->getUnit(mpTlxOption->saneOptionNumber()));
+//       mpPreviewWidget->setMetrics(QIN::Millimetre,
+//                           mpScanner->getUnit(mpTlxOption->saneOptionNumber()));
        setPreviewRange();
      }
   }
@@ -1387,7 +1387,7 @@ void QScanDialog::slotShowPreviewWidget()
       h = height();
     resize(w,h);
     mpPreviewWidget->show();
-//    mpSeparator->show();
+//p    mpSeparator->show();
   }
   else
   {
@@ -1716,7 +1716,7 @@ QGroupBox* QScanDialog::createOptionGroupBox(QString title,int firstoption,int l
   QVBoxLayout *vbox = new QVBoxLayout;
 // lastoption-firstoption+1,Qt::Vertical,
 //                       mpOptionScrollView->getMainWidget()
-//   qgb->setFrameStyle(Q3GroupBox::StyledPanel);
+//   qgb->setFrameStyle(QGroupBox::StyledPanel);
 //   qgb->setTitle();
 
   for(c2=firstoption;c2<=lastoption;c2++)
@@ -1895,12 +1895,14 @@ void QScanDialog::slotPreviewSize(QRect rect)
 /**  */
 void QScanDialog::slotResizeScanRect()
 {
+#if 0
   double tlx,tly,brx,bry;
   tlx = mpTlxOption->getPercentValue();
   tly = mpTlyOption->getPercentValue();
   brx = mpBrxOption->getPercentValue();
   bry = mpBryOption->getPercentValue();
   mpPreviewWidget->setRectSize(tlx,tly,brx,bry);
+#endif
 }
 /**  */
 
@@ -2137,12 +2139,12 @@ void QScanDialog::changeLayout(QIN::Layout l)
   if(mLayout == QIN::ListLayout)
   {
     mpOptionListWidget = new QWidget(this);
-    Q3GridLayout* listgrid = new Q3GridLayout(mpOptionListWidget,1,2);
+    QGridLayout* listgrid = new QGridLayout(mpOptionListWidget);
     listgrid->setSpacing(5);
-    listgrid->setColStretch(1,1);
+    listgrid->setColumnStretch(1,1);
     mpOptionListView = new Q3ListView(mpOptionListWidget);
-    mpOptionListView->addColumn(tr("SANE Options"));
-    mpOptionListView->setSorting(-1);
+//p    mpOptionListView->addColumn(tr("SANE Options"));
+//p    mpOptionListView->setSorting(-1);
     mpOptionWidgetStack = new QStackedWidget(mpOptionListWidget);
     listgrid->addWidget(mpOptionListView,0,0);
     listgrid->addWidget(mpOptionWidgetStack,0,1);
@@ -2154,7 +2156,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
       {
         nlv = new QListViewItemExt(mpOptionListView,titlestring);
         nlv->setIndex(c);
-        mpOptionListView->setSelected(nlv,true);
+//p        mpOptionListView->setSelected(nlv,true);
       }
       else
       {
@@ -2163,7 +2165,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
         nlv->setIndex(c);
       }
       qgb=(QGroupBox*)mGroupBoxArray[c];
-//       qgb->setFrameStyle(Q3GroupBox::StyledPanel);
+//       qgb->setFrameStyle(QGroupBox::StyledPanel);
       //this also reparents the widgets
       mpOptionWidgetStack->addWidget(qgb);
     }
@@ -2207,7 +2209,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
       resize(width(),minimumSizeHint().height());
     else if(mpPreviewWidget->topLevel())
       resize(width(),minimumSizeHint().height());
-    mpOptionListView->setColumnWidthMode(0,Q3ListView::Manual);
+//p    mpOptionListView->setColumnWidthMode(0,QListWidget::Manual);
     mpOptionListView->setColumnWidth(0,mpOptionListView->viewport()->width());
   }
   if(mLayout != QIN::ScrollLayout)
