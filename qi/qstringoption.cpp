@@ -22,8 +22,7 @@
 #include <qlabel.h>
 #include <qlayout.h>
 #include <qpushbutton.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
 #include <sane/saneopts.h>
 
 QStringOption::QStringOption(QString title,QWidget *parent, const char *name )
@@ -38,18 +37,18 @@ QStringOption::~QStringOption()
 /**  */
 void QStringOption::initWidget()
 {
-	Q3GridLayout* qgl = new Q3GridLayout(this,2,2);
+  QGridLayout* qgl = new QGridLayout(this);
   QLabel* label = new QLabel(optionTitle(),this);
 	mpOptionLineEdit = new QLineEdit(this);
   connect(mpOptionLineEdit,SIGNAL(textChanged(const QString&)),
           this,SLOT(slotTextChanged(const QString&)));
 //create pixmap
   assignPixmap();
-	qgl->addMultiCellWidget(pixmapWidget(),0,1,0,0);
+    qgl->addWidget(pixmapWidget(),0,0,2,0);
 	qgl->addWidget(label,0,1);
 	qgl->addWidget(mpOptionLineEdit,1,1);
   qgl->setSpacing(5);
-	qgl->setColStretch(1,1);
+    qgl->setColumnStretch(1,1);
 	qgl->activate();
 }
 /**  */
