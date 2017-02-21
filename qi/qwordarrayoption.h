@@ -19,9 +19,6 @@
 
 #include "qsaneoption.h"
 #include <qstring.h>
-//s #include <qarray.h>
-#include <q3pointarray.h>
-//Added by qt3to4:
 #include <QLabel>
 extern "C"
 {
@@ -56,7 +53,7 @@ public:
   void setValue(QVector<SANE_Word> array);
   /**  */
   void calcDataArray();
-  Q3PointArray pointArray();
+  QPolygon pointArray();
   /**  */
   void closeCurveWidget();
 private:
@@ -73,7 +70,7 @@ private:
   /**  */
   QComboBox* mpCurveCombo;
   /**  */
-  Q3PointArray mPointArray;
+  QPolygon mPointArray;
   /**  */
   QLabel* mpTitleLabel;
 
@@ -100,7 +97,7 @@ private: // Private methods
   /**  */
   void initWidget();
   /** */
-  void setPointArray(Q3PointArray qpa);
+  void setPointArray(QPolygon qpa);
   /**  */
   void createCurveWidget();
 
