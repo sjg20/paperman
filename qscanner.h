@@ -33,10 +33,10 @@ extern "C"
 #include <qobject.h>
 #include <qstringlist.h>
 
-class QPixmap;
 class QImage;
+class QPixmap;
+class QProgressDialog;
 class QString;
-class Q3ProgressDialog;
 class PreviewWidget;
 /** The QScanner class is mainly designed to access the SANE API
   * from within a Qt C++ program.
@@ -483,7 +483,7 @@ successfull */
   /**  */
   bool mCancelled;
   /**  */
-  Q3ProgressDialog* mpProgress;
+  QProgressDialog* mpProgress;
 
   /** true if we are currently scanning. This inhibits updating the options */
   bool mScanning;
