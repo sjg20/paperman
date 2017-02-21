@@ -206,11 +206,11 @@ private:
   /**  */
   QHBoxLayout* mpInfoHBox;
   /**  */
-  Q3HBox* mpModeHBox;
+  QHBoxLayout* mpModeHBox;
   /**  */
-  Q3HBox* mpButtonHBox1;
+  QHBoxLayout* mpButtonHBox1;
   /**  */
-  Q3HBox* mpButtonHBox2;
+  QHBoxLayout* mpButtonHBox2;
   /**  */
   QHBoxLayout* mpDragHBox1;
   /**  */
@@ -220,7 +220,7 @@ private:
   /**  */
   Q3ListView* mpOptionListView;
   /**  */
-  Q3VBox* mpSeparator;
+  QVBoxLayout* mpSeparator;
 
   /** ignore an inexact signal (used to avoid recusion) */
   int mIgnoreInexact;
