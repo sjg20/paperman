@@ -26,8 +26,7 @@
 #include <qnamespace.h>
 #include <qpixmap.h>
 #include <qstring.h>
-//Added by qt3to4:
-#include <Q3GridLayout>
+#include <QGridLayout>
 #include <sane/sane.h>
 #include <sane/saneopts.h>
 
@@ -46,7 +45,7 @@ SaneFixedOption::~SaneFixedOption()
 /**  */
 void SaneFixedOption::initWidget()
 {
-  Q3GridLayout* qgl = new Q3GridLayout(this,1,3);
+  QGridLayout* qgl = new QGridLayout(this);
 	mpTitleLabel = new QLabel(optionTitle(),this);
 	mpValueSpinBox = new SaneFixedSpinBox(INT_MIN,INT_MAX,65536,this);
   mpValueSpinBox->setFocusPolicy(Qt::StrongFocus);//should get focus after clicking
@@ -56,7 +55,7 @@ void SaneFixedOption::initWidget()
 	qgl->addWidget(mpTitleLabel,0,1);
 	qgl->addWidget(mpValueSpinBox,0,2);
   qgl->setSpacing(5);
-  qgl->setColStretch(1,1);
+  qgl->setColumnStretch(1,1);
 	connect(mpValueSpinBox,SIGNAL(valueChanged(int)),this,SLOT(slotValueChanged(int)));
   qgl->activate();
 }
