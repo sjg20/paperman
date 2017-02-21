@@ -18,8 +18,6 @@
 #ifndef SLIDERSPIN_H
 #define SLIDERSPIN_H
 
-#include <q3vbox.h>
-//Added by qt3to4:
 #include <QLabel>
 
 /**A combination of a QLabel, a QSlider and
@@ -31,7 +29,7 @@ class QLabel;
 class QSlider;
 class QSpinBox;
 
-class SliderSpin : public Q3VBox
+class SliderSpin : public QWidget
 {
 Q_OBJECT
 public:

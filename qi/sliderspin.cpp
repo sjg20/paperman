@@ -15,36 +15,32 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "err.h"
 #include "sliderspin.h"
 
 #include "resource.h"
 
-#include <q3hbox.h>
+#include <QHBoxLayout>
 #include <qlabel.h>
 #include <qslider.h>
 #include <qspinbox.h>
 
-#ifdef USE_QT3
 SliderSpin::SliderSpin(QWidget* parent,const char* name,Qt::WFlags f,bool allowLines)
-           :Q3VBox(parent,name,f)
-#else
-SliderSpin::SliderSpin(QWidget* parent,const char* name,Qt::WFlags f,bool allowLines)
-           :Q3VBox(parent,name,f,allowLines)
-#endif
+           :QWidget(parent)
 {
+  UNUSED(allowLines);
+  UNUSED(f);
+  setObjectName(name);
   initWidget();
 }
 
-#ifdef USE_QT3
 SliderSpin::SliderSpin(int minval,int maxval,int val,QString title,QWidget* parent,
                        const char* name,Qt::WFlags f,bool allowLines)
-           :Q3VBox(parent,name,f)
-#else
-SliderSpin::SliderSpin(int minval,int maxval,int val,QString title,QWidget* parent,
-                       const char* name,Qt::WFlags f,bool allowLines)
-           :Q3VBox(parent,name,f,allowLines)
-#endif
+           :QWidget(parent)
 {
+  UNUSED(allowLines);
+  UNUSED(f);
+  setObjectName(name);
   initWidget();
   setTitle(title);
   setRange(minval,maxval);
@@ -57,12 +53,23 @@ SliderSpin::~SliderSpin()
 /** No descriptions */
 void SliderSpin::initWidget()
 {
-  Q3HBox* hb = new Q3HBox(this);
-  mpTitleLabel = new QLabel(hb);
-  mpSlider = new QSlider(0,10,1,1,Qt::Horizontal,hb);
-  mpSpinBox = new QSpinBox(0,10,1,hb);
+  QHBoxLayout* hb = new QHBoxLayout(this);
+  mpTitleLabel = new QLabel();
+  hb->addWidget(mpTitleLabel);
+  mpSlider = new QSlider(Qt::Horizontal);
+  hb->addWidget(mpSlider);
+  mpSlider->setMinimum(0);
+  mpSlider->setMaximum(10);
+  mpSlider->setSingleStep(1);
+  mpSlider->setPageStep(10);
+  mpSpinBox = new QSpinBox();
+  hb->addWidget(mpSpinBox);
+  mpSpinBox->setMinimum(0);
+  mpSpinBox->setMaximum(10);
+  mpSpinBox->setSingleStep(1);
   hb->setSpacing(5);
   hb->setStretchFactor(mpSlider,1);
+  setLayout(hb);
   mpSlider->setTracking(false);
   connect(mpSlider,SIGNAL(valueChanged(int)),
           this,SLOT(slotValueChanged(int)));
