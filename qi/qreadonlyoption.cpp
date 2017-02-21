@@ -18,7 +18,6 @@
 #include <qlabel.h>
 #include <qstring.h>
 #include <qlayout.h>
-//Added by qt3to4:
 #include <QGridLayout>
 
 QReadOnlyOption::QReadOnlyOption(QString title,QWidget *parent, const char *name )

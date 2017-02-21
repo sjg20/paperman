@@ -20,7 +20,6 @@ License: GPL-2
 X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
-//Added by qt3to4:
 #include <QContextMenuEvent>
 
 #include <QMouseEvent>
