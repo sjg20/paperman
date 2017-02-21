@@ -153,25 +153,25 @@ void PreviewWidget::initWidget()
   mpSizeHBox->addWidget(mpScanSizeLabel);
   mpComboStack = new QStackedWidget();
   mpSizeHBox->addWidget(mpComboStack);
-  mpScanSizeCombo = new QComboBox(false,mpComboStack,"");
+  mpScanSizeCombo = new QComboBox(mpComboStack);
   QHBoxLayout* sthbox = new QHBoxLayout(mpComboStack);
   sthbox->setSpacing(4);
 
   mpAddButton = new QToolButton();
   sthbox->addWidget(mpAddButton);
-  mpAddButton->setPixmap(QPixmap((const char **)add_xpm));
+//  mpAddButton->setPixmap(QPixmap((const char **)add_xpm));
 
   mpSubButton = new QToolButton();
   sthbox->addWidget(mpSubButton);
-  mpSubButton->setPixmap(QPixmap((const char **)sub_xpm));
+//  mpSubButton->setPixmap(QPixmap((const char **)sub_xpm));
 
   mpDelTemplatesButton = new QToolButton();
   sthbox->addWidget(mpDelTemplatesButton);
-  mpDelTemplatesButton->setPixmap(QPixmap((const char **)delete_bookmarks_xpm));
+//  mpDelTemplatesButton->setPixmap(QPixmap((const char **)delete_bookmarks_xpm));
 
   mpScanTemplateCombo = new QComboBox();
   sthbox->addWidget(mpScanTemplateCombo);
-  mpScanTemplateCombo->insertItem(tr("None"));
+  mpScanTemplateCombo->addItem(tr("None"));
   mpScanTemplateCombo->setCurrentIndex(0);
   mpComboStack->addWidget(mpScanSizeCombo);
   sthbox->addWidget(mpComboStack);
@@ -188,31 +188,31 @@ void PreviewWidget::initWidget()
   mpMainLayout->addLayout(mpSizeHBox,0,0,1,2);
 //toolbuttons
   mpToolHBox = new QHBoxLayout(this);
-  mpZoomHBox = new QHBoxLayout(mpToolHBox);
+  mpZoomHBox = new QHBoxLayout(this);
   mpZoomButton = new QToolButton();
   mpZoomHBox->addWidget(mpZoomButton);
-  mpZoomButton->setPixmap(QPixmap((const char **)zoom_xpm));
+//  mpZoomButton->setPixmap(QPixmap((const char **)zoom_xpm));
   mpZoomUndoButton = new QToolButton();
   mpZoomHBox->addWidget(mpZoomUndoButton);
-  mpZoomUndoButton->setPixmap(QPixmap((const char **)zoom_undo_xpm));
+//  mpZoomUndoButton->setPixmap(QPixmap((const char **)zoom_undo_xpm));
   mpZoomRedoButton = new QToolButton();
   mpZoomHBox->addWidget(mpZoomRedoButton);
-  mpZoomRedoButton->setPixmap(QPixmap((const char **)zoom_redo_xpm));
+//  mpZoomRedoButton->setPixmap(QPixmap((const char **)zoom_redo_xpm));
   mpZoomOffButton = new QToolButton();
   mpZoomHBox->addWidget(mpZoomOffButton);
-  mpZoomOffButton->setPixmap(QPixmap((const char **)zoom_off_xpm));
+//  mpZoomOffButton->setPixmap(QPixmap((const char **)zoom_off_xpm));
   QWidget* dummy = new QWidget();
   mpToolHBox->addWidget(dummy);
   mpAutoSelectionButton = new QToolButton();
   mpToolHBox->addWidget(mpAutoSelectionButton);
-  mpAutoSelectionButton->setPixmap(QPixmap((const char **)autoselection_xpm));
+//  mpAutoSelectionButton->setPixmap(QPixmap((const char **)autoselection_xpm));
   mpAutoSetupButton = new QToolButton();
   mpToolHBox->addWidget(mpAutoSetupButton);
-  mpAutoSetupButton->setPixmap(QPixmap((const char **)autoselection_setup_xpm));
+//  mpAutoSetupButton->setPixmap(QPixmap((const char **)autoselection_setup_xpm));
   mpMultiSelectionButton = new QToolButton();
   mpToolHBox->addWidget(mpMultiSelectionButton);
-  mpMultiSelectionButton->setPixmap(QPixmap((const char **)multiselection_xpm));
-  mpMultiSelectionButton->setToggleButton(true);
+//  mpMultiSelectionButton->setPixmap(QPixmap((const char **)multiselection_xpm));
+  mpMultiSelectionButton->setCheckable(true);
   mpToolHBox->setStretchFactor(dummy,1);
   mpToolHBox->setSpacing(3);
   mpMainLayout->addLayout(mpToolHBox,1,0,1,2);
@@ -240,8 +240,8 @@ void PreviewWidget::initWidget()
 //scan area and rulers
   //metric label
   dummy = new QWidget(this);
-  QGridLayout* sublayout = new QGridLayout(dummy,2,2);
-  sublayout->setColStretch(1,1);
+  QGridLayout* sublayout = new QGridLayout(dummy);
+  sublayout->setColumnStretch(1,1);
   sublayout->setRowStretch(1,1);
   mpMetricLabel = new QLabel("mm",dummy);
   mpMetricLabel->setMinimumSize(30,30);
@@ -281,8 +281,8 @@ void PreviewWidget::initWidget()
                                  16744448,16768168,16729293,65433,16763955};
   unsigned int bg_colors [20] = {0,11141120,11163007,0,0,0,255,0,0,0,43520,0,0,
                                  11141375,0,0,0,0,0,0};
-  Q3ValueList <unsigned int> fg_list_def;
-  Q3ValueList <unsigned int> bg_list_def;
+  QList <unsigned int> fg_list_def;
+  QList <unsigned int> bg_list_def;
 
   for(int i=0;i<20;i++)
   {
@@ -338,7 +338,7 @@ void PreviewWidget::initWidget()
 
 //s  connect(mpPreviewButton,SIGNAL(clicked()),this,SLOT(slotPreviewRequest()));
 
-  mpMainLayout->setColStretch(0,1);
+  mpMainLayout->setColumnStretch(0,1);
   mpMainLayout->setRowStretch(2,1);
   mpMainLayout->activate();
 //connect signals
@@ -354,7 +354,7 @@ void PreviewWidget::initWidget()
           this,SLOT(slotUserSize()));
   if(mImageVectorIndex < 0)
   {
-    QImage im(250,300,1,2,QImage::LittleEndian);
+    QImage im(250,300,QImage::Format_MonoLSB);
     im.setColor(1,qRgb(255,255,255));
     im.fill(1);
     addImageToQueue(&im);
