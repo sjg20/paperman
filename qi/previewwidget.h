@@ -107,6 +107,9 @@ public:
   /** get the id of the A4 paper size */
   int getPreDefA4 (void) { return mPreDefA4; }
 
+  // Dummy version since we don't need this to work. It is supposed to
+  // emulator isTopLevel() from QT3.
+  bool topLevel() const { return false; }
 private:
   /** */
   QList<unsigned int> mFgColorList;
