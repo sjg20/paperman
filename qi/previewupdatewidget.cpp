@@ -26,7 +26,6 @@
 #include <qpainter.h>
 #include <qpaintdevice.h>
 #include <qmatrix.h>
-//Added by qt3to4:
 #include <QPixmap>
 #include <QPaintEvent>
 

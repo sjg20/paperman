@@ -15,7 +15,6 @@
  ***************************************************************************/
 
 #include "qsplinearray.h"
-//Added by qt3to4:
 #include <QPolygon>
 #include <math.h>
 #include <qrect.h>

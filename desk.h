@@ -32,7 +32,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qpoint.h"
 #include "qsize.h"
 #include "qstring.h"
-//Added by qt3to4:
 #include <QPixmap>
 
 #include "err.h"

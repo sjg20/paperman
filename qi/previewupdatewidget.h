@@ -21,7 +21,6 @@
 #include <qimage.h>
 #include <qpixmap.h>
 #include <qwidget.h>
-//Added by qt3to4:
 #include <QPaintEvent>
 
 /**
