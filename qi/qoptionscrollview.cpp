@@ -21,18 +21,22 @@
 #include <qlayout.h>
 //Added by qt3to4:
 #include <QResizeEvent>
-#include <Q3VBoxLayout>
 #include <QLabel>
 
 QOptionScrollView::QOptionScrollView(QWidget * parent, const char * name,Qt::WFlags f)
                   :QScrollArea(parent)
 {
   UNUSED (f);
-  setName (name);
+  setObjectName (name);
 //  setHScrollBarMode(AlwaysOff);
   setHorizontalScrollBarPolicy (Qt::ScrollBarAlwaysOff);
   setVerticalScrollBarPolicy (Qt::ScrollBarAlwaysOn);
-  viewport()->setBackgroundMode(Qt::PaletteBackground);
+#if 0
+  QPalette palette;
+  palette.setBrush(viewport()->backgroundRole(), QPalette::Background);
+  viewport()->setPalette(palette);
+  viewport()->setBackgroundMode(QPalette::Background);
+#endif
   mpMainWidget = new QWidget(/*viewport()*/);
   mpMainLayout = new QBoxLayout(QBoxLayout::TopToBottom, mpMainWidget);
 //   QLabel *label = new QLabel ("hello there");
@@ -68,13 +72,6 @@ void QOptionScrollView::resizeEvent(QResizeEvent* qre)
    // resize the scrollview to take full advantage of the width available
   QScrollArea::resizeEvent(qre);
   mpMainWidget->resize (geometry ().width (), mpMainWidget->geometry ().height ());
-}
-
-
-/**  */
-QWidget* QOptionScrollView::getMainWidget()
-{
-  return mpMainWidget;
 }
 
 void QOptionScrollView::addWidget(QWidget* qw,int stretch)
