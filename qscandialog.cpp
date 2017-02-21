@@ -1013,7 +1013,7 @@ void QScanDialog::slotReloadOptions()
       {
           setPreviewRange();
       }
-      if(!mpPreviewWidget->isTopLevel())
+      if(!mpPreviewWidget->topLevel())
       {
         if(height() < minimumSizeHint().height())
           resize(width(),minimumSizeHint().height());
@@ -1040,7 +1040,7 @@ void QScanDialog::slotReloadOptions()
       {
           setPreviewRange();
       }
-      if(!mpPreviewWidget->isTopLevel())
+      if(!mpPreviewWidget->topLevel())
       {
         if(height() < minimumSizeHint().height())
           resize(width(),minimumSizeHint().height());
@@ -1075,7 +1075,7 @@ void QScanDialog::slotReloadOptions()
       {
         setPreviewRange();
       }
-      if(!mpPreviewWidget->isTopLevel())
+      if(!mpPreviewWidget->topLevel())
       {
         if(height() < minimumSizeHint().height())
           resize(width(),minimumSizeHint().height());
@@ -1345,7 +1345,7 @@ void QScanDialog::slotShowOptionsWidget()
       if(mpPreviewWidget)
       {
         visible = mpPreviewWidget->isVisible();
-        if(mpPreviewWidget->isTopLevel())
+        if(mpPreviewWidget->topLevel())
         {
           if(visible) mpPreviewWidget->hide();
           mpPreviewWidget->setParent(this);
@@ -1392,7 +1392,7 @@ void QScanDialog::slotShowPreviewWidget()
 {
   int w = xmlConfig->intValue("SCANDIALOG_INTEGRATED_PREVIEW_WIDTH",0);
   int h = xmlConfig->intValue("SCANDIALOG_INTEGRATED_PREVIEW_HEIGHT",0);
-  if(!mpPreviewWidget->isTopLevel())
+  if(!mpPreviewWidget->topLevel())
   {
     if(w < width())
       w = width();
@@ -2073,7 +2073,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     QApplication::sendPostedEvents();
     if(!mpPreviewWidget)
       resize(width(),minimumSizeHint().height());
-    else if(mpPreviewWidget->isTopLevel())
+    else if(mpPreviewWidget->topLevel())
       resize(width(),minimumSizeHint().height());
   }
   if(mLayout == QIN::MultiWindowLayout)
@@ -2134,7 +2134,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     QApplication::sendPostedEvents();
     if(!mpPreviewWidget)
       resize(width(),minimumSizeHint().height());
-    else if(mpPreviewWidget->isTopLevel())
+    else if(mpPreviewWidget->topLevel())
       resize(width(),minimumSizeHint().height());
   }
   if(mLayout == QIN::ListLayout)
@@ -2208,7 +2208,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
     QApplication::sendPostedEvents();
     if(!mpPreviewWidget)
       resize(width(),minimumSizeHint().height());
-    else if(mpPreviewWidget->isTopLevel())
+    else if(mpPreviewWidget->topLevel())
       resize(width(),minimumSizeHint().height());
     mpOptionListView->setColumnWidthMode(0,Q3ListView::Manual);
     mpOptionListView->setColumnWidth(0,mpOptionListView->viewport()->width());
@@ -2217,12 +2217,12 @@ void QScanDialog::changeLayout(QIN::Layout l)
   {
     if(!mpPreviewWidget)
       resize(minimumSizeHint());
-    else if(mpPreviewWidget->isTopLevel() || !mpPreviewWidget->isVisible())
+    else if(mpPreviewWidget->topLevel() || !mpPreviewWidget->isVisible())
       resize(minimumSizeHint());
   }
   if(mpPreviewWidget)
   {
-    if(mpPreviewWidget->isTopLevel())
+    if(mpPreviewWidget->topLevel())
     {
       mpMainLayout->setColumnStretch(0,1);
       mpMainLayout->setColumnStretch(2,0);
@@ -2554,7 +2554,7 @@ void QScanDialog::slotChangeMode(int index)
     qApp->processEvents();
     if(!mpPreviewWidget)
       resize(width(),minimumSizeHint().height());
-    else if(mpPreviewWidget->isTopLevel())
+    else if(mpPreviewWidget->topLevel())
       resize(width(),minimumSizeHint().height());
   }
   if(mpPreviewWidget)
@@ -2761,7 +2761,7 @@ void QScanDialog::showEvent(QShowEvent* se)
     return;
   int w = xmlConfig->intValue("SCANDIALOG_INTEGRATED_PREVIEW_WIDTH",0);
   int h = xmlConfig->intValue("SCANDIALOG_INTEGRATED_PREVIEW_HEIGHT",0);
-  if(!mpPreviewWidget->isTopLevel() && mpPreviewWidget->isVisible())
+  if(!mpPreviewWidget->topLevel() && mpPreviewWidget->isVisible())
   {
     if(w < width())
       w = width();
@@ -2800,7 +2800,7 @@ void QScanDialog::slotRaiseOptionWidget(Q3ListViewItem* lvi)
 /**  */
 void QScanDialog::slotHidePreview()
 {
-  if(mpPreviewWidget->isTopLevel()) return;
+  if(mpPreviewWidget->topLevel()) return;
   mpPreviewWidget->hide();
 //  mpSeparator->hide();
   qApp->processEvents();
