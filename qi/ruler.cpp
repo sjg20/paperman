@@ -24,12 +24,11 @@
 #include <qapplication.h>
 #include <qpainter.h>
 #include <qmatrix.h>
-//Added by qt3to4:
-#include <Q3Frame>
 
 Ruler::Ruler( QWidget * parent, const char * name,Qt::Orientation o, Qt::WFlags f)
-      :Q3Frame(parent,name,f)
+      :QFrame(parent, f)
 {
+    setObjectName(name);
 	mOrientation = o;
 }
 Ruler::~Ruler()
@@ -195,7 +194,7 @@ void Ruler::drawContents(QPainter* painter)
 				if(draw_lm_text == 0)
 				{
 					 qs.sprintf("%i",int(lm_text_cnt * lm_text_step));
-         	 drawText ((int)(d-x_off+2),height()-12,qs);//height()/2, qs );
+//p         	 drawText ((int)(d-x_off+2),height()-12,qs);//height()/2, qs );
 				}
         ++draw_lm_text;
         if(draw_lm_text >= draw_lm_text_cnt)
@@ -211,7 +210,7 @@ void Ruler::drawContents(QPainter* painter)
 				{
 					 qs.sprintf("%i",int(lm_text_cnt * lm_text_step -
                                lm_text_step/2));
-         	 drawText ((int)(d-x_off+2),height()-12,qs);//height()/2, qs );
+//p         	 drawText ((int)(d-x_off+2),height()-12,qs);//height()/2, qs );
 				}
         ++mc;
       }
@@ -318,7 +317,7 @@ void Ruler::drawContents(QPainter* painter)
 				if(draw_lm_text == 0)
 				{
 					 qs.sprintf("%i",int(lm_text_cnt * lm_text_step));
-         	 drawText(1,(int)(d-x_off + textheight + 2), qs );
+//p         	 drawText(1,(int)(d-x_off + textheight + 2), qs );
 				}
         ++draw_lm_text;
         if(draw_lm_text >= draw_lm_text_cnt)
@@ -334,7 +333,7 @@ void Ruler::drawContents(QPainter* painter)
 				{
 					 qs.sprintf("%i",lm_text_cnt * lm_text_step -
                                lm_text_step/2);
-         	 drawText(1,(int)(d-x_off + textheight + 2), qs );
+//p         	 drawText(1,(int)(d-x_off + textheight + 2), qs );
 				}
         ++mc;
       }
