@@ -54,6 +54,11 @@ new in 0.8
 - cleaned up README
 
 
+new in 1.0
+- fully ported to QT4
+- should build on very modern distributions that don't have QT3
+
+
 Future Features
 ---------------
 
@@ -65,66 +70,7 @@ Here's what I'd like it to support:
 If you have other ideas then feel free to let me know on the mailing list.
 
 
-Building
---------
-
-You will need these packages:
-
-- libqt4-dev
-
-QT4.4 is needed. This is available in various distributions since late 2008.
-
-- libpoppler-qt4-dev
-
-Used for PDF preview
-
-- libpodofo-dev
-
-podofo used to be embedded within the code, but is now available in a 
-library. This is used for PDF operations.
-
-- libsane-dev
-
-This is the sane scanner library.
-
-- libtiff4-dev
-
-This is the tiff library
-
-- cmake
-
-This is needed to build podofo
-
-
-
-To prepare on Debian or Ubuntu:
-
-   sudo apt-get install qtcreator g++ qt4-qmake libqt4-dev libpoppler-qt4-dev libsane-dev libtiff4-dev cmake libpodofo-dev
-
-For Red Hat / Centos you will try some other approach similar to the above.
-
-
-To build:
-
-   qmake maxview.pro
-   make
-
-
-But if you have QT3 installed:
-
-$ qmake -v
-Qmake version: 1.07a (Qt 3.3.8b)
-Qmake is free software from Trolltech ASA.
-
-
-then you will need to force QT4:
-
-   qmake-qt4 maxview.pro
-   make
-
-
-
 
 Simon Glass
-chch-kiwi@users.sf.net
-May 2012
+sjg@chromium.org
+Feb 2017
