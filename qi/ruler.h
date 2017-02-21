@@ -19,7 +19,8 @@
 #ifndef RULER_H
 #define RULER_H
 
-#include <q3frame.h>
+#include <QFrame>
+
 #include "quiteinsanenamespace.h"
 /**
   *@author M. Herder
@@ -27,7 +28,7 @@
 //forward declarations
 class QPainter;
 
-class Ruler : public Q3Frame
+class Ruler : public QFrame
 {
 public:
 	Ruler( QWidget * parent=0, const char * name=0,Qt::Orientation o=Qt::Vertical, Qt::WFlags f=0);
