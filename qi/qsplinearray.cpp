@@ -16,7 +16,7 @@
 
 #include "qsplinearray.h"
 //Added by qt3to4:
-#include <Q3PointArray>
+#include <QPolygon>
 #include <math.h>
 #include <qrect.h>
 
@@ -28,7 +28,7 @@ QSplineArray::~QSplineArray()
 {
 }
 /**  */
-Q3PointArray QSplineArray::spline()
+QPolygon QSplineArray::spline()
 {
   sortCoords();
   int a;
@@ -39,7 +39,7 @@ Q3PointArray QSplineArray::spline()
   //if there are less then 3 control points, draw a line
   if(size()<3) return(line());
 
-  Q3PointArray parray;
+  QPolygon parray;
   parray.resize(0);
   index=0;
   int i,j;
@@ -57,7 +57,7 @@ Q3PointArray QSplineArray::spline()
   int num_points = (e-a)*2;
   double curve[num_points][4];
   double u,u2,u3;
-  if(!curve) return parray;
+
   parray.resize(e-a);
 
   for( i = 0; i < num_points; i++ )
@@ -72,7 +72,7 @@ Q3PointArray QSplineArray::spline()
     }
   }
 
-  unsigned int m;
+  int m;
   for (m = 0; m < size() - 1; m++)
   {
     //control points
@@ -140,13 +140,13 @@ void QSplineArray::sortCoords()
   mSorted=TRUE;
 }
 
-Q3PointArray QSplineArray::line()
+QPolygon QSplineArray::line()
 {
   sortCoords();
   int a;
   int y;
   int z;
-  Q3PointArray qpa;
+  QPolygon qpa;
   qpa.resize(0);
   for(z=0;z<int(size())-1;z++)
   {

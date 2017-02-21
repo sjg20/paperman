@@ -17,22 +17,22 @@
 #ifndef QSPLINEARRAY_H
 #define QSPLINEARRAY_H
 #define MAX_POINTS 200
-#include <q3pointarray.h>
-//s #include <qarray.h>
+
+#include <QPolygon>
 
 /**
   *@author M. Herder
   */
 
-class QSplineArray : public Q3PointArray
+class QSplineArray : public QPolygon
 {
 public: 
 	QSplineArray();
 	~QSplineArray();
   /**  */
-  Q3PointArray spline();
+  QPolygon spline();
   /**  */
-  Q3PointArray line();
+  QPolygon line();
 private: // Private attributes
   /**  */
   bool mSorted;
