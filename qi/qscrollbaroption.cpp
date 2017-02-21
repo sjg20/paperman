@@ -22,7 +22,7 @@
 #include <qstring.h>
 #include <qpixmap.h>
 #include <qimage.h>
-#include <Q3GridLayout>
+#include <QGridLayout>
 #include <sane/sane.h>
 #include <sane/saneopts.h>
 #include <qslider.h>
@@ -52,7 +52,9 @@ QScrollBarOption::~QScrollBarOption()
 /**  */
 void QScrollBarOption::initWidget()
 {
-  Q3GridLayout* qgl = new Q3GridLayout(this,3,4);
+  QGridLayout* qgl = new QGridLayout(this);
+  qgl->setContentsMargins(0, 0, 0, 0);
+  qgl->setSpacing(0);
 	mpTitleLabel = new QLabel(optionTitle(),this);
 	mpValueSlider = new QSlider(Qt::Horizontal,this);
   mpValueSlider->setTracking(FALSE);
@@ -61,7 +63,7 @@ void QScrollBarOption::initWidget()
   mpValueLabel->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 //create pixmap
   assignPixmap();
-	qgl->addMultiCellWidget(pixmapWidget(),0,2,0,0);
+    qgl->addWidget(pixmapWidget(),0,0,3,1);
 
 	qgl->addWidget(mpTitleLabel,0,2);
 	qgl->addWidget(mpValueSlider,2,2);
