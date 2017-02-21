@@ -69,11 +69,7 @@
 #include "qfiledialogext.h"
 #include "qmultilineeditpe.h"
 
-#ifndef USE_QT3
-#include "3rdparty/qtbackport/qprocess.h"
-#else
 #include <qprocess.h>
-#endif
 
 #include "qpreviewfiledialog.h"
 #include "qqualitydialog.h"
@@ -127,6 +123,7 @@
 QuiteInsane::QuiteInsane(Mode m,QWidget * parent,const char * name,WFlags f)
             :QMainWindow(parent,name,f)
 {
+  setAttribute(Qt::WA_DeleteOnClose);
   mpView = 0;
   mMode = m;
   mFilterRunning = false;
@@ -1231,7 +1228,7 @@ void QuiteInsane::loadImage(QString path)
     updateZoomMenu();
     set100PercentZoom();
   }
-  setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
 }
 /**  */
 void QuiteInsane::setImageModified(bool flag)
@@ -1452,8 +1449,8 @@ void QuiteInsane::slotStopOcr2()
   mpToolsSelectAll->setEnabled(true);
   mpFileOcrStartSelection->setEnabled(true);
   mpOcrMenu->setItemEnabled(ID_OCR_START_SELECTION,true);
-  setCursor(Qt::arrowCursor);
-  mpEditOcr->setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
+  mpEditOcr->setCursor(Qt::ArrowCursor);
 }
 /**  */
 void QuiteInsane::slotStopOcr()
@@ -1505,8 +1502,8 @@ void QuiteInsane::slotStopOcr()
   mpSettingsMenu->setEnabled(true);
   mpHelpMenu->setEnabled(true);
 
-  setCursor(Qt::arrowCursor);
-  mpEditOcr->setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
+  mpEditOcr->setCursor(Qt::ArrowCursor);
 }
 /**  */
 void QuiteInsane::slotReceivedStdout()
@@ -1667,7 +1664,7 @@ void QuiteInsane::loadText(QString qs)
      QMessageBox::warning(this,tr("Error"),
          tr("Could not open file.\n"),tr("OK"));	
   }
-  setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
 }
 void QuiteInsane::slotFileSaveText()
 {
@@ -2631,33 +2628,33 @@ void QuiteInsane::createIcons()
 {
   if(mMode == Mode_ImageOcr)
   {
-	  mpOpenImageIcon = new QIconSet(QPixmap((const char **)open_image_xpm));
-    mpSaveImageIcon = new QIconSet(QPixmap((const char **)save_image_xpm));
-    mpPrintImageIcon = new QIconSet(QPixmap((const char **)print_image_xpm));
-    mpSaveSelectionIcon = new QIconSet(QPixmap((const char **)saveselection_xpm));
-    mpPrintSelectionIcon = new QIconSet(QPixmap((const char **)printselection_xpm));
-    mpUndoImageIcon = new QIconSet(QPixmap((const char **)undo_xpm));
-    mpRedoImageIcon = new QIconSet(QPixmap((const char **)redo_xpm));
-    mpUndoTextIcon = new QIconSet(QPixmap((const char **)undo_text_xpm));
-    mpRedoTextIcon = new QIconSet(QPixmap((const char **)redo_text_xpm));
-    mpOcrIconOn = new QIconSet(QPixmap((const char **)splitterwindow_xpm));
-	  mpMoveSelectionIcon = new QIconSet(QPixmap((const char **)moveselection_xpm));
-	  mpNewSelectionIcon = new QIconSet(QPixmap((const char **)newselection_xpm));
-	  mpSelectAllIcon = new QIconSet(QPixmap((const char **)selectall_xpm));
-	  mpOpenTextIcon = new QIconSet(QPixmap((const char **)open_text_xpm));
-    mpSaveTextIcon = new QIconSet(QPixmap((const char **)save_text_xpm));
-    mpPrintTextIcon = new QIconSet(QPixmap((const char **)print_text_xpm));
-    mpOcrStartIcon = new QIconSet(QPixmap((const char **)startocr_xpm));
-    mpOcrSelectionIcon = new QIconSet(QPixmap((const char **)ocrselection_xpm));
-    mpOcrIconStop = new QIconSet(QPixmap((const char **)stop_xpm));
+	  mpOpenImageIcon = new QIcon(QPixmap((const char **)open_image_xpm));
+    mpSaveImageIcon = new QIcon(QPixmap((const char **)save_image_xpm));
+    mpPrintImageIcon = new QIcon(QPixmap((const char **)print_image_xpm));
+    mpSaveSelectionIcon = new QIcon(QPixmap((const char **)saveselection_xpm));
+    mpPrintSelectionIcon = new QIcon(QPixmap((const char **)printselection_xpm));
+    mpUndoImageIcon = new QIcon(QPixmap((const char **)undo_xpm));
+    mpRedoImageIcon = new QIcon(QPixmap((const char **)redo_xpm));
+    mpUndoTextIcon = new QIcon(QPixmap((const char **)undo_text_xpm));
+    mpRedoTextIcon = new QIcon(QPixmap((const char **)redo_text_xpm));
+    mpOcrIconOn = new QIcon(QPixmap((const char **)splitterwindow_xpm));
+	  mpMoveSelectionIcon = new QIcon(QPixmap((const char **)moveselection_xpm));
+	  mpNewSelectionIcon = new QIcon(QPixmap((const char **)newselection_xpm));
+	  mpSelectAllIcon = new QIcon(QPixmap((const char **)selectall_xpm));
+	  mpOpenTextIcon = new QIcon(QPixmap((const char **)open_text_xpm));
+    mpSaveTextIcon = new QIcon(QPixmap((const char **)save_text_xpm));
+    mpPrintTextIcon = new QIcon(QPixmap((const char **)print_text_xpm));
+    mpOcrStartIcon = new QIcon(QPixmap((const char **)startocr_xpm));
+    mpOcrSelectionIcon = new QIcon(QPixmap((const char **)ocrselection_xpm));
+    mpOcrIconStop = new QIcon(QPixmap((const char **)stop_xpm));
   }
   else
   {
-    mpOpenTextIcon = new QIconSet(QPixmap((const char **)open_text_xpm));
-    mpSaveTextIcon = new QIconSet(QPixmap((const char **)save_text_xpm));
-    mpPrintTextIcon = new QIconSet(QPixmap((const char **)print_text_xpm));
-    mpUndoTextIcon = new QIconSet(QPixmap((const char **)undo_text_xpm));
-    mpRedoTextIcon = new QIconSet(QPixmap((const char **)redo_text_xpm));
+    mpOpenTextIcon = new QIcon(QPixmap((const char **)open_text_xpm));
+    mpSaveTextIcon = new QIcon(QPixmap((const char **)save_text_xpm));
+    mpPrintTextIcon = new QIcon(QPixmap((const char **)print_text_xpm));
+    mpUndoTextIcon = new QIcon(QPixmap((const char **)undo_text_xpm));
+    mpRedoTextIcon = new QIcon(QPixmap((const char **)redo_text_xpm));
   }
 }
 /**  */
@@ -3011,7 +3008,7 @@ void QuiteInsane::setImage(QImage* image)
   setImageModified(false);
   updateZoomMenu();
   set100PercentZoom();
-  setCursor(Qt::arrowCursor);
+  setCursor(Qt::ArrowCursor);
 }
 /** No descriptions */
 void QuiteInsane::slotLocalImageUriDropped(QStringList urilist)

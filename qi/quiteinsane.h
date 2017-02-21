@@ -17,12 +17,9 @@
 #ifndef QUITEINSANE_H
 #define QUITEINSANE_H
 
-#include <q3valuelist.h>
 #include "resource.h"
 
 #include "imagebuffer.h"
-
-//s #include <qcstring.h>
 
 #ifdef KDEAPP
 #include <kmainwindow.h>
@@ -34,7 +31,7 @@
 #include <qpixmap.h>
 #include <qstring.h>
 #include <qtimer.h>
-#include <QIconSet>
+#include <QIcon>
 
 #include <qvector.h>
 ///////////////////////////////////////////////////////////////////
@@ -96,7 +93,7 @@ class QCloseEvent;
 class QComboBox;
 class QFileDialog;
 class QHBox;
-//class QIconSet;
+//class QIcon;
 class QImage;
 class QMenuBar;
 class QMessageBox;
@@ -132,7 +129,7 @@ class QuiteInsane : public QMainWindow
   };
   /**  */
   QuiteInsane(Mode m = Mode_ImageOcr,QWidget * parent = 0, const char * name = 0,
-                Qt::WFlags f = Qt::WType_TopLevel|Qt::WDestructiveClose);
+                Qt::WFlags f = Qt::Window);
   /**  */
   ~QuiteInsane();
   /**  */
@@ -248,26 +245,26 @@ private:
   int mYRes;
   /**  */
   QString mImagePath;
-  QIconSet* mpOpenImageIcon;
-  QIconSet* mpOpenTextIcon;
-  QIconSet* mpSaveImageIcon;
-  QIconSet* mpSaveTextIcon;
-  QIconSet* mpOcrIconOn;
-  QIconSet* mpOcrIconStop;
-  QIconSet* mpPrintTextIcon;
-  QIconSet* mpPrintImageIcon;
-  QIconSet* mpOcrIcon;
-  QIconSet* mpOcrStartIcon;
-  QIconSet* mpUndoImageIcon;
-  QIconSet* mpRedoImageIcon;
-  QIconSet* mpUndoTextIcon;
-  QIconSet* mpRedoTextIcon;
-  QIconSet* mpMoveSelectionIcon;
-  QIconSet* mpNewSelectionIcon;
-  QIconSet* mpSelectAllIcon;
-  QIconSet* mpPrintSelectionIcon;
-  QIconSet* mpSaveSelectionIcon;
-  QIconSet* mpOcrSelectionIcon;
+  QIcon* mpOpenImageIcon;
+  QIcon* mpOpenTextIcon;
+  QIcon* mpSaveImageIcon;
+  QIcon* mpSaveTextIcon;
+  QIcon* mpOcrIconOn;
+  QIcon* mpOcrIconStop;
+  QIcon* mpPrintTextIcon;
+  QIcon* mpPrintImageIcon;
+  QIcon* mpOcrIcon;
+  QIcon* mpOcrStartIcon;
+  QIcon* mpUndoImageIcon;
+  QIcon* mpRedoImageIcon;
+  QIcon* mpUndoTextIcon;
+  QIcon* mpRedoTextIcon;
+  QIcon* mpMoveSelectionIcon;
+  QIcon* mpNewSelectionIcon;
+  QIcon* mpSelectAllIcon;
+  QIcon* mpPrintSelectionIcon;
+  QIcon* mpSaveSelectionIcon;
+  QIcon* mpOcrSelectionIcon;
   //config
   int mViewerSizeX;
   int mViewerSizeY;
@@ -277,24 +274,24 @@ private:
   int mSingleFileViewMode;
   QString mViewerSaveTextPath;
   QString mViewerLoadImagePath;
-  Q3ValueList<int> mSplitterSize;
-  Qt::ToolBarDock mToolDock;
+  QList<int> mSplitterSize;
+//  Qt::ToolBarDock mToolDock;
   int mToolIndex;
   int mToolExtraOffset;
   bool mToolNl;
-  Qt::ToolBarDock mToolDockOcrOff;
+//  Qt::ToolBarDock mToolDockOcrOff;
   int mToolIndexOcrOff;
   int mToolExtraOffsetOcrOff;
   bool mToolNlOcrOff;
-  Qt::ToolBarDock mTextDock;
+//  Qt::ToolBarDock mTextDock;
   int mTextIndex;
   int mTextExtraOffset;
   bool mTextNl;
-  Qt::ToolBarDock mImageDock;
+//  Qt::ToolBarDock mImageDock;
   int mImageIndex;
   int mImageExtraOffset;
   bool mImageNl;
-  Qt::ToolBarDock mImageDockOcrOff;
+//  Qt::ToolBarDock mImageDockOcrOff;
   int mImageIndexOcrOff;
   int mImageExtraOffsetOcrOff;
   bool mImageNlOcrOff;
