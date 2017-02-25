@@ -259,19 +259,6 @@ image is saved to .scantemp.pnm.*/
   void resizeScanArea();
   /** No descriptions */
   void setPreviewRange();
-  /** No descriptions */
-  void scanInTemporaryMode();
-  /** No descriptions */
-  void scanInSingleFileMode();
-  /** No descriptions */
-  void scanInCopyPrintMode();
-  /** No descriptions */
-  void scanInMultiScanMode();
-  /** No descriptions */
-  void scanInOcrMode();
-  /** No descriptions */
-  void scanInSaveMode();
-  /** No descriptions */
   QSaneOption* createSaneOptionWidget(QWidget* parent,int opt_num);
   /** No descriptions */
   void checkOptionValidity(int opt_num);
@@ -321,8 +308,6 @@ public slots:
   void slotShowOptionsWidget();
 
 private slots:
-  /**  */
-  void slotScan();
   /**  */
 //   void slotPreview(double tlx,double tly,double brx,double bry,int res);
   /**  */
