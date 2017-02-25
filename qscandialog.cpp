@@ -27,38 +27,22 @@
 #include "err.h"
 
 #include "images/setup.xpm"
-//s #include "images/image.xpm"
 #include "images/maxview.xpm"
 #include "images/fileopen.xpm"
-//s #include "fileiosupporter.h"
-//s #include "imagehistorybrowser.h"
-//s #include "imageiosupporter.h"
 #include "previewwidget.h"
 #include "qbooloption.h"
 #include "qbuttonoption.h"
 #include "qcombooption.h"
-//s #include "qcopyprint.h"
 #include "qdevicesettings.h"
-//s #include "qfiledialogext.h"
 #include "qlistviewitemext.h"
-//s #include "qdraglabel.h"
 #include "qextensionwidget.h"
-//s #include "qfilelistwidget.h"
-//s #include "qhtmlview.h"
-//s #include "qimageioext.h"
-//s #include "qmultiscan.h"
 #include "qoptionscrollview.h"
-//s #include "qocrprogress.h"
-//s #include "qpreviewfiledialog.h"
-//s #include "qqualitydialog.h"
 #include "qreadonlyoption.h"
 #include "qscannersetupdlg.h"
 #include "qscrollbaroption.h"
 #include "qscandialog.h"
 #include "qsanestatusmessage.h"
 #include "qstringoption.h"
-//s #include "qswitchoffmessage.h"
-//s #include "quiteinsane.h"
 #include "qwordarrayoption.h"
 #include "qwordcombooption.h"
 #include "qxmlconfig.h"
@@ -71,7 +55,6 @@
 #include "scanarea.h"
 
 #include <qapplication.h>
-//s #include <qarray.h>
 #include <qcheckbox.h>
 #include <qcolor.h>
 #include <qcombobox.h>
@@ -85,7 +68,6 @@
 #include <qlabel.h>
 #include <qlayout.h>
 #include <qlineedit.h>
-//s #include <qlist.h>
 #include <qmessagebox.h>
 #include <qnamespace.h>
 #include <qobject.h>
@@ -116,10 +98,7 @@ extern "C"
 #include <sane/sane.h>
 }
 
-
 #define PAGE_SIZE_MARGIN  0
-//(1 << (SANE_FIXED_SCALE_SHIFT - 3))
-
 
 
 QScanDialog::QScanDialog(QScanner* s,QWidget *parent, const char *name,Qt::WFlags f)
@@ -179,29 +158,6 @@ QIN::Status QScanDialog::initDialog()
 
   mpMainLayout->addLayout(mpInfoHBox,0,0);
 
-#if 0 //s
-//Mode selection
-  mpModeHBox = new QHBoxLayout(this);
-  QLabel* modelabel = new QLabel(tr("Mode"),mpModeHBox);
-  mpModeHBox->setStretchFactor(modelabel,1);
-  mpModeCombo = new QComboBox(FALSE,mpModeHBox);
-  mpModeCombo->insertItem(tr("Temporary/Internal viewer"));
-  mpModeCombo->insertItem(tr("Single file"));
-  mpModeCombo->insertItem(tr("OCR"));
-  mpModeCombo->insertItem(tr("Copy/Print"));
-  mpModeCombo->insertItem(tr("Multi scan"));
-  mpModeCombo->insertItem(tr("Save"));
-  connect(mpModeCombo,SIGNAL(activated(int)),this,SLOT(slotChangeMode(int)));
-
-  mpDragLabel = new QDragLabel(mpModeHBox);
-  mpDragLabel->setFilename(xmlConfig->absConfDirPath()+".scantemp.pnm");
-  QToolTip::add(mpDragLabel,tr("Drag and drop"));
-  QPixmap* pix2 = new QPixmap((const char **)image_xpm);
-  if(pix2) mpDragLabel->setPixmap(*pix2);
-  mpModeHBox->setSpacing(2);
-  mpMainLayout->addWidget(mpModeHBox,1,0);
-#endif
-
 //create help viewer
 //s  mpHelpViewer = new QHTMLView(0);
 //s  connect(mpHelpButton,SIGNAL(clicked()),this,SLOT(slotShowHelp()));
@@ -252,7 +208,6 @@ QIN::Status QScanDialog::initDialog()
   mpDragTypeCombo->setCurrentIndex(xmlConfig->intValue("DRAG_IMAGE_TYPE"));
   mpDragLineEdit->setText(xmlConfig->stringValue("DRAG_FILENAME"));
   mpAutoNameCheckBox->setChecked(xmlConfig->boolValue("DRAG_AUTOMATIC_FILENAME"));
-  connect(tb1,SIGNAL(clicked()),this,SLOT(slotChangeFilename()));
   connect(tb2,SIGNAL(clicked()),this,SLOT(slotImageSettings()));
   connect(pb_setfn,SIGNAL(clicked()),this,SLOT(slotFilenameGenerationSettings()));
   connect(mpDragTypeCombo,SIGNAL(activated(int)),
@@ -271,32 +226,15 @@ QIN::Status QScanDialog::initDialog()
     mpOptionsButton = new QPushButton(tr("&Options..."));
     mpButtonHBox1->addWidget(mpOptionsButton);
   connect(mpOptionsButton,SIGNAL(clicked()),this,SLOT(slotShowOptionsWidget()));
-#if 0 //s
-  mpViewerButton = new QPushButton(tr("&Viewer..."),mpButtonHBox1);
-  connect(mpViewerButton,SIGNAL(clicked()),this,SLOT(slotViewer()));
-#endif //s
     mpPreviewButton = new QPushButton(tr("&Preview..."));
     mpButtonHBox1->addWidget(mpPreviewButton);
-#if 0 //s
-	mpMultiScanButton = new QPushButton(tr("&Multi scan..."),mpButtonHBox1);
-  mpMultiScanButton->setEnabled(FALSE);
-  connect(mpMultiScanButton,SIGNAL(clicked()),this,SLOT(slotShowMultiScanWidget()));
-#endif
 
 //second button row
   mpButtonHBox2 = new QHBoxLayout();
   mpButtonHBox2->setSpacing(2);
-#if 0 //s
-  mpBrowserButton = new QPushButton(tr("History/&Browser..."),mpButtonHBox2);
-  connect(mpBrowserButton,SIGNAL(clicked()),this,SLOT(slotShowBrowser()));
-#endif //s
   mpDeviceButton = new QPushButton(tr("&Device settings..."));
   mpButtonHBox2->addWidget(mpDeviceButton);
   connect(mpDeviceButton,SIGNAL(clicked()),this,SLOT(slotDeviceSettings()));
-#if 0 //s
-	mpScanButton = new QPushButton(tr("&Scan"),mpButtonHBox2);
-  connect(mpScanButton,SIGNAL(clicked()),SLOT(slotScan()));
-#endif //s
     mpQuitButton = new QPushButton(tr("&Close"));
     mpButtonHBox2->addWidget(mpQuitButton);
   connect(mpQuitButton,SIGNAL(clicked()),this,SLOT(close()));
@@ -305,21 +243,6 @@ QIN::Status QScanDialog::initDialog()
 	mpMainLayout->activate();
   slotReloadOptions();//check which options are active
 
-#if 0 //s
-//image/history browser
-  mpHistoryWidget = new ImageHistoryBrowser(0,0);
-  mpHistoryWidget->setHistoryFilename(xmlConfig->absConfDirPath()+"history.xml");
-  connect(mpHistoryWidget,SIGNAL(signalItemDoubleClicked(QString)),
-          this,SLOT(slotShowImage(QString)));
-//multi scan widget
-  mpMultiScanWidget = new QMultiScan(0,"",Qt::WType_TopLevel | Qt::WStyle_Title |
-                                    Qt::WStyle_DialogBorder | Qt::WStyle_ContextHelp |
-                                    Qt::WStyle_SysMenu | Qt::WStyle_Customize);
-  mpMultiScanWidget->createContents();
-  connect(mpMultiScanWidget,SIGNAL(signalStartScan()),this,SLOT(slotScan()));
-  connect(mpMultiScanWidget,SIGNAL(signalImageSaved(QString)),this,
-          SLOT(slotAddImageToHistory(QString)));
-#endif //s
   if(mpPreviewWidget)
 	{
     //horizontal separator
@@ -405,28 +328,6 @@ void QScanDialog::slotUserSize(int)
                                mpBrxOption->getPercentValue(),
                                mpBryOption->getPercentValue());
 }
-
-
-#if 0
-/**  */
-void QScanDialog::slotPreview(double tlx,double tly,double brx,double bry,int res)
-{
-  enableGUI(false,true);
-  if(scanPreviewImage(tlx,tly,brx,bry,res))
-  {
-    mpPreviewWidget->loadPreviewPixmap(xmlConfig->absConfDirPath()+".previewtemp.pnm");
-    if(xmlConfig->boolValue("AUTOSELECT_ENABLE",false) &&
-       !(xmlConfig->boolValue("AUTOSELECT_TEMPLATE_DISABLE",true) &&
-         (mMultiSelectionMode == true)))
-    {
-      mpPreviewWidget->slotAutoSelection();
-    }
-  }
-  enableGUI(true,true);
-}
-#endif
-
-
 
 QSaneOption *QScanDialog::findOption (QString name, int option_type)
 {
@@ -907,19 +808,6 @@ void QScanDialog::slotReloadOptions()
   //main dialog (== isn't a toplevel widget).
   if(mLayout == QIN::ScrollLayout)
   {
-//s remove soon
-//     for(int c=0;c<mGroupBoxArray.size();c++)
-//     {
-//       QGroupBox *qgb=(QGroupBox*)mGroupBoxArray[c];
-//       QVBoxLayout *vbox = (QVBoxLayout *)qgb->layout ();
-//       vbox->update ();
-// printf ("qgb size %d,%d\n", vbox->minimumSize ().width (), vbox->minimumSize ().height ());
-//       qgb->setMaximumHeight(vbox->minimumSize ().height ());
-//       vbox->update ();
-//       qgb->setMaximumSize(vbox->minimumSize ());
-//     }
-//       mpMainLayout->update ();
-//     mpMainWidget->setMinimumSize(mpMainLayout->minimumSize ());
     QWidget *w = mpOptionScrollView->widget ();
     w->setMinimumSize(w->layout ()->minimumSize ());
   }
@@ -1303,15 +1191,6 @@ void QScanDialog::slotShowOptionsWidget()
         if(visible) slotShowPreviewWidget();
       }
     }
-#if 0 //s
-    int scanmode;
-    scanmode = xmlConfig->intValue("SCAN_MODE");
-    if(scanmode == int(QIN::MultiScan))
-    {
-      if(ew.filenameGenerationChanged() && (mpMultiScanWidget != 0))
-        mpMultiScanWidget->createContents();
-    }
-#endif //s
   }
 }
 /**  */
@@ -1364,17 +1243,7 @@ void QScanDialog::slotAbout()
   qmb.exec();
 }
 /**  */
-void QScanDialog::slotShowMultiScanWidget()
-{
-#if 0 //s
-  if(!mpMultiScanWidget) return;
-  //crappy qt bug workaround
-	if(mpMultiScanWidget->isMinimized())
-    mpMultiScanWidget->hide();
-	mpMultiScanWidget->show();
-	mpMultiScanWidget->raise();
-#endif //s
-}
+
 /** No descriptions */
 QSaneOption* QScanDialog::createSaneOptionWidget(QWidget* parent,int opt_num)
 {
@@ -1832,20 +1701,6 @@ void QScanDialog::slotPreviewSize(QRect rect)
   mpTlxOption->setValueExt(tlx1);
   mpTlyOption->setValueExt(tly1);
 }
-/**  */
-void QScanDialog::slotResizeScanRect()
-{
-#if 0
-  double tlx,tly,brx,bry;
-  tlx = mpTlxOption->getPercentValue();
-  tly = mpTlyOption->getPercentValue();
-  brx = mpBrxOption->getPercentValue();
-  bry = mpBryOption->getPercentValue();
-  mpPreviewWidget->setRectSize(tlx,tly,brx,bry);
-#endif
-}
-/**  */
-
 
 void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
 {
@@ -2304,92 +2159,6 @@ void QScanDialog::slotInfoInexact(int num)
 void QScanDialog::closeEvent(QCloseEvent* e)
 {
   e = e;
-#if 0 //s
-  mpScanner->setAppCancel(true);
-  mpScanner->cancel();
-  int unsavedtextcount = 0;
-  int unsavedimagecount = 0;
-  int notprintedcount = 0;
-  int exit = 0;
-  QWidgetList  *list = QApplication::topLevelWidgets();
-  QWidgetListIt it( *list );  // iterate over the widgets
-  QWidget * w;
-  QuiteInsane* qi;
-  QCopyPrint* qcp;
-  while ( (w=it.current()) != 0 )
-  {
-    ++it;
-    if(w->isA("QuiteInsane"))
-    {
-      qi = (QuiteInsane*) w;
-      qi->slotStopOcr(); //sufficient?
-      if (qi->imageModified())
-        unsavedimagecount+=1;
-      else if (qi->textModified())
-        unsavedtextcount +=1;
-      else //close it
-        qi->close();
-    }
-    if(w->isA("QCopyPrint"))
-    {
-      qcp = (QCopyPrint*) w;
-      //only query those QCopyPrint objects, which where
-      //instantiated in Copy/Print mode (== the modeless)
-      if (!qcp->printed() && !qcp->isModal()) notprintedcount +=1;
-    }
-  }
-  delete list;
-  QString mstring;
-  mstring = "";
-  if(unsavedimagecount>0)
-  {
-     mstring += tr("At least one image has not been saved.");
-     mstring += "\n";
-  }
-  if(unsavedtextcount>0)
-  {
-     mstring += tr("At least one text has not been saved.");
-     mstring += "\n";
-  }
-  if(notprintedcount>0)
-  {
-     mstring += tr("At least one image has not been printed.");
-     mstring += "\n";
-  }
-  if(mstring != "")
-  {
-    mstring += "\n";
-    mstring += tr("Do you really want to quit?");
-    mstring += "\n";
-    mstring += tr("All data will be lost.");
-    exit=QMessageBox::warning(this, "Quit...",mstring,
-                              QMessageBox::Yes, QMessageBox::No);
-  }
-  if(exit == QMessageBox::No)
-  {
-    e->ignore();
-    return;
-  }
-  else
-  {
-    //we explicitly call close() for the widgets that use temporary files;
-    //otherwise the files don't get deleted
-    QWidgetList  *list = QApplication::topLevelWidgets();
-    QWidgetListIt it(*list);  // iterate over the widgets
-    QWidget * w;
-    QuiteInsane* qi;
-    while ( (w=it.current()) != 0 )
-    {
-      ++it;
-      if(w->isA("QuiteInsane"))
-      {
-        qi = (QuiteInsane*) w;
-        qi->setImageModified(false);
-        qi->close();
-      }
-    }
-  }
-#endif
   xmlConfig->writeConfigFile();
   QDeviceSettings ds(mpScanner);
   ds.saveDeviceSettings("Last settings");
@@ -2397,41 +2166,7 @@ void QScanDialog::closeEvent(QCloseEvent* e)
   {
     QFile::remove(xmlConfig->absConfDirPath()+"history.xml");
   }
-#if 0 //s
-  else if(mpHistoryWidget)
-  {
-    mpHistoryWidget->saveHistory();
-  }
-  mpScanner->close();//calls sane_cancel() if neccessary
-  e->accept();
-  emit signalQuit();
-#endif //s
   emit closed ();
-}
-
-/**  */
-void QScanDialog::slotViewer()
-{
-#if 0 //s
-/////////////////////////////////////////////////////////
-//This means, we open the temporary file in QuiteInsanes
-//internal viewer.
-//If something went wrong while saving, the user can always
-//access the last image
-  QuiteInsane* qi = new QuiteInsane(QuiteInsane::Mode_ImageOcr,0);
-  if(!qi->statusOk())
-  {
-    QMessageBox::warning(0,tr("Error"),
-                         tr("Could not create image viewer."),tr("Cancel"));
-
-    delete qi;
-    return;
-  }
-  connect(qi,SIGNAL(signalImageSaved(QString)),this,
-          SLOT(slotAddImageToHistory(QString)));
-  qi->show();
-  qi->loadImage(xmlConfig->absConfDirPath()+".scantemp.pnm");
-#endif //s
 }
 
 /**  */
@@ -2462,18 +2197,6 @@ void QScanDialog::slotChangeMode(int index)
     default://huh, shouldn't happen ?
       scan_mode = QIN::SingleFile;
   }
-#if 0 //s
-  if(scan_mode == QIN::MultiScan)
-  {
-    mpMultiScanButton->setEnabled(true);
-    slotShowMultiScanWidget();
-  }
-  else
-  {
-    mpMultiScanButton->setEnabled(FALSE);
-    mpMultiScanWidget->hide();
-  }
-#endif
   if(scan_mode == QIN::Direct)
   {
 //    mpDragHBox1->show();
@@ -2704,71 +2427,7 @@ void QScanDialog::slotImageSettings()
   ew.setPage(4);
   ew.exec();
 }
-/**  */
-void QScanDialog::slotChangeFilename()
-{
-#if 0 //s
-  ImageIOSupporter iosupp;
-  QStringList filters;
-  QString format;
-  QString qs;
 
-  qs = QFileInfo(mpDragLineEdit->text()).dirPath(true);
-  QFileDialogExt qfd(qs,0,this,0,true);
-  qfd.setWindowTitle(tr("Choose filename for saving"));
-  format =xmlConfig->stringValue("VIEWER_IMAGE_TYPE");
-  filters = iosupp.getOrderedOutFilterList(format);
-  qfd.setFilters(filters);
-  qfd.setMode(Q3FileDialog::AnyFile);
-  qfd.setViewMode((Q3FileDialog::ViewMode)xmlConfig->intValue("SINGLEFILE_VIEW_MODE"));
-  if(qfd.exec())
-  {
-    mpDragLineEdit->setText(qfd.selectedFile());
-  }
-  xmlConfig->setIntValue("SINGLEFILE_VIEW_MODE",qfd.intViewMode());
-#endif //s
-}
-/**  */
-void QScanDialog::slotShowBrowser()
-{
-#if 0 //s
-  if(!mpHistoryWidget) return;
-  //crappy qt bug workaround
-  if(mpHistoryWidget->isMinimized())
-    mpHistoryWidget->hide();
-  mpHistoryWidget->show();
-  mpHistoryWidget->raise();
-#endif //s
-}
-/**  */
-void QScanDialog::slotShowImage(QString filename)
-{
-  filename = filename;
-#if 0 //s
-  QuiteInsane* qi = new QuiteInsane(QuiteInsane::Mode_ImageOcr,0);
-  if(!qi->statusOk())
-  {
-    QMessageBox::warning(0,tr("Error"),
-                         tr("Could not create image viewer."),tr("Cancel"));
-
-    delete qi;
-    return;
-  }
-  connect(qi,SIGNAL(signalImageSaved(QString)),this,
-          SLOT(slotAddImageToHistory(QString)));
-  qi->show();
-  qi->loadImage(filename);
-#endif //s
-}
-/**  */
-void QScanDialog::slotAddImageToHistory(QString abspath)
-{
-  abspath = abspath;
-#if 0 //s
-  if(!mpHistoryWidget) return;
-  mpHistoryWidget->addHistoryItem(abspath);
-#endif //s
-}
 /** No descriptions */
 void QScanDialog::slotMultiSelectionMode(bool state)
 {
@@ -2879,84 +2538,6 @@ void QScanDialog::setPreviewRange()
   mpPreviewWidget->setAspectRatio(ar);
   mpPreviewWidget->setRange (scan.Xmin (), scan.Xmax (), scan.Ymin (), scan.Ymax (),
         page.Xmax (), page.Ymax ());
-
-#if 0
-  //normally 0, but you never know
-  pos.x_min = mpTlxOption->minValue();
-  pos.y_min = mpTlyOption->minValue();
-  //max vals
-  pos.x_max = mpBrxOption->maxValue();
-  pos.y_max = mpBryOption->maxValue();
-
-  if(unit == SANE_UNIT_MM)
-  {
-    //If unit is MM, then we can simply check for the min and max
-    //values of the scan area options, since they won't change if
-    //the resolution changes (unless some drunken backend author
-    //has better ideas :-)
-    double ar;
-    ar = double(x_max-x_min)/double(y_max-y_min);
-    mpPreviewWidget->setAspectRatio(ar);
-    if(type == SANE_TYPE_INT)
-    {
-      mpPreviewWidget->setRange(double(x_min),double(x_max),
-                                double(y_min),double(y_max));
-    }
-    else if(type == SANE_TYPE_FIXED)
-    {
-      mpPreviewWidget->setRange(SANE_UNFIX(x_min),SANE_UNFIX(x_max),
-                                SANE_UNFIX(y_min),SANE_UNFIX(y_max));
-    }
-  }
-  else if(unit == SANE_UNIT_PIXEL)
-  {
-    int resx,resy;
-    //try to find xresolution
-    resx = mpScanner->xResolution();
-    if(resx > 0)
-    {
-       //try to find yresolution
-       resy = mpScanner->yResolution();
-       if(resy <= 0)
-       {
-         //no yres, use xres instead
-         resy = resx;
-       }
-    }
-    else
-    {
-      //no resolution settings at all
-      resx = 1;
-      resy = 1;
-    }
-    //This should normally be of SANE_TYPE_INT, but again: you
-    //never know ...
-    double d_minx,d_maxx,d_miny,d_maxy;
-    d_minx = 0.0;
-    d_maxx = 0.0;
-    d_miny = 0.0;
-    d_maxy = 0.0;
-    if(type == SANE_TYPE_INT)
-    {
-      d_minx = double(x_min);
-      d_maxx = double(x_max);
-      d_miny = double(y_min);
-      d_maxy = double(y_max);
-    }
-    else if(type == SANE_TYPE_FIXED)
-    {
-      d_minx = SANE_UNFIX(x_min);
-      d_maxx = SANE_UNFIX(x_max);
-      d_miny = SANE_UNFIX(y_min);
-      d_maxy = SANE_UNFIX(y_max);
-    }
-    double ar;
-    ar = ((d_maxx-d_minx)/double(resx))/((d_maxy-d_miny)/double(resy));
-    mpPreviewWidget->setAspectRatio(ar);
-    mpPreviewWidget->setRange(d_minx,d_maxx,d_miny,d_maxy);
-  }
-#endif
-
 }
 /** No descriptions */
 void QScanDialog::resizeEvent(QResizeEvent* e)

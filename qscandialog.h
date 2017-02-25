@@ -289,8 +289,6 @@ public slots:
   /**  */
   void slotPreviewSize(QRect rect);
   /**  */
-  void slotResizeScanRect();
-  /**  */
   void slotSetPredefinedSize(ScanArea* sca);
 
   /** do any pending changes */
@@ -302,15 +300,11 @@ public slots:
 
 private slots:
   /**  */
-//   void slotPreview(double tlx,double tly,double brx,double bry,int res);
-  /**  */
   void slotReloadOptions();
   /**  */
   void slotShowPreviewWidget();
   /**  */
   void slotAbout();
-  /**  */
-  void slotShowMultiScanWidget();
   /**  */
   void slotImageInfo();
   /** This slot is called, when setting an option results
@@ -318,8 +312,6 @@ in an return value SANE_INFO_INEXACT.
 This normally happens, when the value set in
 the backend  is different from the requested value. */
   void slotInfoInexact(int num);
-  /**  */
-  void slotViewer();
   /**  */
   void slotChangeMode(int index);
   /**  */
@@ -335,19 +327,11 @@ the backend  is different from the requested value. */
   /**  */
   void slotImageSettings();
   /**  */
-  void slotChangeFilename();
-  /**  */
   void slotDragType(int index);
   /**  */
   void slotAutoName(bool b);
   /**  */
   void slotDragFilename(const QString& qs);
-  /**  */
-  void slotShowBrowser();
-  /**  */
-  void slotShowImage(QString filename);
-  /**  */
-  void slotAddImageToHistory(QString abspath);
   /** No descriptions */
   void slotMultiSelectionMode(bool state);
   /** No descriptions */
