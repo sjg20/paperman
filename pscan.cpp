@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QDebug>
+#include <QProcess>
 #include <QSettings>
 
 #include "pscan.h"
@@ -238,7 +239,7 @@ void Pscan::reset_clicked()
 //    size->setCurrentItem (_a4_id);
    _scanDialog->setDuplex (false);
    _scanDialog->setDpi (300);
-   _preview->setSize (_a4_id);
+   _preview->setSize (_default_papersize_id);
 //   scannerChanged (_scanner);
 }
 
@@ -308,7 +309,23 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
    int i = 0;
 
    pageSize->clear ();
-   _a4_id = widget->getPreDefA4 ();
+   _default_papersize_id = widget->getPreDefA4 ();
+
+   QProcess paperconf;
+   paperconf.start("paperconf", QStringList());
+   if (paperconf.waitForStarted())
+   {
+      if (paperconf.waitForFinished())
+      {
+          QString size = QString(paperconf.readAll()).trimmed();
+
+          // We should really look this up by name.
+          if (size == "letter")
+              _default_papersize_id = widget->getPreDefLetter ();
+          else
+              _default_papersize_id = widget->getPreDefA4 ();
+      }
+   }
 
    do
    {
@@ -317,10 +334,10 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
          pageSize->addItem (name);
    } while (!name.isEmpty());
    _preview = widget;
-   if (_a4_id != -1)
+   if (_default_papersize_id != -1)
    {
 //      _preview->setSize (_a4_id);
-      pageSize->setCurrentIndex (_a4_id);
+      pageSize->setCurrentIndex (_default_papersize_id);
    }
 }
 

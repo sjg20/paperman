@@ -106,6 +106,7 @@ public:
 
   /** get the id of the A4 paper size */
   int getPreDefA4 (void) { return mPreDefA4; }
+  int getPreDefLetter (void) { return mPreDefLetter; }
 
   // Dummy version since we don't need this to work. It is supposed to
   // emulator isTopLevel() from QT3.
@@ -226,8 +227,9 @@ private:
   // list of predefined paper sizes
   PredefinedSizes *mPreDefs;
 
-  // id of the A4 size
+  // id of the A4 and US letter sizes
   int mPreDefA4;
+  int mPreDefLetter;
 
   /**  */
   void initWidget();
