@@ -238,13 +238,6 @@ private: //methods
 	QIN::Status initDialog();
   /**  */
   void changeLayout(QIN::Layout l);
-  /** Do a scan with the current settings. Return false
-if an error occurs. Otherwise true is returned and the
-image is saved to .scantemp.pnm.*/
-  bool scanImage(bool pre = false,bool adf_warning=true,QWidget* parent=0);
-  /**  */
-  bool scanPreviewImage(double tlx=0.0,double tly=0.0,
-                        double brx=1.0,double bry=1.0,int res=50);
   /**  */
   void enableGUI(bool enable,bool preview_scan=false);
   /**  */
