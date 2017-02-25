@@ -70,7 +70,7 @@ protected:
     PreviewWidget *_preview;
     QScanner *_scanner;
     Mainwidget *_main;
-    int _a4_id;
+    int _default_papersize_id;
     QScanDialog *_scanDialog;
 
 protected slots:
