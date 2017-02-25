@@ -82,7 +82,7 @@ void QScrollBarOption::setRange(int min,int max,int quant)
   mQuant = quant;
   mMinVal = min;
   mMaxVal = max;
-  mpValueSlider->blockSignals(true);
+//  mpValueSlider->blockSignals(true);
 	if(mSaneValueType == SANE_TYPE_FIXED)
   {
     mMinVal = int(SANE_UNFIX(min) * 100.0);
@@ -133,7 +133,7 @@ void QScrollBarOption::setRange(int min,int max,int quant)
     wwidth = fm.width(qs);
   wwidth += fm.width(mUnitString + "00");
   mpValueLabel->setFixedWidth(wwidth);
-  mpValueSlider->blockSignals(false);
+//  mpValueSlider->blockSignals(false);
 }
 /**  */
 void QScrollBarOption::slotValueChanged(int value)
