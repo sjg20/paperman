@@ -222,6 +222,7 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
     if (isRoot (parent))
        parent = _item [parent.row ()]->index ();
     qDebug() << "Dirmodel::mkdir2" << parent << isRoot (parent) << parent.isValid ();
+    parent = index (path);
     if (parent.isValid ())
        refresh (parent);
 
