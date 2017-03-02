@@ -22,7 +22,7 @@ library. This is used for PDF operations.
 
 This is the sane scanner library.
 
-- libtiff4-dev
+- libtiff5-dev
 
 This is the tiff library
 
@@ -39,7 +39,7 @@ These are needed for OCR (Optical Character Recognition).
 In summary, to prepare on Debian / Ubuntu:
 
    sudo apt-get install qtcreator g++ qt4-qmake libqt4-dev libpoppler-qt4-dev \
-         libsane-dev libtiff4-dev cmake libpodofo-dev imagemagick \
+         libsane-dev libtiff5-dev cmake libpodofo-dev imagemagick \
          tesseract-ocr tesseract-ocr-eng
 
 For Red Hat / Centos you will try some other approach similar to the above.
