@@ -70,15 +70,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "resource.h"
 #include "ui_printopt.h"
 
-
-
-#if QT_VERSION >= 0x040400 && defined (Q_WS_X11)
-
-// put the maxview options in tabs if we can, otherwise add a button
-#define OPTION_TABS
-#endif
-
-
 Mainwidget::Mainwidget (QWidget *parent, const char *name)
       : QStackedWidget (parent)
    {
@@ -999,16 +990,10 @@ void Mainwidget::print (void)
    dialog.layout()->addWidget(save);
    connect (save, SIGNAL (clicked ()), this, SLOT (savePrintSettings ()));
 
-#ifdef OPTION_TABS
    QList<QWidget*> tabs;
 
    tabs << _opt;
    dialog.setOptionTabs (tabs);
-#else
-   QPushButton *options = new QPushButton ("Maxview...");
-   dialog.addButton (options);
-   connect (options, SIGNAL (clicked ()), this, SLOT (openPrintopt ()));
-#endif
    _saved = false;
 
    int result = dialog.exec ();
