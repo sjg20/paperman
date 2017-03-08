@@ -808,7 +808,8 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose)
       if (image.isNull ())
          continue;
 
-      QByteArray ba = QByteArray::fromRawData ((const char *)image.bits (), image.numBytes ());
+      QByteArray ba = QByteArray::fromRawData ((const char *)image.bits (),
+                                               image.byteCount ());
 
 //       int stride = (trueSize.width () * bpp + 7) / 8;
       int stride = image.bytesPerLine ();
@@ -1068,7 +1069,7 @@ QByteArray Filepage::copyData (bool invert, bool force_24bpp) const
 #ifdef USE_24BPP
       image = image.convertToFormat (QImage::Format_RGB888);
       data = image.bits ();
-      size = image.numBytes ();
+      size = image.byteCount ();
       stride = image.bytesPerLine ();
 #else
       stride = stride8;
@@ -1144,20 +1145,20 @@ QByteArray Filepage::getThumbnailRaw (bool invert, QImage &image,
 //    qDebug () << image.width () << image.bytesPerLine ();
 //    image.save ("/tmp/1.jpg");
    QByteArray ba;
-   ba.reserve (image.numBytes ());
+   ba.reserve (image.byteCount ());
    QBuffer buffer(&ba);
    buffer.open(QIODevice::WriteOnly);
    int stride = image.bytesPerLine ();
    int req_stride = image.width () * image.depth () / 8;
    if (word_align || stride == req_stride)
-      buffer.write ((const char *)image.bits (), image.numBytes ());
+      buffer.write ((const char *)image.bits (), image.byteCount ());
    else
       {
       // we must copy line by line
       for (int y = 0; y < image.height (); y++)
          buffer.write ((const char *)image.scanLine (y), req_stride);
       }
-   qDebug () << "thumbnail" << image.numBytes () << ba.size ();
+   qDebug () << "thumbnail" << image.byteCount () << ba.size ();
    return ba;
    }
 
