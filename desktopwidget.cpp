@@ -294,8 +294,7 @@ QWidget *Desktopwidget::createToolbar(void)
    findgroup->setLayout (hboxLayout2);
 
    QLabel *label = new QLabel (findgroup);
-   label->setText(QApplication::translate("Mainwindow", "Filter:", 0,
-                                          QApplication::UnicodeUTF8));
+   label->setText(QApplication::translate("Mainwindow", "Filter:", 0));
    label->setObjectName(QString::fromUtf8("label"));
 
    hboxLayout2->addWidget(label);
@@ -374,24 +373,24 @@ QWidget *Desktopwidget::createToolbar(void)
    _toolbar->addWidget (findgroup);
 
 #ifndef QT_NO_TOOLTIP
-   _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0, QApplication::UnicodeUTF8));
-   _find->setToolTip(QApplication::translate("Mainwindow", "Search for the name", 0, QApplication::UnicodeUTF8));
-   _global->setToolTip(QApplication::translate("Mainwindow", "Enable this to search all subdirectories also", 0, QApplication::UnicodeUTF8));
-   _reset->setToolTip(QApplication::translate("Mainwindow", "Reset the search string", 0, QApplication::UnicodeUTF8));
+   _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0));
+   _find->setToolTip(QApplication::translate("Mainwindow", "Search for the name", 0));
+   _global->setToolTip(QApplication::translate("Mainwindow", "Enable this to search all subdirectories also", 0));
+   _reset->setToolTip(QApplication::translate("Mainwindow", "Reset the search string", 0));
 #endif // QT_NO_TOOLTIP
 #ifndef QT_NO_WHATSTHIS
    _match->setWhatsThis(QApplication::translate("Mainwindow", "The filter feature can be used in two ways. To filter out unwanted stacks, type a few characters from the stack name that you are looking for. Everything that does not match will be removed from view. To go back, just delete characters from the filter.\n"
 "\n"
 "There is also a 'global' mode which allows searching of all subdirectories. To use this, select the 'global' button, then type your filter string. Press return or click 'find' to perform the search. This might take a while.\n"
 "\n"
-"To reset the filter, click the 'reset' button.", 0, QApplication::UnicodeUTF8));
-   _find->setWhatsThis(QApplication::translate("Mainwindow", "Click this button to perform a search when in global mode", 0, QApplication::UnicodeUTF8));
+"To reset the filter, click the 'reset' button.", 0));
+   _find->setWhatsThis(QApplication::translate("Mainwindow", "Click this button to perform a search when in global mode", 0));
    _global->setWhatsThis(QApplication::translate("Mainwindow", "The filter feature can be used in two ways. To filter out unwanted stacks, type a few characters from the stack name that you are looking for. Everything that does not match will be removed from view. To go back, just delete characters from the filter.\n"
 "\n"
 "There is also a 'global' mode which allows searching of all subdirectories. To use this, select the 'global' button, then type your filter string. Press return or click 'find' to perform the search. This might take a while.\n"
 "\n"
-"To reset the filter, click the 'reset' button.", 0, QApplication::UnicodeUTF8));
-   _reset->setWhatsThis(QApplication::translate("Mainwindow", "Press this button to reset the filter string and display stacks in the current directory", 0, QApplication::UnicodeUTF8));
+"To reset the filter, click the 'reset' button.", 0));
+   _reset->setWhatsThis(QApplication::translate("Mainwindow", "Press this button to reset the filter string and display stacks in the current directory", 0));
 #endif // QT_NO_WHATSTHIS
    return group;
    }
