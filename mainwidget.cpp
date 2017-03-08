@@ -29,7 +29,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QDialogButtonBox>
+#include <QtGlobal>
+#if QT_VERSION >= 0x050000
+#include <QtPrintSupport/QPrintDialog>
+#include <QtPrintSupport/QPrinter>
+#else
 #include <QPrintDialog>
+#include <QPrinter>
+#endif
 
 #include "qapplication.h"
 #include "qdatetime.h"
@@ -37,7 +44,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qdir.h"
 #include "qmessagebox.h"
 #include "qpainter.h"
-#include "qprinter.h"
 #include "qsanestatusmessage.h"
 #include "qscandialog.h"
 #include "qscanner.h"

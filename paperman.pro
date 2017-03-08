@@ -1,6 +1,7 @@
 TEMPLATE = app
 LANGUAGE = C++
 QT += widgets
+QT += printsupport
 
 unix:target.path = /usr/bin
 INSTALLS += target
