@@ -61,7 +61,7 @@ class PreviewWidget : public QWidget
 {
    Q_OBJECT
 public:
-  PreviewWidget(QWidget *parent=0, const char *name=0,Qt::WFlags f=0);
+  PreviewWidget(QWidget *parent=0, const char *name=0,Qt::WindowFlags f=0);
   ~PreviewWidget();
   /**  */
   void setMetrics(QIN::MetricSystem ms,SANE_Unit unit);

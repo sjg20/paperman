@@ -101,7 +101,7 @@ extern "C"
 #define PAGE_SIZE_MARGIN  0
 
 
-QScanDialog::QScanDialog(QScanner* s,QWidget *parent, const char *name,Qt::WFlags f)
+QScanDialog::QScanDialog(QScanner* s,QWidget *parent, const char *name,Qt::WindowFlags f)
             :QWidget(parent,f)
 {
   setObjectName(name);

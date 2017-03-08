@@ -47,7 +47,7 @@
 #endif
 
 QDeviceSettings::QDeviceSettings(QScanner* s,QWidget *parent,const char *name,
-                                 bool modal,Qt::WFlags f)
+                                 bool modal,Qt::WindowFlags f)
                 :QDialog(parent,f)
 {
     setModal(modal);

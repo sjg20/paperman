@@ -60,7 +60,7 @@
 #include <math.h>
 #include <unistd.h>
 
-PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WFlags f)
+PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WindowFlags f)
               :QWidget(parent,f)
 {
   setObjectName(name);

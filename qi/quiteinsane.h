@@ -129,7 +129,7 @@ class QuiteInsane : public QMainWindow
   };
   /**  */
   QuiteInsane(Mode m = Mode_ImageOcr,QWidget * parent = 0, const char * name = 0,
-                Qt::WFlags f = Qt::Window);
+                Qt::WindowFlags f = Qt::Window);
   /**  */
   ~QuiteInsane();
   /**  */

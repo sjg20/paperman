@@ -30,7 +30,7 @@ class QDragListBox : public QListView
 {
 Q_OBJECT
 public:
-	QDragListBox(QWidget* parent=0,const char* name=0,Qt::WFlags f=0);
+	QDragListBox(QWidget* parent=0,const char* name=0,Qt::WindowFlags f=0);
 	~QDragListBox();
   /**  */
   void insertItem(QString item);

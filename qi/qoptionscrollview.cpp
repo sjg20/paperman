@@ -22,7 +22,7 @@
 #include <QResizeEvent>
 #include <QLabel>
 
-QOptionScrollView::QOptionScrollView(QWidget * parent, const char * name,Qt::WFlags f)
+QOptionScrollView::QOptionScrollView(QWidget * parent, const char * name,Qt::WindowFlags f)
                   :QScrollArea(parent)
 {
   UNUSED (f);

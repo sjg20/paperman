@@ -25,7 +25,7 @@
 #include <qpainter.h>
 #include <qmatrix.h>
 
-Ruler::Ruler( QWidget * parent, const char * name,Qt::Orientation o, Qt::WFlags f)
+Ruler::Ruler( QWidget * parent, const char * name,Qt::Orientation o, Qt::WindowFlags f)
       :QFrame(parent, f)
 {
     setObjectName(name);

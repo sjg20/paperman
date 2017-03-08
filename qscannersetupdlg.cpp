@@ -68,7 +68,7 @@
 #endif
 
 QScannerSetupDlg::QScannerSetupDlg(QScanner *sc, QWidget *parent,
-                                   const char *name,bool modal,Qt::WFlags f)
+                                   const char *name,bool modal,Qt::WindowFlags f)
                  : QDialog(parent,f)
 {
     UNUSED(modal);

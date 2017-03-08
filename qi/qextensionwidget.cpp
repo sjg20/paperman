@@ -60,7 +60,7 @@
 #endif
 
 QExtensionWidget::QExtensionWidget(QWidget* parent,const char* name,
-                                   bool modal,Qt::WFlags f)
+                                   bool modal,Qt::WindowFlags f)
                  :QDialog(parent,f)
 {
     setObjectName(name);

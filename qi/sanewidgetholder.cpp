@@ -21,7 +21,7 @@
 #include <qlayout.h>
 #include <QGridLayout>
 
-SaneWidgetHolder::SaneWidgetHolder(QWidget* parent,const char* name,Qt::WFlags f)
+SaneWidgetHolder::SaneWidgetHolder(QWidget* parent,const char* name,Qt::WindowFlags f)
                  :QWidget(parent,f)
 {
   setObjectName(name);

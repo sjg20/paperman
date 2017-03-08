@@ -29,7 +29,7 @@
 #include <QPixmap>
 #include <QMouseEvent>
 
-ScanAreaCanvas::ScanAreaCanvas(QWidget* parent,const char* name,Qt::WFlags f)
+ScanAreaCanvas::ScanAreaCanvas(QWidget* parent,const char* name,Qt::WindowFlags f)
                :QGraphicsView(parent)
 {
   UNUSED(f);

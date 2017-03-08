@@ -25,7 +25,7 @@
 #include <qslider.h>
 #include <qspinbox.h>
 
-SliderSpin::SliderSpin(QWidget* parent,const char* name,Qt::WFlags f,bool allowLines)
+SliderSpin::SliderSpin(QWidget* parent,const char* name,Qt::WindowFlags f,bool allowLines)
            :QWidget(parent)
 {
   UNUSED(allowLines);
@@ -35,7 +35,7 @@ SliderSpin::SliderSpin(QWidget* parent,const char* name,Qt::WFlags f,bool allowL
 }
 
 SliderSpin::SliderSpin(int minval,int maxval,int val,QString title,QWidget* parent,
-                       const char* name,Qt::WFlags f,bool allowLines)
+                       const char* name,Qt::WindowFlags f,bool allowLines)
            :QWidget(parent)
 {
   UNUSED(allowLines);
