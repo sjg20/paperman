@@ -38,6 +38,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 ** destructor.
 *****************************************************************************/
 
+#include <QProgressBar>
+
 #include "qstatusbar.h"
 #include "qstring.h"
 

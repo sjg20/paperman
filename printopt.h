@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QModelIndexList>
 #include "ui_printopt.h"
 
+class QPrinter;
 
 class Printopt : public QFrame, public Ui::Printopt
    {

@@ -24,8 +24,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <assert.h>
 
 #include <QtGui>
+#include <QCheckBox>
+#include <QFileDialog>
+#include <QKeyEventTransition>
+#include <QMenu>
+#include <QMessageBox>
 #include <QSettings>
 #include <QItemSelectionModel>
+#include <QToolBar>
+#include <QToolButton>
 
 #include "qlistview.h"
 #include "qapplication.h"

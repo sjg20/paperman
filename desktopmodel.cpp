@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QFileInfo>
 #include <QIcon>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QPixmap>
 #include <QMouseEvent>
 #include <QUndoStack>
