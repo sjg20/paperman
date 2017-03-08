@@ -824,7 +824,7 @@ err_info *Desktopmodel::cancelScan (void)
    // allow the scanning maxdesk to be disposed (we have finished scanning into it)
    _scan_desk->setAllowDispose (true);
 
-   QModelIndex parent = _scan_parent;
+//   QModelIndex parent = _scan_parent;
    _scan_parent = QModelIndex ();
    _scan_desk = 0;
    _scan_file = 0;

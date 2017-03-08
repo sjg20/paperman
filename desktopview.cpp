@@ -111,7 +111,7 @@ void Desktopview::slotIndexesMoved (const QModelIndexList &indexes)
 //    printf ("slotIndexesMoved %d\n", indexes.size ());
 
    // here we update the position of the items
-   QModelIndex parent = indexes [0].parent ();
+//   QModelIndex parent = indexes [0].parent ();
    QAbstractItemModel *model = (QAbstractItemModel *)indexes [0].model ();
 
    // we should iterate and set the posiion of each item
@@ -625,7 +625,7 @@ QModelIndexList Desktopview::getSelectedList (bool multiple, bool sourceModel)
          list << index;
          return list;
          }
-      QModelIndex parent = list [0].parent ();
+//      QModelIndex parent = list [0].parent ();
 
 //       static_cast<Desktopmodel *> (model ())->sortByPosition (list);
       Desktopmodel *dmodel = _modelconv->getDesktopmodel (model ());
