@@ -67,7 +67,7 @@ public:
     ScaleMode_MaxSize    = 1,
     ScaleMode_MarginSize = 2
   };
-    QCopyPrint(QWidget* parent=0,const char* name=0,bool modal=FALSE,WFlags f=0);
+    QCopyPrint(QWidget* parent=0,const char* name=0,bool modal=false,WFlags f=0);
     ~QCopyPrint();
   /** Loads an image for printing. Returns true, if this
 was successfull, or false, if an error occured. */

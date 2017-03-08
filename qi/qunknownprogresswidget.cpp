@@ -73,7 +73,7 @@ void QUnknownProgressWidget::start(int ms)
     mpTimer = new QTimer(this);
   if(mpTimer)
   {
-    mpTimer->start(ms,FALSE);
+    mpTimer->start(ms,false);
     connect(mpTimer,SIGNAL(timeout()),this,SLOT(slotMoveIndicator()));
   }
   mpProgressWidget->show();

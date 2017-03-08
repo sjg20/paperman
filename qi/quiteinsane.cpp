@@ -843,7 +843,7 @@ void QuiteInsane::initStatusBar()
     mpFilterButton->setPixmap(pix);
     mpFilterProgress = new QProgressBar(mpFilterHBox);
     mpProgressStack->addWidget(mpFilterHBox,1);
-    statusBar()->addWidget(mpProgressStack,0,TRUE);
+    statusBar()->addWidget(mpProgressStack,0,true);
     mpProgressStack->raiseWidget(1);
     mpFilterHBox->setEnabled(false);
   }
@@ -890,7 +890,7 @@ void QuiteInsane::slotFileSaveImageAs()
     if(!image->isNull())
     {
       //create a QFileDialog
-      QPreviewFileDialog qpfd(false,false,this,0,TRUE);
+      QPreviewFileDialog qpfd(false,false,this,0,true);
       qpfd.setMode(QFileDialog::AnyFile);
       qpfd.setImage(image);
       if(qpfd.exec())
@@ -926,7 +926,7 @@ void QuiteInsane::slotFileSaveTextAs()
   formatflag = false;
 
   //create a QFileDialog
-	QFileDialogExt qfd(mViewerSaveTextPath,0,this,"",TRUE);
+	QFileDialogExt qfd(mViewerSaveTextPath,0,this,"",true);
   qfd.setMode(QFileDialog::AnyFile);
   qfd.setCaption(tr("Save text as ..."));
   qfd.setViewMode((QFileDialog::ViewMode)mSingleFileViewMode);
@@ -1529,7 +1529,7 @@ void QuiteInsane::slotPrint()
   if(!mImageVector[mImageVectorIndex]->image()) return;
   if(mImageVector[mImageVectorIndex]->image()->isNull()) return;
 
-  QCopyPrint qcp(this,"",TRUE);
+  QCopyPrint qcp(this,"",true);
   qcp.setImage(mImageVector[mImageVectorIndex]->image(),true);
   qcp.exec();
 }
@@ -2433,7 +2433,7 @@ void QuiteInsane::slotFileSaveSelectionAs()
   if(!image.isNull())
   {
     //create a QFileDialog
-    QPreviewFileDialog qpfd(true,false,this,0,TRUE);
+    QPreviewFileDialog qpfd(true,false,this,0,true);
     qpfd.setMode(QFileDialog::AnyFile);
     qpfd.setCaption(tr("Save image selection as..."));
     qpfd.setImage(&image);
@@ -2451,7 +2451,7 @@ void QuiteInsane::slotFilePrintSelection()
   QImage image = mImageVector[mImageVectorIndex]->selectedImage();
   if(image.isNull())
     return;
-  QCopyPrint qcp(this,"",TRUE);
+  QCopyPrint qcp(this,"",true);
   qcp.setImage(&image,true);
   qcp.exec();
 }

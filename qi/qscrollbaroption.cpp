@@ -57,7 +57,7 @@ void QScrollBarOption::initWidget()
   qgl->setSpacing(0);
 	mpTitleLabel = new QLabel(optionTitle(),this);
 	mpValueSlider = new QSlider(Qt::Horizontal,this);
-  mpValueSlider->setTracking(FALSE);
+  mpValueSlider->setTracking(false);
   mpValueSlider->setFocusPolicy(Qt::StrongFocus);//should get focus after clicking
 	mpValueLabel = new QLabel(this);
   mpValueLabel->setAlignment(Qt::AlignRight|Qt::AlignVCenter);

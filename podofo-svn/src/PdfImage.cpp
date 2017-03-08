@@ -267,7 +267,7 @@ void PdfImage::LoadFromJpegHandle( FILE* hInfile, PdfFileInputStream* pInStream 
     jpeg_stdio_src(&cinfo, hInfile);
 #endif // PODOFO_JPEG_RUNTIME_COMPATIBLE
 
-    if( jpeg_read_header(&cinfo, TRUE) <= 0 )
+    if( jpeg_read_header(&cinfo, true) <= 0 )
     {
         fclose( hInfile );
         (void) jpeg_destroy_decompress(&cinfo);

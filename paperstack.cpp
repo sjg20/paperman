@@ -334,7 +334,7 @@ static boolean fill_input_buffer (j_decompress_ptr cinfo)
    {
    UNUSED (cinfo);
    // we have no more data to give!
-   return FALSE;
+   return false;
    }
 
 
@@ -421,7 +421,7 @@ void PPage::continueJpeg ()
    switch (_state)
       {
       case State_read_header:
-         if (jpeg_read_header (&_cinfo, TRUE) == JPEG_SUSPENDED)
+         if (jpeg_read_header (&_cinfo, true) == JPEG_SUSPENDED)
             break;
          _state = State_start;
          // no break
@@ -652,7 +652,7 @@ void Paperscan::ensureStack (QString &stack_name, QString &page_name,
 #ifdef CONFIG_sane_jpeg
       _stack = new Paperstack (stack_name, page_name, parameters.format == HACK_SANE_FRAME_JPEG);
 #else
-      _stack = new Paperstack (stack_name, page_name, FALSE);
+      _stack = new Paperstack (stack_name, page_name, false);
 #endif
       _mutex.unlock ();
 
@@ -668,7 +668,7 @@ void Paperscan::scan ()
    int len, total, todo, size;
    SANE_Status status;
    unsigned char *buf;
-   bool done = FALSE;
+   bool done = false;
    SANE_Parameters parameters;
    int numsides, side;
    int total_sides = 0;  // total number of sides scanned

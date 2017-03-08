@@ -836,7 +836,7 @@ void PdfDCTFilter::EndDecodeImpl()
 
     jpeg_memory_src ( &m_cinfo, reinterpret_cast<JOCTET*>(m_buffer.GetBuffer()), m_buffer.GetSize() );
 
-    if( jpeg_read_header(&m_cinfo, TRUE) <= 0 )
+    if( jpeg_read_header(&m_cinfo, true) <= 0 )
     {
         (void) jpeg_destroy_decompress(&m_cinfo);
 
@@ -963,7 +963,7 @@ fill_input_buffer (j_decompress_ptr cinfo)
     src->pub.next_input_byte = src->eoi_buffer;
     src->pub.bytes_in_buffer = 2;
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -984,7 +984,7 @@ skip_input_data (j_decompress_ptr cinfo, long num_bytes)
         while (num_bytes > static_cast<long>(src->pub.bytes_in_buffer) ) {
             num_bytes -= static_cast<long>(src->pub.bytes_in_buffer);
             fill_input_buffer(cinfo);
-            /* note we assume that fill_input_buffer will never return FALSE,
+            /* note we assume that fill_input_buffer will never return false,
              * so suspension need not be handled.
              */
         }

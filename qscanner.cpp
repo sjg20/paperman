@@ -1766,7 +1766,7 @@ SANE_Status QScanner::scanImage(QString file,QWidget* parent,PreviewWidget* prev
      if(lines >= 0)
      {
        //if SANE_Frame is of Type SANE_FRAME_RGB or SANE_FRAME_GRAY
-       //and last_frame == TRUE,
+       //and last_frame == true,
        //then there's no need to store the whole image data in
        //memory; we write the data to a file instead
        //In preview mode, we save the data to a QByteArray, but only if the
@@ -2570,18 +2570,18 @@ QImage* QScanner::createImage(QString path)
   QImage* image;
   image = 0L;
   //first, try to open the image under path
-  if((path.isNull() != TRUE) && (path.isEmpty() != TRUE))
+  if((path.isNull() != true) && (path.isEmpty() != true))
   {
     image = new QImage(path);
   } //no path given, try to open the image last scanned
-  else if ((mTempFilePath.isNull() != TRUE) &&
-           (mTempFilePath.isEmpty() != TRUE))
+  else if ((mTempFilePath.isNull() != true) &&
+           (mTempFilePath.isEmpty() != true))
   {
     image = new QImage(path);
   }
   if(image)
   {
-    if(image->isNull() != TRUE)
+    if(image->isNull() != true)
       return image; //we have a valid image
     else
       delete image;//the image is a null image
@@ -2598,18 +2598,18 @@ QPixmap* QScanner::createPixmap(QString path)
   QPixmap* pixmap;
   pixmap = 0L;
   //first, try to open the image under path
-  if((path.isNull() != TRUE) && (path.isEmpty() != TRUE))
+  if((path.isNull() != true) && (path.isEmpty() != true))
   {
     pixmap = new QPixmap(path);
   } //no path given, try to open the image last scanned
-  else if ((mTempFilePath.isNull() != TRUE) &&
-           (mTempFilePath.isEmpty() != TRUE))
+  else if ((mTempFilePath.isNull() != true) &&
+           (mTempFilePath.isEmpty() != true))
   {
     pixmap = new QPixmap(path);
   }
   if(pixmap)
   {
-    if(pixmap->isNull() != TRUE)
+    if(pixmap->isNull() != true)
       return pixmap; //we have a valid pixmap
     else
       delete pixmap;//the pixmap is a null pixmap

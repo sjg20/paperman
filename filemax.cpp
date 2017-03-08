@@ -487,7 +487,7 @@ Filemax::~Filemax ()
 err_info *Filemax::ensure_titlestr (int, page_info &page)
    {
    chunk_info *chunk;
-   bool has_chars = FALSE;
+   bool has_chars = false;
    char title [TITLE_max_size];
    int ch, j;
    bool temp = false;
@@ -510,7 +510,7 @@ err_info *Filemax::ensure_titlestr (int, page_info &page)
             if (!title [j] || title [j] < ' ')
                break;
             if (title [j] > ' ')
-               has_chars = TRUE;
+               has_chars = true;
             }
          if (!has_chars)   // ignore a title with only spaces
             j = 0;
@@ -1558,7 +1558,7 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
 
    // calculate number of bytes across in a tile and a whole line
    calc_tile_bytes (chunk.tile_size.x, chunk.image_size.x, chunk.bits,
-                    &chunk.tile_line_bytes, &chunk.line_bytes, TRUE);
+                    &chunk.tile_line_bytes, &chunk.line_bytes, true);
 
    // ensure image width is a multiple of 32 bits
    chunk.line_bytes = (chunk.line_bytes + 3) & ~3;
@@ -2058,7 +2058,7 @@ err_info *Filemax::read_chunk (chunk_info &chunk, int pos)
       }
    else
       chunk.parts.resize (0);
-   chunk.loaded = chunk.saved = TRUE;
+   chunk.loaded = chunk.saved = true;
    return err;
    }
 
@@ -2074,7 +2074,7 @@ err_info *Filemax::chunk_ensure (chunk_info &chunk)
 err_info *Filemax::chunk_find (int pos, chunk_info *&chunkp, bool *tempp)
    {
    if (tempp)
-      *tempp = FALSE;
+      *tempp = false;
    chunkp = NULL;
    if (_all_chunks_loaded) for (int i = 0; i < _chunks.size (); i++)
       {
@@ -2093,7 +2093,7 @@ err_info *Filemax::chunk_find (int pos, chunk_info *&chunkp, bool *tempp)
 //      printf ("temporary load chunk 0x%x\n", pos);
       chunkp = new chunk_info;
       chunk_init (*chunkp);
-      *tempp = TRUE;
+      *tempp = true;
       return read_chunk (*chunkp, pos);
       }
 
@@ -2156,7 +2156,7 @@ err_info *Filemax::update_titlestr (page_info *page, const QString &title)
          dest [j] = str [j];
       dest [j] = '\0';
       CALL (max_write_data (chunk->start, chunk->buf, chunk->size));
-      chunk->saved = TRUE;
+      chunk->saved = true;
       }
 
    return NULL;
@@ -2210,7 +2210,7 @@ err_info *Filemax::page_read_roswell (page_info &page)
    if (_version >= 1)
       page.timestamp.setTime_t (getword (page.roswell + POSn_roswell_timestamp));
 //    printf ("page_read_roswell: page = %d, timestamp = %d\n", page.title, page.timestamp);
-   page.have_roswell = TRUE;
+   page.have_roswell = true;
    return NULL;
    }
 
@@ -2345,7 +2345,7 @@ err_info *Filemax::setup_max (void)
          page.titlestr = "";
 
          // get roswell info
-         page.have_roswell = FALSE;
+         page.have_roswell = false;
          //printf ("   page %d, chunkid %d, image %d\n", i, page.chunkid,
          //        page.image);
          }
@@ -2358,7 +2358,7 @@ err_info *Filemax::setup_max (void)
    // read chunks only as needed
    //CALL (ensure_all_chunks (max));
 
-   _hdr_updated = FALSE;
+   _hdr_updated = false;
    return NULL;
    }
 
@@ -2453,7 +2453,7 @@ err_info *Filemax::find_page_chunk (int pagenum,
 
    // support temporary loading if required
    if (tempp)
-      *tempp = FALSE;
+      *tempp = false;
    else
       CALL (ensure_all_chunks ());
 
@@ -2484,7 +2484,7 @@ err_info *Filemax::find_page_chunk (int pagenum,
    if (tempp && page->image)
       {
 //      printf ("temporary load page %d at 0x%x\n", pagenum, page->image);
-      *tempp = TRUE;
+      *tempp = true;
       chunkp = new chunk_info;
       chunk_init (*chunkp);
       return read_chunk (*chunkp, page->image);
@@ -2501,7 +2501,7 @@ err_info *Filemax::load_envelope (void)
    int pos;
 
    // clear out the annotation info
-   _env_loaded = TRUE;
+   _env_loaded = true;
 
    // find the chunk, supporting temporary loading (note there may be no annotations)
    if (_envelope)
@@ -2544,7 +2544,7 @@ err_info *Filemax::load_annot (void)
    int pos, apos, size, type;
 
    // clear out the annotation info
-   _annot_loaded = TRUE;
+   _annot_loaded = true;
 
    // find the chunk, supporting temporary loading (note there may be no annotations)
    if (_annot)
@@ -3792,7 +3792,7 @@ Fax4Encode(TIFF* tif, tidata_t bp, tsize_t cc, tsample_t s, int debug_max_steps)
          debug3 (("bits_sent = 0x%x\n", tif->bit_count));
 
          // work out how many bits would be sent in single mode
-         nbits = try_single (tif, bp, sp->b.rowbytes, FALSE);
+         nbits = try_single (tif, bp, sp->b.rowbytes, false);
          debug3 (("single mode would use 0x%x\n", nbits));
 
          if (nbits - 18 < tif->bit_count)
@@ -3829,7 +3829,7 @@ Fax4Encode(TIFF* tif, tidata_t bp, tsize_t cc, tsample_t s, int debug_max_steps)
                Fax3PutBits (tif, type, 2);  // 1 means single data
                if (sp->bit != 8)
                   Fax3FlushBits(tif, sp);
-               try_single (tif, bp, sp->b.rowbytes, TRUE);
+               try_single (tif, bp, sp->b.rowbytes, true);
                break;
             }
          //            _TIFFmemcpy(sp->refline, bp, sp->b.rowbytes + 1); //!
@@ -4010,7 +4010,7 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
       return ERR (-ENOMEM);
 
    calc_tile_bytes (chunk.tile_size.x, chunk.image_size.x, bpp,
-                    &encode.tile_line_bytes, &temp, FALSE);
+                    &encode.tile_line_bytes, &temp, false);
 
    tile = chunk.tile;
    for (y = 0, ret = 0; !ret && y < chunk.tile_extent.y; y++)
@@ -4024,7 +4024,7 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
                   encode.tile_line_bytes);
 
          calc_tile_bytes (tile_size.x, chunk.image_size.x, bpp,
-                    &tile_line_bytes, &temp, FALSE);
+                    &tile_line_bytes, &temp, false);
 //       printf ("tile_size.x=%d, encode.tile_line_bytes=%d, tlb=%d\n",
 //               tile_size.x, encode.tile_line_bytes, tile_line_bytes);
          if (tilenum >= debug.start_tile
@@ -4083,10 +4083,10 @@ static int alloc_part_buf (part_info &part, int size)
    {
    part.buf = (byte *)malloc (size);
    if (!part.buf)
-      return FALSE;
+      return false;
    memset (part.buf, '\0', size);
    part.size = size;
-   return TRUE;
+   return true;
    }
 
 
@@ -4378,7 +4378,7 @@ err_info *Filemaxpage::compress (void)
    _chunk.titletype = 0;  //?
    _chunk.flags = CHUNKF_image;
    _chunk.type = CT_image;
-   _chunk.used = TRUE;
+   _chunk.used = true;
    _chunk.image_size.x = _width;
    _chunk.image_size.y = _height;
    if (!_jpeg)
@@ -4410,7 +4410,7 @@ err_info *Filemaxpage::compress (void)
 
    // calculate number of bytes across in a tile and a whole line
    calc_tile_bytes (_chunk.tile_size.x, _chunk.image_size.x, _chunk.bits,
-                    &_chunk.tile_line_bytes, &_chunk.line_bytes, TRUE);
+                    &_chunk.tile_line_bytes, &_chunk.line_bytes, true);
 
    Filemax::part_resize (_chunk.parts, 5);
 
@@ -4639,7 +4639,7 @@ err_info *Filemax::remove_chunk (chunk_info &chunk)
    CALL (read_chunk_buf (chunk));
 
    chunk.used = 0;   // get rid of this chunk, it's too small
-   chunk.saved = FALSE;  // will be saved back to disc
+   chunk.saved = false;  // will be saved back to disc
    return NULL;
    }
 
@@ -4656,7 +4656,7 @@ err_info *Filemax::remove_chunknum (int pos)
    CALL (read_chunk_buf (*chunk));
 
    chunk->used = 0;   // get rid of this chunk, it's too small
-   chunk->saved = FALSE;  // will be saved back to disc
+   chunk->saved = false;  // will be saved back to disc
    return NULL;
    }
 
@@ -4673,7 +4673,7 @@ err_info *Filemax::restore_chunknum (int pos)
    CALL (read_chunk_buf (*chunk));
 
    chunk->used = 1;   // restore this chunk
-   chunk->saved = FALSE;  // will be saved back to disc
+   chunk->saved = false;  // will be saved back to disc
    return NULL;
    }
 
@@ -4825,8 +4825,8 @@ err_info *Filemax::insert_chunk (chunk_info &new_chunk, int *posp)
 
    // place it
    chunk->start = oldpos;
-   chunk->loaded = TRUE;
-   chunk->saved = FALSE;
+   chunk->loaded = true;
+   chunk->saved = false;
 
 //      printf ("new size (%d) = %d\n", chunk - _chunk, chunk->size);
    // all ok
@@ -5029,7 +5029,7 @@ err_info *Filemax::flush_chunks (void)
          // write the chunk to disc
          assert (chunk.buf);
          CALL (max_write_data (chunk.start, chunk.buf, chunk.size));
-         chunk.saved = TRUE;
+         chunk.saved = true;
          }
       }
    return NULL;
@@ -5066,7 +5066,7 @@ err_info *Filemax::flush (void)
    // now flush header
    write_max_header ();
    CALL (max_write_data (0, (byte *)_hdr.data (), _hdr.size ()));
-   _hdr_updated = TRUE;
+   _hdr_updated = true;
 
    fflush (_fin);
 
@@ -5197,7 +5197,7 @@ err_info *Filemax::chunk_unload (int pos)
       if (part.buf)
          mem_free (CV &part.buf);
       }
-   chunk->loaded = FALSE;
+   chunk->loaded = false;
    return NULL;
    }
 
@@ -5700,7 +5700,7 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    QSize Size = QSize (chunk->preview_size.x, chunk->preview_size.y);
    int bpp = chunk->bits == 24 ? 24 : 8;
-   CALL (decode_preview (*chunk, TRUE, &preview));
+   CALL (decode_preview (*chunk, true, &preview));
    if (temp)
       {
       chunk_free (*chunk);

@@ -459,11 +459,11 @@ protected:
    bool _valid;      //!< true if we have scanned this file and know what it contains
 
    // annotation data
-   bool _annot_loaded;               // TRUE if data has been loaded
+   bool _annot_loaded;               // true if data has been loaded
    QStringList _annot_data;   // the annotation data that was loaded
 
    // envelope data
-   bool _env_loaded;               // TRUE if data has been loaded
+   bool _env_loaded;               // true if data has been loaded
    QStringList _env_data;   // the envelope data that was loaded
    File *_ref_to;          //!< file that this one is a reference to, for virtual file
    };

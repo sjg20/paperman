@@ -96,7 +96,7 @@ int jpeg_thumbnail (byte *data, int insize, byte **destp, int *dest_sizep, cpoin
    sizep->x = im->in.w / CONFIG_preview_scale;
    sizep->y = im->in.h / CONFIG_preview_scale;
    epeg_decode_size_set           (im, sizep->x, sizep->y);
-   epeg_quality_set               (im, 75, FALSE);
+   epeg_quality_set               (im, 75, false);
 //   epeg_thumbnail_comments_enable (im, 1);
    epeg_memory_output_set (im, destp, dest_sizep);
 //   epeg_encode                    (im);
@@ -155,11 +155,11 @@ static boolean fill_input_buffer(j_decompress_ptr cinfo)
       {
        src->pub.next_input_byte = src->data;
        src->pub.bytes_in_buffer = src->size;
-       src->done = TRUE;
-       return TRUE;
+       src->done = true;
+       return true;
        }
 
-   return FALSE;
+   return false;
    }
 
 
@@ -215,7 +215,7 @@ void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
 //   source.chunk = chunk;
    source.data = data;
    source.size = size;
-   source.done = FALSE;
+   source.done = false;
 //   source.pos = pos;
    source.pub.init_source = init_source;
    source.pub.fill_input_buffer = fill_input_buffer;
@@ -230,7 +230,7 @@ void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
    jerr.mgr.error_exit = my_error_exit;
    if (!setjmp(jerr.setjmp_buffer))
       {
-      jpeg_read_header(&cinfo, TRUE);
+      jpeg_read_header(&cinfo, true);
       jpeg_start_decompress(&cinfo);
 
       /* Make a one-row-high sample array that will go away when done with image */
@@ -287,7 +287,7 @@ static void init_destination (j_compress_ptr cinfo)
 static boolean empty_output_buffer (j_compress_ptr cinfo)
    {
    cinfo = cinfo;
-   return TRUE;
+   return true;
    }
 
 
@@ -345,9 +345,9 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
      cinfo.in_color_space = bpp == 8 ? JCS_GRAYSCALE : JCS_RGB;   /* colorspace of input image */
      bytes = cinfo.image_width * bpp / 8;
      jpeg_set_defaults(&cinfo);
-     jpeg_set_quality(&cinfo, quality, TRUE /* limit to baseline-JPEG values */);
+     jpeg_set_quality(&cinfo, quality, true /* limit to baseline-JPEG values */);
 
-     jpeg_start_compress(&cinfo, TRUE);
+     jpeg_start_compress(&cinfo, true);
 
      while (cinfo.next_scanline < cinfo.image_height) {
        /* jpeg_write_scanlines expects an array of pointers to scanlines.

@@ -71,7 +71,7 @@ void QMultiScan::initWidget()
   QHBox* wthb = new QHBox(this);
   QWidget* dummy = new QWidget(wthb);
   QToolButton* WhatsThisButton = QWhatsThis::whatsThisButton(wthb);
-	WhatsThisButton->setAutoRaise(FALSE);	
+	WhatsThisButton->setAutoRaise(false);
   wthb->setStretchFactor(dummy,1);
   mpMainGrid->addMultiCellWidget(wthb,0,0,0,1);
   if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))

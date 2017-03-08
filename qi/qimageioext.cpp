@@ -358,7 +358,7 @@ void readTiff(QImageIO* iio)
         else if(photometric == PHOTOMETRIC_MINISWHITE)
         {
           color = false; //grayscale
-          min_is_white = TRUE;
+          min_is_white = true;
         }
         else
         {
@@ -688,7 +688,7 @@ int qis_read_pbm_int( QIODevice *d )
   const int buflen = 100;
   char  buf[buflen];
 
-  while(TRUE)
+  while(true)
   {
     if( (c=d->getch()) == EOF )		// end of file
       break;

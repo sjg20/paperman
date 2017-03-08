@@ -871,7 +871,7 @@ bool File::claimFileAsNewPage (const QString &, QString &, int)
    uniq = findNextFilename (_leaf + "_copy");
    uniq += ".max";
    path = _dir + uniq;
-   CALL (convertMax (old, path, FALSE, FALSE, FALSE, odd_even));
+   CALL (convertMax (old, path, false, false, false, odd_even));
    printf ("newf=%s\n", path.latin1 ());
    fnew = createFile (_dir, uniq);
    _desk->newFile (fnew, this, 1);

@@ -69,7 +69,7 @@ void QTextEditorSetup::initDlg()
   QHBox* qhb1 = new QHBox(this);
   QWidget* dummy = new QWidget(qhb1);
   mpWhatsThisButton = QWhatsThis::whatsThisButton(qhb1);
-	mpWhatsThisButton->setAutoRaise(FALSE);	
+	mpWhatsThisButton->setAutoRaise(false);	
   qhb1->setStretchFactor(dummy,1);
   if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))
     mpWhatsThisButton->hide();
@@ -127,7 +127,7 @@ void QTextEditorSetup::initDlg()
   bg->insert(mpRadioKeepFormat);
   bg->insert(mpRadioWordWrap);
 
-  mpRadioKeepFormat->setChecked(TRUE);
+  mpRadioKeepFormat->setChecked(true);
 ///////////////////////
 //font
 ///////////////////////

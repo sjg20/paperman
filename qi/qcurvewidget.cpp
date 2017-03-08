@@ -33,7 +33,7 @@ QCurveWidget::QCurveWidget(QWidget *parent, const char *name )
 {
   setObjectName(name);
   mGamma = 1.0;
-  setMouseTracking(TRUE);
+  setMouseTracking(true);
   setFocusProxy(0);
   mLmbPressed = false;
   mCurveType = CurveType_Free;

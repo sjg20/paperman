@@ -38,7 +38,7 @@ class QTextEditorSetup : public QDialog
    Q_OBJECT
 public:
 	QTextEditorSetup(QMultiLineEditPE* parent,const char* name=0,
-                   bool modal=FALSE,WFlags f=0);
+                   bool modal=false,WFlags f=0);
 	~QTextEditorSetup();
 private slots: // Private slots
   /**  */

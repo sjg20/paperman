@@ -131,7 +131,7 @@ typedef struct page_info
    int chunkid;
    int roswell;
 
-   int have_roswell; // TRUE if the following fields are valid
+   int have_roswell; // true if the following fields are valid
    int image;
    int noti1, noti2, title, text;
    QDateTime timestamp;

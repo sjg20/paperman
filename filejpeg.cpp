@@ -174,7 +174,7 @@ err_info *Filejpeg::load_annot (void)
    args << "-t" << "-s" << "-Author" << "-ImageDescription" << "-Keywords"
            << _pathname;
    CALL (run_exiftool (process, "load annotations", args));
-   _annot_loaded = TRUE;
+   _annot_loaded = true;
 
    for (int annot = 0; annot < Annot_count; annot++)
       _annot_data << "";
@@ -203,7 +203,7 @@ err_info *Filejpeg::load_annot (void)
    args.clear ();
    args << "-b" << "-Notes" << _pathname;
    CALL (run_exiftool (process, "load notes", args));
-   _annot_loaded = TRUE;
+   _annot_loaded = true;
    _annot_data [Annot_notes] = utilRemoveQuotes (process.readAllStandardOutput ());
 
    return NULL;

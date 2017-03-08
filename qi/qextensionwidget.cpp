@@ -136,7 +136,7 @@ void QExtensionWidget::initWidget()
   mpBGroupMetricSystem->addButton(mpRadioMM, QIN::Millimetre);
   mpBGroupMetricSystem->addButton(mpRadioCM, QIN::Centimetre);
   mpBGroupMetricSystem->addButton(mpRadioInch, QIN::Inch);
-  mpRadioMM->setChecked(TRUE);
+  mpRadioMM->setChecked(true);
   mpPagesStack->addWidget(opage);
   mpPageListBox->addItem(tr("Metric system"));
 

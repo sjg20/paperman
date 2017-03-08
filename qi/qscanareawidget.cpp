@@ -36,12 +36,12 @@ QScanAreaWidget::QScanAreaWidget(QWidget *parent, const char *name )
   mTlyPercentChanged = false;
   mBrxPercentChanged = false;
   mBryPercentChanged = false;
-  setMouseTracking(TRUE);
+  setMouseTracking(true);
   setPalette(QColor(255,255,255));
 	mpRect=new QRect(0,0,width()-4,height()-4);
-	mLmbFlag=FALSE;
+	mLmbFlag=false;
   mCursorState=0;
-  mSizeChanged=FALSE;
+  mSizeChanged=false;
 }
 
 QScanAreaWidget::~QScanAreaWidget()
@@ -64,10 +64,10 @@ void QScanAreaWidget::mouseMoveEvent(QMouseEvent *qme)
 	r=0;
 	b=0;
 	imin=20;
-  if(mLmbFlag==FALSE)
+  if(mLmbFlag==false)
 	{
 	  mCursorState=0;
-  	if(mpRect->contains(qp,TRUE)==TRUE)
+  	if(mpRect->contains(qp,true)==true)
 		{
 			//near left border ?
  		 	if((qp.x()-mpRect->left())<6) mCursorState=1;
@@ -174,7 +174,7 @@ void QScanAreaWidget::mouseMoveEvent(QMouseEvent *qme)
       if(mBryPercent>1.0) mBryPercent = 1.0;
     }
     drawScanRect();
-    mSizeChanged=TRUE;
+    mSizeChanged=true;
   }		
 }
 
@@ -206,7 +206,7 @@ void QScanAreaWidget::resizeRect(double leftpercent,double toppercent,
 /**  */
 void QScanAreaWidget::paintEvent(QPaintEvent*)
 {
-  if(mPixmap.isNull() != TRUE) bitBlt( this,0,0,&mPixmap,0,0,-1,-1);
+  if(mPixmap.isNull() != true) bitBlt( this,0,0,&mPixmap,0,0,-1,-1);
 	drawScanRect();
 }
 /**  */
@@ -214,7 +214,7 @@ void QScanAreaWidget::mousePressEvent(QMouseEvent *e)
 {
 	if(e->button()==LeftButton)
 	{
- 		mLmbFlag=TRUE;
+ 		mLmbFlag=true;
     mStartPoint=e->pos();
 	}
 }
@@ -223,8 +223,8 @@ void QScanAreaWidget::mouseReleaseEvent(QMouseEvent *e)
 {
 	if(e->button()==LeftButton)
 	{
-		mLmbFlag=FALSE;
-    mSizeChanged=FALSE;
+		mLmbFlag=false;
+    mSizeChanged=false;
     //emit percent signal, if value has changed
     if(mTlxPercentChanged)
     {
@@ -254,7 +254,7 @@ void QScanAreaWidget::mouseReleaseEvent(QMouseEvent *e)
 void QScanAreaWidget::drawScanRect()
 {
   mOldRect = mOldRect.normalize();
-  if(mPixmap.isNull() != TRUE)
+  if(mPixmap.isNull() != true)
 	{
   	bitBlt( this,mOldRect.x(),mOldRect.y(),&mPixmap,
 								mOldRect.x(),mOldRect.y(), mOldRect.width(),mOldRect.height() );
@@ -309,7 +309,7 @@ void QScanAreaWidget::setPixmap(QString path)
   mImage.load(path);
   QImage image2=mImage.smoothScale(width(),height());
   mPixmap.convertFromImage(image2);
-  if(mPixmap.isNull() != TRUE) bitBlt( this,0,0,&mPixmap, 0, 0, -1, -1 );
+  if(mPixmap.isNull() != true) bitBlt( this,0,0,&mPixmap, 0, 0, -1, -1 );
 }
 /**  */
 void QScanAreaWidget::slotTimerEvent()

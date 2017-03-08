@@ -1050,7 +1050,7 @@ err_info *Desk::duplicateTiff (file_info *f, file_info **fnewp,
       mp.titlestr = name;
       err = max_compress_page (&mp, image->bits (), image->numBytes ());
       if (!err)
-         err = max_add_page (max, &mp, FALSE);
+         err = max_add_page (max, &mp, false);
 
       // delete the image
       // if pdf, this will also remove image->bits()
@@ -1541,14 +1541,14 @@ err_info *Desk::convertMax (QString &old, QString newf, bool verbose,
          QSize Size, trueSize;
 
          if (do_this)
-            CALL (get_image_qimage (max, pagenum, FALSE, &image, Size,
+            CALL (get_image_qimage (max, pagenum, false, &image, Size,
                         trueSize, bpp));
          }
       else if (max)
       {
          if (do_this)
             {
-            e = get_pdf_image (max, pagenum, FALSE, FALSE, &image, bpp);
+            e = get_pdf_image (max, pagenum, false, false, &image, bpp);
             if (e) return e;
 
             // this may produce a colour image when a grey one would do

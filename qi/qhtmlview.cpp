@@ -91,8 +91,8 @@ void QHTMLView::init()
   mb->insertSeparator();
   mb->insertItem(tr("&Help"),help );
 
-  mb->setItemEnabled( mIdForward, FALSE);
-  mb->setItemEnabled( mIdBackward, FALSE);
+  mb->setItemEnabled( mIdForward, false);
+  mb->setItemEnabled( mIdBackward, false);
 
   connect(mpTextBrowser, SIGNAL( backwardAvailable( bool ) ),
     	    this, SLOT( setBackwardAvailable( bool ) ) );
@@ -113,13 +113,13 @@ void QHTMLView::init()
                         SLOT(backward()), toolbar );
   connect(mpTextBrowser, SIGNAL( backwardAvailable(bool) ),tb1,
           SLOT( setEnabled(bool) ) );
-  tb1->setEnabled( FALSE );
+  tb1->setEnabled( false );
 
   tb1 = new QToolButton(mPixForward, tr("Forward"), "",mpTextBrowser,
                         SLOT(forward()), toolbar );
   connect(mpTextBrowser,SIGNAL(forwardAvailable(bool) ),tb1,
           SLOT( setEnabled(bool) ) );
-  tb1->setEnabled( FALSE );
+  tb1->setEnabled( false );
 
   tb1 = new QToolButton(mPixHome, tr("Home"), "",this,
                         SLOT(home()), toolbar );

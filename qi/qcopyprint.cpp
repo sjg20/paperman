@@ -324,7 +324,7 @@ void QCopyPrint::initWidget()
   mpSizeLabel = new QLabel( tophb, "SizeLabel" );
   mpSizeLabel->setText( tr( "Image size:"  ) );
   QToolButton* tb = QWhatsThis::whatsThisButton(tophb);
-	tb->setAutoRaise(FALSE);	
+	tb->setAutoRaise(false);
   tophb->setStretchFactor(mpSizeLabel,1);
   mpMainGrid->addMultiCellWidget(tophb,0,0,0,2);
   if(!xmlConfig->boolValue("ENABLE_WHATSTHIS_BUTTON"))
@@ -638,7 +638,7 @@ void QCopyPrint::slotPrint()
     if(steps <= 1)//work around qt bug
       steps = 2;
     QProgressDialog progress("",tr("Stop"),steps,
-                             this,"progress",TRUE);
+                             this,"progress",true);
     progress.setCaption(tr("Printing..."));
     progress.setMinimumDuration(0);
     progress.setProgress(0);

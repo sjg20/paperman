@@ -177,7 +177,7 @@ void QFileListWidget::initWidget()
   	mpButtonDelete = new QPushButton(tr("D&elete"),this);
   else
   	mpButtonDelete = new QPushButton(tr("&Delete"),this);
-  mpButtonDelete->setEnabled(FALSE);
+  mpButtonDelete->setEnabled(false);
 ///add to sublayout
   if(!mTextMode)
   {
@@ -319,7 +319,7 @@ void QFileListWidget::slotDisplayImage(QListViewItem* lvi)
 /**  */
 void QFileListWidget::slotChangeFolder()
 {
-  QFileDialogExt fd(mFolderName,QString::null,this,"",TRUE);
+  QFileDialogExt fd(mFolderName,QString::null,this,"",true);
   fd.setMode(QFileDialog::DirectoryOnly);
   fd.setViewMode((QFileDialog::ViewMode)xmlConfig->intValue("SINGLEFILE_VIEW_MODE"));
   fd.setCaption(tr("Select a folder"));
@@ -534,11 +534,11 @@ void QFileListWidget::slotSelectionChanged()
   {
     if(it.current()->isSelected())
     {
-      mpButtonDelete->setEnabled(TRUE);
+      mpButtonDelete->setEnabled(true);
       return;
     }
   }
-  mpButtonDelete->setEnabled(FALSE);
+  mpButtonDelete->setEnabled(false);
 }
 /**  */
 void QFileListWidget::slotStartDrag(QListViewItem*)

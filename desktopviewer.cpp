@@ -610,11 +610,11 @@ QDragObject *Desktopviewer::dragObject()
 
             id.setData( ba );
             drag->append( id,
-                          QRect( item->pixmapRect( FALSE ).x() - orig.x(),
-                                 item->pixmapRect( FALSE ).y() - orig.y(),
+                          QRect( item->pixmapRect( false ).x() - orig.x(),
+                                 item->pixmapRect( false ).y() - orig.y(),
                                  item->pixmapRect().width(), item->pixmapRect().height() ),
-                          QRect( item->textRect( FALSE ).x() - orig.x(),
-                                 item->textRect( FALSE ).y() - orig.y(),
+                          QRect( item->textRect( false ).x() - orig.x(),
+                                 item->textRect( false ).y() - orig.y(),
                                  item->textRect().width(), item->textRect().height() ),
                           item );
         }
@@ -630,7 +630,7 @@ QDragObject *Desktopviewer::dragObject()
 void Desktopviewer::autoRepeatTimeout()
    {
         emit itemClicked (_hit, _hitwhich);
-   _timer->start (AUTO_REPEAT_PERIOD, TRUE);
+   _timer->start (AUTO_REPEAT_PERIOD, true);
    }
 
 
@@ -798,8 +798,8 @@ void Desktopviewer::repaintItem( Desktopitem *item )
     if ( QRect( contentsX(), contentsY(), visibleWidth(), visibleHeight() ).
 //       intersects( QRect( item->x() - 1, item->y() - 1, item->width() + 2, item->height() + 2 ) ) )
          intersects( rect ))
-        repaintContents( rect.x (), rect.y (), rect.width (), rect.height (), FALSE);
-//      item->x() - 1, item->y() - 1, item->width() + 2, item->height() + 2, FALSE );
+        repaintContents( rect.x (), rect.y (), rect.width (), rect.height (), false);
+//      item->x() - 1, item->y() - 1, item->width() + 2, item->height() + 2, false );
 }
 
 
@@ -925,7 +925,7 @@ void Desktopviewer::contentsMousePressEvent( QMouseEvent *e )
         emit itemClicked (_hit, _hitwhich);
         if (_hitwhich == Desktopitem::Point_left ||
            _hitwhich == Desktopitem::Point_right)
-            _timer->start( AUTO_REPEAT_DELAY, TRUE );
+            _timer->start( AUTO_REPEAT_DELAY, true );
          if (_hitwhich)
             return;
          }
@@ -979,7 +979,7 @@ void Desktopviewer::arrangeBy (int type)
          item->move (f->pos.x (), f->pos.y ());
          }
 
-      repaintContents (0, 0, 5000, 5000, TRUE);
+      repaintContents (0, 0, 5000, 5000, true);
       }
    }
 

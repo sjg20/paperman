@@ -191,7 +191,7 @@ void QXmlConfig::removeKey(const QString& key)
 void QXmlConfig::readConfigFile()
 {
   QFile conffile(mFilePath);
-  //If createnew=TRUE and the file doesn't exist,
+  //If createnew=true and the file doesn't exist,
   //try to create a new file.
   if(!conffile.exists())
   {

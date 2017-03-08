@@ -136,7 +136,7 @@ void QSplineArray::sortCoords()
 			flag=1;
 		}
 	}
-  mSorted=TRUE;
+  mSorted=true;
 }
 
 QPolygon QSplineArray::line()

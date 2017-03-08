@@ -230,7 +230,7 @@ error:
 		im->in.jinfo.src = (struct jpeg_source_mgr *) src_mgr;
 	}
 
-	jpeg_read_header(&(im->in.jinfo), TRUE);
+	jpeg_read_header(&(im->in.jinfo), true);
 	im->in.w = im->in.jinfo.image_width;
 	im->in.h = im->in.jinfo.image_height;
 	if (im->in.w < 1) goto error;
@@ -582,7 +582,7 @@ static int _epeg_encode(Epeg_Image *im)
 	im->out.jinfo.in_color_space   = im->in.jinfo.out_color_space;
 	im->out.jinfo.dct_method	  = im->in.jinfo.dct_method;
 	jpeg_set_defaults(&(im->out.jinfo));
-	jpeg_set_quality(&(im->out.jinfo), im->out.quality, TRUE);
+	jpeg_set_quality(&(im->out.jinfo), im->out.quality, true);
 
 	if (im->out.quality >= 90)
 	{
@@ -593,7 +593,7 @@ static int _epeg_encode(Epeg_Image *im)
 		im->out.jinfo.comp_info[2].h_samp_factor = 1;
 		im->out.jinfo.comp_info[2].v_samp_factor = 1;
 	}
-	jpeg_start_compress(&(im->out.jinfo), TRUE);
+	jpeg_start_compress(&(im->out.jinfo), true);
 
 	while ((int)im->out.jinfo.next_scanline < im->out.h)
 		jpeg_write_scanlines(&(im->out.jinfo), &(im->lines[im->out.jinfo.next_scanline]), 1);
@@ -688,8 +688,8 @@ static int _epeg_decode(Epeg_Image *im)
 
 	im->in.jinfo.scale_num           = 1;
 	im->in.jinfo.scale_denom         = scale;
-	im->in.jinfo.do_fancy_upsampling = FALSE;
-	im->in.jinfo.do_block_smoothing  = FALSE;
+	im->in.jinfo.do_fancy_upsampling = false;
+	im->in.jinfo.do_block_smoothing  = false;
 	if (scale == 1)
 		im->in.jinfo.dct_method          = JDCT_ISLOW;
 	else
@@ -866,7 +866,7 @@ METHODDEF(boolean) _jpeg_fill_input_buffer(j_decompress_ptr cinfo)
 	/* Insert a fake EOI marker */
 	cinfo->src->next_input_byte = fake_EOI;
 	cinfo->src->bytes_in_buffer = sizeof(fake_EOI);
-	return TRUE;
+	return true;
 }
 
 
@@ -920,8 +920,8 @@ METHODDEF(boolean) _jpeg_empty_output_buffer(j_compress_ptr cinfo)
 		dst_mgr->dst_mgr.next_output_byte = (JOCTET *)dst_mgr->buf;
 	}
 	else
-		return FALSE;
-	return TRUE;
+		return false;
+	return true;
 }
 
 METHODDEF(void) _jpeg_term_destination(j_compress_ptr cinfo)

@@ -57,7 +57,7 @@ QOptionScrollView::~QOptionScrollView()
 void QOptionScrollView::viewportResizeEvent(QResizeEvent* qre)
 {
   Q3ScrollView::viewportResizeEvent(qre);
-  if((mpMainWidget->sizeHint().isValid()==TRUE)&&(visibleWidth()>0))
+  if((mpMainWidget->sizeHint().isValid()==true)&&(visibleWidth()>0))
   {
     mpMainWidget->setFixedWidth(visibleWidth());//,m_pMemberBox->height());
   }

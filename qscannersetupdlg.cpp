@@ -114,7 +114,7 @@ void QScannerSetupDlg::initDialog()
   QStringList labels;
   labels << tr("Device name") << tr("Vendor") << tr("Model") << tr("Type");
   mpListView->setHeaderLabels(labels);
-  mpListView->setAllColumnsShowFocus(TRUE);
+  mpListView->setAllColumnsShowFocus(true);
   mpListView->setRootIsDecorated(true);
   qgl->addWidget(mpListView,1,0,1,2);
 
@@ -153,14 +153,14 @@ void QScannerSetupDlg::initDialog()
   hb2->setStretchFactor(dummy,1);
   mpSelectButton=new QPushButton(tr("Select &device"),this);
   hb2->addWidget(mpSelectButton);
-  mpSelectButton->setDefault(TRUE);
+  mpSelectButton->setDefault(true);
 
   qgl->addLayout(hb2,5,0,1,2);
   qgl->setRowStretch ( 1,1 );
   qgl->setColumnStretch ( 0,1 );
   qgl->activate();
 
-  mpSelectButton->setEnabled(FALSE);
+  mpSelectButton->setEnabled(false);
   connect(mpQuitButton,SIGNAL(clicked()),SLOT(reject()));
   connect(mpSelectButton,SIGNAL(clicked()),SLOT(slotDeviceSelected()));
   connect(mpListView,SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)),
@@ -340,7 +340,7 @@ qDebug("could NOT open dev_settings");
 void QScannerSetupDlg::slotListViewClicked(QTreeWidgetItem*, int)
 {
 	if(mpListView->currentItem() != 0L)
-    mpSelectButton->setEnabled(TRUE);
+    mpSelectButton->setEnabled(true);
 }
 /**  */
 void QScannerSetupDlg::slotDeviceSelected()
@@ -574,7 +574,7 @@ void QScannerSetupDlg::slotDeviceGroup(int id)
 void QScannerSetupDlg::slotAllDevices()
 {
   mQueryType = 0;
-  mpSelectButton->setEnabled(FALSE);
+  mpSelectButton->setEnabled(false);
   if(!mpScanner || (mpListView->topLevelItemCount() <= 0))
   {
     initScanner();
@@ -586,7 +586,7 @@ void QScannerSetupDlg::slotAllDevices()
 void QScannerSetupDlg::slotLocalDevices()
 {
   mQueryType = 1;
-  mpSelectButton->setEnabled(FALSE);
+  mpSelectButton->setEnabled(false);
   if(!mpScanner || (mpListView->topLevelItemCount() <= 0))
   {
     initScanner();

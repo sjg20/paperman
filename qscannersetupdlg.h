@@ -40,7 +40,7 @@ class QScannerSetupDlg : public QDialog
 Q_OBJECT
 public:
   QScannerSetupDlg(QScanner *sc=0, QWidget *parent=0, const char *name=0,
-                   bool modal=FALSE, Qt::WFlags f=0);
+                   bool modal=false, Qt::WFlags f=0);
   ~QScannerSetupDlg();
   /**  */
   void addLVItem(QString name,QString vendor,QString model,QString type);

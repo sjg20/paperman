@@ -147,7 +147,7 @@ err_info *Ocromni::omni_init (void)
       qDebug () << "Module error - For more information, see kRecGetModulesInfo()";
    }
 
-   rc = kRecSettingSetToDefault(SID, NULL, TRUE);
+   rc = kRecSettingSetToDefault(SID, NULL, true);
    if (rc != REC_OK)
    {
       err = err_make (ERRFN, ERR_ocr_engine_not_present_or_broken2,

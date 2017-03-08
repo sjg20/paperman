@@ -94,7 +94,7 @@ void QDeviceSettings::initWidget()
   sublayout->addWidget(mpButtonNew,1,0);
 //delete button
 	mpButtonDelete = new QPushButton(tr("&Delete"),gb);
-  mpButtonDelete->setEnabled(FALSE);
+  mpButtonDelete->setEnabled(false);
   sublayout->addWidget(mpButtonDelete,1,2);
   sublayout->setColumnStretch(1,1);
   sublayout->setRowStretch(0,1);
@@ -104,10 +104,10 @@ void QDeviceSettings::initWidget()
 //load button
 	mpButtonLoad = new QPushButton(tr("&Load"),this);
   mpButtonLoad->setDefault(true);
-  mpButtonLoad->setEnabled(FALSE);
+  mpButtonLoad->setEnabled(false);
 //close button
 	mpButtonSave = new QPushButton(tr("&Save"),this);
-  mpButtonSave->setEnabled(FALSE);
+  mpButtonSave->setEnabled(false);
 ///add to sublayout
 	mainlayout->addWidget(mpButtonCancel,2,0);
 	mainlayout->addWidget(mpButtonSave,2,2);
@@ -259,28 +259,28 @@ void QDeviceSettings::slotSelectionChanged()
 
     if(item->isSelected())
     {
-      mpButtonLoad->setEnabled(TRUE);
+      mpButtonLoad->setEnabled(true);
       if(item->text() != tr("Last settings"))
       {
-        mpButtonDelete->setEnabled(TRUE);
-        mpButtonSave->setEnabled(TRUE);
+        mpButtonDelete->setEnabled(true);
+        mpButtonSave->setEnabled(true);
       }
       else
       {
-        mpButtonSave->setEnabled(FALSE);
-        mpButtonDelete->setEnabled(FALSE);
+        mpButtonSave->setEnabled(false);
+        mpButtonDelete->setEnabled(false);
       }
       return;
     }
   }
-  mpButtonDelete->setEnabled(FALSE);
-  mpButtonLoad->setEnabled(FALSE);
-  mpButtonSave->setEnabled(FALSE);
+  mpButtonDelete->setEnabled(false);
+  mpButtonLoad->setEnabled(false);
+  mpButtonSave->setEnabled(false);
 }
 /**  */
 void QDeviceSettings::slotNew()
 {
-  bool ok = FALSE;
+  bool ok = false;
   QString text;
   text = QInputDialog::getText(mpListWidget, tr("New entry"),
                                tr("Please enter a name"), QLineEdit::Normal,
