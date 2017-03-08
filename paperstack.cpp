@@ -250,12 +250,12 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    if (_jpeg)
       {
       _decomp.reserve (_size);
-      memset (_decomp.data (), _size, '\0');
+      memset (_decomp.data (), '\0', _size);
       _size /= 2;
       }
 
    _data.reserve (_size);
-   memset (_data.data (), _size, '\0');
+   memset (_data.data (), '\0', _size);
 
    _blank = true;
    _blankThreshold = blank_threshold;
