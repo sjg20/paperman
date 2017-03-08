@@ -62,6 +62,7 @@ Pagemodel::~Pagemodel ()
 
 void Pagemodel::clear (void)
    {
+    QAbstractItemModel::beginResetModel ();
    disownScanning ();
    _contents = 0;
    _stackindex = QModelIndex ();
@@ -70,13 +71,14 @@ void Pagemodel::clear (void)
    _column_count = 1;
    _pages.resize (_count);
    _annot_updates.clear ();
-   QAbstractItemModel::reset ();
+   QAbstractItemModel::endResetModel ();
    }
 
 
 void Pagemodel::reset (const Desktopmodel *model, const QModelIndex &index,
       int start, int count)
    {
+    QAbstractItemModel::beginResetModel ();
    _contents = model;
    _stackindex = index;
 //    qDebug () << "Pagemodel::reset: _stackindex" << _stackindex << "count" << count;
@@ -99,7 +101,7 @@ void Pagemodel::reset (const Desktopmodel *model, const QModelIndex &index,
    for (int i = 0; i < _count; i++)
       _pages [i].invalidate ();
    _annot_updates.clear ();
-   QAbstractItemModel::reset ();
+   QAbstractItemModel::endResetModel ();
 //    qDebug () << "Pagemodel::reset";
    }
 
