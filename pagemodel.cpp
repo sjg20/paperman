@@ -594,7 +594,7 @@ bool Pagemodel::removeRows (int row, int count, const QModelIndex &parent)
 Pageinfo::Pageinfo (void)
    {
    _valid = false;
-   _pixmap = 0;
+   _pixmap = QPixmap();
    _blank = false;
    _remove = false;
    _scanning = false;
