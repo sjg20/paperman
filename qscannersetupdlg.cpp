@@ -55,14 +55,6 @@
 #include <qtranslator.h>
 #include <qtoolbutton.h>
 #include <qwidget.h>
-#ifndef QIS_NO_STYLES
-#include <qwindowsstyle.h>
-#include <qcdestyle.h>
-//#include <qsgistyle.h>
-#include <qmotifstyle.h>
-//#include <qmotifplusstyle.h>
-//#include <qplatinumstyle.h>
-#endif
 #ifndef DEV_SETTINGS_VERSION
 #define DEV_SETTINGS_VERSION "1"
 #endif
@@ -80,9 +72,6 @@ QScannerSetupDlg::QScannerSetupDlg(QScanner *sc, QWidget *parent,
   setWindowTitle(QString(tr("Welcome to MaxView ")));
   mpLastItem = 0L;
 //  initConfig();
-#ifndef QIS_NO_STYLES
-  slotChangeStyle(xmlConfig->intValue("STYLE"));
-#endif
   initScanner();
   initDialog();
   createContents(false);
@@ -936,62 +925,6 @@ void QScannerSetupDlg::uninitScanner()
     }
 }
 
-/**  */
-void QScannerSetupDlg::slotChangeStyle(int s)
-{
-#ifndef QIS_NO_STYLES
-  if(s == mStyle) return;
-  switch(s)
-  {
-    case 0:
-     QApplication::setStyle(new QWindowsStyle());
-     break;
-    case 1:
-     QApplication::setStyle(new QMotifStyle());
-     break;
-#if 0
-    case 2:
-     QApplication::setStyle(new QMotifPlusStyle());
-     break;
-    case 3:
-     QApplication::setStyle(new QPlatinumStyle());
-     break;
-    case 4:
-     QApplication::setStyle(new QSGIStyle());
-     break;
-#endif
-    case 5:
-     {
-       QApplication::setStyle(new QCDEStyle(true));
-       QPalette p( QColor( 75, 123, 130 ) );
-       p.setColor( QPalette::Active, QPalette::Base, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Inactive, QPalette::Base, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Disabled, QPalette::Base, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Active, QPalette::Highlight, Qt::white );
-       p.setColor( QPalette::Active, QPalette::HighlightedText, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Inactive, QPalette::Highlight, Qt::white );
-       p.setColor( QPalette::Inactive, QPalette::HighlightedText, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Disabled, QPalette::Highlight, Qt::white );
-       p.setColor( QPalette::Disabled, QPalette::HighlightedText, QColor( 55, 77, 78 ) );
-       p.setColor( QPalette::Active, QPalette::Foreground, Qt::white );
-       p.setColor( QPalette::Active, QPalette::Text, Qt::white );
-       p.setColor( QPalette::Active, QPalette::ButtonText, Qt::white );
-       p.setColor( QPalette::Inactive, QPalette::Foreground, Qt::white );
-       p.setColor( QPalette::Inactive, QPalette::Text, Qt::white );
-       p.setColor( QPalette::Inactive, QPalette::ButtonText, Qt::white );
-       p.setColor( QPalette::Disabled, QPalette::Foreground, Qt::lightGray );
-       p.setColor( QPalette::Disabled, QPalette::Text, Qt::lightGray );
-       p.setColor( QPalette::Disabled, QPalette::ButtonText, Qt::lightGray );
-       qApp->setPalette( p );
-       break;
-     }
-    default:
-     QApplication::setStyle(new QWindowsStyle());
-     break;
-  }
-  mStyle = s;
-#endif
-}
 /**  */
 void QScannerSetupDlg::slotQuit()
 {

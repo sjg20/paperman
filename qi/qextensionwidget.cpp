@@ -50,14 +50,6 @@
 #include <qstring.h>
 #include <qtoolbutton.h>
 #include <qwidget.h>
-#ifndef QIS_NO_STYLES
-#include <qcdestyle.h>
-#include <qmotifstyle.h>
-//#include <qmotifplusstyle.h>
-//#include <qplatinumstyle.h>
-//#include <qsgistyle.h>
-#include <qwindowsstyle.h>
-#endif
 
 QExtensionWidget::QExtensionWidget(QWidget* parent,const char* name,
                                    bool modal,Qt::WindowFlags f)

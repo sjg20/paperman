@@ -120,8 +120,6 @@ private://methods
 protected: // Protected methods
   /**  */
   virtual void showEvent(QShowEvent * e);
-public slots:
-  void slotChangeStyle(int s);
 private slots: // Private slots
   /**  */
   void slotDeviceSelected();
