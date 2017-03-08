@@ -877,7 +877,7 @@ void Desktopviewer::itemClicked (Desktopitem *item, int which)
             // don't do this for single pages
             if (f->pagecount < 2)
                break;
-            num = QInputDialog::getInteger ("Select page number", "Page",
+            num = QInputDialog::getInt ("Select page number", "Page",
                        f->pagenum + 1, 1, f->pagecount, 1, &ok, this);
             if (ok)
                {

@@ -1061,7 +1061,7 @@ void Desktopwidget::slotItemClicked (const QModelIndex &index, int which)
             int num;
             bool ok;
 
-            num = QInputDialog::getInteger (this, "Select page number", "Page",
+            num = QInputDialog::getInt (this, "Select page number", "Page",
                        pagenum + 1, 1, pagecount, 1, &ok);
             if (ok)
                {
