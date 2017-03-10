@@ -520,7 +520,10 @@ err_info *Filemax::ensure_titlestr (int, page_info &page)
 
    // if temporarily loaded, free it now
    if (temp)
+      {
       chunk_free (*chunk);
+      delete chunk;
+      }
 
    page.titlestr = title;
 
