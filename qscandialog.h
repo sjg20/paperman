@@ -43,7 +43,6 @@ class PreviewWidget;
 class QCheckBox;
 class QComboBox;
 class QDragLabel;
-class QFileListWidget;
 class QGridLayout;
 class QGroupBox;
 class QHBoxLayout;
