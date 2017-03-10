@@ -86,6 +86,9 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    connect (_main->getDesktop (), SIGNAL (undoChanged ()),
          this, SLOT (undoChanged ()));
    undoChanged ();
+
+   addAction(actionExit);
+   addAction(actionFind);
 }
 
 
@@ -160,20 +163,20 @@ void Mainwindow::init ()
 }
 
 
-void Mainwindow::on_actionPrint_activated()
+void Mainwindow::on_actionPrint_triggered(bool)
 {
    _main->print ();
 }
 
 
-void Mainwindow::on_actionExit_activated()
+void Mainwindow::on_actionExit_triggered(bool)
 {
    saveSettings ();
    qApp->quit ();
 }
 
 
-void Mainwindow::on_actionAbout_activated()
+void Mainwindow::on_actionAbout_triggered(bool)
 {
    Ui::About about;
    QDialog *widget = new QDialog;
@@ -185,12 +188,12 @@ void Mainwindow::on_actionAbout_activated()
    widget->exec ();
 }
 
-void Mainwindow::on_actionFind_activated()
+void Mainwindow::on_actionFind_triggered(bool)
    {
    getDesktop()->activateFind ();
    }
 
-void Mainwindow::on_actionFullScreen_activated()
+void Mainwindow::on_actionFullScreen_triggered(bool)
 {
    setWindowState(windowState() ^ Qt::WindowFullScreen);
 }
@@ -201,7 +204,7 @@ Desktopwidget * Mainwindow::getDesktop()
 }
 
 
-void Mainwindow::on_actionSwap_activated()
+void Mainwindow::on_actionSwap_triggered(bool)
 {
    _main->swapDesktop ();
 }
@@ -247,75 +250,75 @@ void Mainwindow::setProgress (int percent, QString name)
 
 
 
-void Mainwindow::on_actionScango_activated()
+void Mainwindow::on_actionScango_triggered(bool)
 {
    _main->scan ();
 }
 
 
-void Mainwindow::on_actionPscan_activated()
+void Mainwindow::on_actionPscan_triggered(bool)
 {
    _main->pscan ();
 }
 
 
 
-void Mainwindow::on_actionSelectall_activated()
+void Mainwindow::on_actionSelectall_triggered(bool)
 {
    _main->selectAll ();
 }
 
 
-void Mainwindow::on_actionByPosition_activated()
+void Mainwindow::on_actionByPosition_triggered(bool)
 {
     _main->arrangeBy (Mainwidget::byPosition);
 }
 
 
-void Mainwindow::on_actionByDate_activated()
+void Mainwindow::on_actionByDate_triggered(bool)
 {
     _main->arrangeBy (Mainwidget::byDate);
 }
 
 
-void Mainwindow::on_actionByName_activated()
+void Mainwindow::on_actionByName_triggered(bool)
 {
     _main->arrangeBy (Mainwidget::byName);
 }
 
 
-void Mainwindow::on_actionResize_all_activated()
+void Mainwindow::on_actionResize_all_triggered(bool)
 {
     _main->resizeAll ();
 }
 
 
-void Mainwindow::on_actionRleft_activated()
+void Mainwindow::on_actionRleft_triggered(bool)
 {
    _main->rotate (-90);
 }
 
 
-void Mainwindow::on_actionRright_activated()
+void Mainwindow::on_actionRright_triggered(bool)
 {
    _main->rotate (90);
 }
 
 
-void Mainwindow::on_actionHflip_activated()
+void Mainwindow::on_actionHflip_triggered(bool)
 {
    _main->flip (1);
 }
 
 
-void Mainwindow::on_actionVflip_activated()
+void Mainwindow::on_actionVflip_triggered(bool)
 {
    _main->flip (0);
 }
 
 
 
-void Mainwindow::on_actionOptions_activated()
+void Mainwindow::on_actionOptions_triggered(bool)
 {
    _main->options ();
 }

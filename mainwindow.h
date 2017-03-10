@@ -47,25 +47,25 @@ public:
    void saveSettings ();
 
 public slots:
-    virtual void on_actionPrint_activated();
-    virtual void on_actionExit_activated();
-    virtual void on_actionAbout_activated();
-    virtual void on_actionSwap_activated();
+    virtual void on_actionPrint_triggered(bool);
+    virtual void on_actionExit_triggered(bool);
+    virtual void on_actionAbout_triggered(bool);
+    virtual void on_actionSwap_triggered(bool);
     virtual void statusUpdate(QString str);
-    virtual void on_actionScango_activated();
-    virtual void on_actionPscan_activated();
-    virtual void on_actionSelectall_activated();
-    virtual void on_actionByPosition_activated();
-    virtual void on_actionByDate_activated();
-    virtual void on_actionByName_activated();
-    virtual void on_actionResize_all_activated();
-    virtual void on_actionRleft_activated();
-    virtual void on_actionRright_activated();
-    virtual void on_actionHflip_activated();
-    virtual void on_actionVflip_activated();
-    virtual void on_actionOptions_activated();
-    virtual void on_actionFind_activated();
-    void on_actionFullScreen_activated();
+    virtual void on_actionScango_triggered(bool);
+    virtual void on_actionPscan_triggered(bool);
+    virtual void on_actionSelectall_triggered(bool);
+    virtual void on_actionByPosition_triggered(bool);
+    virtual void on_actionByDate_triggered(bool);
+    virtual void on_actionByName_triggered(bool);
+    virtual void on_actionResize_all_triggered(bool);
+    virtual void on_actionRleft_triggered(bool);
+    virtual void on_actionRright_triggered(bool);
+    virtual void on_actionHflip_triggered(bool);
+    virtual void on_actionVflip_triggered(bool);
+    virtual void on_actionOptions_triggered(bool);
+    virtual void on_actionFind_triggered(bool);
+    void on_actionFullScreen_triggered(bool);
 
     void welcome ();
 
