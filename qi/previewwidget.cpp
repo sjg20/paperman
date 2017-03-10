@@ -146,6 +146,7 @@ void PreviewWidget::initWidget()
   mpSizeHBox->addWidget(mpComboStack);
   mpScanSizeCombo = new QComboBox(mpComboStack);
   QHBoxLayout* sthbox = new QHBoxLayout();
+  mpMainLayout->addLayout(sthbox, 0, 0);
   sthbox->setSpacing(4);
 
   mpAddButton = new QToolButton();
@@ -180,6 +181,7 @@ void PreviewWidget::initWidget()
 //toolbuttons
   mpToolHBox = new QHBoxLayout();
   mpZoomHBox = new QHBoxLayout();
+  mpToolHBox->addLayout(mpZoomHBox);
   mpZoomButton = new QToolButton();
   mpZoomHBox->addWidget(mpZoomButton);
 //  mpZoomButton->setPixmap(QPixmap((const char **)zoom_xpm));
