@@ -40,7 +40,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #ifdef CONFIG_use_poppler
+# if QT_VERSION >= 0x050000
+#include <poppler-qt5.h>
+# else
 #include <poppler-qt4.h>
+# endif
 #endif
 
 

@@ -15,7 +15,14 @@ CONFIG += qt warn_on debug
 
 #QMAKE_LFLAGS += -static
 
-LIBS += -lpoppler-qt4
+equals(QT_MAJOR_VERSION, 5) {
+  LIBS += -lpoppler-qt5
+  INCLUDEPATH += /usr/include/poppler/qt5
+}
+equals(QT_MAJOR_VERSION, 4) {
+  LIBS += -lpoppler-qt4
+  INCLUDEPATH += /usr/include/poppler/qt4
+}
 
 # libraries for omnipage
 #LIBS += -lkernelapi -Wl,-rpath-link,$$OCRLIBPATH,-rpath,$$OCRLIBPATH
@@ -23,7 +30,7 @@ LIBS += -lpoppler-qt4
 LIBS += -lpodofo
 LIBS += -ltiff -lsane -ljpeg -lz
 
-INCLUDEPATH += qi /usr/local/lib /usr/include/poppler/qt4
+INCLUDEPATH += qi /usr/local/lib
 INCLUDEPATH += $$OCRINCPATH
 
 #LIBPATH += $$OCRLIBPATH
