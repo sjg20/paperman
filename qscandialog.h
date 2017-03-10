@@ -199,8 +199,6 @@ private:
   /**  */
   QComboBox* mpDragTypeCombo;
   /**  */
-  QCheckBox* mpAutoNameCheckBox;
-  /**  */
   QHBoxLayout* mpInfoHBox;
   /**  */
   QHBoxLayout* mpModeHBox;

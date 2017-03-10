@@ -176,8 +176,6 @@ QIN::Status QScanDialog::initDialog()
   mpDragHBox2->addWidget(pb_setfn);
   pb_setfn->setIcon(setpix);
   pb_setfn->resize(tb1->sizeHint());
-  mpAutoNameCheckBox = new QCheckBox(tr("Automatic filename &generation"));
-//  mpDragHBox2->addWidget(mpAutoNameCheckBox);
   QWidget* dummy1 = new QWidget();
   mpDragHBox2->addWidget(dummy1);
   dummy1->setFixedWidth(10);
@@ -200,20 +198,16 @@ QIN::Status QScanDialog::initDialog()
   mpDragHBox2->addWidget(tb2);
   tb2->setIcon(setpix);
   tb2->resize(tb1->sizeHint());
-  mpDragHBox2->setStretchFactor(mpAutoNameCheckBox,1);
   mpMainLayout->addLayout(mpDragHBox1,2,0);
   mpMainLayout->addLayout(mpDragHBox2,3,0);
   mpDragHBox1->setSpacing(3);
   mpDragHBox2->setSpacing(3);
   mpDragTypeCombo->setCurrentIndex(xmlConfig->intValue("DRAG_IMAGE_TYPE"));
   mpDragLineEdit->setText(xmlConfig->stringValue("DRAG_FILENAME"));
-  mpAutoNameCheckBox->setChecked(xmlConfig->boolValue("DRAG_AUTOMATIC_FILENAME"));
   connect(tb2,SIGNAL(clicked()),this,SLOT(slotImageSettings()));
   connect(pb_setfn,SIGNAL(clicked()),this,SLOT(slotFilenameGenerationSettings()));
   connect(mpDragTypeCombo,SIGNAL(activated(int)),
           this,SLOT(slotDragType(int)));
-  connect(mpAutoNameCheckBox,SIGNAL(toggled(bool)),
-          this,SLOT(slotAutoName(bool)));
   connect(mpDragLineEdit,SIGNAL(textChanged(const QString&)),
           this,SLOT(slotDragFilename(const QString&)));
   createOptionWidget();
@@ -2199,20 +2193,6 @@ void QScanDialog::slotChangeMode(int index)
   }
   if(scan_mode == QIN::Direct)
   {
-//    mpDragHBox1->show();
-//    mpDragHBox2->show();
-    if(mMultiSelectionMode)
-    {
-      mpAutoNameCheckBox->setChecked(true);
-      mpAutoNameCheckBox->setEnabled(false);
-    }
-    else
-      mpAutoNameCheckBox->setEnabled(true);
-  }
-  else
-  {
-//    mpDragHBox1->hide();
-//    mpDragHBox2->hide();
     qApp->processEvents();
     if(!mpPreviewWidget)
       resize(width(),minimumSizeHint().height());
@@ -2433,11 +2413,6 @@ void QScanDialog::slotMultiSelectionMode(bool state)
 {
   mMultiSelectionMode = state;
   slotEnableScanAreaOptions(!state);
-  //In drag and drop mode, ensure that automatic filename generation
-  //is selected
-  if(mMultiSelectionMode)
-    mpAutoNameCheckBox->setChecked(true);
-  mpAutoNameCheckBox->setEnabled(!state);
 }
 /** No descriptions */
 void QScanDialog::slotEnableScanAreaOptions(bool on)
