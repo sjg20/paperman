@@ -75,7 +75,7 @@ Paper Manager allows you to:
 &lt;li&gt;Stack, arrange and name your scanned paper
 &lt;li&gt;Easily print and view your scanned paper&lt;li&gt;Convert to / from PDF and other formats&lt;/ul&gt;
 
-Paper Manager version 0.8 by Simon Glass &amp;lt;chch-kiwi@users.sourceforge.net&amp;gt;
+Paper Manager version 1.0 by Simon Glass &amp;lt;sglass@designa-electronics.com&amp;gt;
 &lt;p&gt;
 &lt;p&gt;TIFF code Copyright (c) 1990-1996 Sam Leffler, Copyright (c) 1991-1996 Silicon Graphics, Inc.
 &lt;p&gt;Quite insane copyright (C) 2000 by Michael Herder crapsite@gmx.net
@@ -150,7 +150,6 @@ Paper Manager version 0.8 by Simon Glass &amp;lt;chch-kiwi@users.sourceforge.net
   <zorder>scrollArea</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <pixmapfunction></pixmapfunction>
  <resources>
   <include location="maxview.qrc"/>
  </resources>
