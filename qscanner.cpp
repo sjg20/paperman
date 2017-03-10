@@ -125,6 +125,13 @@ SANE_I18N("Specifies the height of the media.")
 
 #define SIMUL_DEV            ((void *)4)  // simul device number
 
+static SANE_Device simul_dev =
+{
+    .name = SIMUL_NAME,
+    .vendor = "Bluewater Systems Ltd",
+    .model = "Bluewater Scanner 100",
+    .type = "simulated scanner",
+};
 
 
 
@@ -238,7 +245,6 @@ bool QScanner::getDeviceList(bool local_only)
 	int i;
   SANE_Status status;
 
-  mpDeviceList = 0L;
   mDeviceCnt = 0;
   status=sane_get_devices(&mpDeviceList,local_only ? SANE_TRUE:SANE_FALSE);
 	if(status==SANE_STATUS_GOOD)
@@ -248,16 +254,6 @@ bool QScanner::getDeviceList(bool local_only)
  	  {
 			mDeviceCnt += 1;
     }
-#ifdef SIMUL
-  static SANE_Device dev;
-
-  dev.name = SIMUL_NAME;
-  dev.vendor = "Bluewater Systems Ltd";
-  dev.model = "Bluewater Scanner 100";
-  dev.type = "simulated scanner";
-  mpDeviceList [i] = &dev;
-  mDeviceCnt++;
-#endif
     return true;
 	}
   mSaneStatus = status;
@@ -296,6 +292,13 @@ bool QScanner::openDevice()
 void QScanner::setDeviceName(SANE_String_Const dev_name)
 {
 	mDeviceName = dev_name;
+    if (!strcmp(dev_name, SIMUL_NAME))
+    {
+        mDeviceVendor = simul_dev.vendor;
+        mDeviceType = simul_dev.type;
+        mDeviceModel = simul_dev.model;
+        return;
+    }
   for(int i=0;i<mDeviceCnt;i++)
   {
 	  if(QString(mpDeviceList[i]->name) == mDeviceName)
@@ -458,10 +461,6 @@ void QScanner::exitScanner()
       }
    if(mInitOk)
       {
-#ifdef SIMUL
-      // remove our device so that sane_exit() doesn't crash
-      mpDeviceList [--mDeviceCnt] = NULL;
-#endif
       sane_exit();
       mInitOk     = false;
       mpDeviceList = 0;
@@ -472,30 +471,50 @@ void QScanner::exitScanner()
 /**  */
 int QScanner::deviceCount()
 {
+#ifdef SIMUL
+    return mDeviceCnt + 1;
+#else
 	return mDeviceCnt;
+#endif
 }
 /**  */
 SANE_String_Const QScanner::name(int num)
 {
-	if(!mpDeviceList) return 0L;
+#ifdef SIMUL
+    if (num == mDeviceCnt)
+        return SIMUL_NAME;
+#endif
+    if(!mpDeviceList) return 0L;
 	return (SANE_String) mpDeviceList[num]->name;
 }
 /**  */
 SANE_String_Const QScanner::vendor(int num)
 {
-	if(!mpDeviceList) return 0L;
+#ifdef SIMUL
+    if (num == mDeviceCnt)
+        return simul_dev.vendor;
+#endif
+    if(!mpDeviceList) return 0L;
 	return (SANE_String) mpDeviceList[num]->vendor;
 }
 /**  */
 SANE_String_Const QScanner::model(int num)
 {
-	if(!mpDeviceList) return 0L;
+#ifdef SIMUL
+    if (num == mDeviceCnt)
+        return simul_dev.type;
+#endif
+    if(!mpDeviceList) return 0L;
 	return (SANE_String) mpDeviceList[num]->model;
 }
 /**  */
 SANE_String_Const QScanner::type(int num)
 {
-	if(!mpDeviceList) return 0L;
+#ifdef SIMUL
+    if (num == mDeviceCnt)
+        return simul_dev.type;
+#endif
+    if(!mpDeviceList) return 0L;
 	return (SANE_String) mpDeviceList[num]->type;
 }
 /**  */
