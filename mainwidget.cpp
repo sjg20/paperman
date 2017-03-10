@@ -128,6 +128,8 @@ Mainwidget::~Mainwidget ()
    delete _desktop;
    if (_scanner)
       delete _scanner;
+   if (_scanDialog)
+      delete _scanDialog;
    }
 
 
