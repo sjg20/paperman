@@ -126,9 +126,9 @@ PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WindowFlags f
 
 PreviewWidget::~PreviewWidget()
 {
+  for (int i = 0; i < mImageVector.size(); i++)
+      delete mImageVector[i];
   mImageVector.clear();
-  while (!mImageVector.isEmpty())
-      delete mImageVector.last();
   mTemplateVector.clear();
 }
 
