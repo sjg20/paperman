@@ -125,6 +125,8 @@ QScanDialog::QScanDialog(QScanner* s,QWidget *parent, const char *name,Qt::Windo
 
 QScanDialog::~QScanDialog()
 {
+   if (mpPreviewWidget)
+     delete mpPreviewWidget;
 }
 
 QIN::Status QScanDialog::initDialog()
