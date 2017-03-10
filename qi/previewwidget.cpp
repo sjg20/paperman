@@ -26,7 +26,6 @@
 #include "previewupdatewidget.h"
 #include "qextensionwidget.h"
 #include "qscandialog.h"
-#include "quiteinsane.h"
 #include "qxmlconfig.h"
 #include <QResizeEvent>
 #include <QShowEvent>

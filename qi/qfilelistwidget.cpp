@@ -24,7 +24,6 @@
 #include "qfiledialogext.h"
 #include "qfilelistwidget.h"
 #include "qmultiscan.h"
-#include "quiteinsane.h"
 #include "qdraglistbox.h"
 #include "qxmlconfig.h"
 
