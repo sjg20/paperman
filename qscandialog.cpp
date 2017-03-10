@@ -1004,8 +1004,8 @@ void QScanDialog::slotOptionChanged(int num)
     i = qco->saneOptionNumber();
     combostring = qco->getCurrentText();
 //     qDebug () << "combostring" << combostring;
-    v = (SANE_String*)combostring.toLatin1().constData();
-    if(v)mpScanner->setOption(i,v);
+    if (!combostring.isEmpty())
+      mpScanner->setOption(i,(SANE_String*)combostring.toLatin1().constData());
     return;
   }
   //check whether it's a word combo option
