@@ -315,7 +315,6 @@ int main (int argc, char *argv[])
 	 me->show ();
          QModelIndex ind = QModelIndex ();
          desktop->selectDir (ind);
-         qDebug () << err_list.size ();
 
          if (err_list.size ())
             {

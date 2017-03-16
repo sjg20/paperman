@@ -76,9 +76,7 @@ Dirview::~Dirview ()
 void Dirview::selectionChanged (const QItemSelection &selected, const QItemSelection &deselected)
    {
    QModelIndexList list = selected.indexes ();
-   //qDebug () << "Dirview::selectionChanged" << list.size ();
-   if (list.size () == 0)
-      qDebug () << "lost selection";
+
    QTreeView::selectionChanged (selected, deselected);
 
    if (list.size () == 1)
