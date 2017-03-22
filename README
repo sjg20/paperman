@@ -4,6 +4,8 @@ Paper Manager
 This program provides a viewer for image files such as pdf, jpeg and
 its own variant of PaperPort's .max file format.
 
+See the INSTALL file for installation instructions.
+
 
 Features
 --------
