@@ -959,7 +959,6 @@ void QScanDialog::slotOptionChanged(int num)
   SaneIntOption*    sint;
   QString combostring;
   QString optionstring;
-  void*             v;
   int i;
   QVector<SANE_Word> qa;
   SaneWidgetHolder *wh = mOptionWidgets [num];
@@ -970,7 +969,6 @@ void QScanDialog::slotOptionChanged(int num)
     wh->setPending (true);
     return;
   }
-  v = 0L;
   i = 0;
   //check whether it's a bool option
   qboolo = 0L;
@@ -996,7 +994,6 @@ void QScanDialog::slotOptionChanged(int num)
     mpScanner->setOption(i,0L);
     return;
   }
-  v = 0L;
   qco = 0L;
   if (objname == "QComboOption")
     qco=(QComboOption*)(mOptionWidgets[num]->saneOption());
@@ -1069,12 +1066,11 @@ void QScanDialog::slotOptionChanged(int num)
     qso=(QStringOption*)(mOptionWidgets[num]->saneOption());
   if(qso)
   {
-    v = 0L;
     //always string type
     i = qso->saneOptionNumber();
     optionstring = qso->text();
-    v = (SANE_String*)optionstring.toLatin1().constData();
-    if(v)mpScanner->setOption(i,v);
+    if (!optionstring.isEmpty())
+       mpScanner->setOption(i,(SANE_String*)optionstring.toLatin1().constData());
   }
 }
 /**  */
@@ -1084,10 +1080,8 @@ void QScanDialog::setAllOptions()
   SANE_Fixed sf;
   QScrollBarOption* qsbo;
   QComboOption* qco;
-  void* v;
   QString combostring;
   int i;
-  v = 0L;
   i = 0;
 
 //don't set button options
@@ -1101,10 +1095,9 @@ void QScanDialog::setAllOptions()
       qco=(QComboOption*)(mOptionWidgets[i]->saneOption());
     if(qco)
     {
-      v = 0L;
       combostring = qco->getCurrentText();
-      v = (SANE_String*)combostring.toLatin1().constData();
-      if(v)mpScanner->setOption(i,v);
+      if (!combostring.isEmpty())
+         mpScanner->setOption(i,(SANE_String*)combostring.toLatin1().constData());
     }
     //check whether it's a scrollbaroption
     qsbo = 0L;
@@ -2255,12 +2248,9 @@ void QScanDialog::slotAutoMode(int num,bool b)
   QComboOption*     qco;
   QWordComboOption* qwco;
   QString combostring;
-  void*             v;
   int i;
   SANE_Bool sb;
-  v = 0L;
   i = 0;
-  v = 0L;
   qco = 0L;
   QObject *obj = (QObject*)(mOptionWidgets[num]->saneOption());
   QString objname = obj->metaObject()->className();
@@ -2273,8 +2263,8 @@ void QScanDialog::slotAutoMode(int num,bool b)
     if(!b)
     {
       combostring = qco->getCurrentText();
-      v = (SANE_String*)combostring.toLatin1().constData();
-      if(v)mpScanner->setOption(i,v);
+      if (!combostring.isEmpty())
+          mpScanner->setOption(i,(SANE_String*)combostring.toLatin1().constData());
     }
     else
       mpScanner->setOption(i,0L,true);
