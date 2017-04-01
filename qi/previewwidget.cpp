@@ -1289,7 +1289,7 @@ void PreviewWidget::slotAutoSelection()
       }
       if(ci == (CheckListItemExt*) mpListView->item(0))
       {
-        if(!ci->checkState() == Qt::Checked)
+        if (ci->checkState() != Qt::Checked)
         {
           mpScanAreaWidget->showRect(ci->number());
           mpScanAreaWidget->setActiveRect(ci->number());
