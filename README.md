@@ -61,6 +61,10 @@ new in 1.0
 - should build on very modern distributions that don't have QT3
 
 
+new in 1.0.1
+- builds with QT5, including on Ubuntu 20.04 Focal
+
+
 Future Features
 ---------------
 
@@ -75,4 +79,4 @@ If you have other ideas then feel free to let me know on the mailing list.
 
 Simon Glass
 sjg@chromium.org
-Feb 2017
+Aug 2020

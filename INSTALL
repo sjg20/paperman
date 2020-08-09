@@ -5,11 +5,12 @@ Unpack the code into a fresh directory
 
 You will need these packages:
 
-- libqt4-dev
+- libqt5-dev (or libqt4-dev on older distros)
 
-QT4.4 is needed. This is available in various distributions since late 2008.
+At least QT4.4 is needed. This is available in various distributions since
+late 2008.
 
-- libpoppler-qt4-dev
+- libpoppler-qt5-dev (or libpoppler-qt4-dev on older distros)
 
 Used for PDF preview
 
@@ -36,20 +37,23 @@ This is needed to build podofo
 
 These are needed for OCR (Optical Character Recognition).
 
-In summary, to prepare on Debian / Ubuntu:
+In summary, to prepare on Debian / Ubuntu with QT4:
+
+   sudo apt-get install qtcreator g++ qt5-qmake libsane-dev libtiff5-dev cmake \
+           libpodofo-dev imagemagick tesseract-ocr tesseract-ocr-eng
+
+but of you only have QT4, then use:
 
    sudo apt-get install qtcreator g++ qt4-qmake libqt4-dev libpoppler-qt4-dev \
-         libsane-dev libtiff5-dev cmake libpodofo-dev imagemagick \
-         tesseract-ocr tesseract-ocr-eng
+      libsane-dev libtiff5-dev cmake libpodofo-dev imagemagick \
+      tesseract-ocr tesseract-ocr-eng
 
 For Red Hat / Centos you will try some other approach similar to the above.
-
 
 To build:
 
    qmake
    make
-
 
 But if you have QT3 installed:
 

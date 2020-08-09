@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <stdio.h>
 
+#include <QAction>
 #include <QDebug>
 #include <QImage>
 #include <QVBoxLayout>
