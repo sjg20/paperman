@@ -39,8 +39,9 @@ These are needed for OCR (Optical Character Recognition).
 
 In summary, to prepare on Debian / Ubuntu with QT4:
 
-   sudo apt-get install qtcreator g++ qt5-qmake libsane-dev libtiff5-dev cmake \
-           libpodofo-dev imagemagick tesseract-ocr tesseract-ocr-eng
+   sudo apt-get install qtcreator g++ qt5-default libsane-dev libtiff5-dev \
+           cmake libpodofo-dev imagemagick tesseract-ocr tesseract-ocr-eng \
+           libpoppler-qt5-dev
 
 but of you only have QT4, then use:
 
@@ -52,6 +53,7 @@ For Red Hat / Centos you will try some other approach similar to the above.
 
 To build:
 
+   cd paperman (if needed)
    qmake
    make
 
