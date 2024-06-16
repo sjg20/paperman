@@ -341,10 +341,21 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
 
 void Pdfio::get_image_details (const PdfDictionary *dict, int &width, int &height, int &bpp) const
    {
-   width = dict->GetKey( "Width" )->GetNumber();
-   height = dict->GetKey( "Height" )->GetNumber();
-   int bpc = dict->GetKey( "BitsPerComponent" )->GetNumber();
-   QString cs = dict->GetKey( "ColorSpace" )->GetName().GetName ().c_str ();
+   const PdfObject *pwidth = dict->GetKey( "Width" );
+   const PdfObject *pheight = dict->GetKey( "Height" );
+   const PdfObject *pbits = dict->GetKey( "BitsPerComponent" );
+   const PdfObject *pcolor = dict->GetKey( "ColorSpace" );
+
+   if (!pwidth) {
+       width = 1;
+       height = 1;
+       bpp = 24;
+       return;
+   }
+   width = pwidth->GetNumber();
+   height = pheight->GetNumber();
+   int bpc = pbits->GetNumber();
+   QString cs = pcolor->GetName().GetName ().c_str ();
    EPdfColorSpace space = cs == "DeviceRGB" ? ePdfColorSpace_DeviceRGB
          : cs == "DeviceGray" ? ePdfColorSpace_DeviceGray
          : ePdfColorSpace_DeviceGray;
