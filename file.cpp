@@ -361,7 +361,7 @@ void File::encodeFile (QTextStream &stream)
    stream << _preview_maxsize.width () << ',' << _preview_maxsize.height () << ',';
    stream << _title_maxsize.width () << ',' << _title_maxsize.height () << ',';
    stream << _pagename_maxsize.width () << ',' << _pagename_maxsize.height ();
-   stream << endl;
+   stream << Qt::endl;
    }
 
 

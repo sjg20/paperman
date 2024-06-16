@@ -428,14 +428,14 @@ bool Desk::writeDesk (void)
       return false;
 
    // write header
-   stream << "[DesktopFile]" << endl;
-   stream << "File=" << endl;
-   stream << endl;
-   stream << "[Folder]" << endl;
-   stream << "Version=0x00060000" << endl;
-   stream << endl;
+   stream << "[DesktopFile]" << Qt::endl;
+   stream << "File=" << Qt::endl;
+   stream << Qt::endl;
+   stream << "[Folder]" << Qt::endl;
+   stream << "Version=0x00060000" << Qt::endl;
+   stream << Qt::endl;
 
-   stream << "[Files]" << endl;
+   stream << "[Files]" << Qt::endl;
 
    // output the file list
    foreach (File *f, _files)
@@ -1913,10 +1913,10 @@ err_info *Desk::buildIndex (QString fname, QString dir)
       return err_make (ERRFN, ERR_could_not_make_temporary_file);
 
    // write header
-   stream << "[IndexFile]" << endl;
+   stream << "[IndexFile]" << Qt::endl;
 
-   stream << "Version=1" << endl;
-   stream << endl;
+   stream << "Version=1" << Qt::endl;
+   stream << Qt::endl;
 
    std::vector<file_info>::iterator it;
    file_info *f;
@@ -1933,7 +1933,7 @@ err_info *Desk::buildIndex (QString fname, QString dir)
          << f->preview_maxsize.width ()
          << f->preview_maxsize.height ()
          << f->time
-         << endl;
+         << Qt::endl;
       }
 
    file.close ();

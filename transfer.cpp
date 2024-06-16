@@ -174,14 +174,14 @@ err_info *Transfer::createTransferFile (QString fname)
       return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (fname));
 
    QTextStream stream (&file);
-   stream << "version 1" << endl;
-   stream << endl;
-   stream << "[users]" << endl;
-   stream << "# enter one line per user" << endl;
-   stream << "# name,username,email" << endl;
-   stream << "# for example:" << endl;
-   stream << "# Fred Bloggs, fredbloggs,fredbloggs@kiwi.co.nz" << endl;
-   stream << endl;
+   stream << "version 1" << Qt::endl;
+   stream << Qt::endl;
+   stream << "[users]" << Qt::endl;
+   stream << "# enter one line per user" << Qt::endl;
+   stream << "# name,username,email" << Qt::endl;
+   stream << "# for example:" << Qt::endl;
+   stream << "# Fred Bloggs, fredbloggs,fredbloggs@kiwi.co.nz" << Qt::endl;
+   stream << Qt::endl;
    return NULL;
    }
 
@@ -224,12 +224,12 @@ err_info *Transfer::send (QStringList &env)
                      qPrintable (QString ("error %1").arg ((int)file.error ())));
 
       // write header
-      stream << "# Maxview envelope file" << endl;
-      stream << endl;
-      stream << "version:1" << endl;
-      stream << "filename:" << fname << endl;
+      stream << "# Maxview envelope file" << Qt::endl;
+      stream << Qt::endl;
+      stream << "version:1" << Qt::endl;
+      stream << "filename:" << fname << Qt::endl;
       for (int i = 0; i < File::Env_count; i++)
-         stream << File::envToName ((File::e_env)i) << ":" << env [i].replace ("\n", "\\n") << endl;
+         stream << File::envToName ((File::e_env)i) << ":" << env [i].replace ("\n", "\\n") << Qt::endl;
       file.close ();
 
       // we can only add info to max files at the moment; silently ignore the rest
