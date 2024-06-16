@@ -1023,7 +1023,7 @@ void Mainwidget::print (void)
 //       int dpiy = metrics.logicalDpiY();
       int margin = 0;  //(int) ( (0/2.54)*dpiy ); // 2 cm margins
 //       QRect view( body );
-      char msg [80];
+      char msg [300];
       err_info *e = NULL;
 
 /*   bool sepSheet;
@@ -1084,7 +1084,7 @@ void Mainwidget::print (void)
 
       if (e)
          {
-         sprintf (msg, "Print error: %s", e->errstr);
+         snprintf (msg, sizeof(msg), "Print error: %s", e->errstr);
          emit newContents (msg);
          }
       else
