@@ -727,8 +727,8 @@ void Mainwidget::drawTextOnWhite (int flags, QString text, int linenum, bool do_
    QRect rect = QRect (_printable.left (), ypos,
          _printable.width (), fm.height());
 
-   int width1 = fmb.width (part1);
-   int width = width1 + fm.width (part2);
+   int width1 = fmb.horizontalAdvance (part1);
+   int width = width1 + fm.horizontalAdvance (part2);
    int xpos = rect.left ();
    if (flags == Qt::AlignHCenter)
       xpos = (rect.right () - width) / 2;
