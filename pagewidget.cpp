@@ -828,8 +828,10 @@ void Pagewidget::slotZoom (void)
 
    double scale = _tools->zoomLevel->text ().toInt (&ok);
    if (ok)
+      {
       slotNewScale (((double)scale + .05) / 100, false);
       slotNewScale (((double)scale + .05) / 100, false);
+      }
    }
 
 
