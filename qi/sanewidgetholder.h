@@ -30,7 +30,7 @@ class QSaneOption;
 class SaneWidgetHolder : public QWidget
 {
 public:
-  SaneWidgetHolder(QWidget* parent=0,const char* name=0,Qt::WindowFlags f=0);
+  SaneWidgetHolder(QWidget* parent=0,const char* name=0,Qt::WindowFlags f=Qt::WindowFlags());
   ~SaneWidgetHolder();
   /** No descriptions */
   void addWidget(QSaneOption* widget);

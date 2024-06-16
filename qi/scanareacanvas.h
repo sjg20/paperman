@@ -41,7 +41,7 @@ class ScanAreaCanvas : public QGraphicsView
 {
 Q_OBJECT
 public:
-  ScanAreaCanvas(QWidget* parent=0,const char* name=0,Qt::WindowFlags f=0);
+  ScanAreaCanvas(QWidget* parent=0,const char* name=0,Qt::WindowFlags = Qt::WindowFlags());
   ~ScanAreaCanvas();
   /**  */
   void setImage(QImage* image);

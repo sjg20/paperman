@@ -1604,7 +1604,7 @@ void QScanDialog::createPreviewWidget()
       }
       else
       {
-        mpPreviewWidget = new PreviewWidget(this,"",0);
+        mpPreviewWidget = new PreviewWidget(this, "", Qt::WindowFlags());
         mpMainLayout->setColumnStretch(0,0);
         mpMainLayout->setColumnStretch(2,1);
       }
@@ -1650,7 +1650,7 @@ printf ("separate\n");
     }
     else
     {
-      mpPreviewWidget = new PreviewWidget(this,"",0);
+      mpPreviewWidget = new PreviewWidget(this, "", Qt::WindowFlags());
       mpMainLayout->setColumnStretch(0,0);
       mpMainLayout->setColumnStretch(2,1);
     }

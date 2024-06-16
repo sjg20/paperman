@@ -29,7 +29,7 @@ class Pscan : public QDialog, public Ui::Pscan
     Q_OBJECT
 
 public:
-    Pscan(QWidget* parent = 0, const char* name = 0, bool modal = false, Qt::WindowFlags fl = 0);
+    Pscan(QWidget* parent = 0, const char* name = 0, bool modal = false, Qt::WindowFlags fl = Qt::WindowFlags());
     ~Pscan();
 
     virtual QString getStackName( void );

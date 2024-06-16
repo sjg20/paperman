@@ -31,7 +31,7 @@ class QPainter;
 class Ruler : public QFrame
 {
 public:
-	Ruler( QWidget * parent=0, const char * name=0,Qt::Orientation o=Qt::Vertical, Qt::WindowFlags f=0);
+    Ruler( QWidget * parent=0, const char * name=0,Qt::Orientation o=Qt::Vertical, Qt::WindowFlags f=Qt::WindowFlags());
 	~Ruler();
   void setRulerValues(double rmv,double sm,int ssn);
   /** No descriptions */

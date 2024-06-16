@@ -38,7 +38,7 @@ class Options : public QDialog, public Ui::Options
     Q_OBJECT
 
 public:
-    Options(QWidget* parent = 0, const char* name = 0, bool modal = false, Qt::WindowFlags fl = 0);
+    Options(QWidget* parent = 0, const char* name = 0, bool modal = false, Qt::WindowFlags fl = Qt::WindowFlags());
     ~Options();
 
     virtual void setMainwidget( Mainwidget * main );

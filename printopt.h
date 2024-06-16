@@ -32,7 +32,7 @@ class Printopt : public QFrame, public Ui::Printopt
    Q_OBJECT
 public:
    Printopt (QPrinter *printer, QModelIndexList &list, QWidget* parent = 0,
-         const char* name = 0, Qt::WindowFlags fl = 0);
+         const char* name = 0, Qt::WindowFlags fl = Qt::WindowFlags());
 
    ~Printopt();
 

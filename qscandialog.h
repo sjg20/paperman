@@ -85,7 +85,7 @@ class QScanDialog : public QWidget
 {
    Q_OBJECT
 public:
-	QScanDialog(QScanner* s,QWidget *parent=0, const char *name=0,Qt::WindowFlags f=0);
+    QScanDialog(QScanner* s,QWidget *parent=0, const char *name=0,Qt::WindowFlags f=Qt::WindowFlags());
   ~QScanDialog();
   /**  */
   QIN::Status status();

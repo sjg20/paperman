@@ -32,7 +32,7 @@ class Pagetools : public QFrame, public Ui::Pagetools
     Q_OBJECT
 
 public:
-    Pagetools(QWidget* parent = 0, Qt::WindowFlags fl = 0);
+    Pagetools(QWidget* parent = 0, Qt::WindowFlags fl = Qt::WindowFlags());
     ~Pagetools();
 
 protected slots:

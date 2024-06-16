@@ -37,7 +37,7 @@ class QDeviceSettings : public QDialog
 {
    Q_OBJECT
 public:
-    QDeviceSettings(QScanner* s,QWidget *parent=0,const char *name=0,bool modal=true,Qt::WindowFlags f=0);
+    QDeviceSettings(QScanner* s,QWidget *parent=0,const char *name=0,bool modal=true,Qt::WindowFlags f=Qt::WindowFlags());
 	~QDeviceSettings();
   /**  */
   void createContents();

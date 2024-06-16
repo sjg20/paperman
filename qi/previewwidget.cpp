@@ -1341,7 +1341,7 @@ void PreviewWidget::slotAutoSelectionSetup()
 void PreviewWidget::slotAddTemplate()
 {
   QString qs;
-  QDialog d(this,0);
+  QDialog d(this, Qt::WindowFlags());
   d.setModal(true);
   d.setWindowTitle(tr("Template name"));
   QGridLayout* mainlayout = new QGridLayout(&d);

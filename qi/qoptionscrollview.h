@@ -29,7 +29,7 @@ class QBoxLayout;
 class QOptionScrollView : public QScrollArea
 {
 public: 
-	QOptionScrollView(QWidget * parent=0, const char * name=0, Qt::WindowFlags f=0 );
+    QOptionScrollView(QWidget * parent=0, const char * name=0, Qt::WindowFlags f=Qt::WindowFlags() );
 	~QOptionScrollView();
   void addWidget(QWidget* qw,int stretch=0);
 protected:

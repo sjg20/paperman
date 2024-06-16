@@ -33,9 +33,9 @@ class SliderSpin : public QWidget
 {
 Q_OBJECT
 public:
-  SliderSpin(QWidget* parent=0,const char* name=0,Qt::WindowFlags f=0,bool allowLines=true);
+  SliderSpin(QWidget* parent=0,const char* name=0,Qt::WindowFlags f=Qt::WindowFlags(),bool allowLines=true);
   SliderSpin(int minval,int maxval,int val, QString title,QWidget* parent=0,
-             const char* name=0,Qt::WindowFlags f=0,bool allowLines=true);
+             const char* name=0,Qt::WindowFlags f=Qt::WindowFlags(),bool allowLines=true);
   ~SliderSpin();
   /** No descriptions */
   void setRange(int min,int max);
