@@ -789,8 +789,10 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose)
 
    for (pagenum = 0; pagenum < page_count; pagenum++)
       {
-      if (verbose)
-         printf ("\rpage %d/%d", pagenum + 1, page_count); fflush (stdout);
+      if (verbose) {
+         printf ("\rpage %d/%d", pagenum + 1, page_count);
+         fflush (stdout);
+      }
 
       // are we doing this page?
       int do_this = odd_even & ((pagenum % 2) + 1);
