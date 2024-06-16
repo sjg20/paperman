@@ -51,7 +51,7 @@ public:
   QString absConfDirPath();
 
   // string value
-  QString stringValue(const QString& key,QString def_val=QString::null);
+  QString stringValue(const QString& key,QString def_val=QString());
   void setStringValue(const QString& key, const QString& value);
   // boolean value
   bool boolValue(const QString& key,bool def_val=false);

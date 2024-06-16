@@ -150,7 +150,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_view, SIGNAL (pageLost()), _page, SLOT (slotReset ()));
 
    _parent = parent;
-   _pendingMatch = QString::null;
+   _pendingMatch = QString();
    _updating = false;
 
    // setup the preview timer
@@ -741,7 +741,7 @@ void Desktopwidget::newDir ()
 
    QString text = QInputDialog::getText(
             this, "Maxview", "Enter new subdirectory name:", QLineEdit::Normal,
-            QString::null, &ok);
+            QString(), &ok);
    if ( ok && !text.isEmpty() )
       {
       QModelIndex index = _dir->menuGetModelIndex ();
@@ -921,7 +921,7 @@ void Desktopwidget::slotUpdateDone ()
    if (_pendingMatch.length ())
       {
       str = _pendingMatch;
-      _pendingMatch = QString::null;
+      _pendingMatch = QString();
       matchUpdate (str, false);
       }
    }

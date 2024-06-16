@@ -422,7 +422,7 @@ QString PreviewWidget::getSizeName (unsigned id)
 {
   return (int)id < mSizeArray.size ()
     ? mSizeArray[id]->getName ()
-    : QString::null;
+    : QString();
 }
 
 
@@ -1407,7 +1407,7 @@ void PreviewWidget::slotDeleteAllTemplates()
 {
   int i = QMessageBox::warning(this,tr("Delete templates"),
                              tr("Do you really want to delete all templates?"),
-                             tr("&Delete"),tr("&Cancel"),QString::null,1,1);
+                             tr("&Delete"),tr("&Cancel"),QString(),1,1);
   if(i == 1)
     return;
   mTemplateVector.clear();
@@ -1578,7 +1578,7 @@ void PreviewWidget::loadTemplates()
              if((num > -1) && (tlx >= 0.0) && (tly >= 0.0) &&
                 (brx >= 0.0) && (bry >= 0.0))
              {
-               sca = new ScanArea(QString::null,tlx,tly,brx,bry);
+               sca = new ScanArea(QString(),tlx,tly,brx,bry);
                sca->setNumber(num);
                vec.append(sca);
              }

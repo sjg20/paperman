@@ -56,7 +56,7 @@ public:
   /** No descriptions */
   bool loadImage(QImage& image,const QString& filename);
   /** No descriptions */
-  QString validateExtension(QString file_path,QString format=QString::null);
+  QString validateExtension(QString file_path,QString format=QString());
   /** No descriptions */
   QString lastErrorString();
 private: // Private methods

@@ -29,7 +29,7 @@ QListViewItemExt::QListViewItemExt(QTableWidget* parent)
   parent->insertRow(mRow);
   parent->setItem(mRow, 0, this);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 /** */
 QListViewItemExt::QListViewItemExt(QTableWidgetItem* item)
@@ -42,7 +42,7 @@ QListViewItemExt::QListViewItemExt(QTableWidgetItem* item)
   parent->insertRow(mRow);
   parent->setItem(mRow, 0, this);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after)
               :QTableWidgetItem()
@@ -53,7 +53,7 @@ QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after)
   parent->insertRow(mRow);
   parent->setItem(mRow, 0, this);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 /** */
 QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,QTableWidgetItem* after)
@@ -66,7 +66,7 @@ QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,QTableWidgetItem* afte
   parent->insertRow(mRow);
   parent->setItem(mRow, 0, this);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 
 void QListViewItemExt::addWidgets(QTableWidget *parent, QString label1,
@@ -104,7 +104,7 @@ QListViewItemExt::QListViewItemExt(QTableWidget * parent,QString label1,
 {
     mParent = parent;
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
   mRow = parent->rowCount();
 
   parent->insertRow(mRow);
@@ -122,7 +122,7 @@ QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,QString label1,
     QTableWidget* parent = item->tableWidget();
     mParent = parent;
     mIndex = -1;
-    mHiddenText = QString::null;
+    mHiddenText = QString();
     mRow = parent->rowCount();
 
     parent->insertRow(mRow);
@@ -130,7 +130,7 @@ QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,QString label1,
     addWidgets(parent, label1, label2, label3, label4, label5, label6,
                label7, label8);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 /** */
 QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after,
@@ -141,7 +141,7 @@ QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after,
 {
     mParent = parent;
     mIndex = -1;
-    mHiddenText = QString::null;
+    mHiddenText = QString();
     mRow = parent->row(after);
 
     parent->insertRow(mRow);
@@ -149,7 +149,7 @@ QListViewItemExt::QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after,
     addWidgets(parent, label1, label2, label3, label4, label5, label6,
                label7, label8);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 /** */
 QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,
@@ -162,7 +162,7 @@ QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,
     QTableWidget* parent = item->tableWidget();
     mParent = parent;
     mIndex = -1;
-    mHiddenText = QString::null;
+    mHiddenText = QString();
     mRow = parent->row(after);
 
     parent->insertRow(mRow);
@@ -170,7 +170,7 @@ QListViewItemExt::QListViewItemExt(QTableWidgetItem* item,
     addWidgets(parent, label1, label2, label3, label4, label5, label6,
                label7, label8);
   mIndex = -1;
-  mHiddenText = QString::null;
+  mHiddenText = QString();
 }
 /** */
 QListViewItemExt::~QListViewItemExt()

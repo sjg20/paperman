@@ -118,7 +118,7 @@ Desk::Desk (const QString &dirPath, const QString &trashPath,
 
 Desk::~Desk ()
    {
-   if (_dir != QString::null && _do_writeDesk && !writeDesk ())
+   if (_dir != QString() && _do_writeDesk && !writeDesk ())
       printf ("couldn't write maxdesk.ini\n");
    while (!_files.isEmpty ())
       delete _files.takeFirst ();
@@ -225,7 +225,7 @@ void Desk::addMatches (const QString &dirPath, const QString &match,
          if (fi.fileName () != "." && fi.fileName () != "..")
             addMatches (dirPath + fi.fileName () + "/", match, subdirs, 0);
          }
-      else if (match == QString::null ||
+      else if (match == QString() ||
                fi.fileName ().contains (match, Qt::CaseInsensitive))
          addFile (fi, dirPath);
       }
@@ -872,7 +872,7 @@ err_info *Desk::moveFromDir (QString &, QString &trashname, QString &filename,
    QString fname = removeExtension (filename, ext);
 
    // find unique name
-   QString uniq = findNextFilename (fname, QString::null, ext);
+   QString uniq = findNextFilename (fname, QString(), ext);
 
    // move the file with the new name
    filename = uniq + ext;
@@ -1012,7 +1012,7 @@ err_info *Desk::duplicateTiff (file_info *f, file_info **fnewp,
    fname = removeExtension (f->filename, ext);
 
    // find unique name
-   uniq = findNextFilename (fname + "_copy", QString::null, ".tiff");
+   uniq = findNextFilename (fname + "_copy", QString(), ".tiff");
    printf ("without ext '%s' (%s), copy '%s'\n", fname.latin1 (), ext.latin1 (), uniq.latin1 ());
 
    // create the file
@@ -1439,7 +1439,7 @@ err_info *Desk::convertMax (QString &old, QString newf, bool verbose,
 
    // remove .pdf from filename
    fname = removeExtension (old, ext);
-   if (newf == QString::null)
+   if (newf == QString())
       {
       if (ext == ".max")
 	 fname += ".new.max";

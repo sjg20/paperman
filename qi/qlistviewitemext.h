@@ -37,27 +37,27 @@ public:
   /** */
   QListViewItemExt(QTableWidgetItem* parent,QTableWidgetItem* after);
   /** */
-  QListViewItemExt(QTableWidget* parent,QString,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null);
+  QListViewItemExt(QTableWidget* parent,QString,QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString());
   /** */
-  QListViewItemExt(QTableWidgetItem* parent,QString,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null);
+  QListViewItemExt(QTableWidgetItem* parent,QString,QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString());
   /** */
   QListViewItemExt(QTableWidget* parent,QTableWidgetItem* after,QString,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString = QString::null);
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString = QString());
   /** */
   QListViewItemExt(QTableWidgetItem* parent,QTableWidgetItem* after,QString,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null,QString=QString::null,
-                   QString=QString::null);
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString(),QString=QString(),
+                   QString=QString());
 
 private:
   void addWidgets(QTableWidget *parent, QString label1,

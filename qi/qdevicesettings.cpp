@@ -284,7 +284,7 @@ void QDeviceSettings::slotNew()
   QString text;
   text = QInputDialog::getText(mpListWidget, tr("New entry"),
                                tr("Please enter a name"), QLineEdit::Normal,
-                               QString::null, &ok );
+                               QString(), &ok );
   if(!ok || text.isEmpty())return;//user entered nothing
   //the user entered a new entry
   //check, whether it has a unique name

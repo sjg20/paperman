@@ -561,7 +561,7 @@ err_info *File::rename (QString &fname, bool auto_rename)
 
       ext = fi.suffix ();
 
-      name = _desk->findNextFilename (fi.baseName (), QString::null, "." + ext);
+      name = _desk->findNextFilename (fi.baseName (), QString(), "." + ext);
       if (name.isNull ())
          return err_make (ERRFN, ERR_no_unique_filename1, qPrintable (fname));
       name += "." + ext;
@@ -773,7 +773,7 @@ err_info *File::duplicateAny (File::e_type type, int odd_even, Operation &op, Fi
    QString ext = typeExt (type);
    if (ext.isEmpty ())
       ext = _ext;
-   uniq = _desk->findNextFilename (_leaf + "_copy", QString::null, ext);
+   uniq = _desk->findNextFilename (_leaf + "_copy", QString(), ext);
 
    return duplicateToDesk (_desk, type, uniq, odd_even, op, fnew);
    }

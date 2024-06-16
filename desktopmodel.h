@@ -1156,11 +1156,11 @@ public slots:
       \param dirpath    directory to search
       \param rootpath   root directory for this branch of the model
       \param do_readDesk  true to read the directory's maxdesk.ini file
-      \param match      string to match against filenames (QString::null for all)
+      \param match      string to match against filenames (QString() for all)
       \param subdirs    true to search subdirectories also
       \returns model index for the new desk */
    QModelIndex refresh (QString dirpath, QString rootpath, bool do_readDesk = true,
-         const QString &match = QString::null, bool subdirs = false, Operation *op = 0);
+         const QString &match = QString(), bool subdirs = false, Operation *op = 0);
 
    /** advises the model of the current context index (default item for
        operations */

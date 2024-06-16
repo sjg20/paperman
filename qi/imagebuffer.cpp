@@ -21,7 +21,7 @@
 
 ImageBuffer::ImageBuffer()
 {
-  mPath = QString::null;
+  mPath = QString();
   mpImage = 0;
   mTlxPercent = 0.0;
   mTlyPercent = 0.0;
@@ -32,7 +32,7 @@ ImageBuffer::ImageBuffer()
   mBrxOrig = 1.0;
   mBryOrig = 1.0;
   mAspectRatio = 1.0;
-  mZoomString = QString::null;
+  mZoomString = QString();
 }
 ImageBuffer::~ImageBuffer()
 {

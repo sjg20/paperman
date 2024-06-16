@@ -373,7 +373,7 @@ QString QScanner::saneStringValue(int num)
     }
   }
   if(val) delete [] val;
-  qs = QString::null;
+  qs = QString();
   return qs;
 }
 /**  */
@@ -562,7 +562,7 @@ bool QScanner::isOptionSettable(int num)
 /**  */
 QString QScanner::getOptionTitle(int num)
 {
-  QString qs=QString::null;
+  QString qs=QString();
 	const SANE_Option_Descriptor *option_desc;
  	option_desc=do_sane_get_option_descriptor(mDeviceHandle,num);
   if(option_desc)
@@ -3128,12 +3128,12 @@ void QScanner::qis_authorization(SANE_String_Const resource,
   QString res_string;
   QString dev_name;
 
-  buf = QString::null;
-  qs = QString::null;
-  res_string = QString::null;
-  dev_name = QString::null;
-  string_username = QString::null;
-  string_password = QString::null;
+  buf = QString();
+  qs = QString();
+  res_string = QString();
+  dev_name = QString();
+  string_username = QString();
+  string_password = QString();
 
   res_string = resource;
 
@@ -3287,12 +3287,12 @@ void QScanner::qis_authorization(SANE_String_Const resource,
   {
     sprintf(password,"%s",string_password.toLatin1().constData());
   }
-  buf = QString::null;
-  qs = QString::null;
-  res_string = QString::null;
-  dev_name = QString::null;
-  string_password = QString::null;
-  string_username = QString::null;
+  buf = QString();
+  qs = QString();
+  res_string = QString();
+  dev_name = QString();
+  string_password = QString();
+  string_username = QString();
   if (pd) delete pd;
 }
 /** No descriptions */

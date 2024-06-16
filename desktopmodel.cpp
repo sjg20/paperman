@@ -68,7 +68,7 @@ Desktopmodel::Desktopmodel(QObject *parent)
    _debug_level = 0;
    _op = 0;
    _subdirs = false;
-   _forceVisible = QString::null;
+   _forceVisible = QString();
    _drop_target = 0;
    QFont font;
    _fm = new QFontMetrics (font);

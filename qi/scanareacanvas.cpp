@@ -763,7 +763,7 @@ QVector <ScanArea*> ScanAreaCanvas::scanAreas()
   {
     if(mRectVector[i]->isVisible())
     {
-      sca = new ScanArea(QString::null,mRectVector[i]->tlx(),mRectVector[i]->tly(),
+      sca = new ScanArea(QString(),mRectVector[i]->tlx(),mRectVector[i]->tly(),
                                        mRectVector[i]->brx(),mRectVector[i]->bry());
       sca->setNumber(i);
       vec.append(sca);

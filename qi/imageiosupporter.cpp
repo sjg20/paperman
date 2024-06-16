@@ -35,7 +35,7 @@
 
 ImageIOSupporter::ImageIOSupporter()
 {
-  mErrorString = QString::null;
+  mErrorString = QString();
 //initialize extension to format map;
   mFilterMap.clear();
   mExtensionToFormatMap.clear();
@@ -130,12 +130,12 @@ QString ImageIOSupporter::getFormatByFilename(QString filepath)
 {
   QString ext;
   QFileInfo fi(filepath);
-  if(fi.isDir()) return QString::null;
+  if(fi.isDir()) return QString();
   ext = "." + fi.completeSuffix();
-  if(ext == ".") ext = QString::null;
+  if(ext == ".") ext = QString();
   if(mExtensionToFormatMap.contains(ext))
     return mExtensionToFormatMap[ext];
-  return QString::null;
+  return QString();
 }
 /** Workaround some gcc problems with QMap */
 void ImageIOSupporter::insertInMap(QMap <QString,QString> & map,QString key,QString value)
@@ -156,7 +156,7 @@ QString ImageIOSupporter::getFormatByFilter(QString filter)
       return format;
     }
   }
-  return QString::null;
+  return QString();
 }
 /** No descriptions */
 QString ImageIOSupporter::getExtensionByFormat(QString format)
@@ -167,7 +167,7 @@ QString ImageIOSupporter::getExtensionByFormat(QString format)
     ext = mFormatToExtensionMap[format];
     return ext;
   }
-  return QString::null;
+  return QString();
 }
 /** No descriptions */
 QStringList ImageIOSupporter::getOrderedOutFilterList(QString first_filter)
@@ -234,7 +234,7 @@ QString ImageIOSupporter::getDataFromInFilter(QString filter)
       return *it;
     }
   }
-  return QString::null;
+  return QString();
 }
 
 /** No descriptions */
@@ -249,7 +249,7 @@ QString ImageIOSupporter::getDataFromOutFilter(QString filter)
       return *it;
     }
   }
-  return QString::null;
+  return QString();
 }
 /** Stupid hack collection, mainly due to the fact, that it seems impossible to
 overwrite existing ImageIO handlers in Qt. */
@@ -516,14 +516,14 @@ QString ImageIOSupporter::validateExtension(QString file_path,QString format)
   QString new_filepath;
   QString ext;
   QFileInfo fi(file_path);
-  mErrorString = QString::null;
+  mErrorString = QString();
   if(!(fi.suffix().isEmpty()))
   {
     ext = "." + fi.suffix();
     if(mFormatToExtensionMap.contains(format))
     {
       if(mFormatToExtensionMap[format] != ext)
-        ext = QString::null;
+        ext = QString();
     }
   }
 qDebug("ImageIOSupporter: ext %s",ext.toLatin1().constData());
@@ -537,7 +537,7 @@ qDebug("ImageIOSupporter: ext %s",ext.toLatin1().constData());
     if(format.isEmpty())
     {
       mErrorString = QObject::tr("No valid filename extension.") + "\n";
-      return QString::null;//no extension, no format -> can't create filename
+      return QString();//no extension, no format -> can't create filename
     }
     if(mFormatToExtensionMap.contains(format))
     {
@@ -547,7 +547,7 @@ qDebug("ImageIOSupporter: ext %s",ext.toLatin1().constData());
     else
     {
       mErrorString = QObject::tr("No valid filename extension.") + "\n";
-      return QString::null;
+      return QString();
     }
   }
 qDebug("ImageIOSupporter:return new_filepath %s",new_filepath.

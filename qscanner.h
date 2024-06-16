@@ -87,7 +87,7 @@ public:
     */
   bool openDevice();
   /** Return a QString if option num exists and is of
-    * type SANE_TYPE_STRING, otherwise QString::null is returned.
+    * type SANE_TYPE_STRING, otherwise QString() is returned.
     */
   QString saneStringValue(int num);
   /**Return the value of option number num if the option exists and

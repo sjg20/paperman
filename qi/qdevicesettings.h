@@ -48,7 +48,7 @@ public:
   /**  */
   QString imageType();
   /**  */
-  bool saveDeviceSettings(QString uname = QString::null);
+  bool saveDeviceSettings(QString uname = QString());
 private slots: // Private slots
   /**  */
   void slotClearList();

@@ -30,7 +30,7 @@
 class ScanAreaTemplate
 {
 public: 
-  ScanAreaTemplate(QString name = QString::null);
+  ScanAreaTemplate(QString name = QString());
   ~ScanAreaTemplate();
   /** No descriptions */
   QVector <ScanArea*> rects();  //s

@@ -50,7 +50,7 @@ Operation::Operation (QString name, int count, QWidget *parent)
 
 Operation::~Operation ()
    {
-   emit progress (-2, QString::null);
+   emit progress (-2, QString());
    }
 
 
@@ -65,7 +65,7 @@ bool Operation::setProgress (int upto)
    {
    _upto = upto;
    int pc = int ((float)upto / _maximum * 100);
-   emit progress (pc, QString::null);
+   emit progress (pc, QString());
 //   printf ("progress %d\n", pc);
 //    QProgressDialog::setValue (upto);
    qApp->processEvents ();

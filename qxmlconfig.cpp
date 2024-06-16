@@ -46,9 +46,9 @@ QXmlConfig::QXmlConfig()
 {
   mModified = false;
   mValid = false;
-  mFilePath = QString::null;
-  mCreator = QString::null;
-  mVersion = QString::null;
+  mFilePath = QString();
+  mCreator = QString();
+  mVersion = QString();
   if(xmlConfig)
     qWarning("QXmlConfig: Only one xmlConfig object allowed");
   xmlConfig = (QXmlConfig*) this;
@@ -174,7 +174,7 @@ QString QXmlConfig::stringValue(const QString& key,QString def_val)
   {
     return mConfMap[key];
   }
-  return QString::null;
+  return QString();
 }
 
 void QXmlConfig::setStringValue(const QString& key, const QString& value)
@@ -342,7 +342,7 @@ void QXmlConfig::setStringList(const QString& key,QStringList list)
 {
   QString qs;
   QStringList::Iterator it;
-  mTempString = QString::null;
+  mTempString = QString();
   for(it=list.begin();it!=list.end();++it)
     mTempString += *it + "|";
   if(mTempString.right(1) == "|")
@@ -358,7 +358,7 @@ QStringList QXmlConfig::stringList(const QString& key,
   if(!mConfMap.contains(key))
   {
     QStringList::Iterator it;
-    mTempString = QString::null;
+    mTempString = QString();
     for(it=default_list.begin();it!=default_list.end();++it)
       mTempString += *it + "|";
     if(mTempString.right(1) == "|")
@@ -394,7 +394,7 @@ void QXmlConfig::setIntValueList(const QString& key,QList<int> list)
 {
   QString qs;
   QList<int>::Iterator it;
-  mTempString = QString::null;
+  mTempString = QString();
   for(it=list.begin();it!=list.end();++it)
     mTempString += qs.setNum(*it) + " ";
   mConfMap[key] = mTempString;
@@ -408,7 +408,7 @@ QList<int> QXmlConfig::intValueList(const QString& key,
   if(!mConfMap.contains(key))
   {
     QList<int>::Iterator it;
-    mTempString = QString::null;
+    mTempString = QString();
     for(it=default_list.begin();it!=default_list.end();++it)
       mTempString += qs.setNum(*it) + " ";
     mConfMap[key] = mTempString;
@@ -448,7 +448,7 @@ void QXmlConfig::setUintValueList(const QString& key,QList<unsigned int> list)
 {
   QString qs;
   QList<unsigned int>::Iterator it;
-  mTempString = QString::null;
+  mTempString = QString();
   for(it=list.begin();it!=list.end();++it)
     mTempString += qs.setNum(*it) + " ";
   mConfMap[key] = mTempString;
@@ -462,7 +462,7 @@ QList<unsigned int> QXmlConfig::uintValueList(const QString& key,
   if(!mConfMap.contains(key))
   {
     QList<unsigned int>::Iterator it;
-    mTempString = QString::null;
+    mTempString = QString();
     for(it=default_list.begin();it!=default_list.end();++it)
       mTempString += qs.setNum(*it) + " ";
     mConfMap[key] = mTempString;

@@ -184,7 +184,7 @@ void QExtensionWidget::initWidget()
   QHBoxLayout* transhb = new QHBoxLayout(opage);
   new QLabel(tr("Translation path:"),transhb);
   mpEditTransPath = new QLineEdit(transhb);
-  mpEditTransPath->setText(xmlConfig->stringValue(QString::null));
+  mpEditTransPath->setText(xmlConfig->stringValue(QString()));
 	mpButtonTransPath = new QToolButton(transhb);
   mpButtonTransPath->setPixmap(*pixmap);
   transhb->setStretchFactor(mpEditTransPath,1);
@@ -620,7 +620,7 @@ void QExtensionWidget::loadSettings()
   mpUndoSpin->setValue(xmlConfig->intValue("VIEWER_UNDO_STEPS"));
   mpFilterSizeSpin->setValue(xmlConfig->intValue("FILTER_PREVIEW_SIZE"));
   mpDisplaySubsystemCombo->setCurrentIndex(xmlConfig->intValue("DISPLAY_SUBSYSTEM", 0));
-  mpEditTransPath->setText(xmlConfig->stringValue("BACKEND_TRANSLATIONS_PATH",QString::null));
+  mpEditTransPath->setText(xmlConfig->stringValue("BACKEND_TRANSLATIONS_PATH",QString()));
   mpAutoColorSpin->setValue(xmlConfig->intValue("AUTOSELECT_COLOR_FACTOR",10));
   mpAutoGraySpin->setValue(xmlConfig->intValue("AUTOSELECT_GRAY_FACTOR",10));
   mpAutoSizeSpin->setValue(xmlConfig->intValue("AUTOSELECT_SIZE",2));
@@ -641,7 +641,7 @@ void QExtensionWidget::loadSettings()
 void QExtensionWidget::slotChangeDocPath()
 {
 #if 0 //s
-  QFileDialogExt fd(QDir::homePath(),QString::null,
+  QFileDialogExt fd(QDir::homePath(),QString(),
                     this,"",true);
   fd.setViewMode((Q3FileDialog::ViewMode)xmlConfig->intValue("SINGLEFILE_VIEW_MODE"));
   fd.setWindowTitle(tr("Select the documentation path"));
@@ -657,7 +657,7 @@ void QExtensionWidget::slotChangeTempPath()
 {
 #if 0 //s
   QString old_temp = xmlConfig->stringValue("TEMP_PATH","/tmp");
-  QFileDialogExt fd(old_temp,QString::null,this,"",true);
+  QFileDialogExt fd(old_temp,QString(),this,"",true);
   fd.setMode(Q3FileDialog::DirectoryOnly);
   fd.setWindowTitle(tr("Select a directory"));
   fd.setViewMode((Q3FileDialog::ViewMode)xmlConfig->intValue("SINGLEFILE_VIEW_MODE"));

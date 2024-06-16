@@ -207,7 +207,7 @@ int main (int argc, char *argv[])
       case 's' :
 	 {
 	 QString mydir = QString (dir);
-	 Desk *maxdesk = new Desk (mydir, QString::null);
+	 Desk *maxdesk = new Desk (mydir, QString());
 
 	 // decode everything in the given directory and checksum it
 	 if (!maxdesk->checksum ())
@@ -218,7 +218,7 @@ int main (int argc, char *argv[])
       case 't' :
 	 {
 	 QString fname = QString (dir);
-	 Desk maxdesk (QString::null, QString::null);
+	 Desk maxdesk (QString(), QString());
 
          dirmodel_tests ();
 //      maxdesk.runTests ();
@@ -234,7 +234,7 @@ int main (int argc, char *argv[])
 
       case 'p' :
 	 {
-	 Desk maxdesk (QString::null, QString::null);
+	 Desk maxdesk (QString(), QString());
 	 QString fname = QString (dir);
 
 	 // convert the file to PDF
@@ -244,7 +244,7 @@ int main (int argc, char *argv[])
 
       case 'j' :
 	 {
-	 Desk maxdesk (QString::null, QString::null);
+	 Desk maxdesk (QString(), QString());
 	 QString fname = QString (dir);
 
 	 // convert the file to JPEG
@@ -254,11 +254,11 @@ int main (int argc, char *argv[])
 
       case 'm' :
 	 {
-	 Desk maxdesk (QString::null, QString::null);
+	 Desk maxdesk (QString(), QString());
 	 QString fname = QString (dir);
 
       // convert the file to .max
-	 e = maxdesk.convertMax (fname, QString::null, verbose, force, reloc);
+	 e = maxdesk.convertMax (fname, QString(), verbose, force, reloc);
 	 if (e)
 	    printf ("error: %s\n", e->errstr);
 	 break;
@@ -266,7 +266,7 @@ int main (int argc, char *argv[])
 
       case 'i' :
 	 {
-	 Desk maxdesk (QString::null, QString::null, false, false, false);
+	 Desk maxdesk (QString(), QString(), false, false, false);
 	 QString fname = QString (dir);
 
          // decode print info on the file
@@ -338,7 +338,7 @@ int main (int argc, char *argv[])
 
 #if 0
       case 1 :
-	 Desk maxdesk (QString::null, QString::null);
+	 Desk maxdesk (QString(), QString());
 	 QString fname = QString (dir);
 
 	 // convert the file to PDF

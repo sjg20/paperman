@@ -279,9 +279,9 @@ QIN::Status QScanDialog::initDialog()
   connect(mpScanner,SIGNAL(signalReloadParams()),this,SLOT(slotImageInfo()));
   connect(mpScanner,SIGNAL(signalInfoInexact(int)),this,SLOT(slotInfoInexact(int)));
   caption_string = "MaxView - ";
-  caption_string += xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString::null);
+  caption_string += xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString());
   caption_string += " ";
-  caption_string += xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null);
+  caption_string += xmlConfig->stringValue("LAST_DEVICE_MODEL",QString());
   caption_string += " (";
   caption_string += mDeviceName;
   caption_string += ")";
@@ -1507,7 +1507,7 @@ QGroupBox* QScanDialog::createOptionGroupBox(QString title,int firstoption,int l
 {
   QGroupBox* qgb       = 0;
   QSaneOption* widget_pointer = 0;
-  QString stringval    = QString::null;
+  QString stringval    = QString();
   int c2               = 0;
   //create a group box with a QVBoxLayout
   qgb = new QGroupBox(title);

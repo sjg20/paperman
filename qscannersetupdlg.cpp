@@ -265,10 +265,10 @@ QString QScannerSetupDlg::lastDevice()
 //try to load the settings file
   QDomDocument doc;
   doc.clear();
-  last_dev = xmlConfig->stringValue("LAST_DEVICE",QString::null);
+  last_dev = xmlConfig->stringValue("LAST_DEVICE",QString());
 //qDebug("LAST_DEVICE: %s",last_dev.latin1());
-  last_dev_settings_name = xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString::null) +
-                           xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null);
+  last_dev_settings_name = xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString()) +
+                           xmlConfig->stringValue("LAST_DEVICE_MODEL",QString());
 //qDebug("last_dev_settings_name: %s",last_dev_settings_name.latin1());
   QFile f( xmlConfig->absConfDirPath()+"devicesettings.xml" );
   if (f.open( QIODevice::ReadOnly ) )
@@ -349,9 +349,9 @@ void QScannerSetupDlg::slotDeviceSelected()
     //if we don't query the devices, then we normally don't know
     //vendor, model and type; therefore we pass the saved values
     //to our QScanner object
-    mpScanner->setVendor(xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString::null));
-    mpScanner->setModel(xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null));
-    mpScanner->setType(xmlConfig->stringValue("LAST_DEVICE_TYPE",QString::null));
+    mpScanner->setVendor(xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString()));
+    mpScanner->setModel(xmlConfig->stringValue("LAST_DEVICE_MODEL",QString()));
+    mpScanner->setType(xmlConfig->stringValue("LAST_DEVICE_TYPE",QString()));
   }
   mpScanner->setDeviceName(dev.toLatin1());
   if(!mpScanner->openDevice())
@@ -415,9 +415,9 @@ bool QScannerSetupDlg::setupLast()
   //if we don't query the devices, then we normally don't know
   //vendor, model and type; therefore we pass the saved values
   //to our QScanner object
-  mpScanner->setVendor(xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString::null));
-  mpScanner->setModel(xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null));
-  mpScanner->setType(xmlConfig->stringValue("LAST_DEVICE_TYPE",QString::null));
+  mpScanner->setVendor(xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString()));
+  mpScanner->setModel(xmlConfig->stringValue("LAST_DEVICE_MODEL",QString()));
+  mpScanner->setType(xmlConfig->stringValue("LAST_DEVICE_TYPE",QString()));
   mpScanner->setDeviceName(dev.toLatin1());
   if(!mpScanner->openDevice())
   {
@@ -613,7 +613,7 @@ void QScannerSetupDlg::initConfig()
 //     new QXmlConfig();
   QString local_dir;
   QString temp_dir;
-  local_dir = QString::null;
+  local_dir = QString();
   QString inst_dir;
 #ifdef INSTALL_DIR
   inst_dir = INSTALL_DIR;
@@ -951,9 +951,9 @@ void QScannerSetupDlg::markLastDevice()
   QString last_dev;
   QString last_dev_vendor;
   QString last_dev_model;
-  last_dev = xmlConfig->stringValue("LAST_DEVICE",QString::null);
-  last_dev_vendor = xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString::null);
-  last_dev_model = xmlConfig->stringValue("LAST_DEVICE_MODEL",QString::null);
+  last_dev = xmlConfig->stringValue("LAST_DEVICE",QString());
+  last_dev_vendor = xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString());
+  last_dev_model = xmlConfig->stringValue("LAST_DEVICE_MODEL",QString());
   if(last_dev.isEmpty() || last_dev_vendor.isEmpty() || last_dev_model.isEmpty())
     return;
   if(last_dev.left(4) == "net:")

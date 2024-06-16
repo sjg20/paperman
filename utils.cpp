@@ -547,7 +547,7 @@ QString util_findNextFilename (QString fname, QString dir, QString ext)
    }
 
    // things are probably broken, just return null for now - caller will get an error when using the name
-   return QString::null;
+   return QString();
    }
 
    

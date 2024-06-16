@@ -156,7 +156,7 @@ public:
       \param returns  the unique filename (without extension or directory), or
                       null if nothing unique can be found (probably a
                       filesystem fault) */
-   QString findNextFilename (QString fname, QString dir = QString::null, QString ext = QString::null);
+   QString findNextFilename (QString fname, QString dir = QString(), QString ext = QString());
 
    /** adds a new file to a desk. The file is normally positioned
        at the bottom of the view, but it is possible to place it next
@@ -405,7 +405,7 @@ public:
        directory
 
       \param f       stack to move
-      \param newDir  new directory to send to (QString::null for trash)
+      \param newDir  new directory to send to (QString() for trash)
       \param newName returns the new name
       \returns       error, or NULL if none */
    err_info *move (file_info *f, QString &newDir, QString &newName);
