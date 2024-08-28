@@ -1041,8 +1041,10 @@ void Mainwidget::print (void)
       else
          {
 #if QT_VERSION >= 0x040400
-         qreal left, top, right, bottom;
-         _printer->getPageMargins (&left, &top, &right, &bottom, QPrinter::DevicePixel);
+         QMarginsF margins = _printer->pageLayout().margins();
+         qreal left = margins.left(), top = margins.top();
+         qreal right = margins.right(), bottom = margins.bottom();
+
          _printable = QRect (left, top, _body.width () - left - right, _body.height () - top - bottom);
 #else
          _printable = _printer->pageRect ();
