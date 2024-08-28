@@ -552,12 +552,13 @@ err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist
       e = emailFiles (fname, fname_list, can_delete);
 
    // delete the files if we are allowed
-   if (can_delete)
+   if (can_delete) {
       foreach (QString fname, tmp_list)
          {
          QFile f (fname);
          f.remove ();
          }
+   }
    return e;
 }
 
