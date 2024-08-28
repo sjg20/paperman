@@ -291,8 +291,8 @@ void QCurveWidget::paintEvent(QPaintEvent*)
   p.setClipRect(5,5,256,256);
 
   p.setWindow(-5,-5,266,266);
-  QMatrix qwm(1.0,0.0,0.0,-1.0,0.0,255.0);//to get 0,0 at bottom/left
-  p.setWorldMatrix(qwm);
+  QTransform qwm(1.0,0.0,0.0,-1.0,0.0,255.0);//to get 0,0 at bottom/left
+  p.setWorldTransform(qwm);
 //drawing
 
   QRect border(0,0,256,256);
