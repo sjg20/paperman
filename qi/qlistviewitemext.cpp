@@ -219,11 +219,11 @@ QString QListViewItemExt::key(int column,bool ascending) const
     case 2:
       i = mParent->item(mRow, 2)->text().toInt(&ok);
       if(!ok) i = 0;
-      qs.sprintf("%010i",i);
+      qs.asprintf("%010i",i);
       break;
     case 3:
       i = epoch.secsTo(mDateTime);
-      qs.sprintf("%010i",i);
+      qs.asprintf("%010i",i);
       break;
     default:;
   }
