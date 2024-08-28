@@ -201,11 +201,12 @@ void QListViewItemExt::setHiddenText(QString text)
 QString QListViewItemExt::key(int column,bool ascending) const
 {
   UNUSED(ascending);
-  QDateTime epoch(QDate(1900,1,1));
+  QDateTime epoch;
   QString qs;
   int i;
   bool ok;
 
+  epoch.setDate(QDate(1900, 1, 1));
   qs = mParent->item(mRow, column)->text();
   switch(column)
   {
