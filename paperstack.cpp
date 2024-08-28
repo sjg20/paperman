@@ -424,13 +424,13 @@ void PPage::continueJpeg ()
          if (jpeg_read_header (&_cinfo, true) == JPEG_SUSPENDED)
             break;
          _state = State_start;
-         // no break
+         Q_FALLTHROUGH();
 
       case State_start:
          if (!jpeg_start_decompress (&_cinfo))
             break;
          _state = State_read_lines;
-         // no break
+         Q_FALLTHROUGH();
 
       case State_read_lines :
          while (_cinfo.output_scanline < _cinfo.output_height)
@@ -446,7 +446,7 @@ void PPage::continueJpeg ()
             break;
 
          _state = State_finish;
-         // no break
+         Q_FALLTHROUGH();
 
       case State_finish :
 //          qDebug () << "finish";
@@ -454,7 +454,7 @@ void PPage::continueJpeg ()
           // JPEG library seems to return false even when it has all the data
 //           break; so we don't check the return value
          _state = State_done;
-         // no break
+         Q_FALLTHROUGH();
 
       case State_done :
          break;
