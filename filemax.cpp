@@ -718,7 +718,7 @@ err_info *Filemax::merr_make (const char *func_name, int errnum, ...)
    {
    va_list ptr;
    err_info *e;
-   char str [256];
+   char str [260];
 
    va_start (ptr, errnum);
    e = err_vmake (func_name, errnum, ptr);
