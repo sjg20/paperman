@@ -78,9 +78,9 @@ void QWordComboOption::appendArray(QVector <SANE_Word> qa)
   {
     val = mValueArray[i];
     if(mSaneValueType == SANE_TYPE_FIXED)
-      qs.sprintf("%.2f",SANE_UNFIX(val));
+      qs.asprintf("%.2f",SANE_UNFIX(val));
     else
-      qs.sprintf("%d",int(val));
+      qs.asprintf("%d",int(val));
     mpSelectionCombo->addItem(qs);
   }
 }
