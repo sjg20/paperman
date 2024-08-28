@@ -1814,7 +1814,7 @@ void QScanDialog::changeLayout(QIN::Layout l)
       qgb->move(p);
       qgb->hide();
 //       qgb->setFrameStyle(QGroupBox::NoFrame);
-      qvbl2->addWidget(qgb,0,0);
+      qvbl2->addWidget(qgb,0);
       qvbl2->addStretch(1);
       titlestring = tr("&%1. ").arg(c+1);
       titlestring += qgb->title();
