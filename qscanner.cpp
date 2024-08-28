@@ -146,10 +146,6 @@ static const char string_Halftone[] = "Halftone";
 static const char string_Grayscale[] = "Gray";
 static const char string_Color[] = "Color";
 
-static const char string_Default[] = "Default";
-static const char string_On[] = "On";
-static const char string_Off[] = "Off";
-
 static const char string_None[] = "None";
 static const char string_JPEG[] = "JPEG";
 
