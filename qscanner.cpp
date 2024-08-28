@@ -1034,9 +1034,10 @@ SANE_Status QScanner::setOption(int num,void* v,bool automatic)
     	emit signalInfoInexact(num);
   	if(i & SANE_INFO_RELOAD_PARAMS)
     	emit signalReloadParams();
-  	if(i & SANE_INFO_RELOAD_OPTIONS)
+    if (i & SANE_INFO_RELOAD_OPTIONS) {
     	emit signalReloadOptions();
         emit signalSetOption(num);
+    }
   }
 	return sst;
 }
