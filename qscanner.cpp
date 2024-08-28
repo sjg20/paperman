@@ -1547,15 +1547,16 @@ QString QScanner::createPNMHeader(SANE_Frame format,int lines,int ppl,
       qs = "P6";
       if(dots_m_x != 0)
       {
-        qs2.sprintf("#DOTS_PER_METER_X %i",dots_m_x);
+        qs2.asprintf("#DOTS_PER_METER_X %i",dots_m_x);
+        qs2.asprintf("#DOTS_PER_METER_X %i",dots_m_x);
         qs += qs2;
-        qs2.sprintf("#DOTS_PER_METER_Y %i",dots_m_y);
+        qs2.asprintf("#DOTS_PER_METER_Y %i",dots_m_y);
         qs += qs2;
       }
       if(lines > 0)
-        qs2.sprintf("%d %d\n%d",ppl,lines,(depth <= 8) ? 255 : 65535);
+        qs2.asprintf("%d %d\n%d",ppl,lines,(depth <= 8) ? 255 : 65535);
       else
-        qs2.sprintf("%d %%1\n%d",ppl,(depth <= 8) ? 255 : 65535);
+        qs2.asprintf("%d %%1\n%d",ppl,(depth <= 8) ? 255 : 65535);
       qs += qs2;
       break;
     default:
@@ -1564,30 +1565,30 @@ QString QScanner::createPNMHeader(SANE_Frame format,int lines,int ppl,
         qs = "P4";
         if(dots_m_x != 0)
         {
-          qs2.sprintf("#DOTS_PER_METER_X %i",dots_m_x);
+          qs2.asprintf("#DOTS_PER_METER_X %i",dots_m_x);
           qs += qs2;
-          qs2.sprintf("#DOTS_PER_METER_Y %i",dots_m_y);
+          qs2.asprintf("#DOTS_PER_METER_Y %i",dots_m_y);
           qs += qs2;
         }
         if(lines > 0)
-          qs2.sprintf("%d %d",ppl,lines);
+          qs2.asprintf("%d %d",ppl,lines);
         else
-          qs2.sprintf("%d %%1",ppl);
+          qs2.asprintf("%d %%1",ppl);
       }
       else
       {
         qs = "P5";
         if(dots_m_x != 0)
         {
-          qs2.sprintf("#DOTS_PER_METER_X %i",dots_m_x);
+          qs2.asprintf("#DOTS_PER_METER_X %i",dots_m_x);
           qs += qs2;
-          qs2.sprintf("#DOTS_PER_METER_Y %i",dots_m_y);
+          qs2.asprintf("#DOTS_PER_METER_Y %i",dots_m_y);
           qs += qs2;
         }
         if(lines > 0)
-          qs2.sprintf("%d %d\n%d",ppl,lines,(depth <= 8) ? 255 : 65535);
+          qs2.asprintf("%d %d\n%d",ppl,lines,(depth <= 8) ? 255 : 65535);
         else
-          qs2.sprintf("%d %%1\n%d",ppl,(depth <= 8) ? 255 : 65535);
+          qs2.asprintf("%d %%1\n%d",ppl,(depth <= 8) ? 255 : 65535);
       }
       qs += qs2;
     break;
@@ -2670,12 +2671,12 @@ QString QScanner::imageInfo()
   }
   qs2 = tr("Image size: ");
   if(parameters.lines != -1)
-    info.sprintf("%d x %d, %.2f %s",abs(parameters.pixels_per_line),
+    info.asprintf("%d x %d, %.2f %s",abs(parameters.pixels_per_line),
                                     abs(parameters.lines),
                                     bytesize,
                                     qs.toLatin1().constData());
   else
-    info.sprintf("%d x %d",abs(parameters.pixels_per_line),parameters.lines);
+    info.asprintf("%d x %d",abs(parameters.pixels_per_line),parameters.lines);
   qs2+=info;
   return qs2;
 }
