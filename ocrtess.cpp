@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <QDataStream>
@@ -83,24 +84,24 @@ err_info *Ocrtess::imageToText (QImage &image, QString &text)
    if (fd < 0)
       return err_make (ERRFN, ERR_could_not_make_temporary_file);
    close (fd);
-   strcpy (tmp, base);
-   strcat (tmp, ".png");
+   strncpy (tmp, base, sizeof(tmp));
+   strncat (tmp, ".png", sizeof(tmp) - strlen(tmp) - 1);
    qDebug () << image.depth ();
    image.save (tmp, "PNG");
 
-   strcpy (tmp2, base);
-   strcat (tmp2, ".tif");
+   strncpy (tmp2, base, sizeof(tmp2));
+   strncat (tmp2, ".tif", sizeof(tmp2) - strlen(tmp2) - 1);
    int errnum = err_systemf ("convert %s %s", tmp, tmp2);
    if (errnum)
       return err_make (ERRFN, ERR_could_not_execute1, "convert");
 
-   strcpy (out, base);
+   strncpy (out, base, sizeof(tmp));
    sprintf (cmd, "/usr/bin/tesseract %s %s", tmp2, out);
    errnum = err_systemf (cmd);
    if (errnum)
       return err_make (ERRFN, ERR_tesseract_not_present2, cmd, strerror (errno));
 
-   strcat (out, ".txt");
+   strncat (out, ".txt", sizeof(out) - strlen(out) - 1);
    QFile file (out);
    if (!file.open (QIODevice::ReadOnly))
       return err_make (ERRFN, ERR_cannot_open_file1, out);
