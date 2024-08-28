@@ -2147,7 +2147,7 @@ void QScanDialog::slotInfoInexact(int num)
 
 void QScanDialog::closeEvent(QCloseEvent* e)
 {
-  e = e;
+  UNUSED(e);
   xmlConfig->writeConfigFile();
   QDeviceSettings ds(mpScanner);
   ds.saveDeviceSettings("Last settings");
