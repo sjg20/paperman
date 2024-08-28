@@ -3324,7 +3324,7 @@ putspan(TIFF* tif, uint32_t span, const tableentry* tab)
    }
    if (span >= 64) {
       const tableentry* te = &tab[63 + (span>>6)];
-      assert(te->runlen == 64*(span>>6));
+      assert((unsigned int)te->runlen == 64*(span>>6));
       code = te->code, length = te->length;
 #ifdef FAX3_DEBUG
       DEBUG_PRINT("MakeUp", te->runlen);
