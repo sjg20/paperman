@@ -3141,17 +3141,17 @@ typedef byte *tidata_t;
  */
 typedef struct {
    int   mode;       /* operating mode */
-   uint32   rowbytes;      /* bytes in a decoded scanline */
-   uint32   rowpixels;     /* pixels in a scanline */
-   uint32   stride;
+   uint32_t   rowbytes;      /* bytes in a decoded scanline */
+   uint32_t   rowpixels;     /* pixels in a scanline */
+   uint32_t   stride;
 
-   uint16   cleanfaxdata;     /* CleanFaxData tag */
-   uint32   badfaxrun;     /* BadFaxRun tag */
-   uint32   badfaxlines;      /* BadFaxLines tag */
-   uint32   groupoptions;     /* Group 3/4 options tag */
-   uint32   recvparams;    /* encoded Class 2 session params */
+   uint16_t   cleanfaxdata;     /* CleanFaxData tag */
+   uint32_t   badfaxrun;     /* BadFaxRun tag */
+   uint32_t   badfaxlines;      /* BadFaxLines tag */
+   uint32_t   groupoptions;     /* Group 3/4 options tag */
+   uint32_t   recvparams;    /* encoded Class 2 session params */
    char* subaddress;    /* subaddress string */
-   uint32   recvtime;      /* time spent receiving (secs) */
+   uint32_t   recvtime;      /* time spent receiving (secs) */
    TIFFVGetMethod vgetparent; /* super-class method */
    TIFFVSetMethod vsetparent; /* super-class method */
 } Fax3BaseState;
@@ -3173,13 +3173,13 @@ typedef struct {
 typedef struct {
    Fax3BaseState b;
    const u_char* bitmap;      /* bit reversal table */
-   uint32   data;       /* current i/o byte/word */
+   uint32_t   data;       /* current i/o byte/word */
    int   bit;        /* current i/o bit in byte */
    int   EOLcnt;        /* count of EOL codes recognized */
    TIFFFaxFillFunc fill;      /* fill routine */
-   uint16*  runs;       /* b&w runs for current/previous row */
-   uint16*  refruns;    /* runs for reference line */
-   uint16*  curruns;    /* runs for current line */
+   uint16_t*  runs;       /* b&w runs for current/previous row */
+   uint16_t*  refruns;    /* runs for reference line */
+   uint16_t*  curruns;    /* runs for current line */
 } Fax3DecodeState;
 #define  DecoderState(tif) ((Fax3DecodeState*) Fax3State(tif))
 
@@ -3224,8 +3224,8 @@ static void TIFFFlushData1 (TIFF *tiff)
 #define  is2DEncoding(sp) \
    (sp->b.groupoptions & GROUP3OPT_2DENCODING)
 #define  isAligned(p,t) ((((u_long)(p)) & (sizeof (t)-1)) == 0)
-#define  TIFFroundup(x, y) (TIFFhowmany(x,y)*((uint32)(y)))
-#define  TIFFhowmany(x, y) ((((uint32)(x))+(((uint32)(y))-1))/((uint32)(y)))
+#define  TIFFroundup(x, y) (TIFFhowmany(x,y)*((uint32_t)(y)))
+#define  TIFFhowmany(x, y) ((((uint32_t)(x))+(((uint32_t)(y))-1))/((uint32_t)(y)))
 
 
 /*
@@ -3306,7 +3306,7 @@ Fax3PutBits(TIFF* tif, u_int bits, u_int length)
  * terminating codes is supplied.
  */
 static void
-putspan(TIFF* tif, int32 span, const tableentry* tab)
+putspan(TIFF* tif, uint32_t span, const tableentry* tab)
 {
    Fax3EncodeState* sp = EncoderState(tif);
    int bit = sp->bit;
@@ -3431,11 +3431,11 @@ static const u_char oneruns[256] = {
  * table.  The ``base'' of the bit string is supplied
  * along with the start+end bit indices.
  */
-INLINE static int32
-find0span(u_char* bp, int32 bs, int32 be)
+INLINE static uint32_t
+find0span(u_char* bp, uint32_t bs, uint32_t be)
 {
-   int32 bits = be - bs;
-   int32 n, span;
+   uint32_t bits = be - bs;
+   uint32_t n, span;
 
    bp += bs>>3;
    /*
@@ -3490,11 +3490,11 @@ find0span(u_char* bp, int32 bs, int32 be)
    return (span);
 }
 
-INLINE static int32
-find1span(u_char* bp, int32 bs, int32 be)
+INLINE static uint32_t
+find1span(u_char* bp, uint32_t bs, uint32_t be)
 {
-   int32 bits = be - bs;
-   int32 n, span;
+   uint32_t bits = be - bs;
+   uint32_t n, span;
 
    bp += bs>>3;
    /*
@@ -3583,10 +3583,10 @@ static const tableentry vcodes[7] = {
  * documentation for the algorithm.
  */
 static int
-Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32 bits, int *badp)
+Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32_t bits, int *badp)
 {
 #define  PIXEL(buf,ix)  ((((buf)[(ix)>>3]) >> (7-((ix)&7))) & 1)
-// int32 a0 = 0;
+// uint32_t a0 = 0;
   int a0 = -1, a0p = 0;
   int a1 = (PIXEL(bp, 0) != 0 ? 0 : finddiff(bp, 0, bits, 0));
   int b1 = (PIXEL(rp, 0) != 0 ? 0 : finddiff(rp, 0, bits, 0));
@@ -3597,7 +3597,7 @@ Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32 bits, int *badp)
     b2 = finddiff2(rp, b1, (int)bits, PIXEL(rp,b1));
     debug3 (("1: b1=%d, b2=%d: ", b1, b2));
     if (b2 >= a1) {
-      int32 d = b1 - a1;
+      uint32_t d = b1 - a1;
       if (!(-3 <= d && d <= 3)) {   /* horizontal mode */
    a2 = finddiff2(bp, a1, (int)bits, PIXEL(bp,a1));
    putcode(tif, &horizcode);
@@ -3880,15 +3880,15 @@ Fax3PostEncode(TIFF* tif)
     int RunLength;         /* length of current run */   \
     u_char* cp;            /* next byte of input data */ \
     u_char* ep;            /* end of input data */    \
-    uint16* pa;            /* place to stuff next run */ \
-    uint16* thisrun;       /* current row's run array */ \
+    uint16_t* pa;            /* place to stuff next run */ \
+    uint16_t* thisrun;       /* current row's run array */ \
     int EOLcnt;            /* # EOL codes recognized */  \
     const u_char* bitmap = sp->bitmap; /* input data bit reverser */ \
     const TIFFFaxTabEnt* TabEnt
 #define  DECLARE_STATE_2D(tif, sp, mod)               \
     DECLARE_STATE(tif, sp, mod);             \
     int b1;          /* next change on prev line */   \
-    uint16* pb          /* next run in reference line */\
+    uint16_t* pb          /* next run in reference line */\
 /*
  * Load any state that may be changed during decoding.
  */
