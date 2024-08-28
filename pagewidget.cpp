@@ -603,8 +603,6 @@ void Pagewidget::slotNewScale (double scale, bool delay_smoothing)
 void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &index,
          int start, int count, int curpage, bool reset)
    {
-   QSize size, scaledSize;
-
 //    qDebug () << "showPages" << model << index;
    _start = start;
    _count = count;
