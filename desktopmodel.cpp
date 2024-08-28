@@ -1215,7 +1215,6 @@ void Desktopmodel::duplicateTiff (Desktopitem *item)
 bool Desktopmodel::checkScanStack (QModelIndexList &list, QModelIndex parent)
    {
    Desk *desk = getDesk (parent);
-   QModelIndex ind;
 
    UNUSED (list);
    /* if the proposed operation is happening on the same desk as we are 
@@ -1226,6 +1225,7 @@ bool Desktopmodel::checkScanStack (QModelIndexList &list, QModelIndex parent)
       return false;
       }
 /*
+   QModelIndex ind;
    if (_desk != _scan_desk)
       return true;
    foreach (ind, list)
