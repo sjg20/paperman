@@ -193,7 +193,7 @@ void Ruler::drawContents(QPainter* painter)
         draw_lm = false;
 				if(draw_lm_text == 0)
 				{
-					 qs.sprintf("%i",int(lm_text_cnt * lm_text_step));
+                     qs.asprintf("%i",int(lm_text_cnt * lm_text_step));
 //p         	 drawText ((int)(d-x_off+2),height()-12,qs);//height()/2, qs );
 				}
         ++draw_lm_text;
@@ -208,8 +208,8 @@ void Ruler::drawContents(QPainter* painter)
         draw_mm = false;
 				if(draw_mm_text)
 				{
-					 qs.sprintf("%i",int(lm_text_cnt * lm_text_step -
-                               lm_text_step/2));
+                     qs.asprintf("%i",int(lm_text_cnt * lm_text_step -
+                                lm_text_step/2));
 //p         	 drawText ((int)(d-x_off+2),height()-12,qs);//height()/2, qs );
 				}
         ++mc;
@@ -316,7 +316,7 @@ void Ruler::drawContents(QPainter* painter)
         draw_lm = false;
 				if(draw_lm_text == 0)
 				{
-					 qs.sprintf("%i",int(lm_text_cnt * lm_text_step));
+                     qs.asprintf("%i",int(lm_text_cnt * lm_text_step));
 //p         	 drawText(1,(int)(d-x_off + textheight + 2), qs );
 				}
         ++draw_lm_text;
@@ -331,8 +331,8 @@ void Ruler::drawContents(QPainter* painter)
         draw_mm = false;
 				if(draw_mm_text)
 				{
-					 qs.sprintf("%i",lm_text_cnt * lm_text_step -
-                               lm_text_step/2);
+                     qs.asprintf("%i",lm_text_cnt * lm_text_step -
+                                lm_text_step/2);
 //p         	 drawText(1,(int)(d-x_off + textheight + 2), qs );
 				}
         ++mc;
