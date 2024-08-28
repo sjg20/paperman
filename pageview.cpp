@@ -92,9 +92,9 @@ void Pageview::wheelEvent (QWheelEvent *e)
    if (e->modifiers () & Qt::ControlModifier)
       {
 //printf ("delta %d\n", e->delta ());
-      if (e->delta () < 0)
+      if (e->angleDelta ().y() < 0)
          new_scale += step;
-      else if (e->delta () > 0 && new_scale > step)
+      else if (e->angleDelta ().y() > 0 && new_scale > step)
          new_scale -= step;
       else
          e->ignore ();
