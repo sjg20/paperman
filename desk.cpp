@@ -628,7 +628,7 @@ void myPtrList::sort ()
 
 void Desk::arrangeBy (int type)
    {
-   QLinkedList<File *> todo;
+   std::list<File *> todo;
    myPtrList sorted;
    int order;
 
@@ -642,7 +642,7 @@ void Desk::arrangeBy (int type)
       QFileInfo fi (f->pathname ());
 
       f->setTime (fi.lastModified ());
-      todo.append (f);
+      todo.push_back (f);
       }
 
    // now the position info
@@ -655,30 +655,30 @@ void Desk::arrangeBy (int type)
     * that. This proceeds until we have added all files to our list.
     */
    resetPos ();
-   QMutableLinkedListIterator<File *> iter(todo);
-   while (todo.count ())
+    std::list<File *>::iterator iter = todo.begin();
+   while (todo.size ())
       {
       // First add any files which are before the current x and y position
-      iter.toFront ();
-      while (iter.hasNext ())
+      iter = todo.begin ();
+      while (iter != todo.end())
          {
-         f = iter.next ();
+         f = *iter++;
          if (_pos.y () >= f->pos ().y () && _pos.x () > f->pos ().x ())
             {
             f->setOrder (order++);
-            iter.remove ();
+            iter = todo.erase (iter);
             }
          }
 
       // Now add any files which are before the current y position
-      iter.toFront ();
-      while (iter.hasNext ())
+      iter = todo.begin ();
+      while (iter != todo.end())
          {
-         f = iter.next ();
+          f = *iter++;
          if (_pos.y () >= f->pos ().y ())
             {
             f->setOrder (order++);
-            iter.remove ();
+            iter = todo.erase (iter);
             }
          }
 
