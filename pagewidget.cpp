@@ -1244,7 +1244,7 @@ void MyScrollArea::paintEvent (QPaintEvent *event)
       painter.scale(_scale, _scale);
       }
 
-   QMatrix m = painter.matrix ();
+   QTransform m = painter.transform ();
    QRect exposedRect = m
                      .translate (-horizontalScrollBar()->value (), -verticalScrollBar()->value ())
                      .inverted ()
