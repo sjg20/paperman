@@ -219,7 +219,7 @@ void QQualityDialog::slotQualityChanged(int value)
     default:;
   }
 	QString qs;
-	qs.sprintf("%i",value);
+    qs.asprintf("%i",value);
 	mpQualityLabel->setText(qs);
 }
 /**  */
