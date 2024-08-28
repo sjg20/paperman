@@ -168,7 +168,8 @@ void Mainwidget::saveSettings (void)
 void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
    {
    // TODO: Work out whether delay_smoothing is needed
-   delay_smoothing = delay_smoothing;
+   //delay_smoothing = delay_smoothing;
+   UNUSED(delay_smoothing);
 #if 0
    if (!f->max)
       {
@@ -1121,6 +1122,8 @@ void Mainwidget::resizeAll ()
 
 err_info *Mainwidget::operation (Desk::operation_t type, int ival)
    {
+   UNUSED(type);
+   UNUSED(ival);
 /*p   if (visibleWidget () == _desktop)
       return _viewer->operation (type, ival);
    else
