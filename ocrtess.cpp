@@ -65,7 +65,7 @@ err_info *Ocrtess::init (void)
 err_info *Ocrtess::imageToText (QImage &image, QString &text)
    {
    char base [200], tmp [200], tmp2 [200], out [200];
-   char cmd [400];
+   char cmd [430];
    int fd;
 
    // this function should really use tesseract as a library
@@ -96,7 +96,7 @@ err_info *Ocrtess::imageToText (QImage &image, QString &text)
       return err_make (ERRFN, ERR_could_not_execute1, "convert");
 
    strncpy (out, base, sizeof(tmp));
-   sprintf (cmd, "/usr/bin/tesseract %s %s", tmp2, out);
+   snprintf (cmd, sizeof(cmd), "/usr/bin/tesseract %s %s", tmp2, out);
    errnum = err_systemf (cmd);
    if (errnum)
       return err_make (ERRFN, ERR_tesseract_not_present2, cmd, strerror (errno));
