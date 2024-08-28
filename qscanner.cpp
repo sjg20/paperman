@@ -2919,12 +2919,10 @@ void QScanner::setOptionsByName(QMap <QString,QString> omap)
   //--iterate over the map again, until all options have been set
   //  or the map contains inactive options only
   bool inactive_only;
-  int ocnt;// optioncounter
   SANE_Word sw;
   QString qs;
   int optnum;
   if(omap.isEmpty()) return;
-  ocnt = omap.count();
   inactive_only = false;
   QMap<QString,QString>::Iterator it;
   enableReloadSignal(false);
@@ -2939,7 +2937,6 @@ void QScanner::setOptionsByName(QMap <QString,QString> omap)
          omap[it.key()] != "---set")
       {
         inactive_only = false;
-        ocnt -= 1;
         switch(getOptionType(optnum))
         {
           case SANE_TYPE_INT:
