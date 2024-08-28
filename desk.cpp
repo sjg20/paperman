@@ -623,7 +623,7 @@ bool myPtrList::lessThan (const File *f1, const File *f2)
 
 void myPtrList::sort ()
    {
-   qStableSort (begin (), end (), lessThan);
+   std::stable_sort (begin (), end (), lessThan);
    }
 
 void Desk::arrangeBy (int type)
