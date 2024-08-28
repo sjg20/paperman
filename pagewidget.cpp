@@ -1301,13 +1301,14 @@ QSize MyScrollArea::sizeHint () const
 void MyScrollArea::wheelEvent (QWheelEvent *e)
    {
    double newScale = _scale;
+   int delta = e->angleDelta().y();
 
    if (e->modifiers () & Qt::ControlModifier)
       {
 //printf ("delta %d\n", e->delta ());
-      if (e->delta () > 0)
+      if (delta > 0)
          newScale = _scale * SCALE_FACTOR;
-      else if (e->delta () < 0)
+      else if (delta < 0)
          newScale = _scale / SCALE_FACTOR;
       else
          e->ignore ();
@@ -1319,9 +1320,9 @@ void MyScrollArea::wheelEvent (QWheelEvent *e)
       {
       int value = horizontalScrollBar()->value ();
 
-      if (e->delta () > 0)
+      if (delta > 0)
          value -= WHEEL_SCROLL_Y;
-      else if (e->delta () < 0)
+      else if (delta < 0)
          value += WHEEL_SCROLL_Y;
       else
          e->ignore ();
@@ -1331,9 +1332,9 @@ void MyScrollArea::wheelEvent (QWheelEvent *e)
       {
       int value = verticalScrollBar()->value ();
 
-      if (e->delta () > 0)
+      if (delta > 0)
          value -= WHEEL_SCROLL_Y;
-      else if (e->delta () < 0)
+      else if (delta < 0)
          value += WHEEL_SCROLL_Y;
       else
          e->ignore ();
