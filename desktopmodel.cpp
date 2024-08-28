@@ -659,7 +659,7 @@ void Desktopmodel::sortForDelete (QModelIndexList &list)
       ilist << ind.row ();
 
    // sort the list
-   qSort (ilist.begin (), ilist.end (), qGreater<int> ());
+   std::sort (ilist.begin (), ilist.end (), std::greater<int> ());
 
    // and create a sorted index list
    list.clear ();
@@ -710,7 +710,7 @@ void Desktopmodel::sortByPosition (QModelIndexList &list)
       }
 
    // sort the list
-   qStableSort (ilist.begin (), ilist.end (), positionLessThan);
+   std::stable_sort (ilist.begin (), ilist.end (), positionLessThan);
 
    // and create a sorted index list
    list.clear ();
