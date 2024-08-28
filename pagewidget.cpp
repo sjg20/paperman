@@ -756,6 +756,8 @@ void Pagewidget::pageRight (void)
 
 err_info *Pagewidget::operation (Desk::operation_t type, int ival)
    {
+    UNUSED(type);
+    UNUSED(ival);
 #if 0 //p
    if (_file && _desk)
       {
