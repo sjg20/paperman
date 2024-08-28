@@ -18,6 +18,7 @@
 #include<QTableWidgetItem>
 
 #include "qlistviewitemext.h"
+#include "err.h"
 
 /** */
 QListViewItemExt::QListViewItemExt(QTableWidget* parent)
@@ -199,7 +200,7 @@ void QListViewItemExt::setHiddenText(QString text)
 /**  */
 QString QListViewItemExt::key(int column,bool ascending) const
 {
-  ascending = ascending; //s
+  UNUSED(ascending);
   QDateTime epoch(QDate(1900,1,1));
   QString qs;
   int i;
