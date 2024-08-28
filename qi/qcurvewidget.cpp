@@ -286,7 +286,6 @@ void QCurveWidget::paintEvent(QPaintEvent*)
 {
   QString qs;
   int i;
-  i = 0;
   QPainter p;
   p.begin(this);
   p.setClipRect(5,5,256,256);
