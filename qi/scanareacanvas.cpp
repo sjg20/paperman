@@ -676,40 +676,23 @@ void ScanAreaCanvas::resizePixmap()
   int nw,nh;
   int w1 = width();
   int h1 = height();
-  int w2 = mCanvasPixmap.width();
-  int h2 = mCanvasPixmap.height();
 
   double f1 = double(w1) / double(h1);
-  double sfh,sfv;
-  //width > height
   if(mAspectRatio < f1)
   {
-    sfv = (double(h1)/double(h2));
     nh = h1;
     nw = int(double(nh) * mAspectRatio);
-    sfh = (double(nw)/double(w2));
   }
   else
   {
-    sfh = (double(w1)/double(w2));
     nw = w1;
     nh = int(double(nw) / mAspectRatio);
-    sfv = (double(nh)/double(h2));
   }
 
   QPixmap pix;
-  if(smooth_scale == true)
-  {
-    QImage im = mCanvasImage.scaled(nw,nh, Qt::IgnoreAspectRatio,
-                                    Qt::SmoothTransformation);
-    pix.convertFromImage(im);
-  }
-  else
-  {
-    QMatrix m;				
-    m.scale(sfh,sfv);
-    pix = mCanvasPixmap.transformed( m );
-  }
+  pix = mCanvasPixmap.scaled(QSize(nw, nh), Qt::IgnoreAspectRatio,
+                               smooth_scale ? Qt::SmoothTransformation:
+                                              Qt::FastTransformation);
   mpCanvas->setSceneRect(0, 0, pix.width(),pix.height());
   viewport()->setMaximumSize(pix.width(),pix.height());
 //p  resizeContents(pix.width(),pix.height());
