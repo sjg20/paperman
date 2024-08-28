@@ -473,7 +473,7 @@ Qt::ItemFlags Dirmodel::flags(const QModelIndex &index) const
    {
 // printf ("flags\n");
    if (!index.isValid())
-      return 0;
+      return Qt::NoItemFlags;
 
    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled
       | Qt::ItemIsDropEnabled;
