@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
+#include <QShortcut>
 #include <QStandardItemModel>
 
 #include "pscan.h"
@@ -140,6 +141,18 @@ void Pscan::init()
     _do_preset_check = false;
 
     setupBright ();
+
+    // setup the keyboard shortcuts Ctrl-1 to Ctrl-5 for presets
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_1), this),
+                     &QShortcut::activated, this, &Pscan::presetShortcut1);
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_2), this),
+                     &QShortcut::activated, this, &Pscan::presetShortcut2);
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_3), this),
+                     &QShortcut::activated, this, &Pscan::presetShortcut3);
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_4), this),
+                     &QShortcut::activated, this, &Pscan::presetShortcut4);
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_5), this),
+                     &QShortcut::activated, this, &Pscan::presetShortcut5);
 }
 
 
@@ -613,6 +626,42 @@ void Pscan::presetDeleteUser()
    _presets.erase(_presets.begin() + item);
    preset->removeItem(item);
    presetCheck();
+}
+
+void Pscan::presetShortcut(uint item)
+{
+   // subtract one, since the presets are numbered from 1
+   item--;
+   if (item >= _presets.size())
+      return;
+
+   presetSelect(item);
+   preset->setCurrentIndex(item);
+}
+
+void Pscan::presetShortcut1()
+{
+   presetShortcut(1);
+}
+
+void Pscan::presetShortcut2()
+{
+   presetShortcut(2);
+}
+
+void Pscan::presetShortcut3()
+{
+   presetShortcut(3);
+}
+
+void Pscan::presetShortcut4()
+{
+   presetShortcut(4);
+}
+
+void Pscan::presetShortcut5()
+{
+   presetShortcut(5);
 }
 
 Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)
