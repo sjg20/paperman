@@ -137,5 +137,7 @@ private:
 
     /** check if the preset combobox needs updating */
     void presetCheck();
-};
 
+    /** allow the user to add a new preset */
+    void presetAddUser();
+};
