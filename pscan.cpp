@@ -505,6 +505,8 @@ void Pscan::on_preset_activated( int item )
       presetSelect(item);
    else if (item == (int)_presets.size() + Preset::add)
       presetAddUser();
+   else if (item == (int)_presets.size() + Preset::delete_it)
+      presetDeleteUser();
    presetSetEnabled(Preset::delete_it, presetLocate() >= 0);
 }
 
@@ -588,6 +590,29 @@ void Pscan::presetAddUser()
    preset->setCurrentIndex(_presets.size());
 
    _presets.push_back(to_create);
+}
+
+void Pscan::presetDeleteUser()
+{
+   int item;
+
+   // We know that the current settings must match the item the user wants to
+   // delete, unless the current item is <custom>, in which case the option is
+   // disabled and we should not get here
+   item = presetLocate();
+   Q_ASSERT(item >= 0 && item < (int)_presets.size());
+
+   QMessageBox msg;
+   msg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+   msg.setText(QString("Delete preset %1?").arg(_presets[item]._name));
+   if (msg.exec() != QMessageBox::Ok) {
+      presetCheck();
+      return;
+   }
+
+   _presets.erase(_presets.begin() + item);
+   preset->removeItem(item);
+   presetCheck();
 }
 
 Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)

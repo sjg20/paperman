@@ -141,4 +141,7 @@ private:
 
     /** allow the user to add a new preset */
     void presetAddUser();
+
+    /** allow the user to delete a preset */
+    void presetDeleteUser();
 };
