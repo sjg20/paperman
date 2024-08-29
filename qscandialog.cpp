@@ -2395,6 +2395,7 @@ void QScanDialog::slotDragFilename(const QString& qs)
 /**  */
 void QScanDialog::slotImageSettings()
 {
+    return; // not used
   QExtensionWidget ew(this);
   ew.setPage(4);
   ew.exec();
@@ -2524,6 +2525,9 @@ void QScanDialog::resizeEvent(QResizeEvent* e)
 /** No descriptions */
 void QScanDialog::slotFilenameGenerationSettings()
 {
+    // not used
+    return;
+
   QExtensionWidget ew(this);
   ew.setPage(10);
   ew.exec();
