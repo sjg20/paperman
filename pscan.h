@@ -79,5 +79,7 @@ protected slots:
 private:
     void init();
 
+    /** read in the scanning-related settings from QSettings */
+    void readSettings();
 };
 
