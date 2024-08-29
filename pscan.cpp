@@ -171,6 +171,7 @@ void Pscan::scannerChanged (QScanner *scanner)
 void Pscan::setMainwidget(Mainwidget *main)
 {
     _main = main;
+    presetSelect(0);
 }
 
 
@@ -444,3 +445,33 @@ void Pscan::checkEnabled (bool scanning)
    source->setEnabled (!scanning);
    reset->setEnabled (!scanning);
    }
+
+void Pscan::presetSelect(int item)
+{
+   Preset pre = _presets[item];
+
+   duplex->setChecked(pre._duplex);
+   if (_scanDialog)
+      _scanDialog->setDuplex (pre._duplex);
+
+   if (pre._dpi == 200 || pre._dpi == 300 || pre._dpi == 400)
+      res->setCurrentIndex (pre._dpi / 100 - 2);
+   else
+      res->setCurrentIndex(3);
+   if (_scanDialog)
+      _scanDialog->setDpi (pre._dpi);
+
+   QAbstractButton *b = format->button(pre._format);
+   if (b)
+      b->setChecked(true);
+   if (_scanDialog)
+      _scanDialog->setFormat (pre._format,
+                              xmlConfig->boolValue ("SCAN_USE_JPEG"));
+
+   setupBright ();
+}
+
+void Pscan::on_preset_activated(int item)
+{
+   presetSelect(item);
+}
