@@ -89,14 +89,39 @@ void Pscan::presetAdd(const Preset& pre)
 
 void Pscan::readSettings()
 {
+   QMap<QString, QScanner::format_t> formats;
    QSettings qs;
 
    restoreGeometry(qs.value("pscan/geometry").toByteArray());
 
-   // Create some standard ones
-   presetAdd(Preset("Monochrome 300dpi duplex", QScanner::mono, 300, true));
-   presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
+   formats["mono"] = QScanner::mono;
+   formats["dither"] = QScanner::dither;
+   formats["grey"] = QScanner::grey;
+   formats["colour"] = QScanner::colour;
 
+   int size = qs.beginReadArray("preset");
+   for (int i = 0; i < size; i++)
+      {
+      qs.setArrayIndex (i);
+      QString name = qs.value("name").toString();
+      QString format = qs.value("format").toString();
+      uint dpi = qs.value("dpi").toInt();
+      bool duplex = qs.value("duplex").toBool();
+      QScanner::format_t fmt = QScanner::mono;
+
+      if (format.contains(format))
+         fmt = formats[format];
+
+      Preset preset(name, fmt, dpi, duplex);
+      presetAdd(preset);
+      }
+   qs.endArray();
+
+   if (!size) {
+       // Create some standard ones
+       presetAdd(Preset("Monochrome 300dpi duplex", QScanner::mono, 300, true));
+       presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
+   }
    preset->addItem ("Add preset...");
    preset->addItem ("Delete preset...");
 
@@ -158,9 +183,29 @@ void Pscan::init()
 
 void Pscan::closing()
    {
+   QMap<QScanner::format_t, QString> formats;
    QSettings qs;
 
    qs.setValue("pscan/geometry", saveGeometry());
+
+   formats[QScanner::mono] = "mono";
+   formats[QScanner::dither] = "dither";
+   formats[QScanner::grey] = "grey";
+   formats[QScanner::colour] = "colour";
+
+   qs.setValue("pscan/geometry", saveGeometry());
+   qs.beginWriteArray("preset");
+   for (uint i = 0; i < _presets.size(); i++)
+      {
+      const Preset& preset = _presets[i];
+
+      qs.setArrayIndex(i);
+      qs.setValue("name", preset._name);
+      qs.setValue("format", formats[preset._format]);
+      qs.setValue("dpi", preset._dpi);
+      qs.setValue("duplex", preset._duplex);
+      }
+   qs.endArray();
    }
 
 
