@@ -52,9 +52,7 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(colour, QScanner::colour);
 
     init();
-    QSettings qs;
-
-    restoreGeometry(qs.value("pscan/geometry").toByteArray());
+    readSettings();
 }
 
 /*
@@ -63,6 +61,13 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
 Pscan::~Pscan()
 {
     // no need to delete child widgets, Qt does it all for us
+}
+
+void Pscan::readSettings()
+{
+   QSettings qs;
+
+   restoreGeometry(qs.value("pscan/geometry").toByteArray());
 }
 
 /*
