@@ -101,13 +101,7 @@ static void run_gui(QApplication& app, int argc, char *argv[])
 
     // get the desktop (this has the directory tree and page splitter view)
     desktop = me->_main->getDesktop ();
-    //	 me->page = 0;
 
-    // tell the desktop about the debug level
-    //p          me->_main->getViewer ()->setDebugLevel (debug);
-
-    // add all the directories to the tree view
-    //	 while (optind < argc)
     QSettings qs;
     QList<err_info> err_list;
     err_info *err;
