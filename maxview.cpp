@@ -91,11 +91,71 @@ static void usage (void)
 */
    }
 
+static void run_gui(QApplication& app, int argc, char *argv[])
+    {
+    Desktopwidget *desktop;
+    Mainwindow *me;
+
+    me = new Mainwindow ();
+    Operation::setMainWidget (me);
+
+    // get the desktop (this has the directory tree and page splitter view)
+    desktop = me->_main->getDesktop ();
+    //	 me->page = 0;
+
+    // tell the desktop about the debug level
+    //p          me->_main->getViewer ()->setDebugLevel (debug);
+
+    // add all the directories to the tree view
+    //	 while (optind < argc)
+    QSettings qs;
+    QList<err_info> err_list;
+    err_info *err;
+
+    int size = qs.beginReadArray ("repository");
+    for (int i = 0; i < size; i++)
+       {
+       qs.setArrayIndex (i);
+       err = desktop->addDir (qs.value ("path").toString (), true);
+       if (err)
+          err_list << *err;
+       }
+    qs.endArray ();
+
+    /* Add dirs for any arguments */
+    for (int c = argc - 1; c >= optind; c--)
+       {
+       err = desktop->addDir (argv [c]);
+       if (err)
+          err_list << *err;
+       }
+
+    me->show ();
+    QModelIndex ind = QModelIndex ();
+    desktop->selectDir (ind);
+
+    if (err_list.size ())
+       {
+       QString msg;
+
+       msg = app.tr ("%n error(s) on startup", "", err_list.size ());
+       msg.append (":\n");
+       foreach (const err_info &err, err_list)
+          msg.append (QString ("%1\n").arg (err.errstr));
+       QMessageBox::warning (0, "Maxview", msg);
+       }
+    app.exec ();
+
+    // write back any configuration changes (scanner type, etc.)
+    if (xmlConfig)
+       xmlConfig->writeConfigFile ();
+    me->_main->saveSettings ();
+    delete me;
+    }
+
 
 int main (int argc, char *argv[])
    {
-   Mainwindow *me;
-   Desktopwidget *desktop;
    //bool verbose = false, force = false, reloc = false, hack = false;
    //int debug = 0;
    char *dir = 0;
@@ -277,65 +337,7 @@ int main (int argc, char *argv[])
 	 }
 #endif
       case -1 :
-         {
-	 me = new Mainwindow ();
-         Operation::setMainWidget (me);
-
-         // get the desktop (this has the directory tree and page splitter view)
-	 desktop = me->_main->getDesktop ();
-//	 me->page = 0;
-
-         // tell the desktop about the debug level
-//p          me->_main->getViewer ()->setDebugLevel (debug);
-
-	 // add all the directories to the tree view
-	 //	 while (optind < argc)
-         QSettings qs;
-         QList<err_info> err_list;
-         err_info *err;
-
-         int size = qs.beginReadArray ("repository");
-         for (int i = 0; i < size; i++)
-            {
-            qs.setArrayIndex (i);
-            err = desktop->addDir (qs.value ("path").toString (), true);
-            if (err)
-               err_list << *err;
-            }
-         qs.endArray ();
-
-         /* Add dirs for any arguments */
-	 for (c = argc - 1; c >= optind; c--)
-            {
-            err = desktop->addDir (argv [c]);
-            if (err)
-               err_list << *err;
-            }
-
-	 me->show ();
-         QModelIndex ind = QModelIndex ();
-         desktop->selectDir (ind);
-
-         if (err_list.size ())
-            {
-            QString msg;
-
-            msg = app.tr ("%n error(s) on startup", "", err_list.size ());
-            msg.append (":\n");
-            foreach (const err_info &err, err_list)
-               msg.append (QString ("%1\n").arg (err.errstr));
-            QMessageBox::warning (0, "Maxview", msg);
-            }
-         app.exec ();
-
-         // write back any configuration changes (scanner type, etc.)
-         if (xmlConfig)
-            xmlConfig->writeConfigFile ();
-         me->_main->saveSettings ();
-         delete me;
-	 break;
-         }
-
+    run_gui(app, argc, argv);
 #if 0
       case 1 :
 	 Desk maxdesk (QString(), QString());
