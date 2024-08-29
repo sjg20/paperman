@@ -37,6 +37,7 @@ public:
     // indicates how far it is past _presents.size()
     enum preset_item_t {
        add = 0,
+       delete_it,
        custom,    // "<custom>" item
     };
 

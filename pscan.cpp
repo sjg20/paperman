@@ -97,6 +97,7 @@ void Pscan::readSettings()
    presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
 
    preset->addItem ("Add preset...");
+   preset->addItem ("Delete preset...");
 
    // Add a custom one which cannot be selected, but shows when the settings
    // don't match any item
@@ -504,6 +505,7 @@ void Pscan::on_preset_activated( int item )
       presetSelect(item);
    else if (item == (int)_presets.size() + Preset::add)
       presetAddUser();
+   presetSetEnabled(Preset::delete_it, presetLocate() >= 0);
 }
 
 void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
@@ -549,6 +551,7 @@ void Pscan::presetCheck()
    int item = presetLocate();
 
    preset->setCurrentIndex(item >= 0 ? item : _presets.size() + Preset::custom);
+   presetSetEnabled(Preset::delete_it, item >= 0);
 }
 
 void Pscan::presetAddUser()
