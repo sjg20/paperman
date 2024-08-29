@@ -95,6 +95,8 @@ void Pscan::readSettings()
    presetAdd(Preset("Monochrome 300dpi duplex", QScanner::mono, 300, true));
    presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
 
+   preset->addItem ("Add preset...");
+
    // Add a custom one which cannot be selected, but shows when the settings
    // don't match any item
    preset->addItem ("<custom>");
@@ -543,5 +545,15 @@ void Pscan::presetCheck()
 {
    int item = presetLocate();
 
-   preset->setCurrentIndex(item >= 0 ? item : _presets.size());
+   preset->setCurrentIndex(item >= 0 ? item : _presets.size() + Preset::custom);
+}
+
+Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)
+   : QDialog(parent, fl)
+{
+   setupUi (this);
+}
+
+Presetadd::~Presetadd()
+{
 }
