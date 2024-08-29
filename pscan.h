@@ -21,6 +21,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include "ui_presetadd.h"
 #include "ui_pscan.h"
 
 class Preset
@@ -35,7 +36,8 @@ public:
     // extra items in the presets combobox, after the real presets. The value
     // indicates how far it is past _presents.size()
     enum preset_item_t {
-       custom   = 0,    // "<custom>" item
+       add = 0,
+       custom,    // "<custom>" item
     };
 
     QString _name;
@@ -43,6 +45,16 @@ public:
     int _dpi;     // x & y dots-per-inch must be the same
     bool _duplex;
     bool _valid;  // preset is valid
+};
+
+
+class Presetadd : public QDialog, public Ui::Presetadd
+{
+    Q_OBJECT
+
+public:
+    Presetadd(QWidget* parent = 0, Qt::WindowFlags fl = Qt::WindowFlags());
+    ~Presetadd();
 };
 
 class Pscan : public QDialog, public Ui::Pscan

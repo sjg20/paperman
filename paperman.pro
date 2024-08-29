@@ -211,6 +211,7 @@ SOURCES += desktopwidget.cpp \
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
 
 FORMS = mainwindow.ui \
+   presetadd.ui \
    pscan.ui \
    about.ui \
    options.ui \
