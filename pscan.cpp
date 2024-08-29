@@ -32,6 +32,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "sliderspin.h"
 #include "qi/previewwidget.h"
 
+Preset::Preset(QString name, QScanner::format_t format, int dpi, bool duplex)
+    : _name(name), _format(format), _dpi(dpi), _duplex(duplex), _valid(true)
+{
+}
+
+Preset::~Preset()
+{
+}
+
 /*
  *  Constructs a Pscan as a child of 'parent', with the
  *  name 'name' and widget flags set to 'f'.
@@ -63,11 +72,20 @@ Pscan::~Pscan()
     // no need to delete child widgets, Qt does it all for us
 }
 
+void Pscan::presetAdd(const Preset& pre)
+{
+    _presets.push_back(pre);
+}
+
 void Pscan::readSettings()
 {
    QSettings qs;
 
    restoreGeometry(qs.value("pscan/geometry").toByteArray());
+
+   // Create some standard ones
+   presetAdd(Preset("Monochrome 300dpi duplex", QScanner::mono, 300, true));
+   presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
 }
 
 /*
