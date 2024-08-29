@@ -357,6 +357,9 @@
       </layout>
      </item>
      <item>
+      <widget class="QComboBox" name="preset"/>
+     </item>
+     <item>
       <layout class="QGridLayout" name="gridLayout">
        <item row="1" column="0">
         <widget class="QRadioButton" name="grey">

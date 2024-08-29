@@ -75,6 +75,7 @@ Pscan::~Pscan()
 void Pscan::presetAdd(const Preset& pre)
 {
     _presets.push_back(pre);
+    preset->addItem(pre._name);
 }
 
 void Pscan::readSettings()
