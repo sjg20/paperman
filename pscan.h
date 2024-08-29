@@ -95,7 +95,7 @@ private:
     /** read in the scanning-related settings from QSettings */
     void readSettings();
 
-    /** add a new preset to the list of presets */
+    /** add a new preset to the list of presets and the preset combo */
     void presetAdd(const Preset& preset);
 };
 
