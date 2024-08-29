@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QProcess>
 #include <QSettings>
+#include <QStandardItemModel>
 
 #include "pscan.h"
 
@@ -87,6 +88,11 @@ void Pscan::readSettings()
    // Create some standard ones
    presetAdd(Preset("Monochrome 300dpi duplex", QScanner::mono, 300, true));
    presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
+
+   // Add a custom one which cannot be selected, but shows when the settings
+   // don't match any item
+   preset->addItem ("<custom>");
+   presetSetEnabled(Preset::custom, false);
 }
 
 /*
@@ -473,5 +479,17 @@ void Pscan::presetSelect(int item)
 
 void Pscan::on_preset_activated(int item)
 {
-   presetSelect(item);
+   if (item < (int)_presets.size())
+      presetSelect(item);
+}
+
+void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
+{
+   QStandardItemModel *model =
+         qobject_cast<QStandardItemModel *>(preset->model());
+   Q_ASSERT(model != nullptr);
+
+   QStandardItem *item = model->item(_presets.size() + index);
+   item->setFlags(enabled ? item->flags() | Qt::ItemIsEnabled :
+                            item->flags() & ~Qt::ItemIsEnabled);
 }

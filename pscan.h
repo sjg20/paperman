@@ -29,6 +29,12 @@ public:
     Preset(QString name, QScanner::format_t format, int dpi, bool duplex);
     ~Preset();
 
+    // extra items in the presets combobox, after the real presets. The value
+    // indicates how far it is past _presents.size()
+    enum preset_item_t {
+       custom   = 0,    // "<custom>" item
+    };
+
     QString _name;
     QScanner::format_t _format;
     int _dpi;     // x & y dots-per-inch must be the same
@@ -101,5 +107,8 @@ private:
 
     /** select a preset item, numbered from 0 */
     void presetSelect(int item);
+
+    /** set whether a particular preset item is enabled or not */
+    void presetSetEnabled(enum Preset::preset_item_t index, bool enabled);
 };
 
