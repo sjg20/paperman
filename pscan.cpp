@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QDebug>
+#include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
 #include <QStandardItemModel>
@@ -497,10 +498,12 @@ void Pscan::presetSelect(int item)
    _do_preset_check = true;
 }
 
-void Pscan::on_preset_activated(int item)
+void Pscan::on_preset_activated( int item )
 {
    if (item < (int)_presets.size())
       presetSelect(item);
+   else if (item == (int)_presets.size() + Preset::add)
+      presetAddUser();
 }
 
 void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
@@ -546,6 +549,42 @@ void Pscan::presetCheck()
    int item = presetLocate();
 
    preset->setCurrentIndex(item >= 0 ? item : _presets.size() + Preset::custom);
+}
+
+void Pscan::presetAddUser()
+{
+   if (!_scanner)
+      return;
+
+   Presetadd add;
+
+   if (!add.exec())
+      return;
+
+   if (add.name->text().isEmpty()) {
+      QMessageBox msg;
+      msg.setText("The name cannot be empty");
+      msg.exec();
+      return;
+   }
+
+   int existing = presetLocate();
+
+   if (existing != -1) {
+      QMessageBox msg;
+      msg.setText(QString("An existing preset has the same settings (%1)")
+                  .arg(_presets[existing]._name));
+      msg.exec();
+      presetCheck();
+      return;
+   }
+
+   Preset to_create = presetCreate(add.name->text());
+
+   preset->insertItem(_presets.size(), to_create._name);
+   preset->setCurrentIndex(_presets.size());
+
+   _presets.push_back(to_create);
 }
 
 Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)
