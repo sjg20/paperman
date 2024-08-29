@@ -75,6 +75,7 @@ public slots:
     virtual void progressSize( const char * str );
     virtual void info( const char * str );
     virtual void options_clicked();
+    void on_preset_activated(int item);
     void on_config_clicked();
     void on_stop_clicked ();
 
@@ -97,5 +98,8 @@ private:
 
     /** add a new preset to the list of presets and the preset combo */
     void presetAdd(const Preset& preset);
+
+    /** select a preset item, numbered from 0 */
+    void presetSelect(int item);
 };
 
