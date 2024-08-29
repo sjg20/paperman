@@ -133,6 +133,8 @@ void Pscan::init()
     _scanDialog = 0;
     _preview = 0;
 
+    _do_preset_check = false;
+
     setupBright ();
 }
 
@@ -177,6 +179,8 @@ void Pscan::scannerChanged (QScanner *scanner)
     if (b)
         b->setChecked(true);
     setupBright ();
+    if (_do_preset_check)
+       presetCheck();
 }
 
 
@@ -462,6 +466,8 @@ void Pscan::presetSelect(int item)
 {
    Preset pre = _presets[item];
 
+   _do_preset_check = false;
+
    duplex->setChecked(pre._duplex);
    if (_scanDialog)
       _scanDialog->setDuplex (pre._duplex);
@@ -481,6 +487,7 @@ void Pscan::presetSelect(int item)
                               xmlConfig->boolValue ("SCAN_USE_JPEG"));
 
    setupBright ();
+   _do_preset_check = true;
 }
 
 void Pscan::on_preset_activated(int item)
@@ -525,4 +532,11 @@ int Pscan::presetLocate()
    }
 
    return -1;
+}
+
+void Pscan::presetCheck()
+{
+   int item = presetLocate();
+
+   preset->setCurrentIndex(item >= 0 ? item : _presets.size());
 }

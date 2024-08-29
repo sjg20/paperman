@@ -96,6 +96,9 @@ protected:
     QScanDialog *_scanDialog;
     std::vector<Preset> _presets;
 
+    // true to check the preset combbox to see an item matches current settings
+    bool _do_preset_check;
+
 protected slots:
     virtual void languageChange();
 
@@ -119,5 +122,8 @@ private:
 
     /** Fill in a Preset object with the current settings, returns true if OK */
     Preset presetCreate(QString name);
+
+    /** check if the preset combobox needs updating */
+    void presetCheck();
 };
 
