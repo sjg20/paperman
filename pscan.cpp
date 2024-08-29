@@ -163,7 +163,12 @@ void Pscan::scannerChanged (QScanner *scanner)
     if (disabled)
         return;
     setWindowTitle (_scanner->vendor () + " " + _scanner->model () + ": " + _scanner->name ());
+
+    int adf_type = _scanner->adfType();
+
+    adf->setDisabled(adf_type == 0);
     adf->setChecked(_scanner->useAdf ());
+
     duplex->setChecked(_scanner->duplex ());
     int dpix = _scanner->xResolutionDpi ();
     int dpiy = _scanner->yResolutionDpi ();

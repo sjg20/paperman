@@ -3415,6 +3415,31 @@ bool QScanner::compression (void)
 #endif
 
 
+int QScanner::adfType(void)
+{
+   int flatbed_option = -1, adf_option = -1;
+   int option = -1;
+
+   if (mOptionSource == -1)
+      return -1;
+   QStringList name = getStringList (mOptionSource);
+
+   for (int i = 0; option == -1 && i != name.count (); i++)
+      {
+      if (name [i].indexOf ("flatbed", 0, Qt::CaseInsensitive) != -1 ||
+          name [i].indexOf ("fb", 0, Qt::CaseInsensitive) != -1)
+         flatbed_option = i;
+      else if (name [i].indexOf ("front", 0, Qt::CaseInsensitive) != -1
+          || name [i].indexOf ("adf", 0, Qt::CaseInsensitive) != -1)
+         adf_option = i;
+      }
+
+   bool has_flatbed = flatbed_option != -1;
+   bool has_adf = adf_option != -1;
+
+   return !has_adf ? 0 : !has_flatbed ? 1 : -1;
+}
+
 bool QScanner::setAdf (bool adf)
 {
    int option = -1;

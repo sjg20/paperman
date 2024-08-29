@@ -360,6 +360,9 @@ is able to choose an option value automatically. */
   /** true if using JPEG compression */
   bool compression (void);
 
+  /** returns 0 if no ADF, 1 if only ADF, -1 if both or unknown */
+  int adfType(void);
+
   /** set adf */
   bool setAdf (bool adf);
 
