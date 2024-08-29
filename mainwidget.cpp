@@ -149,7 +149,7 @@ void Mainwidget::checkButtons (void)
    if (!_watchButtons || !_scanner)
       return;
    buttons = _scanner->checkButtons ();
-   if (buttons & 1) // scan
+   if (buttons > 0 && (buttons & 1)) // scan
       scan ();
    }
 

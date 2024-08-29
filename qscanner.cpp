@@ -3642,9 +3642,16 @@ int QScanner::checkButtons (void)
    int value, i;
 
    value = 0;
-   for (i = 0; i < BUT_count; i++)
-       if (mOptionButton [i] != -1 && saneWordValue (mOptionButton [i]))
-          value |= 1 << i;
+   for (i = 0; i < BUT_count; i++) {
+       if (mOptionButton [i] != -1) {
+           int val = saneWordValue (mOptionButton [i]);
+
+           if (val == INT_MIN)
+               return INT_MIN;
+           else if (val)
+               value |= 1 << i;
+       }
+   }
 
    // function button can emulate the others when 'scan' is pressed
    if (mOptionFunction != -1 && (value & 1))

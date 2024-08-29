@@ -415,7 +415,11 @@ is able to choose an option value automatically. */
   /** force reload of options when we know something has changed */
   void reloadOptions (void);
 
-  /** check the scanner buttons and return the value */
+  /**
+   * check the scanner buttons and return the value
+   *
+   * Return: buttoms mask on success, INT_MIN on failure
+   */
   int checkButtons (void);
 
   /** returns true if we are currently scanning
