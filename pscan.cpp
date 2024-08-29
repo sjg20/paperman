@@ -42,6 +42,12 @@ Preset::~Preset()
 {
 }
 
+bool Preset::matches(Preset &other)
+{
+   return other._valid && _format == other._format && _dpi == other._dpi &&
+         _duplex == other._duplex;
+}
+
 /*
  *  Constructs a Pscan as a child of 'parent', with the
  *  name 'name' and widget flags set to 'f'.
@@ -492,4 +498,31 @@ void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
    QStandardItem *item = model->item(_presets.size() + index);
    item->setFlags(enabled ? item->flags() | Qt::ItemIsEnabled :
                             item->flags() & ~Qt::ItemIsEnabled);
+}
+
+Preset Pscan::presetCreate(QString name)
+{
+   int dpix = _scanner->xResolutionDpi ();
+   int dpiy = _scanner->yResolutionDpi ();
+
+   Preset preset(name, _scanner->format(),  dpix, _scanner->duplex());
+
+   preset._valid = !dpiy || dpix == dpiy;
+
+   return preset;
+}
+
+int Pscan::presetLocate()
+{
+   if (!_scanner)
+      return -1;
+
+   Preset to_find = presetCreate("");
+
+   for (uint i = 0; i < _presets.size(); i++) {
+      if (_presets[i].matches(to_find))
+         return i;
+   }
+
+   return -1;
 }
