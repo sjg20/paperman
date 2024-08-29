@@ -23,6 +23,18 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "ui_pscan.h"
 
+class Preset
+{
+public:
+    Preset(QString name, QScanner::format_t format, int dpi, bool duplex);
+    ~Preset();
+
+    QString _name;
+    QScanner::format_t _format;
+    int _dpi;     // x & y dots-per-inch must be the same
+    bool _duplex;
+    bool _valid;  // preset is valid
+};
 
 class Pscan : public QDialog, public Ui::Pscan
 {
@@ -72,6 +84,7 @@ protected:
     Mainwidget *_main;
     int _default_papersize_id;
     QScanDialog *_scanDialog;
+    std::vector<Preset> _presets;
 
 protected slots:
     virtual void languageChange();
@@ -81,5 +94,8 @@ private:
 
     /** read in the scanning-related settings from QSettings */
     void readSettings();
+
+    /** add a new preset to the list of presets */
+    void presetAdd(const Preset& preset);
 };
 
