@@ -13,7 +13,6 @@
 
 *.moc
 *.obj
-*.ui
 /Makefile
 /paperman
 /qrc_maxview.cpp
