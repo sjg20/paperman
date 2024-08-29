@@ -29,6 +29,9 @@ public:
     Preset(QString name, QScanner::format_t format, int dpi, bool duplex);
     ~Preset();
 
+    /** returns true if the other preset matches this one, ignoring name */
+    bool matches(Preset &other);
+
     // extra items in the presets combobox, after the real presets. The value
     // indicates how far it is past _presents.size()
     enum preset_item_t {
@@ -110,5 +113,11 @@ private:
 
     /** set whether a particular preset item is enabled or not */
     void presetSetEnabled(enum Preset::preset_item_t index, bool enabled);
+
+    /** return the preset which matches the current settings, or -1 if none */
+    int presetLocate();
+
+    /** Fill in a Preset object with the current settings, returns true if OK */
+    Preset presetCreate(QString name);
 };
 
