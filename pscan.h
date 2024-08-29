@@ -73,6 +73,9 @@ public:
     void closing (void);
    void checkEnabled (bool scanning);
 
+   /** Select a preset using a shortcut; item is numbered from 1 */
+   void presetShortcut(uint item);
+
 public slots:
     virtual void scannerChanged( QScanner * scanner );
     virtual void setMainwidget( Mainwidget * main );
@@ -97,6 +100,11 @@ public slots:
     virtual void progressSize( const char * str );
     virtual void info( const char * str );
     virtual void options_clicked();
+    virtual void presetShortcut1();
+    virtual void presetShortcut2();
+    virtual void presetShortcut3();
+    virtual void presetShortcut4();
+    virtual void presetShortcut5();
     void on_preset_activated(int item);
     void on_config_clicked();
     void on_stop_clicked ();
