@@ -1422,7 +1422,7 @@ void Desktopwidget::pageRight (void)
       }
    }
 
-void Desktopwidget::activateFind ()
+void Desktopwidget::activateLocate ()
    {
    _match->clear ();
    _match->setFocus (Qt::OtherFocusReason);
