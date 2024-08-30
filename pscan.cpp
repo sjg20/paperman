@@ -576,6 +576,13 @@ void Pscan::presetAddUser()
 
    Presetadd add;
 
+   uint next_id = _presets.size();
+   QString msg;
+   if (next_id < 5)
+      msg = QString("Press Ctrl-%1 to activate your new preset").arg(next_id + 1);
+   else
+      msg = "Shortcuts Ctrl-1 to Ctrl-5 are in use already";
+   add.msg->setText(msg);
    if (!add.exec())
       return;
 
