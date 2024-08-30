@@ -189,8 +189,8 @@ public slots:
    /** handle pressing return in the filter string - we do a search */
    void matchUpdate (void);
 
-   /** handle a click on the 'find' button - we do a search */
-   void findClicked (void);
+   /** handle a click on the 'locate' button - we do a search */
+   void locateClicked (void);
 
    /** handle the reset filter button */
    void resetFilter (void);
@@ -409,7 +409,7 @@ private:
    QString _scroll_to;     //!< filename to scroll to when a new directory is opened
 
    QLineEdit *_match;      //!< line edit for the match
-   QAction *_find, *_reset;
+   QAction *_locate, *_reset;
    QCheckBox *_global;
    };
 
