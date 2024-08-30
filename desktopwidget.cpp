@@ -252,7 +252,7 @@ void Desktopwidget::addActions(void)
    {
    // use translatable version of keys
    addAction (_act_duplicate, "&Duplicate", SLOT(duplicate ()), "Ctrl+D");
-   addAction (_act_locate, "&Locate folder",  SLOT(locateFolder ()), "Ctrl+L");
+   addAction (_act_locate, "&Locate folder",  SLOT(locateFolder ()), "Ctrl+Shift+L");
    addAction (_act_delete, "D&elete stack",  SLOT(deleteStacks ()), "Delete");
 
    addAction (_act_stack, "&Stack", SLOT(stackPages()), "Ctrl+G");
