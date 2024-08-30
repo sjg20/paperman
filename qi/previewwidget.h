@@ -227,7 +227,7 @@ private:
   // list of predefined paper sizes
   PredefinedSizes *mPreDefs;
 
-  // id of the A4 and US letter sizes
+  // element number of the A4 and US letter sizes in predefs[] array
   int mPreDefA4;
   int mPreDefLetter;
 

@@ -113,7 +113,11 @@ protected:
     PreviewWidget *_preview;
     QScanner *_scanner;
     Mainwidget *_main;
+
+    // selected papersize element from PreviewWidget::predefs[], either
+    // A4 or US letter, depending on what paperconf' says
     int _default_papersize_id;
+
     QScanDialog *_scanDialog;
     std::vector<Preset> _presets;
 
