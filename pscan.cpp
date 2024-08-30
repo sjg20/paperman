@@ -158,8 +158,9 @@ void Pscan::init()
 
 void Pscan::closing()
    {
-   QSettings settings;
-   settings.setValue("pscan/geometry", saveGeometry());
+   QSettings qs;
+
+   qs.setValue("pscan/geometry", saveGeometry());
    }
 
 
