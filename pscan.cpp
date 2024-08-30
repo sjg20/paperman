@@ -22,11 +22,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QDebug>
+#include <QHeaderView>
 #include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
 #include <QShortcut>
 #include <QStandardItemModel>
+#include <QTableView>
 
 #include "pscan.h"
 
@@ -68,6 +70,10 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(grey, QScanner::grey);
     format->setId(dither, QScanner::dither);
     format->setId(colour, QScanner::colour);
+    _folders = new QTableView(this);
+    _model = new QStandardItemModel(1, 1, this);
+    _folders->setModel(_model);
+    _folders->hide();
 
     init();
     readSettings();
@@ -738,4 +744,41 @@ void Pscan::focusFind()
 {
    activateWindow();
    folderName->setFocus();
+}
+
+void Pscan::searchForFolders(const QString& match)
+{
+   QStringList folders = _main->findFolders(match, _folders_path);
+
+   if (!folders.length())
+      return;
+
+   // put the folder list into the model
+   _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
+   for (int row = 0; row < folders.size(); row++) {
+      _model->insertRows(row, 1, QModelIndex());
+      _model->setData(_model->index(row, 0, QModelIndex()), folders[row]);
+   }
+
+   // make sure the column is wide enough
+   _folders->resizeColumnToContents(0);
+
+   // Get a rectangle the same size as folderName but starting below it
+   QRect rect = folderName->geometry();
+   rect.translate(QPoint(0, rect.height()));
+
+   // extend it to the bottom of the dialog
+   rect.setBottom(geometry().bottom());
+
+   // place the folders list in the right place
+   _folders->move(rect.topLeft());
+   _folders->resize(rect.size());
+   _folders->horizontalHeader()->resizeSection(0, rect.width());
+
+   _folders->show();
+}
+
+void Pscan::on_folderName_textChanged(const QString &text)
+{
+   searchForFolders(text);
 }
