@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QDialogButtonBox>
 #include <QtGlobal>
+#include <QShortcut>
 #if QT_VERSION >= 0x050000
 #include <QtPrintSupport/QPrintDialog>
 #include <QtPrintSupport/QPrinter>
@@ -120,6 +121,18 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _buttonTimer = new QTimer (this);
    connect (_buttonTimer, SIGNAL(timeout()), this, SLOT (checkButtons()));
    _buttonTimer->start (500); // check buttons twice each second
+
+   // setup the keyboard shortcuts Ctrl-1 to Ctrl-5 for pscan presets
+   QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_1), this),
+                    &QShortcut::activated, this, &Mainwidget::selectPreset1);
+   QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_2), this),
+                    &QShortcut::activated, this, &Mainwidget::selectPreset2);
+   QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_3), this),
+                    &QShortcut::activated, this, &Mainwidget::selectPreset3);
+   QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_4), this),
+                    &QShortcut::activated, this, &Mainwidget::selectPreset4);
+   QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_5), this),
+                    &QShortcut::activated, this, &Mainwidget::selectPreset5);
    }
 
 
@@ -163,6 +176,38 @@ void Mainwidget::saveSettings (void)
       ds.saveDeviceSettings("Last settings");
       }
    }
+
+
+void Mainwidget::selectPreset(uint item)
+{
+   if (_pscan)
+      _pscan->presetShortcut(item);
+}
+
+void Mainwidget::selectPreset1()
+{
+   selectPreset(1);
+}
+
+void Mainwidget::selectPreset2()
+{
+   selectPreset(2);
+}
+
+void Mainwidget::selectPreset3()
+{
+   selectPreset(3);
+}
+
+void Mainwidget::selectPreset4()
+{
+   selectPreset(4);
+}
+
+void Mainwidget::selectPreset5()
+{
+   selectPreset(5);
+}
 
 
 void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
