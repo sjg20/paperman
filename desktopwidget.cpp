@@ -150,7 +150,6 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_view, SIGNAL (pageLost()), _page, SLOT (slotReset ()));
 
    _parent = parent;
-   _pendingMatch = QString();
 
    // setup the preview timer
    _timer = new QTimer ();
@@ -882,16 +881,7 @@ void Desktopwidget::matchUpdate (QString match, bool subdirs, bool reset)
 
 void Desktopwidget::slotUpdateDone ()
    {
-   QString str;
-
    emit updateDone ();
-
-   if (_pendingMatch.length ())
-      {
-      str = _pendingMatch;
-      _pendingMatch = QString();
-      matchUpdate (str, false);
-      }
    }
 
 
