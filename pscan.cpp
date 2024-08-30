@@ -342,6 +342,7 @@ void Pscan::reset_clicked()
       _scanDialog->setDpi (300);
    }
    _preview->setSize(_default_papersize_id);
+   pageSize->setCurrentIndex(_default_papersize_id);
    presetCheck();
 }
 
