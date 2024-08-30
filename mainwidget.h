@@ -186,6 +186,13 @@ public slots:
    /** check the buttons on the scanner */
    void checkButtons (void);
 
+   /** Individual functions used as QShortcut targets */
+   virtual void selectPreset1();
+   virtual void selectPreset2();
+   virtual void selectPreset3();
+   virtual void selectPreset4();
+   virtual void selectPreset5();
+
 private slots:
    void scanDialogClosed (void);
 
@@ -241,6 +248,9 @@ private slots:
    void slotStackPageProgress (const PPage *page);
 
    void slotWarning (QString &str);
+
+   /** Select a particular pscan preset, numbered from one */
+   void selectPreset(uint item);
 
 private:
    /** print a page if it is in range
