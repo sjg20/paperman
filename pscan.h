@@ -156,4 +156,7 @@ private:
 
     /** Select a preset using a shortcut; item is numbered from 1 */
     void presetShortcut(uint item);
+
+    /** Move the focus to the folder 'find' field */
+    void focusFind();
 };
