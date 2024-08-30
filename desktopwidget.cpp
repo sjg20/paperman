@@ -344,7 +344,7 @@ QWidget *Desktopwidget::createToolbar(void)
 
    hboxLayout2->addWidget (_match);
 
-   addAction (_locate, "Filter stacks", SLOT(locateClicked ()), "", locateGroup, "find.xpm");
+   addAction (_locate, "Filter stacks", SLOT(locateClicked ()), "", locateGroup, "locate.xpm");
    QToolButton *locate = new QToolButton (locateGroup);
    locate->setDefaultAction (_locate);
    hboxLayout2->addWidget (locate);
