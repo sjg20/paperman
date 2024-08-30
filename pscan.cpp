@@ -332,24 +332,17 @@ void Pscan::contrastChanged(int contrast)
 
 void Pscan::reset_clicked()
 {
-    if (!_scanDialog)
-       return;
-//    format->setButton (0);
-    _scanDialog->setFormat (QScanner::mono, false);
-
-//    exposure->setValue (128);
-    _scanDialog->setExposure (128);
-
-//    adf->setChecked(true);
-   _scanDialog->setAdf (true);
-
-//    duplex->setChecked(false);
-//    res->setCurrentItem(1);
-//    size->setCurrentItem (_a4_id);
-   _scanDialog->setDuplex (false);
-   _scanDialog->setDpi (300);
-   _preview->setSize (_default_papersize_id);
-//   scannerChanged (_scanner);
+   if (_presets.size()) {
+      presetSelect(0);
+   } else if (_scanDialog) {
+      _scanDialog->setFormat (QScanner::mono, false);
+      _scanDialog->setExposure (128);
+      _scanDialog->setAdf (true);
+      _scanDialog->setDuplex (false);
+      _scanDialog->setDpi (300);
+   }
+   _preview->setSize(_default_papersize_id);
+   presetCheck();
 }
 
 
