@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/images">
-        <file>images/find.xpm</file>
+        <file>images/locate.xpm</file>
         <file>images/unknown.xpm</file>
         <file>images/no_access.xpm</file>
         <file>images/info.xpm</file>
