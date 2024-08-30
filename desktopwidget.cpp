@@ -292,21 +292,21 @@ QWidget *Desktopwidget::createToolbar(void)
    addAction (_actionPprev, "Previous stack", SLOT(stackLeft ()), "", _toolbar, "prev.xpm");
    addAction (_actionPprev, "Next stack", SLOT(stackRight ()), "", _toolbar, "next.xpm");
 
-   QWidget *findgroup = new QWidget (_toolbar);
+   QWidget *locateGroup = new QWidget (_toolbar);
 
    QHBoxLayout *hboxLayout2 = new QHBoxLayout();
    hboxLayout2->setSpacing(0);
    hboxLayout2->setContentsMargins (0, 0, 0, 0);
    hboxLayout2->setObjectName(QString::fromUtf8("hboxLayout2"));
-   findgroup->setLayout (hboxLayout2);
+   locateGroup->setLayout (hboxLayout2);
 
-   QLabel *label = new QLabel (findgroup);
+   QLabel *label = new QLabel (locateGroup);
    label->setText(QApplication::translate("Mainwindow", "Filter:", 0));
    label->setObjectName(QString::fromUtf8("label"));
 
    hboxLayout2->addWidget(label);
 
-   _match = new QLineEdit (findgroup);
+   _match = new QLineEdit (locateGroup);
    _match->setObjectName ("match");
    QSizePolicy sizePolicy2(QSizePolicy::Expanding, QSizePolicy::Fixed);
    sizePolicy2.setHorizontalStretch(1);
@@ -338,27 +338,14 @@ QWidget *Desktopwidget::createToolbar(void)
    connect(pressed_esc, SIGNAL(triggered()), this, SLOT(resetFilter()));
    machine->setInitialState (s1);
    machine->start ();
-#if 0
-  QPushButton *test = new QPushButton (findgroup);
-  test->setText ("hello");
-  hboxLayout2->addWidget (test);
 
-   QStateMachine *test_machine = new QStateMachine (this);
-   QState *test_s1 = new QState (test_machine);
-
-   QSignalTransition *trans = new QSignalTransition(test, SIGNAL(clicked()));
-   test_s1->addTransition (trans);
-   connect(trans, SIGNAL(triggered()), this, SLOT(resetFilter()));
-   test_machine->setInitialState (test_s1);
-   test_machine->start ();
-#endif
-    // and change the state
+   // and change the state
    hboxLayout2->addWidget(label);
 
    hboxLayout2->addWidget (_match);
 
-   addAction (_find, "Filter stacks", SLOT(findClicked ()), "", findgroup, "find.xpm");
-   QToolButton *find = new QToolButton (findgroup);
+   addAction (_find, "Filter stacks", SLOT(findClicked ()), "", locateGroup, "find.xpm");
+   QToolButton *find = new QToolButton (locateGroup);
    find->setDefaultAction (_find);
    hboxLayout2->addWidget (find);
 //    connect (_find, SIGNAL (activated ()), this, SLOT (findClicked ()));
@@ -367,17 +354,17 @@ QWidget *Desktopwidget::createToolbar(void)
 
    hboxLayout2->addItem (spacerItem);
 
-   _global = new QCheckBox("Subdirs", findgroup);
+   _global = new QCheckBox("Subdirs", locateGroup);
    _global->setObjectName(QString::fromUtf8("global"));
 
    hboxLayout2->addWidget(_global);
 
-   addAction (_reset, "Reset", SLOT(resetFilter ()), "", findgroup);
-   QToolButton *reset = new QToolButton (findgroup);
+   addAction (_reset, "Reset", SLOT(resetFilter ()), "", locateGroup);
+   QToolButton *reset = new QToolButton (locateGroup);
    reset->setDefaultAction (_reset);
    hboxLayout2->addWidget (reset);
 
-   _toolbar->addWidget (findgroup);
+   _toolbar->addWidget (locateGroup);
 
 #ifndef QT_NO_TOOLTIP
    _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0));
