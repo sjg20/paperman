@@ -374,9 +374,6 @@ private:
    /** current path being displayed */
    QString _path;
 
-   /** pending match, for when we are no longer busy */
-   QString _pendingMatch;
-
    /** timer to use for updating the preview page */
    QTimer *_timer;
 
