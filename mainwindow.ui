@@ -502,24 +502,6 @@
     <string>Clear Selection</string>
    </property>
   </action>
-  <action name="actionUndo_2">
-   <property name="text">
-    <string>Undo</string>
-   </property>
-  </action>
-  <action name="actionRedo_2">
-   <property name="text">
-    <string>Redo</string>
-   </property>
-  </action>
-  <action name="actionFind_2">
-   <property name="text">
-    <string>Find</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+F</string>
-   </property>
-  </action>
   <action name="actionSelect_All">
    <property name="text">
     <string>Select All</string>
