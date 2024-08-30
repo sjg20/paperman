@@ -31,7 +31,18 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 class Desktopmodelconv;
 
-
+/**
+ * @brief Provide a view of paper stacks
+ *
+ * This shows paper stacks in a scrolling view where each stack has its own
+ * position. It uses Desktopmodel to provide the underlying model.
+ *
+ * The stacks normally come from a single directory, but when doing
+ * a global locate they can be from multiple directories. See
+ * Desktopwidget::matchUpdate for that.
+ *
+ * The user can move things around, combine and split stacks, etc.
+ */
 class Desktopview : public QListView
    {
    Q_OBJECT
