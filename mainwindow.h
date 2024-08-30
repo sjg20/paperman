@@ -21,9 +21,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
-
-
-
 #include "ui_mainwindow.h"
 #include "op.h"
 
@@ -32,7 +29,15 @@ class QProgressBar;
 class Desktopwidget;
 class Mainwidget;
 
-
+/**
+ * @brief Main window
+ * This contains all other windows and has the menu and status bars. It is the
+ * main widget of the application.
+ *
+ * It contains a Mainwidget _main which can display either:
+ *    - the desktop view, with folders, stacks and preview, or
+ *    - the page view, with just a single stack
+ */
 class Mainwindow : public QMainWindow, public Ui::Mainwindow
 {
     Q_OBJECT
