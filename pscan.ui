@@ -18,7 +18,7 @@
   <property name="windowIconText">
    <string> df</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout_2">
+  <layout class="QHBoxLayout" name="horizontalLayout_3">
    <item>
     <layout class="QVBoxLayout">
      <item>
@@ -90,6 +90,40 @@
         <widget class="QLineEdit" name="pageName">
          <property name="toolTip">
           <string>Enter the name for each page of the stack to be scanned</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QLabel" name="testLabel">
+         <property name="text">
+          <string>Folder</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Minimum</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>10</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="folderName">
+         <property name="toolTip">
+          <string>Type here to interactively search for / create folders, then press &lt;enter&gt; to scan</string>
          </property>
         </widget>
        </item>
@@ -548,6 +582,7 @@
  <tabstops>
   <tabstop>stackName</tabstop>
   <tabstop>pageName</tabstop>
+  <tabstop>folderName</tabstop>
   <tabstop>mono</tabstop>
   <tabstop>dither</tabstop>
   <tabstop>grey</tabstop>
@@ -559,6 +594,7 @@
   <tabstop>cancel</tabstop>
   <tabstop>stop</tabstop>
   <tabstop>scan</tabstop>
+  <tabstop>preset</tabstop>
   <tabstop>options</tabstop>
   <tabstop>reset</tabstop>
   <tabstop>config</tabstop>
