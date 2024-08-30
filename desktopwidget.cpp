@@ -151,7 +151,6 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    _parent = parent;
    _pendingMatch = QString();
-   _updating = false;
 
    // setup the preview timer
    _timer = new QTimer ();
@@ -843,26 +842,12 @@ void Desktopwidget::matchUpdate (QString match, bool subdirs, bool reset)
    if (!_proxy)
       return;
 
-// printf ("path = %s\n", _path.latin1 ());
-   // if we're already updating, schedule a later update (no subdirs allowed)
-   if (_updating)
-      {
-      _pendingMatch = match;
-//      printf ("pending '%s'\n", match.latin1 ());
-
-      // tell the viewer to stop updating
-      _contents->stopUpdate ();
-      return;
-      }
-
    /* if we are doing a global search, we need to recreate the maxdesk. Here
       we are creating a 'virtual' maxdesk which holds files from a number
       of different directories */
-//   printf ("update\n");
    if (subdirs || reset)
       {
       _proxy->setFilterFixedString ("");
-//       _updating = true;
       if (subdirs) // this might take a long time
          op = new Operation ("Searching", 100, this);
       QModelIndex root = _model->findRoot (index);
@@ -901,9 +886,6 @@ void Desktopwidget::slotUpdateDone ()
 
    emit updateDone ();
 
-//   printf ("update done\n");
-   // start a pending search if there is one
-   _updating = false;
    if (_pendingMatch.length ())
       {
       str = _pendingMatch;
