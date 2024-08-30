@@ -168,15 +168,20 @@ void Pscan::init()
     setupBright ();
 
     // setup the keyboard shortcuts Ctrl-1 to Ctrl-5 for presets
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_1), this),
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_1), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut1);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_2), this),
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_2), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut2);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_3), this),
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_3), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut3);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_4), this),
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_4), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut4);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_5), this),
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_5), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut5);
 }
 

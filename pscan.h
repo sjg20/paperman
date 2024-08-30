@@ -73,9 +73,6 @@ public:
     void closing (void);
    void checkEnabled (bool scanning);
 
-   /** Select a preset using a shortcut; item is numbered from 1 */
-   void presetShortcut(uint item);
-
 public slots:
     virtual void scannerChanged( QScanner * scanner );
     virtual void setMainwidget( Mainwidget * main );
@@ -156,4 +153,7 @@ private:
 
     /** allow the user to delete a preset */
     void presetDeleteUser();
+
+    /** Select a preset using a shortcut; item is numbered from 1 */
+    void presetShortcut(uint item);
 };
