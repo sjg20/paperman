@@ -187,7 +187,7 @@ void Mainwindow::on_actionAbout_triggered(bool)
 
 void Mainwindow::on_actionLocate_triggered(bool)
    {
-   getDesktop()->activateFind ();
+   getDesktop()->activateLocate ();
    }
 
 void Mainwindow::on_actionFullScreen_triggered(bool)
