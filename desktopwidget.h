@@ -377,9 +377,6 @@ private:
    /** pending match, for when we are no longer busy */
    QString _pendingMatch;
 
-   /** true if we are busy updating */
-   bool _updating;
-
    /** timer to use for updating the preview page */
    QTimer *_timer;
 
