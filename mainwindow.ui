@@ -165,7 +165,7 @@
     </property>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
-    <addaction name="actionFind"/>
+    <addaction name="actionLocate"/>
     <addaction name="separator"/>
     <addaction name="actionSelectall"/>
    </widget>
@@ -224,15 +224,18 @@
     <string>Ctrl+Q</string>
    </property>
   </action>
-  <action name="actionFind">
+  <action name="actionLocate">
    <property name="text">
-    <string>Find</string>
+    <string>Locate</string>
+   </property>
+   <property name="iconText">
+    <string>Locate</string>
    </property>
    <property name="toolTip">
-    <string>Find a stack by name</string>
+    <string>Locate a stack by name</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+F</string>
+    <string>Ctrl+L</string>
    </property>
   </action>
   <action name="actionSelectall">
