@@ -167,6 +167,14 @@ void Pscan::init()
 
     setupBright ();
 
+    // setup the shortcuts for finding a folder
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
+                     &QShortcut::activated, this, &Pscan::focusFind);
+    QObject::connect(new QShortcut(QKeySequence(Qt::Key_F6), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
+                     &QShortcut::activated, this, &Pscan::focusFind);
+
     // setup the keyboard shortcuts Ctrl-1 to Ctrl-5 for presets
     QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_1), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
@@ -724,4 +732,10 @@ Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)
 
 Presetadd::~Presetadd()
 {
+}
+
+void Pscan::focusFind()
+{
+   activateWindow();
+   folderName->setFocus();
 }
