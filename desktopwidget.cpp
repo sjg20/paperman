@@ -1405,3 +1405,16 @@ bool Desktopwidget::eventFilter (QObject *watched_object, QEvent *e)
   return filtered;
   }
 #endif
+
+const QString Desktopwidget::getRootDirectory()
+{
+   // Find out which directory is currently selected
+   //QModelIndex ind = _view->getSelectedItem();
+   QModelIndex ind = _dir->menuGetModelIndex();
+
+   // Get the top-level dirname of that
+   QModelIndex root = _model->findRoot(ind);
+   QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
+
+   return root_path;
+}
