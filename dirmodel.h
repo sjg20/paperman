@@ -26,7 +26,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 struct err_info;
 
-
+/**
+ * @brief An item in the list of top-level paper repositories
+ *
+ * This contains information about a paper repository, including the top-level
+ * directory containing it. A list of these is contained in Dirmodel, which
+ * handles all the repositories visit to paperman.
+ */
 class Diritem
    {
 public:
