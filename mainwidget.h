@@ -60,7 +60,15 @@ extern "C"
 #include <sane/sane.h>
 }
 
-
+/**
+ * @brief Main widget
+ * This can display either:
+ *    - the desktop view _desktop, with folders, stacks and preview, or
+ *    - the page view _page, with just a single stack
+ *
+ * The swapDesktop() method switches between the two, trigger by Mainwindow,
+ * the parent widget, which has an actionSwap icon
+ */
 class Mainwidget : public QStackedWidget
    {
    Q_OBJECT
