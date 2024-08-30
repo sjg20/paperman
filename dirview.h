@@ -26,7 +26,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QTreeView>
 
-
+/**
+ * @brief Provides a directory view
+ *
+ * This is a QTreeView which uses Dirmodel to provide a directory tree on the
+ * left size of the Desktopwidget. Clicking on a directory changes to that
+ * directory and shows its stacks on the right in the Desktopview
+ */
 class Dirview : public QTreeView
    {
    Q_OBJECT
