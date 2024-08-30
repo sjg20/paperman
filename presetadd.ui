@@ -29,6 +29,13 @@
     </layout>
    </item>
    <item>
+    <widget class="QLabel" name="msg">
+     <property name="text">
+      <string>The preset will be available on Ctrl-1</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
