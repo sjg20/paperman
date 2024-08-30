@@ -24,6 +24,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "ui_presetadd.h"
 #include "ui_pscan.h"
 
+class QStandardItemModel;
+class QTableView;
+
 class Preset
 {
 public:
@@ -105,6 +108,7 @@ public slots:
     void on_preset_activated(int item);
     void on_config_clicked();
     void on_stop_clicked ();
+    void on_folderName_textChanged(const QString &text);
 
 protected:
     PreviewWidget *_preview;
@@ -121,8 +125,12 @@ protected:
     // true to check the preset combbox to see an item matches current settings
     bool _do_preset_check;
 
-protected slots:
-    virtual void languageChange();
+    // List of folders found using the folderName search
+    QTableView *_folders;
+
+    // Model containing the list of folders
+    QStandardItemModel *_model;
+ virtual void languageChange();
 
 private:
     void init();
