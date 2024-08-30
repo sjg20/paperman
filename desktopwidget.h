@@ -128,6 +128,18 @@ public:
    /** activate the locate feature, which allows looking for stacks by name */
    void activateLocate ();
 
+   /**
+    * @brief Get the root directory of the currentl selected paper repository
+    * @return Directory path
+    *
+    * The top level of the the Dirmodel contains a number of Diritem objects,
+    * each of which is a separate directory in the file system, with no
+    * relationship between them. There is always a highlighted directory in the
+    * Dirview _dir so this function finds the filesystem path associated with
+    * that _dir
+    */
+   const QString getRootDirectory();
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
