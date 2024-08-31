@@ -49,7 +49,7 @@ public:
    bool setProgress (int upto);
 
    /** indicate that progress has moved on by a given number of steps
-   
+
       \param by      number of steps to increase progress by
       \return true to continue, false if the user wants to cancel
    */
@@ -58,7 +58,11 @@ public:
    /** set the number of steps in the operation */
    void setCount (int count);
 
-   static void setMainWidget (QWidget *widget);
+   /**
+    * @brief Set the widget to advise of operation progress
+    * @param receiver  Widget to receive signals
+    */
+   static void setReceiver(QWidget *receiver);
 
    /** @brief State of the operation */
    enum state_t {
