@@ -59,7 +59,14 @@ public:
    static void setMainWidget (QWidget *widget);
 
 signals:
-   void progress (int percent, QString name);
+   /**
+    * @brief Report progress of an operation
+    * @param percent   Percentage complete
+    * @param name      Operation name (empty string)
+    *
+    * This is emitted whenever setProgress() is called
+    */
+   void operationProgress(int percent, QString name);
 
 private:
    int _maximum;    //!< maximum progress count
