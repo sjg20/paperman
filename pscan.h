@@ -134,6 +134,12 @@ protected:
     // Model containing the list of folders
     QStandardItemModel *_model;
 
+    // true if we are currently searching for folders
+    bool _searching;
+
+    // string which we saw while in the middle of searching
+    QString _next_search;
+
     virtual void languageChange();
 
 private:
