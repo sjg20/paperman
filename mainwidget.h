@@ -100,6 +100,17 @@ public:
    // called when the main window is closing, to save window settings
    void closing (void);
 
+   /**
+    * @brief  Find folders in the current repo which match a text string
+    * @param  text to match
+    * @param  returns the path to the root directory
+    * @return list of matching paths
+    *
+    * This looks for 4-digit years and 3-character months to try to guess
+    * which folders to put at the top of the list
+    */
+   QStringList findFolders(const QString &text, QString& dirPath);
+
 signals:
    void newContents (QString);
 
@@ -300,6 +311,20 @@ private:
 
    /** connect up the scanner signals */
    void connectScanner (void);
+
+   /**
+    * @brief Search for directories matching a string
+    * @param matches    List of matches to update
+    * @param baseLen    Number of characters to omit at the start of each match
+    * @param dirPath    Directory to scan
+    * @param match      String to match
+    * @param op         Operation, to show progress
+    *
+    * Adds dirPath if it matches the match string, then scans directories within
+    * dirPath recursively.
+    */
+   void addMatches(QStringList& matches, uint baseLen, const QString &dirPath,
+                   const QString &match, Operation *op);
 
 private:
    Desktopwidget *_desktop;
