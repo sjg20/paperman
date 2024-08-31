@@ -97,7 +97,6 @@ static void run_gui(QApplication& app, int argc, char *argv[])
     Mainwindow *me;
 
     me = new Mainwindow ();
-    Operation::setMainWidget (me);
 
     // get the desktop (this has the directory tree and page splitter view)
     desktop = me->_main->getDesktop ();
