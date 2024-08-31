@@ -21,7 +21,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
-
 #include <QDebug>
 
 #include "err.h"
@@ -29,19 +28,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "op.h"
 
-
 //! the main widget which needs to know about operation progress
 static QWidget *main_widget;
-
-
 
 Operation::Operation (QString name, int count, QWidget *parent)
    {
    UNUSED (parent);
-//    setMinimumDuration (200);
-//    setFocusPolicy (Qt::NoFocus);
    _maximum = count;
-   qDebug () << "operation max" << _maximum;
    connect(this, SIGNAL(operationProgress(int, QString)),
            main_widget, SLOT(setProgress(int, QString)));
    emit operationProgress(-1, name);
@@ -58,7 +51,6 @@ Operation::~Operation ()
 void Operation::setCount (int count)
    {
    _maximum = count < 1 ? 1 : count;
-//    setMaximum (count);
    }
 
 
@@ -66,13 +58,10 @@ bool Operation::setProgress (int upto)
    {
    _upto = upto;
    int pc = int ((float)upto / _maximum * 100);
+
    emit operationProgress(pc, QString());
-//   printf ("progress %d\n", pc);
-//    QProgressDialog::setValue (upto);
    qApp->processEvents ();
-//    if (wasCanceled ())
-//       printf ("cancelled\n");
-//    return wasCanceled ();
+
    return false;
    }
 
@@ -89,5 +78,3 @@ void Operation::setMainWidget (QWidget *widget)
    {
    main_widget = widget;
    }
-
-
