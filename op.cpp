@@ -42,15 +42,16 @@ Operation::Operation (QString name, int count, QWidget *parent)
 //    setFocusPolicy (Qt::NoFocus);
    _maximum = count;
    qDebug () << "operation max" << _maximum;
-   connect (this, SIGNAL (progress(int, QString)), main_widget, SLOT (setProgress (int, QString)));
-   emit progress (-1, name);
+   connect(this, SIGNAL(operationProgress(int, QString)),
+           main_widget, SLOT(setProgress(int, QString)));
+   emit operationProgress(-1, name);
    _upto = 0;
    }
 
 
 Operation::~Operation ()
    {
-   emit progress (-2, QString());
+   emit operationProgress(-2, QString());
    }
 
 
@@ -65,7 +66,7 @@ bool Operation::setProgress (int upto)
    {
    _upto = upto;
    int pc = int ((float)upto / _maximum * 100);
-   emit progress (pc, QString());
+   emit operationProgress(pc, QString());
 //   printf ("progress %d\n", pc);
 //    QProgressDialog::setValue (upto);
    qApp->processEvents ();
