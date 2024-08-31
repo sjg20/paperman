@@ -637,3 +637,50 @@ QString utilRemoveQuotes (QString str)
    return str;
    }
 
+
+int utilDetectYear(const QString& fname)
+{
+   int len = fname.length();
+
+   // search for year from 1900 to 2099
+   QRegExp rx("(\\d{4})");
+
+   for (int pos = 0; pos = rx.indexIn(fname, pos), pos != -1;
+        pos += rx.matchedLength()) {
+
+      // make sure here is no digit either side
+      if (fname[pos - 1].isDigit() ||
+          (pos + 4 < len && fname[pos + 4].isDigit()))
+         continue;
+      int year = rx.cap(0).toInt();
+
+      if (year >= 1900 && year < 2100)
+          return year;
+   }
+
+   return 0;
+}
+
+int utilDetectMonth(const QString& fname)
+{
+   QString months = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)";
+   // search for year from 1900 to 2099
+   QRegExp rx(months, Qt::CaseInsensitive);
+
+   for (int pos = 0; pos = rx.indexIn(fname, pos), pos != -1;
+        pos += rx.matchedLength()) {
+
+      int len = rx.pos() + 3;
+
+      // make sure here is no letter either side
+      if (fname[pos - 1].isLetter() ||
+          (fname.size() > len && fname[len].isLetter()))
+         continue;
+
+      int month = 1 + months.indexOf(rx.cap(0)) / 4;
+
+      return month;
+   }
+
+   return 0;
+}
