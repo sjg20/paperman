@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#ifndef OP_H
+#define OP_H
 
 class QWidget;
 
@@ -58,6 +60,13 @@ public:
 
    static void setMainWidget (QWidget *widget);
 
+   /** @brief State of the operation */
+   enum state_t {
+      init,       // called when the operation starts
+      running,    // called with progress percentage
+      uninit,     // called when operation is destroyed
+   };
+
 signals:
    /**
     * @brief Report progress of an operation
@@ -66,10 +75,12 @@ signals:
     *
     * This is emitted whenever setProgress() is called
     */
-   void operationProgress(int percent, QString name);
+   void operationProgress(enum Operation::state_t state, int percent,
+                          QString name);
 
 private:
    int _maximum;    //!< maximum progress count
    int _upto;       //!< what we are currently up to
    };
 
+#endif /* OP_H */
