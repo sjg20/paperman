@@ -75,6 +75,12 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders->setModel(_model);
     _folders->horizontalHeader()->hide();
     _folders->verticalHeader()->hide();
+
+    // Set the default row height to 0 so that it will be as small as possible
+    // while still making the text visible
+    _folders->verticalHeader()->setDefaultSectionSize(0);
+    _folders->setShowGrid(false);
+
     _folders->hide();
 
     init();
