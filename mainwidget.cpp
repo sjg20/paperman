@@ -69,6 +69,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "printopt.h"
 #include "pscan.h"
 #include "resource.h"
+#include "utils.h"
 #include "ui_printopt.h"
 
 Mainwidget::Mainwidget (QWidget *parent, const char *name)
@@ -1191,3 +1192,79 @@ void Mainwidget::swapDesktop ()
    else
       showDesktop ();
    }
+
+
+void Mainwidget::addMatches(QStringList& matches, const QString &dirPath,
+                            const QString &match, Operation *op)
+{
+   int upto = 0;
+
+   QDir dir (dirPath);
+
+   dir.setFilter(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+   dir.setSorting(QDir::Name);
+
+   const QFileInfoList list = dir.entryInfoList();
+   if (!list.size ())
+      return;
+
+   if (op)
+      op->setCount (list.size());
+   for (int i = 0; i < list.size (); i++)
+   {
+      QFileInfo fi = list.at (i);
+
+      if (op)
+         op->setProgress(upto++);
+
+      QString fname = dirPath + fi.fileName();
+      if (match == QString() ||
+          fi.fileName().contains(match, Qt::CaseInsensitive)) {
+         matches << fname;
+         addMatches(matches, fname + "/", QString(), 0);
+      } else {
+         addMatches(matches, fname + "/", match, 0);
+      }
+   }
+}
+
+QStringList Mainwidget::findFolders(const QString &text)
+{
+   showDesktop();
+
+   // We want at least three characters for a match
+   if (text.length() < 3)
+      return QStringList();
+
+   QString dir = _desktop->getRootDirectory();
+
+   QStringList matches;
+   Operation op("Finding folders", 100, this);
+
+   QStringList to_sort;
+   addMatches(matches, dir + "/", text, &op);
+
+   QDate date = QDate::currentDate();
+   foreach (const QString& item, matches) {
+      int year = utilDetectYear(item);
+      int month = utilDetectMonth(item);
+
+      if (year && year != date.year())
+          continue;
+      if (month && month != date.month())
+          continue;
+      if (year && month)
+         to_sort << "1" + item;
+      else if (year)
+         to_sort << "2" + item;
+      else
+         to_sort << "3" + item;
+   }
+   to_sort.sort(Qt::CaseInsensitive);
+   QStringList final;
+
+   foreach (const QString& item, to_sort)
+      final << item.mid(dir.length() + 2);
+
+   return final;
+}
