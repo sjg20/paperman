@@ -752,14 +752,16 @@ void Pscan::searchForFolders(const QString& match)
 {
    QStringList folders = _main->findFolders(match, _folders_path);
 
-   if (!folders.length())
-      return;
-
    // put the folder list into the model
    _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
    for (int row = 0; row < folders.size(); row++) {
       _model->insertRows(row, 1, QModelIndex());
       _model->setData(_model->index(row, 0, QModelIndex()), folders[row]);
+   }
+
+   if (!folders.size()) {
+      _model->insertRows(0, 1, QModelIndex());
+      _model->setData(_model->index(0, 0, QModelIndex()), "<no match>");
    }
 
    // make sure the column is wide enough
