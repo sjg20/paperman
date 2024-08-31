@@ -52,6 +52,7 @@ Pdfio::Pdfio (const QString &fname)
    _pop = 0;
 #endif
    _pathname = fname;
+   PoDoFo::PdfError::EnableDebug(false);
    }
 
 
@@ -384,7 +385,7 @@ err_info *Pdfio::getImage (QString fname, int pagenum, QImage &image, double xsc
          int width, height, bpp;
 
          get_image_details (dict, width, height, bpp);
-         qDebug () << "image" << width << height << bpp;
+         // qDebug () << "image" << width << height << bpp;
          char *buff;
          pdf_long len;
          obj->GetStream()->GetFilteredCopy (&buff, &len);
