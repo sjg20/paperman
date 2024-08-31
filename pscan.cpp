@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QDebug>
+#include <QHeaderView>
 #include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
@@ -72,6 +73,8 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders = new QTableView(this);
     _model = new QStandardItemModel(1, 1, this);
     _folders->setModel(_model);
+    _folders->horizontalHeader()->hide();
+    _folders->verticalHeader()->hide();
     _folders->hide();
 
     init();
