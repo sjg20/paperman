@@ -1233,10 +1233,6 @@ QStringList Mainwidget::findFolders(const QString &text, QString& dirPath)
 {
    showDesktop();
 
-   // We want at least three characters for a match
-   if (text.length() < 3)
-      return QStringList();
-
    dirPath = _desktop->getRootDirectory();
 
    Operation op("Finding folders", 100, this);
