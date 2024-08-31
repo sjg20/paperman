@@ -173,6 +173,8 @@ void Pscan::init()
 
     _do_preset_check = false;
 
+    _searching = false;
+
     setupBright ();
 
     // setup the shortcuts for finding a folder
@@ -784,7 +786,20 @@ void Pscan::searchForFolders(const QString& match)
 
 void Pscan::on_folderName_textChanged(const QString &text)
 {
-   searchForFolders(text);
+   if (_searching) {
+      _next_search = text;
+      return;
+   }
+
+   QString match = text;
+   do {
+      _searching = true;
+      searchForFolders(match);
+      _searching = false;
+
+      match = _next_search;
+      _next_search = QString();
+   } while (match.size());
 }
 
 Foldersel::Foldersel(QWidget* parent)
