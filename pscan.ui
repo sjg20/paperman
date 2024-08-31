@@ -121,7 +121,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QLineEdit" name="folderName">
+        <widget class="Foldersel" name="folderName">
          <property name="toolTip">
           <string>Type here to interactively search for / create folders, then press &lt;enter&gt; to scan</string>
          </property>
@@ -577,6 +577,11 @@
    <class>SliderSpin</class>
    <extends>QWidget</extends>
    <header>sliderspin.h</header>
+  </customwidget>
+  <customwidget>
+   <class>Foldersel</class>
+   <extends>QLineEdit</extends>
+   <header>foldersel.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
