@@ -222,6 +222,7 @@ void Mainwindow::updateProgress(enum Operation::state_t state, int percent,
    {
    switch (state) {
    case Operation::init: {
+      qDebug() << "init";
       statusBar()->clearMessage ();
       _label = new QLabel (name);
       _progress = new QProgressBar ();
@@ -238,11 +239,13 @@ void Mainwindow::updateProgress(enum Operation::state_t state, int percent,
       break;
    }
    case Operation::uninit:
+      qDebug() << "  - uninit";
       delete _progress;
       delete _label;
       _progress = 0;
       break;
    default:
+      qDebug() << "  - progress" << percent;
       _progress->setValue (percent);
    }
 }

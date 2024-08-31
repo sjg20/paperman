@@ -130,7 +130,11 @@ protected:
 
     // Model containing the list of folders
     QStandardItemModel *_model;
- virtual void languageChange();
+
+    // true if we are currently searching for folders
+    bool _folder_searching;
+
+    virtual void languageChange();
 
 private:
     void init();
