@@ -35,16 +35,16 @@ Operation::Operation (QString name, int count, QWidget *parent)
    {
    UNUSED (parent);
    _maximum = count;
-   connect(this, SIGNAL(operationProgress(int, QString)),
-           main_widget, SLOT(setProgress(int, QString)));
-   emit operationProgress(-1, name);
+   connect(this, SIGNAL(operationProgress(Operation::state_t, int, QString)),
+           main_widget, SLOT(setProgress(Operation::state_t, int, QString)));
+   emit operationProgress(init, 0, name);
    _upto = 0;
    }
 
 
 Operation::~Operation ()
    {
-   emit operationProgress(-2, QString());
+   emit operationProgress(uninit, 0, QString());
    }
 
 
@@ -59,7 +59,7 @@ bool Operation::setProgress (int upto)
    _upto = upto;
    int pc = int ((float)upto / _maximum * 100);
 
-   emit operationProgress(pc, QString());
+   emit operationProgress(running, pc, QString());
    qApp->processEvents ();
 
    return false;

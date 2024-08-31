@@ -213,13 +213,12 @@ void Mainwindow::statusUpdate (QString str)
 }
 
 
-void Mainwindow::setProgress (int percent, QString name)
+void Mainwindow::setProgress(enum Operation::state_t state, int percent,
+                             QString name)
    {
-   // initialise
-   if (percent == -1)
-      {
+   switch (state) {
+   case Operation::init: {
       statusBar()->clearMessage ();
-//       printf ("new op '%s'\n", name.latin1 ());
       _label = new QLabel (name);
       _progress = new QProgressBar ();
       _progress->setRange (0, 100);
@@ -232,19 +231,17 @@ void Mainwindow::setProgress (int percent, QString name)
       size = _progress->sizeHint ();
       _progress->show ();
       _label->show ();
-      }
-
-   // destroy
-   else if (percent == -2)
-      {
+      break;
+   }
+   case Operation::uninit:
       delete _progress;
       delete _label;
       _progress = 0;
-      }
-   else if (_progress)
+      break;
+   default:
       _progress->setValue (percent);
    }
-
+}
 
 
 void Mainwindow::on_actionScango_triggered(bool)
