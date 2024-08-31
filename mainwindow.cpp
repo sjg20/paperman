@@ -86,6 +86,8 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    connect (_main->getDesktop (), SIGNAL (undoChanged ()),
          this, SLOT (undoChanged ()));
    undoChanged ();
+   addAction(actionPscan);
+   addAction(actionScango);
 }
 
 
