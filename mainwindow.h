@@ -76,10 +76,9 @@ protected slots:
     virtual void languageChange();
     void closeEvent(QCloseEvent *event);
 
-    /** advise of the current progress level for the status bar
-         0   means just starting
-         100 means finished */
-    void setProgress(enum Operation::state_t state, int percent, QString name);
+    /** Handle the operationProgress() signal from Operation */
+    void updateProgress(enum Operation::state_t state, int percent,
+                        QString name);
 
 private:
     void init();

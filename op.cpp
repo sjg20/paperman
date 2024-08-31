@@ -36,7 +36,7 @@ Operation::Operation (QString name, int count, QWidget *parent)
    UNUSED (parent);
    _maximum = count;
    connect(this, SIGNAL(operationProgress(Operation::state_t, int, QString)),
-           main_widget, SLOT(setProgress(Operation::state_t, int, QString)));
+           main_widget, SLOT(updateProgress(Operation::state_t, int, QString)));
    emit operationProgress(init, 0, name);
    _upto = 0;
    }
