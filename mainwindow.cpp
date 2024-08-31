@@ -88,6 +88,9 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    undoChanged ();
 
    Operation::setReceiver(this);
+
+   addAction(actionPscan);
+   addAction(actionScango);
 }
 
 

@@ -386,7 +386,10 @@
     <string>Perform a scan immediately using current settings</string>
    </property>
    <property name="shortcut">
-    <string>F8</string>
+    <string>F5</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
   <action name="actionPscan">
@@ -401,7 +404,10 @@
     <string>Bring up the scanning dialogue</string>
    </property>
    <property name="shortcut">
-    <string>F9</string>
+    <string>F4</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
   <action name="actionRleft">
