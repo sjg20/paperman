@@ -160,6 +160,24 @@ err_info *util_getUsername (QString &userName);
   \returns string without quotes, or unchanged if there are no quotes */
 QString utilRemoveQuotes (QString str);
 
+/**
+ * @brief Find a year in a filename
+ * @param fname   Filename to check
+ * @return year (e.g. 2024) or 0 if none found
+ *
+ * Supported options are:
+ *
+ * 1. a year number as yyyy
+ * 2. mmmyy or yymmm where mmm is a 3-character month name, yy 2-digit year
+ */
+int utilDetectYear(const QString& fname);
+
+/**
+ * @brief Find a month in a filename
+ * @param fname   Filename to check
+ * @return month (1=January, 12=December) or 0 if none
+ */
+int utilDetectMonth(const QString& fname);
 
 #endif
 
