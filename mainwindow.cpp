@@ -213,8 +213,8 @@ void Mainwindow::statusUpdate (QString str)
 }
 
 
-void Mainwindow::setProgress(enum Operation::state_t state, int percent,
-                             QString name)
+void Mainwindow::updateProgress(enum Operation::state_t state, int percent,
+                                QString name)
    {
    switch (state) {
    case Operation::init: {
