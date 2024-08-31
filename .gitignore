@@ -24,3 +24,5 @@
 /paperman.pro.user
 
 .ui/
+
+tests/Makefile
