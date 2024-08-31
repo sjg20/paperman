@@ -784,3 +784,12 @@ void Pscan::on_folderName_textChanged(const QString &text)
 {
    searchForFolders(text);
 }
+
+Foldersel::Foldersel(QWidget* parent)
+   : QLineEdit(QString(), parent)
+{
+}
+
+Foldersel::~Foldersel()
+{
+}
