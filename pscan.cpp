@@ -81,6 +81,10 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders->verticalHeader()->setDefaultSectionSize(0);
     _folders->setShowGrid(false);
 
+    _folders->setSelectionBehavior(QTableView::SelectRows);
+    _folders->setSelectionMode(QTableView::SingleSelection);
+    _folders->setEditTriggers(QTableView::NoEditTriggers);
+
     _folders->hide();
 
     init();
