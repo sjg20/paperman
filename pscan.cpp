@@ -70,7 +70,7 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(grey, QScanner::grey);
     format->setId(dither, QScanner::dither);
     format->setId(colour, QScanner::colour);
-    _folders = new QTableView(this);
+    _folders = new Folderlist(this);
     _model = new QStandardItemModel(1, 1, this);
     _folders->setModel(_model);
     _folders->horizontalHeader()->hide();
@@ -830,3 +830,13 @@ Foldersel::Foldersel(QWidget* parent)
 Foldersel::~Foldersel()
 {
 }
+
+Folderlist::Folderlist(QWidget *parent)
+   : QTableView(parent)
+{
+}
+
+Folderlist::~Folderlist()
+{
+}
+

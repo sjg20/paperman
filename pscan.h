@@ -21,11 +21,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <QTableView>
 #include "ui_presetadd.h"
 #include "ui_pscan.h"
 
 class QStandardItemModel;
-class QTableView;
 
 class Preset
 {
@@ -51,6 +51,15 @@ public:
     bool _valid;  // preset is valid
 };
 
+
+class Folderlist : public QTableView
+{
+   Q_OBJECT
+
+public:
+   Folderlist(QWidget *parent);
+   ~Folderlist();
+};
 
 class Presetadd : public QDialog, public Ui::Presetadd
 {
@@ -126,7 +135,7 @@ protected:
     bool _do_preset_check;
 
     // List of folders found using the folderName search
-    QTableView *_folders;
+    Folderlist *_folders;
 
     // directory path for the folder list
     QString _folders_path;
