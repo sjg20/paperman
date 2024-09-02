@@ -127,6 +127,10 @@ public slots:
     void keypressFromFolderList(QKeyEvent *evt);
 
 protected:
+    void reject();
+    void leaveEvent(QEvent *event);
+
+protected:
     PreviewWidget *_preview;
     QScanner *_scanner;
     Mainwidget *_main;
