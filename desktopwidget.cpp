@@ -1417,3 +1417,10 @@ const QString Desktopwidget::getRootDirectory()
 
    return root_path;
 }
+
+QModelIndex Desktopwidget::getDirIndex(const QString dirname)
+{
+   QModelIndex ind = _model->index(dirname);
+
+   return ind;
+}
