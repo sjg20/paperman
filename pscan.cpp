@@ -774,7 +774,9 @@ void Pscan::searchForFolders(const QString& match)
       _model->setData(_model->index(row, 0, QModelIndex()), folders[row]);
    }
 
-   if (!folders.size()) {
+   if (folders.size()) {
+      _folders->selectRow(0);
+   } else {
       _model->insertRows(0, 1, QModelIndex());
       _model->setData(_model->index(0, 0, QModelIndex()),
                       valid ? "<no match>" : "<too short>");
