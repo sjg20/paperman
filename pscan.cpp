@@ -86,6 +86,8 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders->setEditTriggers(QTableView::NoEditTriggers);
 
     _folders->hide();
+    connect(_folders, SIGNAL(keypressReceived(QKeyEvent *)),
+            this, SLOT(keypressFromFolderList(QKeyEvent *)));
 
     init();
     readSettings();
@@ -826,6 +828,11 @@ void Pscan::on_folderName_textChanged(const QString &text)
    } while (match.size());
 }
 
+void Pscan::keypressFromFolderList(QKeyEvent *evt)
+{
+    QApplication::postEvent(folderName, evt);
+}
+
 Foldersel::Foldersel(QWidget* parent)
    : QLineEdit(QString(), parent)
 {
@@ -844,3 +851,20 @@ Folderlist::~Folderlist()
 {
 }
 
+void Folderlist::keyPressEvent(QKeyEvent *old)
+{
+   bool send = true;     // send to folderName field
+   bool pass_on = true;  // pass on to QTableView
+
+   if (send) {
+      QKeyEvent *evt = new QKeyEvent(old->type(), old->key(), old->modifiers(),
+                                     old->text(), old->isAutoRepeat(),
+                                     old->count());
+
+      // Send the keypress to the folderName field
+      emit keypressReceived(evt);
+   }
+
+   if (pass_on)
+      QTableView::keyPressEvent(old);
+}
