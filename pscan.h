@@ -125,6 +125,7 @@ public slots:
     void on_stop_clicked ();
     void on_folderName_textChanged(const QString &text);
     void keypressFromFolderList(QKeyEvent *evt);
+    void checkFolders(void);
 
 protected:
     void reject();
@@ -159,6 +160,12 @@ protected:
 
     // string which we saw while in the middle of searching
     QString _next_search;
+
+    // timer for checking whether we should close the folder list
+    QTimer *_folders_timer;
+
+    // true if the folders list has been set up
+    bool _folders_valid;
 
     virtual void languageChange();
 
