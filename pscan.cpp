@@ -101,6 +101,17 @@ Pscan::~Pscan()
     // no need to delete child widgets, Qt does it all for us
 }
 
+void Pscan::reject()
+{
+   _folders->hide();
+   QDialog::reject();
+}
+
+void Pscan::leaveEvent(QEvent *)
+{
+   _folders->hide();
+}
+
 void Pscan::presetAdd(const Preset& pre)
 {
     _presets.push_back(pre);
