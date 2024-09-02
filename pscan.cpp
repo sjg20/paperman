@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QShortcut>
 #include <QStandardItemModel>
 #include <QTableView>
+#include <QTimer>
 
 #include "pscan.h"
 
@@ -105,11 +106,6 @@ void Pscan::reject()
 {
    _folders->hide();
    QDialog::reject();
-}
-
-void Pscan::leaveEvent(QEvent *)
-{
-   _folders->hide();
 }
 
 void Pscan::presetAdd(const Preset& pre)
@@ -197,6 +193,7 @@ void Pscan::init()
     _do_preset_check = false;
 
     _searching = false;
+    _folders_valid = false;
 
     setupBright ();
 
@@ -224,6 +221,10 @@ void Pscan::init()
     QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_5), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut5);
+
+    _folders_timer = new QTimer (this);
+    connect (_folders_timer, SIGNAL(timeout()), this, SLOT(checkFolders()));
+    _folders_timer->start(200); // check 5 times a second
 }
 
 
@@ -254,6 +255,23 @@ void Pscan::closing()
    qs.endArray();
    }
 
+void Pscan::checkFolders()
+{
+   // close the folder list if the focus is in anything other than the two
+   // fields dealing with the list of folders
+   if (QApplication::focusWidget() != folderName &&
+       QApplication::focusWidget() != _folders && _folders->isVisible()) {
+      _folders->hide();
+      if (focusWidget() == _folders)
+         folderName->setFocus(Qt::OtherFocusReason);
+   }
+
+   // show the folder list if focus is in folderName
+   if (_folders_valid && QApplication::focusWidget() == folderName) {
+      _folders->show();
+      _folders->setFocus(Qt::OtherFocusReason);
+   }
+}
 
 void Pscan::scannerChanged (QScanner *scanner)
 {
@@ -295,6 +313,7 @@ void Pscan::scannerChanged (QScanner *scanner)
     setupBright ();
     if (_do_preset_check)
        presetCheck();
+    checkFolders();
 }
 
 
@@ -822,6 +841,8 @@ void Pscan::searchForFolders(const QString& match)
 
    if (folders.size())
       _folders->setFocus();
+
+   _folders_valid = true;
 }
 
 void Pscan::on_folderName_textChanged(const QString &text)
