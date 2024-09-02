@@ -91,6 +91,9 @@ public:
     void closing (void);
    void checkEnabled (bool scanning);
 
+   // Tell pscan that a scan is starting
+   void scanStarting();
+
 public slots:
     virtual void scannerChanged( QScanner * scanner );
     virtual void setMainwidget( Mainwidget * main );
