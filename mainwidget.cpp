@@ -204,7 +204,8 @@ void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
 
 void Mainwidget::showDesktop ()
    {
-   setCurrentIndex(0);
+   if (currentIndex())
+      setCurrentIndex(0);
    }
 
 
