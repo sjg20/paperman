@@ -59,6 +59,12 @@ class Folderlist : public QTableView
 public:
    Folderlist(QWidget *parent);
    ~Folderlist();
+
+signals:
+   void keypressReceived(QKeyEvent *event);
+
+protected:
+   virtual void keyPressEvent(QKeyEvent *event);
 };
 
 class Presetadd : public QDialog, public Ui::Presetadd
@@ -118,6 +124,7 @@ public slots:
     void on_config_clicked();
     void on_stop_clicked ();
     void on_folderName_textChanged(const QString &text);
+    void keypressFromFolderList(QKeyEvent *evt);
 
 protected:
     PreviewWidget *_preview;
