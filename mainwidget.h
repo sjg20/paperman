@@ -111,6 +111,15 @@ public:
     */
    QStringList findFolders(const QString &text, QString& dirPath);
 
+   /* Start a new scan using dir_ind as the destination dir in Dirmodel */
+   void scanInto(QModelIndex dir_ind);
+
+   /**
+    * @brief Start a new scan
+    * @param dir_path   Full path of the directory to scan into
+    */
+   void scanInto(const QString& dir_path);
+
 signals:
    void newContents (QString);
 

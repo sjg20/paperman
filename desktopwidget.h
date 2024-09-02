@@ -140,6 +140,9 @@ public:
     */
    const QString getRootDirectory();
 
+   /** convert a full directory path into a model index */
+   QModelIndex getDirIndex(const QString dirname);
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
