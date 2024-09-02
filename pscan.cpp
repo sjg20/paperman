@@ -854,7 +854,7 @@ Folderlist::~Folderlist()
 void Folderlist::keyPressEvent(QKeyEvent *old)
 {
    bool send = true;     // send to folderName field
-   bool pass_on = true;  // pass on to QTableView
+   bool pass_on = old->key() != Qt::Key_Tab;  // pass on to QTableView
 
    if (send) {
       QKeyEvent *evt = new QKeyEvent(old->type(), old->key(), old->modifiers(),
