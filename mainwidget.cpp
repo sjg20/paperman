@@ -339,6 +339,7 @@ void Mainwidget::scan (void)
       {
       QString str;
 
+      _pscan->scanStarting();
       str = _pscan->getStackName ();
       if (!str.isEmpty ())
          stack_name = str;

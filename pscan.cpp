@@ -260,6 +260,12 @@ void Pscan::closing()
    qs.endArray();
    }
 
+void Pscan::scanStarting()
+{
+   // close the folders list
+   _folders->close();
+}
+
 void Pscan::checkFolders()
 {
    // close the folder list if the focus is in anything other than the two
