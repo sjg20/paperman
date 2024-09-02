@@ -803,6 +803,9 @@ void Pscan::searchForFolders(const QString& match)
    _folders->resize(rect.size());
    _folders->horizontalHeader()->resizeSection(0, rect.width());
 
+   if (folders.size())
+      _folders->setFocus();
+
    _folders->show();
 }
 
