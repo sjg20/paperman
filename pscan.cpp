@@ -421,7 +421,19 @@ void Pscan::reset_clicked()
 
 void Pscan::scan_clicked()
 {
-   _main->scan ();
+   QString dir_path;
+
+   if (_folders_valid && _folders->isVisible()) {
+      QModelIndex ind = _folders->selected();
+
+      if (ind != QModelIndex()) {
+         dir_path = _folders_path + "/" + _model->data(ind).toString();
+         _main->scanInto(dir_path);
+         return;
+      }
+   }
+
+   _main->scan();
 }
 
 
@@ -844,7 +856,7 @@ void Pscan::searchForFolders(const QString& match)
       _folders->setFocus();
 
    _folders->show();
-   _folders_valid = true;
+   _folders_valid = folders.size() > 0;
 }
 
 void Pscan::on_folderName_textChanged(const QString &text)
@@ -904,4 +916,14 @@ void Folderlist::keyPressEvent(QKeyEvent *old)
 
    if (pass_on)
       QTableView::keyPressEvent(old);
+}
+
+QModelIndex Folderlist::selected()
+{
+   QModelIndexList sel = selectedIndexes();
+
+   if (sel.size())
+      return sel[0];
+
+   return QModelIndex();
 }

@@ -60,6 +60,9 @@ public:
    Folderlist(QWidget *parent);
    ~Folderlist();
 
+   // Return the currently selected item, or -1 if none
+   QModelIndex selected();
+
 signals:
    void keypressReceived(QKeyEvent *event);
 
