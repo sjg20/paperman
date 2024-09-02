@@ -307,7 +307,14 @@ void Mainwidget::updatePscan ()
    }
 
 
-void Mainwidget::scan (void)
+void Mainwidget::scanInto(const QString& dir_path)
+{
+   QModelIndex ind = _desktop->getDirIndex(dir_path);
+
+   scanInto(ind);
+}
+
+void Mainwidget::scanInto(QModelIndex target)
    {
    SANE_Status status;
    SANE_Parameters parameters;
@@ -348,6 +355,9 @@ void Mainwidget::scan (void)
          page_name = str;
       }
 
+   if (target != QModelIndex())
+      _desktop->selectDir(target);
+
    Paperscan scan;
 
    connect (&scan, SIGNAL (stackNew (const QString &)), this, SLOT (slotStackNew (const QString &)));
@@ -380,6 +390,11 @@ void Mainwidget::scan (void)
    updatePscan ();
    }
 
+
+void Mainwidget::scan(void)
+{
+   scanInto(QModelIndex());
+}
 
 void Mainwidget::slotStackNew (const QString &stack_name)
    {
