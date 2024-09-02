@@ -808,6 +808,9 @@ void Pscan::searchForFolders(const QString& match)
    _folders->resizeColumnToContents(0);
 
    showFolders();
+
+   if (folders.size())
+      _folders->setFocus();
 }
 
 void Pscan::on_folderName_textChanged(const QString &text)
