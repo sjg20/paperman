@@ -8,6 +8,7 @@ class TestPaperman: public QObject
 private slots:
    void testDetectYear();
    void testDetectMonth();
+   void testDetectMatches();
 };
 
 void TestPaperman::testDetectYear()
@@ -25,10 +26,41 @@ void TestPaperman::testDetectYear()
 void TestPaperman::testDetectMonth()
 {
    QCOMPARE(utilDetectMonth("/vid/bills/2024/03mar/fred.max"), 3);
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/04-mar/fred.max"), 3);
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/07-mar/fred.max"), 3);
+   QCOMPARE(utilDetectMonth("/vid/bills/2024/04-mar/fred.max"), 0);
+   QCOMPARE(utilDetectMonth("/vid/bills/2024/07-mar/fred.max"), 0);
    QCOMPARE(utilDetectMonth("/vid/bills/2024/07-marc/fred.max"), 0);
    QCOMPARE(utilDetectMonth("/vid/bills/2024/07-mmar/fred.max"), 0);
+}
+
+void TestPaperman::testDetectMatches()
+{
+   QStringList matches, final;
+   QDate date = QDate(2024, 9, 1);
+
+   final = utilDetectMatches(date, matches);
+   QCOMPARE(final.size(), 0);
+
+   // Should ignore a month if it isn't preceeded by a year
+   matches << "bills/03mar";
+   final = utilDetectMatches(date, matches);
+   QCOMPARE(final.size(), 0);
+
+   matches << "bills/2024/03mar";
+   final = utilDetectMatches(date, matches);
+   QCOMPARE(final.size(), 0);
+
+   // Check it can detect a month
+   matches << "bills/2024/09sep";
+   final = utilDetectMatches(date, matches);
+   QCOMPARE(final.size(), 1);
+   QCOMPARE(final[0], "bills/2024/09sep");
+
+   // Check it can detect a year
+   matches << "bills/2024";
+   final = utilDetectMatches(date, matches);
+   QCOMPARE(final.size(), 2);
+   QCOMPARE(final[0], "bills/2024/09sep");  // should be in other order
+   QCOMPARE(final[1], "bills/2024");
 }
 
 QTEST_MAIN(TestPaperman)

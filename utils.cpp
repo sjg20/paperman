@@ -21,13 +21,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
-
+#include <QDate>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QSettings>
+#include <QStringList>
 
 #include <sys/types.h>
 
@@ -663,24 +664,52 @@ int utilDetectYear(const QString& fname)
 
 int utilDetectMonth(const QString& fname)
 {
-   QString months = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)";
+   QString months = "(01jan|02feb|03mar|04apr|05may|06jun|07jul|08aug|09sep|10oct|11nov|12dec)";
    // search for year from 1900 to 2099
    QRegExp rx(months, Qt::CaseInsensitive);
 
    for (int pos = 0; pos = rx.indexIn(fname, pos), pos != -1;
         pos += rx.matchedLength()) {
-
-      int len = rx.pos() + 3;
+      int len = rx.pos() + 5;
 
       // make sure here is no letter either side
       if (fname[pos - 1].isLetter() ||
           (fname.size() > len && fname[len].isLetter()))
          continue;
 
-      int month = 1 + months.indexOf(rx.cap(0)) / 4;
+      int month = 1 + months.indexOf(rx.cap(0)) / 6;
 
       return month;
    }
 
    return 0;
+}
+
+QStringList utilDetectMatches(const QDate& date, QStringList& matches)
+{
+   QStringList to_sort;
+
+   foreach (const QString& item, matches) {
+      int year = utilDetectYear(item);
+      int month = utilDetectMonth(item);
+
+      if (year && year != date.year())
+          continue;
+      if (month && month != date.month())
+          continue;
+      if (year && month)
+         to_sort << "1" + item;
+      else if (year && !month)
+         to_sort << "2" + item;
+      else if (!year && !month)
+         to_sort << "3" + item;
+   }
+   to_sort.sort(Qt::CaseInsensitive);
+   QStringList final;
+
+   // Drop the number prefix and the / so for "1/paper/match" we get "match"
+   foreach (const QString& item, to_sort)
+      final << item.mid(1);
+
+   return final;
 }
