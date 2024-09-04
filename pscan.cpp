@@ -813,20 +813,27 @@ void Pscan::focusFind()
 
 void Pscan::searchForFolders(const QString& match)
 {
-   QStringList folders;
+   QStringList folders, missing;
    bool valid = false;
+   int row;
 
    // We want at least three characters for a match
    if (match.length() >= 3) {
-      folders = _main->findFolders(match, _folders_path);
+      folders = _main->findFolders(match, _folders_path, missing);
       valid = true;
    }
 
    // put the folder list into the model
    _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
-   for (int row = 0; row < folders.size(); row++) {
+
+   for (row = 0; row < missing.size(); row++) {
       _model->insertRows(row, 1, QModelIndex());
-      _model->setData(_model->index(row, 0, QModelIndex()), folders[row]);
+      _model->setData(_model->index(row, 0, QModelIndex()),
+                      QString("<Add: %1>").arg(missing[row]));
+   }
+   for (int i = 0; i< folders.size(); i++) {
+      _model->insertRows(row + i, 1, QModelIndex());
+      _model->setData(_model->index(row + i, 0, QModelIndex()), folders[row]);
    }
 
    if (folders.size()) {

@@ -102,14 +102,16 @@ public:
 
    /**
     * @brief  Find folders in the current repo which match a text string
-    * @param  text to match
-    * @param  returns the path to the root directory
+    * @param  text    Text to match
+    * @param  dirPath Returns the path to the root directory
+    * @param  missing Suggestions for directories to create
     * @return list of matching paths
     *
     * This looks for 4-digit years and 3-character months to try to guess
     * which folders to put at the top of the list
     */
-   QStringList findFolders(const QString &text, QString& dirPath);
+   QStringList findFolders(const QString &text, QString& dirPath,
+                           QStringList& missing);
 
    /* Start a new scan using dir_ind as the destination dir in Dirmodel */
    void scanInto(QModelIndex dir_ind);
