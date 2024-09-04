@@ -38,6 +38,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QList>
 #include <QString>
 
+class QDate;
 
 typedef unsigned char byte;
 
@@ -178,6 +179,14 @@ int utilDetectYear(const QString& fname);
  * @return month (1=January, 12=December) or 0 if none
  */
 int utilDetectMonth(const QString& fname);
+
+/**
+ * @brief Suggest possible existing directories and new ones to create
+ * @param date     Date to use for searching
+ * @param matches  Returns a sorted list of matches
+ * @return List of matches in order of quality
+ */
+QStringList utilDetectMatches(const QDate& date, QStringList& matches);
 
 #endif
 
