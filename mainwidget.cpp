@@ -1246,9 +1246,9 @@ void Mainwidget::addMatches(QStringList& matches, uint baseLen,
    }
 }
 
-QStringList Mainwidget::findFolders(const QString &text, QString& dirPath)
+QStringList Mainwidget::findFolders(const QString& text, QString& dirPath,
+                                    QStringList& missing)
 {
-   QStringList missing;
    showDesktop();
 
    dirPath = _desktop->getRootDirectory();
