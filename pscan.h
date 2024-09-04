@@ -172,6 +172,9 @@ protected:
     // true if the folders list has been set up
     bool _folders_valid;
 
+    // possible missing directories shown to the user
+    QStringList _missing;
+
     virtual void languageChange();
 
 private:
