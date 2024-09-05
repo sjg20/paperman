@@ -194,6 +194,7 @@ void Pscan::init()
 
     _searching = false;
     _folders_valid = false;
+    _awaiting_user = false;
 
     setupBright ();
 
@@ -258,14 +259,15 @@ void Pscan::closing()
 void Pscan::scanStarting()
 {
    // close the folders list
-   _folders->close();
+   if (!_awaiting_user)
+      _folders->hide();
 }
 
 void Pscan::checkFolders()
 {
    // close the folder list if the focus is in anything other than the two
    // fields dealing with the list of folders
-   if (QApplication::focusWidget() != folderName &&
+   if (!_awaiting_user && QApplication::focusWidget() != folderName &&
        QApplication::focusWidget() != _folders && _folders->isVisible()) {
       _folders->hide();
       if (focusWidget() == _folders)
@@ -422,10 +424,26 @@ void Pscan::scan_clicked()
 {
    QString dir_path;
 
+   if (_awaiting_user)
+      return;
    if (_folders_valid && _folders->isVisible()) {
       QModelIndex ind = _folders->selected();
 
       if (ind != QModelIndex()) {
+         if (ind.row() < _missing.size()) {
+            QString fname = _missing[ind.row()];
+            bool ok;
+
+            // Adding a directory
+            _awaiting_user = true;
+            ok = QMessageBox::question(
+               0,
+               tr("Confirmation -- Paperman"),
+               tr("Do you want to add directory %1").arg(fname),
+               QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
+            _awaiting_user = false;
+            return;
+         }
          dir_path = _folders_path + "/" + _model->data(ind).toString();
          _main->scanInto(dir_path);
          return;

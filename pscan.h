@@ -175,6 +175,9 @@ protected:
     // possible missing directories shown to the user
     QStringList _missing;
 
+    // true if waiting for the user to confirm directory creation
+    bool _awaiting_user;
+
     virtual void languageChange();
 
 private:
