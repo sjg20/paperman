@@ -143,6 +143,14 @@ public:
    /** convert a full directory path into a model index */
    QModelIndex getDirIndex(const QString dirname);
 
+   /**
+    * @brief Create a new directory
+    * @param dir_path   Full path to new directory
+    * @param index      Returns the Dirmodel index of the created directory
+    * @return true if OK, false on error
+    */
+   bool newDir(const QString& dir_path, QModelIndex& index);
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 

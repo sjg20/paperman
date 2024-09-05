@@ -122,6 +122,12 @@ public:
     */
    void scanInto(const QString& dir_path);
 
+   /**
+    * @brief Start a new scan into a new directory
+    * @param dir_path   Full path of the directory to create and scan into
+    */
+   void scanIntoNewDir(const QString& dir_path);
+
 signals:
    void newContents (QString);
 

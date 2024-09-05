@@ -738,6 +738,24 @@ void Desktopwidget::newDir ()
       }
    }
 
+bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
+{
+   QDir parent(dir_path);
+   QString dirname = parent.dirName();
+
+   if (!parent.cdUp()) {
+      // This really cannot happen
+      QMessageBox::warning(0, "Paperman", "Directory does not exist: " +
+                           parent.path());
+      return false;
+   }
+
+   qDebug() << "to_create" << dir_path;
+   QModelIndex parent_ind = _model->index(parent.path(), 0);
+   index = _model->mkdir(parent_ind, dirname);
+
+   return true;
+}
 
 void Desktopwidget::dirSelected (const QModelIndex &index, bool allow_undo)
    {
