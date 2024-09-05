@@ -274,7 +274,7 @@ void Pscan::checkFolders()
 
    // show the folder list if focus is in folderName
    if (_folders_valid && QApplication::focusWidget() == folderName) {
-      _folders->show();
+      showFolders();
       _folders->setFocus(Qt::OtherFocusReason);
    }
 }
