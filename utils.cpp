@@ -688,20 +688,44 @@ int utilDetectMonth(const QString& fname, int& foundPos)
    return 0;
 }
 
-QStringList utilDetectMatches(const QDate& date, QStringList& matches)
+QStringList utilDetectMatches(const QDate& date, QStringList& matches,
+                              QStringList& missing)
 {
-   QStringList to_sort;
+   QStringList to_sort, suggests;
 
+   missing.clear();
    foreach (const QString& item, matches) {
       int ypos, mpos;
       int year = utilDetectYear(item, ypos);
       int month = utilDetectMonth(item, mpos);
+      bool skip = false;
+      QString suggest;
 
       if (year && year != date.year())
-          continue;
-      if (month && month != date.month())
-          continue;
-      if (year && month)
+         skip = true;
+
+      // Much assumption about English here
+      if (year && month && month != date.month()) {
+         if ((year == date.year() - 1 && month == 12 && date.month() == 1) ||
+             (year == date.year() && month == date.month() - 1))
+            suggest = item.left(ypos) + QString("%1").arg(date.year(), 4) +
+                       item.mid(ypos + 4, mpos - ypos - 4) +
+                       date.toString("MM") +
+                       date.toString("MMM").toLower().left(3) +
+                       item.mid(mpos + 5);
+         skip = true;
+      } else if (year && year == date.year() - 1 && !month) {
+         if (suggest.isEmpty())
+            suggest = item.left(ypos) + QString("%1").arg(date.year(), 4) +
+                  item.mid(ypos + 4);
+         skip = true;
+      }
+      if (!suggest.isEmpty())
+         suggests << suggest;
+
+      if (skip)
+         ;
+      else if (year && month)
          to_sort << "1" + item;
       else if (year && !month)
          to_sort << "2" + item;
@@ -714,6 +738,20 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches)
    // Drop the number prefix and the / so for "1/paper/match" we get "match"
    foreach (const QString& item, to_sort)
       final << item.mid(1);
+
+   // ensure that no string in missing is contained within another
+   for (int i = 0; i < suggests.size(); i++) {
+      const QString& tocheck = suggests[i];
+      bool add = true;
+
+      for (int j = 0; j < suggests.size(); j++) {
+         if (i != j && suggests[j].startsWith(tocheck))
+             add = false;
+      }
+
+      if (add && !final.contains(tocheck))
+            missing << tocheck;
+   }
 
    return final;
 }

@@ -1248,6 +1248,7 @@ void Mainwidget::addMatches(QStringList& matches, uint baseLen,
 
 QStringList Mainwidget::findFolders(const QString &text, QString& dirPath)
 {
+   QStringList missing;
    showDesktop();
 
    dirPath = _desktop->getRootDirectory();
@@ -1259,6 +1260,6 @@ QStringList Mainwidget::findFolders(const QString &text, QString& dirPath)
 
    QDate date = QDate::currentDate();
 
-   return utilDetectMatches(date, matches);
+   return utilDetectMatches(date, matches, missing);
 
 }

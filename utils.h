@@ -186,9 +186,12 @@ int utilDetectMonth(const QString& fname, int& foundPos);
  * @brief Suggest possible existing directories and new ones to create
  * @param date     Date to use for searching
  * @param matches  Returns a sorted list of matches
+ * @param missing  Returns a list of directories which could be created to make
+ *                 a better match
  * @return List of matches in order of quality
  */
-QStringList utilDetectMatches(const QDate& date, QStringList& matches);
+QStringList utilDetectMatches(const QDate& date, QStringList& matches,
+                              QStringList& missing);
 
 #endif
 
