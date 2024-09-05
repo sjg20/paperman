@@ -13,23 +13,32 @@ private slots:
 
 void TestPaperman::testDetectYear()
 {
-   QCOMPARE(utilDetectYear("/vid/bills/2024/03mar/fred.max"), 2024);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/2023/fred.max"), 2023);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/1899/fred.max"), 0);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/20201/fred.max"), 0);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/12020/fred.max"), 0);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/a2020/fred.max"), 2020);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/12020b/fred.max"), 0);
-   QCOMPARE(utilDetectYear("/vid/bills/tax/a2020b/fred.max"), 2020);
+   int pos;
+
+   QCOMPARE(utilDetectYear("bills/2024/03mar/fred.max", pos), 2024);
+   QCOMPARE(pos, 6);
+   QCOMPARE(utilDetectYear("bills/tax/2023/fred.max", pos), 2023);
+   QCOMPARE(pos, 10);
+   QCOMPARE(utilDetectYear("bills/tax/1899/fred.max", pos), 0);
+   QCOMPARE(utilDetectYear("bills/tax/20201/fred.max", pos), 0);
+   QCOMPARE(utilDetectYear("bills/tax/12020/fred.max", pos), 0);
+   QCOMPARE(utilDetectYear("bills/tax/a2020/fred.max", pos), 2020);
+   QCOMPARE(pos, 11);
+   QCOMPARE(utilDetectYear("bills/tax/12020b/fred.max", pos), 0);
+   QCOMPARE(utilDetectYear("bills/tax/a2020b/fred.max", pos), 2020);
+   QCOMPARE(pos, 11);
 }
 
 void TestPaperman::testDetectMonth()
 {
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/03mar/fred.max"), 3);
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/04-mar/fred.max"), 0);
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/07-mar/fred.max"), 0);
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/07-marc/fred.max"), 0);
-   QCOMPARE(utilDetectMonth("/vid/bills/2024/07-mmar/fred.max"), 0);
+   int pos;
+
+   QCOMPARE(utilDetectMonth("bills/2024/03mar/fred.max", pos), 3);
+   QCOMPARE(pos, 11);
+   QCOMPARE(utilDetectMonth("bills/2024/04-mar/fred.max", pos), 0);
+   QCOMPARE(utilDetectMonth("bills/2024/07mar/fred.max", pos), 0);
+   QCOMPARE(utilDetectMonth("bills/2024/07-marc/fred.max", pos), 0);
+   QCOMPARE(utilDetectMonth("bills/2024/07-mmar/fred.max", pos), 0);
 }
 
 void TestPaperman::testDetectMatches()

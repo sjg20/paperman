@@ -639,7 +639,7 @@ QString utilRemoveQuotes (QString str)
    }
 
 
-int utilDetectYear(const QString& fname)
+int utilDetectYear(const QString& fname, int& foundPos)
 {
    int len = fname.length();
 
@@ -655,14 +655,16 @@ int utilDetectYear(const QString& fname)
          continue;
       int year = rx.cap(0).toInt();
 
-      if (year >= 1900 && year < 2100)
-          return year;
+      if (year >= 1900 && year < 2100) {
+         foundPos = pos;
+         return year;
+      }
    }
 
    return 0;
 }
 
-int utilDetectMonth(const QString& fname)
+int utilDetectMonth(const QString& fname, int& foundPos)
 {
    QString months = "(01jan|02feb|03mar|04apr|05may|06jun|07jul|08aug|09sep|10oct|11nov|12dec)";
    // search for year from 1900 to 2099
@@ -678,6 +680,7 @@ int utilDetectMonth(const QString& fname)
          continue;
 
       int month = 1 + months.indexOf(rx.cap(0)) / 6;
+      foundPos = pos;
 
       return month;
    }
@@ -690,8 +693,9 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches)
    QStringList to_sort;
 
    foreach (const QString& item, matches) {
-      int year = utilDetectYear(item);
-      int month = utilDetectMonth(item);
+      int ypos, mpos;
+      int year = utilDetectYear(item, ypos);
+      int month = utilDetectMonth(item, mpos);
 
       if (year && year != date.year())
           continue;

@@ -164,6 +164,7 @@ QString utilRemoveQuotes (QString str);
 /**
  * @brief Find a year in a filename
  * @param fname    Filename to check
+ * @param foundPos Position in fname where the match was found
  * @return year (e.g. 2024) or 0 if none found
  *
  * Supported options are:
@@ -171,14 +172,15 @@ QString utilRemoveQuotes (QString str);
  * 1. a year number as yyyy
  * 2. mmmyy or yymmm where mmm is a 3-character month name, yy 2-digit year
  */
-int utilDetectYear(const QString& fname);
+int utilDetectYear(const QString& fname, int& foundPos);
 
 /**
  * @brief Find a month in a filename
  * @param fname   Filename to check
+ * @param foundPos Position in fname where the match was found
  * @return month (1=January, 12=December) or 0 if none
  */
-int utilDetectMonth(const QString& fname);
+int utilDetectMonth(const QString& fname, int& foundPos);
 
 /**
  * @brief Suggest possible existing directories and new ones to create
