@@ -442,6 +442,8 @@ void Pscan::scan_clicked()
                tr("Do you want to add directory %1").arg(fname),
                QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
             _awaiting_user = false;
+            if (ok)
+               _main->scanIntoNewDir(_folders_path + "/" + fname);
             return;
          }
          dir_path = _folders_path + "/" + _model->data(ind).toString();

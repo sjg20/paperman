@@ -314,6 +314,14 @@ void Mainwidget::scanInto(const QString& dir_path)
    scanInto(ind);
 }
 
+void Mainwidget::scanIntoNewDir(const QString& dir_path)
+{
+   QModelIndex ind;
+
+   if (_desktop->newDir(dir_path, ind))
+      scanInto(ind);
+}
+
 void Mainwidget::scanInto(QModelIndex target)
    {
    SANE_Status status;
