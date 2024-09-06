@@ -740,6 +740,11 @@ void Desktopwidget::newDir ()
       }
    }
 
+QModelIndex Desktopwidget::findDir(const QString& dir_path)
+{
+   return _model->index(dir_path, 0);
+}
+
 bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
 {
    QDir parent(dir_path);

@@ -65,9 +65,11 @@ public:
 
 signals:
    void keypressReceived(QKeyEvent *event);
+   void selectItem(const QModelIndex&);
 
 protected:
    virtual void keyPressEvent(QKeyEvent *event) override;
+   virtual void mousePressEvent(QMouseEvent *e) override;
 };
 
 class Presetadd : public QDialog, public Ui::Presetadd
@@ -132,6 +134,14 @@ public slots:
     void on_folderName_textChanged(const QString &text);
     void keypressFromFolderList(QKeyEvent *evt);
     void checkFolders(void);
+
+    /**
+     * @brief Select a directory from the folder list
+     * @param target  Item in the folder list to select
+     *
+     * The selected directory is shown in the Dirview
+     */
+    void selectDir(const QModelIndex& target);
 
 protected:
     void reject();

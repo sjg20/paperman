@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QProcess>
+#include <QScrollBar>
 #include <QSettings>
 #include <QShortcut>
 #include <QStandardItemModel>
@@ -89,6 +90,8 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders->hide();
     connect(_folders, SIGNAL(keypressReceived(QKeyEvent *)),
             this, SLOT(keypressFromFolderList(QKeyEvent *)));
+    connect(_folders, SIGNAL(selectItem(const QModelIndex&)),
+            this, SLOT(selectDir(const QModelIndex&)));
 
     init();
     readSettings();
@@ -443,6 +446,15 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
    _searching = false;
 
    return true;
+}
+
+void Pscan::selectDir(const QModelIndex& target)
+{
+   if (target.row() >= _missing.size()) {
+      QString dir_path = _folders_path + "/" + _model->data(target).toString();
+
+      _main->selectDir(dir_path);
+   }
 }
 
 void Pscan::scan_clicked()
@@ -972,6 +984,18 @@ void Folderlist::keyPressEvent(QKeyEvent *old)
 
    if (pass_on)
       QTableView::keyPressEvent(old);
+}
+
+void Folderlist::mousePressEvent(QMouseEvent *evt)
+{
+   QTableView::mousePressEvent(evt);
+
+   // show the folder
+   QPoint point = evt->pos() + QPoint(horizontalScrollBar()->value(),
+                                      verticalScrollBar()->value());
+   QModelIndex ind = indexAt(point);
+   if (ind != QModelIndex())
+      emit selectItem(ind);
 }
 
 QModelIndex Folderlist::selected()

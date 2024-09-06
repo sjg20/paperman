@@ -151,6 +151,13 @@ public:
     */
    bool newDir(const QString& dir_path, QModelIndex& index);
 
+   /**
+    * @brief Find the Dirmodel index for a directory path
+    * @param dir_path   Full path to new directory
+    * @return Dirmodel index of the directory
+    */
+   QModelIndex findDir(const QString& dir_path);
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
