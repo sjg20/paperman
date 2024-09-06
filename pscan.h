@@ -67,7 +67,7 @@ signals:
    void keypressReceived(QKeyEvent *event);
 
 protected:
-   virtual void keyPressEvent(QKeyEvent *event);
+   virtual void keyPressEvent(QKeyEvent *event) override;
 };
 
 class Presetadd : public QDialog, public Ui::Presetadd
