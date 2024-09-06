@@ -924,7 +924,7 @@ Foldersel::~Foldersel()
 {
 }
 
-void Foldersel::focusOutEvent(QFocusEvent *e)
+void Foldersel::focusOutEvent(QFocusEvent *)
 {
    // Do nothing here, so that any selected text remains selected
 }
