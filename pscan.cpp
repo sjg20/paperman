@@ -202,7 +202,7 @@ void Pscan::init()
     QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::focusFind);
-    QObject::connect(new QShortcut(QKeySequence(Qt::Key_F6), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::Key_F4), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::focusFind);
 

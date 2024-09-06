@@ -404,7 +404,7 @@
     <string>Bring up the scanning dialogue</string>
    </property>
    <property name="shortcut">
-    <string>F4</string>
+    <string>F6</string>
    </property>
    <property name="shortcutContext">
     <enum>Qt::ApplicationShortcut</enum>
