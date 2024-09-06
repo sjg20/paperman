@@ -28,6 +28,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 
 #include <unistd.h>
 #include <getopt.h>
+#include <sys/resource.h>
 
 #include <QDebug>
 #include <QSettings>
@@ -173,6 +174,17 @@ int main (int argc, char *argv[])
    };
    int op_type = -1, c;
    QString index;
+
+   struct rlimit limit;
+
+   if (limit.rlim_cur < 20000 && !getrlimit(RLIMIT_NOFILE, &limit)) {
+      qDebug() << "limit" << limit.rlim_cur;
+      limit.rlim_cur = 20000;
+      limit.rlim_cur = 20000;
+
+      if (setrlimit(RLIMIT_NOFILE, &limit))
+         qDebug() << "Setting nofile limit failed";
+   }
 
    while (c = getopt_long (argc, argv, "h",
                            long_options, NULL), c != -1)
