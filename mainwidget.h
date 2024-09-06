@@ -123,10 +123,12 @@ public:
    void scanInto(const QString& dir_path);
 
    /**
-    * @brief Start a new scan into a new directory
-    * @param dir_path   Full path of the directory to create and scan into
+    * @brief Create a new diorectory
+    * @param dir_path   Full path of the directory to select
+    * @param ind        Returns Dirmodel index of the created directory
+    * @return true if done, else false
     */
-   void scanIntoNewDir(const QString& dir_path);
+   bool newDir(const QString& dir_path, QModelIndex& ind);
 
 signals:
    void newContents (QString);
