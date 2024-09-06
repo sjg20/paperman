@@ -419,6 +419,26 @@ void Pscan::reset_clicked()
    presetCheck();
 }
 
+bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
+{
+   fname = _missing[item];
+   bool ok;
+
+   // Adding a directory
+   _awaiting_user = true;
+   ok = QMessageBox::question(
+      0,
+      tr("Confirmation -- Paperman"),
+      tr("Do you want to add directory %1").arg(fname),
+      QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
+   _awaiting_user = false;
+   if (!ok)
+      return false;
+
+   _main->newDir(_folders_path + "/" + fname, ind);
+
+   return true;
+}
 
 void Pscan::scan_clicked()
 {
@@ -431,23 +451,15 @@ void Pscan::scan_clicked()
 
       if (ind != QModelIndex()) {
          if (ind.row() < _missing.size()) {
-            QString fname = _missing[ind.row()];
-            bool ok;
+            QString fname;
+            bool ok = createMissingDir(ind.row(), fname, ind);
 
-            // Adding a directory
-            _awaiting_user = true;
-            ok = QMessageBox::question(
-               0,
-               tr("Confirmation -- Paperman"),
-               tr("Do you want to add directory %1").arg(fname),
-               QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
-            _awaiting_user = false;
             if (ok)
-               _main->scanIntoNewDir(_folders_path + "/" + fname);
-            return;
+               _main->scanInto(ind);
+         } else {
+            dir_path = _folders_path + "/" + _model->data(ind).toString();
+            _main->scanInto(dir_path);
          }
-         dir_path = _folders_path + "/" + _model->data(ind).toString();
-         _main->scanInto(dir_path);
          return;
       }
    }

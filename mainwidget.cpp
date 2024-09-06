@@ -314,12 +314,9 @@ void Mainwidget::scanInto(const QString& dir_path)
    scanInto(ind);
 }
 
-void Mainwidget::scanIntoNewDir(const QString& dir_path)
+bool Mainwidget::newDir(const QString& dir_path, QModelIndex& ind)
 {
-   QModelIndex ind;
-
-   if (_desktop->newDir(dir_path, ind))
-      scanInto(ind);
+   return _desktop->newDir(dir_path, ind);
 }
 
 void Mainwidget::scanInto(QModelIndex target)
