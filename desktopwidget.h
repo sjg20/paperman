@@ -119,7 +119,7 @@ public:
 
       \param index   index of directory to select. If this is QModelIndex()
                      then select the first directory */
-   void selectDir (QModelIndex &index);
+   void selectDir(const QModelIndex &target);
 
    /** a convenience function to add a new action */
    void addAction (QAction *&_act, const char *text, const char *slot,

@@ -537,19 +537,21 @@ err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
    }
 
 
-void Desktopwidget::selectDir (QModelIndex &index)
+void Desktopwidget::selectDir(const QModelIndex &target)
    {
 //    int count = _model->rowCount (QModelIndex ());
 
    /* use the second directory if there is nothing supplied, since the first
       is 'Recent items' */
-   if (index == QModelIndex ())
-      index = _model->index (1, 0, QModelIndex ());
+   QModelIndex ind = target;
+
+   if (ind == QModelIndex())
+      ind = _model->index(1, 0, QModelIndex());
 
    //qDebug () << "Desktopwidget::selectDir" << _model->data (index, Qt::DisplayRole).toString ();
-   _dir->setCurrentIndex (index);
-   _dir->setExpanded (index, true);
-    dirSelected (index, false);
+   _dir->setCurrentIndex(ind);
+   _dir->setExpanded(ind, true);
+    dirSelected(ind, false);
    }
 
 
