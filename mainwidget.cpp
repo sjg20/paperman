@@ -319,6 +319,12 @@ bool Mainwidget::newDir(const QString& dir_path, QModelIndex& ind)
    return _desktop->newDir(dir_path, ind);
 }
 
+void Mainwidget::selectDir(const QString& dir_path)
+{
+   QModelIndex ind = _desktop->findDir(dir_path);
+   _desktop->selectDir(ind);
+}
+
 void Mainwidget::scanInto(QModelIndex target)
    {
    SANE_Status status;

@@ -130,6 +130,14 @@ public:
     */
    bool newDir(const QString& dir_path, QModelIndex& ind);
 
+   /**
+    * @brief Select a directory as the current one
+    * @param dir_path   Full path of the directory to select
+    *
+    * The directory is selected and shown in the Dirview
+    */
+   void selectDir(const QString& dir_path);
+
 signals:
    void newContents (QString);
 
