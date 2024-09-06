@@ -437,6 +437,11 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
 
    _main->newDir(_folders_path + "/" + fname, ind);
 
+   // regenerate the folder list
+   _searching = true;
+   searchForFolders(folderName->text());
+   _searching = false;
+
    return true;
 }
 
