@@ -7,6 +7,9 @@ class Foldersel : public QLineEdit
 {
    Q_OBJECT
 
+protected:
+   virtual void focusOutEvent(QFocusEvent *e) override;
+
 public:
    Foldersel(QWidget* parent);
    ~Foldersel();

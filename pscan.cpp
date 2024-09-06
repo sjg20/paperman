@@ -827,7 +827,8 @@ Presetadd::~Presetadd()
 void Pscan::focusFind()
 {
    activateWindow();
-   folderName->setFocus();
+   folderName->setFocus(Qt::ShortcutFocusReason);
+   folderName->setSelection(0, folderName->text().size());
 }
 
 void Pscan::showFolders()
@@ -922,6 +923,12 @@ Foldersel::Foldersel(QWidget* parent)
 Foldersel::~Foldersel()
 {
 }
+
+void Foldersel::focusOutEvent(QFocusEvent *e)
+{
+   // Do nothing here, so that any selected text remains selected
+}
+
 
 Folderlist::Folderlist(QWidget *parent)
    : QTableView(parent)
