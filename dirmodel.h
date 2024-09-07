@@ -31,7 +31,7 @@ struct err_info;
  *
  * This contains information about a paper repository, including the top-level
  * directory containing it. A list of these is contained in Dirmodel, which
- * handles all the repositories visit to paperman.
+ * handles all the repositories visible to paperman.
  */
 class Diritem
    {
