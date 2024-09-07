@@ -1437,6 +1437,9 @@ const QString Desktopwidget::getRootDirectory()
    // Find out which directory is currently selected
    QModelIndex ind = _dir->menuGetModelIndex();
 
+   if (ind == QModelIndex())
+      return "";
+
    // Get the top-level dirname of that
    QModelIndex root = _model->findRoot(ind);
    QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
