@@ -1,5 +1,4 @@
-Paper Manager
-=============
+# Paper Manager
 
 This program provides a viewer for image files such as pdf, jpeg and
 its own variant of PaperPort's .max file format.
@@ -10,8 +9,7 @@ Desktop view | Select scanner | Dated files | Open file | Preview | Preview2
 ------------ | -------------- | ----------- | --------- | ------- | --------
 ![1](doc/1.jpeg) | ![2](doc/2.jpeg) | ![3](doc/3.jpeg) | ![4](doc/4.jpeg) | ![5](doc/5.png) | ![6](doc/all.png)
 
-Features
---------
+## Features
 
 - simple GUI based around stacks and pages
 - view previews and browse through pages
@@ -77,8 +75,7 @@ new in 1.1
 - keyboard shortcuts for A4 (Alt-A) and US letter/legal toggle (Alt-L)
 - Fix most warnings
 
-Future Features
----------------
+## Future Features
 
 Here's what I'd like it to support:
 
