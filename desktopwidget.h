@@ -40,6 +40,7 @@ class Desktopproxy;
 class Desktopview;
 class QListView;
 class Dirmodel;
+class Dirproxy;
 class Dirview;
 class Paperstack;
 class Pagewidget;
@@ -63,7 +64,10 @@ struct file_info;
 Desktopview on the right (containing thumbnails). Users can navigate the
 directory tree, and click on a directory, which then becomes the current
 directory. This class will then display that directory and allow the user
-to work with the thumbnails in it. The parent is a Mainwidget */
+to work with the thumbnails in it. The parent is a Mainwidget
+
+All QModelIndex parameters here refer to the proxy model _dir_proxy
+*/
 
 class Desktopwidget : public QSplitter //QWidget
    {
@@ -140,7 +144,7 @@ public:
     */
    const QString getRootDirectory();
 
-   /** convert a full directory path into a model index */
+   /** convert a full directory path into a model index in _dir_proxy */
    QModelIndex getDirIndex(const QString dirname);
 
    /**
@@ -376,6 +380,9 @@ private:
 private:
    /** this is the model for the directories tree */
    Dirmodel *_model;
+
+   /** proxy model used for the filtering the directory tree */
+   Dirproxy *_dir_proxy;
 
    /** this is the view for the directories tree */
    Dirview *_dir;

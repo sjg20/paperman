@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QDirModel>
+#include <QSortFilterProxyModel>
 
 struct err_info;
 
@@ -212,6 +213,16 @@ private:
    };
 
 
+class Dirproxy : public QSortFilterProxyModel
+{
+public:
+   Dirproxy(QObject *parent = nullptr);
+   ~Dirproxy();
+
+protected:
+   virtual bool filterAcceptsRow(int source_row,
+                                 const QModelIndex &source_parent) const;
+};
 
 void dirmodel_tests (void);
 

@@ -749,3 +749,18 @@ QStringList Dirmodel::mimeTypes() const
    types << "application/vnd.text.list";
    return types;
    }
+
+Dirproxy::Dirproxy(QObject *parent)
+   : QSortFilterProxyModel(parent)
+{
+}
+
+Dirproxy::~Dirproxy()
+{
+}
+
+bool Dirproxy::filterAcceptsRow(int source_row,
+                                const QModelIndex &source_parent) const
+{
+   return true;
+}
