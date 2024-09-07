@@ -77,6 +77,10 @@ new in 1.1
 
 ## Command-line usage
 
+### -p <file>
+
+Convert a file to PDF, The new file has the same name but with a .pdf extension.
+
 ### -s <file>
 
 Does an MD5 checksum of every page in every .max file in a directory. The

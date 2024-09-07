@@ -74,8 +74,8 @@ static void usage (void)
    printf ("(C) 2011 Simon Glass, chch-kiwi@users.sourceforge.net, v%s\n\n",
            CONFIG_version_str);
    printf ("Usage:  maxview <opts>  <dir/file>\n\n");
-/*
    printf ("   -p|--pdf        convert given file to .pdf\n");
+/*
    printf ("   -m|--max        convert given file to .max\n");
    printf ("   -j|--jpeg       convert given file to .jpg\n");
    printf ("   -v|--verbose    be verbose\n");
@@ -166,7 +166,9 @@ int main (int argc, char *argv[])
      {"force", 0, 0, 'f'},
      {"info", 0, 0, 'i'},
      {"max", 0, 0, 'm'},
-     {"pdf", 0, 0, 'p'},
+*/
+     {"pdf", 1, 0, 'p'},
+/*
      {"relocate", 0, 0, 'r'},
 */
      {"sum", 1, 0, 's'},
@@ -178,6 +180,7 @@ int main (int argc, char *argv[])
    };
    int op_type = -1, c;
    QString index;
+   QString fname;
 
    struct rlimit limit;
 
@@ -190,7 +193,7 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "hs:",
+   while (c = getopt_long (argc, argv, "hp:s:",
                            long_options, NULL), c != -1)
       switch (c)
          {
@@ -198,35 +201,38 @@ int main (int argc, char *argv[])
             dir = optarg;
             op_type = c;
             break;
+         case 'p' :
+            fname = optarg;
+            op_type = c;
+            break;
 
          case 't' :
-	 case 'm' :
-	 case 'p' :
-	 case 'i' :
-	 case 'j' :
-	    op_type = c;
-	    break;
+         case 'm' :
+         case 'i' :
+         case 'j' :
+            op_type = c;
+            break;
 
-	 case '1' :
-	    op_type = c;
-	    index = QString (optarg);
-	    break;
+         case '1' :
+            op_type = c;
+            index = QString (optarg);
+            break;
 
          case 'h' :
-	 case '?' :
+         case '?' :
             usage ();
             return 1;
 
 /*
          case 'd' : debug = atoi (optarg); break;
-	 case 'v' : verbose = true; break;
-	 case 'f' : force = true; break;
-	 case 'r' : reloc = true; break;
-	 case 'z' : hack = true; break;
+         case 'v' : verbose = true; break;
+         case 'f' : force = true; break;
+         case 'r' : reloc = true; break;
+         case 'z' : hack = true; break;
 */
-	 }
+         }
 
-   if (!dir && op_type != 't')
+   if (!dir && op_type != 't' && op_type != 'p')
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -276,9 +282,9 @@ int main (int argc, char *argv[])
 
 #if 0
       case 't' :
-	 {
-	 QString fname = QString (dir);
-	 Desk maxdesk (QString(), QString());
+         {
+         QString fname = QString (dir);
+         Desk maxdesk (QString(), QString());
 
          dirmodel_tests ();
 //      maxdesk.runTests ();
@@ -289,62 +295,74 @@ int main (int argc, char *argv[])
 //      if (maxdesk.test_compare_with_tiff (fname))
 //    if (maxdesk.test (fname))
 //	   printf ("test error %s\n", e->errstr);
-	 break;
-	 }
-
+         break;
+         }
+#endif
       case 'p' :
-	 {
-	 Desk maxdesk (QString(), QString());
-	 QString fname = QString (dir);
+         {
+         QDir mydir(fname);
+         mydir.cdUp();
+         Desk desk(dir, QString(), false);
+         File *file, *newfile;
+         Operation op("Convert file", 0, 0);
+         err_info *err;
 
-	 // convert the file to PDF
-	 maxdesk.convertPdf (fname);
-	 break;
-	 }
+         file = desk.createFile(dir, fname);
+         err = file->load();
+         if (!err) {
+            QString leaf = QFileInfo(fname).completeBaseName();
 
+            err = file->duplicateToDesk(&desk, File::Type_pdf, leaf, 3, op,
+                                        newfile);
+         }
+         if (err)
+            printf("error: %s", err->errstr);
+         break;
+         }
+#if 0
       case 'j' :
-	 {
-	 Desk maxdesk (QString(), QString());
-	 QString fname = QString (dir);
+         {
+         Desk maxdesk (QString(), QString());
+         QString fname = QString (dir);
 
-	 // convert the file to JPEG
-	 maxdesk.convertJpeg (fname);
-	 break;
-	 }
+         // convert the file to JPEG
+         maxdesk.convertJpeg (fname);
+         break;
+         }
 
       case 'm' :
-	 {
-	 Desk maxdesk (QString(), QString());
-	 QString fname = QString (dir);
+         {
+         Desk maxdesk (QString(), QString());
+         QString fname = QString (dir);
 
       // convert the file to .max
-	 e = maxdesk.convertMax (fname, QString(), verbose, force, reloc);
-	 if (e)
-	    printf ("error: %s\n", e->errstr);
-	 break;
-	 }
+         e = maxdesk.convertMax (fname, QString(), verbose, force, reloc);
+         if (e)
+            printf ("error: %s\n", e->errstr);
+         break;
+         }
 
       case 'i' :
-	 {
-	 Desk maxdesk (QString(), QString(), false, false, false);
-	 QString fname = QString (dir);
+         {
+         Desk maxdesk (QString(), QString(), false, false, false);
+         QString fname = QString (dir);
 
          // decode print info on the file
-	 e = maxdesk.dumpInfo (fname, debug);
-	 if (e)
-	    printf ("error: %s\n", e->errstr);
-	 break;
-	 }
+         e = maxdesk.dumpInfo (fname, debug);
+         if (e)
+            printf ("error: %s\n", e->errstr);
+         break;
+         }
 #endif
       case -1 :
          run_gui(app, argc, argv);
 #if 0
       case 1 :
-	 Desk maxdesk (QString(), QString());
-	 QString fname = QString (dir);
+         Desk maxdesk (QString(), QString());
+         QString fname = QString (dir);
 
-	 // convert the file to PDF
-	 maxdesk.buildIndex (index, fname);
+         // convert the file to PDF
+         maxdesk.buildIndex (index, fname);
 #endif
       }
    if (xmlConfig)
