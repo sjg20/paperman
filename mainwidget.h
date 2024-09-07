@@ -138,6 +138,9 @@ public:
     */
    void selectDir(const QString& dir_path);
 
+   // Returns true if currently scanning
+   bool isScanning();
+
 signals:
    void newContents (QString);
 
