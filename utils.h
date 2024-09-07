@@ -39,6 +39,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QString>
 
 class QDate;
+class QDropEvent;
 
 typedef unsigned char byte;
 
@@ -193,5 +194,15 @@ int utilDetectMonth(const QString& fname, int& foundPos);
 QStringList utilDetectMatches(const QDate& date, QStringList& matches,
                               QStringList& missing);
 
-#endif
+/**
+ * @brief Check if a particular drop event is supported by Paperman
+ * @param event         Event to check
+ * @param allowedTypes  List of allowed types, e.g.
+ *                      {"application/vnd.text.list", "text/uri-list"}
+ * @return true if OK, false if not
+ *
+ * A warning is shown if the type is not supported
+ */
+bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes);
 
+#endif
