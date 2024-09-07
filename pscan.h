@@ -143,6 +143,12 @@ public slots:
      */
     void selectDir(const QModelIndex& target);
 
+    // Select A4 paper-size
+    void selectA4();
+
+    // Toggle between US letter and legal
+    void toggleLetter();
+
 protected:
     void reject();
 
@@ -189,6 +195,11 @@ protected:
     bool _awaiting_user;
 
     virtual void languageChange();
+
+    // papersize elements from PreviewWidget::predefs[]
+    int _papersize_a4;
+    int _papersize_letter;
+    int _papersize_legal;
 
 private:
     void init();
