@@ -77,6 +77,8 @@ public slots:
 
     void undoChanged (void);
 
+    void on_actionDirFilter_triggered(bool state);
+
 protected slots:
     virtual void languageChange();
     void closeEvent(QCloseEvent *event);

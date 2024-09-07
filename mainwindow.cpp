@@ -77,6 +77,9 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
 
    restoreGeometry(qs.value("mainwindow/geometry").toByteArray());
    restoreState(qs.value("mainwindow/state").toByteArray());
+   bool dir_filter = qs.value("mainwindow/dir_filter").toBool();
+   actionDirFilter->setChecked(dir_filter);
+   _desktop->setDirFilter(dir_filter);
 
    // to stop the status bar rising all the time, set its maximum size
    QSize size = QSize (5000, 20);
@@ -143,6 +146,8 @@ void Mainwindow::saveSettings ()
 
    settings.setValue("mainwindow/geometry", saveGeometry());
    settings.setValue("mainwindow/state", saveState());
+   settings.setValue("mainwindow/dir_filter", actionDirFilter->isChecked());
+
    _main->closing ();
    }
 
@@ -320,4 +325,9 @@ void Mainwindow::on_actionVflip_triggered(bool)
 void Mainwindow::on_actionOptions_triggered(bool)
 {
    _main->options ();
+}
+
+void Mainwindow::on_actionDirFilter_triggered(bool state)
+{
+   _desktop->setDirFilter(state);
 }
