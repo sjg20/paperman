@@ -450,7 +450,12 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
 
 void Pscan::selectDir(const QModelIndex& target)
 {
-   if (target.row() >= _missing.size()) {
+   if (target.row() < _missing.size()) {
+      QModelIndex ind;
+      QString fname;
+
+      createMissingDir(target.row(), fname, ind);
+   } else {
       QString dir_path = _folders_path + "/" + _model->data(target).toString();
 
       _main->selectDir(dir_path);
