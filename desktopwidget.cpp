@@ -67,10 +67,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "senddialog.h"
 #include "utils.h"
 
-
-// define this to use a proxy model which provides fast filtering
+// define this to use a proxy model for Desktopview, providing fast filtering
 #define USE_PROXY
-
 
 // static QFont *contents_font = 0;
 
