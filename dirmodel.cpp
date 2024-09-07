@@ -546,6 +546,9 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
 
 //    printf ("findPath '%s'\n", path.latin1 ());
 
+   if (path.isEmpty())
+      return ind;
+
    // split the path
    QStringList dirs = path.split ('/');
    for (int i = 0; i < dirs.size (); i++)
