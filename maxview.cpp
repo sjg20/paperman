@@ -75,8 +75,8 @@ static void usage (void)
            CONFIG_version_str);
    printf ("Usage:  maxview <opts>  <dir/file>\n\n");
    printf ("   -p|--pdf        convert given file to .pdf\n");
-/*
    printf ("   -m|--max        convert given file to .max\n");
+/*
    printf ("   -j|--jpeg       convert given file to .jpg\n");
    printf ("   -v|--verbose    be verbose\n");
 */
@@ -165,8 +165,8 @@ int main (int argc, char *argv[])
      {"debug", 1, 0, 'd'},
      {"force", 0, 0, 'f'},
      {"info", 0, 0, 'i'},
-     {"max", 0, 0, 'm'},
 */
+     {"max", 1, 0, 'm'},
      {"pdf", 1, 0, 'p'},
 /*
      {"relocate", 0, 0, 'r'},
@@ -193,7 +193,7 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "hp:s:",
+   while (c = getopt_long (argc, argv, "hm:p:s:",
                            long_options, NULL), c != -1)
       switch (c)
          {
@@ -201,13 +201,13 @@ int main (int argc, char *argv[])
             dir = optarg;
             op_type = c;
             break;
+         case 'm' :
          case 'p' :
             fname = optarg;
             op_type = c;
             break;
 
          case 't' :
-         case 'm' :
          case 'i' :
          case 'j' :
             op_type = c;
@@ -232,7 +232,7 @@ int main (int argc, char *argv[])
 */
          }
 
-   if (!dir && op_type != 't' && op_type != 'p')
+   if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm')
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -298,6 +298,7 @@ int main (int argc, char *argv[])
          break;
          }
 #endif
+      case 'm' :
       case 'p' :
          {
          QDir mydir(fname);
@@ -312,7 +313,9 @@ int main (int argc, char *argv[])
          if (!err) {
             QString leaf = QFileInfo(fname).completeBaseName();
 
-            err = file->duplicateToDesk(&desk, File::Type_pdf, leaf, 3, op,
+            File::e_type type = op_type == 'p' ? File::Type_pdf :
+                     File::Type_max;
+            err = file->duplicateToDesk(&desk, type, leaf, 3, op,
                                         newfile);
          }
          if (err)
@@ -329,19 +332,6 @@ int main (int argc, char *argv[])
          maxdesk.convertJpeg (fname);
          break;
          }
-
-      case 'm' :
-         {
-         Desk maxdesk (QString(), QString());
-         QString fname = QString (dir);
-
-      // convert the file to .max
-         e = maxdesk.convertMax (fname, QString(), verbose, force, reloc);
-         if (e)
-            printf ("error: %s\n", e->errstr);
-         break;
-         }
-
       case 'i' :
          {
          Desk maxdesk (QString(), QString(), false, false, false);

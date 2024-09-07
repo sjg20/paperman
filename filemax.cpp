@@ -5026,7 +5026,7 @@ err_info *Filemax::flush_chunks (void)
 
       if (chunk.loaded && !chunk.saved)
          {
-         printf ("   - flush chunk %d\n", i);
+         //printf ("   - flush chunk %d\n", i);
          CALL (build_chunk (chunk));
 
          // write the chunk to disc

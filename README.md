@@ -77,6 +77,11 @@ new in 1.1
 
 ## Command-line usage
 
+### -m <file>
+
+Convert a file to .max, Paperman's native format. The new file has the same name
+but with a .max extension.
+
 ### -p <file>
 
 Convert a file to PDF, The new file has the same name but with a .pdf extension.
