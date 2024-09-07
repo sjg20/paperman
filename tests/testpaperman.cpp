@@ -27,6 +27,11 @@ void TestPaperman::testDetectYear()
    QCOMPARE(utilDetectYear("bills/tax/12020b/fred.max", pos), 0);
    QCOMPARE(utilDetectYear("bills/tax/a2020b/fred.max", pos), 2020);
    QCOMPARE(pos, 11);
+   QCOMPARE(utilDetectYear("2024/fred.max", pos), 2024);
+   QCOMPARE(pos, 0);
+   QCOMPARE(utilDetectYear("2023", pos), 2023);
+   QCOMPARE(pos, 0);
+   QCOMPARE(utilDetectYear("01jan", pos), 0);
 }
 
 void TestPaperman::testDetectMonth()
@@ -39,6 +44,10 @@ void TestPaperman::testDetectMonth()
    QCOMPARE(utilDetectMonth("bills/2024/07mar/fred.max", pos), 0);
    QCOMPARE(utilDetectMonth("bills/2024/07-marc/fred.max", pos), 0);
    QCOMPARE(utilDetectMonth("bills/2024/07-mmar/fred.max", pos), 0);
+   QCOMPARE(utilDetectMonth("03mar/fred.max", pos), 3);
+   QCOMPARE(pos, 0);
+   QCOMPARE(utilDetectMonth("08aug", pos), 8);
+   QCOMPARE(pos, 0);
 }
 
 void TestPaperman::testDetectMatches()

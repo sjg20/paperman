@@ -650,7 +650,7 @@ int utilDetectYear(const QString& fname, int& foundPos)
         pos += rx.matchedLength()) {
 
       // make sure here is no digit either side
-      if (fname[pos - 1].isDigit() ||
+      if ((pos && fname[pos - 1].isDigit()) ||
           (pos + 4 < len && fname[pos + 4].isDigit()))
          continue;
       int year = rx.cap(0).toInt();
@@ -675,7 +675,7 @@ int utilDetectMonth(const QString& fname, int& foundPos)
       int len = rx.pos() + 5;
 
       // make sure here is no letter either side
-      if (fname[pos - 1].isLetter() ||
+      if ((pos && fname[pos - 1].isLetter()) ||
           (fname.size() > len && fname[len].isLetter()))
          continue;
 
