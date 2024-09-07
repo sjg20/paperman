@@ -77,7 +77,7 @@ new in 1.1
 
 ## Command-line usage
 
--### j <file>
+### j <file>
 
 Convert a file to .jpg, the JPEG image file. This produces a separate file for
 each page of the document, with a _p<n> addition. So a two-page document called
