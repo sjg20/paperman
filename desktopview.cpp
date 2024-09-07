@@ -41,7 +41,7 @@ Desktopview::Desktopview (QWidget *parent)
    {
 //    printf ("Desktopview = %p\n", this);
    _auto_scrolling = false;
-   _timer_id = 1;
+   _timer_id = -1;
    _position_items = true;
    setViewMode (IconMode);
 //    setViewMode (ListMode);
