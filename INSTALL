@@ -37,11 +37,11 @@ This is needed to build podofo
 
 These are needed for OCR (Optical Character Recognition).
 
-In summary, to prepare on Debian / Ubuntu with QT4:
+In summary, to prepare on Debian / Ubuntu with QT5:
 
-   sudo apt-get install qtcreator g++ qt5-default libsane-dev libtiff5-dev \
-           cmake libpodofo-dev imagemagick tesseract-ocr tesseract-ocr-eng \
-           libpoppler-qt5-dev
+   sudo apt-get install qtcreator g++ qtbase5-dev qtchooser qt5-qmake \
+           qtbase5-dev-tools libsane-dev libtiff5-dev cmake libpodofo-dev \
+           imagemagick tesseract-ocr tesseract-ocr-eng libpoppler-qt5-dev
 
 but of you only have QT4, then use:
 
