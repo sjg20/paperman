@@ -98,22 +98,22 @@ Does an MD5 checksum of every page in every .max file in a directory. The
 results are written to a file called 'checksums.md5' in the current directory.
 For example:
 
-   maxview -s /paper
+    maxview -s /paper
    
 The file format is a line for each page, containing space-separated fields:
 
-   Length of filename in characters
-   Filename
-   Page number
-   Image size in bytes
-   md5 checksum, grouped by 32-bit words
+    Length of filename in characters
+    Filename
+    Page number
+    Image size in bytes
+    md5 checksum, grouped by 32-bit words
    
 For example:
    
-   27 Property taxes  pd 2020.max 0 1093872 a3eb8cd8 b0cffff0 b845833c e370368e
-   27 Property taxes  pd 2020.max 1 1093872 40f34c34 ae5f9549 158f97ab d6c1e6a8
-   27 Property taxes  pd 2020.max 2 1093872 78572475 16422b9a c900d2a7 61ce49d6
-   27 Property taxes  pd 2020.max 3 1093872 96562c4e cebfc3b3 5c863b22 d80abde6
+    27 Property taxes  pd 2020.max 0 1093872 a3eb8cd8 b0cffff0 b845833c e370368e
+    27 Property taxes  pd 2020.max 1 1093872 40f34c34 ae5f9549 158f97ab d6c1e6a8
+    27 Property taxes  pd 2020.max 2 1093872 78572475 16422b9a c900d2a7 61ce49d6
+    27 Property taxes  pd 2020.max 3 1093872 96562c4e cebfc3b3 5c863b22 d80abde6
 
 
 ## Future Features
