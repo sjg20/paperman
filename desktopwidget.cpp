@@ -97,16 +97,16 @@ Desktopwidget::Desktopwidget (QWidget *parent)
          this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
 
 #ifdef USE_PROXY
-   _proxy = new Desktopproxy (this);
-   _proxy->setSourceModel (_contents);
-   _view->setModel (_proxy);
+   _contents_proxy = new Desktopproxy (this);
+   _contents_proxy->setSourceModel (_contents);
+   _view->setModel (_contents_proxy);
 //    printf ("contents=%p, proxy=%p\n", _contents, _proxy);
 
    // set up the model converter
-   _modelconv = new Desktopmodelconv (_contents, _proxy);
+   _modelconv = new Desktopmodelconv (_contents, _contents_proxy);
 
    // setup another one for Desktopmodel, which only allows assertions
-   _modelconv_assert = new Desktopmodelconv (_contents, _proxy, false);
+   _modelconv_assert = new Desktopmodelconv (_contents, _contents_proxy, false);
 #else
    _proxy = 0;
    _view->setModel (_contents);
@@ -863,7 +863,7 @@ void Desktopwidget::matchUpdate (QString match, bool subdirs, bool reset)
    QModelIndex index = _model->index (_path);
    Operation *op = 0;
 
-   if (!_proxy)
+   if (!_contents_proxy)
       return;
 
    /* if we are doing a global search, we need to recreate the maxdesk. Here
@@ -871,7 +871,7 @@ void Desktopwidget::matchUpdate (QString match, bool subdirs, bool reset)
       of different directories */
    if (subdirs || reset)
       {
-      _proxy->setFilterFixedString ("");
+      _contents_proxy->setFilterFixedString ("");
       if (subdirs) // this might take a long time
          op = new Operation ("Searching", 100, this);
       QModelIndex root = _model->findRoot (index);
@@ -893,10 +893,10 @@ void Desktopwidget::matchUpdate (QString match, bool subdirs, bool reset)
 
       // update the proxy
       qDebug () << "match" << match;
-      _proxy->setFilterFixedString (match);
+      _contents_proxy->setFilterFixedString (match);
 
       // scroll to the first match
-      ind = _proxy->index (0, 0, _view->rootIndex ());
+      ind = _contents_proxy->index (0, 0, _view->rootIndex ());
       if (ind != QModelIndex ())
          _view->scrollTo (ind);
 //      _view->setRootIndex (index);  // is this ok in the normal case?

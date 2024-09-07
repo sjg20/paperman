@@ -392,7 +392,7 @@ private:
    Desktopdelegate *_delegate;
 
    /** this is the proxy model used for filtering */
-   Desktopproxy *_proxy;
+   Desktopproxy *_contents_proxy;
 
    /** this is the page viewer (to the right of desktop viewer which contains a preview of
        the current page */
