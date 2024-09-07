@@ -177,7 +177,7 @@ int main (int argc, char *argv[])
 
    struct rlimit limit;
 
-   if (limit.rlim_cur < 20000 && !getrlimit(RLIMIT_NOFILE, &limit)) {
+   if (!getrlimit(RLIMIT_NOFILE, &limit) && limit.rlim_cur < 20000) {
       qDebug() << "limit" << limit.rlim_cur;
       limit.rlim_cur = 20000;
       limit.rlim_cur = 20000;
