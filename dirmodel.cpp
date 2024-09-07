@@ -21,7 +21,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
-
+#include <QDate>
 #include <QDebug>
 #include <QMessageBox>
 
@@ -33,7 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 
 #include "maxview.h"
-
+#include "utils.h"
 
 //#define TRACE_INDEX
 
@@ -760,14 +760,34 @@ Dirproxy::~Dirproxy()
 {
 }
 
-bool Dirproxy::filterAcceptsRow(int source_row,
-                                const QModelIndex &source_parent) const
-{
-   return true;
-}
-
 void Dirproxy::setActive(bool active)
 {
    _active = active;
    invalidateFilter();
+}
+
+bool Dirproxy::filterAcceptsRow(int source_row,
+                                const QModelIndex &source_parent) const
+{
+   if (!_active)
+      return true;
+
+   Dirmodel *src = static_cast<Dirmodel *>(sourceModel());
+   QModelIndex ind = src->index(source_row, 0, source_parent);
+   QString name = ind.data().toString();
+
+   int mpos, ypos;
+   int year = utilDetectYear(name, ypos);
+   int mon = utilDetectMonth(name, mpos);
+
+   QDate date = QDate::currentDate();
+   bool ok = true;
+
+   if (year && year != date.year())
+      ok = false;
+   if (mon && mon != date.month())
+      ok = false;
+   //qDebug() << "name" << name << ok;
+
+   return ok;
 }
