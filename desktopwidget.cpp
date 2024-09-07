@@ -921,7 +921,8 @@ void Desktopwidget::updatePreview (void)
    QModelIndex index = _update_index;
 
 //    _page->showPage (_update_index.model (), index);
-   _page->showPages (_update_index.model (), index, 0, -1, -1);
+   if (index != QModelIndex())
+      _page->showPages (_update_index.model(), index, 0, -1, -1);
    }
 
 
