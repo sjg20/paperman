@@ -9,6 +9,10 @@ Desktop view | Select scanner | Dated files | Open file | Preview | Preview2
 ------------ | -------------- | ----------- | --------- | ------- | --------
 ![1](doc/1.jpeg) | ![2](doc/2.jpeg) | ![3](doc/3.jpeg) | ![4](doc/4.jpeg) | ![5](doc/5.png) | ![6](doc/all.png)
 
+Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
+-------- | ------------------- | --------------- | --------------------------
+![7](doc/6.png) | ![8](doc/7.png) | ![9](doc/8.png) | ![10](doc/9.png)
+
 ## Features
 
 - simple GUI based around stacks and pages
