@@ -70,6 +70,7 @@ err_info *Filejpeg::load (void)
 err_info *Filejpeg::create (void)
    {
    // We choose to do nothing here
+   _valid = true;
 
    return NULL;
    }
