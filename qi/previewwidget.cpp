@@ -76,7 +76,8 @@ PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WindowFlags f
 
 #define SIZES  33
 
-#define SIZE_A4 6   // ID of A4 size
+#define SIZE_A4 6        // ID of A4 size
+#define SIZE_LEGAL  30   // ID of legal size
 #define SIZE_LETTER 31   // ID of US letter size
 
    static PredefinedSizes predefs[SIZES] =
@@ -491,6 +492,7 @@ void PreviewWidget::slotRangeChange()
 //  printf ("page %1.1lf, %1.1lf\n", mWidth, mHeight);
    mPreDefA4 = -1;
    mPreDefLetter = -1;
+   mPreDefLegal = -1;
 
    for(a=0;a<SIZES;a++)
    {
@@ -512,6 +514,10 @@ void PreviewWidget::slotRangeChange()
       if (mPreDefLetter == -1 && a >= SIZE_LETTER)
       {
          mPreDefLetter = mSizeArray.size();
+      }
+      if (mPreDefLegal == -1 && a >= SIZE_LEGAL)
+      {
+         mPreDefLegal = mSizeArray.size();
       }
       sca = new ScanArea(mPreDefs[a].name);
       mSizeArray.resize(mSizeArray.size()+1);

@@ -107,6 +107,7 @@ public:
   /** get the id of the A4 paper size */
   int getPreDefA4 (void) { return mPreDefA4; }
   int getPreDefLetter (void) { return mPreDefLetter; }
+  int getPreDefLegal (void) { return mPreDefLegal; }
 
   // Dummy version since we don't need this to work. It is supposed to
   // emulator isTopLevel() from QT3.
@@ -230,6 +231,7 @@ private:
   // element number of the A4 and US letter sizes in predefs[] array
   int mPreDefA4;
   int mPreDefLetter;
+  int mPreDefLegal;
 
   /**  */
   void initWidget();
