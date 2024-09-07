@@ -46,6 +46,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "dirmodel.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "md5.h"
 #include "desk.h"
 #include "maxview.h"
 #include "op.h"
@@ -80,6 +81,7 @@ static void usage (void)
    printf ("   -v|--verbose    be verbose\n");
 */
    printf ("   -h|--help       display this usage information\n");
+   printf ("   -s|--sum        do an md5 checksum on a directory\n");
 /*
    printf ("   -d|--debug <n>  set debug level (0-3)\n");
    printf ("   -f|--force      force overwriting of existing file\n");
@@ -166,7 +168,9 @@ int main (int argc, char *argv[])
      {"max", 0, 0, 'm'},
      {"pdf", 0, 0, 'p'},
      {"relocate", 0, 0, 'r'},
-     {"sum", 0, 0, 's'},
+*/
+     {"sum", 1, 0, 's'},
+/*
      {"test", 0, 0, 't'},
      {"verbose", 0, 0, 'v'},
 */
@@ -186,12 +190,16 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "h",
+   while (c = getopt_long (argc, argv, "hs:",
                            long_options, NULL), c != -1)
       switch (c)
          {
-	 case 's' :
-	 case 't' :
+         case 's' :
+            dir = optarg;
+            op_type = c;
+            break;
+
+         case 't' :
 	 case 'm' :
 	 case 'p' :
 	 case 'i' :
@@ -217,9 +225,6 @@ int main (int argc, char *argv[])
 	 case 'z' : hack = true; break;
 */
 	 }
-
-   if (optind < argc)
-      dir = argv [optind];
 
    if (!dir && op_type != 't')
       need_gui = true;
@@ -256,18 +261,20 @@ int main (int argc, char *argv[])
 
    switch (op_type)
       {
-#if 0
       case 's' :
-	 {
-	 QString mydir = QString (dir);
-	 Desk *maxdesk = new Desk (mydir, QString());
+         {
+         QString mydir = QString (dir);
+         Desk *maxdesk = new Desk (mydir, QString());
+         err_info *err;
 
-	 // decode everything in the given directory and checksum it
-	 if (!maxdesk->checksum ())
-	    printf ("checksum error\n");
-	 break;
-	 }
+         // decode everything in the given directory and checksum it
+         err = maxdesk->checksum();
+         if (err)
+            printf("checksum error: %s", err->errstr);
+         break;
+         }
 
+#if 0
       case 't' :
 	 {
 	 QString fname = QString (dir);
@@ -330,7 +337,7 @@ int main (int argc, char *argv[])
 	 }
 #endif
       case -1 :
-    run_gui(app, argc, argv);
+         run_gui(app, argc, argv);
 #if 0
       case 1 :
 	 Desk maxdesk (QString(), QString());

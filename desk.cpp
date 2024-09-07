@@ -29,6 +29,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <iostream>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -98,8 +100,10 @@ Desk::Desk (const QString &dirPath, const QString &trashPath,
    _do_writeDesk = writeDesk;
    _dir = dirPath;
    _rootDir = trashPath;
-   if (!_dir.isEmpty ())
-      Q_ASSERT (_dir.right (1) == "/");
+   if (!_dir.isEmpty ()) {
+      if (_dir.right (1) != "/")
+         _dir += "/";
+   }
 
    if (!trashPath.isEmpty ())
       {
@@ -741,52 +745,66 @@ enum
    };
 
 
-#if 0 //p
-
-err_info *Desk::checksum ()
+err_info *Desk::checksum()
    {
    QString fname = "checksums.md5";
    QFile file (fname);
-   Q3TextStream stream( &file );
-   file_info *f;
-   byte *im;
+   QTextStream stream(&file);
+   File *f;
    int pagenum;
-   int size;
    unsigned md5 [4];
    char line [200];
-   err_info *err;
 
    if (!file.open (QIODevice::WriteOnly))
-      return err_make (ERRFN, ERR_cannot_open_file1, fname.latin1 ());
+      return err_make(ERRFN, ERR_cannot_open_file1, qPrintable(fname));
 
-   for (f = first (); f; f = next ())
-      {
-      err = ensureMax (f);
-      if (err)
-         {
-         printf ("skipping %s\n", f->filename.latin1 ());
+   QDir dir(_dir);
+   if (!dir.exists())
+      return err_make("checksum", ERR_directory_not_found1, qPrintable(_dir));
+   qInfo() << "Checksumming" << _files.count() << "files to" << fname;
+   int i = 1;
+   QDebug deb = qDebug();
+
+   int total_pages = 0;
+   foreach (f, _files) {
+//      if (f->type() != File::Type_max)
+//         continue;
+
+      printf("\r%d ", i++);
+      fflush(stdout);
+      err_info *err = f->load();
+      if (err) {
+         printf("File '%s': %s\n", qPrintable(f->filename()), err->errstr);
          continue;
-         }
+      }
 
       // decode each page one by one
-      for (pagenum = 0; pagenum < f->pagecount; pagenum++)
-         {
-         CALL (max_get_image (f->max, pagenum, 0, 0, 0, &im, &size));
-         md5_buffer ((char *)im, size, md5);
-         free (im);
-         sprintf (line, "%d %s %d %d %x %x %x %x\n", f->filename.length (),
-                  f->filename.latin1 (), pagenum, size,
-                  md5 [0], md5 [1], md5 [2], md5 [3]);
-         stream << line;
+      for (pagenum = 0; pagenum < f->pagecount(); pagenum++) {
+         QImage image;
+         QSize size, trueSize;
+         int bpp;
+         err_info *err;
+
+         err = f->getImage(pagenum, false, image, size, trueSize, bpp, false);
+         if (err) {
+            printf("Error: %s\n", qPrintable(err->errstr));
+            break;
          }
-      max_close (f->max);
-      f->max = 0;
+         md5_buffer((const char *)image.bits(), image.sizeInBytes(), md5);
+         sprintf(line, "%d %s %d %d %x %x %x %x\n", f->filename().length(),
+                 qPrintable(f->filename()), pagenum, (int)image.sizeInBytes(),
+                 md5 [0], md5 [1], md5 [2], md5 [3]);
+         stream << line;
+         total_pages++;
       }
-   return NULL;
    }
 
-#endif
+   printf("\r");
+   fflush(stdout);
+   qInfo() << total_pages << "pages processed";
 
+   return NULL;
+   }
 
 int Desk::newFile (File *fnew, File *fbase, int seq)
    {
