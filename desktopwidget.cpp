@@ -694,6 +694,11 @@ void Desktopwidget::slotRemoveRepository ()
 
 void Desktopwidget::deleteDir ()
    {
+   QMessageBox::warning (0, "Paperman",
+                         "Please use the file manager to delete files, then "
+                         "use the refresh option here");
+   return;
+
    QString path = _dir->menuGetPath ();
    QString fullPath;
    int ok;
