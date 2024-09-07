@@ -623,6 +623,12 @@ void Desktopwidget::refreshDir ()
 
    // update the model with this new directory
    _model->refresh(src_ind);
+   QModelIndex root = _model->findRoot(index);
+   QString root_path = _model->data(root, QDirModel::FilePathRole).toString ();
+   QModelIndex sind = _contents->refresh(_path, root_path);
+   QModelIndex ind = sind;
+   _modelconv->indexToProxy(ind.model (), ind);
+   _view->setRootIndex(ind);
    }
 
 
