@@ -283,13 +283,13 @@ public:
    struct err_info *getPageText (file_info *f, int pagenum, QString &str);
 
    struct err_info *ensureMax (file_info *f);
+#endif
 
    /** decode all images in a directory, checksum them, and write the checksums to
        a 'checksums' file
 
        \\return true if all ok */
    struct err_info *checksum (void);
-#endif
 
    /** adds a new stack to the maxdesk, returns true if ok
 
