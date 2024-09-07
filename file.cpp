@@ -1121,8 +1121,8 @@ QImage Filepage::getThumbnail (bool invert) const
    size /= CONFIG_preview_scale;
    QImage thumb = util_smooth_scale_image (image, size);
 
-   qDebug () << "f1" << image.format () << thumb.format ();
-   qDebug () << "width" << thumb.width () << "bpl" << thumb.bytesPerLine ();
+   //qDebug () << "f1" << image.format () << thumb.format ();
+   //qDebug () << "width" << thumb.width () << "bpl" << thumb.bytesPerLine ();
    QPainter p (&thumb);
 
    // debugging
@@ -1160,7 +1160,7 @@ QByteArray Filepage::getThumbnailRaw (bool invert, QImage &image,
       for (int y = 0; y < image.height (); y++)
          buffer.write ((const char *)image.scanLine (y), req_stride);
       }
-   qDebug () << "thumbnail" << image.sizeInBytes () << ba.size ();
+   //qDebug () << "thumbnail" << image.sizeInBytes () << ba.size ();
    return ba;
    }
 
