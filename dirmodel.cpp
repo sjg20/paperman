@@ -753,6 +753,7 @@ QStringList Dirmodel::mimeTypes() const
 Dirproxy::Dirproxy(QObject *parent)
    : QSortFilterProxyModel(parent)
 {
+   _active = true;
 }
 
 Dirproxy::~Dirproxy()
@@ -763,4 +764,10 @@ bool Dirproxy::filterAcceptsRow(int source_row,
                                 const QModelIndex &source_parent) const
 {
    return true;
+}
+
+void Dirproxy::setActive(bool active)
+{
+   _active = active;
+   invalidateFilter();
 }
