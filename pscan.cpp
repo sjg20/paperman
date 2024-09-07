@@ -226,6 +226,13 @@ void Pscan::init()
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut5);
 
+    QObject::connect(new QShortcut(QKeySequence(Qt::ALT + Qt::Key_A), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
+                     &QShortcut::activated, this, &Pscan::selectA4);
+    QObject::connect(new QShortcut(QKeySequence(Qt::ALT + Qt::Key_L), this,
+                                   nullptr, nullptr, Qt::ApplicationShortcut),
+                     &QShortcut::activated, this, &Pscan::toggleLetter);
+
     _folders_timer = new QTimer (this);
     connect (_folders_timer, SIGNAL(timeout()), this, SLOT(checkFolders()));
     _folders_timer->start(200); // check 5 times a second
@@ -550,7 +557,10 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
    int i = 0;
 
    pageSize->clear ();
-   _default_papersize_id = widget->getPreDefA4 ();
+   _papersize_a4 = widget->getPreDefA4();
+   _papersize_letter = widget->getPreDefLetter();
+   _papersize_legal = widget->getPreDefLegal();
+   _default_papersize_id = _papersize_a4;
 
    QProcess paperconf;
    paperconf.start("paperconf", QStringList());
@@ -562,9 +572,9 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
 
           // We should really look this up by name.
           if (size == "letter")
-              _default_papersize_id = widget->getPreDefLetter ();
+              _default_papersize_id = _papersize_letter;
           else
-              _default_papersize_id = widget->getPreDefA4 ();
+              _default_papersize_id = _papersize_a4;
       }
    }
 
@@ -847,6 +857,19 @@ void Pscan::presetShortcut4()
 void Pscan::presetShortcut5()
 {
    presetShortcut(5);
+}
+
+void Pscan::selectA4()
+{
+   pageSize->setCurrentIndex(_papersize_a4);
+}
+
+void Pscan::toggleLetter()
+{
+   if (pageSize->currentIndex() ==_papersize_letter)
+      pageSize->setCurrentIndex(_papersize_legal);
+   else
+      pageSize->setCurrentIndex(_papersize_letter);
 }
 
 Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)
