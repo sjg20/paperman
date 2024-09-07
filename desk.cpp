@@ -372,7 +372,7 @@ void Desk::readDesk (bool read_sizes)
       line = stream.readLine(); // line of text excluding '\n'
 
 //      printf( "%s\n", line.latin1() );
-      if (line [0] == '[')
+      if (!line.isEmpty() && line [0] == '[')
          {
          files = line == "[Files]";
          continue;
