@@ -47,7 +47,7 @@ public:
    QString menuGetName (void);
 
    /** returns the context menu model index */
-   QModelIndex menuGetModelIndex (void) { return _context; }
+   QModelIndex menuGetModelIndex (void);
 
    /** select a particular item as the current one to be operated on by keypresses/menus */
    void selectContextItem (const QModelIndex &index);

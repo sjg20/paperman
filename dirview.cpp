@@ -135,3 +135,9 @@ void Dirview::dropEvent (QDropEvent *event)
    setExpanded (index, true);
    }
 
+QModelIndex Dirview::menuGetModelIndex(void)
+{
+   // qDebug() << "menuGetModelIndex" << _context;
+
+   return _context;
+}
