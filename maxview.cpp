@@ -76,8 +76,8 @@ static void usage (void)
    printf ("Usage:  maxview <opts>  <dir/file>\n\n");
    printf ("   -p|--pdf        convert given file to .pdf\n");
    printf ("   -m|--max        convert given file to .max\n");
-/*
    printf ("   -j|--jpeg       convert given file to .jpg\n");
+/*
    printf ("   -v|--verbose    be verbose\n");
 */
    printf ("   -h|--help       display this usage information\n");
@@ -160,8 +160,8 @@ int main (int argc, char *argv[])
    static struct option long_options[] = {
 //     {"index", 0, 0, '1'},
      {"help", 0, 0, 'h'},
-/*
-     {"jpg", 0, 0, 'j'},
+     {"jpg", 1, 0, 'j'},
+     /*
      {"debug", 1, 0, 'd'},
      {"force", 0, 0, 'f'},
      {"info", 0, 0, 'i'},
@@ -193,7 +193,7 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "hm:p:s:",
+   while (c = getopt_long (argc, argv, "hj:m:p:s:",
                            long_options, NULL), c != -1)
       switch (c)
          {
@@ -201,6 +201,7 @@ int main (int argc, char *argv[])
             dir = optarg;
             op_type = c;
             break;
+         case 'j' :
          case 'm' :
          case 'p' :
             fname = optarg;
@@ -209,7 +210,6 @@ int main (int argc, char *argv[])
 
          case 't' :
          case 'i' :
-         case 'j' :
             op_type = c;
             break;
 
@@ -232,7 +232,8 @@ int main (int argc, char *argv[])
 */
          }
 
-   if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm')
+   if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
+       op_type != 'j')
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -298,6 +299,7 @@ int main (int argc, char *argv[])
          break;
          }
 #endif
+      case 'j' :
       case 'm' :
       case 'p' :
          {
@@ -314,6 +316,7 @@ int main (int argc, char *argv[])
             QString leaf = QFileInfo(fname).completeBaseName();
 
             File::e_type type = op_type == 'p' ? File::Type_pdf :
+                     op_type == 'j' ? File::Type_jpeg :
                      File::Type_max;
             err = file->duplicateToDesk(&desk, type, leaf, 3, op,
                                         newfile);
@@ -323,15 +326,6 @@ int main (int argc, char *argv[])
          break;
          }
 #if 0
-      case 'j' :
-         {
-         Desk maxdesk (QString(), QString());
-         QString fname = QString (dir);
-
-         // convert the file to JPEG
-         maxdesk.convertJpeg (fname);
-         break;
-         }
       case 'i' :
          {
          Desk maxdesk (QString(), QString(), false, false, false);

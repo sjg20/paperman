@@ -77,6 +77,12 @@ new in 1.1
 
 ## Command-line usage
 
+-### j <file>
+
+Convert a file to .jpg, the JPEG image file. This produces a separate file for
+each page of the document, with a _p<n> addition. So a two-page document called
+fred,max will produce fred_p1.jpg and fred_p2.jpg
+
 ### -m <file>
 
 Convert a file to .max, Paperman's native format. The new file has the same name
