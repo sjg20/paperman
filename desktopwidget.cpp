@@ -731,10 +731,12 @@ void Desktopwidget::newDir ()
       QModelIndex index = _dir->menuGetModelIndex ();
 
 //       printf ("mkdir  %s\n", _model->filePath (index).latin1 ());
-      index = _model->mkdir (index, text);
+      QModelIndex new_ind = _model->mkdir(index, text);
 //       printf ("   - got '%s'\n", _model->filePath (index).latin1 ());
-      if (index == QModelIndex ())
-         QMessageBox::warning (0, "Maxview", "Could not make directory " + fullPath);
+      if (new_ind == QModelIndex())
+         QMessageBox::warning(0, "Maxview", "Could not make directory " +
+            _model->data(index, QDirModel::FilePathRole).toString() + "/" +
+                         text);
       }
    }
 
@@ -757,7 +759,13 @@ bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
 
    qDebug() << "to_create" << dir_path;
    QModelIndex parent_ind = _model->index(parent.path(), 0);
-   index = _model->mkdir(parent_ind, dirname);
+   QModelIndex new_ind = _model->mkdir(parent_ind, dirname);
+   if (new_ind == QModelIndex()) {
+      QMessageBox::warning(0, "Maxview", "Could not make directory " +
+                           parent.path() + "/" + dirname);
+      return false;
+   }
+   index = new_ind;
 
    return true;
 }
