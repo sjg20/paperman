@@ -914,6 +914,8 @@ void Pscan::searchForFolders(const QString& match)
    // We want at least three characters for a match
    if (match.length() >= 3) {
       folders = _main->findFolders(match, _folders_path, _missing);
+      if (_folders_path.isEmpty())
+         return;
       valid = true;
    }
 

@@ -1263,6 +1263,8 @@ QStringList Mainwidget::findFolders(const QString& text, QString& dirPath,
    showDesktop();
 
    dirPath = _desktop->getRootDirectory();
+   if (dirPath.isEmpty())
+      return QStringList();
 
    Operation op("Finding folders", 100, this);
 
