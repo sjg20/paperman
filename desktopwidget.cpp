@@ -1482,3 +1482,8 @@ QModelIndex Desktopwidget::getDirIndex(const QString dirname)
 
    return ind;
 }
+
+void Desktopwidget::setDirFilter(bool active)
+{
+   _dir_proxy->setActive(active);
+}

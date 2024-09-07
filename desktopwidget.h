@@ -162,6 +162,9 @@ public:
     */
    QModelIndex findDir(const QString& dir_path);
 
+   // Set whether the dir filter is active or not
+   void setDirFilter(bool active);
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
