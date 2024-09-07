@@ -218,10 +218,14 @@ class Dirproxy : public QSortFilterProxyModel
 public:
    Dirproxy(QObject *parent = nullptr);
    ~Dirproxy();
+   void setActive(bool active);
 
 protected:
    virtual bool filterAcceptsRow(int source_row,
                                  const QModelIndex &source_parent) const;
+
+   // true if the proxy is filtering, false if it is just a pass-through
+   bool _active;
 };
 
 void dirmodel_tests (void);
