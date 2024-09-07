@@ -78,7 +78,10 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    _model = new Dirmodel ();
 //    _model->setLazyChildCount (true);
    _dir = new Dirview (this);
-   _dir->setModel (_model);
+
+   _dir_proxy = new Dirproxy();
+   _dir_proxy->setSourceModel(_model);
+   _dir->setModel(_dir_proxy);
 
    _contents = new Desktopmodel (this);
 
@@ -525,8 +528,9 @@ err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
       ;
    else if (_model->addDir (dirname, ignore_error))
       {
-      QModelIndex index = _model->index (dirname);
-      selectDir (index);
+      QModelIndex src_ind = _model->index(dirname);
+      index = _dir_proxy->mapFromSource(src_ind);
+      selectDir(index);
       }
    else
       err = err_make (ERRFN, ERR_directory_could_not_be_added1,
@@ -544,9 +548,10 @@ void Desktopwidget::selectDir(const QModelIndex &target)
    QModelIndex ind = target;
 
    if (ind == QModelIndex())
-      ind = _model->index(1, 0, QModelIndex());
+      ind = _dir_proxy->index(1, 0, QModelIndex());
 
-   //qDebug () << "Desktopwidget::selectDir" << _model->data (index, Qt::DisplayRole).toString ();
+   //QModelIndex src_ind = _dir_proxy->mapToSource(ind);
+   //qDebug () << "Desktopwidget::selectDir" << _model->data(src_ind, Dirmodel::FilePathRole).toString ();
    _dir->setCurrentIndex(ind);
    _dir->setExpanded(ind, true);
     dirSelected(ind, false);
@@ -585,7 +590,8 @@ void Desktopwidget::renameDir ()
    QModelIndex index;
 
    index = _dir->menuGetModelIndex ();
-   if (_model->findIndex (index) != -1)
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   if (_model->findIndex(src_ind) != -1)
       {
       QMessageBox::warning (0, "Maxview", "You cannot rename a root directory");
       return;
@@ -597,14 +603,13 @@ void Desktopwidget::renameDir ()
       {
       QDir dir;
 
-      QModelIndex index = _dir->menuGetModelIndex ();
-      QModelIndex parent = _model->parent (index);
+      QModelIndex src_parent = _model->parent(src_ind);
 
 //       if (!_model->setData (index, QVariant (text)))
       path.truncate (path.length () - oldName.length () - 1);
       fullPath = path + "/" + text;
       if (dir.rename (path + "/" + oldName, fullPath))
-         _model->refresh (parent);
+         _model->refresh(src_parent);
 //          _dir->refreshItemRename (text);  // indicates current item has new children
       else
          QMessageBox::warning (0, "Maxview", "Could not rename directory");
@@ -615,18 +620,20 @@ void Desktopwidget::renameDir ()
 void Desktopwidget::refreshDir ()
    {
    QModelIndex index = _dir->menuGetModelIndex ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
 
    // update the model with this new directory
-   _model->refresh (index);
+   _model->refresh(src_ind);
    }
 
 
 void Desktopwidget::addToRecent ()
    {
    QModelIndex index = _dir->menuGetModelIndex ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
 
    // update the model with this new directory
-   _model->addToRecent (index);
+   _model->addToRecent(src_ind);
    }
 
 void Desktopwidget::updateSettings ()
@@ -693,9 +700,10 @@ void Desktopwidget::deleteDir ()
    int ok;
    QString oldName = _dir->menuGetName ();
    QModelIndex index = _dir->menuGetModelIndex ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
 
    // find out how many files are in the directory
-   QString str = _model->countFiles (index, 10);
+   QString str = _model->countFiles(src_ind, 10);
 
    ok = QMessageBox::question(
             this,
@@ -709,8 +717,8 @@ void Desktopwidget::deleteDir ()
       err_info *err;
       QDir dir;
 
-      qDebug () << "remove dir" << _model->filePath (index);
-      err = _model->rmdir (index);
+      qDebug () << "remove dir" << _model->filePath(src_ind);
+      err = _model->rmdir(src_ind);
       if (err)
           QMessageBox::warning (0, "Maxview", err->errstr);
       }
@@ -729,20 +737,24 @@ void Desktopwidget::newDir ()
    if ( ok && !text.isEmpty() )
       {
       QModelIndex index = _dir->menuGetModelIndex ();
+      QModelIndex src_ind = _dir_proxy->mapToSource(index);
 
 //       printf ("mkdir  %s\n", _model->filePath (index).latin1 ());
-      QModelIndex new_ind = _model->mkdir(index, text);
+      QModelIndex new_ind = _model->mkdir(src_ind, text);
 //       printf ("   - got '%s'\n", _model->filePath (index).latin1 ());
       if (new_ind == QModelIndex())
          QMessageBox::warning(0, "Maxview", "Could not make directory " +
-            _model->data(index, QDirModel::FilePathRole).toString() + "/" +
+            _model->data(src_ind, QDirModel::FilePathRole).toString() + "/" +
                          text);
       }
    }
 
 QModelIndex Desktopwidget::findDir(const QString& dir_path)
 {
-   return _model->index(dir_path, 0);
+   QModelIndex src_ind = _model->index(dir_path);
+   QModelIndex ind = _dir_proxy->mapFromSource(src_ind);
+
+   return ind;
 }
 
 bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
@@ -759,24 +771,29 @@ bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
 
    qDebug() << "to_create" << dir_path;
    QModelIndex parent_ind = _model->index(parent.path(), 0);
-   QModelIndex new_ind = _model->mkdir(parent_ind, dirname);
-   if (new_ind == QModelIndex()) {
+   QModelIndex src_ind = _model->mkdir(parent_ind, dirname);
+   if (src_ind == QModelIndex()) {
       QMessageBox::warning(0, "Maxview", "Could not make directory " +
                            parent.path() + "/" + dirname);
       return false;
    }
-   index = new_ind;
+   index = _dir_proxy->mapFromSource(src_ind);
+
+   // Select the directory, since Dirview::menuGetModelIndex() becomes invalid
+   // when something is added to the proxy model
+   selectDir(index);
 
    return true;
 }
 
 void Desktopwidget::dirSelected (const QModelIndex &index, bool allow_undo)
    {
-   QString path = _model->data (index, QDirModel::FilePathRole).toString ();
-   QModelIndex root = _model->findRoot (index);
-   QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   QString path = _model->data(src_ind, QDirModel::FilePathRole).toString();
+   QModelIndex root = _model->findRoot(src_ind);
+   QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
 
-//    printf ("dirSelected %s, %s\n", path.latin1 (), _contents->getDirPath ().latin1 ());
+   //qDebug() << "dirSelected" << path << _contents->getDirPath();
 
    // clear the page preview
    _page->slotReset ();
@@ -802,10 +819,11 @@ void Desktopwidget::dirSelected (const QModelIndex &index, bool allow_undo)
 
 void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
    {
-   QModelIndex index = _model->index (dirPath);
+   QModelIndex src_ind = _model->index (dirPath);
+   QModelIndex index = _dir_proxy->mapFromSource(src_ind);
 
 //    qDebug () << "Desktopwidget::slotDirChanged" << _dir->currentIndex () << index;
-   _dir->setCurrentIndex (index);
+   _dir->setCurrentIndex(index);
 
    _modelconv->assertIsSource (0, &deskind, 0);
    QModelIndex ind = deskind;
@@ -1242,8 +1260,10 @@ void Desktopwidget::locateFolder ()
       // once the folder has finished refreshing, we want to ensure that this item is visible
       _scroll_to = filename;
 
-      QModelIndex dirindex = _model->index (dir);
-      selectDir (dirindex);
+      QModelIndex src_ind = _model->index (dir);
+      QModelIndex ind = _dir_proxy->mapFromSource(src_ind);
+
+      selectDir(ind);
       }
    }
 
@@ -1446,8 +1466,10 @@ const QString Desktopwidget::getRootDirectory()
    if (ind == QModelIndex())
       return "";
 
+   QModelIndex src_ind = _dir_proxy->mapToSource(ind);
+
    // Get the top-level dirname of that
-   QModelIndex root = _model->findRoot(ind);
+   QModelIndex root = _model->findRoot(src_ind);
    QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
 
    return root_path;
@@ -1455,7 +1477,8 @@ const QString Desktopwidget::getRootDirectory()
 
 QModelIndex Desktopwidget::getDirIndex(const QString dirname)
 {
-   QModelIndex ind = _model->index(dirname);
+   QModelIndex src_ind = _model->index(dirname);
+   QModelIndex ind = _dir_proxy->mapFromSource(src_ind);
 
    return ind;
 }
