@@ -221,9 +221,6 @@ int main (int argc, char *argv[])
    if (optind < argc)
       dir = argv [optind];
 
-   //   printf ("type=%d/%c, debug=%d, verbose=%d, file=%s\n",
-   //	   op_type, op_type, debug, verbose, dir ? dir : "<null>");
-
    if (!dir && op_type != 't')
       need_gui = true;
 
@@ -256,15 +253,6 @@ int main (int argc, char *argv[])
    QCoreApplication::setOrganizationName("maxview");
    //QCoreApplication::setOrganizationDomain("bluewatersys.com");
    QCoreApplication::setApplicationName("maxview");
-
-// no longer used (debugging is set from maxdesk)
-//   decpp_set_debug (debug);
-
-   /* this is a hack to fix old broken files (the -z option). Shouldn't be
-      needed now */
-//    decpp_set_hack (hack);
-
-   //qDebug () << "test" << "test2";
 
    switch (op_type)
       {
