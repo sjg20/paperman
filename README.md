@@ -67,6 +67,15 @@ new in 1.0
 new in 1.0.1
 - builds with QT5, including on Ubuntu 20.04 Focal
 
+new in 1.1
+- presets for scanning, use Ctrl-1 to Ctrl-6 to quickly select
+- fast folder finding in the scanning dialogue
+   - type the partial match in the 'Folder' field (press F6 to get there)
+   - it expects directories to be called yyyy and mmMMM, e.g. 2024/03mar/...
+   - press <enter> to scan, or click on the match to just create the dir
+- filtering out of directories which don't match the current year / month
+- keyboard shortcuts for A4 (Alt-A) and US letter/legal toggle (Alt-L)
+- Fix most warnings
 
 Future Features
 ---------------
