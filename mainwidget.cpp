@@ -1274,3 +1274,8 @@ QStringList Mainwidget::findFolders(const QString& text, QString& dirPath,
    return utilDetectMatches(date, matches, missing);
 
 }
+
+bool Mainwidget::isScanning()
+{
+   return _scanning;
+}
