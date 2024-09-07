@@ -48,7 +48,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qpoint.h"
 #include "qsplitter.h"
 #include "qtimer.h"
-#include <QDropEvent>
 #include <QPixmap>
 
 #include "err.h"

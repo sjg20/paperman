@@ -27,6 +27,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QLabel>
 #include <QMenu>
+#include <QMessageBox>
+#include <QMimeData>
 #include <QItemSelectionModel>
 #include <QScrollBar>
 
@@ -34,7 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopmodel.h"
 #include "desktopview.h"
 #include "maxview.h"
-
+#include "utils.h"
 
 Desktopview::Desktopview (QWidget *parent)
       : QListView (parent)
@@ -234,6 +236,12 @@ QModelIndex Desktopview::indexAt (const QPoint &in_point) const
 
 void Desktopview::dropEvent (QDropEvent* event)
    {
+   qDebug() << "dropEvent" << event << event->possibleActions();
+
+   if (!utilDropSupported(event,
+         QStringList({"application/vnd.text.list", "text/uri-list"})))
+      return;
+
    QAbstractItemModel *model = this->model ();
 
    setCursor(Qt::ArrowCursor);
@@ -546,7 +554,7 @@ void Desktopview::scrollToLast (void)
    if (value > vs->maximum ())
       vs->setMaximum (value);
    //if (value >= 0)
-      vs->setValue (value > 0 ? value : 0);
+   vs->setValue (value > 0 ? value : 0);
 
    // qDebug () << "scroll bars" << horizontalScrollBar ()->value () << verticalScrollBar ()->value ();
 //   scrollTo (bottom);

@@ -24,9 +24,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDate>
 #include <QDebug>
 #include <QDir>
+#include <QDropEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QMessageBox>
+#include <QMimeData>
 #include <QSettings>
 #include <QStringList>
 
@@ -754,4 +757,17 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches,
    }
 
    return final;
+}
+
+bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes)
+{
+   foreach (const QString& item, event->mimeData()->formats()) {
+      if (!allowedTypes.contains(item)) {
+         event->ignore();
+         QMessageBox::warning (0, "Paperman", "That type is not supported");
+         return false;
+      }
+   }
+
+   return true;
 }

@@ -33,7 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMenu>
 
 #include "dirview.h"
-
+#include "utils.h"
 
 Dirview::Dirview (QWidget *parent)
    : QTreeView (parent)
@@ -128,6 +128,10 @@ QString Dirview::menuGetName (void)
 
 void Dirview::dropEvent (QDropEvent *event)
    {
+   if (!utilDropSupported(event,
+         QStringList({"application/vnd.text.list", "text/uri-list"})))
+      return;
+
    QTreeView::dropEvent (event);
 
    /*FIXME: drop events seem to close up the list, so we open it again */
