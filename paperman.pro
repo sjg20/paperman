@@ -220,7 +220,8 @@ FORMS = mainwindow.ui \
         printopt.ui \
         pagetools.ui \
         pageattr.ui \
-        ocrbar.ui send.ui
+        ocrbar.ui send.ui \
+   toolbar.ui
 
 # tif_fax3sm.c   - causes tifflib to break
 

@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 class QCheckBox;
 class QDirModel;
+class QKeyEventTransition;
 class QLineEdit;
 class QSplitter;
 class QTimer;
@@ -47,6 +48,7 @@ class Pagewidget;
 struct file_info;
 class Desk;
 class Operation;
+class Toolbar;
 
 struct err_info;
 struct file_info;
@@ -58,6 +60,7 @@ struct file_info;
 #include "qstring.h"
 #include "qwidget.h"
 #include "desk.h"
+#include "ui_toolbar.h"
 
 
 /** a DesktopWidget is a splitter with a directory tree on the left and a
@@ -428,7 +431,7 @@ private:
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
 //   QAction *_act_send, *_act_deliver_out;
 
-   QToolBar *_toolbar;
+   Toolbar *_toolbar;
    //QWidget *_toolbar;
 
    // more actions (toolbar)
@@ -438,8 +441,16 @@ private:
    Desktopmodelconv *_modelconv_assert;   //!< same, but only allows assertions
 
    QString _scroll_to;     //!< filename to scroll to when a new directory is opened
-
-   QLineEdit *_match;      //!< line edit for the match
-   QAction *_reset;
    };
 
+
+class Toolbar : public QFrame, public Ui::Toolbar
+{
+    Q_OBJECT
+
+public:
+    Toolbar(QWidget* parent = 0, Qt::WindowFlags fl = Qt::WindowFlags());
+    ~Toolbar();
+
+    QKeyEventTransition *pressed_esc;
+};
