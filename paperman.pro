@@ -3,7 +3,8 @@ LANGUAGE = C++
 QT += widgets
 QT += printsupport
 
-unix:target.path = /usr/bin
+unix:target.path = usr/bin
+target.files = paperman
 INSTALLS += target
 
 message ("Type 'make' to build paperman")
