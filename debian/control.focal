@@ -1,0 +1,20 @@
+Source: paperman
+Section: graphics
+Priority: optional
+Maintainer: Simon Glass <sjg@chromium.org>
+Build-Depends: debhelper-compat (= 12), autotools-dev, qt5-qmake, cmake, libtiff5-dev, qtbase5-dev-tools, libsane-dev, libpoppler-qt5-dev, cmake, libpodofo-dev, imagemagick, tesseract-ocr, tesseract-ocr-eng
+Standards-Version: 4.6.2
+Homepage: https://github.com/sjg20/paperman
+
+Package: paperman
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: tesseract-ocr
+Description: Electronic filing cabinet: scan, print, stack, arrange
+ Paperman allows you to:
+   - Quickly scan and file paper into your computer
+   - Read and write PaperPort .max files
+   - Stack, arrange and name your scanned paper
+   - Easily print and view your scanned paper or convert to / from PDF
+   - Paperman uses SANE and supports JPEG compression on modern, high-speed
+     scanners
