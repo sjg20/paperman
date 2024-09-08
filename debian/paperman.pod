@@ -1,11 +1,11 @@
 =head1 NAME
 
-B<Maxview> - an electronic filing cabinet: scan, print, stack, arrange
+B<Paperman> - an electronic filing cabinet: scan, print, stack, arrange
 
 =head1 SYNOPSIS
 
- B<Maxview> [DIR ...]
- B<Maxview> [options...] [FILE]
+ B<Paperman> [DIR ...]
+ B<Paperman> [options...] [FILE]
 
 Conversion options:
    
@@ -20,51 +20,51 @@ Other options:
    -f, --force      force overwriting of existing file
    -i, --info       display full info about a file
 
-If none of the conversion options is specified, B<Maxview> opens in desktop
+If none of the conversion options is specified, B<Paperman> opens in desktop
 mode, displaying thumbnails of the given directory.
 
 =head1 DESCRIPTION
 
-B<Maxview> is a paper management application. It arranges paper into stacks which
+B<Paperman> is a paper management application. It arranges paper into stacks which
 are filed into a hierarchy of directories, a little like a traditional paper
-filing cabinet. B<Maxview> helps you take control of the paper in your organisation, or
+filing cabinet. B<Paperman> helps you take control of the paper in your organisation, or
 in your life.
 
-B<Maxview> operates with SANE to support scanning of documents. It works particularly
+B<Paperman> operates with SANE to support scanning of documents. It works particularly
 well with sheet-fed scanners, and particularly with Fujitsu ones, which have quite
-good SANE support. For example, with any Fujitsu fi-xxxx model, B<Maxview> supports
+good SANE support. For example, with any Fujitsu fi-xxxx model, B<Paperman> supports
 using in-scanner JPEG compression so that you can happily scan 30 papers per minute
-(both sides at once) in colour at 300dpi. B<Maxview>'s scanning dialogue provides for
+(both sides at once) in colour at 300dpi. B<Paperman>'s scanning dialogue provides for
 quick selection of common options such as resolution, monochrome/colour and duplex modes.
-In theory B<Maxview> operates with any scanner supported by SANE.
+In theory B<Paperman> operates with any scanner supported by SANE.
 
-B<Maxview> allows you to arrange your paper in stacks, each stack consisting of one or
+B<Paperman> allows you to arrange your paper in stacks, each stack consisting of one or
 more pages. Think of a stack as something that you might staple or attach together
 with a paper clip. Stacks can be moved around and positioned on a desktop, or you
-can ask B<Maxview> to position them automatically ordered by date or name.
+can ask B<Paperman> to position them automatically ordered by date or name.
 
 Pages can be stacked together and unstacked. You can drop one stack
 onto another to merge them. Each stack has a filename, and each page can be named also.
 Stacks and pages can be easily duplicated, renamed and deleted.
 
-B<Maxview> supports full multi-level undo/redo on all operations. It maintains a trash
-directory where deleted documents are kept. For convenience, B<Maxview> automatically
+B<Paperman> supports full multi-level undo/redo on all operations. It maintains a trash
+directory where deleted documents are kept. For convenience, B<Paperman> automatically
 renames stacks as required when moving between directories. Stacks can be emailed 
 using Thunderbird (other clients are not supported at present) in PDF
 format, with a simple 'Email as PDF' menu option.
 
-B<Maxview> supports conversion of paper between different formats. Its native format is a
+B<Paperman> supports conversion of paper between different formats. Its native format is a
 variant of that used by PaperPort (Windows software by Nuance) and it can read PaperPort
 files. This is based on high-speed TIFF compression for monochrome images, and JPEG for
-colour. B<Maxview> can convert to and from its native format, PDF and JPEG.
+colour. B<Paperman> can convert to and from its native format, PDF and JPEG.
 
-B<Maxview> can print stacks and pages from stacks. B<Maxview> supports printing of multiple
+B<Paperman> can print stacks and pages from stacks. B<Paperman> supports printing of multiple
 stacks and can place a user-defined footer on each page indicating the page number within
 the stack, and the sequence number within the print job, as well as page name and image
 information. This might be useful if you are a lawyer although the author makes no
 such respresentation.
 
-B<Maxview> is not intended to reduce paper usage. If anything it might increase it, since
+B<Paperman> is not intended to reduce paper usage. If anything it might increase it, since
 it encourages you to scan, bin and later print. Paper is ideal for reading but poor for
 filing: electronic filing has many, many advantages. These include multiple simultaneous
 access, remote access, fast searching, potential for OCR and keyword search,
@@ -78,40 +78,40 @@ can try printing on brown paper or in small print on both sides of the paper. An
 is to print on the same page twice, the second time upside down and between the lines. Also
 you can look for a printer that can use 100% recycled toilet paper without it catching fire.
 
-B<Maxview> works best with a fast scanner. You can use B<Maxview> with a flatbed scanner but it will
-drive you nuts. B<Maxview> does not come with a prescription for blood pressure tablets, so invest
+B<Paperman> works best with a fast scanner. You can use B<Paperman> with a flatbed scanner but it will
+drive you nuts. B<Paperman> does not come with a prescription for blood pressure tablets, so invest
 in a nice fast scanner instead. You will never look back.
 You can get a 30ppm sheet-fed scanner for about the same price as an equivalent
 speed printer and it is well worth it. You will power through paper like never before.
 
-B<Maxview> is very fast to use. Scanning operates in its own thread so can make use of
+B<Paperman> is very fast to use. Scanning operates in its own thread so can make use of
 multi-core machines. PDF preview uses the popular poppler library and PDF creation is done
 with PoDoFo, an efficient library for creating PDF files. Clicking a stack brings up a 
 scrolling list of the pages in that stack, as well as a preview of the currently selected
 page. Predefined views are available for stacking, rearranging and scanning, and the preview
 and page list scale can be changed in each using Ctrl+wheel.
 
-B<Maxview> includes rudimentary OCR features so that you can OCR a page and copy out the text.
+B<Paperman> includes rudimentary OCR features so that you can OCR a page and copy out the text.
 This uses the Tesseract library. Perhaps this area will improve in future.
 
 =head1 BACKUPS
 
 If you are one of those dopey eggs who can't be bothered to maintain regular backups of
-your files, please do not use B<Maxview>. With backups, B<Maxview> is better than paper, since you
-might lose the paper or your house or office might burn down. Without backups, B<Maxview> is
+your files, please do not use B<Paperman>. With backups, B<Paperman> is better than paper, since you
+might lose the paper or your house or office might burn down. Without backups, B<Paperman> is
 worse since you will certainly lose all your paper every five years when you hard disc fails.
 
-B<Maxview> can be used to scan important documents such as birth certificates and passports. These
+B<Paperman> can be used to scan important documents such as birth certificates and passports. These
 are then available for printing should copies be needed. However, the scanned copies are not originals,
 so please do not throw out documents where an original may be needed.
 
 
 =head1 OPTIONS
 
-With no options, B<Maxview> will launch and display the set of directories as configured
+With no options, B<Paperman> will launch and display the set of directories as configured
 by the user. If directories are suppled on the command line, then these are used instead.
 
-If conversion options are provided, B<Maxview> will operate in command-line mode. This is
+If conversion options are provided, B<Paperman> will operate in command-line mode. This is
 useful for batch conversion of files. See EXAMPLES for some thoughts on this.
 
 =over 8
@@ -141,19 +141,19 @@ Be helpful. This prints the synopsis.
 
 =item B<-f, --force>
 
-B<Maxview> will normally refuse to overwrite existing files when converting between
-formats. This option tells B<Maxview> to overwrite any files which get in the way. Use
+B<Paperman> will normally refuse to overwrite existing files when converting between
+formats. This option tells B<Paperman> to overwrite any files which get in the way. Use
 this option with extreme caution on live data.
 
 =item B<-d, --debug>
 
 Turns on debugging at the given level. If you are using this option you are probably
-modifying or enhancing B<Maxview>. For users it offers little benefit.
+modifying or enhancing B<Paperman>. For users it offers little benefit.
 
 =item B<-i, --info>
 
 Displays information about the file. This is mainly useful for max files, and again mainly
-for modifying or enhancing B<Maxview>.
+for modifying or enhancing B<Paperman>.
 
 =back
 
@@ -164,20 +164,20 @@ To convert all the max files in a directory to PDF:
 
    cd /path/to/dir
    for f in *.pdf; do
-      B<Maxview> -p $f
+      B<Paperman> -p $f
    done
 
 To convert all the max files in a directory and all sub-directories to PDF:
 
    cd /path/to/dir
    for f in `find . -name "*.pdf"`; do
-      B<Maxview> -p $f
+      B<Paperman> -p $f
    done
 
 
 =head1 HISTORY
 
-B<Maxview> grew out of the author's waning enthusiasm for keeping his Windows machine running,
+B<Paperman> grew out of the author's waning enthusiasm for keeping his Windows machine running,
 particularly as it eventually rotted to the point of required a re-install of the graphics
 driver and several reboots each time it was switched on. The computer was called Victor,
 after the Meldrew variety for those familiar with the show.
@@ -190,11 +190,11 @@ The first max file decode routines were written in November 2001 but didn't work
 the author limped on with Windows for three more years until Christmas 2004 when a full C-based
 Max file decoder
 was created. This was heavily based on the work of Marek Behr - a program called PaperView for
-the Mac. At QT3-based GUI was added soon after this and B<Maxview> was born. It was fairly
+the Mac. At QT3-based GUI was added soon after this and B<Paperman> was born. It was fairly
 functional but had a number of limitations, notably slow performance with large directories,
 no undo/redo, poor printing support and no zooming or previewing of pages.
 
-The release of QT4 provided an opportunity to improve B<Maxview> but the hurdle of the port loomed
+The release of QT4 provided an opportunity to improve B<Paperman> but the hurdle of the port loomed
 in the author's mind and he refrained from moving much past the automated qt3to4 tool. Finally
 in May 2009 the author grasped the nettle and rewrote large chunks of the software to use the
 model/view architecture and a better abstraction of different file types. Version 0.7 is the
@@ -203,14 +203,14 @@ culmination of this effort.
 
 =head1 BUGS
 
-B<Maxview> is reliable in basic use, but bugs do exist. You can report them
-at http://B<Maxview>.sourceforge.net/ on the forum. If you would like to help
-write B<Maxview>, please get in touch with the author who will be happy.
+B<Paperman> is reliable in basic use, but bugs do exist. You can report them
+at http://B<Paperman>.sourceforge.net/ on the forum. If you would like to help
+write B<Paperman>, please get in touch with the author who will be happy.
 
 Scanning A3 monochrome with a standard page size will sometimes not work - you
 need to manually adjust the page width to a multiple of 8 pixels.
 
-B<Maxview> should operate with any scanner but the authors is willing to bet that
+B<Paperman> should operate with any scanner but the authors is willing to bet that
 it won't. The author very much likes playing with fast scanners and will happily
 accept a new scanner for a few weeks to assist with integrating buttons,
 special scan features, etc. Make sure you lend the scanner to the backend maintainer
@@ -232,7 +232,7 @@ you have to email files, or similar.
 
 A manual is sorely needed.
 
-B<Maxview> should support un/stacking of paper in PDF files.
+B<Paperman> should support un/stacking of paper in PDF files.
 
 It should be possible to reorder, print, stack and unstack by dragging in the
 pageview.
@@ -266,7 +266,7 @@ you buy PaperPort instead.
 
 =head1 AUTHORS
 
-B<Maxview> and this manual page are (C) Simon Glass, chch-kiwi@users.sourceforge.net
+B<Paperman> and this manual page are (C) Simon Glass, chch-kiwi@users.sourceforge.net
 
 Both are released under the GNU General Public License, version 2 or later.
 
@@ -278,10 +278,10 @@ just the images within the file (which are CCITT fax).
 M. Allan Noah, who maintains the Fujitsu scanner backend, has helped with many questions over
 the years.
 
-B<Maxview> makes use of a large number of libraries, notably the wonderful QT version 4 by
+B<Paperman> makes use of a large number of libraries, notably the wonderful QT version 4 by
 Trolltech, now part of Nokia.
 
-B<Maxview> includes source code obtained from the following projects,
+B<Paperman> includes source code obtained from the following projects,
 copyright as noted:
 
    TIFF code Copyright (c) 1988-1996 Sam Leffler, 

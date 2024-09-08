@@ -1,11 +1,11 @@
 This package was debianized by Simon Glass <chch-kiwi@users.sourceforge.net> on
 Wed, 02 Sep 2009 21:23:29 +0100.
 
-It was downloaded git://maxview.git.sourceforge.net/gitroot/maxview/maxview
+It was downloaded from https://github.com/sjg20/paperman
 
 Upstream Author(s):
 
-    Simon Glass <chch-kiwi@users.sourceforge.net>
+    Simon Glass <sjg@chromium.org>
 
 Copyright:
 
@@ -29,7 +29,7 @@ Debian GNU hello source package as the file COPYING.  If not, write to
 the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301 USA.
 
-The Debian packaging is copyright 2009, Simon Glass <chch-kiwi@users.sourceforge.net> and
+The Debian packaging is copyright 2009, Simon Glass <sjg@chromium.org> and
 is licensed under the GPL2, see `/usr/share/common-licenses/GPL2'.
 
 
@@ -85,5 +85,3 @@ epeglite is GPL2:
    Copyright (c) 2004 __MyCompanyName__. All rights reserved.
    epeglite is a veneer on EPEG from enlightenment
      - see http://www.enlightenment.org/
-
-

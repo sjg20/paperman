@@ -1,21 +1,20 @@
-Source: maxview
+Source: paperman
 Section: graphics
 Priority: optional
-Maintainer: Simon Glass <chch-kiwi@users.sourceforge.net>
-Build-Depends: debhelper (>= 7), autotools-dev, qt4-qmake, cmake, libtiff4-dev, qt4-dev-tools, libqt4-dev, libsane-dev, libpoppler-qt4-dev, cmake, cdbs
-Standards-Version: 3.8.0
-Homepage: http://maxview.sourceforge.net
+Maintainer: Simon Glass <sjg@chromium.org>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/sjg20/paperman
 
-Package: maxview
+Package: paperman
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Recommends: tesseract-ocr
 Description: An electronic filing cabinet: scan, print, stack, arrange
- Maxview allows you to:
+ Paperman allows you to:
  - Quickly scan and file paper into your computer
  - Read and write PaperPort .max files
  - Stack, arrange and name your scanned paper
  - Easily print and view your scanned paper
  - Convert to / from PDF and other formats
- - Maxview uses SANE and supports JPEG compression on modern high-speed scanners
-
+ - Paperman uses SANE and supports JPEG compression on modern high-speed scanners

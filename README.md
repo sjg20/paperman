@@ -120,6 +120,18 @@ For example:
     27 Property taxes  pd 2020.max 3 1093872 96562c4e cebfc3b3 5c863b22 d80abde6
 
 
+# Creating a package
+
+Ignore this unless you want to create a Debian / Ubuntu package for paperman.
+
+sudo apt install devscripts
+
+Update changelog
+
+Run dch and edit
+
+- It will add the date in the format produced by 'date -R'
+
 ## Future Features
 
 Here's what I'd like it to support:

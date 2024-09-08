@@ -3,15 +3,15 @@
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/qmake.mk
 
-build/maxview::
-	pod2man --section=1 --release=$(VERSION) --center "" debian/maxview.pod > maxview.1
+build/paperman::
+	pod2man --section=1 --release=$(VERSION) --center "" debian/paperman.pod > paperman.1
 
-cleanbuilddir/maxview::
-	rm -f maxview.1
+cleanbuilddir/paperman::
+	rm -f paperman.1
 
-DEB_INSTALL_MANPAGES_maxview = maxview.1
+DEB_INSTALL_MANPAGES_paperman = paperman.1
 
 
-QMAKE=qmake-qt4
+QMAKE=qmake
 CFLAGS=-O3
 CXXFLAGS=-O3

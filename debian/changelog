@@ -1,3 +1,11 @@
+paperman (1.1-1ubuntu1) UNRELEASED; urgency=medium
+
+  * Package renamed for potential, actual release
+  * Some feature improvements to the scanning window
+
+ -- Simon Glass <sjg@chromium.org>  Sat, 07 Sep 2024 20:10:58 -0600
+
+
 maxview (0.7-2) karmic; urgency=low
 
   * Update with various bug fixes and slightly wider distribution selection
