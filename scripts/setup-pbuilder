@@ -1,34 +1,47 @@
 #!/bin/bash
 
-ARCHS="i386 amd64"
+# ARCHS="i386 amd64"
+ARCHS="amd64"
 #UDISTS="hardy jaunty karmic lucid maverick"
-UDISTS="hardy"
-#intrepid
-DISTS="lenny sid"
+UDISTS="bionic focal jammy noble"
+DISTS="buster bullseye bookworm trixie"
+
+# ln: failed to create hard link
+# https://bugs.launchpad.net/ubuntu/+source/pbuilder/+bug/1408594
 
 # should remove /var/cache/pbuilder first
+LOGDIR=/var/cache/pbuilder/log
+sudo mkdir -p /var/cache/pbuilder
+
+# http://deb.debian.org/debian
 
 setup () {
 	NAME=$dist-$arch.cow
 	echo
 	echo $NAME
 	echo
-	COMMON="ARCH=$arch DIST=$dist cowbuilder --create --distribution $dist --basepath /var/cache/pbuilder/base-$NAME --architecture $arch --debootstrapopts --exclude=udev,pcmciautils,initramfs-tools --debootstrapopts --arch --debootstrapopts $arch"
-    }
+	COMMON="ARCH=$arch DIST=$dist "
+	COMMON+="cowbuilder --create --distribution $dist "
+	COMMON+="--basepath /var/cache/pbuilder/base-$NAME --architecture $arch "
+	COMMON+="--debootstrapopts --exclude=udev,pcmciautils,initramfs-tools "
+	COMMON+="--debootstrapopts --arch --debootstrapopts $arch "
+}
 
-sudo mkdir -p /var/cache/pbuilder/log
-for arch in $ARCHS
-do
+sudo mkdir -p $LOGDIR
+sudo mkdir -p /var/cache/pbuilder/aptcache/
+
+sudo chmod a+rw $LOGDIR
+for arch in $ARCHS do
     for dist in $DISTS
     do
 	setup
-	sudo $COMMON >/var/cache/pbuilder/log/$NAME
+	sudo $COMMON --mirror http://deb.debian.org/debian >$LOGDIR/$NAME
     done
 
     for dist in $UDISTS
     do
 	setup
-	sudo $COMMON --debootstrapopts --include=gpgv --components "main universe" >/var/cache/pbuilder/log/$NAME
+	sudo $COMMON --debootstrapopts --include=gpgv \
+		--components "main universe" >$LOGDIR/$NAME
     done
 done
-
