@@ -79,7 +79,22 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    _contents = new Desktopmodel (this);
 
-   QWidget *group = createToolbar();
+   _toolbar = new Toolbar();
+
+   connect(_toolbar->pPrev, SIGNAL(clicked()), this, SLOT(pageLeft()));
+   connect(_toolbar->pNext, SIGNAL(clicked()), this, SLOT(pageRight()));
+   connect(_toolbar->prev, SIGNAL(clicked()), this, SLOT(stackLeft()));
+   connect(_toolbar->next, SIGNAL(clicked()), this, SLOT(stackRight()));
+
+   connect(_toolbar->pressed_esc, SIGNAL(triggered()),
+           this, SLOT(resetFilter()));
+   connect(_toolbar->cancelFilter, SIGNAL(clicked()),
+           this, SLOT(resetFilter()));
+
+   connect(_toolbar->match, SIGNAL(textChanged(const QString&)),
+           this, SLOT(matchChange(const QString &)));
+
+   QWidget *group = new QWidget(this);
 
    _view = new Desktopview (group);
    QVBoxLayout *lay = new QVBoxLayout (group);
@@ -258,100 +273,6 @@ void Desktopwidget::addActions(void)
    addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
 //   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
 //   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
-   }
-
-
-QWidget *Desktopwidget::createToolbar(void)
-   {
-   QWidget *group = new QWidget (this);
-
-   //TODO: Move this to use the designer
-   /* create the desktop toolbar. We are doing this manually since we can't
-      seem to get Qt to insert a QLineEdit into a toolbar */
-   _toolbar = new QToolBar (group);
-//   _toolbar = new QWidget (group);
-//   _toolbar = group;
-   addAction (_actionPprev, "Previous page", SLOT(pageLeft ()), "", _toolbar, "pprev.xpm");
-   addAction (_actionPprev, "Next page", SLOT(pageRight ()), "", _toolbar, "pnext.xpm");
-   addAction (_actionPprev, "Previous stack", SLOT(stackLeft ()), "", _toolbar, "prev.xpm");
-   addAction (_actionPprev, "Next stack", SLOT(stackRight ()), "", _toolbar, "next.xpm");
-
-   QWidget *locateGroup = new QWidget (_toolbar);
-
-   QHBoxLayout *hboxLayout2 = new QHBoxLayout();
-   hboxLayout2->setSpacing(0);
-   hboxLayout2->setContentsMargins (0, 0, 0, 0);
-   hboxLayout2->setObjectName(QString::fromUtf8("hboxLayout2"));
-   locateGroup->setLayout (hboxLayout2);
-
-   QLabel *label = new QLabel (locateGroup);
-   label->setText(QApplication::translate("Mainwindow", "Filter:", 0));
-   label->setObjectName(QString::fromUtf8("label"));
-
-   hboxLayout2->addWidget(label);
-
-   _match = new QLineEdit (locateGroup);
-   _match->setObjectName ("match");
-   QSizePolicy sizePolicy2(QSizePolicy::Expanding, QSizePolicy::Fixed);
-   sizePolicy2.setHorizontalStretch(1);
-   sizePolicy2.setVerticalStretch(0);
-   sizePolicy2.setHeightForWidth(_match->sizePolicy().hasHeightForWidth());
-   _match->setSizePolicy(sizePolicy2);
-   _match->setMinimumSize(QSize(50, 0));
-   //_match->setDragEnabled(true);
-
-   connect (_match, SIGNAL (returnPressed()),
-        this, SLOT (matchUpdate ()));
-   connect (_match, SIGNAL (textChanged(const QString&)),
-        this, SLOT (matchChange (const QString &)));
-   //_reset_filter = new QAction (this);
-   //_reset_filter->setShortcut (Qt::Key_Escape);
-   //connect (_reset_filter, SIGNAL (triggered()), this, SLOT (resetFilter()));
-   //_match->addAction (_reset_filter);
-   //_match->installEventFilter (this);
-
-   // When ESC is pressed, clear the field
-   QStateMachine *machine = new QStateMachine (this);
-   QState *s1 = new QState (machine);
-
-//   QSignalTransition *pressed_esc = new QSignalTransition(_match,
-//                                       SIGNAL(textChanged(const QString&)));
-   QKeyEventTransition *pressed_esc = new QKeyEventTransition(_match,
-                           QEvent::KeyPress, Qt::Key_Escape);
-   s1->addTransition (pressed_esc);
-   connect(pressed_esc, SIGNAL(triggered()), this, SLOT(resetFilter()));
-   machine->setInitialState (s1);
-   machine->start ();
-
-   // and change the state
-   hboxLayout2->addWidget(label);
-
-   hboxLayout2->addWidget (_match);
-
-   QSpacerItem *spacerItem = new QSpacerItem(16, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-   hboxLayout2->addItem (spacerItem);
-
-   addAction (_reset, "Reset", SLOT(resetFilter ()), "", locateGroup);
-   QToolButton *reset = new QToolButton (locateGroup);
-   reset->setDefaultAction (_reset);
-   hboxLayout2->addWidget (reset);
-
-   _toolbar->addWidget (locateGroup);
-
-#ifndef QT_NO_TOOLTIP
-   _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0));
-   _reset->setToolTip(QApplication::translate("Mainwindow", "Reset the search string", 0));
-#endif // QT_NO_TOOLTIP
-#ifndef QT_NO_WHATSTHIS
-   _match->setWhatsThis(QApplication::translate("Mainwindow", "The filter feature can be used in two ways. To filter out unwanted stacks, type a few characters from the stack name that you are looking for. Everything that does not match will be removed from view. To go back, just delete characters from the filter.\n"
-"\n"
-"There is also a 'global' mode which allows searching of all subdirectories. To use this, select the 'global' button, then type your filter string. Press return or click 'locate' to perform the search. This might take a while.\n"
-"\n"
-"To reset the filter, click the 'reset' button.", 0));
-   _reset->setWhatsThis(QApplication::translate("Mainwindow", "Press this button to reset the filter string and display stacks in the current directory", 0));
-#endif // QT_NO_WHATSTHIS
-   return group;
    }
 
 Desktopwidget::~Desktopwidget ()
@@ -824,19 +745,20 @@ void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
 void Desktopwidget::resetFilter (void)
    {
    qDebug () << "resetFilter";
-   _match->setText ("");
-   matchUpdate ("", false, true);
+   _toolbar->match->clear();
+   _toolbar->match->setFocus();
+   matchUpdate("", false, true);
    }
 
 
 void Desktopwidget::matchChange (const QString &)
    {
-   matchUpdate(_match->text (), false);
+   matchUpdate(_toolbar->match->text(), false);
    }
 
 void Desktopwidget::matchUpdate (void)
    {
-   matchUpdate(_match->text (), false);
+   matchUpdate(_toolbar->match->text(), false);
    }
 
 
@@ -1394,8 +1316,8 @@ void Desktopwidget::pageRight (void)
 
 void Desktopwidget::activateLocate ()
    {
-   _match->clear ();
-   _match->setFocus (Qt::OtherFocusReason);
+   _toolbar->match->clear();
+   _toolbar->match->setFocus(Qt::OtherFocusReason);
    }
 
 #if 0
@@ -1445,4 +1367,26 @@ QModelIndex Desktopwidget::getDirIndex(const QString dirname)
 void Desktopwidget::setDirFilter(bool active)
 {
    _dir_proxy->setActive(active);
+}
+
+Toolbar::Toolbar(QWidget* parent, Qt::WindowFlags fl)
+   : QFrame(parent, fl)
+{
+   setupUi(this);
+
+   // When ESC is pressed, clear the field
+   QStateMachine *machine = new QStateMachine(this);
+   QState *s1 = new QState(machine);
+
+   // We seem to get the key release for Esc but never the key press. This may
+   // be due to a dialog consuming it
+   pressed_esc = new QKeyEventTransition(match, QEvent::KeyRelease,
+                                         Qt::Key_Escape);
+   s1->addTransition(pressed_esc);
+   machine->setInitialState(s1);
+   machine->start();
+}
+
+Toolbar::~Toolbar()
+{
 }
