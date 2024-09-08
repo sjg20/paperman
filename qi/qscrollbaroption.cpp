@@ -127,11 +127,19 @@ void QScrollBarOption::setRange(int min,int max,int quant)
 	QFontMetrics fm(font());
   QString qs;
   qs.setNum(mMaxVal);
+#if QT_VERSION >= 0x050b00
   int wwidth  = fm.horizontalAdvance(qs);
   qs.setNum(mMinVal);
   if (wwidth < fm.horizontalAdvance(qs))
     wwidth = fm.horizontalAdvance(qs);
   wwidth += fm.horizontalAdvance(mUnitString + "00");
+#else
+  int wwidth  = fm.width(qs);
+  qs.setNum(mMinVal);
+  if(wwidth  < fm.width(qs))
+    wwidth = fm.width(qs);
+  wwidth += fm.width(mUnitString + "00");
+#endif
   mpValueLabel->setFixedWidth(wwidth);
 //  mpValueSlider->blockSignals(false);
 }
