@@ -441,6 +441,5 @@ private:
 
    QLineEdit *_match;      //!< line edit for the match
    QAction *_reset;
-   QCheckBox *_global;
    };
 

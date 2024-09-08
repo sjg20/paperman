@@ -332,11 +332,6 @@ QWidget *Desktopwidget::createToolbar(void)
 
    hboxLayout2->addItem (spacerItem);
 
-   _global = new QCheckBox("Subdirs", locateGroup);
-   _global->setObjectName(QString::fromUtf8("global"));
-
-   hboxLayout2->addWidget(_global);
-
    addAction (_reset, "Reset", SLOT(resetFilter ()), "", locateGroup);
    QToolButton *reset = new QToolButton (locateGroup);
    reset->setDefaultAction (_reset);
@@ -346,16 +341,10 @@ QWidget *Desktopwidget::createToolbar(void)
 
 #ifndef QT_NO_TOOLTIP
    _match->setToolTip(QApplication::translate("Mainwindow", "Enter part of the name of the stack to search for", 0));
-   _global->setToolTip(QApplication::translate("Mainwindow", "Enable this to search all subdirectories also", 0));
    _reset->setToolTip(QApplication::translate("Mainwindow", "Reset the search string", 0));
 #endif // QT_NO_TOOLTIP
 #ifndef QT_NO_WHATSTHIS
    _match->setWhatsThis(QApplication::translate("Mainwindow", "The filter feature can be used in two ways. To filter out unwanted stacks, type a few characters from the stack name that you are looking for. Everything that does not match will be removed from view. To go back, just delete characters from the filter.\n"
-"\n"
-"There is also a 'global' mode which allows searching of all subdirectories. To use this, select the 'global' button, then type your filter string. Press return or click 'locate' to perform the search. This might take a while.\n"
-"\n"
-"To reset the filter, click the 'reset' button.", 0));
-   _global->setWhatsThis(QApplication::translate("Mainwindow", "The filter feature can be used in two ways. To filter out unwanted stacks, type a few characters from the stack name that you are looking for. Everything that does not match will be removed from view. To go back, just delete characters from the filter.\n"
 "\n"
 "There is also a 'global' mode which allows searching of all subdirectories. To use this, select the 'global' button, then type your filter string. Press return or click 'locate' to perform the search. This might take a while.\n"
 "\n"
@@ -836,20 +825,18 @@ void Desktopwidget::resetFilter (void)
    {
    qDebug () << "resetFilter";
    _match->setText ("");
-   _global->setChecked (false);
    matchUpdate ("", false, true);
    }
 
 
 void Desktopwidget::matchChange (const QString &)
    {
-   if (!_global->isChecked ())
-      matchUpdate (_match->text (), false);
+   matchUpdate(_match->text (), false);
    }
 
 void Desktopwidget::matchUpdate (void)
    {
-   matchUpdate (_match->text (), _global->isChecked ());
+   matchUpdate(_match->text (), false);
    }
 
 
@@ -1409,7 +1396,6 @@ void Desktopwidget::activateLocate ()
    {
    _match->clear ();
    _match->setFocus (Qt::OtherFocusReason);
-   _global->setChecked (true);
    }
 
 #if 0
