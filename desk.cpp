@@ -790,9 +790,15 @@ err_info *Desk::checksum()
             printf("Error: %s\n", qPrintable(err->errstr));
             break;
          }
-         md5_buffer((const char *)image.bits(), image.sizeInBytes(), md5);
+         int image_size;
+#if QT_VERSION >= 0x050a00
+         image_size = image.sizeInBytes();
+#else
+         image_size = image.byteCount();
+#endif
+         md5_buffer((const char *)image.bits(), image_size, md5);
          sprintf(line, "%d %s %d %d %x %x %x %x\n", f->filename().length(),
-                 qPrintable(f->filename()), pagenum, (int)image.sizeInBytes(),
+                 qPrintable(f->filename()), pagenum, image_size,
                  md5 [0], md5 [1], md5 [2], md5 [3]);
          stream << line;
          total_pages++;

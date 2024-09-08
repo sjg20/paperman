@@ -358,7 +358,11 @@ err_info *Filejpeg::getImageInfo (int pagenum, QSize &size,
    size = image.size ();
    true_size = size;
    bpp = image.depth ();
-   image_size = image.sizeInBytes ();
+#if QT_VERSION >= 0x050a00
+   image_size = image.sizeInBytes();
+#else
+   image_size = image.byteCount();
+#endif
    compressed_size = -1;
    timestamp = _timestamp;
    return NULL;
@@ -640,7 +644,13 @@ err_info *Filejpegpage::compress (void)
 
       getImageFromLines (_data.constData (), _width, _height, _depth, _stride,
                          image, false, false);
-      _data = QByteArray ((const char *)image.bits (), image.sizeInBytes ());
+      int image_size;
+#if QT_VERSION >= 0x050a00
+      image_size = image.sizeInBytes();
+#else
+      image_size = image.byteCount();
+#endif
+      _data = QByteArray ((const char *)image.bits (), image_size);
       _stride = -1;
       _jpeg = true;
       }
@@ -685,7 +695,13 @@ void Filejpegpage::setImage (const QImage &image)
 
 int Filejpegpage::size (void) const
 {
-   return _image.sizeInBytes ();
+   int image_size;
+#if QT_VERSION >= 0x050a00
+   image_size = _image.sizeInBytes();
+#else
+   image_size = _image.byteCount();
+#endif
+   return image_size;
 }
 
 QString Filejpegpage::pathname (const QString &dir) const

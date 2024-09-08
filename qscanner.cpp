@@ -4925,7 +4925,13 @@ SANE_Status QScanner::read_from_scanner(int side)
     unsigned char * in;
     size_t inLen = 0;
 
-    int bytes = qMax (1000000, (int)_front.sizeInBytes ());   // it won't be larger than this!
+    int image_size;
+#if QT_VERSION >= 0x050a00
+    image_size = _front.sizeInBytes();
+#else
+    image_size = _front.byteCount();
+#endif
+    int bytes = qMax (1000000, image_size);   // it won't be larger than this!
     int remain = _bytes_tot[side] - _bytes_rx[side];
 
     DBG (10, "read_from_scanner: start");
@@ -5411,10 +5417,16 @@ void QScanner::generate_page (int pagenum, bool front, QImage &image, QByteArray
    file.close ();
 #endif
    // convert to JPEG if required
+   int image_size;
+#if QT_VERSION >= 0x050a00
+   image_size = _front.sizeInBytes();
+#else
+   image_size = _front.byteCount();
+#endif
    if (_simul_params.depth > 1 && _compress == COMP_JPEG)
       build_jpeg (image, data);
    else
-      data = QByteArray ((const char *)image.bits (), image.sizeInBytes ());
+      data = QByteArray ((const char *)image.bits (), image_size);
 #if 0
    fname = QString ("/tmp/p%1b.bin").arg (_page_upto * 2 + 1 + !front);
    file.setFileName (fname);
