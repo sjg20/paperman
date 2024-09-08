@@ -1,13 +1,12 @@
 #!/bin/bash
 
-# script to build maxview for all available distributions and architectures
+# script to build paperman for all available distributions and architectures
 
 #set -e
 
 RESULTDIR=../release
 ALLDIR=$RESULTDIR/all
 LOGDIR=../release/log
-#RESULTDIR=$1
 [ -d $RESULTDIR ] || mkdir $RESULTDIR
 [ -d $LOGDIR ] || mkdir $LOGDIR
 
@@ -17,64 +16,86 @@ mkdir -p $ALLDIR
 
 DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
 
-# get version. don't you just love this ugly stuff
-VERSION=`grep "^maxview" debian/changelog |head -1 | awk -F "[()]" '{print $2}'`
-echo Version $VERSION
+./scripts/make_tar
 
-# or maybe you would prefer this? I think it is worse
-#grep "^maxview" debian/changelog |head -1 | sed "s/.*(\(.*\)).*/\\1/"
+UDISTS="bionic focal jammy noble"
 
-for chrootdir in $DISTLIST
-do
+# Build paperman for a particular distribution and architecture
+# $1: Distribution name, e.g. "bionic", "bookwork"
+# $2: Architecture name, e.g. "amd64", "arm64"
+doit() {
+    local DIST="$1"
+    local ARCH="$2"
+    VENDOR_VERSION=
+    if [[ "${UDISTS}" == *"${DIST}"* ]]; then
+        VENDOR_VERSION=ubuntu1
+    fi
 
-    #rm -f ../maxview_*
-    #sudo cowbuilder --update --basepath $chrootdir
-    DIST=$(basename $chrootdir | cut -d'-' -f2)
-    ARCH=$(basename $chrootdir | cut -d'-' -f3)
-    ARCH=${ARCH%.cow}
-    #[ -d $RESULTDIR/$DIST ] || mkdir $RESULTDIR/$DIST
-    #DIST=$DIST pdebuild --pbuilder cowbuilder\
-    #                    --buildresult $RESULTDIR/$DIST\
-    #                    -- --basepath $chrootdir
-    echo $DIST $ARCH
     RESULT=$RESULTDIR/$DIST
     mkdir -p $RESULT
     chmod 777 $RESULT
 
-    # we are now using cowbuilder but it seems incompatible with 
-    # git-buildpackage, so use git-pbuilder instead for now :-(
-    DIST=$DIST ARCH=$ARCH scripts/git-pbuilder-maxview $RESULT > $LOGDIR/$DIST-$ARCH.log
-    if [ $? -ne 0 ]; then
-	echo "- error"
+    # Select a special control file if needed
+    if [ -f debian/control.${DIST} ]; then
+        cp debian/control.${DIST} debian/control
     else
-	#rename "s#\$$RESULT/(.*).deb#${RESULT}/\$1_${DIST}.deb#" $RESULT/*.deb
-	DEB=$RESULT/maxview_${VERSION}_$ARCH.deb
+        cp debian/control.in debian/control
+    fi
+
+    # Select a special rules file if needed
+    if [ -f debian/rules.${DIST} ]; then
+        cp debian/rules.${DIST} debian/rules
+    else
+        cp debian/rules.in debian/rules
+    fi
+    chmod a+rwx debian/{control,rules}
+
+    # Set up the changelog
+    sed s/VENDOR_VERSION/$VENDOR_VERSION/ debian/changelog.in >debian/changelog
+
+    if [ -n "$VENDOR_VERSION" ]; then
+        sed -i 's/Maintainer/XSBC-Original-Maintainer/' debian/control
+        sed -i '/XSBC/a Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>' debian/control
+    fi
+
+    # get version
+    VERSION=`grep "^paperman" debian/changelog |head -1 | awk -F "[()]" '{print $2}'`
+    echo $DIST $ARCH $VERSION
+
+    LOGFILE=$LOGDIR/$DIST-$ARCH.log
+    cmd="sudo ARCH=$ARCH DIST=$DIST pdebuild --pbuilder cowbuilder \
+        --buildresult ../release/$DIST -- \
+        --basepath /var/cache/pbuilder/base-$DIST-amd64.cow/"
+    echo "$cmd" >$LOGFILE
+    $cmd >>$LOGFILE
+
+    if [ $? -ne 0 ]; then
+	echo "- error: $LOGFILE"
+    else
+	DEB=$RESULT/paperman_${VERSION}_$ARCH.deb
 	sudo chmod a+r $DEB
-	#ls -l $DEB
 
 	# copy into the 'all' directory with a _dist filename
-	cp $DEB $ALLDIR/maxview_${VERSION}_${ARCH}_$DIST.deb
+	cp $DEB $ALLDIR/paperman_${VERSION}_${ARCH}_$DIST.deb
     fi
-    echo
+
+    # Remove the created files
+    rm debian/changelog debian/control debian/rules
 
     # generates
-    # -rw-rw-r--  1 sglass sglass       898 2010-11-03 20:51 maxview_0.7-1.diff.gz
-    #-rw-r--r--  1 sglass sglass       848 2010-11-03 20:51 maxview_0.7-1.dsc
-    #-rw-------  1 nobody nogroup     1464 2010-11-03 20:56 maxview_0.7-1_i386.changes
-    #-rw-------  1 nobody nogroup  1159314 2010-11-03 20:56 maxview_0.7-1_i386.deb
-    #sudo chmod 664 $OUT
-    #mv -f $OUT $RESULTDIR/$DIST/
+    # -rw-rw-r--  1 sglass sglass       898 2010-11-03 20:51 paperman_0.7-1.diff.gz
+    # -rw-r--r--  1 sglass sglass       848 2010-11-03 20:51 paperman_0.7-1.dsc
+    # -rw-------  1 nobody nogroup     1464 2010-11-03 20:56 paperman_0.7-1_i386.changes
+    # -rw-------  1 nobody nogroup  1159314 2010-11-03 20:56 paperman_0.7-1_i386.deb
+}
+
+# For testing individual builds
+doit focal amd64
+exit
+
+for chrootdir in $DISTLIST; do
+    DIST=$(basename $chrootdir | cut -d'-' -f2)
+    ARCH=$(basename $chrootdir | cut -d'-' -f3)
+    ARCH=${ARCH%.cow}
+    doit ${DIST} ${ARCH}
 done
-
-
-#git-buildpackage
-#git-pbuilder             <---
-#calls pbuilder
-
-
-#DIST=jaunty ARCH=i386 git-pbuilder -- --buildresult ../release.latest/jaunty
-#ARCH=i386 git-buildpackage --git-dist=karmic
-
-# we have to do hardy manually as it is on a 'hardy' branch
-# should figure this out...
-#DIST=hardy pdebuild --pbuilder cowbuilder --buildresult ../release/hardy/ --debbuildopts "-i'(?:^|/)\\.git(attributes)?(?:\$|/.*\$)' -I.git $*" -- --basepath /var/cache/pbuilder/base-hardy-i386.cow/
