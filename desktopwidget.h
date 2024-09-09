@@ -113,13 +113,6 @@ public:
    bool getCurrentFile (QModelIndex &index);
 //    bool getCurrentFile (Desk *&maxdesk, file_info *&file);
 
-   /** update the match string and perform a new search
-
-      \param match   string to match
-      \param subdirs true to check subdirectories, else just filter current one
-      \param reset   true to reset and redisplay current directory */
-   void oldMatchUpdate(QString match, bool subdirs, bool reset = false);
-
    void closing (void);
 
    /** select a directory in the view
