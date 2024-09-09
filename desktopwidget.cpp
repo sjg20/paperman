@@ -270,8 +270,8 @@ void Desktopwidget::addActions(void)
    addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
    addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
    addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
-   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
-   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
+//   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
+//   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
    }
 
 
@@ -1003,14 +1003,14 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    _act_email_max->setEnabled (at_least_one);
    submenu->addAction (_act_email_pdf);
    _act_email_pdf->setEnabled (at_least_one);
-
+/* to be implemented
    submenu = context_menu->addMenu (tr ("&Send..."));
    submenu->addAction (_act_send);
    _act_send->setEnabled (at_least_one);
 
    submenu->addAction (_act_deliver_out);
    _act_deliver_out->setEnabled (true);
-
+*/
    context_menu->exec (QCursor::pos());
    delete context_menu;
    _view->setContextIndex (QModelIndex ());
