@@ -68,6 +68,8 @@ public:
    QAction *_add_repository, *_remove_repository;
 
 private:
+   // Holds the index of the tree item currently selected
+   // Note that Dirview uses Dirproxy for its indexes
    QPersistentModelIndex _context;
    };
 
