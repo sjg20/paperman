@@ -822,54 +822,6 @@ void Desktopwidget::matchChange(const QString& match)
       _view->scrollTo (ind);
 }
 
-/** update the match string and perform a new search */
-
-void Desktopwidget::oldMatchUpdate (QString match, bool subdirs, bool reset)
-   {
-   QModelIndex index = _model->index (_path);
-   Operation *op = 0;
-
-   if (!_contents_proxy)
-      return;
-
-   /* if we are doing a global search, we need to recreate the maxdesk. Here
-      we are creating a 'virtual' maxdesk which holds files from a number
-      of different directories */
-   if (subdirs || reset)
-      {
-      _contents_proxy->setFilterFixedString ("");
-      if (subdirs) // this might take a long time
-         op = new Operation ("Searching", 100, this);
-      QModelIndex root = _model->findRoot (index);
-      QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
-      QModelIndex sind = _contents->refresh (_path, root_path,
-            match.isEmpty () ? true : false, match, subdirs, op);
-      if (op)
-         delete op;
-      QModelIndex ind = sind;
-      _modelconv->indexToProxy (ind.model (), ind);
-      _view->setRootIndex (ind);
-      }
-
-   /* but otherwise we can just use the proxy model and tell it to change
-      the filter */
-   else
-      {
-      QModelIndex ind;
-
-      // update the proxy
-      qDebug () << "match" << match;
-      _contents_proxy->setFilterFixedString (match);
-
-      // scroll to the first match
-      ind = _contents_proxy->index (0, 0, _view->rootIndex ());
-      if (ind != QModelIndex ())
-         _view->scrollTo (ind);
-//      _view->setRootIndex (index);  // is this ok in the normal case?
-      }
-   }
-
-
 void Desktopwidget::slotUpdateDone ()
    {
    emit updateDone ();
