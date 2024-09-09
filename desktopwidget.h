@@ -426,7 +426,7 @@ private:
    QAction *_act_duplicate_odd, *_act_duplicate_even;
    QAction *_act_duplicate_jpeg;
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
-   QAction *_act_send, *_act_deliver_out;
+//   QAction *_act_send, *_act_deliver_out;
 
    QToolBar *_toolbar;
    //QWidget *_toolbar;
