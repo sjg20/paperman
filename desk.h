@@ -531,9 +531,6 @@ public:
    /** advance the current position to the next free space */
    void advance (void);
 
-   // Re-read the directory and .paperdesk file
-   void refresh();
-
 private:
    /** check if a file exists in a maxdesk
 

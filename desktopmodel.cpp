@@ -1441,13 +1441,10 @@ QModelIndex Desktopmodel::refresh (QString dirPath, QString rootPath, bool do_re
       ind = _subdirs_index;
    else
       ind = index (dirPath, QModelIndex ());
-   if (ind.isValid()) {
-      desk = getDesk(ind);
-      beginResetModel();
-      desk->refresh();
-      endResetModel();
-      ind = index(dirPath, QModelIndex());
-   } else {
+   if (ind.isValid ())
+      desk = getDesk (ind);
+   else
+      {
       beginInsertRows (ind, _desks.size (), _desks.size ());
       desk = new Desk (subdirs ? "" : dirPath, rootPath, do_readDesk);
       _desks << desk;
@@ -1456,7 +1453,7 @@ QModelIndex Desktopmodel::refresh (QString dirPath, QString rootPath, bool do_re
       add_items = false;
       if (subdirs)
          _subdirs_index = ind;
-   }
+      }
    desk->setDebugLevel (_debug_level);
 
    // add files that are not in the maxdesk.ini file
