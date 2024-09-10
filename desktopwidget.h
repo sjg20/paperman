@@ -458,5 +458,9 @@ public:
     Toolbar(QWidget* parent = 0, Qt::WindowFlags fl = Qt::WindowFlags());
     ~Toolbar();
 
+    // Set whether the search butter-bar is shown or not
+    void setSearchEnabled(bool enable);
+
+public:
     QKeyEventTransition *pressed_esc;
 };

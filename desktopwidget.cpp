@@ -651,6 +651,7 @@ void Desktopwidget::searchInFolders()
 
    _search_text = ui.stackName->text();
    startSearch(_search_text);
+   _toolbar->setSearchEnabled(true);
 }
 
 void Desktopwidget::newDir ()
@@ -1428,4 +1429,9 @@ Toolbar::Toolbar(QWidget* parent, Qt::WindowFlags fl)
 
 Toolbar::~Toolbar()
 {
+}
+
+void Toolbar::setSearchEnabled(bool enable)
+{
+   searching->setVisible(enable);
 }
