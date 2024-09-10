@@ -123,7 +123,8 @@
        <item>
         <widget class="Foldersel" name="folderName">
          <property name="toolTip">
-          <string>Type here to interactively search for / create folders, then press &lt;enter&gt; to scan</string>
+          <string>Type here to interactively search for / create folders, then press &lt;enter&gt; to scan.
+Use Ctrl-F or F4 to quickly access this field</string>
          </property>
         </widget>
        </item>
@@ -391,7 +392,12 @@
       </layout>
      </item>
      <item>
-      <widget class="QComboBox" name="preset"/>
+      <widget class="QComboBox" name="preset">
+       <property name="toolTip">
+        <string>Select and add presets here.
+Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
+       </property>
+      </widget>
      </item>
      <item>
       <layout class="QGridLayout" name="gridLayout">
@@ -517,7 +523,8 @@
             </size>
            </property>
            <property name="toolTip">
-            <string>Select paper size</string>
+            <string>Select paper size. Use Alt-A for A4
+Use Alt-L to toggle US letter/legal</string>
            </property>
           </widget>
          </item>

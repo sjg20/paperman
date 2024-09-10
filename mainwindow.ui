@@ -402,7 +402,7 @@
     <string>pscan</string>
    </property>
    <property name="toolTip">
-    <string>Bring up the scanning dialogue</string>
+    <string>Bring up the scanning dialogue (F6)</string>
    </property>
    <property name="shortcut">
     <string>F6</string>
