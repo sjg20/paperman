@@ -226,11 +226,8 @@ public slots:
    /** handle a change in the filter string - we adjust the filter */
    void matchChange (const QString &);
 
-   /** handle pressing return in the filter string - we do a search */
-   void oldMatchUpdate(void);
-
    /** handle the reset filter button */
-   void resetFilter (void);
+   void resetFilter();
 
 private slots:
    /** called when the directory is changed. We refresh the view and move
