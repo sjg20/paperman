@@ -359,6 +359,9 @@ private slots:
      \param add_not_delete true to add, false to delete */
    void slotUpdateRepositoryList (QString &dirname, bool add_not_delete);
 
+   //! Open the search window to
+   void searchInFolders();
+
 private:
    void emailFiles (QString &fname, QStringList &fnamelist);
 
@@ -438,6 +441,9 @@ private:
    Desktopmodelconv *_modelconv_assert;   //!< same, but only allows assertions
 
    QString _scroll_to;     //!< filename to scroll to when a new directory is opened
+
+   // Text used for a recursive folder search
+   QString _search_text;
    };
 
 
