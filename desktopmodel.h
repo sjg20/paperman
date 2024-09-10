@@ -1162,6 +1162,17 @@ public slots:
    QModelIndex refresh (QString dirpath, QString rootpath, bool do_readDesk = true,
          const QString &match = QString(), bool subdirs = false, Operation *op = 0);
 
+   /**
+    * @brief Do a folder search and show the results
+    * @param dirpath    directory to search (recursively)
+    * @param rootpath   root directory for this branch of the model
+    * @param match      string to match against filenames (QString() for all)
+    * @param op         operation to update as things progress
+    * @return parent index for the added items
+    */
+   QModelIndex folderSearch(QString dirPath, QString rootPath,
+                            const QString &match, Operation *op);
+
    /** advises the model of the current context index (default item for
        operations */
 //    void slotNewContextEvent (QModelIndex &index);

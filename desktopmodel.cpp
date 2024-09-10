@@ -1416,6 +1416,11 @@ void Desktopmodel::cloneModel (Desktopmodel *contents, QModelIndex parent)
    endInsertRows ();
 }
 
+QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
+                                       const QString &match, Operation *op)
+{
+   return refresh(dirPath, rootPath, false, match, true, op);
+}
 
 QModelIndex Desktopmodel::refresh (QString dirPath, QString rootPath, bool do_readDesk,
          const QString &match, bool subdirs, Operation *op)
