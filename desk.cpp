@@ -406,11 +406,6 @@ void Desk::readDesk (bool read_sizes)
    advance ();
    }
 
-void Desk::refresh(void)
-{
-   removeRows(0, _row_count);
-   readDesk();
-}
 
 bool Desk::writeDesk (void)
    {
