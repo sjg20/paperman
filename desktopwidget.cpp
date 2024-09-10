@@ -1422,6 +1422,8 @@ Toolbar::Toolbar(QWidget* parent, Qt::WindowFlags fl)
    s1->addTransition(pressed_esc);
    machine->setInitialState(s1);
    machine->start();
+
+   searching->hide();
 }
 
 Toolbar::~Toolbar()
