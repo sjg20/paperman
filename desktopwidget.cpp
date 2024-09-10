@@ -66,11 +66,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "senddialog.h"
 #include "utils.h"
 
-// define this to use a proxy model for Desktopview, providing fast filtering
-#define USE_PROXY
-
-// static QFont *contents_font = 0;
-
 Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
    {
@@ -96,7 +91,6 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_view, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
          this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
 
-#ifdef USE_PROXY
    _contents_proxy = new Desktopproxy (this);
    _contents_proxy->setSourceModel (_contents);
    _view->setModel (_contents_proxy);
@@ -107,14 +101,6 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    // setup another one for Desktopmodel, which only allows assertions
    _modelconv_assert = new Desktopmodelconv (_contents, _contents_proxy, false);
-#else
-   _proxy = 0;
-   _view->setModel (_contents);
-   _modelconv = new Desktopmodelconv (_contents);
-
-   // setup another one for Desktopmodel, which only allows assertions
-   _modelconv_assert = new Desktopmodelconv (_contents, false);
-#endif
 
    _view->setModelConv (_modelconv);
 
