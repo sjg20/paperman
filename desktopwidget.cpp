@@ -629,8 +629,7 @@ void Desktopwidget::startSearch(const QString& match)
    QModelIndex index = _model->index(_path);
    QModelIndex root = _model->findRoot(index);
    QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
-   QModelIndex sind = _contents->refresh(_path, root_path, false, match, true,
-                                         op);
+   QModelIndex sind = _contents->folderSearch(_path, root_path, match, op);
    delete op;
    QModelIndex ind = sind;
    _modelconv->indexToProxy(ind.model (), ind);
