@@ -642,12 +642,14 @@ void Desktopwidget::searchInFolders()
    Ui::Search ui;
    QDialog diag;
 
+   _toolbar->setFilterEnabled(false);
    ui.setupUi(&diag);
    ui.stackName->setText(_search_text);
    ui.stackName->setSelection(0, _search_text.size());
    ui.folderPath->setText(getRootDirectory());
    diag.show();
    if (!diag.exec()) {
+      _toolbar->setFilterEnabled(true);
       return;
    }
 
@@ -660,6 +662,7 @@ void Desktopwidget::searchInFolders()
 void Desktopwidget::exitSearch()
 {
    _view->setStyleSheet("QListView { background: lightgray; }");
+   _toolbar->setFilterEnabled(true);
    _toolbar->setSearchEnabled(false);
    QModelIndex index = _model->index (_path);
    _contents_proxy->setFilterFixedString ("");
@@ -1451,4 +1454,10 @@ Toolbar::~Toolbar()
 void Toolbar::setSearchEnabled(bool enable)
 {
    searching->setVisible(enable);
+}
+
+void Toolbar::setFilterEnabled(bool enable)
+{
+   cancelFilter->setEnabled(enable);
+   match->setEnabled(enable);
 }

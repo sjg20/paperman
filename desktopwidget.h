@@ -464,6 +464,9 @@ public:
     // Set whether the search butter-bar is shown or not
     void setSearchEnabled(bool enable);
 
+    // Set whether the filter option is available or not
+    void setFilterEnabled(bool enable);
+
 public:
     QKeyEventTransition *pressed_esc;
 };
