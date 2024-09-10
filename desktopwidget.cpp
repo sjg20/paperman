@@ -182,6 +182,8 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_dir->_remove_repository, SIGNAL (triggered ()), this,
             SLOT (slotRemoveRepository ()));
 
+   connect(_toolbar->exitSearch, SIGNAL(clicked()), this, SLOT(exitSearch()));
+
    setStretchFactor(indexOf(_dir), 0);
 
    QList<int> size;
@@ -652,6 +654,19 @@ void Desktopwidget::searchInFolders()
    _search_text = ui.stackName->text();
    startSearch(_search_text);
    _toolbar->setSearchEnabled(true);
+}
+
+void Desktopwidget::exitSearch()
+{
+   _toolbar->setSearchEnabled(false);
+   QModelIndex index = _model->index (_path);
+   _contents_proxy->setFilterFixedString ("");
+   QModelIndex root = _model->findRoot (index);
+   QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
+   QModelIndex sind = _contents->refresh(_path, root_path);
+   QModelIndex ind = sind;
+   _modelconv->indexToProxy (ind.model (), ind);
+   _view->setRootIndex (ind);
 }
 
 void Desktopwidget::newDir ()
