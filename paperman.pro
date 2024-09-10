@@ -221,6 +221,7 @@ FORMS = mainwindow.ui \
         pagetools.ui \
         pageattr.ui \
         ocrbar.ui send.ui \
+        search.ui \
    toolbar.ui
 
 # tif_fax3sm.c   - causes tifflib to break
