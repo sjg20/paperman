@@ -509,13 +509,20 @@ void Desktopwidget::renameDir ()
    }
 
 
-void Desktopwidget::refreshDir ()
+void Desktopwidget::refreshDir()
    {
    QModelIndex index = _dir->menuGetModelIndex ();
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
 
    // update the model with this new directory
    _model->refresh(src_ind);
+
+   /* Now refresh the Desktopview  */
+   QModelIndex sind = _contents->refresh(_path);
+
+   QModelIndex ind = sind;
+   _modelconv->indexToProxy(ind.model (), ind);
+   _view->setRootIndex(ind);
    }
 
 
