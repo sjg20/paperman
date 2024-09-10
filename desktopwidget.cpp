@@ -65,6 +65,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "pagewidget.h"
 #include "senddialog.h"
 #include "utils.h"
+#include "ui_search.h"
 
 Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
@@ -169,6 +170,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_contents, SIGNAL (updateDone()), this, SLOT (slotUpdateDone()));
 
    // connect signals from the directory tree
+   connect (_dir->_search, SIGNAL(triggered()), this, SLOT(searchInFolders()));
    connect (_dir->_new, SIGNAL (triggered ()), this, SLOT (newDir ()));
    connect (_dir->_rename, SIGNAL (triggered ()), this, SLOT (renameDir ()));
    connect (_dir->_delete, SIGNAL (triggered ()), this, SLOT (deleteDir ()));
@@ -617,6 +619,22 @@ void Desktopwidget::deleteDir ()
       }
    }
 
+void Desktopwidget::searchInFolders()
+{
+   Ui::Search ui;
+   QDialog diag;
+
+   ui.setupUi(&diag);
+   ui.stackName->setText(_search_text);
+   ui.stackName->setSelection(0, _search_text.size());
+   ui.folderPath->setText(getRootDirectory());
+   diag.show();
+   if (!diag.exec()) {
+      return;
+   }
+
+   // TODO: Start search
+}
 
 void Desktopwidget::newDir ()
    {
