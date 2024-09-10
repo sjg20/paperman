@@ -1155,21 +1155,6 @@ public:
     */
    QModelIndex showDir(QString dirPath, QString rootPath);
 
-public slots:
-
-   /** refresh the viewer with files from the given directory.
-
-      The root directory is used to set up a trash directory for the model.
-
-      \param dirpath    directory to search
-      \param rootpath   root directory for this branch of the model
-      \param do_readDesk  true to read the directory's maxdesk.ini file
-      \param match      string to match against filenames (QString() for all)
-      \param subdirs    true to search subdirectories also
-      \returns model index for the new desk */
-   QModelIndex oldRefresh (QString dirpath, QString rootpath, bool do_readDesk = true,
-         const QString &match = QString(), bool subdirs = false, Operation *op = 0);
-
    /**
     * @brief Do a folder search and show the results
     * @param dirpath    directory to search (recursively)
@@ -1181,6 +1166,7 @@ public slots:
    QModelIndex folderSearch(QString dirPath, QString rootPath,
                             const QString &match, Operation *op);
 
+public slots:
    /** advises the model of the current context index (default item for
        operations */
 //    void slotNewContextEvent (QModelIndex &index);

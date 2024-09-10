@@ -1400,55 +1400,40 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
 QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
                                        const QString &match, Operation *op)
 {
-   return oldRefresh(dirPath, rootPath, false, match, true, op);
-}
-
-QModelIndex Desktopmodel::oldRefresh (QString dirPath, QString rootPath, bool do_readDesk,
-         const QString &match, bool subdirs, Operation *op)
-   {
-   QModelIndex ind;
-   bool add_items = subdirs;   // we need to add all items (subdir only)
+   bool add_items = true;
+   Desk *desk;
 
    // move into the new directory
    _dirPath = dirPath;
    _rootPath = rootPath;
 
    rootPath += "/";
-   // if the desk already exists, find it
    dirPath += "/";
-   //qDebug () << "refresh" << dirPath;
-   Desk *desk;
 
    flushAllDesks ();
 
-   if (subdirs)
-      /* we only have one desk for subdirectory searches and we reuse it
-         each time */
-      ind = _subdirs_index;
-   else
-      ind = index (dirPath, QModelIndex ());
-   if (ind.isValid ())
-      desk = getDesk (ind);
-   else
-      {
+   /*
+    * We only have one desk for subdirectory searches and we reuse it
+      each time
+   */
+   QModelIndex ind = _subdirs_index;
+   if (ind.isValid()) {
+      desk = getDesk(ind);
+   } else {
       beginInsertRows (ind, _desks.size (), _desks.size ());
-      desk = new Desk (subdirs ? "" : dirPath, rootPath, do_readDesk);
+      desk = new Desk("" , rootPath, false);
       _desks << desk;
       endInsertRows ();
       ind = index (_desks.size () - 1, 0, QModelIndex ());
       add_items = false;
-      if (subdirs)
-         _subdirs_index = ind;
-      }
+      _subdirs_index = ind;
+   }
    desk->setDebugLevel (_debug_level);
 
    // add files that are not in the maxdesk.ini file
-   if (subdirs)
-      {
-      clearAll (ind);
-      desk->advance ();
-      }
-   desk->addMatches (dirPath, match, subdirs, op);
+   clearAll (ind);
+   desk->advance ();
+   desk->addMatches(dirPath, match, true, op);
    if (add_items)
       {
       /* we are re-using the same subdir desk for the new search. All the
@@ -1456,20 +1441,16 @@ QModelIndex Desktopmodel::oldRefresh (QString dirPath, QString rootPath, bool do
       beginInsertRows (ind, 0, desk->fileCount () - 1);
       endInsertRows ();
       }
-   _subdirs = subdirs;
+   _subdirs = true;
 
    // remember whether this is a subdir or single-folder search
-   _searched_subdirs = subdirs;
-
-   // indicate that we have a new view ready
-//    emit viewRefreshed ();
+   _searched_subdirs = true;
 
    // no pending list at present
    _pending_scan_list.clear ();
 
    return ind;
-   }
-
+}
 
 void Desktopmodel::clearAll (QModelIndex &parent)
    {
