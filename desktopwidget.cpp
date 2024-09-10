@@ -654,10 +654,12 @@ void Desktopwidget::searchInFolders()
    _search_text = ui.stackName->text();
    startSearch(_search_text);
    _toolbar->setSearchEnabled(true);
+   _view->setStyleSheet("QListView { background: lightblue; }");
 }
 
 void Desktopwidget::exitSearch()
 {
+   _view->setStyleSheet("QListView { background: lightgray; }");
    _toolbar->setSearchEnabled(false);
    QModelIndex index = _model->index (_path);
    _contents_proxy->setFilterFixedString ("");
