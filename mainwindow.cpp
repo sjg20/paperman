@@ -72,9 +72,6 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _desktop = _main->getDesktop ();
    QSettings qs;
 
-   setWindowState(windowState() ^ Qt::WindowFullScreen);
-   setWindowState(windowState() ^ Qt::WindowMaximized);
-
    restoreGeometry(qs.value("mainwindow/geometry").toByteArray());
    restoreState(qs.value("mainwindow/state").toByteArray());
    bool dir_filter = qs.value("mainwindow/dir_filter").toBool();
