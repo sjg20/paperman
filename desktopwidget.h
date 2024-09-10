@@ -118,7 +118,7 @@ public:
       \param match   string to match
       \param subdirs true to check subdirectories, else just filter current one
       \param reset   true to reset and redisplay current directory */
-   void matchUpdate (QString match, bool subdirs, bool reset = false);
+   void oldMatchUpdate(QString match, bool subdirs, bool reset = false);
 
    void closing (void);
 
@@ -227,7 +227,7 @@ public slots:
    void matchChange (const QString &);
 
    /** handle pressing return in the filter string - we do a search */
-   void matchUpdate (void);
+   void oldMatchUpdate(void);
 
    /** handle the reset filter button */
    void resetFilter (void);
