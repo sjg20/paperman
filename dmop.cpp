@@ -445,7 +445,7 @@ err_info *Desktopmodel::opUndeletePages (QModelIndex &ind, QBitArray &pages,
 
 void Desktopmodel::opChangeDir (QString &dirPath, QString &rootPath)
    {
-   QModelIndex ind = refresh (dirPath, rootPath);
+   QModelIndex ind = oldRefresh (dirPath, rootPath);
    emit dirChanged (dirPath, ind);
    }
 

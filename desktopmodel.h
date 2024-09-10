@@ -1159,7 +1159,7 @@ public slots:
       \param match      string to match against filenames (QString() for all)
       \param subdirs    true to search subdirectories also
       \returns model index for the new desk */
-   QModelIndex refresh (QString dirpath, QString rootpath, bool do_readDesk = true,
+   QModelIndex oldRefresh (QString dirpath, QString rootpath, bool do_readDesk = true,
          const QString &match = QString(), bool subdirs = false, Operation *op = 0);
 
    /**
