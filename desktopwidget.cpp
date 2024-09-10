@@ -619,6 +619,22 @@ void Desktopwidget::deleteDir ()
       }
    }
 
+void Desktopwidget::startSearch(const QString& match)
+{
+   // Create a 'virtual' maxdesk which holds files from a number different dirs
+   _contents_proxy->setFilterFixedString ("");
+   Operation *op = new Operation ("Searching", 100, this);
+   QModelIndex index = _model->index(_path);
+   QModelIndex root = _model->findRoot(index);
+   QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
+   QModelIndex sind = _contents->refresh(_path, root_path, false, match, true,
+                                         op);
+   delete op;
+   QModelIndex ind = sind;
+   _modelconv->indexToProxy(ind.model (), ind);
+   _view->setRootIndex(ind);
+}
+
 void Desktopwidget::searchInFolders()
 {
    Ui::Search ui;
@@ -633,7 +649,8 @@ void Desktopwidget::searchInFolders()
       return;
    }
 
-   // TODO: Start search
+   _search_text = ui.stackName->text();
+   startSearch(_search_text);
 }
 
 void Desktopwidget::newDir ()
