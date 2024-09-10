@@ -384,7 +384,7 @@
     <string>scango</string>
    </property>
    <property name="toolTip">
-    <string>Perform a scan immediately using current settings</string>
+    <string>Perform a scan immediately using current settings (F5)</string>
    </property>
    <property name="shortcut">
     <string>F5</string>
