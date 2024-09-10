@@ -380,6 +380,9 @@ private:
    /** Update the respository list in settings */
    void updateSettings ();
 
+   /** start a search for a stack through dirs and subdirs */
+   void startSearch(const QString& match);
+
 private:
    /** this is the model for the directories tree */
    Dirmodel *_model;
