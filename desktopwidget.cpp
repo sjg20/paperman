@@ -747,24 +747,24 @@ void Desktopwidget::resetFilter (void)
    qDebug () << "resetFilter";
    _toolbar->match->clear();
    _toolbar->match->setFocus();
-   matchUpdate("", false, true);
+   oldMatchUpdate("", false, true);
    }
 
 
 void Desktopwidget::matchChange (const QString &)
    {
-   matchUpdate(_toolbar->match->text(), false);
+   oldMatchUpdate(_toolbar->match->text(), false);
    }
 
-void Desktopwidget::matchUpdate (void)
+void Desktopwidget::oldMatchUpdate (void)
    {
-   matchUpdate(_toolbar->match->text(), false);
+   oldMatchUpdate(_toolbar->match->text(), false);
    }
 
 
 /** update the match string and perform a new search */
 
-void Desktopwidget::matchUpdate (QString match, bool subdirs, bool reset)
+void Desktopwidget::oldMatchUpdate (QString match, bool subdirs, bool reset)
    {
    QModelIndex index = _model->index (_path);
    Operation *op = 0;
