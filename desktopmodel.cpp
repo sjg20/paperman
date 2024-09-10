@@ -153,8 +153,6 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
    Q_ASSERT (IS_FILE (index));
    File *f = (File *)index.internalPointer ();
 
-//    qDebug () << f->filename () << role;
-#ifdef CONFIG_delay_dirscan
    // if we don't have valid information for this stack, make a note to get it
    if (!f->valid () && role == Role_pixmap)
       {
@@ -169,7 +167,6 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
          model->_pending_scan_list << index;
          }
       }
-#endif // CONFIG_delay_dirscan
 
    switch (role)
       {
@@ -1307,8 +1304,6 @@ void Desktopmodel::progress (const char *fmt, ...)
    }
 
 
-#ifdef CONFIG_delay_dirscan
-
 void Desktopmodel::nextUpdate (void)
    {
    if (_pending_scan_list.isEmpty ())
@@ -1327,58 +1322,6 @@ void Desktopmodel::nextUpdate (void)
       _updateTimer->start (DELAY_TIME);
       }
    }
-
-#else
-
-void Desktopmodel::nextUpdate (void)
-   {
-   static bool working = false;
-
-//   printf ("nextUpdate\n");
-   if (_update_parent == QModelIndex () || _upto == -1)
-      {
-      delete _op;
-      _op = 0;
-      _updateTimer->stop ();
-      emit updateDone ();
-      return;
-      }
-
-   // build the next item
-//   printf ("build %s\n", _upto->filename.latin1 ());
-   if (working)
-      printf ("   - busy\n");
-   else
-      {
-      QModelIndex ind = index (_upto, 0, _update_parent);
-
-      working = true;
-//       progress ("Scanning %s...", di.file->filename.latin1 ());
-      _op->setProgress (_addCount++);
-      if (ind.isValid ())
-         buildItem (ind);
-
-      // and set up to do the next one
-      _upto = _stopUpdate ? -1 : _upto + 1;
-      if (!ind.isValid ())
-         _upto = -1; // finished
-      working = false;
-      }
-
-   if (_upto != -1)
-      _updateTimer->start (DELAY_TIME);
-   else
-      {
-      // operation complete
-      progress ("");
-      delete _op;
-      _op = 0;
-      emit updateDone ();
-      }
-   }
-
-#endif
-
 
 void Desktopmodel::stopUpdate (void)
    {
@@ -1483,30 +1426,9 @@ QModelIndex Desktopmodel::refresh (QString dirPath, QString rootPath, bool do_re
    // indicate that we have a new view ready
 //    emit viewRefreshed ();
 
-#ifdef CONFIG_delay_dirscan
    // no pending list at present
    _pending_scan_list.clear ();
-#else
-   // work out which item to add first
-   _upto = 0;  //_items.size () > 0 ? 0 : -1;
-//    _upto = _items.size () > 0 ? _items.size () - 1 : -1;
 
-   if (_op)
-      {
-      delete _op;
-      _op = 0;
-      }
-   if (op)
-      _op = op;
-   else
-      _op = new Operation ("Scanning Directory", desk->fileCount (), NULL);
-   _addCount = 0;
-
-   // start a timer to fire when the machine is idle
-   _stopUpdate = false;
-   _update_parent = ind;
-   _updateTimer->start (DELAY_TIME);
-#endif
    return ind;
    }
 

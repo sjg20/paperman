@@ -35,13 +35,6 @@ sets up some build-specific things
 
 #define HACK_SANE_FRAME_JPEG ((SANE_Frame)11)
 
-
-/* define this to delay directory scanning until a redraw is triggered for a
-particular item */
-#define CONFIG_delay_dirscan
-
-
-
 // this must be a multiple of 8 at the moment due to assumptions in scale_2bpp
 // previews are scaled 1:24
 #define CONFIG_preview_scale  24
