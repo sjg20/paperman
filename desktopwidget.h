@@ -362,6 +362,9 @@ private slots:
    //! Open the search window to
    void searchInFolders();
 
+   // Exit the folder search and return to the normal view
+   void exitSearch();
+
 private:
    void emailFiles (QString &fname, QStringList &fnamelist);
 
