@@ -657,11 +657,13 @@ void Desktopwidget::searchInFolders()
    startSearch(_search_text);
    _toolbar->setSearchEnabled(true);
    _view->setStyleSheet("QListView { background: lightblue; }");
+   _dir->setEnabled(false);
 }
 
 void Desktopwidget::exitSearch()
 {
    _view->setStyleSheet("QListView { background: lightgray; }");
+   _dir->setEnabled(true);
    _toolbar->setFilterEnabled(true);
    _toolbar->setSearchEnabled(false);
    QModelIndex index = _model->index (_path);
