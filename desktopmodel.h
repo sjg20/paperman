@@ -1147,6 +1147,14 @@ public:
       \param slist         list of indexes to add from parent model */
    void cloneModel (Desktopmodel *contents, QModelIndex parent);
 
+   /**
+    * @brief Select a new directory to display
+      @param dirpath    directory to show
+      @param rootpath   root directory for this branch of the model
+      @returns parent model-index for the items
+    */
+   QModelIndex showDir(QString dirPath, QString rootPath);
+
 public slots:
 
    /** refresh the viewer with files from the given directory.

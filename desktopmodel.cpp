@@ -1359,6 +1359,44 @@ void Desktopmodel::cloneModel (Desktopmodel *contents, QModelIndex parent)
    endInsertRows ();
 }
 
+QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
+   {
+   QModelIndex ind;
+
+   // move into the new directory
+   _dirPath = dirPath;
+   _rootPath = rootPath;
+
+   rootPath += "/";
+   dirPath += "/";
+   //qDebug () << "refresh" << dirPath;
+   Desk *desk;
+
+   flushAllDesks ();
+
+   ind = index(dirPath, QModelIndex ());
+   if (ind.isValid()) {
+      desk = getDesk(ind);
+      ind = index(dirPath, QModelIndex());
+   } else {
+      beginInsertRows (ind, _desks.size (), _desks.size ());
+      desk = new Desk(dirPath, rootPath);
+      _desks << desk;
+      endInsertRows ();
+      ind = index (_desks.size () - 1, 0, QModelIndex ());
+   }
+
+   desk->setDebugLevel (_debug_level);
+
+   // add files that are not in the maxdesk.ini file
+   desk->addMatches(dirPath, "", false, 0);
+
+   // no pending list at present
+   _pending_scan_list.clear ();
+
+   return ind;
+   }
+
 QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
                                        const QString &match, Operation *op)
 {
