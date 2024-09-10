@@ -50,6 +50,8 @@ Dirview::Dirview (QWidget *parent)
    setAcceptDrops (true);
 
    // We can't use shortcuts here as they conflict with main view
+   _search = new QAction ("&Search folder", this);
+   _search->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_S));
    _new = new QAction ("&New subdirectory", this);
    _rename = new QAction ("&Rename", this);
    _delete = new QAction ("&Delete", this);
@@ -58,6 +60,7 @@ Dirview::Dirview (QWidget *parent)
    _add_repository = new QAction ("Add repository", this);
    _remove_repository = new QAction ("Remove repository", this);
 
+   addAction (_search);
    addAction (_new);
    addAction (_rename);
    addAction (_delete);
@@ -95,6 +98,7 @@ void Dirview::contextMenuEvent (QContextMenuEvent * e)
    QMenu *menu = new QMenu ();
 
    selectContextItem (indexAt (e->pos ()));
+   menu->addAction (_search);
    menu->addAction (_new);
    menu->addAction (_rename);
    menu->addAction (_delete);

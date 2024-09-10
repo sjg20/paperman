@@ -64,7 +64,7 @@ public slots:
 
 public:
    // the menu actions which the user can select
-   QAction *_new, *_delete, *_rename, *_refresh, *_add_recent;
+   QAction *_search, *_new, *_delete, *_rename, *_refresh, *_add_recent;
    QAction *_add_repository, *_remove_repository;
 
 private:
