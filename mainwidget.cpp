@@ -1198,21 +1198,6 @@ void Mainwidget::setSmoothing (bool smooth)
       }
    }
 
-
-void Mainwidget::matchUpdate (QString match, bool subdirs)
-   {
-   if (currentWidget () == _desktop)
-      _desktop->matchUpdate (match, subdirs);
-   }
-
-
-void Mainwidget::resetSearch (void)
-   {
-   if (currentWidget () == _desktop)
-      _desktop->matchUpdate ("", false, true);
-   }
-
-
 void Mainwidget::swapDesktop ()
    {
    if (currentWidget () == _desktop)

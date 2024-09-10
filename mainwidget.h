@@ -223,12 +223,6 @@ public slots:
    /** returns true if smoothing should be used */
    bool isSmoothing (void);
 
-   /** update the match string and perform a new search */
-   void matchUpdate (QString match, bool subdirs);
-
-   /** exit the current search and display the current window */
-   void resetSearch (void);
-
    /** save scanner device settings */
    void saveSettings (void);
 
