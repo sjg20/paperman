@@ -741,26 +741,28 @@ void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
       _view->scrollToLast ();
    }
 
-
-void Desktopwidget::resetFilter (void)
-   {
-   qDebug () << "resetFilter";
+void Desktopwidget::resetFilter()
+{
    _toolbar->match->clear();
    _toolbar->match->setFocus();
-   oldMatchUpdate("", false, true);
-   }
+}
 
+void Desktopwidget::matchChange(const QString& match)
+{
+   if (!_contents_proxy)
+      return;
 
-void Desktopwidget::matchChange (const QString &)
-   {
-   oldMatchUpdate(_toolbar->match->text(), false);
-   }
+   QModelIndex ind;
 
-void Desktopwidget::oldMatchUpdate (void)
-   {
-   oldMatchUpdate(_toolbar->match->text(), false);
-   }
+   // update the proxy
+   // qDebug () << "match" << match;
+   _contents_proxy->setFilterFixedString (match);
 
+   // scroll to the first match
+   ind = _contents_proxy->index(0, 0, _view->rootIndex ());
+   if (ind != QModelIndex ())
+      _view->scrollTo (ind);
+}
 
 /** update the match string and perform a new search */
 
