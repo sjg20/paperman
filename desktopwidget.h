@@ -457,6 +457,9 @@ public:
     // Set whether the search butter-bar is shown or not
     void setSearchEnabled(bool enable);
 
+    // Check whether the search butter-bar is shown or not
+    bool searchEnabled();
+
     // Set whether the filter option is available or not
     void setFilterEnabled(bool enable);
 
