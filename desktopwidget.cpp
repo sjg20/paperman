@@ -106,6 +106,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    connect (_view, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
          this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
+   connect(_view, SIGNAL(escapePressed()), this, SLOT(exitSearch()));
 
    _contents_proxy = new Desktopproxy (this);
    _contents_proxy->setSourceModel (_contents);
@@ -641,6 +642,9 @@ void Desktopwidget::startSearch(const QString& match)
    QModelIndex ind = sind;
    _modelconv->indexToProxy(ind.model (), ind);
    _view->setRootIndex(ind);
+
+   // Set the focus so that Escape works
+   _view->setFocus();
 }
 
 void Desktopwidget::searchInFolders()
@@ -668,6 +672,10 @@ void Desktopwidget::searchInFolders()
 
 void Desktopwidget::exitSearch()
 {
+   /* This can be called for the Escape key even if there is no search active */
+   if (!_toolbar->searchEnabled())
+      return;
+
    _view->setStyleSheet("QListView { background: lightgray; }");
    _dir->setEnabled(true);
    _toolbar->setFilterEnabled(true);
@@ -1414,6 +1422,11 @@ Toolbar::~Toolbar()
 void Toolbar::setSearchEnabled(bool enable)
 {
    searching->setVisible(enable);
+}
+
+bool Toolbar::searchEnabled()
+{
+   return searching->isVisible();
 }
 
 void Toolbar::setFilterEnabled(bool enable)
