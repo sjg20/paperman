@@ -589,6 +589,13 @@ void Desk::advance (void)
 */
    }
 
+void Desk::refresh(void)
+{
+   removeRows(0, _row_count);
+   readDesk();
+   addMatches(_dir, "", false, 0);
+}
+
 //template int QPtrList<file_info>::compareItems ( QPtrCollection::Item item1, QPtrCollection::Item item2 )
 
 //FIXME: should port this to QT4

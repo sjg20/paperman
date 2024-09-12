@@ -194,6 +194,9 @@ public:
 
    void arrangeBy (int type);
 
+   // Re-read the directory and .paperdesk file
+   void refresh();
+
    /** rescan a file after it has been changed */
 //    err_info *rescanFile (file_info *f);
 
