@@ -49,7 +49,7 @@ public slots:
    void slotEditingFinished ();
 
 protected:
-   void keyPressEvent (QKeyEvent *event);
+   void keyReleaseEvent(QKeyEvent *event);
    };
 
 
