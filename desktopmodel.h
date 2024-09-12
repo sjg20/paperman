@@ -1166,6 +1166,13 @@ public:
    QModelIndex folderSearch(QString dirPath, QString rootPath,
                             const QString &match, Operation *op);
 
+   /**
+    * @brief Refresh the current directory contents
+      @param dirpath    directory to refresh
+      @returns parent model-index for the items
+    */
+   QModelIndex refresh(QString dirPath);
+
 public slots:
    /** advises the model of the current context index (default item for
        operations */
