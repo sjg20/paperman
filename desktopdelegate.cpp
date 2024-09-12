@@ -689,10 +689,9 @@ void Desktopeditor::slotEditingFinished (void)
    }
 
 
-void Desktopeditor::keyPressEvent (QKeyEvent * event)
+void Desktopeditor::keyReleaseEvent (QKeyEvent * event)
    {
-   if (event->key () == Qt::Key_Escape)
-       emit myEditingFinished (this, false);
-   else
-      QLineEdit::keyPressEvent (event);
+   QLineEdit::keyReleaseEvent (event);
+   if (event->key() == Qt::Key_Escape)
+       emit myEditingFinished(this, false);
    }
