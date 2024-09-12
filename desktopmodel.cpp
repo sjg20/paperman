@@ -1359,6 +1359,23 @@ void Desktopmodel::cloneModel (Desktopmodel *contents, QModelIndex parent)
    endInsertRows ();
 }
 
+QModelIndex Desktopmodel::refresh(QString dirPath)
+{
+   dirPath += "/";
+   QModelIndex ind = index(dirPath, QModelIndex ());
+   Q_ASSERT(ind.isValid());
+   Desk *desk = getDesk(ind);
+   beginResetModel();
+   desk->refresh();
+   endResetModel();
+
+   // Insert the new items
+   beginInsertRows(ind, 0, desk->fileCount() - 1);
+   endInsertRows();
+
+   return ind;
+}
+
 QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
    {
    QModelIndex ind;
