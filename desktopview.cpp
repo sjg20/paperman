@@ -325,6 +325,13 @@ void Desktopview::resizeEvent (QResizeEvent *event)
 //    vert->setSingleStep (30);
    }
 
+void Desktopview::keyReleaseEvent(QKeyEvent *event)
+{
+   QListView::keyReleaseEvent(event);
+
+   if (event->key() == Qt::Key_Escape)
+      emit escapePressed();
+}
 
 #define AUTOSCROLL_PERIOD 100
 

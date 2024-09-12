@@ -146,6 +146,9 @@ signals:
       \param now        true to preview now (else waits for user to finish clicking) */
    void itemPreview (const QModelIndex &index, int which, bool now);
 
+   //! Indicates that the Escape key was pressed
+   void escapePressed();
+
 public slots:
    /** set up the position of each item
 
@@ -195,6 +198,9 @@ protected:
 
    //! handle a timer event (used for autoscrolling)
    void timerEvent (QTimerEvent *event);
+
+   //! handle a keypress event
+   void keyReleaseEvent(QKeyEvent *event);
 
 protected slots:
    void currentChanged (const QModelIndex &current, const QModelIndex &previous);
