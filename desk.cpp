@@ -92,12 +92,11 @@ Desk::Desk (void)
    }
 
 
-Desk::Desk (const QString &dirPath, const QString &trashPath,
-   bool do_readDesk, bool read_sizes, bool writeDesk)
+Desk::Desk(const QString &dirPath, const QString &trashPath, bool do_readDesk)
    {
    //qDebug () << "new Desk" << dirPath << -90 % 360;
    setup ();
-   _do_writeDesk = writeDesk;
+   _do_writeDesk = true;
    _dir = dirPath;
    _rootDir = trashPath;
    if (!_dir.isEmpty ()) {
@@ -115,7 +114,7 @@ Desk::Desk (const QString &dirPath, const QString &trashPath,
 
    // read in any maxdesk file
    if (do_readDesk)
-      readDesk (read_sizes);
+      readDesk(true);
    updateRowCount ();
    }
 

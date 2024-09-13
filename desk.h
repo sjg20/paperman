@@ -90,11 +90,8 @@ public:
       \param dir           the directory to read
       \param rootdir       the directory to contain the trash dir
       \param readDesk   true to read the maxdesk.ini file
-      \param read_sizes    read the size information (otherwise it is
-                           ignored and will be recalculated */
-   Desk (const QString &dir, const QString &rootdir,
-         bool do_readDesk = true, bool read_sizes = true,
-         bool writeDesk = true);
+   */
+   Desk(const QString &dir, const QString &rootdir, bool do_readDesk = true);
 
    /** set up an empty temporary desk */
    Desk (void);
