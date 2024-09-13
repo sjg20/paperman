@@ -841,6 +841,17 @@ void TreeItem::dump(int indent) const {
    }
 }
 
+void TreeItem::write(QTextStream& stream, int level) const
+{
+   if (level) {
+      for (int i = 0; i < level; i++)
+         stream << QString(" ");
+      stream << dirName() << '\n';
+   }
+   foreach (TreeItem *item, m_childItems)
+      item->write(stream, level + 1);
+}
+
 static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
 {
    QDir dir(dirPath);
@@ -885,4 +896,16 @@ TreeItem *utilScanDir(QString dirPath)
    scanDir(dirPath + "/", root, nullptr);
 
    return root;
+}
+
+bool utilWriteTree(QString fname, TreeItem *tree)
+{
+   QFile file(fname);
+   QTextStream stream(&file);
+
+   if (!file.open(QIODevice::WriteOnly))
+      return false;
+   tree->write(stream, 0);
+
+   return true;
 }
