@@ -19,8 +19,12 @@
 /qmake_image_collection.cpp
 /maxview.pro.user
 /qmeta-build-desktop
+/paper
 /.paperdesk
 /paperman.pro.user
+
+# Symlink to paperman executable built by QT creator
+pm
 
 .ui/
 .qmake.stash
