@@ -46,6 +46,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 #include "err.h"
 #include "mem.h"
+#include "op.h"
 #include "utils.h"
 #include "zip.h"
 
@@ -793,6 +794,11 @@ TreeItem *TreeItem::child(int row)
     return m_childItems.at(row);
 }
 
+const TreeItem *TreeItem::childConst(int row) const
+{
+   return m_childItems.at(row);
+}
+
 int TreeItem::childCount() const
 {
     return m_childItems.count();
@@ -810,6 +816,11 @@ QVariant TreeItem::data(int column) const
     return m_itemData.at(column);
 }
 
+QString TreeItem::dirName() const
+{
+   return m_itemData.at(0).toString();
+}
+
 TreeItem *TreeItem::parentItem()
 {
     return m_parentItem;
@@ -823,52 +834,55 @@ int TreeItem::row() const
     return 0;
 }
 
-void setupModelData(const QStringList &lines, TreeItem *parent)
+void TreeItem::dump(int indent) const {
+   foreach (TreeItem *item, m_childItems) {
+      qInfo() << QString("%1").arg(' ', indent) << item->dirName();
+      item->dump(indent + 3);
+   }
+}
+
+static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
 {
-    QVector<TreeItem*> parents;
-    QVector<int> indentations;
-    parents << parent;
-    indentations << 0;
+   QDir dir(dirPath);
+   dir.setFilter(QDir::Dirs | QDir::Files | QDir::NoSymLinks);
+   dir.setSorting(QDir::Name);
+   const QFileInfoList list = dir.entryInfoList();
+   if (!list.size())
 
-    int number = 0;
+   if (op)
+      op->setCount(list.size ());
+   for (int i = 0; i < list.size (); i++) {
+      QFileInfo fi = list.at(i);
 
-    while (number < lines.count()) {
-        int position = 0;
-        while (position < lines[number].length()) {
-            if (lines[number].at(position) != ' ')
-                break;
-            position++;
-        }
+      QVector<QVariant> columnData = {fi.fileName()};
 
-        const QString lineData = lines[number].mid(position).trimmed();
+      if (fi.fileName()[0] == ' ') {
+         qInfo() << "starts with space" << fi.fileName();
+         continue;
+      }
 
-        if (!lineData.isEmpty()) {
-            // Read the column data from the rest of the line.
-            const QStringList columnStrings =
-                lineData.split(QLatin1Char('\t'), Qt::SkipEmptyParts);
-            QVector<QVariant> columnData;
-            columnData.reserve(columnStrings.count());
-            for (const QString &columnString : columnStrings)
-                columnData << columnString;
+      if (fi.fileName() != "." && fi.fileName() != "..") {
+         TreeItem *child = new TreeItem(columnData, parent);
 
-            if (position > indentations.last()) {
-                // The last child of the current parent is now the new parent
-                // unless the current parent has no children.
+         parent->appendChild(child);
+         if (fi.isDir ())
+            scanDir(dirPath + fi.fileName() + "/", child, 0);
+      }
+   }
+}
 
-                if (parents.last()->childCount() > 0) {
-                    parents << parents.last()->child(parents.last()->childCount()-1);
-                    indentations << position;
-                }
-            } else {
-                while (position < indentations.last() && parents.count() > 0) {
-                    parents.pop_back();
-                    indentations.pop_back();
-                }
-            }
+TreeItem *utilScanDir(QString dirPath)
+{
+   TreeItem *root;
 
-            // Append a new item to the current parent's list of children.
-            parents.last()->appendChild(new TreeItem(columnData, parents.last()));
-        }
-        ++number;
-    }
+   QDir dir(dirPath);
+   if (!dir.exists()) {
+      qInfo() << "dir not found" << dirPath;
+      return nullptr;
+   }
+
+   root = new TreeItem({dirPath});
+   scanDir(dirPath + "/", root, nullptr);
+
+   return root;
 }

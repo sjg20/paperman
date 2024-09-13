@@ -10,6 +10,13 @@ private slots:
    void testDetectYear();
    void testDetectMonth();
    void testDetectMatches();
+   void testScanDir();
+private:
+   // Create files in a temporary directory structure used for testing
+   void createDirStructure(QTemporaryDir& tmp);
+
+   // Create an empty file in a directory
+   void touch(const QString& dirpath, QString fname);
 };
 
 void TestPaperman::testDetectYear()
@@ -136,6 +143,41 @@ void TestPaperman::testDetectMatches()
    QCOMPARE(final.size(), 0);
    QCOMPARE(missing.size(), 1);
    QCOMPARE(missing[0], "bills/2026");
+}
+
+void TestPaperman::touch(const QString& dirpath, QString fname)
+{
+   QFile file(dirpath + "/" + fname);
+   file.open(QIODevice::WriteOnly);
+}
+
+void TestPaperman::createDirStructure(QTemporaryDir& tmp)
+{
+   QVERIFY(tmp.isValid());
+
+   QString root = tmp.path();
+   QDir dir(root);
+   dir.mkpath(root + "/dir2");
+   dir.mkpath(root + "/somedir/more-subdir");
+   touch(root, "1");
+   touch(root, "2");
+   touch(root, "3");
+   touch(root, "asc2");
+   touch(root + "/somedir", "somefile");
+   touch(root + "/somedir/more-subdir", "another-file");
+   touch(root + "/dir2", "4");
+}
+
+void TestPaperman::testScanDir()
+{
+   QTemporaryDir tmp;
+   TreeItem *root, *chk;
+
+   createDirStructure(tmp);
+   root = utilScanDir(tmp.path());
+   QString fname = tmp.path() + "/.papertree";
+   QCOMPARE(root->dirName(), tmp.path());
+   QCOMPARE(root->childCount(), 6);
 }
 
 //QTEST_MAIN(TestPaperman)
