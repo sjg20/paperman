@@ -104,6 +104,12 @@ public:
 
    void clear (void);
 
+   /**
+    * @brief Add files from a directory which are not already present
+    * @param dirPath  Patch to scan
+    */
+   void addFiles(const QString &dirPath);
+
    /** add matching files in a directory to the maxdesk.
 
       \param dirPath     the directory to search
