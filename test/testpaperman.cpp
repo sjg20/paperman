@@ -176,6 +176,7 @@ void TestPaperman::testScanDir()
    createDirStructure(tmp);
    root = utilScanDir(tmp.path());
    QString fname = tmp.path() + "/.papertree";
+   utilWriteTree(fname, root);
    QCOMPARE(root->dirName(), tmp.path());
    QCOMPARE(root->childCount(), 6);
 }

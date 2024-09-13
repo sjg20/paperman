@@ -240,4 +240,21 @@ bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes);
  */
 TreeItem *utilScanDir(QString dirPath);
 
+/**
+ * @brief Write a tree to a text file
+ * @param fname  Output filename
+ * @param tree   Tree to write
+ * @return true if oK, false on error
+ *
+ * The format is a flattened tree, one file/dir per line, with the number of
+ * leading spaces indicating the level of each file/dir, for example:
+ *
+ *  02feb
+ *   1 albertons.max
+ *   big_purchase
+ *    tv.max
+ *  03mar
+ */
+bool utilWriteTree(QString fname, TreeItem *tree);
+
 #endif
