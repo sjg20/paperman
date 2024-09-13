@@ -257,4 +257,15 @@ TreeItem *utilScanDir(QString dirPath);
  */
 bool utilWriteTree(QString fname, TreeItem *tree);
 
+/**
+ * @brief Read in a flattened cache
+ * @param fname     Input filename
+ * @param rootName  Name to use for root node
+ * @return Pointer to the tree, or nullptr on failure
+ *
+ * This reads the same file written by utilScanDir(), producing a tree matching
+ * the one that was written
+ */
+TreeItem *utilReadTree(QString fname, QString rootName);
+
 #endif
