@@ -114,10 +114,8 @@ public:
 
       \param dirPath     the directory to search
       \param match       the string to match
-      \param subdirs     true to also search subdirectories
       \param operation   operation to update */
-   void addMatches (const QString &dirPath, const QString &match,
-         bool subdirs = false, Operation *op = 0);
+   void addMatches(const QString &dirPath, const QString &match, Operation *op);
 
    /** read the maxdesk.ini file which contains positional and size
       information for each stack in the directory

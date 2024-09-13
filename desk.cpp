@@ -215,19 +215,18 @@ void Desk::addFiles(const QString &dirPath)
    updateRowCount ();
    }
 
-void Desk::addMatches (const QString &dirPath, const QString &match,
-               bool subdirs, Operation *op)
+void Desk::addMatches(const QString &dirPath, const QString &match,
+                      Operation *op)
    {
    int upto = 0;
 
    QDir dir (dirPath);
 
-   // don't write back the maxdesk.ini file if we are just selecting some
-   if (match.length () > 0 || subdirs)
-      _do_writeDesk = false;
+   // don't write back the maxdesk.ini file
+   _do_writeDesk = false;
 
 //   printf ("dir = %s\n", dirPath.latin1 ());
-   dir.setFilter( (QDir::Filter)((subdirs ? QDir::Dirs : 0) | QDir::Files | QDir::NoSymLinks ));
+   dir.setFilter(QDir::Dirs | QDir::Files | QDir::NoSymLinks);
    dir.setSorting( QDir::Name);
 
    const QFileInfoList list = dir.entryInfoList();
@@ -248,7 +247,7 @@ void Desk::addMatches (const QString &dirPath, const QString &match,
       if (fi.isDir ())
          {
          if (fi.fileName () != "." && fi.fileName () != "..")
-            addMatches (dirPath + fi.fileName () + "/", match, subdirs, 0);
+            addMatches(dirPath + fi.fileName () + "/", match, 0);
          }
       else if (match == QString() ||
                fi.fileName ().contains (match, Qt::CaseInsensitive))
