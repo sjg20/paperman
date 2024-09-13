@@ -1447,7 +1447,6 @@ QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
    }
    desk->setDebugLevel (_debug_level);
 
-   // add files that are not in the maxdesk.ini file
    clearAll (ind);
    desk->advance ();
    desk->addMatches(dirPath, match, op);
