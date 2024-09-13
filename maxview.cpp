@@ -275,7 +275,7 @@ int main (int argc, char *argv[])
       case 's' :
          {
          QString mydir = QString (dir);
-         Desk *maxdesk = new Desk (mydir, QString());
+         Desk *maxdesk = new Desk(mydir, QString());
          err_info *err;
 
          // decode everything in the given directory and checksum it
