@@ -1406,7 +1406,7 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
    desk->setDebugLevel (_debug_level);
 
    // add files that are not in the maxdesk.ini file
-   desk->addMatches(dirPath, "", false, 0);
+   desk->addFiles(dirPath);
 
    // no pending list at present
    _pending_scan_list.clear ();
