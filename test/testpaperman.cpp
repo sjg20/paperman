@@ -1,6 +1,7 @@
 #include <QtTest/QtTest>
 
 #include "../utils.h"
+#include "test.h"
 
 class TestPaperman: public QObject
 {
@@ -137,5 +138,16 @@ void TestPaperman::testDetectMatches()
    QCOMPARE(missing[0], "bills/2026");
 }
 
-QTEST_MAIN(TestPaperman)
+//QTEST_MAIN(TestPaperman)
 #include "testpaperman.moc"
+
+int test_run(int argc, char **argv, QApplication *app)
+{
+   TESTLIB_SELFCOVERAGE_START(#TestPaperman)
+   QT_PREPEND_NAMESPACE(QTest::Internal::callInitMain)<TestPaperman>();
+   app->setAttribute(Qt::AA_Use96Dpi, true);
+   QTEST_DISABLE_KEYPAD_NAVIGATION
+   TestPaperman tc;
+   QTEST_SET_MAIN_SOURCE_PATH
+   return QTest::qExec(&tc, argc, argv);
+}

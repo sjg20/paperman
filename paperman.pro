@@ -2,6 +2,7 @@ TEMPLATE = app
 LANGUAGE = C++
 QT += widgets
 QT += printsupport
+QT += testlib
 
 unix:target.path = usr/bin
 target.files = paperman
@@ -207,7 +208,8 @@ SOURCES += desktopwidget.cpp \
  senddialog.cpp \
  transfer.cpp \
     filejpeg.cpp \
-    qlistwidgetitemiterator.cpp
+    qlistwidgetitemiterator.cpp \
+    test/testpaperman.cpp
 
 # add qtcreator debug macros if we are debugging
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp

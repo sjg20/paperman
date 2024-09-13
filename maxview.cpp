@@ -50,6 +50,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "desk.h"
 #include "maxview.h"
 #include "op.h"
+#include "test/test.h"
 
 /*
 extern "C" void rle_test (void);
@@ -88,6 +89,9 @@ static void usage (void)
    printf ("   -r|--relocate   move a processed file into a 'xxx.old' subdirectory\n");
    printf ("   -i|--info       display full info about a file\n");
    printf ("      --index <f>  build/update an index file f for the given directory\n");
+*/
+   printf ("   -t|--test       run unit tests\n");
+/*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
           "mode, displaying\nthumbails of the given directory\n");
@@ -172,8 +176,8 @@ int main (int argc, char *argv[])
      {"relocate", 0, 0, 'r'},
 */
      {"sum", 1, 0, 's'},
-/*
      {"test", 0, 0, 't'},
+     /*
      {"verbose", 0, 0, 'v'},
 */
      {0, 0, 0, 0}
@@ -193,7 +197,7 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "hj:m:p:s:",
+   while (c = getopt_long (argc, argv, "hj:m:p:s:t",
                            long_options, NULL), c != -1)
       switch (c)
          {
@@ -281,9 +285,9 @@ int main (int argc, char *argv[])
          break;
          }
 
-#if 0
       case 't' :
          {
+#if 0
          QString fname = QString (dir);
          Desk maxdesk (QString(), QString());
 
@@ -296,9 +300,15 @@ int main (int argc, char *argv[])
 //      if (maxdesk.test_compare_with_tiff (fname))
 //    if (maxdesk.test (fname))
 //	   printf ("test error %s\n", e->errstr);
+#endif
+         // Drop the -t argument
+         argv[argc--] = 0;
+         int result = test_run(argc - 1, argv, &app);
+
+         if (result)
+            qInfo() << "Failed: " << result;
          break;
          }
-#endif
       case 'j' :
       case 'm' :
       case 'p' :
