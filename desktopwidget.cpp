@@ -648,6 +648,8 @@ void Desktopwidget::startSearch(const QString& match)
 
    // Set the focus so that Escape works
    _view->setFocus();
+
+   _view->scrollToTop();
 }
 
 void Desktopwidget::searchInFolders()
