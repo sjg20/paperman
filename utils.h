@@ -38,6 +38,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QList>
 #include <QString>
 
+#include <QVariantList>
+
 class QDate;
 class QDropEvent;
 
@@ -48,8 +50,27 @@ typedef struct cpoint
    int x, y;
    } cpoint;
 
+// Based on simpletreemodel/treeitem.h Qt5 example
+class TreeItem
+{
+public:
+    explicit TreeItem(const QVector<QVariant> &data, TreeItem *parentItem = nullptr);
+    ~TreeItem();
 
+    void appendChild(TreeItem *child);
 
+    TreeItem *child(int row);
+    int childCount() const;
+    int columnCount() const;
+    QVariant data(int column) const;
+    int row() const;
+    TreeItem *parentItem();
+
+private:
+    QVector<TreeItem*> m_childItems;
+    QVector<QVariant> m_itemData;
+    TreeItem *m_parentItem;
+};
 
 /** retrieves a list of sizes from the Qt settings file.
 
