@@ -17,6 +17,9 @@ private:
 
    // Create an empty file in a directory
    void touch(const QString& dirpath, QString fname);
+
+   // Compare two trees recursively
+   void compare_trees(TreeItem *node1, TreeItem *node2);
 };
 
 void TestPaperman::testDetectYear()
@@ -145,6 +148,18 @@ void TestPaperman::testDetectMatches()
    QCOMPARE(missing[0], "bills/2026");
 }
 
+void TestPaperman::compare_trees(TreeItem *node1, TreeItem *node2)
+{
+   if (!node1 || !node2) {
+      QCOMPARE(node1, node2);
+      return;
+   }
+   QCOMPARE(node1->dirName(), node2->dirName());
+   QCOMPARE(node1->childCount(), node2->childCount());
+   for (int i = 0; i < node1->childCount(); i++)
+      compare_trees(node1->child(i), node2->child(i));
+}
+
 void TestPaperman::touch(const QString& dirpath, QString fname)
 {
    QFile file(dirpath + "/" + fname);
@@ -177,8 +192,27 @@ void TestPaperman::testScanDir()
    root = utilScanDir(tmp.path());
    QString fname = tmp.path() + "/.papertree";
    utilWriteTree(fname, root);
+   chk = utilReadTree(fname, tmp.path());
+   compare_trees(root, chk);
    QCOMPARE(root->dirName(), tmp.path());
    QCOMPARE(root->childCount(), 6);
+
+   QByteArray ba;
+   QTextStream stream(&ba);
+   root->write(stream, 0);
+   stream.flush();
+   stream.seek(0);
+   QCOMPARE(stream.readLine(), " 1");
+   QCOMPARE(stream.readLine(), " 2");
+   QCOMPARE(stream.readLine(), " 3");
+   QCOMPARE(stream.readLine(), " asc2");
+   QCOMPARE(stream.readLine(), " dir2");
+   QCOMPARE(stream.readLine(), "  4");
+   QCOMPARE(stream.readLine(), " somedir");
+   QCOMPARE(stream.readLine(), "  more-subdir");
+   QCOMPARE(stream.readLine(), "   another-file");
+   QCOMPARE(stream.readLine(), "  somefile");
+   QVERIFY(stream.atEnd());
 }
 
 //QTEST_MAIN(TestPaperman)

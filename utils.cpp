@@ -852,6 +852,55 @@ void TreeItem::write(QTextStream& stream, int level) const
       item->write(stream, level + 1);
 }
 
+bool TreeItem::read(QTextStream& stream, TreeItem *parent, int cur_level)
+{
+   QString line;
+
+   while (!stream.atEnd()) {
+      line = stream.readLine();
+
+      int level = 0;
+      for (int i = 0; i < line.length(); i++) {
+         if (line[i] == ' ')
+            level++;
+         else
+            break;
+      }
+      if (level < 1) {
+         qInfo() << "Invalid level < 1" << line;
+         return false;
+      }
+      QString fname = line.mid(level);
+
+      TreeItem *child = new TreeItem({fname}, nullptr);
+
+      if (level == cur_level) {
+         child->m_parentItem = parent;
+         parent->appendChild(child);
+      } else if (level == cur_level + 1) {
+         // The last-added child becomes a parent
+         child->m_parentItem = parent->m_childItems.last();
+         child->m_parentItem->appendChild(child);
+         parent = child->m_parentItem;
+         cur_level++;
+      } else if (level < cur_level) {
+         // Find the right parent of this child
+         do {
+            parent = parent->m_parentItem;
+         } while (level < --cur_level);
+         child->m_parentItem = parent;
+         parent->appendChild(child);
+      } else {
+         qInfo() << "Invalid level transition from cur_level" << cur_level
+                 << "to level" << level << line;
+         delete child;
+         return false;
+      }
+   }
+
+   return true;
+}
+
 static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
 {
    QDir dir(dirPath);
@@ -908,4 +957,21 @@ bool utilWriteTree(QString fname, TreeItem *tree)
    tree->write(stream, 0);
 
    return true;
+}
+
+TreeItem *utilReadTree(QString fname, QString rootName)
+{
+   QFile file(fname);
+   QTextStream stream(&file);
+
+   if (!file.open(QIODevice::ReadOnly))
+      return nullptr;
+   TreeItem *root = new TreeItem({rootName});
+
+   if (!TreeItem::read(stream, root, 1)) {
+      delete root;
+      return nullptr;
+   }
+
+   return root;
 }
