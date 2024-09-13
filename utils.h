@@ -38,6 +38,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QList>
 #include <QString>
 
+#include <QTextStream>
 #include <QVariantList>
 
 class QDate;
@@ -60,11 +61,16 @@ public:
     void appendChild(TreeItem *child);
 
     TreeItem *child(int row);
+    const TreeItem *childConst(int row) const;
     int childCount() const;
     int columnCount() const;
     QVariant data(int column) const;
+    QString dirName() const;
     int row() const;
     TreeItem *parentItem();
+    void dump(int indent = 0) const;
+    void write(QTextStream& stream, int level) const;
+    static bool read(QTextStream& stream, TreeItem *parent, int level);
 
 private:
     QVector<TreeItem*> m_childItems;
@@ -225,5 +231,13 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches,
  * A warning is shown if the type is not supported
  */
 bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes);
+
+/**
+ * @brief Scan a directory to discover files and subdirectories
+ * @param dirPath  Path to scan, without training "/"
+ * @return Tree, with the children containing the subdirectories and files in
+ *     @dirPath
+ */
+TreeItem *utilScanDir(QString dirPath);
 
 #endif
