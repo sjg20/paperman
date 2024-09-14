@@ -25,6 +25,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDirModel>
 #include <QSortFilterProxyModel>
 
+class TreeItem;
+
 struct err_info;
 
 /**
@@ -54,6 +56,16 @@ public:
     \returns true if valid, false if directory is invalid */
    bool setDir(QString &dir);
 
+   //!< Read or create a cache
+   TreeItem *ensureCache();
+
+private:
+   // Get the filename for the dir cache
+   QString dirCacheFilename() const;
+
+   // Read any available cache of the directory tree
+   bool readCache();
+
 private:
    QString _dir;      //!< the directory
    QDirModel *_model; //!< the directory model
@@ -61,6 +73,7 @@ private:
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
    QModelIndex _index;  //!< index of this item, if _recent
+   TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    };
 
 
@@ -192,6 +205,16 @@ public:
    err_info *checkOverlap (QString &dirname, QString &user_dirname);
 
    err_info *rmdir (const QModelIndex &index);
+
+   /**
+    * @brief Ensure that a cache is available
+    * @param root_ind  Indirect of the top-level item the cache is for
+    * @return cache pointer
+    *
+    * This reads a cache file in, if not already done. If there is no cache, one
+    * is created and a cache file is written.
+    */
+   TreeItem *ensureCache(const QModelIndex& root_ind);
 
 private:
    /** counts the number of files in 'path', adds it to count and returns it.

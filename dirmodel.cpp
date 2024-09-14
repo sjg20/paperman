@@ -42,6 +42,7 @@ Diritem::Diritem (QDirModel *model)
    {
    _model = model;
    _recent = false;
+   _dir_cache = 0;
    }
 
 
@@ -94,6 +95,34 @@ QModelIndex Diritem::index (void) const
    return ind;
    }
 
+QString Diritem::dirCacheFilename() const
+{
+   return _dir + "/.papertree";
+}
+
+bool Diritem::readCache()
+{
+   _dir_cache = utilReadTree(dirCacheFilename(), "root");
+
+   return _dir_cache != nullptr;
+}
+
+TreeItem *Diritem::ensureCache()
+{
+   if (_dir_cache || readCache())
+      return _dir_cache;
+
+   _dir_cache = utilScanDir(_dir);
+   if (!_dir_cache) {
+      qInfo() << "Failed to scan directory";
+      return nullptr;
+   }
+
+   if (!utilWriteTree(dirCacheFilename(), _dir_cache))
+       qInfo() << "Failed to write cache";
+
+   return _dir_cache;
+}
 
 Dirmodel::Dirmodel (QObject * parent)
       : QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot,
@@ -700,6 +729,20 @@ err_info *Dirmodel::rmdir (const QModelIndex &index)
 
    return 0;
    }
+
+TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind)
+{
+   if (!isRoot(root_ind))
+      return nullptr;
+
+   int index = findIndex(root_ind);
+   qDebug() << "index" << index;
+
+   //Diritem *item = static_cast<Diritem *>(root_ind.internalPointer());
+   Diritem *item = _item[index];
+
+   return item->ensureCache();
+}
 
 void dirmodel_tests (void)
    {
