@@ -178,19 +178,6 @@ public:
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
-   /**
-    * @brief Add folder-name matches to a list
-    * @param matches  List to update
-    * @param baseLen  String length of the base directory path
-    * @param dirPath  Full directory patch to search
-    * @param parent   Cache node for dirPath
-    * @param match    Search string to use
-    *
-    * Any matches found a added to matches - this function is recursive
-    */
-   void addMatches(QStringList& matches, uint baseLen, const QString &dirPath,
-                   const TreeItem *parent, const QString &match);
-
    // Return the cache
    TreeItem *ensureCache();
 

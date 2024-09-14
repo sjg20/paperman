@@ -837,3 +837,38 @@ bool Dirproxy::filterAcceptsRow(int source_row,
 
    return ok;
 }
+
+void Dirmodel::addMatches(QStringList& matches, uint baseLen,
+                          const QString &dirPath, const TreeItem *parent,
+                          const QString &match)
+{
+   for (int i = 0; i < parent->childCount(); i++) {
+      const TreeItem *child = parent->childConst(i);
+
+      if (!child->childCount())
+         continue;
+      QString leaf = child->dirName();
+      QString fname = dirPath + leaf;
+      if (match == QString() || fname.contains(match, Qt::CaseInsensitive)) {
+         matches << fname.mid(baseLen);
+         addMatches(matches, baseLen, fname + "/", child, QString());
+      } else {
+         addMatches(matches, baseLen, fname + "/", child, match);
+      }
+   }
+}
+
+QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
+                                  const QModelIndex& root, QStringList& missing)
+{
+   TreeItem *tree = ensureCache(root);
+
+   //qDebug() << tree;
+
+   QStringList matches;
+   addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text);
+
+   QDate date = QDate::currentDate();
+
+   return utilDetectMatches(date, matches, missing);
+}

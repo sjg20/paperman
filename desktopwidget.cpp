@@ -629,44 +629,15 @@ void Desktopwidget::deleteDir ()
       }
    }
 
-void Desktopwidget::addMatches(QStringList& matches, uint baseLen,
-                               const QString &dirPath, const TreeItem *parent,
-                               const QString &match)
-{
-   for (int i = 0; i < parent->childCount(); i++)
-   {
-      const TreeItem *child = parent->childConst(i);
-
-      if (!child->childCount())
-         continue;
-      QString leaf = child->dirName();
-      QString fname = dirPath + leaf;
-      if (match == QString() || fname.contains(match, Qt::CaseInsensitive)) {
-         matches << fname.mid(baseLen);
-         addMatches(matches, baseLen, fname + "/", child, QString());
-      } else {
-         addMatches(matches, baseLen, fname + "/", child, match);
-      }
-   }
-}
-
 QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
                                        QStringList& missing)
 {
    dirPath = getRootDirectory();
    if (dirPath.isEmpty())
       return QStringList();
+   QModelIndex root = getRootIndex();
 
-   TreeItem *tree = ensureCache();
-
-   //qDebug() << tree;
-
-   QStringList matches;
-   addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text);
-
-   QDate date = QDate::currentDate();
-
-   return utilDetectMatches(date, matches, missing);
+   return _model->findFolders(text, dirPath, root, missing);
 }
 
 void Desktopwidget::startSearch(const QString& match)
