@@ -1414,10 +1414,9 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
    return ind;
    }
 
-QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
-                                       const QString &match, Operation *op)
+Desk *Desktopmodel::prepareSearchDesk(QString& dirPath, QString& rootPath,
+                                      QModelIndex& ind, bool& add_items)
 {
-   bool add_items = true;
    Desk *desk;
 
    // move into the new directory
@@ -1433,9 +1432,9 @@ QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
     * We only have one desk for subdirectory searches and we reuse it
       each time
    */
-   QModelIndex ind = _subdirs_index;
    if (ind.isValid()) {
       desk = getDesk(ind);
+      add_items = true;
    } else {
       beginInsertRows (ind, _desks.size (), _desks.size ());
       desk = new Desk("" , rootPath, false);
@@ -1443,18 +1442,29 @@ QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
       endInsertRows ();
       ind = index (_desks.size () - 1, 0, QModelIndex ());
       add_items = false;
-      _subdirs_index = ind;
    }
    desk->setDebugLevel (_debug_level);
 
    clearAll (ind);
    desk->advance ();
+
+   return desk;
+}
+
+QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
+                                       const QString &match, Operation *op)
+{
+   bool add_items;
+   Desk *desk;
+
+   desk = prepareSearchDesk(dirPath, rootPath, _subdirs_index, add_items);
+
    desk->addMatches(dirPath, match, op);
    if (add_items)
       {
       /* we are re-using the same subdir desk for the new search. All the
          items have been cleared, so we need to add the new matches */
-      beginInsertRows (ind, 0, desk->fileCount () - 1);
+      beginInsertRows (_subdirs_index, 0, desk->fileCount () - 1);
       endInsertRows ();
       }
    _subdirs = true;
@@ -1465,7 +1475,7 @@ QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
    // no pending list at present
    _pending_scan_list.clear ();
 
-   return ind;
+   return _subdirs_index;
 }
 
 void Desktopmodel::clearAll (QModelIndex &parent)

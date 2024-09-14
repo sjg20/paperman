@@ -1271,6 +1271,19 @@ protected:
       \returns error or NULL if ok */
    err_info *emailFiles (QString &fname, QStringList &fnamelist, bool &can_delete);
 
+   /**
+    * @brief Get the 'subdirs'desk ready for use
+    * @param dirPath    Directory path to search (trailing "/" is added)
+    * @param rootPath   Root path of repository (trailing "/" is added)
+    * @param ind        Model index to use (updated if not value)
+    * @param add_items  Returns true if new items should be inserted into the
+    *                   model
+    * @return Desk to use for showing search results
+    */
+   Desk *prepareSearchDesk(QString& dirPath, QString& rootPath,
+                           QModelIndex& ind, bool& add_items);
+
+
 private:
    QList<Desk *> _desks;  //!< the model directories
    QTimer *_updateTimer;  //!< each time this times out we update another item
