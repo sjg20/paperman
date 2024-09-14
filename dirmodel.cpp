@@ -872,3 +872,60 @@ QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
 
    return utilDetectMatches(date, matches, missing);
 }
+
+const TreeItem *Dirmodel::findDir(const TreeItem *parent, QString path)
+{
+   QDir dir(path);
+
+   // An empty string has a component of "." so handle that specially
+   if (path.size()) {
+      QStringList components = dir.path().split("/");
+      for (const QString &component : components) {
+         const TreeItem *child = parent->child(component);
+         if (!child)
+            return nullptr;
+         parent = child;
+      }
+   }
+
+   return parent;
+}
+
+void Dirmodel::addFileMatches(QStringList& matches, const uint baseLen,
+                              const QString &dirPath, const TreeItem *parent,
+                              const QString& text)
+{
+   for (int i = 0; i < parent->childCount(); i++) {
+      const TreeItem *child = parent->childConst(i);
+      const QString& fname = child->dirName();
+
+      if (child->childCount()) {
+         addFileMatches(matches, baseLen, dirPath + fname + "/", child, text);
+      } else {
+
+         if (fname.contains(text, Qt::CaseInsensitive))
+            matches << dirPath.mid(baseLen) + fname;
+      }
+   }
+}
+
+QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
+                                const QModelIndex& root)
+{
+   Q_ASSERT(isRoot(root));
+
+   const TreeItem *tree = ensureCache(root);
+   QString root_path = data(root, QDirModel::FilePathRole).toString();
+   const TreeItem *node;
+
+   // Remove the root-path prefix
+   QString rel = dirPath.mid(root_path.size() + 1);
+
+   qDebug() << rel;
+   node = findDir(tree, rel);
+   QStringList matches;
+   if (node)
+      addFileMatches(matches, dirPath.size() + 1, dirPath + "/", node, text);
+
+   return matches;
+}

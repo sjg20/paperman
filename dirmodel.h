@@ -230,6 +230,16 @@ public:
    QStringList findFolders(const QString& text, const QString& dirPath,
                            const QModelIndex& root, QStringList& missing);
 
+   /**
+    * @brief Find files matching a substring
+    * @param text     Text to search for
+    * @param dirPath  Full path to search, without trailing /
+    * @param root     Index of the repository
+    * @return List of matches, as paths relative to the root directory
+    */
+   QStringList findFiles(const QString& text, const QString& dirPath,
+                         const QModelIndex& root);
+
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
        Stops if count > max
@@ -253,6 +263,33 @@ private:
    void addMatches(QStringList& matches, const uint baseLen,
                    const QString &dirPath, const TreeItem *parent,
                    const QString &match);
+
+   /**
+    * @brief Add filename matches to a list
+    * @param matches  List to update
+    * @param baseLen  String length of the base directory path
+    * @param dirPath  Full directory patch to search
+    * @param parent   Cache node for dirPath
+    * @param match    Search string to use
+    *
+    * Any matches found are added to matches as paths relative to dirPath
+    * This function is recursive
+    */
+   void addFileMatches(QStringList& matches, uint baseLen,
+                       const QString &dirPath, const TreeItem *parent,
+                       const QString& text);
+
+   /**
+    * @brief Find the a directory path in a tree
+    * @param parent  Root of tree
+    * @param path   Path to search for
+    * @return Node representing the path
+    *
+    * Given a path like "a/b/c" and a tree, this finds the assocated node for
+    * the path. In this case it would expect a child "a" of parent, then a
+    * grandchild "b", then a great grandchild "c", returning that node
+    */
+   const TreeItem *findDir(const TreeItem *parent, QString path);
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
