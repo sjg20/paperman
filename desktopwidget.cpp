@@ -1412,19 +1412,29 @@ bool Desktopwidget::eventFilter (QObject *watched_object, QEvent *e)
 
 const QString Desktopwidget::getRootDirectory()
 {
+   // Get the top-level dirname of the the root
+   QModelIndex root = getRootIndex();
+   if (root == QModelIndex())
+      return "";
+   QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
+
+   return root_path;
+}
+
+const QModelIndex Desktopwidget::getRootIndex()
+{
    // Find out which directory is currently selected
    QModelIndex ind = _dir->menuGetModelIndex();
 
    if (ind == QModelIndex())
-      return "";
+      return QModelIndex();
 
    QModelIndex src_ind = _dir_proxy->mapToSource(ind);
 
    // Get the top-level dirname of that
    QModelIndex root = _model->findRoot(src_ind);
-   QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
 
-   return root_path;
+   return root;
 }
 
 TreeItem *Desktopwidget::ensureCache()
