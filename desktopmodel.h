@@ -1173,6 +1173,16 @@ public:
     */
    QModelIndex refresh(QString dirPath);
 
+   /**
+    * @brief Add the matches to a desk
+    * @param dirPath   Directory path to search (without "/")
+    * @param rootPath  Path to top-level repository directory (without ("/")
+    * @param matches   List of file paths to add, relative to dirPath
+    * @return  Desktopmodel of the desk to display
+    */
+   QModelIndex finishFileSearch(QString dirPath, QString rootPath,
+                                const QStringList& matches);
+
 public slots:
    /** advises the model of the current context index (default item for
        operations */

@@ -1478,6 +1478,33 @@ QModelIndex Desktopmodel::folderSearch(QString dirPath, QString rootPath,
    return _subdirs_index;
 }
 
+QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
+                                           const QStringList& matches)
+{
+   bool add_items;
+   Desk *desk;
+
+   desk = prepareSearchDesk(dirPath, rootPath, _subdirs_index, add_items);
+
+   desk->addMatches(dirPath, matches);
+   if (add_items)
+      {
+      /* we are re-using the same subdir desk for the new search. All the
+         items have been cleared, so we need to add the new matches */
+      beginInsertRows (_subdirs_index, 0, desk->fileCount () - 1);
+      endInsertRows ();
+      }
+   _subdirs = true;
+
+   // remember whether this is a subdir or single-folder search
+   _searched_subdirs = true;
+
+   // no pending list at present
+   _pending_scan_list.clear ();
+
+   return _subdirs_index;
+}
+
 void Desktopmodel::clearAll (QModelIndex &parent)
    {
    Desk *desk = getDesk (parent);
