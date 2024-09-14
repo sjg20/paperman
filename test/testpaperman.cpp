@@ -196,6 +196,8 @@ void TestPaperman::testScanDir()
    compare_trees(root, chk);
    QCOMPARE(root->dirName(), tmp.path());
    QCOMPARE(root->childCount(), 6);
+   TreeItem *child = root->child("2");
+   QCOMPARE(child->dirName(), "2");
 
    QByteArray ba;
    QTextStream stream(&ba);

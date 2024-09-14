@@ -61,6 +61,10 @@ public:
     void appendChild(TreeItem *child);
 
     TreeItem *child(int row);
+
+    // Find a child by dirName()
+    TreeItem *child(const QString& name) const;
+
     const TreeItem *childConst(int row) const;
     int childCount() const;
     int columnCount() const;
