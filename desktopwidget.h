@@ -430,7 +430,7 @@ private:
    /** this is the parent widget, which will be a Mainwidget */
    QWidget *_parent;
 
-   /** current path being displayed */
+   /** full path of directory being displayed */
    QString _path;
 
    /** timer to use for updating the preview page */

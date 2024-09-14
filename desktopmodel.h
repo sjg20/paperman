@@ -1149,7 +1149,7 @@ public:
 
    /**
     * @brief Select a new directory to display
-      @param dirpath    directory to show
+      @param dirpath    full path directory to show
       @param rootpath   root directory for this branch of the model
       @returns parent model-index for the items
     */
@@ -1157,7 +1157,7 @@ public:
 
    /**
     * @brief Do a folder search and show the results
-    * @param dirpath    directory to search (recursively)
+    * @param dirpath    full path of directory to search (recursively)
     * @param rootpath   root directory for this branch of the model
     * @param match      string to match against filenames (QString() for all)
     * @param op         operation to update as things progress
@@ -1168,7 +1168,7 @@ public:
 
    /**
     * @brief Refresh the current directory contents
-      @param dirpath    directory to refresh
+      @param dirpath    full path of directory to refresh
       @returns parent model-index for the items
     */
    QModelIndex refresh(QString dirPath);
