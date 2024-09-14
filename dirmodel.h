@@ -216,6 +216,20 @@ public:
     */
    TreeItem *ensureCache(const QModelIndex& root_ind);
 
+   /**
+    * @brief  Find folders in the current repo which match a text string
+    * @param  text    Text to match
+    * @param  dirPath Full path of the directory to search
+    * @param  root    Index of a top-level repository to search
+    * @param  missing Suggestions for directories to create
+    * @return list of matching paths
+    *
+    * This looks for 4-digit years and 3-character months to try to guess
+    * which folders to put at the top of the list
+    */
+   QStringList findFolders(const QString& text, const QString& dirPath,
+                           const QModelIndex& root, QStringList& missing);
+
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
        Stops if count > max
@@ -225,6 +239,20 @@ private:
       \param max     maximum count (to stop at)
       \return number of files found */
    int count_files (QString path, int count, int max);
+
+   /**
+    * @brief Add folder-name matches to a list
+    * @param matches  List to update
+    * @param baseLen  String length of the base directory path
+    * @param dirPath  Full directory patch to search
+    * @param parent   Cache node for dirPath
+    * @param match    Search string to use
+    *
+    * Any matches found are added to matches - this function is recursive
+    */
+   void addMatches(QStringList& matches, const uint baseLen,
+                   const QString &dirPath, const TreeItem *parent,
+                   const QString &match);
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
