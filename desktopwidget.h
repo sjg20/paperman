@@ -194,6 +194,9 @@ protected:
    // Return the cache
    TreeItem *ensureCache();
 
+   // Get the model index of the current repository (top-level directory)
+   const QModelIndex getRootIndex();
+
 signals:
    void newContents (QString str);
 
