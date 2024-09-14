@@ -630,36 +630,27 @@ void Desktopwidget::deleteDir ()
    }
 
 void Desktopwidget::addMatches(QStringList& matches, uint baseLen,
-                               const QString &dirPath, const QString &match,
-                               Operation *op)
+                               const QString &dirPath, const TreeItem *parent,
+                               const QString &match, Operation *op)
 {
-   int upto = 0;
-
-   QDir dir (dirPath);
-
-   dir.setFilter(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
-   dir.setSorting(QDir::Name);
-
-   const QFileInfoList list = dir.entryInfoList();
-   if (!list.size ())
-      return;
-
    if (op)
-      op->setCount (list.size());
-   for (int i = 0; i < list.size (); i++)
+      op->setCount (parent->childCount());
+   for (int i = 0; i < parent->childCount(); i++)
    {
-      QFileInfo fi = list.at (i);
+      const TreeItem *child = parent->childConst(i);
 
       if (op)
-         op->setProgress(upto++);
+         op->setProgress(i);
 
-      QString fname = dirPath + fi.fileName();
-      if (match == QString() ||
-          fi.fileName().contains(match, Qt::CaseInsensitive)) {
+      if (!child->childCount())
+         continue;
+      QString leaf = child->dirName();
+      QString fname = dirPath + leaf;
+      if (match == QString() || fname.contains(match, Qt::CaseInsensitive)) {
          matches << fname.mid(baseLen);
-         addMatches(matches, baseLen, fname + "/", QString(), 0);
+         addMatches(matches, baseLen, fname + "/", child, QString(), 0);
       } else {
-         addMatches(matches, baseLen, fname + "/", match, 0);
+         addMatches(matches, baseLen, fname + "/", child, match, 0);
       }
    }
 }
@@ -671,8 +662,12 @@ QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
    if (dirPath.isEmpty())
       return QStringList();
 
+   TreeItem *tree = ensureCache();
+
+   //qDebug() << tree;
+
    QStringList matches;
-   addMatches(matches, dirPath.size() + 1, dirPath + "/", text, op);
+   addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text, op);
 
    QDate date = QDate::currentDate();
 
@@ -1435,6 +1430,22 @@ const QString Desktopwidget::getRootDirectory()
    QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
 
    return root_path;
+}
+
+TreeItem *Desktopwidget::ensureCache()
+{
+   // Find out which directory is currently selected
+   QModelIndex ind = _dir->menuGetModelIndex();
+
+   if (ind == QModelIndex())
+      return nullptr;
+
+   QModelIndex src_ind = _dir_proxy->mapToSource(ind);
+
+   // Get the top-level dirname of that
+   QModelIndex root = _model->findRoot(src_ind);
+
+   return _model->ensureCache(root);
 }
 
 QModelIndex Desktopwidget::getDirIndex(const QString dirname)
