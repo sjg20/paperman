@@ -167,20 +167,29 @@ public:
     * @param  text    Text to match
     * @param  dirPath Returns the path to the root directory
     * @param  missing Suggestions for directories to create
-    * @param  op      Operation, or nullptr if none
     * @return list of matching paths
     *
     * This looks for 4-digit years and 3-character months to try to guess
     * which folders to put at the top of the list
     */
    QStringList findFolders(const QString& text, QString& dirPath,
-                           QStringList& missing, Operation *op);
+                           QStringList& missing);
 
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
+   /**
+    * @brief Add folder-name matches to a list
+    * @param matches  List to update
+    * @param baseLen  String length of the base directory path
+    * @param dirPath  Full directory patch to search
+    * @param parent   Cache node for dirPath
+    * @param match    Search string to use
+    *
+    * Any matches found a added to matches - this function is recursive
+    */
    void addMatches(QStringList& matches, uint baseLen, const QString &dirPath,
-                   const TreeItem *parent, const QString &match, Operation *op);
+                   const TreeItem *parent, const QString &match);
 
    // Return the cache
    TreeItem *ensureCache();

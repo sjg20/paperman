@@ -1216,9 +1216,7 @@ QStringList Mainwidget::findFolders(const QString& text, QString& dirPath,
 {
    showDesktop();
 
-   Operation op("Finding folders", 100, this);
-
-   return _desktop->findFolders(text, dirPath, missing, &op);
+   return _desktop->findFolders(text, dirPath, missing);
 }
 
 bool Mainwidget::isScanning()
