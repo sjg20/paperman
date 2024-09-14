@@ -256,24 +256,6 @@ void Desk::addMatches(const QString &dirPath, const QString &match,
    updateRowCount ();
    }
 
-
-void Desk::addFile (File *f)
-   {
-   // set position and add to list
-   f->setPos (_pos);
-   _files << f;
-
-   // we now have a dirty desk
-   dirty ();
-
-   // advance pos
-   advanceOne ();
-
-   // update our row count
-   updateRowCount ();
-   }
-
-
 void Desk::resetPos (void)
    {
    _pos = QPoint (POS_leftmargin, POS_topmargin);
