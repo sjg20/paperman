@@ -256,6 +256,21 @@ void Desk::addMatches(const QString &dirPath, const QString &match,
    updateRowCount ();
    }
 
+void Desk::addMatches(const QString &dirPath, const QStringList& matches)
+{
+      // don't write back the maxdesk.ini file
+   _do_writeDesk = false;
+
+   foreach (const QString& relname, matches) {
+      QString pathname = dirPath + relname;
+      QFileInfo fi(pathname);
+      QDir dir(fi.dir());
+      QString fname = fi.fileName();
+      addFile(fi.fileName(), dir.path() + "/");
+   }
+   updateRowCount();
+}
+
 void Desk::resetPos (void)
    {
    _pos = QPoint (POS_leftmargin, POS_topmargin);
