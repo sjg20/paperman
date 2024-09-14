@@ -143,20 +143,6 @@ public:
       \param fname   file name (the file extension determines the type) */
    File *createFile (const QString &dir, const QString fname);
 
-   //!
-
-   /**
-    * @brief add a new file to the structure and position it
-    * @param fname  Filename of file to add (without path)
-    * @param dir    Full path of the directory containing the file
-    *
-    * This function does nothing if the file is already present
-    */
-   void addFile(const QString& fname, const QString& dir);
-
-   //! add an existing file to a desk - should only be used from Desktopmodel
-   void addFile (File *f);
-
    /** given a filename, try to make it unique by adding numbers, etc.
 
       \param fname    the original filename (excluding extension)
@@ -582,6 +568,16 @@ private:
       \param image   image to colour*/
    void colour_image_for_blank (QImage &image);
 #endif // 0
+
+   /**
+    * @brief add a new file to the structure and position it
+    * @param fname  Filename of file to add (without path)
+    * @param dir    Full path of the directory containing the file,
+    *               with trailing "/"
+    *
+    * This function does nothing if the file is already present
+    */
+   void addFile(const QString& fname, const QString& dir);
 
 private:
    QList<File *> _files;
