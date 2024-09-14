@@ -794,6 +794,16 @@ TreeItem *TreeItem::child(int row)
     return m_childItems.at(row);
 }
 
+TreeItem *TreeItem::child(const QString& name) const
+{
+   foreach (TreeItem *child, m_childItems) {
+      if (child->dirName() == name)
+         return child;
+   }
+
+   return nullptr;
+}
+
 const TreeItem *TreeItem::childConst(int row) const
 {
    return m_childItems.at(row);
