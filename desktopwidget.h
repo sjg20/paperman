@@ -49,6 +49,7 @@ struct file_info;
 class Desk;
 class Operation;
 class Toolbar;
+class TreeItem;
 
 struct err_info;
 struct file_info;
@@ -179,7 +180,10 @@ protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
    void addMatches(QStringList& matches, uint baseLen, const QString &dirPath,
-                   const QString &match, Operation *op);
+                   const TreeItem *parent, const QString &match, Operation *op);
+
+   // Return the cache
+   TreeItem *ensureCache();
 
 signals:
    void newContents (QString str);
