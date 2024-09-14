@@ -209,7 +209,7 @@ void Desk::addFiles(const QString &dirPath)
       {
       QFileInfo fi = list.at(i);
 
-      addFile(fi, dirPath);
+      addFile(fi.fileName(), dirPath);
       }
    updateRowCount ();
    }
@@ -243,14 +243,15 @@ void Desk::addMatches(const QString &dirPath, const QString &match,
       if (op)
          op->setProgress (upto++);
 
+      const QString& fname = fi.fileName();
       if (fi.isDir ())
          {
-         if (fi.fileName () != "." && fi.fileName () != "..")
-            addMatches(dirPath + fi.fileName () + "/", match, 0);
+         if (fname != "." && fname != "..")
+            addMatches(dirPath + fname + "/", match, 0);
          }
       else if (match == QString() ||
-               fi.fileName ().contains (match, Qt::CaseInsensitive))
-         addFile (fi, dirPath);
+               fname.contains (match, Qt::CaseInsensitive))
+         addFile(fname, dirPath);
       }
    updateRowCount ();
    }
@@ -516,12 +517,12 @@ File *Desk::findFile (QString fileName, int &pos)
    }
 
 
-void Desk::addFile (QFileInfo &file, const QString &dir)
+void Desk::addFile(const QString& fname, const QString& dir)
    {
    File *f;
 
    // if we already know about this file, ignore it
-   f = findFile (file.fileName ());
+   f = findFile(fname);
    if (f)
       return;
 
@@ -530,15 +531,15 @@ void Desk::addFile (QFileInfo &file, const QString &dir)
 //      return;
 
    // ignore maxdesk.ini and ppthumbs.ptn as these are special files
-   if (file.fileName ().indexOf ("maxdesk.ini", 0, Qt::CaseInsensitive) != -1
-       || file.fileName ().indexOf ("paperportsave.reg", 0,
+   if (fname.indexOf("maxdesk.ini", 0, Qt::CaseInsensitive) != -1
+       || fname.indexOf("paperportsave.reg", 0,
                                     Qt::CaseInsensitive) != -1
-       || file.fileName ().indexOf ("ppthumbs.ptn", 0, Qt::CaseInsensitive) != -1)
+       || fname.indexOf("ppthumbs.ptn", 0, Qt::CaseInsensitive) != -1)
       return;
 
    // if not then find a good position for it, and add it
 //   printf ("not found %s\n", file->fileName ().latin1 ());
-   f = createFile (dir, file.fileName ());
+   f = createFile(dir, fname);
    f->setPos (_pos);
    _files << f;
    dirty ();

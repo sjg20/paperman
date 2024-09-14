@@ -143,8 +143,16 @@ public:
       \param fname   file name (the file extension determines the type) */
    File *createFile (const QString &dir, const QString fname);
 
-   //! add a new file to the structure (if not already present) and position it
-   void addFile (QFileInfo &file, const QString &dir);
+   //!
+
+   /**
+    * @brief add a new file to the structure and position it
+    * @param fname  Filename of file to add (without path)
+    * @param dir    Full path of the directory containing the file
+    *
+    * This function does nothing if the file is already present
+    */
+   void addFile(const QString& fname, const QString& dir);
 
    //! add an existing file to a desk - should only be used from Desktopmodel
    void addFile (File *f);
