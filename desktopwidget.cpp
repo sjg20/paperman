@@ -633,11 +633,14 @@ void Desktopwidget::startSearch(const QString& match)
 {
    // Create a 'virtual' maxdesk which holds files from a number different dirs
    _contents_proxy->setFilterFixedString ("");
+   QModelIndex index = _dir->menuGetModelIndex ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   QString path = _model->filePath(src_ind);
+
    Operation *op = new Operation ("Searching", 100, this);
-   QModelIndex index = _model->index(_path);
    QModelIndex root = _model->findRoot(index);
    QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
-   QModelIndex sind = _contents->folderSearch(_path, root_path, match, op);
+   QModelIndex sind = _contents->folderSearch(path, root_path, match, op);
    delete op;
    QModelIndex ind = sind;
    _modelconv->indexToProxy(ind.model (), ind);
