@@ -214,48 +214,6 @@ void Desk::addFiles(const QString &dirPath)
    updateRowCount ();
    }
 
-void Desk::addMatches(const QString &dirPath, const QString &match,
-                      Operation *op)
-   {
-   int upto = 0;
-
-   QDir dir (dirPath);
-
-   // don't write back the maxdesk.ini file
-   _do_writeDesk = false;
-
-//   printf ("dir = %s\n", dirPath.latin1 ());
-   dir.setFilter(QDir::Dirs | QDir::Files | QDir::NoSymLinks);
-   dir.setSorting( QDir::Name);
-
-   const QFileInfoList list = dir.entryInfoList();
-   if (!list.size ())
-      {
-      printf ("dir not found\n");
-      return;
-      }
-
-   if (op)
-      op->setCount (list.size ());
-   for (int i = 0; i < list.size (); i++)
-      {
-      QFileInfo fi = list.at (i);
-      if (op)
-         op->setProgress (upto++);
-
-      const QString& fname = fi.fileName();
-      if (fi.isDir ())
-         {
-         if (fname != "." && fname != "..")
-            addMatches(dirPath + fname + "/", match, 0);
-         }
-      else if (match == QString() ||
-               fname.contains (match, Qt::CaseInsensitive))
-         addFile(fname, dirPath);
-      }
-   updateRowCount ();
-   }
-
 void Desk::addMatches(const QString &dirPath, const QStringList& matches)
 {
       // don't write back the maxdesk.ini file
