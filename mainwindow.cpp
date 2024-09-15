@@ -52,7 +52,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "pagewidget.h"
-
+#include "utils.h"
 
 
 /*
@@ -71,6 +71,8 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _welcome_shown = false;
    _desktop = _main->getDesktop ();
    QSettings qs;
+
+   utilInit(qs.value("files/group").toString());
 
    restoreGeometry(qs.value("mainwindow/geometry").toByteArray());
    restoreState(qs.value("mainwindow/state").toByteArray());
