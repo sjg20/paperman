@@ -636,6 +636,7 @@ err_info *File::move (QString &newDir, QString &newName, bool copy)
    if (!dir.rename (oldPath, newPath))
       return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (oldPath),
                   qPrintable (newPath));
+   utilSetGroup(newPath);
 
    return NULL;
    }
