@@ -706,4 +706,8 @@
    </hints>
   </connection>
  </connections>
+ <slots>
+  <slot>ok_clicked()</slot>
+  <slot>cancel_clicked()</slot>
+ </slots>
 </ui>
