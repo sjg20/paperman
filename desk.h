@@ -107,13 +107,6 @@ public:
     */
    void addFiles(const QString &dirPath);
 
-   /** add matching files in a directory to the maxdesk.
-
-      \param dirPath     the directory to search
-      \param match       the string to match
-      \param operation   operation to update */
-   void addMatches(const QString &dirPath, const QString &match, Operation *op);
-
    /**
     * @brief Add new filenames to a desk
     * @param dirPath  Common initial path for all matches, with trailing "/"
