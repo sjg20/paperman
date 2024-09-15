@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <grp.h>
+
 #include <QDate>
 #include <QDebug>
 #include <QDir>
@@ -50,7 +52,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "utils.h"
 #include "zip.h"
 
-
+static int public_gid;
 
 bool getSettingsSizes (QString base, QList<int> &size)
    {
@@ -984,4 +986,30 @@ TreeItem *utilReadTree(QString fname, QString rootName)
    }
 
    return root;
+}
+
+bool utilSetGroup(const QString& fname)
+{
+   if (public_gid != -1) {
+      if (chown(qPrintable(fname), -1, public_gid) == -1) {
+         qInfo() << "Failed to change group" << public_gid;
+         return false;
+      }
+   }
+
+   return true;
+}
+
+void utilInit(const QString& group)
+{
+   struct group *grp;
+
+   public_gid = -1;
+   grp = getgrnam(qPrintable(group));
+   if (!grp) {
+      qDebug() << "Cannot find group" << group;
+      return;
+   }
+
+   public_gid = grp->gr_gid;
 }

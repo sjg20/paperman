@@ -272,4 +272,17 @@ bool utilWriteTree(QString fname, TreeItem *tree);
  */
 TreeItem *utilReadTree(QString fname, QString rootName);
 
+/**
+ * @brief Set the correct groupfor a file
+ * @param fname  Filename to update
+ * @return true if OK, false on error
+ */
+bool utilSetGroup(const QString& fname);
+
+/**
+ * @brief Set up the utils file
+ * @param group  Name of the public group to use for utilSetGroup()
+ */
+void utilInit(const QString& group);
+
 #endif
