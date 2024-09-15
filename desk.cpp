@@ -872,7 +872,7 @@ err_info *Desk::moveFromTrash (QString &trashname, QString &filename,
    }
 
 
-err_info *Desk::moveFromDir (QString &, QString &trashname, QString &filename,
+err_info *Desk::moveFromDir (QString &fromDir, QString &trashname, QString &filename,
       File *&fnew)
    {
    QString ext;
@@ -886,7 +886,7 @@ err_info *Desk::moveFromDir (QString &, QString &trashname, QString &filename,
    // move the file with the new name
    filename = uniq + ext;
    QDir dir;
-   QString from = trashname;
+   QString from = fromDir + "/" + trashname;
    QString to = _dir + filename;
    if (!dir.rename (from, to))
       return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (from),
