@@ -115,10 +115,17 @@
                </layout>
               </item>
               <item>
-               <widget class="SliderSpin" name="threshold" native="true"/>
+               <widget class="SliderSpin" name="threshold" native="true">
+                <property name="minimumSize">
+                 <size>
+                  <width>20</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </widget>
               </item>
               <item>
-               <layout class="QHBoxLayout">
+               <layout class="QHBoxLayout" stretch="0,2,1">
                 <item>
                  <spacer>
                   <property name="orientation">
@@ -129,7 +136,7 @@
                   </property>
                   <property name="sizeHint" stdset="0">
                    <size>
-                    <width>101</width>
+                    <width>20</width>
                     <height>20</height>
                    </size>
                   </property>
