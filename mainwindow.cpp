@@ -324,6 +324,11 @@ void Mainwindow::on_actionOptions_triggered(bool)
    _main->options ();
 }
 
+void Mainwindow::on_actionOptionsm_triggered(bool)
+{
+   _main->options ();
+}
+
 void Mainwindow::on_actionDirFilter_triggered(bool state)
 {
    _desktop->setDirFilter(state);
