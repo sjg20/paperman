@@ -247,6 +247,7 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
     if (newDir.absolutePath() != dir.absolutePath() || !dir.mkdir(name))
         return QModelIndex(); // nothing happened
 
+    utilSetGroup(dir.filePath(name));
     qDebug() << "Dirmodel::mkdir" << parent << isRoot (parent) << parent.isValid ();
     if (isRoot (parent))
        parent = _item [parent.row ()]->index ();
