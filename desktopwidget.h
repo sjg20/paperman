@@ -120,7 +120,7 @@ public:
 
       \param index   index of directory to select. If this is QModelIndex()
                      then select the first directory */
-   void selectDir(const QModelIndex &target);
+   void selectDir(const QModelIndex &target, bool forceChange = false);
 
    /** a convenience function to add a new action */
    void addAction (QAction *&_act, const char *text, const char *slot,
@@ -254,7 +254,8 @@ private slots:
 
       \param index      index of directory to select
       \param allow_undo true to allow user to undo this change */
-   void dirSelected (const QModelIndex &index, bool allow_undo = true);
+   void dirSelected(const QModelIndex &index, bool allow_undo = true,
+                    bool force_change = false);
 
    /** handle a number of objects being dropped onto a folder. This moves
        the corresponding files into the new folder, removing them from their
@@ -398,6 +399,9 @@ private:
 
    /** start a search for a stack through dirs and subdirs */
    void startSearch(const QString& match);
+
+   //! Drop the blue colour and other features of the folder-search view
+   void normalView();
 
 private:
    /** this is the model for the directories tree */
