@@ -20,6 +20,9 @@ License: GPL-2
 X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
+
+#include <QSettings>
+
 #include "options.h"
 
 #include <qvariant.h>
@@ -108,6 +111,10 @@ void Options::init()
    threshold->setTitle ("Blank threshold n:1");
    threshold->setValue (xmlConfig->intValue("SCAN_BLANK_THRESHOLD"));
 
+   QSettings qs;
+
+   group->setText(qs.value("files/group").toString());
+
    connect (threshold, SIGNAL (signalValueChanged(int)), this, SLOT (updateThreshold (int)));
    connect (limit, SIGNAL (toggled(bool)), single, SLOT (setEnabled(bool)));
    connect (stackLimit, SIGNAL (toggled(bool)), stackCount, SLOT (setEnabled(bool)));
@@ -126,6 +133,11 @@ void Options::ok_clicked()
    xmlConfig->setIntValue("SCAN_STACK_COUNT", stack_val);
    xmlConfig->setIntValue("SCAN_BLANK", blank->currentIndex ());
    xmlConfig->setIntValue("SCAN_BLANK_THRESHOLD", threshold->value ());
+
+   QSettings qs;
+
+   qs.setValue("files/group", group->text());
+
    close ();
 }
 
