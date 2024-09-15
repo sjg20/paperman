@@ -110,6 +110,7 @@ Desk::Desk(const QString &dirPath, const QString &trashPath, bool do_readDesk)
       _trash_dir = trashPath + ".maxview-trash";
       if (!dir.exists (_trash_dir))
          dir.mkdir (_trash_dir);
+      utilSetGroup(_trash_dir);
       }
 
    // read in any maxdesk file
