@@ -432,7 +432,7 @@ err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
    }
 
 
-void Desktopwidget::selectDir(const QModelIndex &target)
+void Desktopwidget::selectDir(const QModelIndex &target, bool forceChange)
    {
 //    int count = _model->rowCount (QModelIndex ());
 
@@ -447,7 +447,7 @@ void Desktopwidget::selectDir(const QModelIndex &target)
    //qDebug () << "Desktopwidget::selectDir" << _model->data(src_ind, Dirmodel::FilePathRole).toString ();
    _dir->setCurrentIndex(ind);
    _dir->setExpanded(ind, true);
-    dirSelected(ind, false);
+    dirSelected(ind, false, forceChange);
    }
 
 
@@ -690,16 +690,21 @@ void Desktopwidget::searchInFolders()
    _dir->setEnabled(false);
 }
 
+void Desktopwidget::normalView()
+{
+   _view->setStyleSheet("QListView { background: lightgray; }");
+   _dir->setEnabled(true);
+   _toolbar->setFilterEnabled(true);
+   _toolbar->setSearchEnabled(false);
+}
+
 void Desktopwidget::exitSearch()
 {
    /* This can be called for the Escape key even if there is no search active */
    if (!_toolbar->searchEnabled())
       return;
 
-   _view->setStyleSheet("QListView { background: lightgray; }");
-   _dir->setEnabled(true);
-   _toolbar->setFilterEnabled(true);
-   _toolbar->setSearchEnabled(false);
+   normalView();
    QModelIndex index = _model->index (_path);
    _contents_proxy->setFilterFixedString ("");
    QModelIndex root = _model->findRoot (index);
@@ -771,7 +776,8 @@ bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
    return true;
 }
 
-void Desktopwidget::dirSelected (const QModelIndex &index, bool allow_undo)
+void Desktopwidget::dirSelected(const QModelIndex &index, bool allow_undo,
+                                bool force_change)
    {
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
    QString path = _model->data(src_ind, QDirModel::FilePathRole).toString();
@@ -784,7 +790,7 @@ void Desktopwidget::dirSelected (const QModelIndex &index, bool allow_undo)
    _page->slotReset ();
 
    // if we have are actually changing directory, do so
-   if (path != _contents->getDirPath ())
+   if (force_change || path != _contents->getDirPath ())
       {
       _path = path;
       _contents->changeDir (path, root_path, allow_undo);
@@ -1191,7 +1197,9 @@ void Desktopwidget::locateFolder ()
       QModelIndex src_ind = _model->index (dir);
       QModelIndex ind = _dir_proxy->mapFromSource(src_ind);
 
-      selectDir(ind);
+      normalView();
+
+      selectDir(ind, true);
       }
    }
 
