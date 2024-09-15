@@ -409,7 +409,7 @@ public:
    err_info *move (file_info *f, QString &newDir, QString &newName);
 #endif
 
-   /** move a stack from the a source directory. It may need to be renamed
+   /** move a stack from a source directory. It may need to be renamed
 
       \param src        source directory
       \param trashname  filename to move
