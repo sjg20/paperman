@@ -967,6 +967,7 @@ bool utilWriteTree(QString fname, TreeItem *tree)
    if (!file.open(QIODevice::WriteOnly))
       return false;
    tree->write(stream, 0);
+   utilSetGroup(fname);
 
    return true;
 }
