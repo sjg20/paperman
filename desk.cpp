@@ -420,6 +420,8 @@ bool Desk::writeDesk (void)
    foreach (File *f, _files)
       f->encodeFile (stream);
 
+   utilSetGroup(file.fileName());
+
    _dirty = false; // we are clean again
    return true;
    }
