@@ -1156,17 +1156,6 @@ public:
    QModelIndex showDir(QString dirPath, QString rootPath);
 
    /**
-    * @brief Do a folder search and show the results
-    * @param dirpath    full path of directory to search (recursively)
-    * @param rootpath   root directory for this branch of the model
-    * @param match      string to match against filenames (QString() for all)
-    * @param op         operation to update as things progress
-    * @return parent index for the added items
-    */
-   QModelIndex folderSearch(QString dirPath, QString rootPath,
-                            const QString &match, Operation *op);
-
-   /**
     * @brief Refresh the current directory contents
       @param dirpath    full path of directory to refresh
       @returns parent model-index for the items
