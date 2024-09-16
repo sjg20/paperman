@@ -112,7 +112,7 @@ TreeItem *Diritem::ensureCache()
    if (_dir_cache || readCache())
       return _dir_cache;
 
-   _dir_cache = utilScanDir(_dir);
+   _dir_cache = utilScanDir(_dir, nullptr);
    if (!_dir_cache) {
       qInfo() << "Failed to scan directory";
       return nullptr;
