@@ -34,18 +34,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QToolBar>
 #include <QToolButton>
 
-#include "qlistview.h"
 #include "qapplication.h"
 #include "qcursor.h"
 #include "qdir.h"
 #include "qfileinfo.h"
 #include "qpointer.h"
-#include "qlistview.h"
 #include "qinputdialog.h"
 #include "qevent.h"
-#include "qlabel.h"
-#include "qlayout.h"
-#include "qpoint.h"
 #include "qsplitter.h"
 #include "qtimer.h"
 #include <QPixmap>
