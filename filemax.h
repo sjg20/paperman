@@ -458,7 +458,7 @@ private:
 
    bool max_get_preview_maxsize (cpoint *size);
 
-   err_info *max_open_file (const QString &infile);
+   err_info *max_open_file();
 
    err_info *dodump (FILE *f, byte *ptr, int start, int count);
 

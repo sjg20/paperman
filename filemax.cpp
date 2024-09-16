@@ -2649,21 +2649,18 @@ int Filemax::pagecount (void)
    return _pages.size ();
    }
 
-err_info *Filemax::max_open_file (const QString &infile)
+err_info *Filemax::max_open_file()
    {
-   FILE *f;
-
-//   printf ("infile = %s\n", infile);
-   f = fopen (infile.toLatin1(), "r+b");
-   if (!f)
+   _fin = fopen(_pathname.toLatin1(), "r+b");
+   if (!_fin)
       {
       // try read-only
-      f = fopen (infile.toLatin1(), "rb");
-      if (!f)
-         return err_make (ERRFN, ERR_cannot_open_file1, infile.toLatin1 ().constData());
+      _fin = fopen (_pathname.toLatin1(), "rb");
+      if (!_fin)
+         return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1 ().constData());
       }
-   setvbuf (f, NULL, _IONBF, 0);
-   CALL (max_openf (f));
+   setvbuf(_fin, NULL, _IONBF, 0);
+   CALL (max_openf(_fin));
    return NULL;
    }
 
@@ -5281,16 +5278,15 @@ err_info *Filemax::load ()  // was desk->ensureMax
    if (!_valid)
       {
       _valid = true;
-      QString path = _pathname;
       struct stat st;
 
-      if (!stat (path.toLatin1 (), &st))
+      if (!stat(_pathname.toLatin1 (), &st))
          {
          _size = st.st_size;
          _timestamp = QDateTime::fromTime_t (st.st_mtime);
          }
 
-      err = max_open_file (path);
+      err = max_open_file();
       if (err)
          {
          _serr = *err;
