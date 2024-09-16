@@ -1092,10 +1092,6 @@ public:
       \returns string containing timestamp */
    QString imageTimestamp (const QModelIndex &ind, int pagenum);
 
-   /** \returns true if we created this model by searching multiple
-       subdirectories, false if it was just a single directory */
-   bool searchedSubdirs (void) { return _searched_subdirs; }
-
 signals:
    void newContents (const char *str);
 
@@ -1315,7 +1311,6 @@ private:
    bool _about_to_add;        //!< true if about to add some items
    int _add_start;            //!< first row of added item
    Desktopmodelconv *_modelconv;  //!< model converter
-   bool _searched_subdirs;    //!< true if this model may contain files from many directories
    QFontMetrics *_fm;         //!< metrics for the standard font (used for guessing sizes)
 
    /** true if we should generate a scaled image when new scan data is

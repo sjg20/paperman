@@ -1469,9 +1469,6 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
       }
    _subdirs = true;
 
-   // remember whether this is a subdir or single-folder search
-   _searched_subdirs = true;
-
    // no pending list at present
    _pending_scan_list.clear ();
 

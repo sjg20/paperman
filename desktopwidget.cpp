@@ -916,7 +916,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
 
    bool at_least_one = _view->isSelection (Desktopview::SEL_at_least_one);
    context_menu->addAction (_act_locate);
-   _act_locate->setEnabled (_contents->searchedSubdirs ());
+   _act_locate->setEnabled(_toolbar->searchEnabled());
 
    context_menu->addAction (_act_stack);
    _act_stack->setEnabled (_view->isSelection (Desktopview::SEL_more_than_one));
