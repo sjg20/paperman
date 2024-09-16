@@ -70,6 +70,7 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    init();
    _welcome_shown = false;
    _desktop = _main->getDesktop ();
+   _main->setMainwindow(this);
    QSettings qs;
 
    utilInit(qs.value("files/group").toString());
