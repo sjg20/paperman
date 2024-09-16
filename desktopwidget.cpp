@@ -629,6 +629,56 @@ void Desktopwidget::deleteDir ()
       }
    }
 
+void Desktopwidget::addMatches(QStringList& matches, uint baseLen,
+                               const QString &dirPath, const QString &match,
+                               Operation *op)
+{
+   int upto = 0;
+
+   QDir dir (dirPath);
+
+   dir.setFilter(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+   dir.setSorting(QDir::Name);
+
+   const QFileInfoList list = dir.entryInfoList();
+   if (!list.size ())
+      return;
+
+   if (op)
+      op->setCount (list.size());
+   for (int i = 0; i < list.size (); i++)
+   {
+      QFileInfo fi = list.at (i);
+
+      if (op)
+         op->setProgress(upto++);
+
+      QString fname = dirPath + fi.fileName();
+      if (match == QString() ||
+          fi.fileName().contains(match, Qt::CaseInsensitive)) {
+         matches << fname.mid(baseLen);
+         addMatches(matches, baseLen, fname + "/", QString(), 0);
+      } else {
+         addMatches(matches, baseLen, fname + "/", match, 0);
+      }
+   }
+}
+
+QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
+                                       QStringList& missing, Operation *op)
+{
+   dirPath = getRootDirectory();
+   if (dirPath.isEmpty())
+      return QStringList();
+
+   QStringList matches;
+   addMatches(matches, dirPath.size() + 1, dirPath + "/", text, op);
+
+   QDate date = QDate::currentDate();
+
+   return utilDetectMatches(date, matches, missing);
+}
+
 void Desktopwidget::startSearch(const QString& match)
 {
    // Create a 'virtual' maxdesk which holds files from a number different dirs
