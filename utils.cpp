@@ -919,7 +919,6 @@ static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
    dir.setFilter(QDir::Dirs | QDir::Files | QDir::NoSymLinks);
    dir.setSorting(QDir::Name);
    const QFileInfoList list = dir.entryInfoList();
-   if (!list.size())
 
    if (op)
       op->setCount(list.size ());
@@ -940,10 +939,12 @@ static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
          if (fi.isDir ())
             scanDir(dirPath + fi.fileName() + "/", child, 0);
       }
+      if (op)
+         op->setProgress(i);
    }
 }
 
-TreeItem *utilScanDir(QString dirPath)
+TreeItem *utilScanDir(QString dirPath, Operation *op)
 {
    TreeItem *root;
 
@@ -954,7 +955,7 @@ TreeItem *utilScanDir(QString dirPath)
    }
 
    root = new TreeItem({dirPath});
-   scanDir(dirPath + "/", root, nullptr);
+   scanDir(dirPath + "/", root, op);
 
    return root;
 }

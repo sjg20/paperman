@@ -43,6 +43,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 class QDate;
 class QDropEvent;
+class Operation;
 
 typedef unsigned char byte;
 
@@ -239,10 +240,11 @@ bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes);
 /**
  * @brief Scan a directory to discover files and subdirectories
  * @param dirPath  Path to scan, without training "/"
+ * @param op       Operation to update
  * @return Tree, with the children containing the subdirectories and files in
  *     @dirPath
  */
-TreeItem *utilScanDir(QString dirPath);
+TreeItem *utilScanDir(QString dirPath, Operation *op);
 
 /**
  * @brief Write a tree to a text file
