@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDirModel>
 #include <QSortFilterProxyModel>
 
+class Operation;
 class TreeItem;
 
 struct err_info;
@@ -57,7 +58,13 @@ public:
    bool setDir(QString &dir);
 
    //!< Read or create a cache
-   TreeItem *ensureCache();
+   TreeItem *ensureCache(Operation *op);
+
+   //!< Build a cache
+   TreeItem *buildCache(Operation *op);
+
+   // Drop the cache and free memory
+   void dropCache();
 
 private:
    // Get the filename for the dir cache

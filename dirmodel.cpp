@@ -107,21 +107,36 @@ bool Diritem::readCache()
    return _dir_cache != nullptr;
 }
 
-TreeItem *Diritem::ensureCache()
+void Diritem::dropCache()
 {
-   if (_dir_cache || readCache())
-      return _dir_cache;
+   if (_dir_cache) {
+      TreeItem::freeTree(_dir_cache);
+      _dir_cache = nullptr;
+   }
+}
 
-   _dir_cache = utilScanDir(_dir, nullptr);
+TreeItem *Diritem::buildCache(Operation *op)
+{
+   _dir_cache = utilScanDir(_dir, op);
    if (!_dir_cache) {
       qInfo() << "Failed to scan directory";
       return nullptr;
    }
 
-   if (!utilWriteTree(dirCacheFilename(), _dir_cache))
-       qInfo() << "Failed to write cache";
+   if (!utilWriteTree(dirCacheFilename(), _dir_cache)) {
+      qInfo() << "Failed to write cache";
+      return nullptr;
+   }
 
    return _dir_cache;
+}
+
+TreeItem *Diritem::ensureCache(Operation *op)
+{
+   if (_dir_cache || readCache())
+      return _dir_cache;
+
+   return buildCache(op);
 }
 
 Dirmodel::Dirmodel (QObject * parent)
@@ -742,7 +757,7 @@ TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind)
    //Diritem *item = static_cast<Diritem *>(root_ind.internalPointer());
    Diritem *item = _item[index];
 
-   return item->ensureCache();
+   return item->ensureCache(nullptr);
 }
 
 void dirmodel_tests (void)
