@@ -1370,8 +1370,8 @@ void Desktopwidget::pageRight (void)
 
 void Desktopwidget::activateLocate ()
    {
-   _toolbar->match->clear();
-   _toolbar->match->setFocus(Qt::OtherFocusReason);
+   if (!_toolbar->searchEnabled())
+      searchInFolders();
    }
 
 #if 0
