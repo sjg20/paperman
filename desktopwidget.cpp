@@ -277,6 +277,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
    addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
    addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
+   addAction (_act_move, "&Move to folder",  SLOT(moveToFolder ()), "Ctrl+M");
 //   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
 //   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
    updateActions();
@@ -922,6 +923,7 @@ void Desktopwidget::updateActions()
    _act_unstack_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
    _act_unstack_all->setEnabled (_view->isSelection (Desktopview::SEL_at_least_one_multipage));
    _act_duplicate->setEnabled (at_least_one);
+   _act_move->setEnabled(_showing_imports && at_least_one);
    _act_delete->setEnabled (at_least_one);
    _act_rename_stack->setEnabled (at_least_one);
    _act_rename_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
@@ -955,6 +957,8 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    context_menu->addAction (_act_unstack_page);
    context_menu->addAction (_act_unstack_all);
    context_menu->addAction (_act_duplicate);
+
+   context_menu->addAction (_act_move);
    context_menu->addAction (_act_delete);
    context_menu->addAction (_act_rename_stack);
    context_menu->addAction (_act_rename_page);
@@ -1193,6 +1197,19 @@ void Desktopwidget::emailMax (void)
    err_complain (_contents->opEmailFiles (parent, slist, File::Type_max));
 }
 
+void Desktopwidget::moveToFolder(void)
+{
+   Ui::Move ui;
+   QDialog diag;
+
+   ui.setupUi(&diag);
+   diag.show();
+   if (!diag.exec()) {
+      _showing_imports = false;
+      normalView();
+      return;
+   }
+}
 
 void Desktopwidget::emailPdf (void)
 {

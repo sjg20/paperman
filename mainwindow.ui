@@ -116,7 +116,7 @@
      <x>0</x>
      <y>0</y>
      <width>874</width>
-     <height>25</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -131,6 +131,8 @@
       <string>Import</string>
      </property>
      <addaction name="actionDownloads"/>
+     <addaction name="actionDocuments"/>
+     <addaction name="actionDirectory"/>
     </widget>
     <addaction name="actionOptionsm"/>
     <addaction name="menuImport"/>
@@ -569,6 +571,28 @@
    </property>
    <property name="shortcut">
     <string>Alt+Shift+W</string>
+   </property>
+  </action>
+  <action name="actionDocuments">
+   <property name="text">
+    <string>Documents</string>
+   </property>
+   <property name="toolTip">
+    <string>Import files from the Documents directory</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+Shift+D</string>
+   </property>
+  </action>
+  <action name="actionDirectory">
+   <property name="text">
+    <string>Directory...</string>
+   </property>
+   <property name="toolTip">
+    <string>Import files from a selected directory</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+Shift+F</string>
    </property>
   </action>
  </widget>
