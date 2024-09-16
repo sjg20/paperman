@@ -1438,7 +1438,7 @@ TreeItem *Desktopwidget::ensureCache()
    // Get the top-level dirname of that
    QModelIndex root = _model->findRoot(src_ind);
 
-   return _model->ensureCache(root);
+   return _model->ensureCache(root, nullptr);
 }
 
 QModelIndex Desktopwidget::getDirIndex(const QString dirname)

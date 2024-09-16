@@ -746,7 +746,7 @@ err_info *Dirmodel::rmdir (const QModelIndex &index)
    return 0;
    }
 
-TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind)
+TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind, Operation *op)
 {
    if (!isRoot(root_ind))
       return nullptr;
@@ -757,7 +757,31 @@ TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind)
    //Diritem *item = static_cast<Diritem *>(root_ind.internalPointer());
    Diritem *item = _item[index];
 
-   return item->ensureCache(nullptr);
+   return item->ensureCache(op);
+}
+
+void Dirmodel::dropCache(const QModelIndex& root_ind)
+{
+   Q_ASSERT(isRoot(root_ind));
+
+   int index = findIndex(root_ind);
+   //qDebug() << "index" << index;
+
+   Diritem *item = _item[index];
+
+   item->dropCache();;
+}
+
+void Dirmodel::buildCache(const QModelIndex& root_ind, Operation *op)
+{
+   Q_ASSERT(isRoot(root_ind));
+
+   int index = findIndex(root_ind);
+   //qDebug() << "index" << index;
+
+   Diritem *item = _item[index];
+
+   item->buildCache(op);
 }
 
 void dirmodel_tests (void)
@@ -877,7 +901,7 @@ void Dirmodel::addMatches(QStringList& matches, uint baseLen,
 QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
                                   const QModelIndex& root, QStringList& missing)
 {
-   TreeItem *tree = ensureCache(root);
+   TreeItem *tree = ensureCache(root, nullptr);
 
    //qDebug() << tree;
 
@@ -930,7 +954,7 @@ QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
 {
    Q_ASSERT(isRoot(root));
 
-   const TreeItem *tree = ensureCache(root);
+   const TreeItem *tree = ensureCache(root, nullptr);
    QString root_path = data(root, QDirModel::FilePathRole).toString();
    const TreeItem *node;
 
@@ -944,4 +968,10 @@ QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
       addFileMatches(matches, dirPath.size() + 1, dirPath + "/", node, text);
 
    return matches;
+}
+
+void Dirmodel::refreshCache(const QModelIndex& root_ind, Operation *op)
+{
+   dropCache(root_ind);
+   buildCache(root_ind, op);
 }

@@ -216,12 +216,13 @@ public:
    /**
     * @brief Ensure that a cache is available
     * @param root_ind  Indirect of the top-level item the cache is for
+    * @param op        Operation to update
     * @return cache pointer
     *
     * This reads a cache file in, if not already done. If there is no cache, one
     * is created and a cache file is written.
     */
-   TreeItem *ensureCache(const QModelIndex& root_ind);
+   TreeItem *ensureCache(const QModelIndex& root_ind, Operation *op);
 
    /**
     * @brief  Find folders in the current repo which match a text string
@@ -229,6 +230,7 @@ public:
     * @param  dirPath Full path of the directory to search
     * @param  root    Index of a top-level repository to search
     * @param  missing Suggestions for directories to create
+    * @param  op      Operation to update
     * @return list of matching paths
     *
     * This looks for 4-digit years and 3-character months to try to guess
@@ -246,6 +248,9 @@ public:
     */
    QStringList findFiles(const QString& text, const QString& dirPath,
                          const QModelIndex& root);
+
+   //! Refresh the cache for a given repository
+   void refreshCache(const QModelIndex& root_ind, Operation *op);
 
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
@@ -297,6 +302,12 @@ private:
     * grandchild "b", then a great grandchild "c", returning that node
     */
    const TreeItem *findDir(const TreeItem *parent, QString path);
+
+   // Drop the cache for a repository
+   void dropCache(const QModelIndex& root_ind);
+
+   // Build a new cache
+   void buildCache(const QModelIndex& root_ind, Operation *op);
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
