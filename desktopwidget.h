@@ -126,8 +126,8 @@ public:
    void addAction (QAction *&_act, const char *text, const char *slot,
          const QString &shortcut, QWidget *parent = 0, const char *icon = 0);
 
-   /** activate the locate feature, which allows looking for stacks by name */
-   void activateLocate ();
+   /** activate the search feature, which allows looking for stacks by name */
+   void activateSearch();
 
    /**
     * @brief Get the root directory of the currentl selected paper repository
