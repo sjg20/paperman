@@ -691,6 +691,7 @@ void Desktopwidget::searchInFolders()
    _toolbar->setSearchEnabled(true);
    _view->setStyleSheet("QListView { background: lightblue; }");
    _dir->setEnabled(false);
+   _main->getMainwindow()->setSearchEnabled(false);
 }
 
 void Desktopwidget::normalView()
@@ -699,6 +700,7 @@ void Desktopwidget::normalView()
    _dir->setEnabled(true);
    _toolbar->setFilterEnabled(true);
    _toolbar->setSearchEnabled(false);
+   _main->getMainwindow()->setSearchEnabled(true);
 }
 
 void Desktopwidget::exitSearch()

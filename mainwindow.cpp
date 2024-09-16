@@ -169,6 +169,10 @@ void Mainwindow::init ()
             this, SLOT (statusUpdate (QString)));
 }
 
+void Mainwindow::setSearchEnabled(bool enable)
+{
+   actionSearch->setEnabled(enable);
+}
 
 void Mainwindow::on_actionPrint_triggered(bool)
 {
