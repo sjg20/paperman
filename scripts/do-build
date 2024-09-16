@@ -27,9 +27,9 @@ doit() {
     local DIST="$1"
     local ARCH="$2"
     VENDOR_VERSION=
-    if [[ "${UDISTS}" == *"${DIST}"* ]]; then
-        VENDOR_VERSION=ubuntu1
-    fi
+    #if [[ "${UDISTS}" == *"${DIST}"* ]]; then
+    #    VENDOR_VERSION=ubuntu1
+    #fi
 
     RESULT=$RESULTDIR/$DIST
     mkdir -p $RESULT
