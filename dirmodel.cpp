@@ -899,9 +899,10 @@ void Dirmodel::addMatches(QStringList& matches, uint baseLen,
 }
 
 QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
-                                  const QModelIndex& root, QStringList& missing)
+                                  const QModelIndex& root, QStringList& missing,
+                                  Operation *op)
 {
-   TreeItem *tree = ensureCache(root, nullptr);
+   TreeItem *tree = ensureCache(root, op);
 
    //qDebug() << tree;
 
@@ -950,11 +951,11 @@ void Dirmodel::addFileMatches(QStringList& matches, const uint baseLen,
 }
 
 QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
-                                const QModelIndex& root)
+                                const QModelIndex& root, Operation *op)
 {
    Q_ASSERT(isRoot(root));
 
-   const TreeItem *tree = ensureCache(root, nullptr);
+   const TreeItem *tree = ensureCache(root, op);
    QString root_path = data(root, QDirModel::FilePathRole).toString();
    const TreeItem *node;
 
