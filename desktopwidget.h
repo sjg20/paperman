@@ -161,8 +161,25 @@ public:
    // Set whether the dir filter is active or not
    void setDirFilter(bool active);
 
+   /**
+    * @brief  Find folders in the current repo which match a text string
+    * @param  text    Text to match
+    * @param  dirPath Returns the path to the root directory
+    * @param  missing Suggestions for directories to create
+    * @param  op      Operation, or nullptr if none
+    * @return list of matching paths
+    *
+    * This looks for 4-digit years and 3-character months to try to guess
+    * which folders to put at the top of the list
+    */
+   QStringList findFolders(const QString& text, QString& dirPath,
+                           QStringList& missing, Operation *op);
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
+
+   void addMatches(QStringList& matches, uint baseLen, const QString &dirPath,
+                   const QString &match, Operation *op);
 
 signals:
    void newContents (QString str);
