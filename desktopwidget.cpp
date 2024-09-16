@@ -640,13 +640,10 @@ QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
    return _model->findFolders(text, dirPath, root, missing);
 }
 
-void Desktopwidget::startSearch(const QString& match)
+void Desktopwidget::startSearch(const QString& path, const QString& match)
 {
    // Create a 'virtual' maxdesk which holds files from a number different dirs
    _contents_proxy->setFilterFixedString ("");
-   QModelIndex index = _dir->menuGetModelIndex ();
-   QModelIndex src_ind = _dir_proxy->mapToSource(index);
-   QString path = _model->filePath(src_ind);
 
    QModelIndex root = getRootIndex();
    QString root_path = _model->data(root, QDirModel::FilePathRole).toString ();
@@ -676,7 +673,12 @@ void Desktopwidget::searchInFolders()
    ui.setupUi(&diag);
    ui.stackName->setText(_search_text);
    ui.stackName->setSelection(0, _search_text.size());
-   ui.folderPath->setText(getRootDirectory());
+
+   QModelIndex index = _dir->menuGetModelIndex ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   QString path = _model->filePath(src_ind);
+
+   ui.folderPath->setText(path);
    diag.show();
    if (!diag.exec()) {
       _toolbar->setFilterEnabled(true);
@@ -684,7 +686,7 @@ void Desktopwidget::searchInFolders()
    }
 
    _search_text = ui.stackName->text();
-   startSearch(_search_text);
+   startSearch(path, _search_text);
    _toolbar->setSearchEnabled(true);
    _view->setStyleSheet("QListView { background: lightblue; }");
    _dir->setEnabled(false);

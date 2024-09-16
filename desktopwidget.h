@@ -397,8 +397,12 @@ private:
    /** Update the respository list in settings */
    void updateSettings ();
 
-   /** start a search for a stack through dirs and subdirs */
-   void startSearch(const QString& match);
+   /**
+    * @brief start a search for a stack through dirs and subdirs
+    * @param path    Full path to directory to search
+    * @param match   Match string to use
+    */
+   void startSearch(const QString& path, const QString& match);
 
    //! Drop the blue colour and other features of the folder-search view
    void normalView();
