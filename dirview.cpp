@@ -88,9 +88,10 @@ void Dirview::selectionChanged (const QItemSelection &selected, const QItemSelec
 
 
 void Dirview::selectContextItem (const QModelIndex &index)
-   {
+{
    _context = QPersistentModelIndex (index);
-   }
+   emit clicked(index);
+}
 
 
 void Dirview::contextMenuEvent (QContextMenuEvent * e)
