@@ -2649,20 +2649,36 @@ int Filemax::pagecount (void)
    return _pages.size ();
    }
 
+err_info *Filemax::ensure_open()
+{
+   if (!_fin) {
+      _fin = fopen (_pathname.toLatin1(), "r+b");
+      if (!_fin) {
+         // try read-only
+         _fin = fopen (_pathname.toLatin1(), "rb");
+         if (!_fin)
+            return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1().constData());
+      }
+   }
+
+   return nullptr;
+}
+
 err_info *Filemax::max_open_file()
    {
-   _fin = fopen(_pathname.toLatin1(), "r+b");
-   if (!_fin)
-      {
-      // try read-only
-      _fin = fopen (_pathname.toLatin1(), "rb");
-      if (!_fin)
-         return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1 ().constData());
-      }
+   CALL(ensure_open());
    setvbuf(_fin, NULL, _IONBF, 0);
    CALL (max_openf(_fin));
    return NULL;
    }
+
+void Filemax::ensure_closed()
+{
+   if (_fin) {
+      fclose(_fin);
+      _fin = nullptr;
+   }
+}
 
 err_info *Filemax::dodump (FILE *f, byte *ptr, int start, int count)
    {

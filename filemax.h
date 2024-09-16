@@ -458,6 +458,12 @@ private:
 
    bool max_get_preview_maxsize (cpoint *size);
 
+   //! Ensure that the file is open
+   err_info *ensure_open();
+
+   //! Ensure that the file is closed
+   void ensure_closed();
+
    err_info *max_open_file();
 
    err_info *dodump (FILE *f, byte *ptr, int start, int count);
