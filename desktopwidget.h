@@ -311,6 +311,9 @@ private slots:
    //! Remove the selected respository. Supported undo.
    void slotRemoveRepository ();
 
+   //! Refresh the cache
+   void slotRefreshCache();
+
    void updatePreview (void);
 
    //! duplicate the selected items

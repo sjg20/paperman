@@ -183,6 +183,8 @@ Desktopwidget::Desktopwidget (QWidget *parent)
             SLOT (slotAddRepository ()));
    connect (_dir->_remove_repository, SIGNAL (triggered ()), this,
             SLOT (slotRemoveRepository ()));
+   connect(_dir->_refresh_cache, SIGNAL(triggered ()), this,
+           SLOT(slotRefreshCache()));
 
    connect(_toolbar->exitSearch, SIGNAL(clicked()), this, SLOT(exitSearch()));
 
@@ -593,6 +595,16 @@ void Desktopwidget::slotRemoveRepository ()
 
    _contents->removeRepository (dir);
    }
+
+void Desktopwidget::slotRefreshCache()
+{
+   QModelIndex index = _dir->menuGetModelIndex();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   QModelIndex root = _model->findRoot (src_ind);
+
+   Operation op ("Refreshing cache", 0, this);
+   _model->refreshCache(root, &op);
+}
 
 void Desktopwidget::deleteDir ()
    {
