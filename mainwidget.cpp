@@ -612,7 +612,11 @@ void Mainwidget::setupScanDialog (void)
    updateScanDialog ();
    }
 
-   
+void Mainwidget::setMainwindow(Mainwindow *mainwindow)
+{
+   _mainwindow = mainwindow;
+}
+
 void Mainwidget::slotWarning (QString &str)
    {
    if (_pscan)

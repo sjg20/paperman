@@ -61,6 +61,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "dirview.h"
 #include "op.h"
 #include "desk.h"
+#include "mainwindow.h"
 #include "maxview.h"
 #include "pagewidget.h"
 #include "senddialog.h"
@@ -152,7 +153,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    // and when there are no selected items
    connect (_view, SIGNAL (pageLost()), _page, SLOT (slotReset ()));
 
-   _parent = parent;
+   _main = static_cast<Mainwidget *>(parent);
 
    // setup the preview timer
    _timer = new QTimer ();

@@ -34,6 +34,7 @@ class Desktopview;
 class Desktopwidget;
 class Desk;
 class Filepage;
+class Mainwindow;
 class Options;
 class PPage;
 class Pagewidget;
@@ -77,6 +78,8 @@ public:
    ~Mainwidget();
    Desktopwidget *getDesktop (void) { return _desktop; }
    Pagewidget *getPage (void) { return _page; }
+   Mainwindow *getMainwindow() { return _mainwindow; }
+
 //p    Desktopviewer *getViewer (void) { return _viewer; }
 
    /** set the current operation name */
@@ -140,6 +143,8 @@ public:
 
    // Returns true if currently scanning
    bool isScanning();
+
+   void setMainwindow(Mainwindow *mainwindow);
 
 signals:
    void newContents (QString);
@@ -397,6 +402,8 @@ private:
    bool _scan_cancelling;  //!< true if cancelling the scan
 //   Paperstack *_stack;     //!< paper stack to scan into
    Paperscan *_scan;       //!< the current scan in progress
+
+   Mainwindow *_mainwindow;
    };
 
 

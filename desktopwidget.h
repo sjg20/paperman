@@ -43,6 +43,7 @@ class QListView;
 class Dirmodel;
 class Dirproxy;
 class Dirview;
+class Mainwidget;
 class Paperstack;
 class Pagewidget;
 struct file_info;
@@ -436,7 +437,7 @@ private:
    Pagewidget *_page;
 
    /** this is the parent widget, which will be a Mainwidget */
-   QWidget *_parent;
+   Mainwidget *_main;
 
    /** full path of directory being displayed */
    QString _path;
