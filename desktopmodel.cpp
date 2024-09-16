@@ -27,8 +27,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "qapplication.h"
 #include "qcursor.h"
-#include "qinputdialog.h"
-#include "qlabel.h"
 #include "qmessagebox.h"
 #include "qtimer.h"
 
@@ -49,8 +47,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopundo.h"
 #include "desk.h"
 #include "file.h"
-#include "maxview.h"
-#include "op.h"
 #include "paperstack.h"
 #include "utils.h"
 
