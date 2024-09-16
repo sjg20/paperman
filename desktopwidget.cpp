@@ -638,7 +638,8 @@ QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
       return QStringList();
    QModelIndex root = getRootIndex();
 
-   return _model->findFolders(text, dirPath, root, missing);
+   Operation op ("Scanning folders", 0, this);
+   return _model->findFolders(text, dirPath, root, missing, &op);
 }
 
 void Desktopwidget::startSearch(const QString& path, const QString& match)
@@ -649,8 +650,9 @@ void Desktopwidget::startSearch(const QString& path, const QString& match)
    QModelIndex root = getRootIndex();
    QString root_path = _model->data(root, QDirModel::FilePathRole).toString ();
 
+   Operation op("Scanning folders", 0, this);
    QStringList matches;
-   matches = _model->findFiles(match, path, root);
+   matches = _model->findFiles(match, path, root, &op);
 
    QModelIndex sind = _contents->finishFileSearch(path, root_path, matches);
 
@@ -1438,7 +1440,8 @@ TreeItem *Desktopwidget::ensureCache()
    // Get the top-level dirname of that
    QModelIndex root = _model->findRoot(src_ind);
 
-   return _model->ensureCache(root, nullptr);
+   Operation op("Scanning folders", 0, this);
+   return _model->ensureCache(root, &op);
 }
 
 QModelIndex Desktopwidget::getDirIndex(const QString dirname)

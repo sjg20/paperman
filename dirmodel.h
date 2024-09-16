@@ -237,17 +237,19 @@ public:
     * which folders to put at the top of the list
     */
    QStringList findFolders(const QString& text, const QString& dirPath,
-                           const QModelIndex& root, QStringList& missing);
+                           const QModelIndex& root, QStringList& missing,
+                           Operation *op);
 
    /**
     * @brief Find files matching a substring
     * @param text     Text to search for
     * @param dirPath  Full path to search, without trailing /
     * @param root     Index of the repository
+    * @param op       Operation to updates
     * @return List of matches, as paths relative to the root directory
     */
    QStringList findFiles(const QString& text, const QString& dirPath,
-                         const QModelIndex& root);
+                         const QModelIndex& root, Operation *op);
 
    //! Refresh the cache for a given repository
    void refreshCache(const QModelIndex& root_ind, Operation *op);
