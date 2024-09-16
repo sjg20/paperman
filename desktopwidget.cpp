@@ -1226,6 +1226,8 @@ void Desktopwidget::deleteStacks (void)
    QModelIndexList list = _view->getSelectedListSource ();
    int ok;
 
+   if (!list.size())
+        return;
    ok = QMessageBox::question(
             this,
             tr("Confirmation -- maxview"),
