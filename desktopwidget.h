@@ -57,12 +57,14 @@ struct file_info;
 
 
 #include <QAbstractItemModel>
+#include <QDialog>
 
 #include "qsplitter.h"
 #include "qstring.h"
 #include "qwidget.h"
 #include "desk.h"
 #include "ui_toolbar.h"
+#include "ui_move.h"
 
 
 /** a DesktopWidget is a splitter with a directory tree on the left and a
@@ -337,6 +339,9 @@ private slots:
    // email max files as attachments
    void emailMax (void);
 
+   // Move a stack to a folder
+   void moveToFolder();
+
    // convert files to pdf and email as attachments
    void emailPdf (void);
 
@@ -466,7 +471,7 @@ private:
    QAction *_act_rename_stack, *_act_rename_page, *_act_duplicate_page;
    QAction *_act_duplicate_max, *_act_duplicate_pdf, *_act_duplicate_tiff;
    QAction *_act_duplicate_odd, *_act_duplicate_even;
-   QAction *_act_duplicate_jpeg;
+   QAction *_act_duplicate_jpeg, *_act_move;
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
 //   QAction *_act_send, *_act_deliver_out;
 
@@ -507,4 +512,9 @@ public:
 
 public:
     QKeyEventTransition *pressed_esc;
+};
+
+class Move : public QDialog, public Ui::Move
+{
+   Q_OBJECT
 };
