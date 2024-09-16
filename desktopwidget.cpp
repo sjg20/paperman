@@ -459,13 +459,11 @@ void Desktopwidget::slotDroppedOnFolder(const QMimeData *data, QString &dir)
    QByteArray encodedData = data->data("application/vnd.text.list");
    QDataStream stream(&encodedData, QIODevice::ReadOnly);
    QStringList newItems;
-   int rows = 0;
 
    while (!stream.atEnd()) {
       QString text;
       stream >> text;
       newItems << text;
-      ++rows;
    }
 
    QModelIndexList list = _contents->listFromFilenames (newItems, _view->rootIndexSource ());
