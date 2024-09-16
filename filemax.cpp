@@ -2221,7 +2221,6 @@ err_info *Filemax::page_read_roswell (page_info &page)
 err_info *Filemax::setup_max (void)
    {
    int i;
-   page_info *page;
    int pos, old_pages_count, chunk_count, page_count;
 
    // initially the version is 0, unless it is one of our files
@@ -2339,7 +2338,7 @@ err_info *Filemax::setup_max (void)
       {
       // first read the page info, then the roswell info (more cache-efficient)
       for (i = 0, pos += POS_bermuda_pageinfo; i < page_count;
-           i++, pos += 12, page++)
+           i++, pos += 12)
          {
          page_info &page = _pages [i];
 
