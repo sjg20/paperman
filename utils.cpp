@@ -796,6 +796,18 @@ TreeItem *TreeItem::child(int row)
     return m_childItems.at(row);
 }
 
+void TreeItem::free()
+{
+   while (!m_childItems.empty())
+      delete m_childItems.takeFirst();
+}
+
+void TreeItem::freeTree(TreeItem *tree)
+{
+   tree->free();
+   delete tree;
+}
+
 TreeItem *TreeItem::child(const QString& name) const
 {
    foreach (TreeItem *child, m_childItems) {

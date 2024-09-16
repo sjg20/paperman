@@ -194,6 +194,7 @@ void TestPaperman::testScanDir()
    utilWriteTree(fname, root);
    chk = utilReadTree(fname, tmp.path());
    compare_trees(root, chk);
+   TreeItem::freeTree(chk);
    QCOMPARE(root->dirName(), tmp.path());
    QCOMPARE(root->childCount(), 6);
    TreeItem *child = root->child("2");
@@ -215,6 +216,8 @@ void TestPaperman::testScanDir()
    QCOMPARE(stream.readLine(), "   another-file");
    QCOMPARE(stream.readLine(), "  somefile");
    QVERIFY(stream.atEnd());
+
+   TreeItem::freeTree(root);
 }
 
 //QTEST_MAIN(TestPaperman)
