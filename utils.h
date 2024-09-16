@@ -76,6 +76,8 @@ public:
     void dump(int indent = 0) const;
     void write(QTextStream& stream, int level) const;
     static bool read(QTextStream& stream, TreeItem *parent, int level);
+    void free();
+    static void freeTree(TreeItem *tree);
 
 private:
     QVector<TreeItem*> m_childItems;
