@@ -2374,24 +2374,23 @@ char *Filemax::max_get_shell_filename (void)
    }
 
 
-err_info *Filemax::max_openf (FILE *fin)
-   {
+err_info *Filemax::max_openf()
+{
    struct stat stat;
 
    debugf = _debug->logf;
    debug_level = _debug->level;
 
-   fstat (fileno (fin), &stat);
+   fstat(fileno(_fin), &stat);
    _size = stat.st_size;
    _timestamp.setTime_t (stat.st_ctime);
-   _fin = fin;
 
    if (!_size)
       return err_make (ERRFN, ERR_signature_failure1, -1);
 
    CALL (setup_max ());
    return NULL;
-   }
+}
 
 
 static void tile_free (tile_info *tile)
@@ -2667,7 +2666,7 @@ err_info *Filemax::max_open_file()
    {
    CALL(ensure_open());
    setvbuf(_fin, NULL, _IONBF, 0);
-   CALL (max_openf(_fin));
+   CALL (max_openf());
    return NULL;
    }
 
