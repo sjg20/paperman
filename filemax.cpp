@@ -2614,7 +2614,9 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
    if (!_valid)
        return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (_filename));
 
+   CALL(ensure_open());
    CALL (find_page_chunk (pagenum, chunk, NULL, &page));
+   ensure_closed();
    size = QSize (chunk->image_size.x, chunk->image_size.y);
    compressed_size = chunk->size;
    calc_true_size (chunk, true_size);
@@ -2667,6 +2669,8 @@ err_info *Filemax::max_open_file()
    CALL(ensure_open());
    setvbuf(_fin, NULL, _IONBF, 0);
    CALL (max_openf());
+   ensure_closed();
+
    return NULL;
    }
 
@@ -5042,7 +5046,9 @@ err_info *Filemax::flush_chunks (void)
 
          // write the chunk to disc
          assert (chunk.buf);
+         CALL(ensure_open());
          CALL (max_write_data (chunk.start, chunk.buf, chunk.size));
+         ensure_closed();
          chunk.saved = true;
          }
       }
@@ -5068,6 +5074,7 @@ err_info *Filemax::flush_pages (void)
 
 err_info *Filemax::flush (void)
    {
+   CALL(ensure_open());
    ensure_all_chunks ();
 
    // write back any changed page titles
@@ -5079,10 +5086,12 @@ err_info *Filemax::flush (void)
 
    // now flush header
    write_max_header ();
+   CALL(ensure_open());
    CALL (max_write_data (0, (byte *)_hdr.data (), _hdr.size ()));
    _hdr_updated = true;
 
    fflush (_fin);
+   ensure_closed();
 
    // update the file size
    QFileInfo fi (_pathname);
@@ -5394,8 +5403,10 @@ err_info *Filemax::getPageTitle (int pagenum, QString &title)
    page_info *page;
 
    CALL (find_page (pagenum, page));
+   CALL(ensure_open());
    CALL (ensure_titlestr (pagenum, *page));
    title = page->titlestr;
+   ensure_closed();
    return NULL;
    }
 
@@ -5673,7 +5684,9 @@ err_info *Filemax::getImage (int pagenum, bool,
    chunk_info *chunk;
 
    CALL (find_page_chunk (pagenum, chunk, NULL, NULL));
+   CALL(ensure_open());
    CALL (decode_image (*chunk, imagep, &trueSize));
+   ensure_closed();
 
    // the QImage 'owns' the bitmap, so remove it from the chunk, otherwise we free twice
    chunk->image = NULL;
@@ -5717,7 +5730,9 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    QSize Size = QSize (chunk->preview_size.x, chunk->preview_size.y);
    int bpp = chunk->bits == 24 ? 24 : 8;
+   CALL(ensure_open());
    CALL (decode_preview (*chunk, true, &preview));
+   ensure_closed();
    if (temp)
       {
       chunk_free (*chunk);
@@ -5756,14 +5771,17 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 
 
 QPixmap Filemax::pixmap (bool recalc)
-   {
+{
    err_info *err = NULL;
 
-   if (recalc)
-      {
-      err = getPreviewPixmap (_pagenum, _pixmap, false);
-      _pixmap = _pixmap.copy ();
+   if (recalc) {
+      err = ensure_open();
+      if (!err) {
+         err = getPreviewPixmap (_pagenum, _pixmap, false);
+         _pixmap = _pixmap.copy ();
+         ensure_closed();
       }
+   }
 
    return err || _pixmap.isNull () ? unknownPixmap () : _pixmap;
-   }
+}
