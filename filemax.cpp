@@ -5362,6 +5362,7 @@ err_info *Filemax::renamePage (int pagenum, QString &name)
       page->titlestr = name;
       page->title_loaded = true;
       page->title_saved = false;
+      flush();
       }
    return NULL;
    }
