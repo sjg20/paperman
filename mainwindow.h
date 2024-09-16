@@ -52,6 +52,9 @@ public:
    // save window settings for next time (called when closing application)
    void saveSettings ();
 
+   // Select whether the 'search' menu-option is available
+   void setSearchEnabled(bool enable);
+
 public slots:
     virtual void on_actionPrint_triggered(bool);
     virtual void on_actionExit_triggered(bool);
