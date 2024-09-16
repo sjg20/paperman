@@ -115,8 +115,8 @@ void Mainwindow::undoChanged ()
    actionRedo = undo->createRedoAction (menuEdit);
    actionUndo->setShortcut (tr ("Ctrl+Z"));
    actionRedo->setShortcut (tr ("Ctrl+Shift+Z"));
-   menuEdit->insertAction (actionLocate, actionUndo);
-   menuEdit->insertAction (actionLocate, actionRedo);
+   menuEdit->insertAction(actionSearch, actionUndo);
+   menuEdit->insertAction(actionSearch, actionRedo);
    }
 
 
@@ -194,10 +194,10 @@ void Mainwindow::on_actionAbout_triggered(bool)
    widget->exec ();
 }
 
-void Mainwindow::on_actionLocate_triggered(bool)
-   {
-   getDesktop()->activateLocate ();
-   }
+void Mainwindow::on_actionSearch_triggered(bool)
+{
+   getDesktop()->activateSearch();
+}
 
 void Mainwindow::on_actionFullScreen_triggered(bool)
 {

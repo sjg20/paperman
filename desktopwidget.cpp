@@ -1368,11 +1368,11 @@ void Desktopwidget::pageRight (void)
       }
    }
 
-void Desktopwidget::activateLocate ()
-   {
+void Desktopwidget::activateSearch()
+{
    if (!_toolbar->searchEnabled())
       searchInFolders();
-   }
+}
 
 #if 0
 bool Desktopwidget::eventFilter (QObject *watched_object, QEvent *e)

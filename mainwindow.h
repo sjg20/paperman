@@ -71,7 +71,7 @@ public slots:
     virtual void on_actionVflip_triggered(bool);
     virtual void on_actionOptions_triggered(bool);
     virtual void on_actionOptionsm_triggered(bool);
-    virtual void on_actionLocate_triggered(bool);
+    virtual void on_actionSearch_triggered(bool);
     void on_actionFullScreen_triggered(bool);
 
     void welcome ();
