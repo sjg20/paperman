@@ -411,7 +411,8 @@ private:
 
    char *max_get_shell_filename (void);
 
-   err_info *max_openf (FILE *fin);
+   // Open the max file
+   err_info *max_openf();
 
    void max_free (void);
 
