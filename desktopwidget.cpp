@@ -659,7 +659,8 @@ void Desktopwidget::startSearch(const QString& path, const QString& match)
    QStringList matches;
    matches = _model->findFiles(match, path, root, &op);
 
-   QModelIndex sind = _contents->finishFileSearch(path, root_path, matches);
+   QModelIndex sind = _contents->finishFileSearch(path, root_path, matches,
+                                                  _view->getMeasure());
 
    //delete op;
    QModelIndex ind = sind;
