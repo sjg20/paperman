@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "ui_pscan.h"
 
 class QStandardItemModel;
+class Folderlist;
 
 class Preset
 {
@@ -49,27 +50,6 @@ public:
     int _dpi;     // x & y dots-per-inch must be the same
     bool _duplex;
     bool _valid;  // preset is valid
-};
-
-
-class Folderlist : public QTableView
-{
-   Q_OBJECT
-
-public:
-   Folderlist(QWidget *parent);
-   ~Folderlist();
-
-   // Return the currently selected item, or -1 if none
-   QModelIndex selected();
-
-signals:
-   void keypressReceived(QKeyEvent *event);
-   void selectItem(const QModelIndex&);
-
-protected:
-   virtual void keyPressEvent(QKeyEvent *event) override;
-   virtual void mousePressEvent(QMouseEvent *e) override;
 };
 
 class Presetadd : public QDialog, public Ui::Presetadd

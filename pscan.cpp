@@ -32,8 +32,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTableView>
 #include <QTimer>
 
+#include "folderlist.h"
 #include "pscan.h"
-
 #include <qvariant.h>
 #include "qxmlconfig.h"
 #include "sliderspin.h"
