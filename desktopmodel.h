@@ -538,6 +538,9 @@ public:
    */
    QString getAnnot (QModelIndex ind, File::e_annot type) const;
 
+   QModelIndex showFilesIn(const QString& dirPath, const QString &rootPath,
+                           Measure *meas);
+
    /*********************** UNDO / REDO operations **********************/
 protected:
    /* these 'op' functions are used by the undo / redo stack to actually
@@ -1338,6 +1341,7 @@ private:
    QTimer *_flushTimer;    //!< time to indicate when we need to flush the desks
    QModelIndex _subdirs_index;      //!< model index for our subdirectory search desk
    bool _cloned;  //!< true if this model is cloned from another
+   QModelIndex _otherdir_index;  //!< model index for import directory
    };
 
 
