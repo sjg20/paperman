@@ -131,6 +131,7 @@ HEADERS += desktopwidget.h \
     qlistwidgetitemiterator.h
 
 SOURCES += desktopwidget.cpp \
+   folderlist.cpp \
    mainwidget.cpp \
    desk.cpp \
    maxview.cpp \
