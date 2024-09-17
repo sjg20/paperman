@@ -1633,6 +1633,10 @@ err_info *Desktopmodel::getImage (const QModelIndex &ind, int pnum, bool do_scal
    _modelconv->assertIsSource (0, &ind, 0);
    File *f = getFile (ind);
 
+   if (!f->valid())
+      return err_make(ERRFN, ERR_file_not_loaded_yet1,
+                      qPrintable(f->filename()));
+
    return f->getImage (pnum, do_scale, imagep, Size, trueSize, bpp, blank);
    }
 
@@ -1723,6 +1727,9 @@ err_info *Desktopmodel::getImagePreviewSizes (const QModelIndex &ind, int pagenu
    int bpp, csize, num_bytes;
    QDateTime dt;
 
+   if (!f->valid())
+      return err_make(ERRFN, ERR_file_not_loaded_yet1,
+                      qPrintable(f->filename()));
    CALL (f->getPreviewInfo (pagenum, preview_size, bpp));
    return f->getImageInfo (pagenum, dsize, image_size, bpp, num_bytes, csize, dt);
    }
@@ -1798,6 +1805,9 @@ err_info *Desktopmodel::getPageText (const QModelIndex &ind, int pagenum, QStrin
    File *f = getFile (ind);
    err_info *err;
 
+   if (!f->valid())
+      return err_make(ERRFN, ERR_file_not_loaded_yet1,
+                      qPrintable(f->filename()));
    err = f->getPageText (pagenum, str);
    if (err)
       str = err->errstr;
