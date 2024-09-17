@@ -5703,6 +5703,7 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
    bool temp;  //!< chunk is temporarily allocated
 
    //! really we should cache this information rather than reading from the file each time
+   CALL(ensure_open());
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    Size = QSize (chunk->preview_size.x, chunk->preview_size.y);
    bpp = chunk->bits == 24 ? 24 : 8;
@@ -5711,6 +5712,8 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
       chunk_free (*chunk);
       delete chunk;
       }
+   ensure_closed();
+
    return NULL;
    }
 
