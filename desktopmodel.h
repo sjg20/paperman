@@ -1165,10 +1165,11 @@ public:
     * @param dirPath   Directory path to search (without "/")
     * @param rootPath  Path to top-level repository directory (without ("/")
     * @param matches   List of file paths to add, relative to dirPath
+    * @param meas      Measurer for text
     * @return  Desktopmodel of the desk to display
     */
    QModelIndex finishFileSearch(QString dirPath, QString rootPath,
-                                const QStringList& matches);
+                                const QStringList& matches, Measure *meas);
 
 public slots:
    /** advises the model of the current context index (default item for

@@ -1449,14 +1449,15 @@ Desk *Desktopmodel::prepareSearchDesk(QString& dirPath, QString& rootPath,
 }
 
 QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
-                                           const QStringList& matches)
+                                           const QStringList& matches,
+                                           Measure *meas)
 {
    bool add_items;
    Desk *desk;
 
    desk = prepareSearchDesk(dirPath, rootPath, _subdirs_index, add_items);
 
-   desk->addMatches(dirPath, matches, nullptr);
+   desk->addMatches(dirPath, matches, meas);
    if (add_items)
       {
       /* we are re-using the same subdir desk for the new search. All the
