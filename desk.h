@@ -531,6 +531,8 @@ public:
    /** advance the current position to the next free space */
    void advance (void);
 
+   void addFromDir(const QString& inPath, Measure *meas);
+
 private:
    /** check if a file exists in a maxdesk
 

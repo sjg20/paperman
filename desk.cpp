@@ -37,6 +37,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDateTime>
 #include <QDebug>
 #include <QLinkedList>
+#include <QStandardPaths>
+#include <QtGlobal>
 
 #include "qdir.h"
 #include "qfile.h"
@@ -223,6 +225,36 @@ void Desk::addMatches(const QString &dirPath, const QStringList& matches,
       addFile(fi.fileName(), dir.path() + "/", meas);
    }
    updateRowCount();
+}
+
+void Desk::addFromDir(const QString& inPath, Measure *meas)
+{
+   QString dirPath = inPath;
+
+   if (dirPath.startsWith("~"))
+      dirPath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation) +
+             dirPath.mid(1);
+   QDir dir(dirPath);
+
+   _do_writeDesk = false;
+
+   dir.setFilter(QDir::Files | QDir::NoSymLinks);
+   dir.setSorting(QDir::Name);
+
+   const QFileInfoList list = dir.entryInfoList();
+   if (!list.size ()) {
+      qInfo() << "dir not found\n";
+      return;
+   }
+
+   for (int i = 0; i < list.size (); i++) {
+      QFileInfo fi = list.at(i);
+      const QString &fname = fi.fileName();
+
+      if (fname.endsWith(".pdf"))
+         addFile(fname, dirPath, meas);
+   }
+   updateRowCount ();
 }
 
 void Desk::resetPos (void)
