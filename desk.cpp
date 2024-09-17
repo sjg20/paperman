@@ -29,13 +29,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <iostream>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#include "tiffio.h"
 
 #include <QBitArray>
 #include <QDateTime>
@@ -46,9 +42,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qfile.h"
 #include "qfileinfo.h"
 #include "qimage.h"
-#include "qmessagebox.h"
-#include "qpainter.h"
-#include "qpixmap.h"
 #include "qstring.h"
 
 #include "desk.h"
@@ -56,7 +49,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
-#include "op.h"
 #include "paperstack.h"
 #include "utils.h"
 
