@@ -66,6 +66,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
    {
+   _showing_imports = false;
    _model = new Dirmodel ();
 //    _model->setLazyChildCount (true);
    _dir = new Dirview (this);
@@ -696,6 +697,12 @@ void Desktopwidget::searchInFolders()
 
    _search_text = ui.stackName->text();
    startSearch(path, _search_text);
+   specialView("Showing the results of folder search");
+}
+
+void Desktopwidget::specialView(const QString& prompt)
+{
+   _toolbar->searchLabel->setText(prompt);
    _toolbar->setSearchEnabled(true);
    _view->setStyleSheet("QListView { background: lightblue; }");
    _dir->setEnabled(false);
@@ -1407,6 +1414,26 @@ bool Desktopwidget::eventFilter (QObject *watched_object, QEvent *e)
   return filtered;
   }
 #endif
+
+void Desktopwidget::showImports(const QString& path)
+{
+   qDebug() << "import" << path;
+   Measure *meas = _view->getMeasure();
+
+   QModelIndex sind = _contents->showFilesIn(path, getRootDirectory(), meas);
+
+   QModelIndex ind = sind;
+   _modelconv->indexToProxy(ind.model (), ind);
+   _view->setRootIndex(ind);
+
+   specialView(QString("Showing the contents of %1").arg(path));
+
+   // Set the focus so that Escape works
+   _view->setFocus();
+
+   _view->scrollToTop();
+   _showing_imports = true;
+}
 
 const QString Desktopwidget::getRootDirectory()
 {

@@ -338,7 +338,7 @@ To go back, just delete characters from the filter.</string>
        </spacer>
       </item>
       <item>
-       <widget class="QLabel" name="label_2">
+       <widget class="QLabel" name="searchLabel">
         <property name="text">
          <string>Showing the results of folder search</string>
         </property>
