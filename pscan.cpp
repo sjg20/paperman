@@ -73,7 +73,7 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(dither, QScanner::dither);
     format->setId(colour, QScanner::colour);
 
-    _folders = setupFolderList(folderName, this);
+    _folders = new Folderlist(folderName, this);
     _model = static_cast<QStandardItemModel *>(_folders->model());
 
     connect(_folders, SIGNAL(selectItem(const QModelIndex&)),

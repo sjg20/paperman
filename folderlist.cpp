@@ -16,6 +16,20 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
    setModel(_model);
    _valid = false;
 
+   horizontalHeader()->hide();
+   verticalHeader()->hide();
+
+   // Set the default row height to 0 so that it will be as small as possible
+   // while still making the text visible
+   verticalHeader()->setDefaultSectionSize(0);
+   setShowGrid(false);
+
+   setSelectionBehavior(QTableView::SelectRows);
+   setSelectionMode(QTableView::SingleSelection);
+   setEditTriggers(QTableView::NoEditTriggers);
+
+   hide();
+
    connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
 }
@@ -97,26 +111,4 @@ Foldersel::~Foldersel()
 void Foldersel::focusOutEvent(QFocusEvent *)
 {
    // Do nothing here, so that any selected text remains selected
-}
-
-Folderlist *setupFolderList(Foldersel *foldersel, QWidget *parent)
-{
-   Folderlist *folders;
-
-   folders = new Folderlist(foldersel, parent);
-   folders->horizontalHeader()->hide();
-   folders->verticalHeader()->hide();
-
-   // Set the default row height to 0 so that it will be as small as possible
-   // while still making the text visible
-   folders->verticalHeader()->setDefaultSectionSize(0);
-   folders->setShowGrid(false);
-
-   folders->setSelectionBehavior(QTableView::SelectRows);
-   folders->setSelectionMode(QTableView::SingleSelection);
-   folders->setEditTriggers(QTableView::NoEditTriggers);
-
-   folders->hide();
-
-   return folders;
 }
