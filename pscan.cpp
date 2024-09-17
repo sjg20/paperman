@@ -324,6 +324,7 @@ void Pscan::scannerChanged (QScanner *scanner)
 void Pscan::setMainwidget(Mainwidget *main)
 {
     _main = main;
+   _folders->setMainwidget(main);
     presetSelect(0);
 }
 
@@ -435,7 +436,7 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
 
    // regenerate the folder list
    _searching = true;
-   searchForFolders(folderName->text());
+   _folders->searchForFolders(folderName->text());
    _searching = false;
 
    return true;
@@ -874,53 +875,6 @@ void Pscan::focusFind()
    folderName->setSelection(0, folderName->text().size());
 }
 
-void Pscan::searchForFolders(const QString& match)
-{
-   QStringList folders;
-   bool valid = false;
-   int row;
-
-   // We want at least three characters for a match
-   if (match.length() >= 3) {
-      folders = _main->findFolders(match, _folders->_path, _folders->_missing);
-      if (_folders->_path.isEmpty())
-         return;
-      valid = true;
-   }
-
-   // put the folder list into the model
-   _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
-
-   for (row = 0; row < _folders->_missing.size(); row++) {
-      _model->insertRows(row, 1, QModelIndex());
-      _model->setData(_model->index(row, 0, QModelIndex()),
-                      QString("<Add: %1>").arg(_folders->_missing[row]));
-   }
-   for (int i = 0; i < folders.size(); i++) {
-      _model->insertRows(row + i, 1, QModelIndex());
-      _model->setData(_model->index(row + i, 0, QModelIndex()),
-                      folders[i]);
-   }
-
-   if (folders.size()) {
-      _folders->selectRow(0);
-   } else {
-      _model->insertRows(0, 1, QModelIndex());
-      _model->setData(_model->index(0, 0, QModelIndex()),
-                      valid ? "<no match>" : "<too short>");
-   }
-
-   // make sure the column is wide enough
-   _folders->resizeColumnToContents(0);
-
-   _folders->showFolders();
-
-   if (folders.size())
-      _folders->setFocus();
-
-   _folders->_valid = folders.size() > 0;
-}
-
 void Pscan::on_folderName_textChanged(const QString &text)
 {
    if (_searching) {
@@ -931,7 +885,7 @@ void Pscan::on_folderName_textChanged(const QString &text)
    QString match = text;
    do {
       _searching = true;
-      searchForFolders(match);
+      _folders->searchForFolders(match);
       _searching = false;
 
       match = _next_search;

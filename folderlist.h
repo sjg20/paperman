@@ -5,6 +5,7 @@
 
 class QStandardItemModel;
 class Foldersel;
+class Mainwidget;
 
 class Folderlist : public QTableView
 {
@@ -29,6 +30,11 @@ public:
    // true if the folders list has been set up
    bool _valid;
 
+   void setMainwidget(Mainwidget *main);
+
+   /** Search for folders which match a string */
+   void searchForFolders(const QString& match);
+
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
 
@@ -41,8 +47,9 @@ protected:
    virtual void mousePressEvent(QMouseEvent *e) override;
 
    Foldersel *_foldersel;
-   QWidget *_parent;
    QStandardItemModel *_model;
+   Mainwidget *_main;
+   QWidget *_parent;
 };
 
 #endif // FOLDERLIST_H

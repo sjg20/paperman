@@ -207,9 +207,6 @@ private:
     /** Move the focus to the folder 'find' field */
     void focusFind();
 
-    /** Search for folders which match a string */
-    void searchForFolders(const QString& match);
-
     /**
      * @brief Create a directory from the _missing list, return true if done
      * @param item   Index within _missing of the directory to create

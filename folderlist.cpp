@@ -7,11 +7,14 @@
 #include <QStandardItemModel>
 #include "folderlist.h"
 #include "foldersel.h"
+#include "mainwidget.h"
 
 Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
-    : QTableView(parent), _foldersel(foldersel)
+    : QTableView(parent), _foldersel(foldersel),
+    _parent(parent)
 {
    _parent = parent;
+   _main = nullptr;   // not known yet
    _model = new QStandardItemModel(1, 1, parent);
    setModel(_model);
    _valid = false;
@@ -36,6 +39,11 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
 
 Folderlist::~Folderlist()
 {
+}
+
+void Folderlist::setMainwidget(Mainwidget *main)
+{
+   _main = main;
 }
 
 void Folderlist::keypressFromFolderList(QKeyEvent *evt)
@@ -97,6 +105,53 @@ void Folderlist::showFolders()
    resize(rect.size());
    horizontalHeader()->resizeSection(0, rect.width());
    show();
+}
+
+void Folderlist::searchForFolders(const QString& match)
+{
+   QStringList folders;
+   bool valid = false;
+   int row;
+
+   // We want at least three characters for a match
+   if (match.length() >= 3) {
+      folders = _main->findFolders(match, _path, _missing);
+      if (_path.isEmpty())
+         return;
+      valid = true;
+   }
+
+   // put the folder list into the model
+   _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
+
+   for (row = 0; row < _missing.size(); row++) {
+      _model->insertRows(row, 1, QModelIndex());
+      _model->setData(_model->index(row, 0, QModelIndex()),
+                      QString("<Add: %1>").arg(_missing[row]));
+   }
+   for (int i = 0; i < folders.size(); i++) {
+      _model->insertRows(row + i, 1, QModelIndex());
+      _model->setData(_model->index(row + i, 0, QModelIndex()),
+                      folders[i]);
+   }
+
+   if (folders.size()) {
+      selectRow(0);
+   } else {
+      _model->insertRows(0, 1, QModelIndex());
+      _model->setData(_model->index(0, 0, QModelIndex()),
+                      valid ? "<no match>" : "<too short>");
+   }
+
+   // make sure the column is wide enough
+   resizeColumnToContents(0);
+
+   showFolders();
+
+   if (folders.size())
+      setFocus();
+
+   _valid = folders.size() > 0;
 }
 
 Foldersel::Foldersel(QWidget* parent)
