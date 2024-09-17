@@ -219,9 +219,6 @@ private:
     /** Search for folders which match a string */
     void searchForFolders(const QString& match);
 
-    /** Show the folders list, sizing it correctly */
-    void showFolders();
-
     /**
      * @brief Create a directory from the _missing list, return true if done
      * @param item   Index within _missing of the directory to create
