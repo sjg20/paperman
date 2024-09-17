@@ -187,7 +187,7 @@ void Desk::updateRowCount (void)
       }
    }
 
-void Desk::addFiles(const QString &dirPath)
+void Desk::addFiles(const QString &dirPath, Measure *meas)
    {
    QDir dir (dirPath);
    dir.setFilter(QDir::Files | QDir::NoSymLinks);
@@ -204,7 +204,7 @@ void Desk::addFiles(const QString &dirPath)
       {
       QFileInfo fi = list.at(i);
 
-      addFile(fi.fileName(), dirPath);
+      addFile(fi.fileName(), dirPath, meas);
       }
    updateRowCount ();
    }
@@ -591,7 +591,7 @@ void Desk::refresh(void)
 {
    removeRows(0, _row_count);
    readDesk();
-   addFiles(_dir);
+   addFiles(_dir, nullptr);
 }
 
 //template int QPtrList<file_info>::compareItems ( QPtrCollection::Item item1, QPtrCollection::Item item2 )

@@ -106,7 +106,7 @@ public:
     * @brief Add files from a directory which are not already present
     * @param dirPath  Patch to scan
     */
-   void addFiles(const QString &dirPath);
+   void addFiles(const QString &dirPath, Measure *meas);
 
    /**
     * @brief Add new filenames to a desk
