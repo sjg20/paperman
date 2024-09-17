@@ -48,6 +48,7 @@ RESOURCES = maxview.qrc
 TRANSLATIONS = maxview_en.ts
 
 HEADERS += desktopwidget.h \
+   folderlist.h \
    foldersel.h \
    mainwidget.h \
    desk.h \
