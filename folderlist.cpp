@@ -7,8 +7,8 @@
 #include "folderlist.h"
 #include "foldersel.h"
 
-Folderlist::Folderlist(QWidget *parent)
-    : QTableView(parent)
+Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
+    : QTableView(parent), _foldersel(foldersel)
 {
 }
 
@@ -70,12 +70,12 @@ void Foldersel::focusOutEvent(QFocusEvent *)
    // Do nothing here, so that any selected text remains selected
 }
 
-Folderlist *setupFolderList(QWidget *parent)
+Folderlist *setupFolderList(Foldersel *foldersel, QWidget *parent)
 {
    QStandardItemModel *model;
    Folderlist *folders;
 
-   folders = new Folderlist(parent);
+   folders = new Folderlist(foldersel, parent);
    model = new QStandardItemModel(1, 1, parent);
    folders->setModel(model);
    folders->horizontalHeader()->hide();
