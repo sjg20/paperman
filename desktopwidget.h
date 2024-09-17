@@ -176,6 +176,8 @@ public:
    QStringList findFolders(const QString& text, QString& dirPath,
                            QStringList& missing);
 
+   void showImports(const QString& path);
+
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
@@ -408,7 +410,10 @@ private:
     */
    void startSearch(const QString& path, const QString& match);
 
-   //! Drop the blue colour and other features of the folder-search view
+   //! Update the view to indicate that it is in a search/import mode
+   void specialView(const QString& prompt);
+
+   //! Drop the blue colour and other features of the search/import view
    void normalView();
 
 private:
@@ -475,6 +480,8 @@ private:
 
    // Text used for a recursive folder search
    QString _search_text;
+
+   bool _showing_imports;
    };
 
 
