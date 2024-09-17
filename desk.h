@@ -43,6 +43,7 @@ class QFileInfo;
 class QPixmap;
 class QPoint;
 class QImage;
+class Measure;
 class Paperstack;
 struct max_page_info;
 
@@ -542,6 +543,12 @@ private:
    /** advance the current position by one space */
    void advanceOne (void);
 
+   /** ensure there is enough space in the current row, or move to next */
+   void ensureSpace(int width);
+
+   /** advance by the given width, moving to next row if needed */
+   void advanceBy(int width);
+
    /** reset the position to the start */
    void resetPos (void);
 
@@ -574,10 +581,12 @@ private:
     * @param fname  Filename of file to add (without path)
     * @param dir    Full path of the directory containing the file,
     *               with trailing "/"
+    * @param meas   Measurer for text
     *
     * This function does nothing if the file is already present
     */
-   void addFile(const QString& fname, const QString& dir);
+   void addFile(const QString& fname, const QString& dir,
+                Measure *mes = nullptr);
 
 private:
    QList<File *> _files;
