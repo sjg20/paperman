@@ -1,7 +1,9 @@
 /* Implementation of a list of folders */
 
+#include <QHeaderView>
 #include <QKeyEvent>
 #include <QScrollBar>
+#include <QStandardItemModel>
 #include "folderlist.h"
 #include "foldersel.h"
 
@@ -66,4 +68,29 @@ Foldersel::~Foldersel()
 void Foldersel::focusOutEvent(QFocusEvent *)
 {
    // Do nothing here, so that any selected text remains selected
+}
+
+Folderlist *setupFolderList(QWidget *parent)
+{
+   QStandardItemModel *model;
+   Folderlist *folders;
+
+   folders = new Folderlist(parent);
+   model = new QStandardItemModel(1, 1, parent);
+   folders->setModel(model);
+   folders->horizontalHeader()->hide();
+   folders->verticalHeader()->hide();
+
+   // Set the default row height to 0 so that it will be as small as possible
+   // while still making the text visible
+   folders->verticalHeader()->setDefaultSectionSize(0);
+   folders->setShowGrid(false);
+
+   folders->setSelectionBehavior(QTableView::SelectRows);
+   folders->setSelectionMode(QTableView::SingleSelection);
+   folders->setEditTriggers(QTableView::NoEditTriggers);
+
+   folders->hide();
+
+   return folders;
 }

@@ -72,22 +72,10 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(grey, QScanner::grey);
     format->setId(dither, QScanner::dither);
     format->setId(colour, QScanner::colour);
-    _folders = new Folderlist(this);
-    _model = new QStandardItemModel(1, 1, this);
-    _folders->setModel(_model);
-    _folders->horizontalHeader()->hide();
-    _folders->verticalHeader()->hide();
 
-    // Set the default row height to 0 so that it will be as small as possible
-    // while still making the text visible
-    _folders->verticalHeader()->setDefaultSectionSize(0);
-    _folders->setShowGrid(false);
+    _folders = setupFolderList(this);
+    _model = static_cast<QStandardItemModel *>(_folders->model());
 
-    _folders->setSelectionBehavior(QTableView::SelectRows);
-    _folders->setSelectionMode(QTableView::SingleSelection);
-    _folders->setEditTriggers(QTableView::NoEditTriggers);
-
-    _folders->hide();
     connect(_folders, SIGNAL(keypressReceived(QKeyEvent *)),
             this, SLOT(keypressFromFolderList(QKeyEvent *)));
     connect(_folders, SIGNAL(selectItem(const QModelIndex&)),
