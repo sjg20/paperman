@@ -3,12 +3,14 @@
 
 #include <QTableView>
 
+class Foldersel;
+
 class Folderlist : public QTableView
 {
    Q_OBJECT
 
    public:
-   Folderlist(QWidget *parent);
+   Folderlist(Foldersel *foldersel, QWidget *parent);
    ~Folderlist();
 
    // Return the currently selected item, or -1 if none
@@ -21,9 +23,11 @@ class Folderlist : public QTableView
    protected:
    virtual void keyPressEvent(QKeyEvent *event) override;
    virtual void mousePressEvent(QMouseEvent *e) override;
+
+   Foldersel *_foldersel;
 };
 
 //! Set up a new folderlist
-Folderlist *setupFolderList(QWidget *parent);
+Folderlist *setupFolderList(Foldersel *foldersel, QWidget *parent);
 
 #endif // FOLDERLIST_H
