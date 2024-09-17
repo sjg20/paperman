@@ -754,6 +754,11 @@ QString Desktopmodel::getAnnot (QModelIndex ind, File::e_annot type) const
    QString text;
 
    text.clear ();
+   if (!f->valid()) {
+      f->setErr(err_make(ERRFN, ERR_file_not_loaded_yet1,
+                         qPrintable(f->filename())));
+      return text;
+   }
    if (f)
       f->setErr (f->getAnnot (type, text));
    return text;
