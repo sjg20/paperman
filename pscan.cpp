@@ -974,17 +974,3 @@ void Pscan::keypressFromFolderList(QKeyEvent *evt)
 {
     QApplication::postEvent(folderName, evt);
 }
-
-Foldersel::Foldersel(QWidget* parent)
-   : QLineEdit(QString(), parent)
-{
-}
-
-Foldersel::~Foldersel()
-{
-}
-
-void Foldersel::focusOutEvent(QFocusEvent *)
-{
-   // Do nothing here, so that any selected text remains selected
-}

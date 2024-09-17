@@ -3,6 +3,7 @@
 #include <QKeyEvent>
 #include <QScrollBar>
 #include "folderlist.h"
+#include "foldersel.h"
 
 Folderlist::Folderlist(QWidget *parent)
     : QTableView(parent)
@@ -51,4 +52,18 @@ QModelIndex Folderlist::selected()
       return sel[0];
 
    return QModelIndex();
+}
+
+Foldersel::Foldersel(QWidget* parent)
+    : QLineEdit(QString(), parent)
+{
+}
+
+Foldersel::~Foldersel()
+{
+}
+
+void Foldersel::focusOutEvent(QFocusEvent *)
+{
+   // Do nothing here, so that any selected text remains selected
 }
