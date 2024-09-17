@@ -66,6 +66,9 @@ Desktopview::Desktopview (QWidget *parent)
    connect (this, SIGNAL (indexesMoved (const QModelIndexList &)),
       this, SLOT (slotIndexesMoved (const QModelIndexList &)));
    setStyleSheet ("QListView { background : lightgray }");
+   QFont font = viewOptions().font;
+   font.bold();
+   _measure = new Measure(QApplication::style(), font);
    }
 
 
@@ -73,6 +76,10 @@ Desktopview::~Desktopview ()
    {
    }
 
+Measure *Desktopview::getMeasure()
+{
+   return _measure;
+}
 
 void Desktopview::setFreeForm (void)
    {
