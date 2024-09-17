@@ -182,7 +182,6 @@ void Pscan::init()
     _do_preset_check = false;
 
     _searching = false;
-    _folders_valid = false;
     _awaiting_user = false;
 
     setupBright ();
@@ -271,7 +270,7 @@ void Pscan::checkFolders()
    }
 
    // show the folder list if focus is in folderName
-   if (_folders_valid && QApplication::focusWidget() == folderName &&
+   if (_folders->_valid && QApplication::focusWidget() == folderName &&
        !_main->isScanning()) {
       _folders->showFolders();
       _folders->setFocus(Qt::OtherFocusReason);
@@ -462,7 +461,7 @@ void Pscan::scan_clicked()
 
    if (_awaiting_user)
       return;
-   if (_folders_valid && _folders->isVisible()) {
+   if (_folders->_valid && _folders->isVisible()) {
       QModelIndex ind = _folders->selected();
 
       if (ind != QModelIndex()) {
@@ -919,7 +918,7 @@ void Pscan::searchForFolders(const QString& match)
    if (folders.size())
       _folders->setFocus();
 
-   _folders_valid = folders.size() > 0;
+   _folders->_valid = folders.size() > 0;
 }
 
 void Pscan::on_folderName_textChanged(const QString &text)

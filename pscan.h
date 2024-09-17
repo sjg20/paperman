@@ -161,9 +161,6 @@ protected:
     // timer for checking whether we should close the folder list
     QTimer *_folders_timer;
 
-    // true if the folders list has been set up
-    bool _folders_valid;
-
     // true if waiting for the user to confirm directory creation
     bool _awaiting_user;
 

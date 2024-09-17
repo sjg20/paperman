@@ -26,6 +26,9 @@ public:
    // directory path for the folder list
    QString _path;
 
+   // true if the folders list has been set up
+   bool _valid;
+
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
 
