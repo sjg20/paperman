@@ -204,6 +204,12 @@ void Mainwindow::on_actionSearch_triggered(bool)
    getDesktop()->activateSearch();
 }
 
+void Mainwindow::on_actionDownloads_triggered(bool)
+{
+   qDebug() << "downloads";
+   _desktop->showImports("~/Downloads");
+}
+
 void Mainwindow::on_actionFullScreen_triggered(bool)
 {
    setWindowState(windowState() ^ Qt::WindowFullScreen);
