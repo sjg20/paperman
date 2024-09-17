@@ -49,6 +49,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
+#include "measure.h"
 #include "paperstack.h"
 #include "utils.h"
 
@@ -69,6 +70,7 @@ enum
    {
    POS_leftmargin  = 25,   //!< left-most position for new files
    POS_topmargin   = 35,   //!< top-most position for new files
+   POS_xmargin     = 20,   //!< horizontal space between files
    POS_xstep       = 140,  //!< distance between files across
    POS_ystep       = 250,  //!< distance between files down
    POS_xoffset     = 8,    //!< x offset between bunched files
@@ -467,7 +469,7 @@ File *Desk::findFile (QString fileName, int &pos)
    }
 
 
-void Desk::addFile(const QString& fname, const QString& dir)
+void Desk::addFile(const QString& fname, const QString& dir, Measure *meas)
    {
    File *f;
 
@@ -490,12 +492,21 @@ void Desk::addFile(const QString& fname, const QString& dir)
    // if not then find a good position for it, and add it
 //   printf ("not found %s\n", file->fileName ().latin1 ());
    f = createFile(dir, fname);
+
+   int width = 0;
+   if (meas) {
+      width = meas->getWidth(fname);
+      ensureSpace(width);
+   }
    f->setPos (_pos);
    _files << f;
    dirty ();
 
    // advance pos
-   advanceOne ();
+   if (meas)
+      advanceBy(width);
+   else
+      advanceOne();
    }
 
 
@@ -521,6 +532,23 @@ void Desk::advanceOne (void)
       }
    }
 
+void Desk::ensureSpace(int width)
+{
+   if (_pos.x() + width >= _rightMargin) {
+      _pos.setX (POS_leftmargin);
+      _pos.setY (_pos.y () + POS_ystep);
+   }
+}
+
+void Desk::advanceBy(int width)
+{
+   width = qMax(width, (int)POS_xstep) + POS_xmargin;
+   _pos.setX (_pos.x () + width);
+   if (_pos.x () >= _rightMargin) {
+      _pos.setX (POS_leftmargin);
+      _pos.setY (_pos.y () + POS_ystep);
+   }
+}
 
 void Desk::advance (void)
    {
