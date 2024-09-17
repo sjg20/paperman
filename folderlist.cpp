@@ -14,6 +14,7 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
    _parent = parent;
    _model = new QStandardItemModel(1, 1, parent);
    setModel(_model);
+   _valid = false;
 
    connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
