@@ -1402,7 +1402,7 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
    desk->setDebugLevel (_debug_level);
 
    // add files that are not in the maxdesk.ini file
-   desk->addFiles(dirPath);
+   desk->addFiles(dirPath, nullptr);
 
    // no pending list at present
    _pending_scan_list.clear ();
@@ -1455,7 +1455,7 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
 
    desk = prepareSearchDesk(dirPath, rootPath, _subdirs_index, add_items);
 
-   desk->addMatches(dirPath, matches);
+   desk->addMatches(dirPath, matches, nullptr);
    if (add_items)
       {
       /* we are re-using the same subdir desk for the new search. All the

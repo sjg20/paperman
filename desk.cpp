@@ -209,7 +209,8 @@ void Desk::addFiles(const QString &dirPath, Measure *meas)
    updateRowCount ();
    }
 
-void Desk::addMatches(const QString &dirPath, const QStringList& matches)
+void Desk::addMatches(const QString &dirPath, const QStringList& matches,
+                      Measure *meas)
 {
       // don't write back the maxdesk.ini file
    _do_writeDesk = false;
@@ -219,7 +220,7 @@ void Desk::addMatches(const QString &dirPath, const QStringList& matches)
       QFileInfo fi(pathname);
       QDir dir(fi.dir());
       QString fname = fi.fileName();
-      addFile(fi.fileName(), dir.path() + "/");
+      addFile(fi.fileName(), dir.path() + "/", meas);
    }
    updateRowCount();
 }

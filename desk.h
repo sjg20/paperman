@@ -113,7 +113,8 @@ public:
     * @param dirPath  Common initial path for all matches, with trailing "/"
     * @param matches  List of filenames to add, each relative to dirPath
     */
-   void addMatches(const QString &dirPath, const QStringList& matches);
+   void addMatches(const QString &dirPath, const QStringList& matche,
+                   Measure *meas);
 
    /** read the maxdesk.ini file which contains positional and size
       information for each stack in the directory
