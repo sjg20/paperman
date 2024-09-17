@@ -5,6 +5,7 @@
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QStandardItemModel>
+#include <QTimer>
 #include "folderlist.h"
 #include "foldersel.h"
 #include "mainwidget.h"
@@ -18,6 +19,7 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
    _model = new QStandardItemModel(1, 1, parent);
    setModel(_model);
    _valid = false;
+   _awaiting_user = false;
 
    horizontalHeader()->hide();
    verticalHeader()->hide();
@@ -35,6 +37,10 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
 
    connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
+
+   _timer = new QTimer (this);
+   connect (_timer, SIGNAL(timeout()), this, SLOT(checkFolders()));
+   _timer->start(200); // check 5 times a second
 }
 
 Folderlist::~Folderlist()
@@ -152,6 +158,25 @@ void Folderlist::searchForFolders(const QString& match)
       setFocus();
 
    _valid = folders.size() > 0;
+}
+
+void Folderlist::checkFolders()
+{
+   // close the folder list if the focus is in anything other than the two
+   // fields dealing with the list of folders
+   if (!_awaiting_user && QApplication::focusWidget() != _foldersel &&
+       QApplication::focusWidget() != this && isVisible()) {
+      hide();
+      if (focusWidget() == this)
+         _foldersel->setFocus(Qt::OtherFocusReason);
+   }
+
+   // show the folder list if focus is in folderName
+   if (_valid && QApplication::focusWidget() == _foldersel &&
+       !_main->isScanning()) {
+      showFolders();
+      setFocus(Qt::OtherFocusReason);
+   }
 }
 
 Foldersel::Foldersel(QWidget* parent)
