@@ -76,8 +76,6 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders = setupFolderList(folderName, this);
     _model = static_cast<QStandardItemModel *>(_folders->model());
 
-    connect(_folders, SIGNAL(keypressReceived(QKeyEvent *)),
-            this, SLOT(keypressFromFolderList(QKeyEvent *)));
     connect(_folders, SIGNAL(selectItem(const QModelIndex&)),
             this, SLOT(selectDir(const QModelIndex&)));
 
@@ -956,9 +954,4 @@ void Pscan::on_folderName_textChanged(const QString &text)
       match = _next_search;
       _next_search = QString();
    } while (match.size());
-}
-
-void Pscan::keypressFromFolderList(QKeyEvent *evt)
-{
-    QApplication::postEvent(folderName, evt);
 }

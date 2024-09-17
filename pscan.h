@@ -112,7 +112,6 @@ public slots:
     void on_config_clicked();
     void on_stop_clicked ();
     void on_folderName_textChanged(const QString &text);
-    void keypressFromFolderList(QKeyEvent *evt);
     void checkFolders(void);
 
     /**
