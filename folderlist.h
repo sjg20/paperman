@@ -16,6 +16,9 @@ public:
    // Return the currently selected item, or -1 if none
    QModelIndex selected();
 
+   /** Show the folders list, sizing it correctly */
+   void showFolders();
+
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
 
@@ -28,6 +31,7 @@ protected:
    virtual void mousePressEvent(QMouseEvent *e) override;
 
    Foldersel *_foldersel;
+   QWidget *_parent;
 };
 
 //! Set up a new folderlist

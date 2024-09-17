@@ -11,6 +11,7 @@
 Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
     : QTableView(parent), _foldersel(foldersel)
 {
+   _parent = parent;
    connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
 }
@@ -62,6 +63,22 @@ QModelIndex Folderlist::selected()
       return sel[0];
 
    return QModelIndex();
+}
+
+void Folderlist::showFolders()
+{
+   // Get a rectangle the same size as folderName but starting below it
+   QRect rect = _foldersel->geometry();
+   rect.translate(QPoint(0, rect.height()));
+
+   // extend it to the bottom of the dialog
+   rect.setBottom(_parent->geometry().bottom());
+
+   // place the folders list in the right place
+   move(rect.topLeft());
+   resize(rect.size());
+   horizontalHeader()->resizeSection(0, rect.width());
+   show();
 }
 
 Foldersel::Foldersel(QWidget* parent)

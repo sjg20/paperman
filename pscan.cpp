@@ -273,7 +273,7 @@ void Pscan::checkFolders()
    // show the folder list if focus is in folderName
    if (_folders_valid && QApplication::focusWidget() == folderName &&
        !_main->isScanning()) {
-      showFolders();
+      _folders->showFolders();
       _folders->setFocus(Qt::OtherFocusReason);
    }
 }
@@ -875,22 +875,6 @@ void Pscan::focusFind()
    folderName->setSelection(0, folderName->text().size());
 }
 
-void Pscan::showFolders()
-{
-   // Get a rectangle the same size as folderName but starting below it
-   QRect rect = folderName->geometry();
-   rect.translate(QPoint(0, rect.height()));
-
-   // extend it to the bottom of the dialog
-   rect.setBottom(geometry().bottom());
-
-   // place the folders list in the right place
-   _folders->move(rect.topLeft());
-   _folders->resize(rect.size());
-   _folders->horizontalHeader()->resizeSection(0, rect.width());
-   _folders->show();
-}
-
 void Pscan::searchForFolders(const QString& match)
 {
    QStringList folders;
@@ -930,7 +914,7 @@ void Pscan::searchForFolders(const QString& match)
    // make sure the column is wide enough
    _folders->resizeColumnToContents(0);
 
-   showFolders();
+   _folders->showFolders();
 
    if (folders.size())
       _folders->setFocus();
