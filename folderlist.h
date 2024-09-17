@@ -23,4 +23,7 @@ class Folderlist : public QTableView
    virtual void mousePressEvent(QMouseEvent *e) override;
 };
 
+//! Set up a new folderlist
+Folderlist *setupFolderList(QWidget *parent);
+
 #endif // FOLDERLIST_H
