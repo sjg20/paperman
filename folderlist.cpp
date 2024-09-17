@@ -1,5 +1,6 @@
 /* Implementation of a list of folders */
 
+#include <QApplication>
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QScrollBar>
@@ -10,10 +11,17 @@
 Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
     : QTableView(parent), _foldersel(foldersel)
 {
+   connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
+           this, SLOT(keypressFromFolderList(QKeyEvent *)));
 }
 
 Folderlist::~Folderlist()
 {
+}
+
+void Folderlist::keypressFromFolderList(QKeyEvent *evt)
+{
+   QApplication::postEvent(_foldersel, evt);
 }
 
 void Folderlist::keyPressEvent(QKeyEvent *old)

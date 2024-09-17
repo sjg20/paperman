@@ -9,18 +9,21 @@ class Folderlist : public QTableView
 {
    Q_OBJECT
 
-   public:
+public:
    Folderlist(Foldersel *foldersel, QWidget *parent);
    ~Folderlist();
 
    // Return the currently selected item, or -1 if none
    QModelIndex selected();
 
-   signals:
+public slots:
+   void keypressFromFolderList(QKeyEvent *evt);
+
+signals:
    void keypressReceived(QKeyEvent *event);
    void selectItem(const QModelIndex&);
 
-   protected:
+protected:
    virtual void keyPressEvent(QKeyEvent *event) override;
    virtual void mousePressEvent(QMouseEvent *e) override;
 
