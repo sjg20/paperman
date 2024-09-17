@@ -721,7 +721,7 @@ void Desktopwidget::exitSearch()
    _contents_proxy->setFilterFixedString ("");
    QModelIndex root = _model->findRoot (index);
    QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
-   QModelIndex sind = _contents->showDir(_path, root_path);
+   QModelIndex sind = _contents->showDir(_path, root_path, _view->getMeasure());
    QModelIndex ind = sind;
    _modelconv->indexToProxy (ind.model (), ind);
    _view->setRootIndex (ind);

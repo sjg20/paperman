@@ -1372,7 +1372,8 @@ QModelIndex Desktopmodel::refresh(QString dirPath)
    return ind;
 }
 
-QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
+QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
+                                  Measure *meas)
    {
    QModelIndex ind;
 
@@ -1402,7 +1403,7 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath)
    desk->setDebugLevel (_debug_level);
 
    // add files that are not in the maxdesk.ini file
-   desk->addFiles(dirPath, nullptr);
+   desk->addFiles(dirPath, meas);
 
    // no pending list at present
    _pending_scan_list.clear ();

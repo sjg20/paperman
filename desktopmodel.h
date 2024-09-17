@@ -34,6 +34,7 @@ class Desktopmodelconv;
 class Desktopundostack;
 class Filepage;
 class PPage;
+class Measure;
 class Paperscan;
 class QImage;
 
@@ -1147,9 +1148,10 @@ public:
     * @brief Select a new directory to display
       @param dirpath    full path directory to show
       @param rootpath   root directory for this branch of the model
+      @param meas       measurer for text
       @returns parent model-index for the items
     */
-   QModelIndex showDir(QString dirPath, QString rootPath);
+   QModelIndex showDir(QString dirPath, QString rootPath, Measure *meas);
 
    /**
     * @brief Refresh the current directory contents
