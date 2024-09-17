@@ -19,6 +19,9 @@ public:
    /** Show the folders list, sizing it correctly */
    void showFolders();
 
+   // possible missing directories shown to the user
+   QStringList _missing;
+
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
 

@@ -167,9 +167,6 @@ protected:
     // true if the folders list has been set up
     bool _folders_valid;
 
-    // possible missing directories shown to the user
-    QStringList _missing;
-
     // true if waiting for the user to confirm directory creation
     bool _awaiting_user;
 

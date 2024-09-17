@@ -418,7 +418,7 @@ void Pscan::reset_clicked()
 
 bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
 {
-   fname = _missing[item];
+   fname = _folders->_missing[item];
    bool ok;
 
    // Adding a directory
@@ -444,7 +444,7 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
 
 void Pscan::selectDir(const QModelIndex& target)
 {
-   if (target.row() < _missing.size()) {
+   if (target.row() < _folders->_missing.size()) {
       QModelIndex ind;
       QString fname;
 
@@ -466,7 +466,7 @@ void Pscan::scan_clicked()
       QModelIndex ind = _folders->selected();
 
       if (ind != QModelIndex()) {
-         if (ind.row() < _missing.size()) {
+         if (ind.row() < _folders->_missing.size()) {
             QString fname;
             bool ok = createMissingDir(ind.row(), fname, ind);
 
@@ -883,7 +883,7 @@ void Pscan::searchForFolders(const QString& match)
 
    // We want at least three characters for a match
    if (match.length() >= 3) {
-      folders = _main->findFolders(match, _folders_path, _missing);
+      folders = _main->findFolders(match, _folders_path, _folders->_missing);
       if (_folders_path.isEmpty())
          return;
       valid = true;
@@ -892,10 +892,10 @@ void Pscan::searchForFolders(const QString& match)
    // put the folder list into the model
    _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
 
-   for (row = 0; row < _missing.size(); row++) {
+   for (row = 0; row < _folders->_missing.size(); row++) {
       _model->insertRows(row, 1, QModelIndex());
       _model->setData(_model->index(row, 0, QModelIndex()),
-                      QString("<Add: %1>").arg(_missing[row]));
+                      QString("<Add: %1>").arg(_folders->_missing[row]));
    }
    for (int i = 0; i < folders.size(); i++) {
       _model->insertRows(row + i, 1, QModelIndex());
