@@ -45,7 +45,4 @@ protected:
    QStandardItemModel *_model;
 };
 
-//! Set up a new folderlist
-Folderlist *setupFolderList(Foldersel *foldersel, QWidget *parent);
-
 #endif // FOLDERLIST_H
