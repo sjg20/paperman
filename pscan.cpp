@@ -432,7 +432,7 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
    if (!ok)
       return false;
 
-   _main->newDir(_folders_path + "/" + fname, ind);
+   _main->newDir(_folders->_path + "/" + fname, ind);
 
    // regenerate the folder list
    _searching = true;
@@ -450,7 +450,7 @@ void Pscan::selectDir(const QModelIndex& target)
 
       createMissingDir(target.row(), fname, ind);
    } else {
-      QString dir_path = _folders_path + "/" + _model->data(target).toString();
+      QString dir_path = _folders->_path + "/" + _model->data(target).toString();
 
       _main->selectDir(dir_path);
    }
@@ -473,7 +473,7 @@ void Pscan::scan_clicked()
             if (ok)
                _main->scanInto(ind);
          } else {
-            dir_path = _folders_path + "/" + _model->data(ind).toString();
+            dir_path = _folders->_path + "/" + _model->data(ind).toString();
             _main->scanInto(dir_path);
          }
          return;
@@ -883,8 +883,8 @@ void Pscan::searchForFolders(const QString& match)
 
    // We want at least three characters for a match
    if (match.length() >= 3) {
-      folders = _main->findFolders(match, _folders_path, _folders->_missing);
-      if (_folders_path.isEmpty())
+      folders = _main->findFolders(match, _folders->_path, _folders->_missing);
+      if (_folders->_path.isEmpty())
          return;
       valid = true;
    }

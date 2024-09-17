@@ -149,9 +149,6 @@ protected:
     // List of folders found using the folderName search
     Folderlist *_folders;
 
-    // directory path for the folder list
-    QString _folders_path;
-
     // Model containing the list of folders
     QStandardItemModel *_model;
 

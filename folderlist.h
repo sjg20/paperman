@@ -22,6 +22,9 @@ public:
    // possible missing directories shown to the user
    QStringList _missing;
 
+   // directory path for the folder list
+   QString _path;
+
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
 
