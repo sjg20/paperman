@@ -3,6 +3,7 @@
 
 #include <QTableView>
 
+class QStandardItemModel;
 class Foldersel;
 
 class Folderlist : public QTableView
@@ -38,6 +39,7 @@ protected:
 
    Foldersel *_foldersel;
    QWidget *_parent;
+   QStandardItemModel *_model;
 };
 
 //! Set up a new folderlist

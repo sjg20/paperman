@@ -12,6 +12,9 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
     : QTableView(parent), _foldersel(foldersel)
 {
    _parent = parent;
+   _model = new QStandardItemModel(1, 1, parent);
+   setModel(_model);
+
    connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
 }
@@ -97,12 +100,9 @@ void Foldersel::focusOutEvent(QFocusEvent *)
 
 Folderlist *setupFolderList(Foldersel *foldersel, QWidget *parent)
 {
-   QStandardItemModel *model;
    Folderlist *folders;
 
    folders = new Folderlist(foldersel, parent);
-   model = new QStandardItemModel(1, 1, parent);
-   folders->setModel(model);
    folders->horizontalHeader()->hide();
    folders->verticalHeader()->hide();
 
