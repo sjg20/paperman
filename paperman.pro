@@ -51,6 +51,7 @@ HEADERS += desktopwidget.h \
    foldersel.h \
    mainwidget.h \
    desk.h \
+   measure.h \
    pagewidget.h \
    qscannersetupdlg.h \
    qscanner.h \
@@ -132,6 +133,7 @@ SOURCES += desktopwidget.cpp \
    mainwidget.cpp \
    desk.cpp \
    maxview.cpp \
+   measure.cpp \
    pagewidget.cpp \
    md5.c \
    qscannersetupdlg.cpp \
