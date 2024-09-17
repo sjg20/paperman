@@ -28,8 +28,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QListView>
 // #include <QTreeView>
+#include "measure.h"
 
 class Desktopmodelconv;
+class Measure;
 
 /**
  * @brief Provide a view of paper stacks
@@ -128,6 +130,9 @@ public:
       \param modelconv  new model converter to use */
    void setModelConv (Desktopmodelconv *modelconv);
 
+   // Get the current measurer
+   Measure *getMeasure();
+
 signals:
    void pressed (QModelIndex &);
 
@@ -216,6 +221,7 @@ private:
    Desktopmodelconv *_modelconv; //!< model conversion class
    int _sel_summary;   //!< last caculated selection summary
    bool _position_items;   //!< true to position items where we want them
+   Measure *_measure;
    };
 
 
