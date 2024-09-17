@@ -18,9 +18,6 @@ public:
    // Return the currently selected item, or -1 if none
    QModelIndex selected();
 
-   /** Show the folders list, sizing it correctly */
-   void showFolders();
-
    // possible missing directories shown to the user
    QStringList _missing;
 
@@ -30,6 +27,9 @@ public:
    // true if the folders list has been set up
    bool _valid;
 
+   // true if waiting for the user to confirm directory creation
+   bool _awaiting_user;
+
    void setMainwidget(Mainwidget *main);
 
    /** Search for folders which match a string */
@@ -37,6 +37,9 @@ public:
 
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
+
+    //! hide or show the folders list
+    void checkFolders();
 
 signals:
    void keypressReceived(QKeyEvent *event);
@@ -46,10 +49,16 @@ protected:
    virtual void keyPressEvent(QKeyEvent *event) override;
    virtual void mousePressEvent(QMouseEvent *e) override;
 
+   /** Show the folders list, sizing it correctly */
+   void showFolders();
+
    Foldersel *_foldersel;
    QStandardItemModel *_model;
    Mainwidget *_main;
    QWidget *_parent;
+
+   // timer for checking whether we should close the folder list
+   QTimer *_timer;
 };
 
 #endif // FOLDERLIST_H

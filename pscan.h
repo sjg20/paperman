@@ -112,7 +112,6 @@ public slots:
     void on_config_clicked();
     void on_stop_clicked ();
     void on_folderName_textChanged(const QString &text);
-    void checkFolders(void);
 
     /**
      * @brief Select a directory from the folder list
@@ -157,12 +156,6 @@ protected:
 
     // string which we saw while in the middle of searching
     QString _next_search;
-
-    // timer for checking whether we should close the folder list
-    QTimer *_folders_timer;
-
-    // true if waiting for the user to confirm directory creation
-    bool _awaiting_user;
 
     virtual void languageChange();
 

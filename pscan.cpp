@@ -182,7 +182,6 @@ void Pscan::init()
     _do_preset_check = false;
 
     _searching = false;
-    _awaiting_user = false;
 
     setupBright ();
 
@@ -217,10 +216,6 @@ void Pscan::init()
     QObject::connect(new QShortcut(QKeySequence(Qt::ALT + Qt::Key_L), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::toggleLetter);
-
-    _folders_timer = new QTimer (this);
-    connect (_folders_timer, SIGNAL(timeout()), this, SLOT(checkFolders()));
-    _folders_timer->start(200); // check 5 times a second
 }
 
 
@@ -254,27 +249,8 @@ void Pscan::closing()
 void Pscan::scanStarting()
 {
    // close the folders list
-   if (!_awaiting_user)
+   if (!_folders->_awaiting_user)
       _folders->hide();
-}
-
-void Pscan::checkFolders()
-{
-   // close the folder list if the focus is in anything other than the two
-   // fields dealing with the list of folders
-   if (!_awaiting_user && QApplication::focusWidget() != folderName &&
-       QApplication::focusWidget() != _folders && _folders->isVisible()) {
-      _folders->hide();
-      if (focusWidget() == _folders)
-         folderName->setFocus(Qt::OtherFocusReason);
-   }
-
-   // show the folder list if focus is in folderName
-   if (_folders->_valid && QApplication::focusWidget() == folderName &&
-       !_main->isScanning()) {
-      _folders->showFolders();
-      _folders->setFocus(Qt::OtherFocusReason);
-   }
 }
 
 void Pscan::scannerChanged (QScanner *scanner)
@@ -317,7 +293,7 @@ void Pscan::scannerChanged (QScanner *scanner)
     setupBright ();
     if (_do_preset_check)
        presetCheck();
-    checkFolders();
+    _folders->checkFolders();
 }
 
 
@@ -422,13 +398,13 @@ bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
    bool ok;
 
    // Adding a directory
-   _awaiting_user = true;
+   _folders->_awaiting_user = true;
    ok = QMessageBox::question(
       0,
       tr("Confirmation -- Paperman"),
       tr("Do you want to add directory %1").arg(fname),
       QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
-   _awaiting_user = false;
+   _folders->_awaiting_user = false;
    if (!ok)
       return false;
 
@@ -460,7 +436,7 @@ void Pscan::scan_clicked()
 {
    QString dir_path;
 
-   if (_awaiting_user)
+   if (_folders->_awaiting_user)
       return;
    if (_folders->_valid && _folders->isVisible()) {
       QModelIndex ind = _folders->selected();
