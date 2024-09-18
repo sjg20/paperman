@@ -271,6 +271,13 @@ void Folderlist::foldersel_textChanged(const QString &text)
    } while (match.size());
 }
 
+void Folderlist::scanStarting()
+{
+   // close the folders list
+   if (!_awaiting_user)
+      hide();
+}
+
 Foldersel::Foldersel(QWidget* parent)
     : QLineEdit(QString(), parent)
 {

@@ -15,13 +15,13 @@ public:
    Folderlist(Foldersel *foldersel, QWidget *parent);
    ~Folderlist();
 
-   // true if waiting for the user to confirm directory creation
-   bool _awaiting_user;
-
    void setMainwidget(Mainwidget *main);
 
    //! Scan into the selected folder; returns true if scan was handled
    bool scan();
+
+   //! Indicates that a scan is starting
+   void scanStarting();
 
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
@@ -88,6 +88,9 @@ protected:
 
    // string which we saw while in the middle of searching
    QString _next_search;
+
+   // true if waiting for the user to confirm directory creation
+   bool _awaiting_user;
 };
 
 #endif // FOLDERLIST_H
