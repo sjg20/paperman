@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QMessageBox>
 #include <QScrollBar>
 #include <QStandardItemModel>
 #include <QTimer>
@@ -20,6 +21,7 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
    setModel(_model);
    _valid = false;
    _awaiting_user = false;
+   _searching = false;
 
    horizontalHeader()->hide();
    verticalHeader()->hide();
@@ -177,6 +179,32 @@ void Folderlist::checkFolders()
       showFolders();
       setFocus(Qt::OtherFocusReason);
    }
+}
+
+bool Folderlist::createMissingDir(int item, QString& fname, QModelIndex& ind)
+{
+   fname = _missing[item];
+   bool ok;
+
+   // Adding a directory
+   _awaiting_user = true;
+   ok = QMessageBox::question(
+            0,
+            tr("Confirmation -- Paperman"),
+            tr("Do you want to add directory %1").arg(fname),
+            QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
+   _awaiting_user = false;
+   if (!ok)
+      return false;
+
+   _main->newDir(_path + "/" + fname, ind);
+
+   // regenerate the folder list
+   _searching = true;
+   searchForFolders(_foldersel->text());
+   _searching = false;
+
+   return true;
 }
 
 Foldersel::Foldersel(QWidget* parent)
