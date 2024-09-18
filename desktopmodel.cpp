@@ -1513,6 +1513,9 @@ QModelIndex Desktopmodel::showFilesIn(const QString& inPath,
          items have been cleared, so we need to add the new matches */
       beginInsertRows(_otherdir_index, 0, desk->fileCount() - 1);
       endInsertRows();
+   } else {
+      beginResetModel();
+      endResetModel();
    }
    _subdirs = true;
 
