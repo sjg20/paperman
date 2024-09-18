@@ -230,19 +230,19 @@ bool Folderlist::scan()
    if (_awaiting_user)
       return true;
    if (_valid && isVisible()) {
-      QModelIndex ind = selected();
+      QModelIndex ind, sel_ind = selected();
 
-      if (ind != QModelIndex()) {
-         if (ind.row() < _missing.size()) {
-            bool ok = createMissingDir(ind.row(), ind);
+      if (sel_ind != QModelIndex()) {
+         if (sel_ind.row() < _missing.size()) {
+            bool ok = createMissingDir(sel_ind.row(), ind);
 
             if (ok)
                _main->scanInto(ind);
          } else {
             QString dir_path;
 
-            dir_path = _path + "/" + _model->data(ind).toString();
-            QModelIndex ind = _main->getDirIndex(dir_path);
+            dir_path = _path + "/" + _model->data(sel_ind).toString();
+            ind = _main->getDirIndex(dir_path);
             _main->scanInto(ind);
          }
          return true;
