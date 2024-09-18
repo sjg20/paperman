@@ -185,9 +185,9 @@ void Folderlist::checkFolders()
    }
 }
 
-bool Folderlist::createMissingDir(int item, QString& fname, QModelIndex& ind)
+bool Folderlist::createMissingDir(int item, QModelIndex& ind)
 {
-   fname = _missing[item];
+   const QString& fname = _missing[item];
    bool ok;
 
    // Adding a directory
@@ -217,7 +217,7 @@ void Folderlist::selectDir(const QModelIndex& target)
       QModelIndex ind;
       QString fname;
 
-      createMissingDir(target.row(), fname, ind);
+      createMissingDir(target.row(), ind);
    } else {
       QString dir_path = _path + "/" + _model->data(target).toString();
 
@@ -234,8 +234,7 @@ bool Folderlist::scan()
 
       if (ind != QModelIndex()) {
          if (ind.row() < _missing.size()) {
-            QString fname;
-            bool ok = createMissingDir(ind.row(), fname, ind);
+            bool ok = createMissingDir(ind.row(), ind);
 
             if (ok)
                _main->scanInto(ind);
