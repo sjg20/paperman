@@ -54,6 +54,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopwidget.h"
 #include "dirmodel.h"
 #include "dirview.h"
+#include "folderlist.h"
 #include "op.h"
 #include "desk.h"
 #include "mainwindow.h"
@@ -1203,12 +1204,17 @@ void Desktopwidget::moveToFolder(void)
    QDialog diag;
 
    ui.setupUi(&diag);
+   _folders = new Folderlist(ui.folderName, &diag);
+   _folders->setMainwidget(_main);
    diag.show();
    if (!diag.exec()) {
       _showing_imports = false;
       normalView();
       return;
    }
+   qDebug() << "move";
+
+   delete _folders;
 }
 
 void Desktopwidget::emailPdf (void)
