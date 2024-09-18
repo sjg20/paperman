@@ -386,8 +386,10 @@ void Pscan::reset_clicked()
 
 void Pscan::scan_clicked()
 {
-   if (!_folders->scan())
-    _main->scan();
+   QModelIndex ind;
+
+   if (_folders->getSelected(ind))
+      _main->scanInto(ind);
 }
 
 

@@ -225,12 +225,13 @@ void Folderlist::selectDir(const QModelIndex& target)
    }
 }
 
-bool Folderlist::scan()
+bool Folderlist::getSelected(QModelIndex& ind)
 {
    if (_awaiting_user)
-      return true;
+      return false;
+
    bool ok = true;
-   QModelIndex ind;
+   ind = QModelIndex();
    if (_valid && isVisible()) {
       QModelIndex sel_ind = selected();
 
@@ -246,10 +247,7 @@ bool Folderlist::scan()
       }
    }
 
-   if (ok)
-      _main->scanInto(ind);
-
-   return true;
+   return ok;
 }
 
 void Folderlist::foldersel_textChanged(const QString &text)
