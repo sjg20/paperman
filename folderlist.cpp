@@ -39,6 +39,8 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
 
    connect(this, SIGNAL(keypressReceived(QKeyEvent *)),
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
+   connect(this, SIGNAL(selectItem(const QModelIndex&)),
+           this, SLOT(selectDir(const QModelIndex&)));
 
    _timer = new QTimer (this);
    connect (_timer, SIGNAL(timeout()), this, SLOT(checkFolders()));
@@ -205,6 +207,20 @@ bool Folderlist::createMissingDir(int item, QString& fname, QModelIndex& ind)
    _searching = false;
 
    return true;
+}
+
+void Folderlist::selectDir(const QModelIndex& target)
+{
+   if (target.row() < _missing.size()) {
+      QModelIndex ind;
+      QString fname;
+
+      createMissingDir(target.row(), fname, ind);
+   } else {
+      QString dir_path = _path + "/" + _model->data(target).toString();
+
+      _main->selectDir(dir_path);
+   }
 }
 
 Foldersel::Foldersel(QWidget* parent)

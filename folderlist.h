@@ -53,6 +53,15 @@ public slots:
     //! hide or show the folders list
     void checkFolders();
 
+protected slots:
+    /**
+     * @brief Select a directory from the folder list
+     * @param target  Item in the folder list to select
+     *
+     * The selected directory is shown in the Dirview
+     */
+    void selectDir(const QModelIndex& target);
+
 signals:
    void keypressReceived(QKeyEvent *event);
    void selectItem(const QModelIndex&);
