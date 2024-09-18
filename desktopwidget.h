@@ -43,6 +43,7 @@ class QListView;
 class Dirmodel;
 class Dirproxy;
 class Dirview;
+class Folderlist;
 class Mainwidget;
 class Paperstack;
 class Pagewidget;
@@ -490,6 +491,8 @@ private:
    QString _search_text;
 
    bool _showing_imports;
+
+   Folderlist *_folders;
    };
 
 
