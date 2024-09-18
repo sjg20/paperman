@@ -17,8 +17,8 @@ public:
 
    void setMainwidget(Mainwidget *main);
 
-   //! Scan into the selected folder; returns true if scan was handled
-   bool scan();
+   //! See whether something was selected
+   bool getSelected(QModelIndex& ind);
 
    //! Indicates that a scan is starting
    void scanStarting();
