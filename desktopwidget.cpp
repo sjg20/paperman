@@ -1212,7 +1212,13 @@ void Desktopwidget::moveToFolder(void)
 
    // Wait for Move::accept() to be happy before continuing
    if (diag.exec()) {
-      qDebug() << "move" << diag._ind;
+      QModelIndex dest_ind = _dir_proxy->mapToSource(diag._ind);
+      QString destDir = _model->data(dest_ind, QDirModel::FilePathRole).toString();
+
+      // qDebug() << "destDir" << destDir;
+
+      QStringList sl;
+      _contents->moveToDir(to_move, _view->rootIndexSource(), destDir, sl);
    }
 
    delete _folders;
