@@ -416,6 +416,9 @@ private:
    //! Drop the blue colour and other features of the search/import view
    void normalView();
 
+   //! Update actions to set whether they are enabled/disabled
+   void updateActions();
+
 private:
    /** this is the model for the directories tree */
    Dirmodel *_model;
