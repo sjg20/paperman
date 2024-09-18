@@ -229,28 +229,27 @@ bool Folderlist::scan()
 {
    if (_awaiting_user)
       return true;
+   bool ok = true;
+   QModelIndex ind;
    if (_valid && isVisible()) {
-      QModelIndex ind, sel_ind = selected();
+      QModelIndex sel_ind = selected();
 
       if (sel_ind != QModelIndex()) {
          if (sel_ind.row() < _missing.size()) {
-            bool ok = createMissingDir(sel_ind.row(), ind);
-
-            if (ok)
-               _main->scanInto(ind);
+            ok = createMissingDir(sel_ind.row(), ind);
          } else {
             QString dir_path;
 
             dir_path = _path + "/" + _model->data(sel_ind).toString();
             ind = _main->getDirIndex(dir_path);
-            _main->scanInto(ind);
          }
-         return true;
       }
    }
 
-   // Caller should do the scan
-   return false;
+   if (ok)
+      _main->scanInto(ind);
+
+   return true;
 }
 
 void Folderlist::foldersel_textChanged(const QString &text)
