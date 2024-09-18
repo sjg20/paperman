@@ -74,7 +74,6 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(colour, QScanner::colour);
 
     _folders = new Folderlist(folderName, this);
-    _model = static_cast<QStandardItemModel *>(_folders->model());
 
     init();
     readSettings();
@@ -389,29 +388,8 @@ void Pscan::reset_clicked()
 
 void Pscan::scan_clicked()
 {
-   QString dir_path;
-
-   if (_folders->_awaiting_user)
-      return;
-   if (_folders->_valid && _folders->isVisible()) {
-      QModelIndex ind = _folders->selected();
-
-      if (ind != QModelIndex()) {
-         if (ind.row() < _folders->_missing.size()) {
-            QString fname;
-            bool ok = _folders->createMissingDir(ind.row(), fname, ind);
-
-            if (ok)
-               _main->scanInto(ind);
-         } else {
-            dir_path = _folders->_path + "/" + _model->data(ind).toString();
-            _main->scanInto(dir_path);
-         }
-         return;
-      }
-   }
-
-   _main->scan();
+   if (!_folders->scan())
+    _main->scan();
 }
 
 

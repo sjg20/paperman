@@ -15,18 +15,6 @@ public:
    Folderlist(Foldersel *foldersel, QWidget *parent);
    ~Folderlist();
 
-   // Return the currently selected item, or -1 if none
-   QModelIndex selected();
-
-   // possible missing directories shown to the user
-   QStringList _missing;
-
-   // directory path for the folder list
-   QString _path;
-
-   // true if the folders list has been set up
-   bool _valid;
-
    // true if waiting for the user to confirm directory creation
    bool _awaiting_user;
 
@@ -38,14 +26,8 @@ public:
    /** Search for folders which match a string */
    void searchForFolders(const QString& match);
 
-   /**
-     * @brief Create a directory from the _missing list, return true if done
-     * @param item   Index within _missing of the directory to create
-     * @param fname  Returns filename of dir created
-     * @param ind    Returns Dirmodel index of the created directory
-     * @return true if done (i.e. user confirmed it), false if not
-     */
-   bool createMissingDir(int item, QString& fname, QModelIndex& ind);
+   //! Scan into the selected folder; returns true if scan was handled
+   bool scan();
 
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);
@@ -73,6 +55,18 @@ protected:
    /** Show the folders list, sizing it correctly */
    void showFolders();
 
+   // Return the currently selected item, or -1 if none
+   QModelIndex selected();
+
+   /**
+     * @brief Create a directory from the _missing list, return true if done
+     * @param item   Index within _missing of the directory to create
+     * @param fname  Returns filename of dir created
+     * @param ind    Returns Dirmodel index of the created directory
+     * @return true if done (i.e. user confirmed it), false if not
+     */
+   bool createMissingDir(int item, QString& fname, QModelIndex& ind);
+
    Foldersel *_foldersel;
    QStandardItemModel *_model;
    Mainwidget *_main;
@@ -80,6 +74,15 @@ protected:
 
    // timer for checking whether we should close the folder list
    QTimer *_timer;
+
+   // directory path for the folder list
+   QString _path;
+
+   // possible missing directories shown to the user
+   QStringList _missing;
+
+   // true if the folders list has been set up
+   bool _valid;
 };
 
 #endif // FOLDERLIST_H

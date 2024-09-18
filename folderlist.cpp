@@ -223,6 +223,34 @@ void Folderlist::selectDir(const QModelIndex& target)
    }
 }
 
+bool Folderlist::scan()
+{
+   QString dir_path;
+
+   if (_awaiting_user)
+      return true;
+   if (_valid && isVisible()) {
+      QModelIndex ind = selected();
+
+      if (ind != QModelIndex()) {
+         if (ind.row() < _missing.size()) {
+            QString fname;
+            bool ok = createMissingDir(ind.row(), fname, ind);
+
+            if (ok)
+               _main->scanInto(ind);
+         } else {
+            dir_path = _path + "/" + _model->data(ind).toString();
+            _main->scanInto(dir_path);
+         }
+         return true;
+      }
+   }
+
+   // Caller should do the scan
+   return false;
+}
+
 Foldersel::Foldersel(QWidget* parent)
     : QLineEdit(QString(), parent)
 {

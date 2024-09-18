@@ -140,9 +140,6 @@ protected:
     // List of folders found using the folderName search
     Folderlist *_folders;
 
-    // Model containing the list of folders
-    QStandardItemModel *_model;
-
     // string which we saw while in the middle of searching
     QString _next_search;
 
