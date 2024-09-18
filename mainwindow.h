@@ -76,6 +76,7 @@ public slots:
     virtual void on_actionOptionsm_triggered(bool);
     virtual void on_actionSearch_triggered(bool);
     virtual void on_actionDownloads_triggered(bool);
+    virtual void on_actionDocuments_triggered(bool);
     void on_actionFullScreen_triggered(bool);
 
     void welcome ();

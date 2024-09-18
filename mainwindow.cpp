@@ -210,6 +210,12 @@ void Mainwindow::on_actionDownloads_triggered(bool)
    _desktop->showImports("~/Downloads");
 }
 
+void Mainwindow::on_actionDocuments_triggered(bool)
+{
+   qDebug() << "documents";
+   _desktop->showImports("~/Documents");
+}
+
 void Mainwindow::on_actionFullScreen_triggered(bool)
 {
    setWindowState(windowState() ^ Qt::WindowFullScreen);
