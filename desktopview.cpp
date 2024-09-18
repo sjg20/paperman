@@ -114,6 +114,12 @@ void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &)
       }
    }
 
+void Desktopview::selectionChanged(const QItemSelection &sel,
+                                   const QItemSelection &desel)
+{
+   QListView::selectionChanged(sel, desel);
+   emit newSelection();
+}
 
 void Desktopview::slotIndexesMoved (const QModelIndexList &indexes)
    {
