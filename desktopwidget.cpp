@@ -105,6 +105,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_view, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
          this, SLOT (slotItemPreview (const QModelIndex &, int, bool)));
    connect(_view, SIGNAL(escapePressed()), this, SLOT(exitSearch()));
+   connect(_view, SIGNAL(newSelection()), this, SLOT(updateActions()));
 
    _contents_proxy = new Desktopproxy (this);
    _contents_proxy->setSourceModel (_contents);
@@ -709,6 +710,7 @@ void Desktopwidget::specialView(const QString& prompt)
    _view->setStyleSheet("QListView { background: lightblue; }");
    _dir->setEnabled(false);
    _main->getMainwindow()->setSearchEnabled(false);
+   updateActions();
 }
 
 void Desktopwidget::normalView()
@@ -718,6 +720,7 @@ void Desktopwidget::normalView()
    _toolbar->setFilterEnabled(true);
    _toolbar->setSearchEnabled(false);
    _main->getMainwindow()->setSearchEnabled(true);
+   updateActions();
 }
 
 void Desktopwidget::exitSearch()

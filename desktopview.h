@@ -154,6 +154,9 @@ signals:
    //! Indicates that the Escape key was pressed
    void escapePressed();
 
+   //! Indicates that a new selection has been made
+   void newSelection();
+
 public slots:
    /** set up the position of each item
 
@@ -209,6 +212,9 @@ protected:
 
 protected slots:
    void currentChanged (const QModelIndex &current, const QModelIndex &previous);
+
+   void selectionChanged(const QItemSelection &sel,
+                         const QItemSelection &desel);
 
 private:
    void checkAutoscroll (QPoint pos);
