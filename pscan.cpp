@@ -783,21 +783,3 @@ void Pscan::focusFind()
    folderName->setFocus(Qt::ShortcutFocusReason);
    folderName->setSelection(0, folderName->text().size());
 }
-
-void Pscan::on_folderName_textChanged(const QString &text)
-{
-   if (_folders->_searching) {
-      _next_search = text;
-      return;
-   }
-
-   QString match = text;
-   do {
-      _folders->_searching = true;
-      _folders->searchForFolders(match);
-      _folders->_searching = false;
-
-      match = _next_search;
-      _next_search = QString();
-   } while (match.size());
-}
