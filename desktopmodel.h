@@ -1163,6 +1163,9 @@ public:
     */
    QModelIndex refresh(QString dirPath);
 
+   //! Refresh the given directory
+   void refresh(QModelIndex ind);
+
    /**
     * @brief Add the matches to a desk
     * @param dirPath   Directory path to search (without "/")
