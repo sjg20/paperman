@@ -225,14 +225,14 @@ void Folderlist::selectDir(const QModelIndex& target)
    }
 }
 
-bool Folderlist::getSelected(QModelIndex& ind)
+bool Folderlist::getSelected(QModelIndex& ind, bool hiddenOk)
 {
    if (_awaiting_user)
       return false;
 
    bool ok = true;
    ind = QModelIndex();
-   if (_valid && isVisible()) {
+   if (_valid && (hiddenOk || isVisible())) {
       QModelIndex sel_ind = selected();
 
       if (sel_ind != QModelIndex()) {
