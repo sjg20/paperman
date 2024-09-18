@@ -242,9 +242,7 @@ void Pscan::closing()
 
 void Pscan::scanStarting()
 {
-   // close the folders list
-   if (!_folders->_awaiting_user)
-      _folders->hide();
+   _folders->scanStarting();
 }
 
 void Pscan::scannerChanged (QScanner *scanner)
