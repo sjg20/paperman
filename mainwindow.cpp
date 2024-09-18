@@ -38,6 +38,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 ** destructor.
 *****************************************************************************/
 
+#include <QFileDialog>
 #include <QProgressBar>
 
 #include "qstatusbar.h"
@@ -214,6 +215,19 @@ void Mainwindow::on_actionDocuments_triggered(bool)
 {
    qDebug() << "documents";
    _desktop->showImports("~/Documents");
+}
+
+void Mainwindow::on_actionDirectory_triggered(bool)
+{
+   qDebug() << "directory";
+   QString dirName;
+   dirName = QFileDialog::getExistingDirectory(this,
+                                               "Select directory to import",
+                                               dirName,
+                                               QFileDialog::ShowDirsOnly);
+   if (!dirName.isEmpty())
+      _desktop->showImports(dirName);
+
 }
 
 void Mainwindow::on_actionFullScreen_triggered(bool)
