@@ -76,9 +76,6 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     _folders = new Folderlist(folderName, this);
     _model = static_cast<QStandardItemModel *>(_folders->model());
 
-    connect(_folders, SIGNAL(selectItem(const QModelIndex&)),
-            this, SLOT(selectDir(const QModelIndex&)));
-
     init();
     readSettings();
 }
@@ -388,20 +385,6 @@ void Pscan::reset_clicked()
    _preview->setSize(_default_papersize_id);
    pageSize->setCurrentIndex(_default_papersize_id);
    presetCheck();
-}
-
-void Pscan::selectDir(const QModelIndex& target)
-{
-   if (target.row() < _folders->_missing.size()) {
-      QModelIndex ind;
-      QString fname;
-
-      _folders->createMissingDir(target.row(), fname, ind);
-   } else {
-      QString dir_path = _folders->_path + "/" + _model->data(target).toString();
-
-      _main->selectDir(dir_path);
-   }
 }
 
 void Pscan::scan_clicked()

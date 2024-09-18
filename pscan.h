@@ -113,14 +113,6 @@ public slots:
     void on_stop_clicked ();
     void on_folderName_textChanged(const QString &text);
 
-    /**
-     * @brief Select a directory from the folder list
-     * @param target  Item in the folder list to select
-     *
-     * The selected directory is shown in the Dirview
-     */
-    void selectDir(const QModelIndex& target);
-
     // Select A4 paper-size
     void selectA4();
 
