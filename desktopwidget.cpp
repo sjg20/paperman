@@ -1200,24 +1200,28 @@ void Desktopwidget::emailMax (void)
 
 void Desktopwidget::moveToFolder(void)
 {
-   Ui::Move ui;
-   QDialog diag;
+   Move diag;
 
-   ui.setupUi(&diag);
-   _folders = new Folderlist(ui.folderName, &diag);
+   diag.setupUi(&diag);
+   _folders = new Folderlist(diag.folderName, &diag);
    _folders->setMainwidget(_main);
+   diag._folders = _folders;
+   QModelIndexList to_move = _view->getSelectedListSource();
+   diag.itemCount->setText(QString("%1").arg(to_move.size()));
    diag.show();
-   if (!diag.exec()) {
-      _showing_imports = false;
-      normalView();
-      return;
-   }
-   QModelIndex ind;
-   if (_folders->getSelected(ind, true)) {
-      qDebug() << "move" << ind;
+
+   // Wait for Move::accept() to be happy before continuing
+   if (diag.exec()) {
+      qDebug() << "move" << diag._ind;
    }
 
    delete _folders;
+}
+
+void Move::accept()
+{
+   if (_folders->getSelected(_ind, true) && _ind != QModelIndex())
+      QDialog::accept();
 }
 
 void Desktopwidget::emailPdf (void)

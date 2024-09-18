@@ -520,4 +520,11 @@ public:
 class Move : public QDialog, public Ui::Move
 {
    Q_OBJECT
+public:
+   QModelIndex _ind;
+   Folderlist *_folders;
+
+protected slots:
+   void accept();
+
 };
