@@ -30,10 +30,22 @@ public:
    // true if waiting for the user to confirm directory creation
    bool _awaiting_user;
 
+   // true if we are currently searching for folders
+   bool _searching;
+
    void setMainwidget(Mainwidget *main);
 
    /** Search for folders which match a string */
    void searchForFolders(const QString& match);
+
+   /**
+     * @brief Create a directory from the _missing list, return true if done
+     * @param item   Index within _missing of the directory to create
+     * @param fname  Returns filename of dir created
+     * @param ind    Returns Dirmodel index of the created directory
+     * @return true if done (i.e. user confirmed it), false if not
+     */
+   bool createMissingDir(int item, QString& fname, QModelIndex& ind);
 
 public slots:
    void keypressFromFolderList(QKeyEvent *evt);

@@ -181,8 +181,6 @@ void Pscan::init()
 
     _do_preset_check = false;
 
-    _searching = false;
-
     setupBright ();
 
     // setup the shortcuts for finding a folder
@@ -392,39 +390,13 @@ void Pscan::reset_clicked()
    presetCheck();
 }
 
-bool Pscan::createMissingDir(int item, QString& fname, QModelIndex& ind)
-{
-   fname = _folders->_missing[item];
-   bool ok;
-
-   // Adding a directory
-   _folders->_awaiting_user = true;
-   ok = QMessageBox::question(
-      0,
-      tr("Confirmation -- Paperman"),
-      tr("Do you want to add directory %1").arg(fname),
-      QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
-   _folders->_awaiting_user = false;
-   if (!ok)
-      return false;
-
-   _main->newDir(_folders->_path + "/" + fname, ind);
-
-   // regenerate the folder list
-   _searching = true;
-   _folders->searchForFolders(folderName->text());
-   _searching = false;
-
-   return true;
-}
-
 void Pscan::selectDir(const QModelIndex& target)
 {
    if (target.row() < _folders->_missing.size()) {
       QModelIndex ind;
       QString fname;
 
-      createMissingDir(target.row(), fname, ind);
+      _folders->createMissingDir(target.row(), fname, ind);
    } else {
       QString dir_path = _folders->_path + "/" + _model->data(target).toString();
 
@@ -444,7 +416,7 @@ void Pscan::scan_clicked()
       if (ind != QModelIndex()) {
          if (ind.row() < _folders->_missing.size()) {
             QString fname;
-            bool ok = createMissingDir(ind.row(), fname, ind);
+            bool ok = _folders->createMissingDir(ind.row(), fname, ind);
 
             if (ok)
                _main->scanInto(ind);
@@ -853,16 +825,16 @@ void Pscan::focusFind()
 
 void Pscan::on_folderName_textChanged(const QString &text)
 {
-   if (_searching) {
+   if (_folders->_searching) {
       _next_search = text;
       return;
    }
 
    QString match = text;
    do {
-      _searching = true;
+      _folders->_searching = true;
       _folders->searchForFolders(match);
-      _searching = false;
+      _folders->_searching = false;
 
       match = _next_search;
       _next_search = QString();

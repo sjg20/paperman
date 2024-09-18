@@ -151,9 +151,6 @@ protected:
     // Model containing the list of folders
     QStandardItemModel *_model;
 
-    // true if we are currently searching for folders
-    bool _searching;
-
     // string which we saw while in the middle of searching
     QString _next_search;
 
@@ -199,13 +196,4 @@ private:
 
     /** Move the focus to the folder 'find' field */
     void focusFind();
-
-    /**
-     * @brief Create a directory from the _missing list, return true if done
-     * @param item   Index within _missing of the directory to create
-     * @param fname  Returns filename of dir created
-     * @param ind    Returns Dirmodel index of the created directory
-     * @return true if done (i.e. user confirmed it), false if not
-     */
-    bool createMissingDir(int item, QString& fname, QModelIndex& ind);
 };
