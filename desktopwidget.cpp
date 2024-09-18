@@ -1212,7 +1212,10 @@ void Desktopwidget::moveToFolder(void)
       normalView();
       return;
    }
-   qDebug() << "move";
+   QModelIndex ind;
+   if (_folders->getSelected(ind, true)) {
+      qDebug() << "move" << ind;
+   }
 
    delete _folders;
 }

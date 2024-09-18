@@ -17,8 +17,16 @@ public:
 
    void setMainwidget(Mainwidget *main);
 
-   //! See whether something was selected
-   bool getSelected(QModelIndex& ind);
+   /**
+    * @brief Get the folder selected by the user
+    * @param ind           Returns index of any selected item
+    * @param hiddenOk      Allow the folder list to be hidden
+    * @return true if something was selected
+    *
+    * This creates a missing folder if requested. If !hiddenOk, then the
+    * selection is ignored if the folder list is hidden
+    */
+   bool getSelected(QModelIndex& ind, bool hiddenOk);
 
    //! Indicates that a scan is starting
    void scanStarting();
