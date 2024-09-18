@@ -119,11 +119,8 @@ public:
    /* Start a new scan using dir_ind as the destination dir in Dirmodel */
    void scanInto(QModelIndex dir_ind);
 
-   /**
-    * @brief Start a new scan
-    * @param dir_path   Full path of the directory to scan into
-    */
-   void scanInto(const QString& dir_path);
+   //! Convert a directory path to a _model index
+   QModelIndex getDirIndex(const QString& dir_path);
 
    /**
     * @brief Create a new diorectory

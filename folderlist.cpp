@@ -227,8 +227,6 @@ void Folderlist::selectDir(const QModelIndex& target)
 
 bool Folderlist::scan()
 {
-   QString dir_path;
-
    if (_awaiting_user)
       return true;
    if (_valid && isVisible()) {
@@ -242,8 +240,11 @@ bool Folderlist::scan()
             if (ok)
                _main->scanInto(ind);
          } else {
+            QString dir_path;
+
             dir_path = _path + "/" + _model->data(ind).toString();
-            _main->scanInto(dir_path);
+            QModelIndex ind = _main->getDirIndex(dir_path);
+            _main->scanInto(ind);
          }
          return true;
       }
