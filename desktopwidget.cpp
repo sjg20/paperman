@@ -277,6 +277,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
 //   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
 //   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
+   updateActions();
    }
 
 Desktopwidget::~Desktopwidget ()
@@ -903,6 +904,30 @@ void Desktopwidget::updatePreview (void)
       _page->showPages (_update_index.model(), index, 0, -1, -1);
    }
 
+void Desktopwidget::updateActions()
+{
+   _view->getSelectionSummary ();
+   bool at_least_one = _view->isSelection (Desktopview::SEL_at_least_one);
+
+   _act_locate->setEnabled(_toolbar->searchEnabled());
+   _act_stack->setEnabled (_view->isSelection (Desktopview::SEL_more_than_one));
+   _act_unstack_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
+   _act_unstack_all->setEnabled (_view->isSelection (Desktopview::SEL_at_least_one_multipage));
+   _act_duplicate->setEnabled (at_least_one);
+   _act_delete->setEnabled (at_least_one);
+   _act_rename_stack->setEnabled (at_least_one);
+   _act_rename_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
+   _act_duplicate_page->setEnabled (at_least_one);
+   _act_duplicate_max->setEnabled (at_least_one);
+   _act_duplicate_pdf->setEnabled (at_least_one);
+   _act_duplicate_even->setEnabled (at_least_one);
+   _act_duplicate_odd->setEnabled (at_least_one);
+   _act_duplicate_jpeg->setEnabled (at_least_one);
+   _act_email->setEnabled (at_least_one);
+   _act_email_max->setEnabled (at_least_one);
+   _act_email_pdf->setEnabled (at_least_one);
+
+}
 
 void Desktopwidget::slotPopupMenu (QModelIndex &index)
    {
@@ -917,59 +942,29 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    // get ready to call isSelection()
    _view->getSelectionSummary ();
 
-   bool at_least_one = _view->isSelection (Desktopview::SEL_at_least_one);
    context_menu->addAction (_act_locate);
-   _act_locate->setEnabled(_toolbar->searchEnabled());
-
    context_menu->addAction (_act_stack);
-   _act_stack->setEnabled (_view->isSelection (Desktopview::SEL_more_than_one));
-
    context_menu->addAction (_act_unstack_page);
-   _act_unstack_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
-
    context_menu->addAction (_act_unstack_all);
-   _act_unstack_all->setEnabled (_view->isSelection (Desktopview::SEL_at_least_one_multipage));
-
    context_menu->addAction (_act_duplicate);
-   _act_duplicate->setEnabled (at_least_one);
-
    context_menu->addAction (_act_delete);
-   _act_delete->setEnabled (at_least_one);
-
    context_menu->addAction (_act_rename_stack);
-   _act_rename_stack->setEnabled (at_least_one);
-
    context_menu->addAction (_act_rename_page);
-   _act_rename_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
 
    QMenu *submenu = context_menu->addMenu (tr ("&Duplicate..."));
    submenu->addAction (_act_duplicate_page);
-   _act_duplicate_page->setEnabled (at_least_one);
-
    submenu->addAction (_act_duplicate_max);
-   _act_duplicate_max->setEnabled (at_least_one);
-
    submenu->addAction (_act_duplicate_pdf);
-   _act_duplicate_pdf->setEnabled (at_least_one);
-
    submenu->addAction (_act_duplicate_even);
-   _act_duplicate_even->setEnabled (at_least_one);
-
    submenu->addAction (_act_duplicate_odd);
-   _act_duplicate_odd->setEnabled (at_least_one);
-
    submenu->addAction (_act_duplicate_jpeg);
-   _act_duplicate_jpeg->setEnabled (at_least_one);
 
 //  submenu->insertItem( "as &Tiff", this, SLOT(duplicateTiff()), Qt::CTRL+Qt::Key_T );
    
    submenu = context_menu->addMenu (tr ("&Email..."));
    submenu->addAction (_act_email);
-   _act_email->setEnabled (at_least_one);
    submenu->addAction (_act_email_max);
-   _act_email_max->setEnabled (at_least_one);
    submenu->addAction (_act_email_pdf);
-   _act_email_pdf->setEnabled (at_least_one);
 /* to be implemented
    submenu = context_menu->addMenu (tr ("&Send..."));
    submenu->addAction (_act_send);
@@ -978,6 +973,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    submenu->addAction (_act_deliver_out);
    _act_deliver_out->setEnabled (true);
 */
+   updateActions();
    context_menu->exec (QCursor::pos());
    delete context_menu;
    _view->setContextIndex (QModelIndex ());
