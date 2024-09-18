@@ -66,6 +66,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
    {
+   _act_duplicate = nullptr;
    _showing_imports = false;
    _model = new Dirmodel ();
 //    _model->setLazyChildCount (true);
@@ -906,6 +907,10 @@ void Desktopwidget::updatePreview (void)
 
 void Desktopwidget::updateActions()
 {
+   // This can be called in the constructor, before things are ready
+   if (!_act_duplicate)
+      return;
+
    _view->getSelectionSummary ();
    bool at_least_one = _view->isSelection (Desktopview::SEL_at_least_one);
 
