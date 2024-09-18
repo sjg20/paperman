@@ -111,7 +111,6 @@ public slots:
     void on_preset_activated(int item);
     void on_config_clicked();
     void on_stop_clicked ();
-    void on_folderName_textChanged(const QString &text);
 
     // Select A4 paper-size
     void selectA4();
@@ -139,9 +138,6 @@ protected:
 
     // List of folders found using the folderName search
     Folderlist *_folders;
-
-    // string which we saw while in the middle of searching
-    QString _next_search;
 
     virtual void languageChange();
 

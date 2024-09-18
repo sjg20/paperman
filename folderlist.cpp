@@ -41,6 +41,8 @@ Folderlist::Folderlist(Foldersel *foldersel, QWidget *parent)
            this, SLOT(keypressFromFolderList(QKeyEvent *)));
    connect(this, SIGNAL(selectItem(const QModelIndex&)),
            this, SLOT(selectDir(const QModelIndex&)));
+   connect(_foldersel, SIGNAL(textChanged(const QString&)),
+           this, SLOT(foldersel_textChanged(const QString&)));
 
    _timer = new QTimer (this);
    connect (_timer, SIGNAL(timeout()), this, SLOT(checkFolders()));
@@ -249,6 +251,24 @@ bool Folderlist::scan()
 
    // Caller should do the scan
    return false;
+}
+
+void Folderlist::foldersel_textChanged(const QString &text)
+{
+   if (_searching) {
+      _next_search = text;
+      return;
+   }
+
+   QString match = text;
+   do {
+      _searching = true;
+      searchForFolders(match);
+      _searching = false;
+
+      match = _next_search;
+      _next_search = QString();
+   } while (match.size());
 }
 
 Foldersel::Foldersel(QWidget* parent)

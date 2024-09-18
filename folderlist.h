@@ -18,13 +18,7 @@ public:
    // true if waiting for the user to confirm directory creation
    bool _awaiting_user;
 
-   // true if we are currently searching for folders
-   bool _searching;
-
    void setMainwidget(Mainwidget *main);
-
-   /** Search for folders which match a string */
-   void searchForFolders(const QString& match);
 
    //! Scan into the selected folder; returns true if scan was handled
    bool scan();
@@ -43,6 +37,8 @@ protected slots:
      * The selected directory is shown in the Dirview
      */
     void selectDir(const QModelIndex& target);
+
+    void foldersel_textChanged(const QString &text);
 
 signals:
    void keypressReceived(QKeyEvent *event);
@@ -67,6 +63,9 @@ protected:
      */
    bool createMissingDir(int item, QString& fname, QModelIndex& ind);
 
+   /** Search for folders which match a string */
+   void searchForFolders(const QString& match);
+
    Foldersel *_foldersel;
    QStandardItemModel *_model;
    Mainwidget *_main;
@@ -83,6 +82,12 @@ protected:
 
    // true if the folders list has been set up
    bool _valid;
+
+   // true if we are currently searching for folders
+   bool _searching;
+
+   // string which we saw while in the middle of searching
+   QString _next_search;
 };
 
 #endif // FOLDERLIST_H
