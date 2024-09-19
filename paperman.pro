@@ -9,6 +9,7 @@ target.files = paperman
 INSTALLS += target
 
 message ("Type 'make' to build paperman")
+# To build with testing: qmake CONFIG+=test
 
 OCRINCPATH = /usr/local/include/nuance-omnipage-csdk-15.5
 OCRLIBPATH = /usr/local/lib/nuance-omnipage-csdk-15.5
@@ -212,8 +213,7 @@ SOURCES += desktopwidget.cpp \
  senddialog.cpp \
  transfer.cpp \
     filejpeg.cpp \
-    qlistwidgetitemiterator.cpp \
-    test/testpaperman.cpp
+    qlistwidgetitemiterator.cpp 
 
 # add qtcreator debug macros if we are debugging
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
@@ -230,6 +230,11 @@ FORMS = mainwindow.ui \
         ocrbar.ui send.ui \
         search.ui \
    toolbar.ui
+
+test {
+    SOURCES += test/testpaperman.cpp
+    QMAKE_CXXFLAGS += -DENABLE_TEST
+}
 
 # tif_fax3sm.c   - causes tifflib to break
 
