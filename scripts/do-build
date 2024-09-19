@@ -90,8 +90,8 @@ doit() {
 }
 
 # For testing individual builds
-doit focal amd64
-exit
+#doit focal amd64
+#exit
 
 for chrootdir in $DISTLIST; do
     DIST=$(basename $chrootdir | cut -d'-' -f2)
