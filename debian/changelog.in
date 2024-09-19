@@ -1,3 +1,15 @@
+paperman (1.2-1VENDOR_VERSION) UNRELEASED; urgency=medium
+
+  * Import files from outside directories
+  * Avoid keeping all touched-files open
+  * Bring back command-line operation
+  * Presets (Ctrl-1 to Ctrl-6) for basic scanning operation
+  * Faster folder-selection within the scanning window
+  * Set the group for files
+
+ -- Simon Glass <sjg@chromium.org>  Sat, 07 Sep 2024 20:10:58 -0600
+
+
 paperman (1.1-1VENDOR_VERSION) UNRELEASED; urgency=medium
 
   * Package renamed for potential, actual release
