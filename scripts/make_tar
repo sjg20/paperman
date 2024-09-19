@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dest=../paperman_1.2.orig.tar.bz2
+dest=../paperman_1.2.1.orig.tar.bz2
 
 exclude=".git"
 # .moc .ui .obj Makefile debian/changelog doc/ tests

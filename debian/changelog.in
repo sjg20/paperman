@@ -1,3 +1,12 @@
+paperman (1.2.1-1VENDOR_VERSION) UNRELEASED; urgency=medium
+
+  * Expand tests to include common stacking/unstacking operations
+  * Fix various bugs in recent new features, particularly files not being opened
+    before use
+
+ -- Simon Glass <sjg@chromium.org>  Sat, 07 Sep 2024 20:10:58 -0600
+
+
 paperman (1.2-1VENDOR_VERSION) UNRELEASED; urgency=medium
 
   * Import files from outside directories
