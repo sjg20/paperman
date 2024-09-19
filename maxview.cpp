@@ -302,11 +302,15 @@ int main (int argc, char *argv[])
 //	   printf ("test error %s\n", e->errstr);
 #endif
          // Drop the -t argument
+#ifdef ENABLE_TEST
          argv[argc--] = 0;
          int result = test_run(argc - 1, argv, &app);
 
          if (result)
             qInfo() << "Failed: " << result;
+#else
+         qInfo() << "Use this to build with tests: qmake CONFIG+=test";
+#endif
          break;
          }
       case 'j' :
