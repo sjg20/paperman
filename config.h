@@ -63,8 +63,8 @@ details */
 
 
 // version numbers
-#define CONFIG_version_str "1.1"
-#define CONFIG_version 110
+#define CONFIG_version_str "1.2"
+#define CONFIG_version 120
 
 
 //! port number to use for deliverymv server
