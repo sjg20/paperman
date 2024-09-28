@@ -137,6 +137,75 @@ void TestOps::testUnstackPage()
    QCOMPARE(max->pagecount(), 10);
 }
 
+void TestOps::testDuplicateMax()
+{
+   Mainwindow me;
+
+   QModelIndex repo_ind;
+   QModelIndex max_ind;
+   prepareDuplicate(&me, repo_ind, max_ind);
+
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopview *view = desktop->getView();
+   Desktopmodel *model = desktop->getModel();
+   view->setSelectionRange(1, 1);
+
+   // Duplicate the PDF file as Max
+   desktop->duplicateMax();
+
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 3);
+
+   QModelIndex dup_ind = model->index(2, 0, repo_ind);
+   Desktopmodelconv *modelconv = desktop->getModelconv();
+
+   // Make sure that the new stack is selected
+   QModelIndex ind;
+   bool has_current = desktop->getCurrentFile(ind);
+   QCOMPARE(has_current, true);
+   Q_ASSERT(ind.isValid());
+   modelconv->indexToSource(desktop->_contents_proxy, ind);
+
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testpdf_copy");
+
+   File *max2 = model->getFile(ind);
+   Q_ASSERT(max2);
+   QCOMPARE(max2->typeName(), "Max");
+
+   // Now duplicate this new max file as a PDF
+   desktop->duplicatePdf();
+
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 4);
+
+   // Make sure that the new stack is selected
+   dup_ind = model->index(3, 0, repo_ind);
+   has_current = desktop->getCurrentFile(ind);
+   QCOMPARE(has_current, true);
+   Q_ASSERT(ind.isValid());
+   modelconv->indexToSource(desktop->_contents_proxy, ind);
+
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(),
+            "testpdf_copy_copy.pdf");
+
+   File *pdf = model->getFile(ind);
+   Q_ASSERT(max2);
+   QCOMPARE(pdf->typeName(), "PDF");
+
+   // Now undo everything
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   Q_ASSERT(!stk->canUndo());
+
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+}
+
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
 {
    QModelIndex max_ind;
@@ -215,26 +284,4 @@ void TestOps::prepareDuplicate(Mainwindow *me, QModelIndex &repo_ind,
    view->setSelectionRange(0, 1);
    has_current = desktop->getCurrentFile(ind);
    QCOMPARE(has_current, true);
-
-   // Duplicate the max file
-   desktop->duplicate();
-
-   files = model->rowCount(repo_ind);
-   QCOMPARE(files, 3);
-
-   QModelIndex dup_ind = model->index(2, 0, repo_ind);
-   Desktopmodelconv *modelconv = desktop->getModelconv();
-
-   // Make sure that the new stack is selected
-   ind = dup_ind;
-   has_current = desktop->getCurrentFile(ind);
-   QCOMPARE(has_current, true);
-   Q_ASSERT(ind.isValid());
-   modelconv->indexToSource(desktop->_contents_proxy, ind);
-
-   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testfile_copy");
-
-   File *max2 = model->getFile(max_ind);
-   Q_ASSERT(max2);
-   QCOMPARE(max2->typeName(), "Max");
 }

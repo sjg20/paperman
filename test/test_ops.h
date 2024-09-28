@@ -30,6 +30,9 @@ private slots:
    void testDuplicateStackUndo();
    void testUnstackPage();
 
+   //! Duplicate a PDF as a Max file and then that as a PDF
+   void testDuplicateMax();
+
 private:
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);
 
