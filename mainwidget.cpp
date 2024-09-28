@@ -166,6 +166,13 @@ void Mainwidget::saveSettings (void)
       }
    }
 
+bool Mainwidget::complain(err_info *err)
+{
+   if (err)
+      QMessageBox::warning (0, "Maxview", err->errstr);
+
+   return err != nullptr;
+}
 
 void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
    {
@@ -1172,15 +1179,15 @@ err_info *Mainwidget::operation (Desk::operation_t type, int ival)
 
 
 void Mainwidget::rotate (int degrees)
-   {
-   err_complain (operation (Desk::op_rotate, degrees));
-   }
+{
+   complain(operation (Desk::op_rotate, degrees));
+}
 
 
 void Mainwidget::flip (bool horiz)
-   {
-   err_complain (operation (horiz ? Desk::op_hflip : Desk::op_vflip, 0));
-   }
+{
+   complain(operation(horiz ? Desk::op_hflip : Desk::op_vflip, 0));
+}
 
 
 bool Mainwidget::isSmoothing (void)
