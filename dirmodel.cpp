@@ -32,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "err.h"
 
+#include "mainwindow.h"
 #include "maxview.h"
 #include "utils.h"
 
@@ -346,7 +347,7 @@ bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
       for (; it != urls.constEnd(); ++it) {
          QString path = (*it).toLocalFile();
          err = moveDir (path, to);
-         err_complain (err);
+         Mainwidget::singleton()->complain(err);
          if (!err) {
                QModelIndex idx=index(QFileInfo(path).path());
                if(idx.isValid()) {
