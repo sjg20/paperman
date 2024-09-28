@@ -5,13 +5,22 @@
 
 //QTEST_MAIN(TestPaperman)
 
-int test_run(int argc, char **argv, QApplication *app)
+static TestUtils TEST_UTILS("utils");
+
+int test_run(int argc, char **in_argv, QApplication *)
 {
-   TESTLIB_SELFCOVERAGE_START(#TestUtils)
-   QT_PREPEND_NAMESPACE(QTest::Internal::callInitMain)<TestUtils>();
-   app->setAttribute(Qt::AA_Use96Dpi, true);
-   QTEST_DISABLE_KEYPAD_NAVIGATION
-   TestUtils tc;
-   QTEST_SET_MAIN_SOURCE_PATH
-   return QTest::qExec(&tc, argc, argv);
+   int status = 0;
+   auto runTest = [&status, argc, in_argv](QObject* obj) {
+       status |= QTest::qExec(obj, argc, in_argv);
+   };
+
+   // run suite
+   auto &suite = Suite::suite();
+   for (auto it = suite.begin(); it != suite.end(); ++it) {
+      const Test *test = *it;
+      qDebug() << "suite" << test->_name;
+      runTest(*it);
+   }
+
+   return status;
 }

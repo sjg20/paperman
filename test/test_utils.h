@@ -3,13 +3,18 @@
 
 #include <QObject>
 
+#include "suite.h"
+
 class QTemporaryDir;
 
 class TreeItem;
 
-class TestUtils: public QObject
+class TestUtils: public Suite
 {
    Q_OBJECT
+public:
+    using Suite::Suite;
+
 private slots:
    void testDetectYear();
    void testDetectMonth();
