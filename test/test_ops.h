@@ -17,6 +17,7 @@ public:
 
 private slots:
    void testStartup();
+   void testAddRepos();
 };
 
 #endif // TEST_OPS_H
