@@ -115,6 +115,7 @@ HEADERS += desktopwidget.h \
  pageview.h \
  pagedelegate.h \
    test/suite.h \
+   test/test_ops.h \
    test/test_utils.h \
  utils.h \
  ocr.h \
@@ -202,6 +203,7 @@ SOURCES += desktopwidget.cpp \
  pagedelegate.cpp \
    test/test.cpp \
    test/suite.cpp \
+   test/test_ops.cpp \
  utils.cpp \
  ocr.cpp \
  dmop.cpp \
