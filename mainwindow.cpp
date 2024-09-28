@@ -142,6 +142,8 @@ void Mainwindow::shutdown()
    if (xmlConfig)
       xmlConfig->writeConfigFile ();
    _main->saveSettings ();
+   if (xmlConfig)
+      delete xmlConfig;
 }
 
 void Mainwindow::undoChanged ()

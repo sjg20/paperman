@@ -37,7 +37,6 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "qapplication.h"
 #include "qmessagebox.h"
 #include "qsettings.h"
-#include "qxmlconfig.h"
 
 #include "config.h"
 
@@ -325,8 +324,6 @@ int main (int argc, char *argv[])
          maxdesk.buildIndex (index, fname);
 #endif
       }
-   if (xmlConfig)
-      delete xmlConfig;
    }
 
 
