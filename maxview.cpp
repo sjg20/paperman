@@ -100,36 +100,15 @@ static void usage (void)
 
 static void run_gui(QApplication& app, int argc, char *argv[])
     {
-    Desktopwidget *desktop;
     Mainwindow *me;
 
     me = new Mainwindow ();
-
-    // get the desktop (this has the directory tree and page splitter view)
-    desktop = me->_main->getDesktop ();
-
-    QList<err_info> err_list;
 
     QStringList args;
     for (int i = 1; i < argc; i++)
        args << argv[i];
 
-    err_list = desktop->addRepositories(args);
-
-    me->show ();
-    QModelIndex ind = QModelIndex();
-    desktop->selectDir (ind);
-
-    if (err_list.size ())
-       {
-       QString msg;
-
-       msg = app.tr ("%n error(s) on startup", "", err_list.size ());
-       msg.append (":\n");
-       foreach (const err_info &err, err_list)
-          msg.append (QString ("%1\n").arg (err.errstr));
-       QMessageBox::warning (0, "Maxview", msg);
-       }
+    me->startup(args);
     app.exec ();
 
     // write back any configuration changes (scanner type, etc.)
