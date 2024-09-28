@@ -757,14 +757,19 @@ void Pscan::presetShortcut5()
 void Pscan::selectA4()
 {
    pageSize->setCurrentIndex(_papersize_a4);
+   _preview->setSize(_papersize_a4);
 }
 
 void Pscan::toggleLetter()
 {
+   int id;
+
    if (pageSize->currentIndex() ==_papersize_letter)
-      pageSize->setCurrentIndex(_papersize_legal);
+      id = _papersize_legal;
    else
-      pageSize->setCurrentIndex(_papersize_letter);
+      id = _papersize_letter;
+   pageSize->setCurrentIndex(id);
+   _preview->setSize(id);
 }
 
 Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)
