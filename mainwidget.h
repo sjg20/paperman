@@ -143,6 +143,9 @@ public:
 
    void setMainwindow(Mainwindow *mainwindow);
 
+   // Report an error to the user
+   bool complain(err_info *err);
+
 signals:
    void newContents (QString);
 
