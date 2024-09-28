@@ -111,10 +111,7 @@ static void run_gui(QApplication& app, int argc, char *argv[])
     me->startup(args);
     app.exec ();
 
-    // write back any configuration changes (scanner type, etc.)
-    if (xmlConfig)
-       xmlConfig->writeConfigFile ();
-    me->_main->saveSettings ();
+    me->shutdown();
     delete me;
     }
 

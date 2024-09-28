@@ -55,6 +55,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mainwindow.h"
 #include "pagewidget.h"
 #include "utils.h"
+#include "qxmlconfig.h"
 
 
 /*
@@ -133,6 +134,14 @@ void Mainwindow::startup(const QStringList& dirs)
          msg.append (QString ("%1\n").arg (err.errstr));
       QMessageBox::warning (0, "Maxview", msg);
       }
+}
+
+void Mainwindow::shutdown()
+{
+   // write back any configuration changes (scanner type, etc.)
+   if (xmlConfig)
+      xmlConfig->writeConfigFile ();
+   _main->saveSettings ();
 }
 
 void Mainwindow::undoChanged ()

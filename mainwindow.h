@@ -58,6 +58,9 @@ public:
    //! Add the given list of extra repositories, reporting any errors
    void startup(const QStringList& dirs);
 
+   //! Shut down, saving settings
+   void shutdown();
+
 public slots:
     virtual void on_actionPrint_triggered(bool);
     virtual void on_actionExit_triggered(bool);
