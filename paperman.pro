@@ -114,6 +114,7 @@ HEADERS += desktopwidget.h \
  pagemodel.h \
  pageview.h \
  pagedelegate.h \
+   test/test_utils.h \
  utils.h \
  ocr.h \
  file.h \
