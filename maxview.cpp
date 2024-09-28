@@ -59,15 +59,6 @@ extern "C" int test_main (void);
 */
 #include "err.h"
 
-
-bool err_complain (err_info *err)
-   {
-   if (err)
-      QMessageBox::warning (0, "Maxview", err->errstr);
-   return err != NULL;
-   }
-
-
 static void usage (void)
    {
    printf ("maxview - An electronic filing cabinet: scan, print, stack, arrange\n\n");
