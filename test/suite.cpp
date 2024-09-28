@@ -36,6 +36,12 @@ QString Test::setupRepo()
    return _tempDir->path();
 }
 
+QString Test::trashFile(QString fname)
+{
+   return _tempDir->path() + QDir::separator() + ".maxview-trash" +
+         QDir::separator() + fname;
+}
+
 Suite::Suite(QString name) :
    Test(name)
 {
