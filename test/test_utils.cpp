@@ -3,24 +3,7 @@
 #include "../utils.h"
 #include "test.h"
 
-class TestUtils: public QObject
-{
-   Q_OBJECT
-private slots:
-   void testDetectYear();
-   void testDetectMonth();
-   void testDetectMatches();
-   void testScanDir();
-private:
-   // Create files in a temporary directory structure used for testing
-   void createDirStructure(QTemporaryDir& tmp);
-
-   // Create an empty file in a directory
-   void touch(const QString& dirpath, QString fname);
-
-   // Compare two trees recursively
-   void compare_trees(TreeItem *node1, TreeItem *node2);
-};
+#include "test_utils.h"
 
 void TestUtils::testDetectYear()
 {
@@ -221,7 +204,6 @@ void TestUtils::testScanDir()
 }
 
 //QTEST_MAIN(TestPaperman)
-#include "testpaperman.moc"
 
 int test_run(int argc, char **argv, QApplication *app)
 {
