@@ -139,6 +139,37 @@ void TestOps::testUnstackPage()
 
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
 {
+   QModelIndex max_ind;
+   prepareDuplicate(me, repo_ind, max_ind);
+
+   // Duplicate the max file
+   Desktopwidget *desktop = me->getDesktop ();
+   desktop->duplicate();
+
+   Desktopmodel *model = desktop->getModel();
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 3);
+
+   QModelIndex dup_ind = model->index(2, 0, repo_ind);
+   Desktopmodelconv *modelconv = desktop->getModelconv();
+
+   // Make sure that the new stack is selected
+   QModelIndex ind = dup_ind;
+   bool has_current = desktop->getCurrentFile(ind);
+   QCOMPARE(has_current, true);
+   Q_ASSERT(ind.isValid());
+   modelconv->indexToSource(desktop->_contents_proxy, ind);
+
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testfile_copy");
+
+   File *max2 = model->getFile(max_ind);
+   Q_ASSERT(max2);
+   QCOMPARE(max2->typeName(), "Max");
+}
+
+void TestOps::prepareDuplicate(Mainwindow *me, QModelIndex &repo_ind,
+                               QModelIndex &max_ind)
+{
    Desktopwidget *desktop = me->getDesktop ();
 
    // Add our test repo
@@ -164,7 +195,7 @@ void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
    int files = model->rowCount(repo_ind);
    QCOMPARE(files, 2);
 
-   QModelIndex max_ind = model->index(0, 0, repo_ind);
+   max_ind = model->index(0, 0, repo_ind);
    Q_ASSERT(max_ind.isValid());
 
    QCOMPARE(model->data(max_ind, Qt::DisplayRole).toString(), "testfile");
