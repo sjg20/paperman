@@ -7,6 +7,7 @@
 
 class QTemporaryDir;
 
+class Mainwindow;
 class TreeItem;
 
 class TestOps: public Suite
@@ -21,6 +22,9 @@ private slots:
 
    // Test duplicating a stack
    void testDuplicate();
+
+private:
+   void duplicate(Mainwindow *me, QModelIndex &repo_ind);
 };
 
 #endif // TEST_OPS_H
