@@ -232,7 +232,7 @@ FORMS = mainwindow.ui \
    toolbar.ui
 
 test {
-    SOURCES += test/testpaperman.cpp
+    SOURCES += test/test_utils.cpp
     QMAKE_CXXFLAGS += -DENABLE_TEST
 }
 
