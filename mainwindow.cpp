@@ -117,7 +117,6 @@ void Mainwindow::startup(const QStringList& dirs)
 
    QList<err_info> err_list;
 
-
    err_list = desktop->addRepositories(dirs);
 
    show ();
@@ -145,6 +144,19 @@ void Mainwindow::shutdown()
    if (xmlConfig)
       delete xmlConfig;
 }
+
+void Mainwindow::runGui(QApplication& app, QStringList args)
+    {
+    Mainwindow *me;
+
+    me = new Mainwindow();
+
+    me->startup(args);
+    app.exec();
+
+    me->shutdown();
+    delete me;
+    }
 
 void Mainwindow::undoChanged ()
    {

@@ -97,24 +97,6 @@ static void usage (void)
 */
    }
 
-static void run_gui(QApplication& app, int argc, char *argv[])
-    {
-    Mainwindow *me;
-
-    me = new Mainwindow ();
-
-    QStringList args;
-    for (int i = 1; i < argc; i++)
-       args << argv[i];
-
-    me->startup(args);
-    app.exec ();
-
-    me->shutdown();
-    delete me;
-    }
-
-
 int main (int argc, char *argv[])
    {
    //bool verbose = false, force = false, reloc = false, hack = false;
@@ -314,7 +296,10 @@ int main (int argc, char *argv[])
          }
 #endif
       case -1 :
-         run_gui(app, argc, argv);
+         QStringList args;
+         for (int i = 1; i < argc; i++)
+            args << argv[i];
+         Mainwindow::runGui(app, args);
 #if 0
       case 1 :
          Desk maxdesk (QString(), QString());

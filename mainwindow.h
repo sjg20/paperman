@@ -61,6 +61,9 @@ public:
    //! Shut down, saving settings
    void shutdown();
 
+   // Run the GUI with the given arguments
+   static void runGui(QApplication& app, QStringList args);
+
 public slots:
     virtual void on_actionPrint_triggered(bool);
     virtual void on_actionExit_triggered(bool);
