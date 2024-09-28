@@ -28,6 +28,7 @@ private slots:
 
    // Test duplicating a stack, combining the two and then undoing it
    void testDuplicateStackUndo();
+   void testUnstackPage();
 
 private:
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);

@@ -85,6 +85,58 @@ void TestOps::testDuplicateStackUndo()
    QCOMPARE(files, 3);
 }
 
+void TestOps::testUnstackPage()
+{
+   Mainwindow me;
+
+   QModelIndex repo_ind;
+   duplicate(&me, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopview *view = desktop->getView();
+   view->addSelectionRange(0, 1);
+
+   // Stack the two max files
+   desktop->stackPages();
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex max_ind = model->index(0, 0, repo_ind);
+   Q_ASSERT(max_ind.isValid());
+   QCOMPARE(model->data(max_ind, Qt::DisplayRole).toString(), "testfile");
+
+   File *max = model->getFile(max_ind);
+   Q_ASSERT(max);
+   QCOMPARE(max->typeName(), "Max");
+   QCOMPARE(max->pagecount(), 10);
+
+   // unstack the first page
+   desktop->unstackPage();
+   QCOMPARE(max->pagecount(), 9);
+
+   // We now expect three files
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 3);
+
+   // Check that the unstacked page looks OK
+   QModelIndex page_ind = model->index(2, 0, repo_ind);
+   Q_ASSERT(page_ind.isValid());
+   QCOMPARE(model->data(page_ind, Qt::DisplayRole).toString(),
+            "27_September_2024");
+
+   File *page = model->getFile(page_ind);
+   Q_ASSERT(page);
+   QCOMPARE(page->pagecount(), 1);
+
+   // Now undo the unstack-page
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+   QCOMPARE(max->pagecount(), 10);
+}
+
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
 {
    Desktopwidget *desktop = me->getDesktop ();
