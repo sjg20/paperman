@@ -173,7 +173,7 @@ void Folderlist::checkFolders()
    if (!_awaiting_user && QApplication::focusWidget() != _foldersel &&
        QApplication::focusWidget() != this && isVisible()) {
       hide();
-      if (focusWidget() == this)
+      if (_parent->focusWidget() == this)
          _foldersel->setFocus(Qt::OtherFocusReason);
    }
 
