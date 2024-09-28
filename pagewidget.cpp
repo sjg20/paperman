@@ -49,6 +49,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mainwidget.h"
 #include "desk.h"
 #include "file.h"
+#include "mainwidget.h"
 #include "maxview.h"
 #include "ocr.h"
 #include "pagedelegate.h"
@@ -984,7 +985,7 @@ void Pagewidget::commit (void)
    _pagemodel->updateAnnot (File::Annot_title, _pageattr->title->text ());
    _pagemodel->updateAnnot (File::Annot_keywords, _pageattr->keywords->text ());
    _pagemodel->updateAnnot (File::Annot_notes, _pageattr->notes->toPlainText());
-   err_complain (_pagemodel->commit ());
+   Mainwidget::singleton()->complain(_pagemodel->commit());
    updatePagetools ();
    }
 
@@ -1130,7 +1131,7 @@ void Pagewidget::ocrPage (void)
 
    if (ocr)
       err = ocr->imageToText (_image, str);
-   if (!err_complain (err))
+   if (!Mainwidget::singleton()->complain(err))
       _ocr_edit->setText (str);
    }
 
