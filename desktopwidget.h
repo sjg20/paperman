@@ -80,6 +80,8 @@ All QModelIndex parameters here refer to the proxy model _dir_proxy
 class Desktopwidget : public QSplitter //QWidget
    {
    Q_OBJECT
+   friend class TestOps;
+
 public:
    /** construct a desktop widget */
    Desktopwidget (QWidget *parent = 0);

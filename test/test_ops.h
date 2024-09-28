@@ -18,6 +18,9 @@ public:
 private slots:
    void testStartup();
    void testAddRepos();
+
+   // Test duplicating a stack
+   void testDuplicate();
 };
 
 #endif // TEST_OPS_H
