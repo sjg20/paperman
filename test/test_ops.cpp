@@ -33,7 +33,13 @@ void TestOps::testDuplicate()
 {
    Mainwindow me;
 
-   Desktopwidget *desktop = me.getDesktop ();
+   QModelIndex repo_ind;
+   duplicate(&me, repo_ind);
+}
+
+void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
+{
+   Desktopwidget *desktop = me->getDesktop ();
 
    // Add our test repo
    auto path = setupRepo();
@@ -51,7 +57,7 @@ void TestOps::testDuplicate()
    int rows = model->rowCount(QModelIndex());
    QCOMPARE(1, rows);
 
-   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   repo_ind = model->index(0, 0, QModelIndex());
    Q_ASSERT(repo_ind.isValid());
 
    // We expect two files
