@@ -302,6 +302,30 @@ void Desktopwidget::closing (void)
    _page->closing ();
    }
 
+QList<err_info> Desktopwidget::addRepositories(const QStringList& dirs)
+{
+   QList<err_info> err_list;
+   QSettings qs;
+   err_info *err;
+
+   int size = qs.beginReadArray ("repository");
+   for (int i = 0; i < size; i++) {
+      qs.setArrayIndex (i);
+      err = addDir (qs.value ("path").toString (), true);
+      if (err)
+         err_list << *err;
+   }
+   qs.endArray ();
+
+   /* Add dirs for any arguments */
+   foreach (auto dirName, dirs) {
+      err = addDir(dirName);
+      if (err)
+         err_list << *err;
+   }
+
+   return err_list;
+}
 
 void Desktopwidget::slotModeChanging (int new_mode, int old_mode)
    {
