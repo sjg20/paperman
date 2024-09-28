@@ -23,6 +23,9 @@ private slots:
    // Test duplicating a stack
    void testDuplicate();
 
+   // Test duplicating a stack and then undoing it
+   void testDuplicateUndo();
+
 private:
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);
 };
