@@ -29,7 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "desktopmodel.h"
 #include "desktopundo.h"
-
+#include "mainwidget.h"
 #include "maxview.h"
 
 
@@ -64,12 +64,10 @@ void Desktopundocmd::aboutToAdd (QModelIndex parent)
    _model->aboutToAdd (parent);
    }
 
-
-void Desktopundocmd::complain (err_info *err)
-   {
-   err_complain (err);
-   }
-
+void Desktopundocmd::complain(err_info *err)
+{
+   Mainwidget::singleton()->complain(err);
+}
 
 UCTrashStacks::UCTrashStacks (Desktopmodel *model,
          QModelIndexList &list, QModelIndex &parent, QString dir, bool copy)
@@ -467,7 +465,7 @@ void UCUpdateAnnot::redo (void)
    QModelIndex parent = _model->deskFromDirname (_dir);
    QModelIndex ind = _model->index (_fname, parent);
 
-   err_complain (_model->opUpdateAnnot (ind, _new));
+   complain(_model->opUpdateAnnot(ind, _new));
    }
 
 
@@ -476,7 +474,7 @@ void UCUpdateAnnot::undo (void)
    QModelIndex parent = _model->deskFromDirname (_dir);
    QModelIndex ind = _model->index (_fname, parent);
 
-   err_complain (_model->opUpdateAnnot (ind, _old));
+   complain(_model->opUpdateAnnot(ind, _old));
    }
 
 
