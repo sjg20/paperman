@@ -4,6 +4,7 @@
 #include "test.h"
 
 #include "desktopmodel.h"
+#include "desktopundo.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "mainwindow.h"
@@ -35,6 +36,25 @@ void TestOps::testDuplicate()
 
    QModelIndex repo_ind;
    duplicate(&me, repo_ind);
+}
+
+void TestOps::testDuplicateUndo()
+{
+   Mainwindow me;
+
+   QModelIndex repo_ind;
+   duplicate(&me, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopmodel *model = desktop->getModel();
+
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   // We should be back to two files
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
 }
 
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
