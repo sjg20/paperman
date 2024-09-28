@@ -227,9 +227,16 @@ public slots:
       \param now        true to display preview now, else wait a bit for user */
    void slotItemPreview (const QModelIndex &index, int which, bool now);
 
+   //! Select the stack to the right of the one currently selected
    void stackRight (void);
+
+   //! Select the stack to the left of the one currently selected
    void stackLeft (void);
+
+   //! Select the page to the left of the one currently selected
    void pageLeft (void);
+
+   //! Select the page to the right of the one currently selected
    void pageRight (void);
 
    // open a stack (view the current page and swap views)
