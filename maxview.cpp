@@ -108,30 +108,16 @@ static void run_gui(QApplication& app, int argc, char *argv[])
     // get the desktop (this has the directory tree and page splitter view)
     desktop = me->_main->getDesktop ();
 
-    QSettings qs;
     QList<err_info> err_list;
-    err_info *err;
 
-    int size = qs.beginReadArray ("repository");
-    for (int i = 0; i < size; i++)
-       {
-       qs.setArrayIndex (i);
-       err = desktop->addDir (qs.value ("path").toString (), true);
-       if (err)
-          err_list << *err;
-       }
-    qs.endArray ();
+    QStringList args;
+    for (int i = 1; i < argc; i++)
+       args << argv[i];
 
-    /* Add dirs for any arguments */
-    for (int c = argc - 1; c >= optind; c--)
-       {
-       err = desktop->addDir (argv [c]);
-       if (err)
-          err_list << *err;
-       }
+    err_list = desktop->addRepositories(args);
 
     me->show ();
-    QModelIndex ind = QModelIndex ();
+    QModelIndex ind = QModelIndex();
     desktop->selectDir (ind);
 
     if (err_list.size ())

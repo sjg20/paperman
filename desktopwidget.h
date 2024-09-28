@@ -87,6 +87,9 @@ public:
    /** destroy a desktop widget */
    ~Desktopwidget ();
 
+   //! Add the given list of extra repositories
+   QList<err_info> addRepositories(const QStringList& dirs);
+
    /** constructor helper functions */
    QWidget *createToolbar(void);
    void createPage(void);
