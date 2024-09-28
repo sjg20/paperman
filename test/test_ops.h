@@ -33,6 +33,9 @@ private slots:
    //! Duplicate a PDF as a Max file and then that as a PDF
    void testDuplicateMax();
 
+   //! Test duplication of odd and even pages
+   void testDuplicateEvenOdd();
+
 private:
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);
 
