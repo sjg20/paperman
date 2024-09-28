@@ -18,6 +18,9 @@ public:
    // Set up a test repo for use and return path
    QString setupRepo();
 
+   // Get the path to a trash file given its filename
+   QString trashFile(QString fname);
+
    static const QString testSrc;
 
 public:

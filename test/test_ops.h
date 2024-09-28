@@ -36,6 +36,9 @@ private slots:
    //! Test duplication of odd and even pages
    void testDuplicateEvenOdd();
 
+   //! Test deleting of one or more stacks
+   void testDeleteStacks();
+
 private:
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);
 

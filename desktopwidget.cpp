@@ -1284,22 +1284,28 @@ void Desktopwidget::locateFolder ()
       }
    }
 
-
-void Desktopwidget::deleteStacks (void)
-   {
+void Desktopwidget::doDeleteStacks(bool confirm)
+{
    QModelIndexList list = _view->getSelectedListSource ();
-   int ok;
+   bool ok = true;
 
    if (!list.size())
         return;
-   ok = QMessageBox::question(
-            this,
-            tr("Confirmation -- maxview"),
-            tr("Do you want to delete %n stack(s)?", "", list.size ()),
-            QMessageBox::Ok, QMessageBox::Cancel);
-   if ( ok == QMessageBox::Ok)
-      _contents->trashStacks (list, _view->rootIndexSource ());
+   if (confirm) {
+      ok = QMessageBox::question(
+               this,
+               tr("Confirmation -- maxview"),
+               tr("Do you want to delete %n stack(s)?", "", list.size ()),
+               QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
    }
+   if (ok)
+      _contents->trashStacks(list, _view->rootIndexSource());
+}
+
+void Desktopwidget::deleteStacks (void)
+{
+   doDeleteStacks(true);
+}
 
 
 void Desktopwidget::unstackStacks (void)

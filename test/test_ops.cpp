@@ -261,6 +261,56 @@ void TestOps::testDuplicateEvenOdd()
    QCOMPARE(max2->pagecount(), 2);
 }
 
+void TestOps::testDeleteStacks()
+{
+   QModelIndex repo_ind;
+   Mainwindow me;
+
+   // Add our test repo
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop ();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   // Delete the first stack
+   Desktopview *view = desktop->getView();
+   view->setSelectionRange(0, 1);
+
+   desktop->doDeleteStacks(false);
+
+   Desktopmodel *model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   Q_ASSERT(repo_ind.isValid());
+
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 1);
+
+   QFile fil(trashFile("testfile.max"));
+   Q_ASSERT(fil.exists());
+
+   view->setSelectionRange(0, 1);
+
+   // Now delete the second
+   desktop->doDeleteStacks(false);
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 0);
+
+   QFile fil2(trashFile("testpdf.pdf"));
+   Q_ASSERT(fil2.exists());
+
+   // Undo both operations
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   Q_ASSERT(!fil.exists());
+   Q_ASSERT(!fil2.exists());
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+}
+
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
 {
    QModelIndex max_ind;
