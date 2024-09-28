@@ -39,6 +39,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
+#include "mainwindow.h"
 #include "maxview.h"
 #include "mem.h"
 #include "op.h"
@@ -242,8 +243,9 @@ File *File::createFile (const QString &dir, const QString fname, Desk *desk, e_t
          break;
 
       default :
-         err_complain (err_make (ERRFN, ERR_file_type_unsupported1,
-                                 qPrintable(typeName (type))));
+         Mainwidget::singleton()->complain(err_make(ERRFN,
+                                                    ERR_file_type_unsupported1,
+                                                    qPrintable(typeName (type))));
          f = new Fileother (dir, fname, desk);
       }
    return f;
