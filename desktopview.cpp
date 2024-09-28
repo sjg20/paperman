@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopdelegate.h"
 #include "desktopmodel.h"
 #include "desktopview.h"
+#include "mainwidget.h"
 #include "maxview.h"
 #include "utils.h"
 
@@ -291,7 +292,8 @@ void Desktopview::dropEvent (QDropEvent* event)
       dmodel->move (list, rootIndexSource (), oldlist, plist);
    else
       // we need to stack the selected stacks on top of the destination one
-      err_complain (dmodel->stackItems (dest, list, &oldlist));
+      Mainwidget::singleton()->complain(dmodel->stackItems(dest, list,
+                                                           &oldlist));
 //       setPositions ();
    }
 
