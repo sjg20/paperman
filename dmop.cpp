@@ -200,6 +200,7 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
    foreach (ind, list)
       {
       f = getFile (ind);
+      CALL(f->load());
       err = f->duplicateAny (type, odd_even, op, fnew);
       if (err)
          break;
