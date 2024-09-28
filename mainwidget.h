@@ -146,6 +146,8 @@ public:
    // Report an error to the user
    bool complain(err_info *err);
 
+   static Mainwidget *singleton();
+
 signals:
    void newContents (QString);
 
@@ -354,6 +356,9 @@ private:
     */
    void addMatches(QStringList& matches, uint baseLen, const QString &dirPath,
                    const QString &match, Operation *op);
+
+   // Holds the Mainwidget
+   static Mainwidget *_singleton;
 
 private:
    Desktopwidget *_desktop;
