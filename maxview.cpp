@@ -304,7 +304,7 @@ int main (int argc, char *argv[])
          // Drop the -t argument
 #ifdef ENABLE_TEST
          argv[argc--] = 0;
-         int result = test_run(argc - 1, argv, &app);
+         int result = test_run(argc, argv, &app);
 
          if (result)
             qInfo() << "Failed: " << result;
