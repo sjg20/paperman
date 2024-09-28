@@ -3,7 +3,7 @@
 #include "../utils.h"
 #include "test.h"
 
-class TestPaperman: public QObject
+class TestUtils: public QObject
 {
    Q_OBJECT
 private slots:
@@ -22,7 +22,7 @@ private:
    void compare_trees(TreeItem *node1, TreeItem *node2);
 };
 
-void TestPaperman::testDetectYear()
+void TestUtils::testDetectYear()
 {
    int pos;
 
@@ -45,7 +45,7 @@ void TestPaperman::testDetectYear()
    QCOMPARE(utilDetectYear("01jan", pos), 0);
 }
 
-void TestPaperman::testDetectMonth()
+void TestUtils::testDetectMonth()
 {
    int pos;
 
@@ -61,7 +61,7 @@ void TestPaperman::testDetectMonth()
    QCOMPARE(pos, 0);
 }
 
-void TestPaperman::testDetectMatches()
+void TestUtils::testDetectMatches()
 {
    QStringList matches, final, missing;
    QDate date = QDate(2024, 9, 1);
@@ -148,7 +148,7 @@ void TestPaperman::testDetectMatches()
    QCOMPARE(missing[0], "bills/2026");
 }
 
-void TestPaperman::compare_trees(TreeItem *node1, TreeItem *node2)
+void TestUtils::compare_trees(TreeItem *node1, TreeItem *node2)
 {
    if (!node1 || !node2) {
       QCOMPARE(node1, node2);
@@ -160,13 +160,13 @@ void TestPaperman::compare_trees(TreeItem *node1, TreeItem *node2)
       compare_trees(node1->child(i), node2->child(i));
 }
 
-void TestPaperman::touch(const QString& dirpath, QString fname)
+void TestUtils::touch(const QString& dirpath, QString fname)
 {
    QFile file(dirpath + "/" + fname);
    file.open(QIODevice::WriteOnly);
 }
 
-void TestPaperman::createDirStructure(QTemporaryDir& tmp)
+void TestUtils::createDirStructure(QTemporaryDir& tmp)
 {
    QVERIFY(tmp.isValid());
 
@@ -183,7 +183,7 @@ void TestPaperman::createDirStructure(QTemporaryDir& tmp)
    touch(root + "/dir2", "4");
 }
 
-void TestPaperman::testScanDir()
+void TestUtils::testScanDir()
 {
    QTemporaryDir tmp;
    TreeItem *root, *chk;
@@ -225,11 +225,11 @@ void TestPaperman::testScanDir()
 
 int test_run(int argc, char **argv, QApplication *app)
 {
-   TESTLIB_SELFCOVERAGE_START(#TestPaperman)
-   QT_PREPEND_NAMESPACE(QTest::Internal::callInitMain)<TestPaperman>();
+   TESTLIB_SELFCOVERAGE_START(#TestUtils)
+   QT_PREPEND_NAMESPACE(QTest::Internal::callInitMain)<TestUtils>();
    app->setAttribute(Qt::AA_Use96Dpi, true);
    QTEST_DISABLE_KEYPAD_NAVIGATION
-   TestPaperman tc;
+   TestUtils tc;
    QTEST_SET_MAIN_SOURCE_PATH
    return QTest::qExec(&tc, argc, argv);
 }
