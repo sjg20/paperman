@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QtGui>
+#include <QMessageBox>
 #include <QSettings>
 #include <qvariant.h>
 
@@ -106,6 +107,33 @@ Mainwindow::~Mainwindow()
     // no need to delete child widgets, Qt does it all for us
 }
 
+void Mainwindow::startup(const QStringList& dirs)
+{
+   Desktopwidget *desktop;
+
+   // get the desktop (this has the directory tree and page splitter view)
+   desktop = _main->getDesktop ();
+
+   QList<err_info> err_list;
+
+
+   err_list = desktop->addRepositories(dirs);
+
+   show ();
+   QModelIndex ind = QModelIndex();
+   desktop->selectDir (ind);
+
+   if (err_list.size ())
+      {
+      QString msg;
+
+      msg = tr("%n error(s) on startup", "", err_list.size ());
+      msg.append (":\n");
+      foreach (const err_info &err, err_list)
+         msg.append (QString ("%1\n").arg (err.errstr));
+      QMessageBox::warning (0, "Maxview", msg);
+      }
+}
 
 void Mainwindow::undoChanged ()
    {
