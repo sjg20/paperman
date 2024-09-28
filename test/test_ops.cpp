@@ -57,6 +57,34 @@ void TestOps::testDuplicateUndo()
    QCOMPARE(files, 2);
 }
 
+void TestOps::testDuplicateStackUndo()
+{
+   Mainwindow me;
+
+   QModelIndex repo_ind;
+   duplicate(&me, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopview *view = desktop->getView();
+   view->addSelectionRange(0, 1);
+
+   // Stack the two max files
+   desktop->stackPages();
+
+   // Should be back to two items
+   Desktopmodel *model = desktop->getModel();
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+
+   // Now undo, to get back to three items
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 3);
+}
+
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
 {
    Desktopwidget *desktop = me->getDesktop ();
