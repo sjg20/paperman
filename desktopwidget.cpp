@@ -214,7 +214,6 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    QTimer::singleShot(1000, _view, SLOT (scrollToLast()));
    }
 
-
 void Desktopwidget::createPage(void)
    {
    _page = new Pagewidget (_modelconv, "desktopwidget/", this);
@@ -599,7 +598,7 @@ void Desktopwidget::slotUpdateRepositoryList (QString &dirname, bool add_not_del
          qDebug () << "slotUpdateRepositoryList: Could not find dirname"
                << dirname << "in model index: ";
       }
-   if (!err_complain (err))
+   if (!_main->complain (err))
       updateSettings ();
    }
 
@@ -1117,7 +1116,7 @@ void Desktopwidget::complete (QModelIndex parent, err_info *err)
    // select the newly created items
    if (_contents->itemsAdded (parent, start, count))
       _view->setSelectionRange (start, count);
-   err_complain (err);
+   _main->complain(err);
    }
 
 
@@ -1188,14 +1187,12 @@ void Desktopwidget::send (void)
    // bring up a dialogue allowing user to enter information
    Senddialog send (this);
 
-   if (!err_complain (send.setup (_contents, parent, slist)))
-      {
-      if (send.exec () == QDialog::Accepted)
-         {
+   if (!_main->complain(send.setup(_contents, parent, slist))) {
+      if (send.exec () == QDialog::Accepted) {
          // send it
-         err_complain (send.doSend ());
-         }
+         _main->complain(send.doSend());
       }
+   }
 }
 
 
@@ -1210,7 +1207,7 @@ void Desktopwidget::email (void)
    QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
    
-   err_complain (_contents->opEmailFiles (parent, slist, File::Type_other));
+   _main->complain(_contents->opEmailFiles(parent, slist, File::Type_other));
 }
 
 
@@ -1219,7 +1216,7 @@ void Desktopwidget::emailMax (void)
    QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
    
-   err_complain (_contents->opEmailFiles (parent, slist, File::Type_max));
+   _main->complain(_contents->opEmailFiles(parent, slist, File::Type_max));
 }
 
 void Desktopwidget::moveToFolder(void)
@@ -1259,7 +1256,7 @@ void Desktopwidget::emailPdf (void)
    QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
    
-   err_complain (_contents->opEmailFiles (parent, slist, File::Type_pdf));
+   _main->complain(_contents->opEmailFiles(parent, slist, File::Type_pdf));
 }
 
 
@@ -1326,7 +1323,7 @@ void Desktopwidget::unstackStacks (void)
       // select the newly created items
       if (_contents->itemsAdded (parent, start, count))
          _view->setSelectionRange (start, count);
-      err_complain (err);
+      _main->complain(err);
       }
    }
 
@@ -1362,7 +1359,7 @@ void Desktopwidget::stackPages (void)
       {
       dest = list [0];
       list.removeAt (0);
-      err_complain (_contents->stackItems (dest, list, 0));
+      _main->complain(_contents->stackItems(dest, list, 0));
       }
    }
 
