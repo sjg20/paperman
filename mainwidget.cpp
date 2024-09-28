@@ -72,6 +72,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "utils.h"
 #include "ui_printopt.h"
 
+Mainwidget *Mainwidget::_singleton = nullptr;
+
 Mainwidget::Mainwidget (QWidget *parent, const char *name)
       : QStackedWidget (parent)
    {
@@ -122,8 +124,14 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _buttonTimer = new QTimer (this);
    connect (_buttonTimer, SIGNAL(timeout()), this, SLOT (checkButtons()));
    _buttonTimer->start (500); // check buttons twice each second
+
+   _singleton = this;
    }
 
+Mainwidget *Mainwidget::singleton()
+{
+   return _singleton;
+}
 
 Mainwidget::~Mainwidget ()
    {
