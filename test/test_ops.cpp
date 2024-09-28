@@ -7,8 +7,6 @@
 #include "mainwindow.h"
 #include "test_ops.h"
 
-const char TEST_DIR[] = "test/files";
-
 void TestOps::testStartup()
 {
    Mainwindow *me;
@@ -24,6 +22,7 @@ void TestOps::testAddRepos()
    Desktopwidget *desktop = me.getDesktop ();
 
    // Add our test repo
-   err_info *err = desktop->addDir(TEST_DIR);
+   auto path = setupRepo();
+   err_info *err = desktop->addDir(path);
    Q_ASSERT(!err);
 }

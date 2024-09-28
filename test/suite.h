@@ -4,6 +4,8 @@
 #include <QObject>
 #include <vector>
 
+class QTemporaryDir;
+
 // Info from here:
 // https://alexhuszagh.github.io/2016/using-qttest-effectively
 
@@ -11,8 +13,15 @@ class Test : public QObject {
    Q_OBJECT
 public:
    Test(QString name);
+   ~Test();
+
+   // Set up a test repo for use and return path
+   QString setupRepo();
+
+   static const QString testSrc;
 
 public:
+   QTemporaryDir *_tempDir;
    QString _name;
 };
 
