@@ -790,6 +790,7 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose)
    // we may generate fewer pages than we receive
    int out_page_count = 0;
 
+   load();
    for (pagenum = 0; pagenum < page_count; pagenum++)
       {
       if (verbose) {
