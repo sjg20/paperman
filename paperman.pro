@@ -199,6 +199,7 @@ SOURCES += desktopwidget.cpp \
  pagemodel.cpp \
  pageview.cpp \
  pagedelegate.cpp \
+   test/test.cpp \
  utils.cpp \
  ocr.cpp \
  dmop.cpp \
