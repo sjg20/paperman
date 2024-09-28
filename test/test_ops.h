@@ -32,6 +32,16 @@ private slots:
 
 private:
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);
+
+   /**
+    * @brief Get ready to duplicate a stack
+    * @param me       Mainwindow
+    * @param repo_ind Returns index of the repo being used
+    * @param max_ind  Returns index of the max file
+    */
+   void prepareDuplicate(Mainwindow *me, QModelIndex &repo_ind,
+                         QModelIndex &max_ind);
+
 };
 
 #endif // TEST_OPS_H
