@@ -46,6 +46,9 @@ private slots:
    //! Test renaming stacks
    void testRenameStack();
 
+   //! Test renaming a page
+   void testRenamePage();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
