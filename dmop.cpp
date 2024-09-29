@@ -88,6 +88,7 @@ err_info *Desktopmodel::opUnstackStacks (QModelIndexList &list, QModelIndex pare
       QList<File *> flist;
       QStringList stack_names;
 
+      CALL(f->load());
       // remove every page from the stack except the first
       while (f->pagecount () > 1)
          {
