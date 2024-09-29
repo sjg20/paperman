@@ -43,6 +43,9 @@ private slots:
    //! Test unstacking stacks
    void testUnstackStacks();
 
+   //! Test renaming stacks
+   void testRenameStack();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
