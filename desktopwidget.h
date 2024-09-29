@@ -409,6 +409,9 @@ private slots:
    //! Delete stacks, with or without confirmation
    void doDeleteStacks(bool confirm);
 
+   //! Unstack stacks, with or without confirmation
+   void doUnstackStacks(bool confirm);
+
 private:
    void emailFiles (QString &fname, QStringList &fnamelist);
 
