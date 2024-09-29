@@ -5329,8 +5329,11 @@ err_info *Filemax::getAnnot (e_annot type, QString &text)
    if (!_valid)
       return err_make (ERRFN, ERR_file_not_loaded_yet1,
                        qPrintable (_filename));
-   if (!_annot_loaded)
+   if (!_annot_loaded) {
+      CALL(ensure_open());
       CALL (load_annot ());
+      ensure_closed();
+   }
    Q_ASSERT (type >= 0 && type < Annot_count);
    if (type < _annot_data.size ())
       text = _annot_data [type];
