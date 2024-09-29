@@ -1307,8 +1307,7 @@ void Desktopwidget::deleteStacks (void)
    doDeleteStacks(true);
 }
 
-
-void Desktopwidget::unstackStacks (void)
+void Desktopwidget::doUnstackStacks(bool confirm)
    {
    QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList list = _view->getSelectedListSource ();
@@ -1316,7 +1315,7 @@ void Desktopwidget::unstackStacks (void)
    int start, count;
    err_info *err;
 
-   if (list.size () > 1)
+   if (list.size () > 1 && confirm)
       ok = QMessageBox::question(
             this,
             tr("Confirmation -- maxview"),
@@ -1333,6 +1332,10 @@ void Desktopwidget::unstackStacks (void)
       }
    }
 
+void Desktopwidget::unstackStacks(void)
+{
+   doUnstackStacks(true);
+}
 
 void Desktopwidget::unstackPage (void)
    {
