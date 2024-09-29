@@ -399,6 +399,39 @@ void TestOps::testRenameStack()
    QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testfile");
 }
 
+void TestOps::testRenamePage()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   // Rename the first stack. We cannot use the view since it just allows the
+   // user to edit. So call the model function
+   QModelIndex max_ind = model->index(0, 0, repo_ind);
+
+   File *max = model->getFile(max_ind);
+   Q_ASSERT(max);
+   QCOMPARE(max->pagecount(), 0);
+   max->load();
+   QCOMPARE(max->pagecount(), 5);
+
+   QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
+            "27_September_2024");
+
+   model->renamePage(max_ind, "new-name");
+   QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
+            "new-name");
+
+   // Undo the rename
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
+            "27_September_2024");
+}
+
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
                           QModelIndex& repo_ind)
 {
