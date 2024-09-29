@@ -5024,7 +5024,7 @@ err_info *Filemax::merge_chunk (Filemax *src, int chunk_pos, int *new_pos)
 
    // read the new chunk
    CALL (read_chunk (*destchunk, destchunk->start));
-   chunk_dump (_chunks.size () - 1, *destchunk);
+   // chunk_dump (_chunks.size () - 1, *destchunk);
    *new_pos = destchunk->start;
    return NULL;
    }
@@ -5422,8 +5422,8 @@ err_info *Filemax::stackStack (File *fsrc)
    int pagenum;
    QVector <page_info> pages;
 
-   printf ("merging %d pages, destpage=%d, destchunks=%d\n", src->_pages.size (),
-         destpage, _chunks.size ());
+   // printf ("merging %d pages, destpage=%d, destchunks=%d\n", src->_pages.size (),
+         // destpage, _chunks.size ());
 
    CALL(ensure_open());
    CALL(src->ensure_open());
