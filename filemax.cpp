@@ -5492,6 +5492,8 @@ err_info *Filemax::unstackPages (int pagenum, int pagecount, bool remove,
    page_info *srcpage, *dstpage;
    int i;
 
+   CALL(dest->ensure_open());
+   CALL(ensure_open());
    CALL (ensure_all_chunks ());
 
    for (i = 0; i < pagecount; i++)
@@ -5520,6 +5522,9 @@ err_info *Filemax::unstackPages (int pagenum, int pagecount, bool remove,
 
    if (_pagenum >= _pages.size ())
       _pagenum = _pages.size () - 1;
+   dest->ensure_closed();
+   ensure_closed();
+
    return NULL;
    }
 
