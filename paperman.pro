@@ -114,9 +114,6 @@ HEADERS += desktopwidget.h \
  pagemodel.h \
  pageview.h \
  pagedelegate.h \
-   test/suite.h \
-   test/test_ops.h \
-   test/test_utils.h \
  utils.h \
  ocr.h \
  file.h \
@@ -201,9 +198,6 @@ SOURCES += desktopwidget.cpp \
  pagemodel.cpp \
  pageview.cpp \
  pagedelegate.cpp \
-   test/test.cpp \
-   test/suite.cpp \
-   test/test_ops.cpp \
  utils.cpp \
  ocr.cpp \
  dmop.cpp \
@@ -238,14 +232,19 @@ FORMS = mainwindow.ui \
    toolbar.ui
 
 test {
-    SOURCES += test/test_utils.cpp
+   SOURCES += test/test_utils.cpp \
+      test/test.cpp \
+      test/suite.cpp \
+      test/test_ops.cpp 
+      
+   HEADERS += test/suite.h \
+      test/test_ops.h \
+      test/test_utils.h
+
     QMAKE_CXXFLAGS += -DENABLE_TEST
 }
 
 # tif_fax3sm.c   - causes tifflib to break
-
-
-
 
 #CONFIG  += qt warn_on release static
 
