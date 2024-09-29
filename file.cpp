@@ -628,7 +628,7 @@ err_info *File::move (QString &newDir, QString &newName, bool copy)
       // get the new path and name
       newPath = newDir + "/" + uniq + _ext;
       newName = uniq + _ext;
-      printf ("new name %s\n", qPrintable (newName));
+      // printf ("new name %s\n", qPrintable (newName));
       }
 
    if (copy)
