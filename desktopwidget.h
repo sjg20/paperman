@@ -406,7 +406,7 @@ private slots:
    //! Update actions to set whether they are enabled/disabled
    void updateActions();
 
-   //! Delete stack, with or without confirmation
+   //! Delete stacks, with or without confirmation
    void doDeleteStacks(bool confirm);
 
 private:

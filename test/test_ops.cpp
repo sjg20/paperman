@@ -311,6 +311,12 @@ void TestOps::testDeleteStacks()
    Q_ASSERT(!fil2.exists());
    files = model->rowCount(repo_ind);
    QCOMPARE(files, 2);
+
+   // Delete both stacks
+   view->setSelectionRange(0, 2);
+   desktop->doDeleteStacks(false);
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 0);
 }
 
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)
