@@ -5554,7 +5554,9 @@ err_info *Filemax::removePages (QBitArray &pages,
 
       if (pages.testBit (i))
          {
+         CALL(ensure_open());
          CALL (free_page (src_page));
+         ensure_closed();
          del_info.append (QByteArray ((const char *)&src_page, sizeof (src_page)));
          upto++;
          }
