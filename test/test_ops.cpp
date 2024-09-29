@@ -375,6 +375,30 @@ void TestOps::testUnstackStacks()
    QCOMPARE(files, 2);
 }
 
+void TestOps::testRenameStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   // Rename the first stack. We cannot use the view since it just allows the
+   // user to edit. So call the model function
+   QModelIndex ind = model->index(0, 0, repo_ind);
+
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testfile");
+
+   model->renameStack(ind, "new-name");
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "new-name");
+
+   // Undo the rename
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testfile");
+}
+
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
                           QModelIndex& repo_ind)
 {
