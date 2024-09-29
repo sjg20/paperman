@@ -5425,6 +5425,8 @@ err_info *Filemax::stackStack (File *fsrc)
    printf ("merging %d pages, destpage=%d, destchunks=%d\n", src->_pages.size (),
          destpage, _chunks.size ());
 
+   CALL(ensure_open());
+   CALL(src->ensure_open());
    CALL (ensure_all_chunks ());
    CALL (src->ensure_all_chunks ());
 
@@ -5476,6 +5478,8 @@ err_info *Filemax::stackStack (File *fsrc)
 
    // now need to update header and bermuda on disc!
    CALL (flush ());
+   ensure_closed();
+   src->ensure_closed();
 
    return NULL;
    }
