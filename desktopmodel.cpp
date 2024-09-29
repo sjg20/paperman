@@ -660,7 +660,7 @@ void Desktopmodel::sortForDelete (QModelIndexList &list)
    foreach (i, ilist)
       {
       list << index (i, 0, parent);
-      printf ("   %d\n", i);
+      // printf ("   %d\n", i);
       }
    }
 
@@ -1892,7 +1892,7 @@ void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
    {
    QModelIndex parent = index (dir, QModelIndex ());
 
-   qDebug () << "addFilesToDesk" << dir << parent;
+   // qDebug () << "addFilesToDesk" << dir << parent;
 
    // if we haven't got a desk for this, don't worry
    if (!parent.isValid ())
@@ -1903,7 +1903,7 @@ void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
 
    QList <File *> flist;
 
-   qDebug () << "   - adding to desk" << desk->dir ();
+   // qDebug () << "   - adding to desk" << desk->dir ();
    desk->advance ();
    foreach (QString fname, fnamelist)
       {
