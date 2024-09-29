@@ -329,7 +329,7 @@ UCStackStacks::UCStackStacks (Desktopmodel *model, QModelIndex &dest,
       if (poslist)
          pp.pos = (*poslist) [upto++];
       _pagepos << pp;
-      qDebug () << "position" << pp.pos;
+      // qDebug () << "position" << pp.pos;
       }
    setText (QApplication::translate("UCStackStacks",
       "Stack pages (%1)").arg (list.size ()));
