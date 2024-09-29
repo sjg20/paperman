@@ -266,23 +266,18 @@ void TestOps::testDuplicateEvenOdd()
 void TestOps::testDeleteStacks()
 {
    QModelIndex repo_ind;
+   Desktopmodel *model;
    Mainwindow me;
 
-   // Add our test repo
-   auto path = setupRepo();
+   getTestRepo(&me, model, repo_ind);
+
    Desktopwidget *desktop = me.getDesktop ();
-   err_info *err = desktop->addDir(path);
-   Q_ASSERT(!err);
 
    // Delete the first stack
    Desktopview *view = desktop->getView();
    view->setSelectionRange(0, 1);
 
    desktop->doDeleteStacks(false);
-
-   Desktopmodel *model = desktop->getModel();
-   repo_ind = model->index(0, 0, QModelIndex());
-   Q_ASSERT(repo_ind.isValid());
 
    int files = model->rowCount(repo_ind);
    QCOMPARE(files, 1);
@@ -317,6 +312,20 @@ void TestOps::testDeleteStacks()
    desktop->doDeleteStacks(false);
    files = model->rowCount(repo_ind);
    QCOMPARE(files, 0);
+}
+
+void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
+                          QModelIndex& repo_ind)
+{
+   // Add our test repo
+   auto path = setupRepo();
+   Desktopwidget *desktop = me->getDesktop ();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   Q_ASSERT(repo_ind.isValid());
 }
 
 void TestOps::duplicate(Mainwindow *me, QModelIndex &repo_ind)

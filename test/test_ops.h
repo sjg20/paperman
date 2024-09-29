@@ -7,6 +7,7 @@
 
 class QTemporaryDir;
 
+class Desktopmodel;
 class Mainwindow;
 class TreeItem;
 
@@ -40,6 +41,10 @@ private slots:
    void testDeleteStacks();
 
 private:
+   //! Setup the test repo and return its model and root index
+   void getTestRepo(Mainwindow *me, Desktopmodel*& model,
+                     QModelIndex& repo_ind);
+
    void duplicate(Mainwindow *me, QModelIndex &repo_ind);
 
    /**
