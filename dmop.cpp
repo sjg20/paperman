@@ -276,8 +276,8 @@ err_info *Desktopmodel::opTrashStacks (QModelIndexList &list, QModelIndex parent
       // skip missing items
       if (!ind.isValid ())
          continue;
-      printf ("   row %d: %p, delete %s\n", ind.row (), f,
-                  f->filename ().toLatin1 ().constData());
+      // printf ("   row %d: %p, delete %s\n", ind.row (), f,
+                  // f->filename ().toLatin1 ().constData());
       e = f->move (dest, trashname, copy);
       if (e)
          break;
@@ -326,8 +326,8 @@ err_info *Desktopmodel::opUntrashStacks (QStringList &trashlist, QModelIndex par
       {
       trashname = trashlist [i];
       QString fname = filenames [i];
-      printf ("undelete %s to %s\n", trashname.toLatin1 ().constData(),
-              fname.toLatin1 ().constData());
+      // printf ("undelete %s to %s\n", trashname.toLatin1 ().constData(),
+              // fname.toLatin1 ().constData());
       if (src.isEmpty ())
          e = copy
             ? desk->deleteFromTrash (trashname)
