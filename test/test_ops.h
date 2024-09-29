@@ -40,6 +40,9 @@ private slots:
    //! Test deleting of one or more stacks
    void testDeleteStacks();
 
+   //! Test unstacking stacks
+   void testUnstackStacks();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
