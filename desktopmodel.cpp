@@ -1077,7 +1077,7 @@ void Desktopmodel::newItem (int row, QModelIndex parent, QModelIndexList &list)
    Desk *desk = getDesk (parent);
    QModelIndex ind = FILE_INDEX (row, desk->getFile (row));
 
-   qDebug () << "newItem index" << ind;
+   // qDebug () << "newItem index" << ind;
    insertRow (row, parent);
    buildItem (ind);
    list << ind;
@@ -1125,12 +1125,12 @@ void Desktopmodel::insertRows (QList<File *> &flist, QModelIndex parent)
       return;
    // now insert all the new file_info records into the model
    int row = desk->fileCount () - flist.size ();
-   qDebug () << "beginInsertRows" << row << desk->fileCount () - 1;
+   // qDebug () << "beginInsertRows" << row << desk->fileCount () - 1;
    beginInsertRows (parent, row, desk->fileCount () - 1);
    foreach (fnew, flist)
       {
       UNUSED (fnew);
-      qDebug () << "build item" << row;
+      // qDebug () << "build item" << row;
       buildItem (index (row++, 0, parent));
 //       list << createIndex (row, 0, (void *)&_items [row]);
       }
