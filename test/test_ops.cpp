@@ -314,6 +314,67 @@ void TestOps::testDeleteStacks()
    QCOMPARE(files, 0);
 }
 
+void TestOps::testUnstackStacks()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   // Unstack the first stack
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopview *view = desktop->getView();
+   view->setSelectionRange(0, 1);
+
+   desktop->doUnstackStacks(false);
+
+   // Check that the unstacked pages are selected. The original stack has 5
+   // pages so four should be unstacked and selected
+   QModelIndexList sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 4);
+
+   // There should now be 6 files
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 6);
+
+   // Undo it
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+   Q_ASSERT(!view->isSelection(Desktopview::SEL_at_least_one));
+
+   // Now duplicate the stack and unstack both
+   view->setSelectionRange(0, 1);
+   desktop->duplicate();
+   view->addSelectionRange(0, 1);
+
+   desktop->doUnstackStacks(false);
+
+   // Check that the unstacked pages are selected. The original stacks has 5
+   // pages each so 8 should be unstacked and selected
+   sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 8);
+
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 11);
+
+   // Undo the unstack
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 3);
+
+   // Undo the duplicate
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+}
+
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
                           QModelIndex& repo_ind)
 {
