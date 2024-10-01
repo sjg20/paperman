@@ -49,6 +49,9 @@ private slots:
    //! Test renaming a page
    void testRenamePage();
 
+   //! Test creating a dir
+   void testCreateDir();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,

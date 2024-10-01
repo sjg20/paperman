@@ -114,6 +114,9 @@ public:
        proxy <-> source model conversion features */
    Desktopmodelconv *getModelconv (void) { return _modelconv; }
 
+   /** returns a pointer to the Dirmodel, which contains the directories */
+   Dirmodel *getDirmodel (void) { return _model; }
+
    /** gets the index of the current file (the one selected by the user).
 
       \param index     returns index of file
