@@ -765,8 +765,19 @@ void Desktopwidget::exitSearch()
    _view->setRootIndex (ind);
 }
 
+QModelIndex Desktopwidget::doNewDir(const QString& name, QString& path)
+{
+   QModelIndex index = _dir->menuGetModelIndex ();
+   QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   path = _model->data(src_ind, QDirModel::FilePathRole).toString() +
+         QDir::separator() + name;
+   QModelIndex new_ind = _model->mkdir(src_ind, name);
+
+   return new_ind;
+}
+
 void Desktopwidget::newDir ()
-   {
+{
    QString path = _dir->menuGetPath ();
    QString fullPath;
    bool ok;
@@ -774,20 +785,15 @@ void Desktopwidget::newDir ()
    QString text = QInputDialog::getText(
             this, "Maxview", "Enter new subdirectory name:", QLineEdit::Normal,
             QString(), &ok);
-   if ( ok && !text.isEmpty() )
-      {
-      QModelIndex index = _dir->menuGetModelIndex ();
-      QModelIndex src_ind = _dir_proxy->mapToSource(index);
+   if (ok && !text.isEmpty()) {
+      QString path;
 
-//       printf ("mkdir  %s\n", _model->filePath (index).latin1 ());
-      QModelIndex new_ind = _model->mkdir(src_ind, text);
-//       printf ("   - got '%s'\n", _model->filePath (index).latin1 ());
+      QModelIndex new_ind = doNewDir(text, path);
       if (new_ind == QModelIndex())
-         QMessageBox::warning(0, "Maxview", "Could not make directory " +
-            _model->data(src_ind, QDirModel::FilePathRole).toString() + "/" +
-                         text);
-      }
+         QMessageBox::warning(0, "Maxview",
+                              QString("Could not make directory %1").arg(path));
    }
+}
 
 QModelIndex Desktopwidget::findDir(const QString& dir_path)
 {

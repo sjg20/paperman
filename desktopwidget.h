@@ -443,6 +443,18 @@ private:
    //! Unstack stacks, with or without confirmation
    void doUnstackStacks(bool confirm);
 
+   /**
+    * @brief Create a new directory
+    * @param name   Name of directory
+    * @param path   Returns full path to directory
+    * @return index in _model of the newly created directory, or QModelIndex()
+    *    if it failed
+    *
+    * The directory is created within the currently selected one, in the _dir
+    * Dirview.
+    */
+   QModelIndex doNewDir(const QString& name, QString& path);
+
 private:
    /** this is the model for the directories tree */
    Dirmodel *_model;
