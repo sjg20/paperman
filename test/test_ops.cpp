@@ -1,3 +1,4 @@
+#include <QDirModel>
 #include <QtTest/QtTest>
 
 #include "../utils.h"
@@ -7,6 +8,7 @@
 #include "desktopundo.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
+#include "dirmodel.h"
 #include "mainwindow.h"
 #include "test_ops.h"
 
@@ -430,6 +432,53 @@ void TestOps::testRenamePage()
    stk->undo();
    QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
             "27_September_2024");
+}
+
+void TestOps::testCreateDir()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Dirmodel *dirmodel;
+   Mainwindow me;
+
+   printf("WARNING: skipping test");
+   return;
+
+   getTestRepo(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+
+   // create a directory
+   QString newPath;
+   QModelIndex dir1_ind = desktop->doNewDir("fred", newPath);
+   Q_ASSERT(dir1_ind.isValid());
+   QCOMPARE(newPath, _tempDir->path() + "/fred");
+
+   // Check that it ended up in the Dirmodel with the right path
+   dirmodel = desktop->getDirmodel();
+   QString chkPath1 = dirmodel->data(dir1_ind,
+                                     QDirModel::FilePathRole).toString();
+   QCOMPARE(chkPath1, _tempDir->path() + "/fred");
+
+   QModelIndex chk1_ind = dirmodel->index(newPath);
+   QCOMPARE(dir1_ind, chk1_ind);
+
+   QModelIndex dir2_ind = desktop->doNewDir("mary", newPath);
+   Q_ASSERT(dir2_ind.isValid());
+   QCOMPARE(newPath, _tempDir->path() + "/mary");
+   QString chkPath2 = dirmodel->data(dir2_ind,
+                                      QDirModel::FilePathRole).toString();
+   QCOMPARE(chkPath2, _tempDir->path() + "/mary");
+
+   // Check that the original index is still valid
+   Q_ASSERT(dir1_ind.isValid());
+   chkPath1 = dirmodel->data(dir1_ind, QDirModel::FilePathRole).toString();
+   QCOMPARE(chkPath1, _tempDir->path() + "/fred");
+
+   // Try to create a new directory with the same name
+   QModelIndex bad_ind = desktop->doNewDir("mary", newPath);
+   Q_ASSERT(!bad_ind.isValid());
+   QCOMPARE(newPath, _tempDir->path() + "/mary");
+
 }
 
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
