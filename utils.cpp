@@ -1019,11 +1019,12 @@ void utilInit(const QString& group)
    struct group *grp;
 
    public_gid = -1;
-   grp = getgrnam(qPrintable(group));
-   if (!grp) {
-      qDebug() << "Cannot find group" << group;
-      return;
+   if (!group.isEmpty()) {
+      grp = getgrnam(qPrintable(group));
+      if (!grp) {
+         qDebug() << "Cannot find group" << group;
+         return;
+      }
+      public_gid = grp->gr_gid;
    }
-
-   public_gid = grp->gr_gid;
 }
