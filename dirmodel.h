@@ -118,7 +118,7 @@ public:
    ~Dirmodel ();
 
    bool dropMimeData(const QMimeData *data, Qt::DropAction action,
-                             int /* row */, int /* column */, const QModelIndex &parent);
+                     int row, int column, const QModelIndex &parent) override;
 
    /** add a new repository directory to the list
 
@@ -141,16 +141,17 @@ public:
        return a string like '45 files', or 'no files' */
    QString countFiles(const QModelIndex &parent, int max);
 
-   QModelIndex index (const QString & path, int column = 0) const;
-   int rowCount (const QModelIndex &parent) const;
-   int columnCount (const QModelIndex &parent) const;
-   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
-   QModelIndex parent(const QModelIndex &index) const;
+   QModelIndex index(const QString & path, int column = 0) const;
+   int rowCount(const QModelIndex &parent) const override;
+   int columnCount(const QModelIndex &parent) const override;
+   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
+      override;
+   QModelIndex parent(const QModelIndex &index) const override;
    QModelIndex index(int row, int column, const QModelIndex &parent)
-               const;
-   QVariant headerData(int section, Qt::Orientation orientation,
-                                 int role) const;
-   Qt::ItemFlags flags(const QModelIndex &index) const;
+      const override;
+   QVariant headerData(int section, Qt::Orientation orientation, int role)
+      const override;
+   Qt::ItemFlags flags(const QModelIndex &index) const override;
 
    /** returns the string for the given role for the 'recent' node */
    QString getRecent(int role) const;
@@ -165,7 +166,7 @@ public:
    /** move a directory from to inside the given destination directory */
    struct err_info *moveDir (QString src, QString dst);
 
-   Qt::DropActions supportedDropActions () const;
+   Qt::DropActions supportedDropActions () const override;
 
    /** finds the given index in our list of indices, if present, and returns the sequence
       number of it
@@ -194,9 +195,9 @@ public:
    /** displays the filename of this index and all its parents up to the root */
    void traceIndex (const QModelIndex &index) const;
 
-   QStringList mimeTypes() const;
+   QStringList mimeTypes() const override;
 
-   bool hasChildren (const QModelIndex &parent) const;
+   bool hasChildren(const QModelIndex &parent) const override;
 
    /** add a new index to the recent list
 
