@@ -2,6 +2,7 @@
 
 #include "test.h"
 
+#include "test_dirmodel.h"
 #include "test_ops.h"
 #include "test_utils.h"
 
@@ -9,6 +10,7 @@
 
 static TestUtils TEST_UTILS("utils");
 static TestOps TEST_OPS("ops");
+static TestDirmodel TEST_DIRMODEL("dirmodel");
 
 int test_run(int argc, char **in_argv, QApplication *)
 {

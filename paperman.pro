@@ -235,9 +235,11 @@ test {
    SOURCES += test/test_utils.cpp \
       test/test.cpp \
       test/suite.cpp \
+      test/test_dirmodel.cpp \
       test/test_ops.cpp 
       
    HEADERS += test/suite.h \
+      test/test_dirmodel.h \
       test/test_ops.h \
       test/test_utils.h
 
