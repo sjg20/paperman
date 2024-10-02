@@ -8,31 +8,40 @@
 
 void TestDirmodel::testBase()
 {
-   QString dir = "desktopl";
-   QString dir2 = "test";
    Dirmodel model;
    QModelIndex parent, ind;
+   QStringList dirs{"one", "two", "three"};
 
-   model.addDir(dir);
-   model.addDir(dir2);
+   auto path = setupRepo();
+
+   QString newpath = path + "/dir";
+   model.addDir(newpath);
+   newpath = path + "/other";
+   model.addDir(newpath);
+
    parent = QModelIndex();
 //   qDebug() << model.data(parent, Qt::DisplayRole).toString();
    int rows = model.rowCount(parent);
    QCOMPARE(rows, 2);
+
+   ind = model.index(0, 0, parent);
+   QCOMPARE(model.data(ind, Qt::DisplayRole).toString(), "dir");
+
+   ind = model.index(1, 0, parent);
+   QCOMPARE(model.data(ind, Qt::DisplayRole).toString(), "other");
+
    for (int i = 0; i < rows; i++) {
       ind = model.index(i, 0, parent);
 
-      QCOMPARE(model.data(ind, Qt::DisplayRole).toString(), "test");
-      qDebug() << "   " << model.data(ind, Qt::DisplayRole).toString()
-               << ind.internalPointer();
       QCOMPARE(model.parent(ind), QModelIndex());
       QCOMPARE(ind.row(), i);
       int rows2 = model.rowCount(ind);
-      qDebug() << "rows2" << rows2;
+      QCOMPARE(rows2, i ? 1 : 2);
       for (int j = 0; j < rows2; j++) {
          QModelIndex ind2 = model.index(j, 0, ind);
-         qDebug() << "       " << model.data(ind2, Qt::DisplayRole).toString()
-                  << ind2.internalPointer();
+         QString disp = model.data(ind2, Qt::DisplayRole).toString();
+
+         QCOMPARE(disp, dirs[i * 2 + j]);
          QCOMPARE(model.parent(ind2), ind);
          QCOMPARE(ind2.row(), j);
       }
