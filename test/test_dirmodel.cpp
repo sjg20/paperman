@@ -8,13 +8,14 @@
 
 void TestDirmodel::testBase()
 {
-   QString dir = "desktopl";
-   QString dir2 = "test";
    Dirmodel model;
    QModelIndex parent, ind;
 
-   model.addDir(dir);
-   model.addDir(dir2);
+   auto path = setupRepo();
+
+   model.addDir(path);
+   QString newpath = path + "/other";
+   model.addDir(newpath);
    parent = QModelIndex();
    qDebug() << model.data(parent, Qt::DisplayRole).toString();
    int rows = model.rowCount(parent);
