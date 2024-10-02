@@ -28,10 +28,17 @@ QString Test::setupRepo()
        QFile::remove(destDir.filePath(file));
    }
 
-   foreach (QString fname, dir.entryList(QDir::Files)) {
-       QFile::copy(testSrc + QDir::separator() + fname,
-                   dst + QDir::separator() + fname);
-   }
+   // Copy over the test files
+   foreach (QString fname, dir.entryList(QDir::Files))
+       QFile::copy(testSrc + "/" + fname, dst + "/" + fname);
+
+
+   // Create subdirectories
+   Q_ASSERT(destDir.mkdir("dir"));
+   Q_ASSERT(destDir.mkdir("dir/one"));
+   Q_ASSERT(destDir.mkdir("dir/two"));
+   Q_ASSERT(destDir.mkdir("other"));
+   Q_ASSERT(destDir.mkdir("other/three"));
 
    return _tempDir->path();
 }
