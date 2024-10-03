@@ -149,9 +149,9 @@ Dirmodel::Dirmodel (QObject * parent)
    _root = index ("/");
 
    // Create the 'recent dirs' item at the top
-   Diritem *item = new Diritem (this);
-   item->setRecent(createIndex(0, 0, item));
-   _item.append (item);
+//   Diritem *item = new Diritem (this);
+//   item->setRgecent(createIndex(0, 0, item));
+//   _item.append (item);
    }
 
 
