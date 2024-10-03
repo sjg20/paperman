@@ -51,11 +51,12 @@ public:
    QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 
-   /** Sets the directory, returning true if ok.
-
-    \param dir    directory to set
-    \returns true if valid, false if directory is invalid */
-   bool setDir(QString &dir);
+   /**
+    * @brief Sets the directory, returning true if ok
+    * @param dir   directory to set, updated to canonical path
+    * @return true if valid, false if directory is invalid
+    */
+   bool setDir(QString& dir);
 
    //!< Read or create a cache
    TreeItem *ensureCache(Operation *op);
@@ -119,12 +120,13 @@ public:
 
    bool dropMimeData(const QMimeData *data, Qt::DropAction action,
                      int row, int column, const QModelIndex &parent) override;
-
-   /** add a new repository directory to the list
-
-      \param ignore_error  add the dir even if it doesn't exist
-      \returns true on success, else false */
-   bool addDir (QString &dir, bool ignore_error = false);
+   /**
+    * @brief add a new repository directory to the list
+    * @param dir           directory add (updated to canonical path)
+    * @param ignore_error  add the dir even if it doesn't exist
+    * @return true on success, else false
+    */
+   bool addDir(QString& dir, bool ignore_error = false);
 
    /** Remove a repository directory from the list
 

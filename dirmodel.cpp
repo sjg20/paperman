@@ -67,8 +67,7 @@ bool Diritem::setDir(QString &dir)
 
    // Try to get the canonical path, but if not, use the one supplied
    _dir = qd.canonicalPath ();
-   if (_dir.isEmpty ())
-      {
+   if (_dir.isEmpty()) {
       if (dir.endsWith ("/"))
          dir.chop (1);
       _dir = dir;
@@ -385,7 +384,7 @@ Qt::DropActions Dirmodel::supportedDropActions () const
    }
 
 
-bool Dirmodel::addDir (QString &dir, bool ignore_error)
+bool Dirmodel::addDir(QString& dir, bool ignore_error)
    {
    Diritem *item = new Diritem (this);
 
