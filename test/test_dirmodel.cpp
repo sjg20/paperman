@@ -16,16 +16,15 @@ void TestDirmodel::testBase()
    model.addDir(dir);
    model.addDir(dir2);
    parent = QModelIndex();
-   printf("%s\n", model.data(parent, Qt::DisplayRole).toString().
-          toLatin1().constData());
+   qDebug() << model.data(parent, Qt::DisplayRole).toString();
    int rows = model.rowCount(parent);
    qDebug() << "rows" << rows;
    for (int i = 0; i < rows; i++) {
       ind = model.index(i, 0, parent);
-      printf("   %s %p\n", model.data(ind, Qt::DisplayRole).toString().
-             toLatin1().constData(), ind.internalPointer());
+      qDebug() << "   " << model.data(ind, Qt::DisplayRole).toString()
+               << ind.internalPointer();
       if (model.parent(ind) != QModelIndex()) {
-         printf("   - root parent bad\n");
+         qDebug() << "   - root parent bad";
          return;
       }
       if (ind.row() != i)
@@ -34,8 +33,8 @@ void TestDirmodel::testBase()
       qDebug() << "rows2" << rows2;
       for (int j = 0; j < rows2; j++) {
          QModelIndex ind2 = model.index(j, 0, ind);
-         printf("       %s %p\n", model.data(ind2, Qt::DisplayRole).
-                toString().toLatin1().constData(), ind2.internalPointer());
+         qDebug() << "       " << model.data(ind2, Qt::DisplayRole).toString()
+                  << ind2.internalPointer();
          if (model.parent(ind2) != ind) {
             qDebug() << "   - parent bad, is" << model.parent(ind2)
                      << "should be" << ind;
