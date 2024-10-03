@@ -43,7 +43,7 @@ public:
    Diritem (QDirModel *model);
    ~Diritem ();
 
-   void setRecent(QModelIndex index);
+//   void setRecent(QModelIndex index);
    bool isRecent(void) { return _recent; }
 
 //    QPersistentModelIndex index (void) const { return _index; }

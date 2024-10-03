@@ -51,14 +51,14 @@ Diritem::~Diritem ()
    {
    }
 
-
+#if 0 //p
 void Diritem::setRecent(QModelIndex index)
 {
    _recent = true;
    _index = index;
    _dir = "/_recent";
 }
-
+#endif
 
 bool Diritem::setDir(QString &dir)
    {
@@ -149,9 +149,9 @@ Dirmodel::Dirmodel (QObject * parent)
    _root = index ("/");
 
    // Create the 'recent dirs' item at the top
-   Diritem *item = new Diritem (this);
-   item->setRecent(createIndex(0, 0, item));
-   _item.append (item);
+//   Diritem *item = new Diritem (this);
+//   item->setRgecent(createIndex(0, 0, item));
+//   _item.append (item);
    }
 
 
@@ -184,6 +184,7 @@ err_info *Dirmodel::checkOverlap (QString &dirname, QString &user_dirname)
 
 void Dirmodel::addToRecent (QModelIndex &index)
 {
+#if 0 //p
    if (!_recent.contains(index))
       {
       QModelIndex parent = _item[0]->index ();
@@ -192,6 +193,7 @@ void Dirmodel::addToRecent (QModelIndex &index)
       _recent.append(index);
       endInsertRows();
       }
+#endif
 }
 
 
