@@ -8,8 +8,8 @@
 
 //QTEST_MAIN(TestPaperman)
 
-static TestUtils TEST_UTILS("utils");
-static TestOps TEST_OPS("ops");
+//static TestUtils TEST_UTILS("utils");
+//static TestOps TEST_OPS("ops");
 static TestDirmodel TEST_DIRMODEL("dirmodel");
 
 int test_run(int argc, char **in_argv, QApplication *)
