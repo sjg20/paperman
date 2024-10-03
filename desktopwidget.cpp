@@ -573,7 +573,7 @@ void Desktopwidget::updateSettings ()
       QModelIndex index = _model->index (i, 0, QModelIndex ());
 
       qs.setArrayIndex (i - 1);
-      qs.setValue ("path", _model->data (index, Dirmodel::FilePathRole));
+      qs.setValue ("path", _model->data (index, QDirModel::FilePathRole));
       }
    qs.endArray ();
    }

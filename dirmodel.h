@@ -37,17 +37,17 @@ struct err_info;
  * directory containing it. A list of these is contained in Dirmodel, which
  * handles all the repositories visible to paperman.
  */
-class Diritem
+class Diritem : public QDirModel
    {
 public:
-   Diritem (QDirModel *model);
-   ~Diritem ();
+   Diritem(const QString& path, bool recent=false, QObject *parent=nullptr);
+   ~Diritem();
 
-   void setRecent(QModelIndex index);
+//   void setRecent(QModelIndex index);
    bool isRecent(void) { return _recent; }
 
 //    QPersistentModelIndex index (void) const { return _index; }
-   QModelIndex index (void) const;
+   QModelIndex index(void) const;
    QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 
@@ -67,6 +67,12 @@ public:
    // Drop the cache and free memory
    void dropCache();
 
+   QModelIndex index(int row, int column, const QModelIndex &parent) const
+      override;
+
+   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
+      override;
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -76,11 +82,11 @@ private:
 
 private:
    QString _dir;      //!< the directory
-   QDirModel *_model; //!< the directory model
+//   QDirModel *_model; //!< the directory model
 //   QPersistentModelIndex _index;  //!< the index of this directory in the model
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
-   QModelIndex _index;  //!< index of this item, if _recent
+   QModelIndex _index;  //!< index of this item
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    };
 
@@ -111,7 +117,7 @@ QModelIndex()
 
 */
 
-class Dirmodel : public QDirModel
+class Dirmodel : public QAbstractItemModel
    {
    Q_OBJECT
 public:
@@ -164,6 +170,8 @@ public:
        \param index  index whose root is to be found
        \returns the index of the root, or QModelIndex() if not found */
    QModelIndex findRoot(const QModelIndex &index) const;
+
+   Diritem * findItem(const QModelIndex &index) const;
 
    /** move a directory from to inside the given destination directory */
    struct err_info *moveDir (QString src, QString dst);
@@ -256,6 +264,8 @@ public:
 
    //! Refresh the cache for a given repository
    void refreshCache(const QModelIndex& root_ind, Operation *op);
+
+   void refresh(const QModelIndex &parent = QModelIndex());
 
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
