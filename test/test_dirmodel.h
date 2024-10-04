@@ -20,7 +20,7 @@ private slots:
 
 private:
    Dirmodel *setupModel();
-   void checkModel(QAbstractItemModel& model);
+   void checkModel(QAbstractItemModel *model);
 };
 
 #endif // TEST_DIRMODEL_H

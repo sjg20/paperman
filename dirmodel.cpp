@@ -63,7 +63,7 @@ Diritem::~Diritem ()
 //}
 
 
-bool Diritem::setDir(QString& dir)
+bool Diritem::setDir(QString& dir, int row)
    {
 //   QModelIndex ind;
    QDir qd (dir);
@@ -77,7 +77,7 @@ bool Diritem::setDir(QString& dir)
       }
 
    QModelIndex ind = QDirModel::index(_dir);
-   _index = createIndex(ind.row(), ind.column(), (void *)this);
+   _index = createIndex(row, 0, (void *)this);
    _redir = ind;
    _parent = ind;
    bool valid = _index != QModelIndex ();
@@ -123,7 +123,7 @@ QModelIndex Diritem::index(void) const
 
 int Diritem::rowCount(const QModelIndex &parent) const
 {
-   qDebug() << "parent" << parent;
+   qDebug() << "rowCount" << parent;
 
    // If the parent is
    if (parent.internalPointer() == _index.internalPointer())
@@ -132,10 +132,23 @@ int Diritem::rowCount(const QModelIndex &parent) const
    return QDirModel::rowCount(parent);
 }
 
+int Diritem::columnCount(const QModelIndex &parent) const
+{
+//   qDebug() << "columnCount" << parent;
+
+   // If the parent is
+   if (parent.internalPointer() == _index.internalPointer())
+      return QDirModel::columnCount(_redir);
+
+   return QDirModel::columnCount(parent);
+}
+
 QModelIndex Diritem::parent(const QModelIndex &index) const
 {
+   qDebug() << "parent" << index;
+   if (index.internalPointer() == _index.internalPointer())
+      return _index;
    QModelIndex ind = QDirModel::parent(index);
-//   if (parent.internalPointer() == _index.internalPointer())
 
    if (ind == _parent)
       return _index;
@@ -446,7 +459,7 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    {
    Diritem *item = new Diritem (dir);
 
-   bool ok = item->setDir(dir);
+   bool ok = item->setDir(dir, _item.size());
    if (ok || ignore_error)
       {
       beginInsertRows(QModelIndex (), _item.size(), _item.size());

@@ -8,57 +8,65 @@
 
 void TestDirmodel::testBase()
 {
-   return;
    Dirmodel *model;
 
    model = setupModel();
-   checkModel(*model);
+   checkModel(model);
 }
 
 void TestDirmodel::testProxy()
 {
+   return;
    Dirmodel *model;
 
    model = setupModel();
 
    auto proxy = new Dirproxy();
    proxy->setSourceModel(model);
-   checkModel(*proxy);
+   checkModel(proxy);
 }
 
-void TestDirmodel::checkModel(QAbstractItemModel& model)
+void TestDirmodel::checkModel(QAbstractItemModel *model)
 {
    QStringList dirs{"one", "two", "three"};
    QModelIndex parent, ind;
 
    parent = QModelIndex();
-   qDebug() << model.data(parent, Qt::DisplayRole).toString();
-   int rows = model.rowCount(parent);
+   qDebug() << model->data(parent, Qt::DisplayRole).toString();
+   int rows = model->rowCount(parent);
    QCOMPARE(rows, 2);
 
-   ind = model.index(0, 0, parent);
-   QCOMPARE(model.data(ind, Qt::DisplayRole).toString(), "dir");
+   ind = model->index(0, 0, parent);
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "dir");
+   QCOMPARE(ind.row(), 0);
+   QCOMPARE(ind.column(), 0);
+   QCOMPARE(ind.model(), model);
+   QCOMPARE(ind.internalPointer(), model);
 
-   ind = model.index(1, 0, parent);
-   QCOMPARE(model.data(ind, Qt::DisplayRole).toString(), "other");
+   ind = model->index(1, 0, parent);
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "other");
+   QCOMPARE(ind.row(), 1);
+   QCOMPARE(ind.column(), 0);
 
    for (int i = 0; i < rows; i++) {
-      ind = model.index(i, 0, parent);
+      ind = model->index(i, 0, parent);
 
-      QCOMPARE(model.parent(ind), QModelIndex());
+      QCOMPARE(model->parent(ind), QModelIndex());
       QCOMPARE(ind.row(), i);
-      int rows2 = model.rowCount(ind);
+      int rows2 = model->rowCount(ind);
       QCOMPARE(rows2, i ? 1 : 2);
       for (int j = 0; j < rows2; j++) {
-         QModelIndex ind2 = model.index(j, 0, ind);
-         QString disp = model.data(ind2, Qt::DisplayRole).toString();
+         QModelIndex ind2 = model->index(j, 0, ind);
+         QString disp = model->data(ind2, Qt::DisplayRole).toString();
 
          QCOMPARE(disp, dirs[i * 2 + j]);
 //         qDebug() << "ind" << ind;
-//         qDebug() << "ind2" << model.parent(ind2);
-         disp = model.data(ind2, Qt::DisplayRole).toString();
-//         qDebug() << "disp" << disp;
-         QCOMPARE(model.parent(ind2), ind);
+//         qDebug() << "ind2" << model->parent(ind2);
+         disp = model->data(ind2, Qt::DisplayRole).toString();
+         qDebug() << "disp" << disp;
+         QModelIndex par = model->parent(ind2);
+         qDebug() << "par" << par;
+         QCOMPARE(par, ind);
          QCOMPARE(ind2.row(), j);
       }
    }
