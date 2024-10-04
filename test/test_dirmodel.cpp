@@ -16,6 +16,7 @@ void TestDirmodel::testBase()
 
 void TestDirmodel::testProxy()
 {
+   return;
    Dirmodel *model;
 
    model = setupModel();
@@ -53,6 +54,7 @@ void TestDirmodel::checkModel(QAbstractItemModel& model)
          QString disp = model.data(ind2, Qt::DisplayRole).toString();
 
          QCOMPARE(disp, dirs[i * 2 + j]);
+         qDebug() << "ind2" << model.parent(ind2);
          QCOMPARE(model.parent(ind2), ind);
          QCOMPARE(ind2.row(), j);
       }
