@@ -1,9 +1,12 @@
 #ifndef TEST_DIRMODEL_H
 #define TEST_DIRMODEL_H
 
+#include <QAbstractItemModel>
 #include <QObject>
 
 #include "suite.h"
+
+class Dirmodel;
 
 class TestDirmodel: public Suite
 {
@@ -13,6 +16,11 @@ public:
 
 private slots:
    void testBase();
+   void testProxy();
+
+private:
+   Dirmodel *setupModel();
+   void checkModel(QAbstractItemModel& model);
 };
 
 #endif // TEST_DIRMODEL_H

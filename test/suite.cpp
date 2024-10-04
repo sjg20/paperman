@@ -15,6 +15,29 @@ Test::~Test()
    delete _tempDir;
 }
 
+void Test::emptyDirectory(const QString &dirPath)
+{
+   // Gemini
+    QDir dir(dirPath);
+
+    if (!dir.exists())
+        return;
+
+    // Get the list of files and directories within the directory
+    QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot |
+                                              QDir::Files | QDir::Dirs);
+
+    // Iterate through the entries and remove them
+    foreach (const QFileInfo &entry, entries) {
+        if (entry.isDir()) {
+            emptyDirectory(entry.absoluteFilePath());
+            dir.rmdir(entry.fileName());
+        } else {
+            dir.remove(entry.fileName());
+        }
+    }
+}
+
 QString Test::setupRepo()
 {
    QDir dir(testSrc);
@@ -23,10 +46,8 @@ QString Test::setupRepo()
 
    // Empty the temp directory
    QDir destDir(dst);
-   QStringList files = destDir.entryList(QDir::Files);
-   for (const QString &file : files) {
-       QFile::remove(destDir.filePath(file));
-   }
+
+   emptyDirectory(dst);
 
    // Copy over the test files
    foreach (QString fname, dir.entryList(QDir::Files))

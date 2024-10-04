@@ -8,16 +8,27 @@
 
 void TestDirmodel::testBase()
 {
-   Dirmodel model;
-   QModelIndex parent, ind;
+   Dirmodel *model;
+
+   model = setupModel();
+   checkModel(*model);
+}
+
+void TestDirmodel::testProxy()
+{
+   Dirmodel *model;
+
+   model = setupModel();
+
+   auto proxy = new Dirproxy();
+   proxy->setSourceModel(model);
+   checkModel(*proxy);
+}
+
+void TestDirmodel::checkModel(QAbstractItemModel& model)
+{
    QStringList dirs{"one", "two", "three"};
-
-   auto path = setupRepo();
-
-   QString newpath = path + "/dir";
-   model.addDir(newpath);
-   newpath = path + "/other";
-   model.addDir(newpath);
+   QModelIndex parent, ind;
 
    parent = QModelIndex();
    qDebug() << model.data(parent, Qt::DisplayRole).toString();
@@ -46,4 +57,19 @@ void TestDirmodel::testBase()
          QCOMPARE(ind2.row(), j);
       }
    }
+}
+
+Dirmodel *TestDirmodel::setupModel()
+{
+   QStringList dirs{"one", "two", "three"};
+   Dirmodel *model = new Dirmodel();
+
+   auto path = setupRepo();
+
+   QString newpath = path + "/dir";
+   model->addDir(newpath);
+   newpath = path + "/other";
+   model->addDir(newpath);
+
+   return model;
 }

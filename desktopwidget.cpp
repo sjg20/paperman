@@ -76,6 +76,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    _dir_proxy = new Dirproxy();
    _dir_proxy->setSourceModel(_model);
    _dir->setModel(_dir_proxy);
+//   _dir->setModel(_model);
 
    _contents = new Desktopmodel (this);
 
