@@ -79,6 +79,7 @@ bool Diritem::setDir(QString& dir)
    QModelIndex ind = QDirModel::index(_dir);
    _index = createIndex(ind.row(), ind.column(), (void *)this);
    _redir = ind;
+   _parent = ind;
    bool valid = _index != QModelIndex ();
    //    printf ("addDir %s\n", _dir.latin1 ());
    //    _index = QPersistentModelIndex (_model->index (_dir));
@@ -135,6 +136,9 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
 {
    QModelIndex ind = QDirModel::parent(index);
 //   if (parent.internalPointer() == _index.internalPointer())
+
+   if (ind == _parent)
+      return _index;
 
    return ind;
 }
@@ -784,13 +788,16 @@ Diritem * Dirmodel::findItem(QModelIndex index) const
 QModelIndex Dirmodel::parent(const QModelIndex &index) const
    {
    // If it is the top level of the Diritem, return QModelIndex() as the parent
-   int i = findIndex(index);
+//   int i = findIndex(index);
+   Diritem *item = static_cast<Diritem *>((void *)index.model());
 
-   if (i != -1)
+   if (index.internalPointer() == item->index().internalPointer())
       return QModelIndex();
+
+   return item->parent(index);
 //      return _item[i]->index(i, 0, QModelIndex());
 
-   return index.model()->parent(index);
+//   return index.model()->parent(index);
    }
 
 #if 0
