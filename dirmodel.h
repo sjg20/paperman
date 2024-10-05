@@ -61,7 +61,9 @@ public:
     * @param dir   directory to set, updated to canonical path
     * @return true if valid, false if directory is invalid
     */
-   bool setDir(QString& dir, int row);
+   QModelIndex setDir(QString& dir, int row);
+
+   QModelIndex setRootIndex(QModelIndex ind);
 
    //!< Read or create a cache
    TreeItem *ensureCache(Operation *op);

@@ -63,7 +63,7 @@ Diritem::~Diritem ()
 //}
 
 
-bool Diritem::setDir(QString& dir, int row)
+QModelIndex Diritem::setDir(QString& dir, int row)
    {
 //   QModelIndex ind;
    QDir qd (dir);
@@ -78,6 +78,8 @@ bool Diritem::setDir(QString& dir, int row)
 
    QModelIndex ind = _qdmodel->index(_dir);
 
+   return ind;
+#if 0
    // Create an index with our row number
    _index = _model->createIndexFor(ind, this, row);
 //   qDebug() << "model" << _model << _index;
@@ -88,7 +90,13 @@ bool Diritem::setDir(QString& dir, int row)
    if (!valid)
       qDebug () << "Diritem invalid";
    return valid;
+#endif
    }
+
+QModelIndex Diritem::setRootIndex(QModelIndex ind)
+{
+   _index = ind;
+}
 
 QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
              const
@@ -471,16 +479,20 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    {
    Diritem *item = new Diritem(dir, this);
 
-   bool ok = item->setDir(dir, _item.size());
-   if (ok || ignore_error)
-      {
-      beginInsertRows(QModelIndex (), _item.size(), _item.size());
-      _item.append (item);
-      endInsertRows();
-      }
-   else
+   QModelIndex dir_ind = item->setDir(dir, _item.size());
+   if (!dir_ind.isValid() && !ignore_error) {
       delete item;
-   return ok;
+      return false;
+   }
+
+   QModelIndex ind = createIndexFor(dir_ind, item, _item.size());
+   item->setRootIndex(ind);
+
+   beginInsertRows(QModelIndex (), _item.size(), _item.size());
+   _item.append (item);
+   endInsertRows();
+
+   return true;
    }
 
 
