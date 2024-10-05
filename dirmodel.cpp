@@ -663,8 +663,11 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
       Diritem *item = _map.value(parent).first;
 
       Q_ASSERT(item);
-      QModelIndex item_ind = item->index(row, column, parent);
-      ind = createIndex(row, column, item_ind.internalPointer());
+      QModelIndex qdir_parent = _map.value(parent).second;
+      QModelIndex item_ind = item->index(row, column, qdir_parent);
+//      ind = createIndexFor(item_ind, this);
+
+//      ind = createIndex(row, column, item_ind.internalPointer());
    }
 
 //   Diritem *item = findItem(parent);
