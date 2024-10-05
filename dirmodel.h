@@ -41,7 +41,7 @@ struct err_info;
 class Diritem : public QAbstractItemModel
    {
 public:
-   Diritem(const QString& path, const Dirmodel *model, bool recent=false);
+   Diritem(const QString& path, Dirmodel *model, bool recent=false);
    ~Diritem();
 
 //   void setRecent(QModelIndex index);
@@ -98,7 +98,7 @@ private:
    QModelIndex _redir;  //!< index in of this item in QDirModel
    QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
-   const Dirmodel *_model;
+   Dirmodel *_model;
    };
 
 
@@ -163,7 +163,7 @@ public:
        return a string like '45 files', or 'no files' */
    QString countFiles(const QModelIndex &parent, int max);
 
-   QModelIndex createIndexFor(int row, int col, Diritem *item) const;
+   QModelIndex createIndexFor(QModelIndex item_ind, const Diritem *item);
 
    QModelIndex index(const QString & path, int column = 0) const;
    int rowCount(const QModelIndex &parent) const override;
@@ -347,7 +347,7 @@ private:
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndex _root;   //!< the model index of the root node
    QModelIndexList _recent;   //!< list of recent directories
-   QMap<QModelIndex, Diritem *> _map;
+   QMap<QModelIndex, QPair<Diritem *, QModelIndex>> _map;
    };
 
 

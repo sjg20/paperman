@@ -31,6 +31,9 @@ void TestDirmodel::checkModel(const Dirmodel *model)
    QStringList dirs{"one", "two", "three"};
    QModelIndex parent, ind;
 
+   // We should have two things in the map: the two Diritem objects
+   QCOMPARE(model->_map.size(), 2);
+
    parent = QModelIndex();
    qDebug() << model->data(parent, Qt::DisplayRole).toString();
    int rows = model->rowCount(parent);
@@ -39,11 +42,15 @@ void TestDirmodel::checkModel(const Dirmodel *model)
    QCOMPARE(model->parent(parent), QModelIndex());
    QCOMPARE(model->data(parent, Qt::DisplayRole).toString(), "");
 
+   QCOMPARE(model->_map.size(), 2);
    ind = model->index(0, 0, parent);
    QCOMPARE(ind.row(), 0);
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
-   QCOMPARE(ind.internalPointer(), model->_item[0]);
+//   QCOMPARE(ind.internalPointer(), model->_item[0]);
+   QCOMPARE(ind.parent(), QModelIndex());
+   QCOMPARE(model->_map.size(), 2);
+   QCOMPARE(model->_map.value(ind).first, model->_item[0]);
 
    QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "dir");
 
@@ -52,13 +59,22 @@ void TestDirmodel::checkModel(const Dirmodel *model)
    QCOMPARE(ind.row(), 1);
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
-   QCOMPARE(ind.internalPointer(), model->_item[1]);
+//   QCOMPARE(ind.internalPointer(), model->_item[1]);
+   QCOMPARE(model->_map.size(), 2);
+   QCOMPARE(model->_map.value(ind).first, model->_item[1]);
+
+   ind = model->index(0, 0, parent);
+   QModelIndex ind2 = model->index(0, 0, ind);
+   QCOMPARE(model->_map.size(), 3);
+   QCOMPARE(model->_map.value(ind2).first, model->_item[0]);
 
    for (int i = 0; i < rows; i++) {
       ind = model->index(i, 0, parent);
 
       QCOMPARE(model->parent(ind), QModelIndex());
       QCOMPARE(ind.row(), i);
+      QCOMPARE(ind.model(), model);
+//      QCOMPARE(ind.internalPointer(), model->_item[i]);
       int rows2 = model->rowCount(ind);
       QCOMPARE(rows2, i ? 1 : 2);
       for (int j = 0; j < rows2; j++) {
