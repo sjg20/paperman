@@ -17,6 +17,7 @@ public:
 private slots:
    void testBase();
    void testProxy();
+   void testModel();
 
 private:
    Dirmodel *setupModel();

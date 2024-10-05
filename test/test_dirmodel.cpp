@@ -1,3 +1,4 @@
+#include <QAbstractItemModelTester>
 #include <QtTest/QtTest>
 
 #include "test.h"
@@ -25,6 +26,15 @@ void TestDirmodel::testProxy()
    checkModel(proxy, nullptr);
 }
 
+void TestDirmodel::testModel()
+{
+   Dirmodel *model;
+
+   qDebug() << "testModel";
+   model = setupModel();
+   QAbstractItemModelTester modelTester(model); // Default Fatal mode
+}
+
 void TestDirmodel::checkModel(const QAbstractItemModel *model,
                               const Dirmodel *dirmodel)
 {
@@ -45,13 +55,15 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
 
    if (dirmodel)
       QCOMPARE(dirmodel->_map.size(), 2);
+
+/*
    ind = model->index(0, 0, parent);
    QCOMPARE(ind.row(), 0);
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
-//   QCOMPARE(ind.internalPointer(), model->_item[0]);
    QCOMPARE(ind.parent(), QModelIndex());
    if (dirmodel) {
+//      QCOMPARE(ind.internalPointer(), dirmodel->_item[0]);
       QCOMPARE(dirmodel->_map.size(), 2);
       QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[0]);
    }
@@ -75,10 +87,16 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
       QCOMPARE(dirmodel->_map.size(), 3);
       QCOMPARE(dirmodel->_map.value(ind2).first, dirmodel->_item[0]);
    }
+*/
+   int count = 2;  // number of indexes issued by the model
 
    for (int i = 0; i < rows; i++) {
       ind = model->index(i, 0, parent);
 
+      if (dirmodel) {
+         QCOMPARE(dirmodel->_map.size(), count);
+         QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[i]);
+      }
       QCOMPARE(model->parent(ind), QModelIndex());
       QCOMPARE(ind.row(), i);
       QCOMPARE(ind.model(), model);
@@ -87,6 +105,13 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
       QCOMPARE(rows2, i ? 1 : 2);
       for (int j = 0; j < rows2; j++) {
          QModelIndex ind2 = model->index(j, 0, ind);
+         count++;
+
+         if (dirmodel) {
+            QCOMPARE(dirmodel->_map.size(), count);
+            QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[i]);
+         }
+
          QString disp = model->data(ind2, Qt::DisplayRole).toString();
 
          QCOMPARE(disp, dirs[i * 2 + j]);

@@ -77,7 +77,7 @@ bool Diritem::setDir(QString& dir, int row)
       }
 
    QModelIndex ind = _qdmodel->index(_dir);
-   _index = _model->createIndexFor(ind, this);
+   _index = _model->createIndexFor(ind, this, row);
    qDebug() << "model" << _model << _index;
    _redir = ind;
    _parent = ind;
@@ -92,9 +92,9 @@ bool Diritem::setDir(QString& dir, int row)
 QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
              const
 {
-   if (parent == QModelIndex())
+   Q_ASSERT(parent.isValid());
       //return createIndex(row, column, (void *)this);
-      return _index;
+//      return _index;
 
    QModelIndex ind;
    ind = _qdmodel->index(row, column, _redir);
@@ -126,11 +126,11 @@ QModelIndex Diritem::index(void) const
 
 int Diritem::rowCount(const QModelIndex &parent) const
 {
-   qDebug() << "rowCount" << parent;
+//   qDebug() << "rowCount" << parent;
 
    // If the parent is
-   if (parent.internalPointer() == _index.internalPointer())
-      return _qdmodel->rowCount(_redir);
+//   if (parent.internalPointer() == _index.internalPointer())
+//      return _qdmodel->rowCount(_redir);
 
    return _qdmodel->rowCount(parent);
 }
@@ -140,8 +140,8 @@ int Diritem::columnCount(const QModelIndex &parent) const
 //   qDebug() << "columnCount" << parent;
 
    // If the parent is
-   if (parent.internalPointer() == _index.internalPointer())
-      return _qdmodel->columnCount(_redir);
+//   if (parent.internalPointer() == _index.internalPointer())
+//      return _qdmodel->columnCount(_redir);
 
    return _qdmodel->columnCount(parent);
 }
@@ -212,7 +212,7 @@ Dirmodel::Dirmodel (QObject *parent)
    {
    QStringList filters;
 
-   _root = index ("/");
+//   _root = index ("/");
 
    //   QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot,
    //                      QDir::IgnoreCase, parent)
@@ -703,7 +703,7 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
    return ind;
    }
 
-
+#if 0
 bool Dirmodel::hasChildren (const QModelIndex &parent) const
 {
    Diritem *item = findItem(parent);
@@ -712,7 +712,7 @@ bool Dirmodel::hasChildren (const QModelIndex &parent) const
       return _item.size() > 0;
    return item->hasChildren(parent);
 }
-
+#endif
 
 QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
 {
@@ -755,9 +755,12 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    return ind;
 }
 
-QModelIndex Dirmodel::createIndexFor(QModelIndex item_ind, const Diritem *item)
+QModelIndex Dirmodel::createIndexFor(QModelIndex item_ind, const Diritem *item,
+                                     int row)
 {
-   QModelIndex ind = createIndex(item_ind.row(), item_ind.column(),
+   if (row == -1)
+      row = item_ind.row();
+   QModelIndex ind = createIndex(row, item_ind.column(),
                                  item_ind.internalPointer());
 
    _map.insert(ind, QPair((Diritem *)item, item_ind));

@@ -163,7 +163,8 @@ public:
        return a string like '45 files', or 'no files' */
    QString countFiles(const QModelIndex &parent, int max);
 
-   QModelIndex createIndexFor(QModelIndex item_ind, const Diritem *item);
+   QModelIndex createIndexFor(QModelIndex item_ind, const Diritem *item,
+                              int row = -1);
 
    QModelIndex index(const QString & path, int column = 0) const;
    int rowCount(const QModelIndex &parent) const override;
@@ -223,7 +224,7 @@ public:
 
    QStringList mimeTypes() const override;
 
-   bool hasChildren(const QModelIndex &parent) const override;
+   //bool hasChildren(const QModelIndex &parent) const override;
 
    /** add a new index to the recent list
 
@@ -345,7 +346,7 @@ signals:
 
 private:
    QList<Diritem *> _item;   //!< a list of items to display
-   QModelIndex _root;   //!< the model index of the root node
+//   QModelIndex _root;   //!< the model index of the root node
    QModelIndexList _recent;   //!< list of recent directories
    QMap<QModelIndex, QPair<Diritem *, QModelIndex>> _map;
    };
