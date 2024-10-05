@@ -163,7 +163,9 @@ QModelIndex Diritem::findPath(int row, QString path)
    if (path.isEmpty())
       return _index;
 
-   return _qdmodel->index(path);
+   QModelIndex ind = _qdmodel->index(_dir + "/" + path);
+   Q_ASSERT(ind.isValid());
+   return _model->createIndexFor(ind, this);
 }
 
 QString Diritem::dirCacheFilename() const
