@@ -150,8 +150,8 @@ int Diritem::columnCount(const QModelIndex &parent) const
 QModelIndex Diritem::parent(const QModelIndex &index) const
 {
 //   qDebug() << "parent" << index;
-   if (index.internalPointer() == _index.internalPointer())
-      return QModelIndex();
+//   if (index.internalPointer() == _index.internalPointer())
+//      return QModelIndex();
    QModelIndex ind = _qdmodel->parent(index);
 
    if (ind == _redir)
@@ -888,16 +888,18 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
       Q_ASSERT(item);
       QModelIndex item_ind = _map.value(index).second;
 
-      QModelIndex item_par = item->parent(item_ind);
-      if (item_par.isValid()) {
-         if (item_par == item->index()) {
-            par = item_par;
-         } else {
-            Dirmodel *non_const = (Dirmodel *)this;
-            par = non_const->createIndexFor(item_par, item);
+      if (item_ind.internalPointer() != item->index().internalPointer()) {
+         QModelIndex item_par = item->parent(item_ind);
+         if (item_par.isValid()) {
+            if (item_par == item->index()) {
+               par = item_par;
+            } else {
+               Dirmodel *non_const = (Dirmodel *)this;
+               par = non_const->createIndexFor(item_par, item);
          // check it is in the model
 //         Diritem *item2 = _map.value(par).first;
 //         Q_ASSERT(item2);
+            }
          }
       }
    }
