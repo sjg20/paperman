@@ -68,8 +68,8 @@ public:
    // Drop the cache and free memory
    void dropCache();
 
-   // parent is within _qdmodel
-   // returns index within Dirmodel
+   // index is within _qdmodel
+   // returns parent within _qdmodel
    QModelIndex index(int row, int column, const QModelIndex &parent) const
       override;
 

@@ -103,8 +103,8 @@ QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
 //      ind = _qdmodel->index(row, column, _redir);
 //   else
 //      ind = _qdmodel->index(row, column, parent);
-   return _model->createIndexFor(ind, this);
-//   return ind;
+//   return _model->createIndexFor(ind, this);
+   return ind;
 }
 
 QVariant Diritem::data(const QModelIndex &index, int role) const
@@ -668,7 +668,9 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
 
       Q_ASSERT(item);
       QModelIndex qdir_parent = _map.value(parent).second;
-      ind = item->index(row, column, qdir_parent);
+      QModelIndex dir_ind = item->index(row, column, qdir_parent);
+      Dirmodel *non_const = (Dirmodel *)this;
+      ind = non_const->createIndexFor(dir_ind, item);
 //      ind = createIndexFor(item_ind, this);
 
 //      ind = createIndex(row, column, item_ind.internalPointer());
