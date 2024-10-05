@@ -77,6 +77,8 @@ bool Diritem::setDir(QString& dir, int row)
       }
 
    QModelIndex ind = _qdmodel->index(_dir);
+
+   // Create an index with our row number
    _index = _model->createIndexFor(ind, this, row);
 //   qDebug() << "model" << _model << _index;
    _redir = ind;
@@ -767,11 +769,13 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
 QModelIndex Dirmodel::createIndexFor(QModelIndex item_ind, const Diritem *item,
                                      int row)
 {
+   Q_ASSERT(item_ind.isValid());
    if (row == -1)
       row = item_ind.row();
    QModelIndex ind = createIndex(row, item_ind.column(),
                                  item_ind.internalPointer());
 
+   //qDebug() << "insert" << ind;
    _map.insert(ind, QPair((Diritem *)item, item_ind));
 
    return ind;
@@ -799,8 +803,15 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
          {
          // we found a match, so now we need to search for the model index in this item
 //          printf ("found item\n");
-         return findPath (i, _item [i], path.mid(dir.length () + 1));
+         QModelIndex ind = findPath (i, _item [i], path.mid(dir.length () + 1));
+
 //         return _item [i]->index ();
+         Diritem *item = _map.value(ind).first;
+         Q_ASSERT(item);
+
+         qDebug() << item;
+
+         return ind;
          }
       }
    return QModelIndex ();
@@ -867,6 +878,11 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
       QModelIndex item_ind = _map.value(index).second;
 
       par = item->parent(item_ind);
+      if (par.isValid()) {
+         // check it is in the model
+         Diritem *item2 = _map.value(par).first;
+         Q_ASSERT(item2);
+      }
    }
 
 //   if (!index.isValid())
