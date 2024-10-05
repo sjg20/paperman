@@ -470,7 +470,7 @@ void Desktopwidget::selectDir(const QModelIndex &target, bool forceChange)
    QModelIndex ind = target;
 
    if (ind == QModelIndex())
-      ind = _dir_proxy->index(1, 0, QModelIndex());
+      ind = _dir_proxy->index(0, 0, QModelIndex());
 
    //QModelIndex src_ind = _dir_proxy->mapToSource(ind);
    //qDebug () << "Desktopwidget::selectDir" << _model->data(src_ind, Dirmodel::FilePathRole).toString ();

@@ -78,9 +78,8 @@ bool Diritem::setDir(QString& dir, int row)
 
    QModelIndex ind = _qdmodel->index(_dir);
    _index = _model->createIndexFor(ind, this, row);
-   qDebug() << "model" << _model << _index;
+//   qDebug() << "model" << _model << _index;
    _redir = ind;
-   _parent = ind;
    bool valid = _index != QModelIndex ();
    //    printf ("addDir %s\n", _dir.latin1 ());
    //    _index = QPersistentModelIndex (_model->index (_dir));
@@ -148,12 +147,12 @@ int Diritem::columnCount(const QModelIndex &parent) const
 
 QModelIndex Diritem::parent(const QModelIndex &index) const
 {
-   qDebug() << "parent" << index;
+//   qDebug() << "parent" << index;
    if (index.internalPointer() == _index.internalPointer())
       return QModelIndex();
    QModelIndex ind = _qdmodel->parent(index);
 
-   if (ind == _parent)
+   if (ind == _redir)
       return _index;
 
    return ind;
