@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDirModel>
 #include <QSortFilterProxyModel>
 
+class Dirmodel;
 class Operation;
 class TreeItem;
 
@@ -37,10 +38,10 @@ struct err_info;
  * directory containing it. A list of these is contained in Dirmodel, which
  * handles all the repositories visible to paperman.
  */
-class Diritem : public QDirModel
+class Diritem : public QAbstractItemModel
    {
 public:
-   Diritem(const QString& path, bool recent=false, QObject *parent=nullptr);
+   Diritem(const QString& path, const Dirmodel *model, bool recent=false);
    ~Diritem();
 
 //   void setRecent(QModelIndex index);
@@ -88,6 +89,7 @@ private:
 
 private:
    QString _dir;      //!< the directory
+   QDirModel *_qdmodel;
 //   QDirModel *_model; //!< the directory model
 //   QPersistentModelIndex _index;  //!< the index of this directory in the model
    bool _valid;      //!< true if the directory is valid
@@ -96,6 +98,7 @@ private:
    QModelIndex _redir;  //!< index in of this item in QDirModel
    QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
+   const Dirmodel *_model;
    };
 
 
@@ -128,6 +131,9 @@ QModelIndex()
 class Dirmodel : public QAbstractItemModel
    {
    Q_OBJECT
+
+   friend class TestDirmodel;
+
 public:
    Dirmodel (QObject * parent = 0);
    ~Dirmodel ();
@@ -156,6 +162,8 @@ public:
    /** count the number of files in a directory, upto the given maximum. Then
        return a string like '45 files', or 'no files' */
    QString countFiles(const QModelIndex &parent, int max);
+
+   QModelIndex createIndexFor(int row, int col, Diritem *item) const;
 
    QModelIndex index(const QString & path, int column = 0) const;
    int rowCount(const QModelIndex &parent) const override;
@@ -339,6 +347,7 @@ private:
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndex _root;   //!< the model index of the root node
    QModelIndexList _recent;   //!< list of recent directories
+   QMap<QModelIndex, Diritem *> _map;
    };
 
 
