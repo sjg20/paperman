@@ -656,7 +656,7 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
       if (row >= 0 && row < _item.size())
          ind = _item[row]->index();
    } else {
-      Diritem *item = _map[parent].first;
+      Diritem *item = _map.value(parent).first;
 
       Q_ASSERT(item);
       QModelIndex item_ind = item->index(row, column, parent);

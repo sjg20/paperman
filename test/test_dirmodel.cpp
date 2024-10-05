@@ -11,28 +11,29 @@ void TestDirmodel::testBase()
    Dirmodel *model;
 
    model = setupModel();
-   checkModel(model);
+   checkModel(model, model);
 }
 
 void TestDirmodel::testProxy()
 {
-   return;
    Dirmodel *model;
 
    model = setupModel();
 
    auto proxy = new Dirproxy();
    proxy->setSourceModel(model);
-//   checkModel(proxy);
+   checkModel(proxy, nullptr);
 }
 
-void TestDirmodel::checkModel(const Dirmodel *model)
+void TestDirmodel::checkModel(const QAbstractItemModel *model,
+                              const Dirmodel *dirmodel)
 {
    QStringList dirs{"one", "two", "three"};
    QModelIndex parent, ind;
 
    // We should have two things in the map: the two Diritem objects
-   QCOMPARE(model->_map.size(), 2);
+   if (dirmodel)
+      QCOMPARE(dirmodel->_map.size(), 2);
 
    parent = QModelIndex();
    qDebug() << model->data(parent, Qt::DisplayRole).toString();
@@ -42,15 +43,18 @@ void TestDirmodel::checkModel(const Dirmodel *model)
    QCOMPARE(model->parent(parent), QModelIndex());
    QCOMPARE(model->data(parent, Qt::DisplayRole).toString(), "");
 
-   QCOMPARE(model->_map.size(), 2);
+   if (dirmodel)
+      QCOMPARE(dirmodel->_map.size(), 2);
    ind = model->index(0, 0, parent);
    QCOMPARE(ind.row(), 0);
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
 //   QCOMPARE(ind.internalPointer(), model->_item[0]);
    QCOMPARE(ind.parent(), QModelIndex());
-   QCOMPARE(model->_map.size(), 2);
-   QCOMPARE(model->_map.value(ind).first, model->_item[0]);
+   if (dirmodel) {
+      QCOMPARE(dirmodel->_map.size(), 2);
+      QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[0]);
+   }
 
    QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "dir");
 
@@ -60,13 +64,17 @@ void TestDirmodel::checkModel(const Dirmodel *model)
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
 //   QCOMPARE(ind.internalPointer(), model->_item[1]);
-   QCOMPARE(model->_map.size(), 2);
-   QCOMPARE(model->_map.value(ind).first, model->_item[1]);
+   if (dirmodel) {
+      QCOMPARE(dirmodel->_map.size(), 2);
+      QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[1]);
+   }
 
    ind = model->index(0, 0, parent);
    QModelIndex ind2 = model->index(0, 0, ind);
-   QCOMPARE(model->_map.size(), 3);
-   QCOMPARE(model->_map.value(ind2).first, model->_item[0]);
+   if (dirmodel) {
+      QCOMPARE(dirmodel->_map.size(), 3);
+      QCOMPARE(dirmodel->_map.value(ind2).first, dirmodel->_item[0]);
+   }
 
    for (int i = 0; i < rows; i++) {
       ind = model->index(i, 0, parent);
