@@ -353,6 +353,8 @@ private:
    // Build a new cache
    void buildCache(const QModelIndex& root_ind, Operation *op);
 
+   Diritem *lookupItem(QModelIndex ind, QModelIndex& item_ind) const;
+
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
 

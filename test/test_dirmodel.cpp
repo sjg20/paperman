@@ -44,7 +44,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
 
    // We should have two things in the map: the two Diritem objects
    if (dirmodel)
-      QCOMPARE(dirmodel->_map.size(), 2);
+      QCOMPARE(dirmodel->_map.size(), 0);
 
    parent = QModelIndex();
 //   qDebug() << model->data(parent, Qt::DisplayRole).toString();
@@ -55,7 +55,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    QCOMPARE(model->data(parent, Qt::DisplayRole).toString(), "");
 
    if (dirmodel) {
-      QCOMPARE(dirmodel->_map.size(), 2);
+      QCOMPARE(dirmodel->_map.size(), 0);
 
       QModelIndex src_ind = dirmodel->index(_tempDir->path() + "/dir");
       Q_ASSERT(src_ind.isValid());
