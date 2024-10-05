@@ -76,6 +76,7 @@ public:
    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
       override;
 
+   // Returns index within _qdmodel
    QModelIndex findPath(int row, QString path);
 
    int rowCount(const QModelIndex &parent) const override;
@@ -220,7 +221,7 @@ public:
       \param path   path to find (relative to the item's root path)
 
       \returns  the model index if found, or empty index if not */
-   QModelIndex findPath (int i, Diritem *item, QString path) const;
+   QModelIndex findPath(int i, Diritem *item, QString path) const;
 
    QString filePath (const QModelIndex &index) const;
 

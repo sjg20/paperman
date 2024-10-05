@@ -164,12 +164,13 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
 
 QModelIndex Diritem::findPath(int row, QString path)
 {
-   if (path.isEmpty())
-      return _index;
+//   if (path.isEmpty())
+//      return _index;
 
    QModelIndex ind = _qdmodel->index(_dir + "/" + path);
    Q_ASSERT(ind.isValid());
-   return _model->createIndexFor(ind, this);
+   return ind;
+//   return _model->createIndexFor(ind, this);
 }
 
 QString Diritem::dirCacheFilename() const
@@ -727,11 +728,19 @@ bool Dirmodel::hasChildren (const QModelIndex &parent) const
 }
 #endif
 
-QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
+QModelIndex Dirmodel::findPath(int row, Diritem *item, QString path) const
 {
-   QModelIndex ind;
+   QModelIndex dir_ind;
 
-   ind = item->findPath(row, path);
+   if (path.isEmpty())
+      return item->index();
+
+   dir_ind = item->findPath(row, path);
+   Dirmodel *non_const = (Dirmodel *)this;
+   QModelIndex ind = non_const->createIndexFor(dir_ind, item);
+//   QModelIndex ind;
+
+//   ind = item->findPath(row, path);
 #if 0
    QModelIndex ind = item->index ();
    ind = createIndex (row, 0, ind.internalPointer ());
