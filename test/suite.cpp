@@ -53,10 +53,16 @@ QString Test::setupRepo()
    foreach (QString fname, dir.entryList(QDir::Files))
        QFile::copy(testSrc + "/" + fname, dst + "/" + fname);
 
+   // Create subdirectories which won't appear in the model
+   Q_ASSERT(destDir.mkdir("wibble1"));
+   Q_ASSERT(destDir.mkdir("wibble2"));
+   Q_ASSERT(destDir.mkdir("wibble3"));
 
    // Create subdirectories
    Q_ASSERT(destDir.mkdir("dir"));
    Q_ASSERT(destDir.mkdir("dir/one"));
+   Q_ASSERT(destDir.mkdir("dir/one/a"));
+   Q_ASSERT(destDir.mkdir("dir/one/b"));
    Q_ASSERT(destDir.mkdir("dir/two"));
    Q_ASSERT(destDir.mkdir("other"));
    Q_ASSERT(destDir.mkdir("other/three"));

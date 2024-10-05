@@ -134,6 +134,15 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
          QCOMPARE(ind2.row(), j);
       }
    }
+
+   QModelIndex dir_ind = model->index(0, 0, parent);
+   qDebug() << "dir_ind" << dir_ind;
+   QModelIndex one_ind = model->index(0, 0, dir_ind);
+   qDebug() << "one_ind" << one_ind;
+   QModelIndex a_ind = model->index(0, 0, one_ind);
+   qDebug() << "a_ind" << a_ind;
+   Q_ASSERT(a_ind.isValid());
+
 }
 
 Dirmodel *TestDirmodel::setupModel()
