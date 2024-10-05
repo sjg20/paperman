@@ -30,7 +30,7 @@ void TestDirmodel::testModel()
 {
    Dirmodel *model;
 
-   qDebug() << "testModel";
+//   qDebug() << "testModel";
    model = setupModel();
    QAbstractItemModelTester modelTester(model); // Default Fatal mode
 }
@@ -47,7 +47,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
       QCOMPARE(dirmodel->_map.size(), 2);
 
    parent = QModelIndex();
-   qDebug() << model->data(parent, Qt::DisplayRole).toString();
+//   qDebug() << model->data(parent, Qt::DisplayRole).toString();
    int rows = model->rowCount(parent);
    QCOMPARE(rows, 2);
    QCOMPARE(model->columnCount(parent), 1);
@@ -127,20 +127,20 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
 //         qDebug() << "ind" << ind;
 //         qDebug() << "ind2" << model->parent(ind2);
          disp = model->data(ind2, Qt::DisplayRole).toString();
-         qDebug() << "disp" << disp;
+//         qDebug() << "disp" << disp;
          QModelIndex par = model->parent(ind2);
-         qDebug() << "par" << par;
+//         qDebug() << "par" << par;
          QCOMPARE(par, ind);
          QCOMPARE(ind2.row(), j);
       }
    }
 
    QModelIndex dir_ind = model->index(0, 0, parent);
-   qDebug() << "dir_ind" << dir_ind;
+//   qDebug() << "dir_ind" << dir_ind;
    QModelIndex one_ind = model->index(0, 0, dir_ind);
-   qDebug() << "one_ind" << one_ind;
+//   qDebug() << "one_ind" << one_ind;
    QModelIndex a_ind = model->index(0, 0, one_ind);
-   qDebug() << "a_ind" << a_ind;
+//   qDebug() << "a_ind" << a_ind;
    Q_ASSERT(a_ind.isValid());
 
 }

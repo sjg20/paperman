@@ -809,7 +809,7 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
          Diritem *item = _map.value(ind).first;
          Q_ASSERT(item);
 
-         qDebug() << item;
+         //qDebug() << item;
 
          return ind;
          }
@@ -1010,7 +1010,7 @@ TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind, Operation *op)
       return nullptr;
 
    int index = findIndex(root_ind);
-   qDebug() << "index" << index;
+   //qDebug() << "index" << index;
 
    //Diritem *item = static_cast<Diritem *>(root_ind.internalPointer());
    Diritem *item = _item[index];
@@ -1176,7 +1176,7 @@ QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
    // Remove the root-path prefix
    QString rel = dirPath.mid(root_path.size() + 1);
 
-   qDebug() << rel;
+   //qDebug() << rel;
    node = findDir(tree, rel);
    QStringList matches;
    if (node)
