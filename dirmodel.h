@@ -82,7 +82,7 @@ public:
    int columnCount(const QModelIndex &parent) const override;
 
    // index is within _qdmodel
-   // returns parent within Dirmodel
+   // returns parent within _qdmodel
    QModelIndex parent(const QModelIndex &index) const override;
 
 private:

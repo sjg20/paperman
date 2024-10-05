@@ -157,9 +157,9 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
    if (ind == _redir)
       return _index;
 
-   return _model->createIndexFor(ind, this);
+//   return _model->createIndexFor(ind, this);
 
-//   return ind;
+   return ind;
 }
 
 QModelIndex Diritem::findPath(int row, QString path)
@@ -879,11 +879,17 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
       Q_ASSERT(item);
       QModelIndex item_ind = _map.value(index).second;
 
-      par = item->parent(item_ind);
-      if (par.isValid()) {
+      QModelIndex item_par = item->parent(item_ind);
+      if (item_par.isValid()) {
+         if (item_par == item->index()) {
+            par = item_par;
+         } else {
+            Dirmodel *non_const = (Dirmodel *)this;
+            par = non_const->createIndexFor(item_par, item);
          // check it is in the model
-         Diritem *item2 = _map.value(par).first;
-         Q_ASSERT(item2);
+//         Diritem *item2 = _map.value(par).first;
+//         Q_ASSERT(item2);
+         }
       }
    }
 
