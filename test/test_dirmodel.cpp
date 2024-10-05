@@ -12,7 +12,7 @@ void TestDirmodel::testBase()
    Dirmodel *model;
 
    model = setupModel();
-   checkModel(model, model);
+   checkModel(model, model, nullptr);
 }
 
 void TestDirmodel::testProxy()
@@ -23,7 +23,7 @@ void TestDirmodel::testProxy()
 
    auto proxy = new Dirproxy();
    proxy->setSourceModel(model);
-   checkModel(proxy, nullptr);
+   checkModel(proxy, nullptr, proxy);
 }
 
 void TestDirmodel::testModel()
@@ -36,7 +36,8 @@ void TestDirmodel::testModel()
 }
 
 void TestDirmodel::checkModel(const QAbstractItemModel *model,
-                              const Dirmodel *dirmodel)
+                              const Dirmodel *dirmodel,
+                              const QAbstractProxyModel *proxy)
 {
    QStringList dirs{"one", "two", "three"};
    QModelIndex parent, ind;
@@ -53,9 +54,17 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    QCOMPARE(model->parent(parent), QModelIndex());
    QCOMPARE(model->data(parent, Qt::DisplayRole).toString(), "");
 
-   if (dirmodel)
+   if (dirmodel) {
       QCOMPARE(dirmodel->_map.size(), 2);
 
+      QModelIndex src_ind = dirmodel->index(_tempDir->path() + "/dir");
+      Q_ASSERT(src_ind.isValid());
+      if (proxy) {
+         QModelIndex proxy_ind = proxy->mapFromSource(src_ind);
+         QModelIndex src_ind2 = proxy->mapToSource(proxy_ind);
+         QCOMPARE(src_ind2, src_ind);
+      }
+   }
 /*
    ind = model->index(0, 0, parent);
    QCOMPARE(ind.row(), 0);

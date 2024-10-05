@@ -161,6 +161,9 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
 
 QModelIndex Diritem::findPath(int row, QString path)
 {
+   if (path.isEmpty())
+      return _index;
+
    return _qdmodel->index(path);
 }
 

@@ -450,6 +450,7 @@ err_info *Desktopwidget::addDir (QString in_dirname, bool ignore_error)
    else if (_model->addDir (dirname, ignore_error))
       {
       QModelIndex src_ind = _model->index(dirname);
+      Q_ASSERT(src_ind.isValid());
       index = _dir_proxy->mapFromSource(src_ind);
       selectDir(index);
       }

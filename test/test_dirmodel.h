@@ -1,7 +1,9 @@
 #ifndef TEST_DIRMODEL_H
 #define TEST_DIRMODEL_H
 
-#include <QAbstractItemModel>
+class QAbstractItemModel;
+class QAbstractProxyModel;
+
 #include <QObject>
 
 #include "suite.h"
@@ -21,7 +23,8 @@ private slots:
 
 private:
    Dirmodel *setupModel();
-   void checkModel(const QAbstractItemModel *model, const Dirmodel *dirmodel);
+   void checkModel(const QAbstractItemModel *model, const Dirmodel *dirmodel,
+                   const QAbstractProxyModel *proxy);
 };
 
 #endif // TEST_DIRMODEL_H
