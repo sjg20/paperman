@@ -52,7 +52,7 @@ public:
    bool isRecent(void) { return _recent; }
 
 //    QPersistentModelIndex index (void) const { return _index; }
-   QModelIndex index(void) const;
+   QModelIndex rootIndex(void) const;
    QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 

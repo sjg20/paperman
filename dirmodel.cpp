@@ -120,7 +120,7 @@ QVariant Diritem::data(const QModelIndex &index, int role) const
    return _qdmodel->data(index, role);
 }
 
-QModelIndex Diritem::index(void) const
+QModelIndex Diritem::rootIndex(void) const
    {
    return _index;
    }
@@ -663,7 +663,7 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
    // If this is the top-level item, return an item
    if (parent == QModelIndex()) {
       if (row >= 0 && row < _item.size())
-         ind = _item[row]->index();
+         ind = _item[row]->rootIndex();
    } else {
       Diritem *item = _map.value(parent).first;
 
@@ -733,7 +733,7 @@ QModelIndex Dirmodel::findPath(int row, Diritem *item, QString path) const
    QModelIndex dir_ind;
 
    if (path.isEmpty())
-      return item->index();
+      return item->rootIndex();
 
    dir_ind = item->findPath(row, path);
    Dirmodel *non_const = (Dirmodel *)this;
@@ -833,7 +833,7 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
 int Dirmodel::findIndex(const QModelIndex &index) const
    {
    for (int i = 0; i < _item.size (); i++)
-      if (index.internalPointer () == _item [i]->index ().internalPointer ())
+      if (index.internalPointer () == _item [i]->rootIndex().internalPointer ())
          return i;
    return -1;
    }
@@ -888,10 +888,10 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
       Q_ASSERT(item);
       QModelIndex item_ind = _map.value(index).second;
 
-      if (item_ind.internalPointer() != item->index().internalPointer()) {
+      if (item_ind.internalPointer() != item->rootIndex().internalPointer()) {
          QModelIndex item_par = item->parent(item_ind);
          if (item_par.isValid()) {
-            if (item_par == item->index()) {
+            if (item_par == item->rootIndex()) {
                par = item_par;
             } else {
                Dirmodel *non_const = (Dirmodel *)this;
