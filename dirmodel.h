@@ -37,6 +37,10 @@ struct err_info;
  * This contains information about a paper repository, including the top-level
  * directory containing it. A list of these is contained in Dirmodel, which
  * handles all the repositories visible to paperman.
+ *
+ * The model-indexes here are from the QDirModel. This class is entirely
+ * unaware of the Dirmodel indexes. Dirmodel are converted back and forth
+ * between QDirModel and Dirmodel by the Dirmodel class.
  */
 class Diritem : public QAbstractItemModel
    {

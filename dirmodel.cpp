@@ -154,8 +154,8 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
 //      return QModelIndex();
    QModelIndex ind = _qdmodel->parent(index);
 
-   if (ind == _redir)
-      return _index;
+//   if (ind == _redir)
+//      return _index;
 
 //   return _model->createIndexFor(ind, this);
 
