@@ -96,7 +96,7 @@ QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
 //      return _index;
 
    QModelIndex ind;
-   ind = _qdmodel->index(row, column, _redir);
+   ind = _qdmodel->index(row, column, parent);
 //   if (parent.internalPointer() == _index.internalPointer())
 //      ind = _qdmodel->index(row, column, _redir);
 //   else
@@ -155,7 +155,9 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
    if (ind == _redir)
       return _index;
 
-   return ind;
+   return _model->createIndexFor(ind, this);
+
+//   return ind;
 }
 
 QModelIndex Diritem::findPath(int row, QString path)

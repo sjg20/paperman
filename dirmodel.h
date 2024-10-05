@@ -69,6 +69,7 @@ public:
    void dropCache();
 
    // parent is within _qdmodel
+   // returns index within Dirmodel
    QModelIndex index(int row, int column, const QModelIndex &parent) const
       override;
 
@@ -79,6 +80,9 @@ public:
 
    int rowCount(const QModelIndex &parent) const override;
    int columnCount(const QModelIndex &parent) const override;
+
+   // index is within _qdmodel
+   // returns parent within Dirmodel
    QModelIndex parent(const QModelIndex &index) const override;
 
 private:
