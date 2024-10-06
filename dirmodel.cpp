@@ -37,13 +37,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 //#define TRACE_INDEX
 
 
-Diritem::Diritem(const QString& path, bool recent) :
-    QDirModel(QStringList(), QDir::Dirs | QDir::NoDotAndDotDot,
-              QDir::IgnoreCase)
+Diritem::Diritem(const QString& path, bool recent)
 {
    _dir = path;
    _recent = recent;
    _dir_cache = 0;
+
+   setFilter(QDir::AllEntries | QDir::Dirs | QDir::NoDotAndDotDot |
+             QDir::AllDirs);
+   setRootPath("/");
 }
 
 
@@ -88,6 +90,10 @@ QModelIndex Diritem::findPath(QString path)
    QModelIndex ind = index(_dir + "/" + path);
    Q_ASSERT(ind.isValid());
    return ind;
+}
+
+void Diritem::refresh(const QModelIndex &parent)
+{
 }
 
 QString Diritem::dirCacheFilename() const
@@ -404,7 +410,6 @@ int Dirmodel::columnCount (const QModelIndex &parent) const
         return 0;
    return 1;
    }
-
 
 QString Dirmodel::getRecent(int) const
    {

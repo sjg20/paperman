@@ -22,7 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
-#include <QDirModel>
+#include <QFileSystemModel>
 #include <QSortFilterProxyModel>
 
 class Dirmodel;
@@ -42,7 +42,7 @@ struct err_info;
  * unaware of the Dirmodel indexes. Dirmodel are converted back and forth
  * between QDirModel and Dirmodel by the Dirmodel class.
  */
-class Diritem : public QDirModel
+class Diritem : public QFileSystemModel
    {
 public:
    Diritem(const QString& path, bool recent=false);
@@ -74,6 +74,8 @@ public:
    QModelIndex findPath(QString path);
 
    const QModelIndex rootIndex() const { return _root; }
+
+   void refresh(const QModelIndex &parent);
 
 private:
    // Get the filename for the dir cache

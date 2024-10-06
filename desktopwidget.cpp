@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QtGui>
 #include <QCheckBox>
+#include <QDirModel>
 #include <QFileDialog>
 #include <QKeyEventTransition>
 #include <QMenu>
