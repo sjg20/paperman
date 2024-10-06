@@ -42,7 +42,7 @@ struct err_info;
  * unaware of the Dirmodel indexes. Dirmodel are converted back and forth
  * between QDirModel and Dirmodel by the Dirmodel class.
  */
-class Diritem : public QAbstractItemModel
+class Diritem : public QDirModel
    {
 public:
    Diritem(const QString& path, Dirmodel *model, bool recent=false);
@@ -71,24 +71,9 @@ public:
    // Drop the cache and free memory
    void dropCache();
 
-   QModelIndex index(int row, int column, const QModelIndex &parent) const
-      override;
-
-   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
-      override;
-
    QModelIndex findPath(QString path);
 
-   int rowCount(const QModelIndex &parent) const override;
-   int columnCount(const QModelIndex &parent) const override;
-
-   QModelIndex parent(const QModelIndex &index) const override;
-
-   bool hasChildren(const QModelIndex &parent) const override;
-
    const QModelIndex rootIndex() const { return _root; }
-
-   void refresh(const QModelIndex &parent);
 
 private:
    // Get the filename for the dir cache
@@ -99,7 +84,6 @@ private:
 
 private:
    QString _dir;      //!< the directory
-   QDirModel *_qdmodel;
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0

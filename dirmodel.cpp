@@ -37,14 +37,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 //#define TRACE_INDEX
 
 
-Diritem::Diritem(const QString& path, Dirmodel *model, bool recent)
+Diritem::Diritem(const QString& path, Dirmodel *model, bool recent) :
+    QDirModel(QStringList(), QDir::Dirs | QDir::NoDotAndDotDot,
+              QDir::IgnoreCase)
 {
    _model = model;
    _dir = path;
    _recent = recent;
    _dir_cache = 0;
-   _qdmodel = new QDirModel(QStringList(), QDir::Dirs | QDir::NoDotAndDotDot,
-                             QDir::IgnoreCase);
 }
 
 
@@ -74,7 +74,7 @@ bool Diritem::setDir(QString& dir)
       _dir = dir;
       }
 
-   _root = _qdmodel->index(_dir);
+   _root = index(_dir);
    if (!_root.isValid())
       return false;
 
@@ -84,49 +84,9 @@ bool Diritem::setDir(QString& dir)
    return true;
    }
 
-QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
-             const
-{
-   // This should never be called for top-level items since
-   // Dirmodel::createRootIndex() handles that
-   Q_ASSERT(parent.isValid());
-
-   return _qdmodel->index(row, column, parent);
-}
-
-QVariant Diritem::data(const QModelIndex &index, int role) const
-{
-   return _qdmodel->data(index, role);
-}
-
-int Diritem::rowCount(const QModelIndex &parent) const
-{
-   return _qdmodel->rowCount(parent);
-}
-
-int Diritem::columnCount(const QModelIndex &parent) const
-{
-   return _qdmodel->columnCount(parent);
-}
-
-QModelIndex Diritem::parent(const QModelIndex &index) const
-{
-   return _qdmodel->parent(index);
-}
-
-bool Diritem::hasChildren(const QModelIndex &parent) const
-{
-   return _qdmodel->hasChildren(parent);
-}
-
-void Diritem::refresh(const QModelIndex &parent)
-{
-   _qdmodel->refresh(parent);
-}
-
 QModelIndex Diritem::findPath(QString path)
 {
-   QModelIndex ind = _qdmodel->index(_dir + "/" + path);
+   QModelIndex ind = index(_dir + "/" + path);
    Q_ASSERT(ind.isValid());
    return ind;
 }
