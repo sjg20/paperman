@@ -52,7 +52,7 @@ public:
    bool isRecent(void) { return _recent; }
 
 //    QPersistentModelIndex index (void) const { return _index; }
-   QModelIndex rootIndex(void) const;
+   QModelIndex rootIndex(int row) const;
    QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 
@@ -108,7 +108,7 @@ private:
 //   QPersistentModelIndex _index;  //!< the index of this directory in the model
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
-   QModelIndex _index;  //!< index of this item
+   QModelIndex _root_index;  //!< index of this item
 //   QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    Dirmodel *_model;
@@ -176,6 +176,8 @@ public:
        return a string like '45 files', or 'no files' */
    QString countFiles(const QModelIndex &parent, int max);
 
+   QModelIndex createRootIndex(QModelIndex item_ind, int row) const;
+
    QModelIndex createIndexFor(QModelIndex item_ind, const Diritem *item,
                               int row = -1);
 
@@ -220,15 +222,6 @@ public:
 
       \returns true if this index is a root index */
    int isRoot (const QModelIndex &index) const;
-
-   /** given a directory path within an item, this finds the model index for that
-      path
-
-      \param item   item to check within
-      \param path   path to find (relative to the item's root path)
-
-      \returns  the model index if found, or empty index if not */
-   QModelIndex findPath(int i, Diritem *item, QString path) const;
 
    QString filePath (const QModelIndex &index) const;
 
@@ -355,6 +348,15 @@ private:
    void buildCache(const QModelIndex& root_ind, Operation *op);
 
    Diritem *lookupItem(QModelIndex ind, QModelIndex& item_ind) const;
+
+   /** given a directory path within an item, this finds the model index for that
+      path
+
+      \param item   item to check within
+      \param path   path to find (relative to the item's root path)
+
+      \returns  the model index if found, or empty index if not */
+   QModelIndex findPath(int i, Diritem *item, QString path) const;
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
