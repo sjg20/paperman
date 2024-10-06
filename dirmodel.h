@@ -94,6 +94,8 @@ public:
 
    const QModelIndex rootIndex() const { return _root; }
 
+   void refresh(const QModelIndex &parent);
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;

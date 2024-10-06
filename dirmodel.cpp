@@ -174,6 +174,11 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
    return ind;
 }
 
+void Diritem::refresh(const QModelIndex &parent)
+{
+   _qdmodel->refresh(parent);
+}
+
 QModelIndex Diritem::findPath(QString path)
 {
 //   if (path.isEmpty())
@@ -1073,6 +1078,10 @@ err_info *Dirmodel::rmdir (const QModelIndex &index)
 
 void Dirmodel::refresh(const QModelIndex &parent)
 {
+   QModelIndex dir_parent;
+   Diritem *item = lookupItem(parent, dir_parent);
+
+   item->refresh(dir_parent);
 }
 
 TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind, Operation *op)
