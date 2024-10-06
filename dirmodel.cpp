@@ -174,6 +174,11 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
    return ind;
 }
 
+bool Diritem::hasChildren(const QModelIndex &parent) const
+{
+   return _qdmodel->hasChildren(parent);
+}
+
 void Diritem::refresh(const QModelIndex &parent)
 {
    _qdmodel->refresh(parent);
@@ -732,16 +737,18 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
    return ind;
    }
 
-#if 0
-bool Dirmodel::hasChildren (const QModelIndex &parent) const
+bool Dirmodel::hasChildren(const QModelIndex &parent) const
 {
-   Diritem *item = findItem(parent);
-
-   if (!item)
+   if (!parent.isValid())
       return _item.size() > 0;
-   return item->hasChildren(parent);
+
+   QModelIndex dir_parent;
+   Diritem *item = lookupItem(parent, dir_parent);
+
+   // Diritem *item = findItem(parent);
+   // if (!item)
+   return item->hasChildren(dir_parent);
 }
-#endif
 
 QModelIndex Dirmodel::findPath(int row, Diritem *item, QString path) const
 {

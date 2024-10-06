@@ -92,6 +92,8 @@ public:
    // returns parent within _qdmodel
    QModelIndex parent(const QModelIndex &index) const override;
 
+   bool hasChildren(const QModelIndex &parent) const override;
+
    const QModelIndex rootIndex() const { return _root; }
 
    void refresh(const QModelIndex &parent);
@@ -230,7 +232,7 @@ public:
 
    QStringList mimeTypes() const override;
 
-   //bool hasChildren(const QModelIndex &parent) const override;
+   bool hasChildren(const QModelIndex &parent) const override;
 
    /** add a new index to the recent list
 
