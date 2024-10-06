@@ -37,11 +37,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 //#define TRACE_INDEX
 
 
-Diritem::Diritem(const QString& path, Dirmodel *model, bool recent) :
+Diritem::Diritem(const QString& path, bool recent) :
     QDirModel(QStringList(), QDir::Dirs | QDir::NoDotAndDotDot,
               QDir::IgnoreCase)
 {
-   _model = model;
    _dir = path;
    _recent = recent;
    _dir_cache = 0;
@@ -370,7 +369,7 @@ Qt::DropActions Dirmodel::supportedDropActions () const
 
 bool Dirmodel::addDir(QString& dir, bool ignore_error)
    {
-   Diritem *item = new Diritem(dir, this);
+   Diritem *item = new Diritem(dir);
 
    bool ok = item->setDir(dir);
    if (!ok && !ignore_error) {

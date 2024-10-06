@@ -45,7 +45,7 @@ struct err_info;
 class Diritem : public QDirModel
    {
 public:
-   Diritem(const QString& path, Dirmodel *model, bool recent=false);
+   Diritem(const QString& path, bool recent=false);
    ~Diritem();
 
 //   void setRecent(QModelIndex index);
@@ -84,10 +84,8 @@ private:
 
 private:
    QString _dir;      //!< the directory
-   bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
-   Dirmodel *_model;
    QModelIndex _root;  //!< index in this item's top-level dir in QDirModel
    };
 
