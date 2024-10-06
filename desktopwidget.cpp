@@ -874,7 +874,7 @@ void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
    QModelIndex src_ind = _model->index (dirPath);
    QModelIndex index = _dir_proxy->mapFromSource(src_ind);
 
-//    qDebug () << "Desktopwidget::slotDirChanged" << _dir->currentIndex () << index;
+   qDebug () << "Desktopwidget::slotDirChanged" << _dir->currentIndex () << index;
    _dir->setCurrentIndex(index);
 
    _modelconv->assertIsSource (0, &deskind, 0);
