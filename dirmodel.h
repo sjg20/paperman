@@ -226,9 +226,6 @@ public:
 
    QString filePath (const QModelIndex &index) const;
 
-   /** displays the filename of this index and all its parents up to the root */
-   void traceIndex (const QModelIndex &index) const;
-
    QStringList mimeTypes() const override;
 
    //bool hasChildren(const QModelIndex &parent) const override;

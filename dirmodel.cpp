@@ -608,31 +608,6 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
    return QVariant();
 }
 
-
-void Dirmodel::traceIndex (const QModelIndex &index) const
-   {
-#if 0//p
-   QString fname;
-   bool first = true;
-
-   printf ("trace: ");
-   QModelIndex ind = index;
-   do
-      {
-      if (isRoot (ind))
-         fname = ind.row () == -1 ? "" : _item [ind.row ()]->dir ();
-      else
-         fname = fileName (ind);
-      printf ("%s%p:%d:%s", first ? "" : ", ", ind.internalPointer (),
-              ind.row(), fname.toLatin1 ().constData());
-      ind = parent (ind);
-      first = false;
-      } while (ind != QModelIndex ());
-   printf ("\n");
-#endif
-   }
-
-
 QString Dirmodel::filePath (const QModelIndex &index) const
    {
 //    qDebug () << "Dirmodel::filePath";
@@ -747,12 +722,6 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
       }
    else
       ind = QDirModel::index (row, column, parent);
-#endif
-//   QVariant v = data (ind, QDirModel::FileNameRole);
-#ifdef TRACE_INDEX
-   printf ("   index  '%s' row %d: %p %s\n", data (parent).toString ().latin1 (),
-      row, ind.internalPointer (), v.toString ().latin1 ());
-   traceIndex (ind);
 #endif
    return ind;
    }
