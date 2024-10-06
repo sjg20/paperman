@@ -28,12 +28,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "dirmodel.h"
 #include <QDirModel>
 #include "qmimedata.h"
-#include "qurl.h"
 
 #include "err.h"
 
 #include "mainwindow.h"
-#include "maxview.h"
 #include "utils.h"
 
 //#define TRACE_INDEX
@@ -63,7 +61,7 @@ Diritem::~Diritem ()
 //}
 
 
-bool Diritem::setDir(QString& dir, int row)
+bool Diritem::setDir(QString& dir)
    {
 //   QModelIndex ind;
    QDir qd (dir);
@@ -176,7 +174,7 @@ QModelIndex Diritem::parent(const QModelIndex &index) const
    return ind;
 }
 
-QModelIndex Diritem::findPath(int row, QString path)
+QModelIndex Diritem::findPath(QString path)
 {
 //   if (path.isEmpty())
 //      return _index;
@@ -485,7 +483,7 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    {
    Diritem *item = new Diritem(dir, this);
 
-   bool ok = item->setDir(dir, _item.size());
+   bool ok = item->setDir(dir);
    if (!ok && !ignore_error) {
       delete item;
       return false;
@@ -777,7 +775,7 @@ QModelIndex Dirmodel::findPath(int row, Diritem *item, QString path) const
    if (path.isEmpty())
       return itemRootIndex(row);
 
-   dir_ind = item->findPath(row, path);
+   dir_ind = item->findPath(path);
    Dirmodel *non_const = (Dirmodel *)this;
    QModelIndex ind = non_const->createIndexFor(dir_ind, item);
 //   QModelIndex ind;
