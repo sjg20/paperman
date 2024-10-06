@@ -63,7 +63,7 @@ public:
     */
    QModelIndex setDir(QString& dir, int row);
 
-   QModelIndex setRootIndex(QModelIndex ind);
+   void setRootIndex(QModelIndex ind);
 
    //!< Read or create a cache
    TreeItem *ensureCache(Operation *op);
@@ -92,6 +92,8 @@ public:
    // returns parent within _qdmodel
    QModelIndex parent(const QModelIndex &index) const override;
 
+   QModelIndex _redir;  //!< index in of this item in QDirModel
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -107,7 +109,6 @@ private:
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
    QModelIndex _index;  //!< index of this item
-   QModelIndex _redir;  //!< index in of this item in QDirModel
 //   QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    Dirmodel *_model;

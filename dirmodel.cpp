@@ -78,7 +78,8 @@ QModelIndex Diritem::setDir(QString& dir, int row)
 
    QModelIndex ind = _qdmodel->index(_dir);
 
-   _index = ind;
+   _redir = ind;
+   // _index = ind;
 
    return ind;
 #if 0
@@ -95,7 +96,7 @@ QModelIndex Diritem::setDir(QString& dir, int row)
 #endif
    }
 
-QModelIndex Diritem::setRootIndex(QModelIndex ind)
+void Diritem::setRootIndex(QModelIndex ind)
 {
    _index = ind;
 }
@@ -119,7 +120,8 @@ QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
 
 QVariant Diritem::data(const QModelIndex &index, int role) const
 {
-   if (index.internalPointer() == this) {
+   if (index == _index) {
+   // if (index.internalPointer() == this) {
       if (role == QDirModel::FilePathRole)
          return _dir;
 
@@ -488,7 +490,9 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    }
 
 //   QModelIndex ind = createIndexFor(dir_ind, item, _item.size());
-   item->setRootIndex(dir_ind);
+   QModelIndex ind = createIndex(_item.size(), dir_ind.column(),
+                                 dir_ind.internalPointer());
+   item->setRootIndex(ind);
 
    beginInsertRows(QModelIndex (), _item.size(), _item.size());
    _item.append (item);
@@ -529,13 +533,12 @@ QString Dirmodel::getRecent(int) const
 QVariant Dirmodel::data(const QModelIndex &ind, int role) const
 {
    if (ind.isValid()) {
-      Diritem *item = _map.value(ind).first;
+      QModelIndex item_ind;
+      Diritem *item = lookupItem(ind, item_ind);
 //   int i = findIndex(ind);
 
    // If this is the item itself, return the data
 //   if (i != -1) {
-      Q_ASSERT(item);
-      QModelIndex item_ind = _map.value(ind).second;
       return item->data(item_ind, role);
    }
 //   else {
@@ -678,7 +681,7 @@ Diritem *Dirmodel::lookupItem(QModelIndex ind, QModelIndex& item_ind) const
    } else {
       item = findItem(ind);
       Q_ASSERT(item);
-      item_ind = item->rootIndex();
+      item_ind = item->_redir;
    }
 
    return item;
@@ -694,8 +697,10 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
       if (row >= 0 && row < _item.size())
          ind = _item[row]->rootIndex();
    } else {
-      QModelIndex dir_ind;
-      Diritem *item = lookupItem(parent, dir_ind);
+      QModelIndex dir_parent;
+      Diritem *item = lookupItem(parent, dir_parent);
+
+      QModelIndex dir_ind = item->index(row, column, dir_parent);
       Dirmodel *non_const = (Dirmodel *)this;
       ind = non_const->createIndexFor(dir_ind, item);
    }
@@ -928,21 +933,30 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
 
    if (index.isValid()) {
       Diritem *item = _map.value(index).first;
-      Q_ASSERT(item);
+      if (!item)
+         return QModelIndex();
       QModelIndex item_ind = _map.value(index).second;
 
       if (item_ind.internalPointer() != item->rootIndex().internalPointer()) {
          QModelIndex item_par = item->parent(item_ind);
          if (item_par.isValid()) {
-            if (item_par == item->rootIndex()) {
-               par = item_par;
-            } else {
-               Dirmodel *non_const = (Dirmodel *)this;
-               par = non_const->createIndexFor(item_par, item);
+
+            // We never need to add par to the map, since index must be in the
+            // map and therefore its parent is either in the map itself, or is
+            // the top-level directory for this item
+            par = createIndex(item_par.row(), item_par.column(),
+                              item_par.internalPointer());
+
+            // item_ind = _map.value(ind).second;
+            // if (item_par == item->_redir) {
+            //    par = item_par;
+            // } else {
+            //    Dirmodel *non_const = (Dirmodel *)this;
+            //    par = non_const->createIndexFor(item_par, item);
          // check it is in the model
 //         Diritem *item2 = _map.value(par).first;
 //         Q_ASSERT(item2);
-            }
+            // }
          }
       }
    }
@@ -1022,7 +1036,7 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
          item_ind = _map.value(parent).second;
       } else {
          item = findItem(parent);
-         item_ind = item->rootIndex();
+         item_ind = item->_redir;
       }
 #endif
       return item->rowCount(item_ind);

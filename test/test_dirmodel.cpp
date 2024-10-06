@@ -65,7 +65,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
          QCOMPARE(src_ind2, src_ind);
       }
    }
-/*
+
    ind = model->index(0, 0, parent);
    QCOMPARE(ind.row(), 0);
    QCOMPARE(ind.column(), 0);
@@ -73,8 +73,8 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    QCOMPARE(ind.parent(), QModelIndex());
    if (dirmodel) {
 //      QCOMPARE(ind.internalPointer(), dirmodel->_item[0]);
-      QCOMPARE(dirmodel->_map.size(), 2);
-      QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[0]);
+      QCOMPARE(dirmodel->_map.size(), 0);
+      // QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[0]);
    }
 
    QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "dir");
@@ -86,25 +86,25 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    QCOMPARE(ind.model(), model);
 //   QCOMPARE(ind.internalPointer(), model->_item[1]);
    if (dirmodel) {
-      QCOMPARE(dirmodel->_map.size(), 2);
-      QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[1]);
+      QCOMPARE(dirmodel->_map.size(), 0);
+      // QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[1]);
    }
-
+/*
    ind = model->index(0, 0, parent);
    QModelIndex ind2 = model->index(0, 0, ind);
    if (dirmodel) {
-      QCOMPARE(dirmodel->_map.size(), 3);
+      QCOMPARE(dirmodel->_map.size(), 1);
       QCOMPARE(dirmodel->_map.value(ind2).first, dirmodel->_item[0]);
    }
 */
-   int count = 2;  // number of indexes issued by the model
+   int count = 0;  // number of indexes issued by the model
 
    for (int i = 0; i < rows; i++) {
       ind = model->index(i, 0, parent);
 
       if (dirmodel) {
          QCOMPARE(dirmodel->_map.size(), count);
-         QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[i]);
+         // QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[i]);
       }
       QCOMPARE(model->parent(ind), QModelIndex());
       QCOMPARE(ind.row(), i);
@@ -118,7 +118,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
 
          if (dirmodel) {
             QCOMPARE(dirmodel->_map.size(), count);
-            QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[i]);
+            // QCOMPARE(dirmodel->_map.value(ind).first, dirmodel->_item[i]);
          }
 
          QString disp = model->data(ind2, Qt::DisplayRole).toString();
