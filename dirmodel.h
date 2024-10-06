@@ -52,7 +52,7 @@ public:
    bool isRecent(void) { return _recent; }
 
 //    QPersistentModelIndex index (void) const { return _index; }
-   QModelIndex rootIndex(int row) const;
+   // QModelIndex rootIndex(int row) const;
    QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 
@@ -63,7 +63,7 @@ public:
     */
    QModelIndex setDir(QString& dir, int row);
 
-   void setRootIndex(QModelIndex ind);
+   // void setRootIndex(QModelIndex ind);
 
    //!< Read or create a cache
    TreeItem *ensureCache(Operation *op);
@@ -108,7 +108,7 @@ private:
 //   QPersistentModelIndex _index;  //!< the index of this directory in the model
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
-   QModelIndex _root_index;  //!< index of this item
+   // QModelIndex _root_index;  //!< index of this item
 //   QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    Dirmodel *_model;
@@ -357,6 +357,8 @@ private:
 
       \returns  the model index if found, or empty index if not */
    QModelIndex findPath(int i, Diritem *item, QString path) const;
+
+   QModelIndex itemRootIndex(int row) const;
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);

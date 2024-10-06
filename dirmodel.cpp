@@ -96,10 +96,12 @@ QModelIndex Diritem::setDir(QString& dir, int row)
 #endif
    }
 
+#if 0
 void Diritem::setRootIndex(QModelIndex ind)
 {
    _root_index = ind;
 }
+#endif
 
 QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
              const
@@ -134,11 +136,6 @@ QVariant Diritem::data(const QModelIndex &index, int role) const
 
    return _qdmodel->data(index, role);
 }
-
-QModelIndex Diritem::rootIndex(int row) const
-   {
-   return _model->createRootIndex(_redir, row);
-   }
 
 int Diritem::rowCount(const QModelIndex &parent) const
 {
@@ -493,9 +490,9 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    }
 
 //   QModelIndex ind = createIndexFor(dir_ind, item, _item.size());
-   QModelIndex ind = createIndex(_item.size(), dir_ind.column(),
-                                 dir_ind.internalPointer());
-   item->setRootIndex(ind);
+   // QModelIndex ind = createIndex(_item.size(), dir_ind.column(),
+                                 // dir_ind.internalPointer());
+   // item->setRootIndex(ind);
 
    beginInsertRows(QModelIndex (), _item.size(), _item.size());
    _item.append (item);
@@ -698,7 +695,7 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
    // If this is the top-level item, return an item
    if (parent == QModelIndex()) {
       if (row >= 0 && row < _item.size())
-         ind = _item[row]->rootIndex(row);
+         ind = itemRootIndex(row);
    } else {
       QModelIndex dir_parent;
       Diritem *item = lookupItem(parent, dir_parent);
@@ -776,7 +773,7 @@ QModelIndex Dirmodel::findPath(int row, Diritem *item, QString path) const
    QModelIndex dir_ind;
 
    if (path.isEmpty())
-      return item->rootIndex(row);
+      return itemRootIndex(row);
 
    dir_ind = item->findPath(row, path);
    Dirmodel *non_const = (Dirmodel *)this;
@@ -886,7 +883,7 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
 int Dirmodel::findIndex(const QModelIndex &index) const
    {
    for (int i = 0; i < _item.size (); i++)
-      if (index.internalPointer () == _item [i]->rootIndex(i).internalPointer ())
+      if (index.internalPointer () == itemRootIndex(i).internalPointer ())
          return i;
    return -1;
    }
@@ -896,6 +893,11 @@ int Dirmodel::isRoot (const QModelIndex &index) const
    {
    return findIndex (index) != -1;
    }
+
+QModelIndex Dirmodel::itemRootIndex(int row) const
+{
+   return createRootIndex(_item[row]->_redir, row);
+}
 
 
 QModelIndex Dirmodel::findRoot(const QModelIndex &index) const
@@ -911,7 +913,7 @@ QModelIndex Dirmodel::findRoot(const QModelIndex &index) const
 Diritem * Dirmodel::findItem(QModelIndex index) const
 {
    for (int i = 0; i < _item.size (); i++)
-      if (index.internalPointer () == _item[i]->rootIndex(i).internalPointer())
+      if (index.internalPointer () == itemRootIndex(i).internalPointer())
          return _item[i];
 
 #if 0
@@ -950,7 +952,7 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
       int i = _item.indexOf(item);
       Q_ASSERT(i != -1);
 
-      if (item_ind.internalPointer() != item->rootIndex(i).internalPointer()) {
+      if (item_ind.internalPointer() != itemRootIndex(i).internalPointer()) {
          QModelIndex item_par = item->parent(item_ind);
          if (item_par.isValid()) {
 
