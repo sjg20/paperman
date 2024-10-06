@@ -610,6 +610,7 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
 
 QString Dirmodel::filePath (const QModelIndex &index) const
    {
+   return data(index, QDirModel::FilePathRole).toString();
 //    qDebug () << "Dirmodel::filePath";
 //    int i = findIndex (index);
    QString path;
@@ -621,7 +622,7 @@ QString Dirmodel::filePath (const QModelIndex &index) const
 //   QString path = QDirModel::filePath (index);
 //    printf ("filePath() %d, %s\n", i, path.latin1 ());
 //    traceIndex (index);
-   return path;
+   // return path;
    }
 
 
