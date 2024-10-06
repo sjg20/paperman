@@ -61,7 +61,7 @@ public:
     * @param dir   directory to set, updated to canonical path
     * @return true if valid, false if directory is invalid
     */
-   QModelIndex setDir(QString& dir, int row);
+   bool setDir(QString& dir, int row);
 
    // void setRootIndex(QModelIndex ind);
 
@@ -92,7 +92,7 @@ public:
    // returns parent within _qdmodel
    QModelIndex parent(const QModelIndex &index) const override;
 
-   QModelIndex _redir;  //!< index in of this item in QDirModel
+   const QModelIndex rootIndex() const { return _root; }
 
 private:
    // Get the filename for the dir cache
@@ -112,6 +112,7 @@ private:
 //   QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    Dirmodel *_model;
+   QModelIndex _root;  //!< index in this item's top-level dir in QDirModel
    };
 
 

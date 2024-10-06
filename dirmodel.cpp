@@ -63,7 +63,7 @@ Diritem::~Diritem ()
 //}
 
 
-QModelIndex Diritem::setDir(QString& dir, int row)
+bool Diritem::setDir(QString& dir, int row)
    {
 //   QModelIndex ind;
    QDir qd (dir);
@@ -76,12 +76,14 @@ QModelIndex Diritem::setDir(QString& dir, int row)
       _dir = dir;
       }
 
-   QModelIndex ind = _qdmodel->index(_dir);
+   _root = _qdmodel->index(_dir);
+   if (!_root.isValid())
+      return false;
 
-   _redir = ind;
+   // _redir = ind;
    // _index = ind;
 
-   return ind;
+   return true;
 #if 0
    // Create an index with our row number
    _index = _model->createIndexFor(ind, this, row);
@@ -483,8 +485,8 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    {
    Diritem *item = new Diritem(dir, this);
 
-   QModelIndex dir_ind = item->setDir(dir, _item.size());
-   if (!dir_ind.isValid() && !ignore_error) {
+   bool ok = item->setDir(dir, _item.size());
+   if (!ok && !ignore_error) {
       delete item;
       return false;
    }
@@ -681,7 +683,7 @@ Diritem *Dirmodel::lookupItem(QModelIndex ind, QModelIndex& item_ind) const
    } else {
       item = findItem(ind);
       Q_ASSERT(item);
-      item_ind = item->_redir;
+      item_ind = item->rootIndex();
    }
 
    return item;
@@ -896,7 +898,7 @@ int Dirmodel::isRoot (const QModelIndex &index) const
 
 QModelIndex Dirmodel::itemRootIndex(int row) const
 {
-   return createRootIndex(_item[row]->_redir, row);
+   return createRootIndex(_item[row]->rootIndex(), row);
 }
 
 
