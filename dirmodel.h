@@ -149,8 +149,8 @@ class Dirmodel : public QAbstractItemModel
    friend class TestDirmodel;
 
 public:
-   Dirmodel (QObject * parent = 0);
-   ~Dirmodel ();
+   Dirmodel();
+   ~Dirmodel();
 
    bool dropMimeData(const QMimeData *data, Qt::DropAction action,
                      int row, int column, const QModelIndex &parent) override;

@@ -229,7 +229,7 @@ TreeItem *Diritem::ensureCache(Operation *op)
    return buildCache(op);
 }
 
-Dirmodel::Dirmodel (QObject *parent)
+Dirmodel::Dirmodel()
    {
    QStringList filters;
 
