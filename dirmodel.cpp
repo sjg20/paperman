@@ -45,7 +45,7 @@ Diritem::Diritem(const QString& path, bool recent)
 
    setFilter(QDir::AllEntries | QDir::Dirs | QDir::NoDotAndDotDot |
              QDir::AllDirs);
-   setRootPath("/");
+   //setRootPath("/");
 }
 
 
