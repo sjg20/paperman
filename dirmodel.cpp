@@ -82,96 +82,36 @@ bool Diritem::setDir(QString& dir)
    // _index = ind;
 
    return true;
-#if 0
-   // Create an index with our row number
-   _index = _model->createIndexFor(ind, this, row);
-//   qDebug() << "model" << _model << _index;
-   _redir = ind;
-   bool valid = _index != QModelIndex ();
-   //    printf ("addDir %s\n", _dir.latin1 ());
-   //    _index = QPersistentModelIndex (_model->index (_dir));
-   if (!valid)
-      qDebug () << "Diritem invalid";
-   return valid;
-#endif
    }
-
-#if 0
-void Diritem::setRootIndex(QModelIndex ind)
-{
-   _root_index = ind;
-}
-#endif
 
 QModelIndex Diritem::index(int row, int column, const QModelIndex &parent)
              const
 {
+   // This should never be called for top-level items since
+   // Dirmodel::createRootIndex() handles that
    Q_ASSERT(parent.isValid());
-      //return createIndex(row, column, (void *)this);
-//      return _index;
 
-   QModelIndex ind;
-   ind = _qdmodel->index(row, column, parent);
-//   if (parent.internalPointer() == _index.internalPointer())
-//      ind = _qdmodel->index(row, column, _redir);
-//   else
-//      ind = _qdmodel->index(row, column, parent);
-//   return _model->createIndexFor(ind, this);
-   return ind;
+   return _qdmodel->index(row, column, parent);
 }
 
 QVariant Diritem::data(const QModelIndex &index, int role) const
 {
-#if 0
-   if (index == _index) {
-   // if (index.internalPointer() == this) {
-      if (role == QDirModel::FilePathRole)
-         return _dir;
-
-      QDir dir (_dir);
-
-      return dir.dirName();
-   }
-#endif
-
    return _qdmodel->data(index, role);
 }
 
 int Diritem::rowCount(const QModelIndex &parent) const
 {
-//   qDebug() << "rowCount" << parent;
-
-   // If the parent is
-//   if (parent.internalPointer() == _index.internalPointer())
-//      return _qdmodel->rowCount(_redir);
-
    return _qdmodel->rowCount(parent);
 }
 
 int Diritem::columnCount(const QModelIndex &parent) const
 {
-//   qDebug() << "columnCount" << parent;
-
-   // If the parent is
-//   if (parent.internalPointer() == _index.internalPointer())
-//      return _qdmodel->columnCount(_redir);
-
    return _qdmodel->columnCount(parent);
 }
 
 QModelIndex Diritem::parent(const QModelIndex &index) const
 {
-//   qDebug() << "parent" << index;
-//   if (index.internalPointer() == _index.internalPointer())
-//      return QModelIndex();
-   QModelIndex ind = _qdmodel->parent(index);
-
-//   if (ind == _redir)
-//      return _index;
-
-//   return _model->createIndexFor(ind, this);
-
-   return ind;
+   return _qdmodel->parent(index);
 }
 
 bool Diritem::hasChildren(const QModelIndex &parent) const
@@ -186,13 +126,9 @@ void Diritem::refresh(const QModelIndex &parent)
 
 QModelIndex Diritem::findPath(QString path)
 {
-//   if (path.isEmpty())
-//      return _index;
-
    QModelIndex ind = _qdmodel->index(_dir + "/" + path);
    Q_ASSERT(ind.isValid());
    return ind;
-//   return _model->createIndexFor(ind, this);
 }
 
 QString Diritem::dirCacheFilename() const
@@ -240,31 +176,14 @@ TreeItem *Diritem::ensureCache(Operation *op)
 }
 
 Dirmodel::Dirmodel()
-   {
-   QStringList filters;
-
-//   _root = index ("/");
-
-   //   QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot,
-   //                      QDir::IgnoreCase, parent)
-
-   // Create the 'recent dirs' item at the top
-//   Diritem *item = new Diritem (this);
-//   item->setRgecent(createIndex(0, 0, item));
-//   _item.append (item);
-   }
-
+{
+}
 
 Dirmodel::~Dirmodel ()
-   {
+{
    while (!_item.empty ())
       delete _item.takeFirst ();
-   }
-
-//     inline bool indexValid(const QModelIndex &index) const {
-//          return (index.row() >= 0) && (index.column() >= 0) && (index.model() == q_func());
-//     }
-
+}
 
 err_info *Dirmodel::checkOverlap (QString &dirname, QString &user_dirname)
    {
@@ -499,11 +418,6 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
       return false;
    }
 
-//   QModelIndex ind = createIndexFor(dir_ind, item, _item.size());
-   // QModelIndex ind = createIndex(_item.size(), dir_ind.column(),
-                                 // dir_ind.internalPointer());
-   // item->setRootIndex(ind);
-
    beginInsertRows(QModelIndex (), _item.size(), _item.size());
    _item.append (item);
    endInsertRows();
@@ -527,7 +441,6 @@ bool Dirmodel::removeDirFromList (const QModelIndex &index)
 
 int Dirmodel::columnCount (const QModelIndex &parent) const
    {
-// printf ("columnCount\n");
     if (parent.column() > 0)
         return 0;
    return 1;
@@ -545,75 +458,9 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
    if (ind.isValid()) {
       QModelIndex item_ind;
       Diritem *item = lookupItem(ind, item_ind);
-//   int i = findIndex(ind);
 
-   // If this is the item itself, return the data
-//   if (i != -1) {
       return item->data(item_ind, role);
    }
-//   else {
-//      Diritem *item = findItem(ind);
-//      Diritem *item = _map[ind];
-
-//      if (item)
-//         return item->data(ind, role);
-//   }
-
-
-//   Diritem *item = findItem(ind);
-
-//   if (item)
-//      return item->data(ind, role);
-#if 0
-   QModelIndex index = ind;
-   QString name;
-   bool recent = false;
-
-   QModelIndex root = findRoot(ind);
-
-   if (!index.isValid())
-      {
-//       printf ("   data invalid %p\n", index.internalPointer ());
-      return QVariant();
-      }
-
-   if (index.column() != 0)
-      return QVariant ();
-
-   int i = findIndex (index);
-   if (isRoot (index))
-      {
-      index = _item [i]->index ();
-      if (i && index == QModelIndex ())
-         {
-         /*
-          * special case where an invalid / non-existent dir was added. It
-          * might be a mount point that has gone away, so keep it around
-          * to avoid annoying the user
-          */
-         name = _item [i]->dir ();
-         if (role != QDirModel::FilePathRole)
-            {
-            QDir dir (name);
-
-            name = dir.dirName ();
-            }
-         }
-      recent = _item [i]->isRecent ();
-      }
-
-   switch (role)
-      {
-      case QDirModel::FilePathRole :
-      case Qt::DisplayRole :
-      case Qt::EditRole :
-   case QDirModel::FileNameRole :
-         if (!name.isEmpty ())
-            return QVariant (name);
-
-         return recent ? getRecent(role) : QDirModel::data (index, role);
-      }
-#endif
 
    return QVariant();
 }
@@ -621,24 +468,11 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
 QString Dirmodel::filePath (const QModelIndex &index) const
    {
    return data(index, QDirModel::FilePathRole).toString();
-//    qDebug () << "Dirmodel::filePath";
-//    int i = findIndex (index);
-   QString path;
-//   Diritem *item = findItem(index);
-
-//   if (item)
-//      path = item->filePath(index);
-
-//   QString path = QDirModel::filePath (index);
-//    printf ("filePath() %d, %s\n", i, path.latin1 ());
-//    traceIndex (index);
-   // return path;
    }
 
 
 Qt::ItemFlags Dirmodel::flags(const QModelIndex &index) const
    {
-// printf ("flags\n");
    if (!index.isValid())
       return Qt::NoItemFlags;
 
@@ -650,7 +484,6 @@ Qt::ItemFlags Dirmodel::flags(const QModelIndex &index) const
 QVariant Dirmodel::headerData(int, Qt::Orientation orientation,
                                 int role) const
    {
-// printf ("headerData\n");
    if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
       return QVariant ("name");
 
@@ -690,50 +523,7 @@ QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
       Dirmodel *non_const = (Dirmodel *)this;
       ind = non_const->createIndexFor(dir_ind, item);
    }
-#if 0
-      Diritem *item = _map.value(parent).first;
-
-      Q_ASSERT(item);
-      QModelIndex qdir_parent = _map.value(parent).second;
-      QModelIndex dir_ind = item->index(row, column, qdir_parent);
-      Dirmodel *non_const = (Dirmodel *)this;
-      ind = non_const->createIndexFor(dir_ind, item);
-//      ind = createIndexFor(item_ind, this);
-
-//      ind = createIndex(row, column, item_ind.internalPointer());
-   }
-#endif
-//   Diritem *item = findItem(parent);
-
-//   if (item)
-//      ind = item->index(row, column, parent);
-//   else if (row >= 0 && row < _item.size())
-//      ind = _item[row]->index();
-
-#if 0
-   // parent is root node - the children are our special nodes from _item
-   if (parent == QModelIndex ()) {
-      if (row >= 0 && row < _item.size ())
-         ind = item->index(row, column, QModelIndex());
-   } else {
-      // parent is in one of the Diritem objects
-      ind = item->index(row, column, parent);
-   else if (isRoot (parent))
-      {
-      int i;
-
-      i = findIndex (parent);
-      if (_item [i]->isRecent ())
-         {
-         if (row >= 0 && row < _recent.size ())
-            ind = _recent [row];
-         }
-      else
-         ind = QDirModel::index (row, column, _item [i]->index ());
-      }
-   else
-      ind = QDirModel::index (row, column, parent);
-#endif
+\
    return ind;
    }
 
@@ -745,8 +535,6 @@ bool Dirmodel::hasChildren(const QModelIndex &parent) const
    QModelIndex dir_parent;
    Diritem *item = lookupItem(parent, dir_parent);
 
-   // Diritem *item = findItem(parent);
-   // if (!item)
    return item->hasChildren(dir_parent);
 }
 
@@ -760,42 +548,7 @@ QModelIndex Dirmodel::findPath(int row, Diritem *item, QString path) const
    dir_ind = item->findPath(path);
    Dirmodel *non_const = (Dirmodel *)this;
    QModelIndex ind = non_const->createIndexFor(dir_ind, item);
-//   QModelIndex ind;
 
-//   ind = item->findPath(row, path);
-#if 0
-   QModelIndex ind = item->index ();
-   ind = createIndex (row, 0, ind.internalPointer ());
-
-//    printf ("findPath '%s'\n", path.latin1 ());
-
-   if (path.isEmpty())
-      return ind;
-
-   // split the path
-   QStringList dirs = path.split ('/');
-   for (int i = 0; i < dirs.size (); i++)
-      {
-      bool found = false;
-
-      int child_count = rowCount (ind);
-//       printf ("   %d children\n", child_count);
-      for (int j = 0; j < child_count; j++)
-         {
-         QModelIndex child = index (j, 0, ind);
-         if (dirs [i] == fileName (child))
-            {
-            ind = child;
-            found = true;
-            }
-//             printf ("   - found '%s' at %d\n", dirs [i].latin1 (), j);
-         }
-      if (!found)
-          return QModelIndex ();
-//      ind = QDirModel::index (path);
-      }
-//    printf ("ind = %p, path %s\n", ind.internalPointer (), filePath (ind).latin1 ());
-#endif
    return ind;
 }
 
@@ -816,7 +569,6 @@ QModelIndex Dirmodel::createIndexFor(QModelIndex item_ind, const Diritem *item,
    QModelIndex ind = createIndex(row, item_ind.column(),
                                  item_ind.internalPointer());
 
-   //qDebug() << "insert" << ind;
    _map.insert(ind, QPair((Diritem *)item, item_ind));
 
    return ind;
@@ -824,13 +576,6 @@ QModelIndex Dirmodel::createIndexFor(QModelIndex item_ind, const Diritem *item,
 
 QModelIndex Dirmodel::index (const QString &in_path, int) const
    {
-// printf ("my index %s\n", path.latin1 ());
-//    QModelIndex index = QDirModel::index (path, column);
-//    _root = QPersistentModelIndex (index.parent ());
-//    return _root;
-//    printf ("index of path '%s'\n", path.latin1 ());
-
-   // search all the items for the path which matches
    QString path = in_path;
 
    if (path.right(1) == "/")
@@ -839,26 +584,14 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
       {
       QString dir = _item [i]->dir ();
 
-//       printf ("%s %s\n", path.left (dir.length ()).latin1 (), dir.latin1 ());
       if (path.startsWith (dir))
          {
-         // we found a match, so now we need to search for the model index in this item
-//          printf ("found item\n");
          QModelIndex ind = findPath (i, _item [i], path.mid(dir.length () + 1));
-
-//         return _item [i]->index ();
-//         Diritem *item = _map.value(ind).first;
-//         if (ind == _item[i]->rootIndex())
-//            return ind;
-//         Q_ASSERT(item);
-
-         //qDebug() << item;
 
          return ind;
          }
       }
    return QModelIndex ();
-//    return QDirModel::index (path, column);
    }
 
 
@@ -898,26 +631,6 @@ Diritem * Dirmodel::findItem(QModelIndex index) const
       if (index.internalPointer () == itemRootIndex(i).internalPointer())
          return _item[i];
 
-#if 0
-   if (!index.isValid())
-      return nullptr;
-
-   int i = findIndex(index);
-   if (i != -1) {
-      Diritem *item = static_cast<Diritem *>((void *)index.internalPointer());
-      return item;
-   }
-
-   while (index.isValid()) {
-      int i = findIndex(index);
-
-      if (i != -1)
-         return _item[i];
-
-      index = index.parent();
-   };
-#endif
-
    return nullptr;
 }
 
@@ -943,124 +656,26 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
             // the top-level directory for this item
             par = createIndex(item_par.row(), item_par.column(),
                               item_par.internalPointer());
-
-            // item_ind = _map.value(ind).second;
-            // if (item_par == item->_redir) {
-            //    par = item_par;
-            // } else {
-            //    Dirmodel *non_const = (Dirmodel *)this;
-            //    par = non_const->createIndexFor(item_par, item);
-         // check it is in the model
-//         Diritem *item2 = _map.value(par).first;
-//         Q_ASSERT(item2);
-            // }
          }
       }
    }
 
-//   if (!index.isValid())
-//      return QModelIndex();
-
-//   // If it is the top level of the Diritem, return QModelIndex() as the parent
-//   int i = findIndex(index);
-
-//   if (i != -1)
-//      return QModelIndex();
-
-//   Diritem *item = _map[index].first;
-//   if (item)
-//      return item->parent(index);
-   // If its parent is a Diritem, return that
-//   i = findIndex(index);
-
-//      if (i != -1)
-//         return _item[i];
-
-//      index = index.parent();
-
-//   Diritem *item = static_cast<Diritem *>((void *)index.model());
-
-//   if (index.internalPointer() == item->index().internalPointer())
-//      return QModelIndex();
-
-//   return item->parent(index);
-//      return _item[i]->index(i, 0, QModelIndex());
-
-//   return index.model()->parent(index);
    return par;
    }
 
-#if 0
-//    printf ("[parent: ");
-   if (index.isValid())
-      {
-      if (isRoot (index))
-         // it is a top level node, then the parent is the root
-         ind = QModelIndex ();
-      else
-         {
-         ind = QDirModel::parent (index);
-//          qDebug () << ind;
-         int i = findIndex (ind);
-         if (i != -1)
-            {
-            ind = _item [i]->index ();
-            ind = createIndex (i, 0, ind.internalPointer ());
-            }
-         }
-      }
-//    printf ("%p %s = %p %s] ",
-//          index.internalPointer (), data (index).toString ().latin1 (),
-//          ind.internalPointer (), data (ind).toString ().latin1 ());
-#endif
-
-
 int Dirmodel::rowCount(const QModelIndex &parent) const
    {
-   int count = 0;
+   int count;
 
    if (!parent.isValid()) {
       count = _item.size();
    } else {
       QModelIndex item_ind;
       Diritem *item = lookupItem(parent, item_ind);
-#if 0
-      Diritem *item = _map.value(parent).first;
-      QModelIndex item_ind;
 
-      if (item) {
-         Q_ASSERT(item);
-         item_ind = _map.value(parent).second;
-      } else {
-         item = findItem(parent);
-         item_ind = item->_redir;
-      }
-#endif
-      return item->rowCount(item_ind);
+      count = item->rowCount(item_ind);
    }
 
-//   Diritem *item = findItem(parent);
-//   if (item)
-//      count = item->rowCount(parent);
-//   else if (parent == QModelIndex())
-//      count = _item.size();
-#if 0
-   if (parent == QModelIndex ()) //(!parent.parent ().isValid ())
-      count = _item.size ();
-   else if (isRoot (parent))
-      {
-      int item = findIndex (parent);
-
-      if (_item [item]->isRecent())
-         count = _recent.size();
-      else
-         count = QDirModel::rowCount (_item [item]->index ());
-      }
-   else
-      count = QDirModel::rowCount (parent);
-//    QVariant v = data (parent, QDirModel::FileNameRole);
-//    printf ("   row count %p %s, %d\n", parent.internalPointer (), v.toString ().latin1 (), count);
-#endif
    return count;
  }
 
@@ -1097,9 +712,6 @@ TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind, Operation *op)
       return nullptr;
 
    int index = findIndex(root_ind);
-   //qDebug() << "index" << index;
-
-   //Diritem *item = static_cast<Diritem *>(root_ind.internalPointer());
    Diritem *item = _item[index];
 
    return item->ensureCache(op);

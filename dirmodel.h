@@ -51,10 +51,7 @@ public:
 //   void setRecent(QModelIndex index);
    bool isRecent(void) { return _recent; }
 
-//    QPersistentModelIndex index (void) const { return _index; }
-   // QModelIndex rootIndex(int row) const;
    QString dir (void) const { return _dir; }
-//   bool valid (void) { return _valid; }
 
    /**
     * @brief Sets the directory, returning true if ok
@@ -74,22 +71,17 @@ public:
    // Drop the cache and free memory
    void dropCache();
 
-   // index is within _qdmodel
-   // returns parent within _qdmodel
    QModelIndex index(int row, int column, const QModelIndex &parent) const
       override;
 
    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
       override;
 
-   // Returns index within _qdmodel
    QModelIndex findPath(QString path);
 
    int rowCount(const QModelIndex &parent) const override;
    int columnCount(const QModelIndex &parent) const override;
 
-   // index is within _qdmodel
-   // returns parent within _qdmodel
    QModelIndex parent(const QModelIndex &index) const override;
 
    bool hasChildren(const QModelIndex &parent) const override;
@@ -108,12 +100,8 @@ private:
 private:
    QString _dir;      //!< the directory
    QDirModel *_qdmodel;
-//   QDirModel *_model; //!< the directory model
-//   QPersistentModelIndex _index;  //!< the index of this directory in the model
    bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
-   // QModelIndex _root_index;  //!< index of this item
-//   QModelIndex _parent;  //!< parent (of the dir in QDirModel)
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    Dirmodel *_model;
    QModelIndex _root;  //!< index in this item's top-level dir in QDirModel
@@ -367,7 +355,6 @@ signals:
 
 private:
    QList<Diritem *> _item;   //!< a list of items to display
-//   QModelIndex _root;   //!< the model index of the root node
    QModelIndexList _recent;   //!< list of recent directories
 
    /**
