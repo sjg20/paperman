@@ -25,6 +25,14 @@ void TestDirmodel::testProxy()
    checkModel(proxy, nullptr, proxy);
 }
 
+void TestDirmodel::testModel()
+{
+   Dirmodel *model;
+
+   model = setupModel();
+   QAbstractItemModelTester modelTester(model); // Default Fatal mode
+}
+
 void TestDirmodel::checkModel(const QAbstractItemModel *model,
                               const Dirmodel *dirmodel,
                               const QAbstractProxyModel *proxy)
