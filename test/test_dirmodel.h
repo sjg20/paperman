@@ -20,6 +20,7 @@ private slots:
    void testBase();
    void testProxy();
    void testModel();
+   void testAddDir();
 
 private:
    // Set up a new Dirmodel with test data

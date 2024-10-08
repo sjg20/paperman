@@ -33,6 +33,34 @@ void TestDirmodel::testModel()
    QAbstractItemModelTester modelTester(model); // Default Fatal mode
 }
 
+void TestDirmodel::testAddDir()
+{
+   Dirmodel *model;
+
+   model = setupModel();
+
+   QDir dira(_tempDir->path() + "/dir/one/new-dira");
+   QModelIndex dir_one = model->index(_tempDir->path() + "/dir/one");
+   Q_ASSERT(dir_one.isValid());
+   Q_ASSERT(!dira.exists());
+
+   QModelIndex new_a = model->mkdir(dir_one, "new-dira");
+   Q_ASSERT(new_a.isValid());
+   Q_ASSERT(dira.exists());
+   QCOMPARE(model->data(new_a, Qt::DisplayRole).toString(), "new-dira");
+
+   QDir dirb(_tempDir->path() + "/dir/one/new-dirb");
+   QModelIndex new_b = model->mkdir(dir_one, "new-dirb");
+   Q_ASSERT(new_b.isValid());
+   Q_ASSERT(dirb.exists());
+
+   // Since we added something to the model, the old index isn't valid, so get
+   // a new one
+   QModelIndex chk_a = model->index(_tempDir->path() + "/dir/one/new-dira");
+   QCOMPARE(model->data(chk_a, Qt::DisplayRole).toString(), "new-dira");
+   QCOMPARE(model->data(new_b, Qt::DisplayRole).toString(), "new-dirb");
+}
+
 void TestDirmodel::checkModel(const QAbstractItemModel *model,
                               const Dirmodel *dirmodel,
                               const QAbstractProxyModel *proxy)
