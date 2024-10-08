@@ -8,16 +8,10 @@
 
 void TestDirmodel::testBase()
 {
-   Dirmodel model;
+   Dirmodel *model;
 
-   auto path = setupRepo();
-
-   QString newpath = path + "/dir";
-   model.addDir(newpath);
-   newpath = path + "/other";
-   model.addDir(newpath);
-
-   checkModel(&model);
+   model = setupModel();
+   checkModel(model);
 }
 
 void TestDirmodel::checkModel(const QAbstractItemModel *model)
@@ -54,3 +48,16 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model)
    }
 }
 
+Dirmodel *TestDirmodel::setupModel()
+{
+   Dirmodel *model = new Dirmodel();
+
+   auto path = setupRepo();
+
+   QString newpath = path + "/dir";
+   model->addDir(newpath);
+   newpath = path + "/other";
+   model->addDir(newpath);
+
+   return model;
+}
