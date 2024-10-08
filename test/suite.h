@@ -23,6 +23,13 @@ public:
 
    static const QString testSrc;
 
+private:
+   /**
+    * @brief Remove all files and directories within a directory path
+    * @param dirPath  Path to empty (this dir is not removed)
+    */
+   void emptyDirectory(const QString &dirPath);
+
 public:
    QTemporaryDir *_tempDir;
    QString _name;
