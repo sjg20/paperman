@@ -52,7 +52,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "utils.h"
 #include "zip.h"
 
-static int public_gid;
+static int public_gid = -1;
 
 bool getSettingsSizes (QString base, QList<int> &size)
    {
@@ -1018,7 +1018,6 @@ void utilInit(const QString& group)
 {
    struct group *grp;
 
-   public_gid = -1;
    if (!group.isEmpty()) {
       grp = getgrnam(qPrintable(group));
       if (!grp) {
