@@ -75,8 +75,6 @@ bool Diritem::setDir(QString &dir)
 
    index = _model->index (_dir);
    bool valid = index != QModelIndex ();
-   //    printf ("addDir %s\n", _dir.latin1 ());
-   //    _index = QPersistentModelIndex (_model->index (_dir));
    if (!valid)
       qDebug () << "Diritem invalid";
    return valid;
@@ -240,17 +238,11 @@ to figure out what is wrong - seems to just always return an invalid index */
 
 QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
 {
-//     printf ("row=%d, col=%d", parent.row (), parent.column ());
-//     printf ("models %p - %p\n", this, parent.model ());
-//     if (!indexValid(parent) || isReadOnly())
-//         return QModelIndex();
     QModelIndex parent = par;
 
     QDir adir (filePath (parent));
 
     QString path = adir.absoluteFilePath (filePath (parent));
-    // For the indexOf() method to work, the new directory has to be a direct child of
-    // the parent directory.
 
     QDir newDir(name);
     QDir dir(path);
@@ -259,8 +251,6 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
     QString childName = newDir.dirName(); // Get the singular name of the directory
     newDir.cdUp();
 
-//     printf ("dirs '%s' - '%s', '%s'\n", newDir.absolutePath().latin1 (),
-//          dir.absolutePath().latin1 (), name.latin1 ());
     if (newDir.absolutePath() != dir.absolutePath() || !dir.mkdir(name))
         return QModelIndex(); // nothing happened
 
@@ -273,19 +263,9 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
     if (parent.isValid ())
        refresh (parent);
 
-//     printf ("looking for '%s'\n", childName.latin1 ());
     QModelIndex i = index (path + QLatin1Char('/') + childName);
 
-//     printf ("path = '%s'\n", path.latin1 ());
-//     QStringList entryList = adir.entryList();  //(path)
-//     for (int i = 0; i < entryList.size (); i++)
-//        printf ("   - %s\n", entryList [i].latin1 ());
-//     int r = entryList.indexOf(childName);
-//     printf ("r=%d\n", r);
-//     QModelIndex i = index(r, 0, parent); // return an invalid index
-
     return i;
-//     return QModelIndex ();
 }
 
 
@@ -304,9 +284,6 @@ err_info *Dirmodel::moveDir (QString src, QString dst)
       dst.append ("/");
 
    leaf = src.mid (pos + 1);
-//    printf ("src='%s', leaf='%s', pos=%d\n", src.latin1 (), leaf.latin1 (), pos);
-
-//    printf ("%s -> %s%s\n", src.latin1 (), dst.latin1 (), leaf.latin1 ());
    if (!leaf.length ())
       return err_make (ERRFN, ERR_directory_not_found1, src.toLatin1 ().constData());
 
@@ -323,9 +300,6 @@ err_info *Dirmodel::moveDir (QString src, QString dst)
 bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
                              int /* row */, int /* column */, const QModelIndex &parent)
 {
-//     if (!d->indexValid(parent) || isReadOnly())
-//         return false;
-
     bool success = true;
     QString to = filePath(parent) + QDir::separator();
     QModelIndex _parent = parent;
@@ -363,7 +337,6 @@ bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
     } else {
       QString path = filePath (parent);
 
-//       printf ("path = %s\n", path.latin1 ());
       emit droppedOnFolder (data, path);
     }
 
@@ -372,7 +345,6 @@ bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
        _parent = index(to);
        if (_parent != QModelIndex())
           refresh (_parent);
-//     emit operationComplete (_parent);
        }
     return success;
 }
@@ -416,7 +388,6 @@ bool Dirmodel::removeDirFromList (const QModelIndex &index)
 
 int Dirmodel::columnCount (const QModelIndex &parent) const
    {
-// printf ("columnCount\n");
     if (parent.column() > 0)
         return 0;
    return 1;
@@ -436,10 +407,7 @@ QVariant Dirmodel::data(const QModelIndex &ind, int role) const
    bool recent = false;
 
    if (!index.isValid())
-      {
-//       printf ("   data invalid %p\n", index.internalPointer ());
       return QVariant();
-      }
 
    if (index.column() != 0)
       return QVariant ();
@@ -506,19 +474,14 @@ void Dirmodel::traceIndex (const QModelIndex &index) const
 
 QString Dirmodel::filePath (const QModelIndex &index) const
    {
-//    qDebug () << "Dirmodel::filePath";
-//    int i = findIndex (index);
-
    QString path = QDirModel::filePath (index);
-//    printf ("filePath() %d, %s\n", i, path.latin1 ());
-//    traceIndex (index);
+
    return path;
    }
 
 
 Qt::ItemFlags Dirmodel::flags(const QModelIndex &index) const
    {
-// printf ("flags\n");
    if (!index.isValid())
       return Qt::NoItemFlags;
 
@@ -530,7 +493,6 @@ Qt::ItemFlags Dirmodel::flags(const QModelIndex &index) const
 QVariant Dirmodel::headerData(int, Qt::Orientation orientation,
                                 int role) const
    {
-// printf ("headerData\n");
    if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
       return QVariant ("name");
 
@@ -591,8 +553,6 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
    QModelIndex ind = item->index ();
    ind = createIndex (row, 0, ind.internalPointer ());
 
-//    printf ("findPath '%s'\n", path.latin1 ());
-
    if (path.isEmpty())
       return ind;
 
@@ -603,7 +563,6 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
       bool found = false;
 
       int child_count = rowCount (ind);
-//       printf ("   %d children\n", child_count);
       for (int j = 0; j < child_count; j++)
          {
          QModelIndex child = index (j, 0, ind);
@@ -612,25 +571,17 @@ QModelIndex Dirmodel::findPath (int row, Diritem *item, QString path) const
             ind = child;
             found = true;
             }
-//             printf ("   - found '%s' at %d\n", dirs [i].latin1 (), j);
          }
       if (!found)
           return QModelIndex ();
-//      ind = QDirModel::index (path);
       }
-//    printf ("ind = %p, path %s\n", ind.internalPointer (), filePath (ind).latin1 ());
+
    return ind;
    }
 
 
 QModelIndex Dirmodel::index (const QString &in_path, int) const
    {
-// printf ("my index %s\n", path.latin1 ());
-//    QModelIndex index = QDirModel::index (path, column);
-//    _root = QPersistentModelIndex (index.parent ());
-//    return _root;
-//    printf ("index of path '%s'\n", path.latin1 ());
-
    // search all the items for the path which matches
    QString path = in_path;
 
@@ -640,13 +591,10 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
       {
       QString dir = _item [i]->dir ();
 
-//       printf ("%s %s\n", path.left (dir.length ()).latin1 (), dir.latin1 ());
       if (path.startsWith (dir))
          {
          // we found a match, so now we need to search for the model index in this item
-//          printf ("found item\n");
          return findPath (i, _item [i], path.mid(dir.length () + 1));
-//         return _item [i]->index ();
          }
       }
    return QModelIndex ();
@@ -683,7 +631,6 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
    {
    QModelIndex ind;
 
-//    printf ("[parent: ");
    if (index.isValid())
       {
       if (isRoot (index))
@@ -692,7 +639,6 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
       else
          {
          ind = QDirModel::parent (index);
-//          qDebug () << ind;
          int i = findIndex (ind);
          if (i != -1)
             {
@@ -701,9 +647,7 @@ QModelIndex Dirmodel::parent(const QModelIndex &index) const
             }
          }
       }
-//    printf ("%p %s = %p %s] ",
-//          index.internalPointer (), data (index).toString ().latin1 (),
-//          ind.internalPointer (), data (ind).toString ().latin1 ());
+
    return ind;
    }
 
@@ -712,7 +656,7 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
    {
    int count;
 
-   if (parent == QModelIndex ()) //(!parent.parent ().isValid ())
+   if (parent == QModelIndex ())
       count = _item.size ();
    else if (isRoot (parent))
       {
@@ -725,8 +669,7 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
       }
    else
       count = QDirModel::rowCount (parent);
-//    QVariant v = data (parent, QDirModel::FileNameRole);
-//    printf ("   row count %p %s, %d\n", parent.internalPointer (), v.toString ().latin1 (), count);
+
    return count;
  }
 
@@ -754,9 +697,7 @@ TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind, Operation *op)
       return nullptr;
 
    int index = findIndex(root_ind);
-   qDebug() << "index" << index;
 
-   //Diritem *item = static_cast<Diritem *>(root_ind.internalPointer());
    Diritem *item = _item[index];
 
    return item->ensureCache(op);
@@ -767,7 +708,6 @@ void Dirmodel::dropCache(const QModelIndex& root_ind)
    Q_ASSERT(isRoot(root_ind));
 
    int index = findIndex(root_ind);
-   //qDebug() << "index" << index;
 
    Diritem *item = _item[index];
 
@@ -779,7 +719,6 @@ void Dirmodel::buildCache(const QModelIndex& root_ind, Operation *op)
    Q_ASSERT(isRoot(root_ind));
 
    int index = findIndex(root_ind);
-   //qDebug() << "index" << index;
 
    Diritem *item = _item[index];
 
@@ -831,7 +770,6 @@ bool Dirproxy::filterAcceptsRow(int source_row,
       ok = false;
    if (mon && mon != date.month())
       ok = false;
-   //qDebug() << "name" << name << ok;
 
    return ok;
 }
@@ -861,8 +799,6 @@ QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
                                   Operation *op)
 {
    TreeItem *tree = ensureCache(root, op);
-
-   //qDebug() << tree;
 
    QStringList matches;
    addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text);
@@ -920,7 +856,6 @@ QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
    // Remove the root-path prefix
    QString rel = dirPath.mid(root_path.size() + 1);
 
-   qDebug() << rel;
    node = findDir(tree, rel);
    QStringList matches;
    if (node)
