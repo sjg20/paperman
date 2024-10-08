@@ -2,6 +2,7 @@
 #define TEST_DIRMODEL_H
 
 class QAbstractItemModel;
+class QAbstractProxyModel;
 
 #include <QObject>
 
@@ -17,6 +18,7 @@ public:
 
 private slots:
    void testBase();
+   void testProxy();
 
 private:
    // Set up a new Dirmodel with test data
@@ -24,9 +26,13 @@ private:
 
    /**
     * @brief Run checks on a Dirmodel
-    * @param model   Model to check
+    * @param model     Model to check
+    * @param dirmodel  Dirmodel object, if available, else nullptr
+    * @param proxy     Dirproxy object, if available, else nullptr
     */
-   void checkModel(const QAbstractItemModel *model);
+   void checkModel(const QAbstractItemModel *model, const Dirmodel *dirmodel,
+                   const QAbstractProxyModel *proxy);
+
 };
 
 #endif // TEST_DIRMODEL_H

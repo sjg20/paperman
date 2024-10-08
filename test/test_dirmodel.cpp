@@ -11,10 +11,23 @@ void TestDirmodel::testBase()
    Dirmodel *model;
 
    model = setupModel();
-   checkModel(model);
+   checkModel(model, model, nullptr);
 }
 
-void TestDirmodel::checkModel(const QAbstractItemModel *model)
+void TestDirmodel::testProxy()
+{
+   Dirmodel *model;
+
+   model = setupModel();
+
+   auto proxy = new Dirproxy();
+   proxy->setSourceModel(model);
+   checkModel(proxy, nullptr, proxy);
+}
+
+void TestDirmodel::checkModel(const QAbstractItemModel *model,
+                              const Dirmodel *dirmodel,
+                              const QAbstractProxyModel *proxy)
 {
    QStringList dirs{"one", "two", "three"};
    QModelIndex parent, ind;
@@ -27,11 +40,22 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model)
    QCOMPARE(model->parent(parent), QModelIndex());
    QCOMPARE(model->data(parent, Qt::DisplayRole).toString(), "");
 
+   if (dirmodel) {
+      QModelIndex src_ind = dirmodel->index(_tempDir->path() + "/dir");
+      Q_ASSERT(src_ind.isValid());
+      if (proxy) {
+         QModelIndex proxy_ind = proxy->mapFromSource(src_ind);
+         QModelIndex src_ind2 = proxy->mapToSource(proxy_ind);
+         QCOMPARE(src_ind2, src_ind);
+      }
+   }
+
    ind = model->index(0, 0, parent);
    QCOMPARE(ind.row(), 0);
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
    QCOMPARE(ind.parent(), QModelIndex());
+
    QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "dir");
 
    ind = model->index(1, 0, parent);
@@ -39,6 +63,15 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model)
    QCOMPARE(ind.row(), 1);
    QCOMPARE(ind.column(), 0);
    QCOMPARE(ind.model(), model);
+/*  Use if needed
+   ind = model->index(0, 0, parent);
+   QModelIndex ind2 = model->index(0, 0, ind);
+   if (dirmodel) {
+      QCOMPARE(dirmodel->_map.size(), 1);
+      QCOMPARE(dirmodel->_map.value(ind2).first, dirmodel->_item[0]);
+   }
+*/
+   int count = 0;  // number of indexes issued by the model
 
    for (int i = 0; i < rows; i++) {
       ind = model->index(i, 0, parent);
@@ -50,6 +83,8 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model)
       QCOMPARE(rows2, i ? 1 : 2);
       for (int j = 0; j < rows2; j++) {
          QModelIndex ind2 = model->index(j, 0, ind);
+         count++;
+
          QString disp = model->data(ind2, Qt::DisplayRole).toString();
 
          QCOMPARE(disp, dirs[i * 2 + j]);
