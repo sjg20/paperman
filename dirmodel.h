@@ -214,8 +214,6 @@ public:
      \returns NULL if ok, else error */
    err_info *checkOverlap (QString &dirname, QString &user_dirname);
 
-   err_info *rmdir (const QModelIndex &index);
-
    /**
     * @brief Ensure that a cache is available
     * @param root_ind  Indirect of the top-level item the cache is for

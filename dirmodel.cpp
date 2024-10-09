@@ -673,24 +673,6 @@ int Dirmodel::rowCount(const QModelIndex &parent) const
    return count;
  }
 
-err_info *Dirmodel::rmdir (const QModelIndex &index)
-   {
-   if (!QDirModel::rmdir (index))
-      {
-      QString path = filePath (index);
-
-      int err = err_systemf ("rm -rf '%s'", path.toLatin1 ().constData());
-
-      if (err)
-         return err_make (ERRFN, ERR_could_not_remove_dir1,
-                          path.toLatin1 ().constData());
-
-      refresh (parent (index));
-      }
-
-   return 0;
-   }
-
 TreeItem *Dirmodel::ensureCache(const QModelIndex& root_ind, Operation *op)
 {
    if (!isRoot(root_ind))

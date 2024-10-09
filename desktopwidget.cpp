@@ -638,7 +638,7 @@ void Desktopwidget::deleteDir ()
                          "Please use the file manager to delete files, then "
                          "use the refresh option here");
    return;
-
+#if 0
    QString path = _dir->menuGetPath ();
    QString fullPath;
    int ok;
@@ -666,6 +666,7 @@ void Desktopwidget::deleteDir ()
       if (err)
           QMessageBox::warning (0, "Maxview", err->errstr);
       }
+#endif
    }
 
 QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
