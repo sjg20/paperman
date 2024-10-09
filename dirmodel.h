@@ -67,6 +67,8 @@ public:
    // Drop the cache and free memory
    void dropCache();
 
+   const QModelIndex rootIndex() const { return _root; }
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -82,6 +84,7 @@ private:
    bool _recent;     //!< true if this item displays a 'recent' list
    QModelIndex _index;  //!< index of this item, if _recent
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
+   QModelIndex _root;  //!< index in this item's top-level dir in QDirModel
    };
 
 
@@ -143,6 +146,14 @@ public:
        return a string like '45 files', or 'no files' */
    QString countFiles(const QModelIndex &parent, int max);
 
+   /**
+    * @brief Create a root index for a Diritem
+    * @param item_ind   Index of the item in the underlying model
+    * @param row        Row number of the Diritem (position in _item)
+    * @return index in Dirmodel
+    */
+   QModelIndex createRootIndex(QModelIndex item_ind, int row) const;
+
    QModelIndex index(const QString & path, int column = 0) const;
    int rowCount(const QModelIndex &parent) const override;
    int columnCount(const QModelIndex &parent) const override;
@@ -164,6 +175,8 @@ public:
        \param index  index whose root is to be found
        \returns the index of the root, or QModelIndex() if not found */
    QModelIndex findRoot(const QModelIndex &index) const;
+
+   Diritem * findItem(QModelIndex index) const;
 
    /** move a directory from to inside the given destination directory */
    struct err_info *moveDir (QString src, QString dst);
@@ -312,6 +325,15 @@ private:
    // Build a new cache
    void buildCache(const QModelIndex& root_ind, Operation *op);
 
+   Diritem *lookupItem(QModelIndex ind, QModelIndex& item_ind) const;
+
+   /**
+    * @brief Get the top-level index for an item
+    * @param row   Row number of the item
+    * @return index for the item
+    */
+   QModelIndex itemRootIndex(int row) const;
+
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
 
@@ -322,6 +344,8 @@ private:
 
    /**
     * @brief Maps a Dirmodel index to its associated Diritem and QDirModel index
+    *
+    * This does not store the top-level index for each Diritem
     */
    QMap<QModelIndex, QPair<Diritem *, QModelIndex>> *_map;
    };
