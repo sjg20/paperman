@@ -149,6 +149,7 @@ Dirmodel::Dirmodel (QObject * parent)
 //   Diritem *item = new Diritem (this);
 //   item->setRgecent(createIndex(0, 0, item));
 //   _item.append (item);
+   _map = new QMap<QModelIndex, QPair<Diritem *, QModelIndex>>;
    }
 
 

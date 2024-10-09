@@ -319,6 +319,11 @@ private:
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndex _root;   //!< the model index of the root node
    QModelIndexList _recent;   //!< list of recent directories
+
+   /**
+    * @brief Maps a Dirmodel index to its associated Diritem and QDirModel index
+    */
+   QMap<QModelIndex, QPair<Diritem *, QModelIndex>> *_map;
    };
 
 
