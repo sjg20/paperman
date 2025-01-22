@@ -15,13 +15,25 @@ public:
    Test(QString name);
    ~Test();
 
-   // Set up a test repo for use and return path
-   QString setupRepo();
+   /**
+    * @brief  Set up a test repo for use and return path
+    * @param  add_files  true to add some files, false for just directories
+    * @return Temporary-directory path
+    */
+   QString setupRepo(bool add_files = false);
 
    // Get the path to a trash file given its filename
    QString trashFile(QString fname);
 
    static const QString testSrc;
+
+protected:
+   /**
+    * @brief Create a new, empty file
+    * @param filePath  Path to create in (directory must exist)
+    * @return true if OK, false on error
+    */
+   bool touch(QString filePath);
 
 private:
    /**

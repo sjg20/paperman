@@ -89,6 +89,20 @@ void TestDirmodel::testAddDir()
    QCOMPARE(model->data(new_b, Qt::DisplayRole).toString(), "new-dirb");
 }
 
+void TestDirmodel::testCacheFiles()
+{
+   Dirmodel *model;
+
+   model = setupModel(true);
+
+   QString main_path = _tempDir->path() + "/main";
+
+   QModelIndex main = model->index(main_path);
+   model->buildCache(main, 0);
+
+   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  ofile|  ofile2| two|");
+}
+
 void TestDirmodel::checkModel(const QAbstractItemModel *model,
                               const Dirmodel *dirmodel,
                               const QAbstractProxyModel *proxy)
@@ -169,11 +183,11 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
  *
  * @return
  */
-Dirmodel *TestDirmodel::setupModel()
+Dirmodel *TestDirmodel::setupModel(bool add_files)
 {
    Dirmodel *model = new Dirmodel();
 
-   auto path = setupRepo();
+   auto path = setupRepo(add_files);
 
    QString newpath = path + "/main";
    model->addDir(newpath);

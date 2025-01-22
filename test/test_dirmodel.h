@@ -22,9 +22,16 @@ private slots:
    void testModel();
    void testAddDir();
 
+   //! Check that the cache has files in it
+   void testCacheFiles();
+
 private:
-   // Set up a new Dirmodel with test data
-   Dirmodel *setupModel();
+   /**
+    * @brief  Set up a new Dirmodel with test data
+    * @param  add_files  true to add some files, false for just directories
+    * @return Dirmodel, ready for tests
+    */
+   Dirmodel *setupModel(bool add_file = false);
 
    /**
     * @brief Run checks on a Dirmodel

@@ -38,7 +38,18 @@ void Test::emptyDirectory(const QString &dirPath)
     }
 }
 
-QString Test::setupRepo()
+bool Test::touch(QString fname)
+{
+   QFile fil(fname);
+
+   if (!fil.open(QIODevice::WriteOnly))
+      return false;
+   fil.close();
+
+   return true;
+}
+
+QString Test::setupRepo(bool add_files)
 {
    QDir dir(testSrc);
 
@@ -66,6 +77,11 @@ QString Test::setupRepo()
    Q_ASSERT(destDir.mkdir("main/two"));
    Q_ASSERT(destDir.mkdir("other"));
    Q_ASSERT(destDir.mkdir("other/three"));
+
+   if (add_files) {
+      Q_ASSERT(touch(dst + "/main/one/ofile"));
+      Q_ASSERT(touch(dst + "/main/one/ofile2"));
+   }
 
    return _tempDir->path();
 }
