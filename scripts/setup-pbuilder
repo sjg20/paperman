@@ -31,7 +31,8 @@ sudo mkdir -p $LOGDIR
 sudo mkdir -p /var/cache/pbuilder/aptcache/
 
 sudo chmod a+rw $LOGDIR
-for arch in $ARCHS do
+for arch in $ARCHS
+do
     for dist in $DISTS
     do
 	setup
