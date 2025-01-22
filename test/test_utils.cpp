@@ -234,3 +234,38 @@ void TestUtils::testAdopt()
     QCOMPARE(chk->child(4)->childCount(), 1);
     QCOMPARE(chk->child(5)->childCount(), 2);
 }
+
+void TestUtils::testFindItem()
+{
+    const TreeItem *chk;
+    QTemporaryDir tmp;
+    TreeItem *root, *chkw;
+
+    createDirStructure(tmp);
+    root = utilScanDir(tmp.path(), nullptr);
+
+    chk = root->findItem("");
+    Q_ASSERT(chk != nullptr);
+    QCOMPARE(chk, root);
+
+    chk = root->findItem("3");
+    Q_ASSERT(chk != nullptr);
+    Q_ASSERT(chk != root);
+    QCOMPARE(chk->data(0).toString(), "3");
+    chkw = root->findItemW("3");
+    QCOMPARE(chk, chkw);
+
+    chk = root->findItem("dir2/4");
+    Q_ASSERT(chk != nullptr);
+    Q_ASSERT(chk != root);
+    QCOMPARE(chk->data(0).toString(), "4");
+    chkw = root->findItemW("dir2/4");
+    QCOMPARE(chk, chkw);
+
+    chk = root->findItem("somedir/more-subdir/another-file");
+    Q_ASSERT(chk != nullptr);
+    Q_ASSERT(chk != root);
+    QCOMPARE(chk->data(0).toString(), "another-file");
+    chkw = root->findItemW("somedir/more-subdir/another-file");
+    QCOMPARE(chk, chkw);
+}

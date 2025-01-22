@@ -88,6 +88,16 @@ public:
      */
     void adopt(TreeItem *old_parent);
 
+    /**
+     * @brief Find a node in the tree
+     * @param pathRelative path to the node, starting from tee root
+     * Return: pointer to the tree item, or NULL if not found
+     */
+    const TreeItem *findItem(QString path) const;
+
+    /* returns a writeable TreeItem */
+    TreeItem *findItemW(QString path);
+
 private:
     QVector<TreeItem*> m_childItems;
     QVector<QVariant> m_itemData;

@@ -865,6 +865,30 @@ void TreeItem::adopt(TreeItem *old_parent)
         m_childItems.append(old_parent->m_childItems.takeFirst());
 }
 
+const TreeItem *TreeItem::findItem(QString path) const
+{
+    const TreeItem *parent = this;
+
+    QDir dir(path);
+    // An empty string has a component of "." so handle that specially
+    if (path.size()) {
+        QStringList components = dir.path().split("/");
+        for (const QString &component : components) {
+            const TreeItem *child = parent->child(component);
+            if (!child)
+                return nullptr;
+            parent = child;
+        }
+    }
+
+    return parent;
+}
+
+TreeItem *TreeItem::findItemW(QString path)
+{
+    return (TreeItem *)findItem(path);
+}
+
 void TreeItem::dump(int indent) const {
    foreach (TreeItem *item, m_childItems) {
       qInfo() << QString("%1").arg(' ', indent) << item->dirName();

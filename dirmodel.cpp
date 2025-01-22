@@ -833,20 +833,7 @@ QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
 
 const TreeItem *Dirmodel::findDir(const TreeItem *parent, QString path)
 {
-   QDir dir(path);
-
-   // An empty string has a component of "." so handle that specially
-   if (path.size()) {
-      QStringList components = dir.path().split("/");
-      for (const QString &component : components) {
-         const TreeItem *child = parent->child(component);
-         if (!child)
-            return nullptr;
-         parent = child;
-      }
-   }
-
-   return parent;
+    return parent->findItem(path);
 }
 
 void Dirmodel::addFileMatches(QStringList& matches, const uint baseLen,
