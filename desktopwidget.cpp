@@ -776,7 +776,9 @@ QModelIndex Desktopwidget::doNewDir(const QString& name, QString& path)
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
    path = _model->data(src_ind, QDirModel::FilePathRole).toString() +
          QDir::separator() + name;
-   QModelIndex new_ind = _model->mkdir(src_ind, name);
+
+   Operation op("Creating directory", 0, this);
+   QModelIndex new_ind = _model->mkdir(src_ind, name, &op);
 
    return new_ind;
 }
@@ -822,7 +824,9 @@ bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
 
    qDebug() << "to_create" << dir_path;
    QModelIndex parent_ind = _model->index(parent.path(), 0);
-   QModelIndex src_ind = _model->mkdir(parent_ind, dirname);
+
+   Operation op("Creating directory", 0, this);
+   QModelIndex src_ind = _model->mkdir(parent_ind, dirname, &op);
    if (src_ind == QModelIndex()) {
       QMessageBox::warning(0, "Maxview", "Could not make directory " +
                            parent.path() + "/" + dirname);

@@ -136,11 +136,15 @@ public:
      \param index    model index of directory to remove */
    bool removeDirFromList (const QModelIndex &index);
 
-   /** make a new directory
-
-      \param parent  parent directory to create it in
-      \param name    name of directory to create */
-   QModelIndex mkdir(const QModelIndex &parent, const QString &name);
+   /**
+    * @brief mkdir
+    * @param parent  parent directory to create it in
+    * @param name    name of directory to create
+    * @param op      operation to track progress (nullptr if none)
+    * @return Index of the created dir, or QModelIndex() on error
+    */
+   QModelIndex mkdir(const QModelIndex &parent, const QString &name,
+                     Operation *op);
 
    /** count the number of files in a directory, upto the given maximum. Then
        return a string like '45 files', or 'no files' */

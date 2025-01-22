@@ -44,13 +44,13 @@ void TestDirmodel::testAddDir()
    Q_ASSERT(dir_one.isValid());
    Q_ASSERT(!dira.exists());
 
-   QModelIndex new_a = model->mkdir(dir_one, "new-dira");
+   QModelIndex new_a = model->mkdir(dir_one, "new-dira", 0);
    Q_ASSERT(new_a.isValid());
    Q_ASSERT(dira.exists());
    QCOMPARE(model->data(new_a, Qt::DisplayRole).toString(), "new-dira");
 
    QDir dirb(_tempDir->path() + "/dir/one/new-dirb");
-   QModelIndex new_b = model->mkdir(dir_one, "new-dirb");
+   QModelIndex new_b = model->mkdir(dir_one, "new-dirb", 0);
    Q_ASSERT(new_b.isValid());
    Q_ASSERT(dirb.exists());
 

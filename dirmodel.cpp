@@ -237,7 +237,8 @@ QString Dirmodel::countFiles(const QModelIndex &parent, int max)
 /** Simon took this from QT as is doesn't work for some reason, and fixed it. Quite unable
 to figure out what is wrong - seems to just always return an invalid index */
 
-QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name)
+QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
+                            Operation *op)
 {
     QModelIndex parent = par;
 
