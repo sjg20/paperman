@@ -3,7 +3,7 @@
 # ARCHS="i386 amd64"
 ARCHS="amd64"
 #UDISTS="hardy jaunty karmic lucid maverick"
-UDISTS="bionic focal jammy noble"
+UDISTS="bionic focal jammy noble oracular"
 DISTS="buster bullseye bookworm trixie"
 
 # ln: failed to create hard link
