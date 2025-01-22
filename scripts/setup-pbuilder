@@ -42,7 +42,10 @@ do
     for dist in $UDISTS
     do
 	setup
-	sudo $COMMON --debootstrapopts --include=gpgv \
-		--components "main universe" >$LOGDIR/$NAME
+        sudo MIRRORSITE=http://us.archive.ubuntu.com:80/ubuntu $COMMON --debootstrapopts --include=gpgv \
+            --debootstrapopts \
+              "--keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg" \
+               --components "main universe" \
+               >$LOGDIR/$NAME
     done
 done
