@@ -39,8 +39,8 @@ void TestDirmodel::testAddDir()
 
    model = setupModel();
 
-   QDir dira(_tempDir->path() + "/dir/one/new-dira");
-   QModelIndex dir_one = model->index(_tempDir->path() + "/dir/one");
+   QDir dira(_tempDir->path() + "/main/one/new-dira");
+   QModelIndex dir_one = model->index(_tempDir->path() + "/main/one");
    Q_ASSERT(dir_one.isValid());
    Q_ASSERT(!dira.exists());
 
@@ -49,14 +49,14 @@ void TestDirmodel::testAddDir()
    Q_ASSERT(dira.exists());
    QCOMPARE(model->data(new_a, Qt::DisplayRole).toString(), "new-dira");
 
-   QDir dirb(_tempDir->path() + "/dir/one/new-dirb");
+   QDir dirb(_tempDir->path() + "/main/one/new-dirb");
    QModelIndex new_b = model->mkdir(dir_one, "new-dirb", 0);
    Q_ASSERT(new_b.isValid());
    Q_ASSERT(dirb.exists());
 
    // Since we added something to the model, the old index isn't valid, so get
    // a new one
-   QModelIndex chk_a = model->index(_tempDir->path() + "/dir/one/new-dira");
+   QModelIndex chk_a = model->index(_tempDir->path() + "/main/one/new-dira");
    QCOMPARE(model->data(chk_a, Qt::DisplayRole).toString(), "new-dira");
    QCOMPARE(model->data(new_b, Qt::DisplayRole).toString(), "new-dirb");
 }
@@ -77,7 +77,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    QCOMPARE(model->data(parent, Qt::DisplayRole).toString(), "");
 
    if (dirmodel) {
-      QModelIndex src_ind = dirmodel->index(_tempDir->path() + "/dir");
+      QModelIndex src_ind = dirmodel->index(_tempDir->path() + "/main");
       Q_ASSERT(src_ind.isValid());
       if (proxy) {
          QModelIndex proxy_ind = proxy->mapFromSource(src_ind);
@@ -92,7 +92,7 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    QCOMPARE(ind.model(), model);
    QCOMPARE(ind.parent(), QModelIndex());
 
-   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "dir");
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "main");
 
    ind = model->index(1, 0, parent);
    QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "other");
@@ -131,13 +131,23 @@ void TestDirmodel::checkModel(const QAbstractItemModel *model,
    }
 }
 
+/**
+ * @brief Set up a model suiotable for testing
+ *
+ * Thus creates a model with two top-level Diritems:
+ *
+ *    main/
+ *    other/
+ *
+ * @return
+ */
 Dirmodel *TestDirmodel::setupModel()
 {
    Dirmodel *model = new Dirmodel();
 
    auto path = setupRepo();
 
-   QString newpath = path + "/dir";
+   QString newpath = path + "/main";
    model->addDir(newpath);
    newpath = path + "/other";
    model->addDir(newpath);

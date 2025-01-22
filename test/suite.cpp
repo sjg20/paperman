@@ -59,11 +59,11 @@ QString Test::setupRepo()
    Q_ASSERT(destDir.mkdir("wibble3"));
 
    // Create subdirectories
-   Q_ASSERT(destDir.mkdir("dir"));
-   Q_ASSERT(destDir.mkdir("dir/one"));
-   Q_ASSERT(destDir.mkdir("dir/one/a"));
-   Q_ASSERT(destDir.mkdir("dir/one/b"));
-   Q_ASSERT(destDir.mkdir("dir/two"));
+   Q_ASSERT(destDir.mkdir("main"));
+   Q_ASSERT(destDir.mkdir("main/one"));
+   Q_ASSERT(destDir.mkdir("main/one/a"));
+   Q_ASSERT(destDir.mkdir("main/one/b"));
+   Q_ASSERT(destDir.mkdir("main/two"));
    Q_ASSERT(destDir.mkdir("other"));
    Q_ASSERT(destDir.mkdir("other/three"));
 
