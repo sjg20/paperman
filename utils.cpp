@@ -797,7 +797,7 @@ TreeItem *TreeItem::child(int row)
     return m_childItems.at(row);
 }
 
-void TreeItem::free()
+void TreeItem::freeChildren()
 {
    while (!m_childItems.empty())
       delete m_childItems.takeFirst();
@@ -805,7 +805,7 @@ void TreeItem::free()
 
 void TreeItem::freeTree(TreeItem *tree)
 {
-   tree->free();
+   tree->freeChildren();
    delete tree;
 }
 
