@@ -79,6 +79,29 @@ new in 1.1
 - keyboard shortcuts for A4 (Alt-A) and US letter/legal toggle (Alt-L)
 - Fix most warnings
 
+new in 1.2
+
+* Import files from outside directories
+* Avoid keeping all touched-files open
+* Bring back command-line operation
+* Presets (Ctrl-1 to Ctrl-6) for basic scanning operation
+* Faster folder-selection within the scanning window
+* Set the group for files
+
+new in 1.2.1
+
+* Expand tests to include common stacking/unstacking operations
+* Fix various bugs in recent new features, particularly files not being opened
+  before use
+
+new in 1.3
+
+* Fix problems with dir cache being out of date
+* Add more tests for Dirmodel
+* Drop the 'recently used' folder
+* Set permissions on created files and directories
+
+
 ## Command-line usage
 
 ### -j <file>

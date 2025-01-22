@@ -1,10 +1,20 @@
+paperman (1.3-1VENDOR_VERSION) UNRELEASED; urgency=medium
+
+  * Fix problems with dir cache being out of date
+  * Add more tests for Dirmodel
+  * Drop the 'recently used' folder
+  * Set permissions on created files and directories
+
+ -- Simon Glass <sjg@chromium.org>  Wed, 22 Jan 2025 07:17:22 -0700
+
+
 paperman (1.2.1-1VENDOR_VERSION) UNRELEASED; urgency=medium
 
-  * Expand tests to include common stacking/unstacking operations
-  * Fix various bugs in recent new features, particularly files not being opened
-    before use
+   * Expand tests to include common stacking/unstacking operations
+   * Fix various bugs in recent new features, particularly files not being opened
+     before use
 
- -- Simon Glass <sjg@chromium.org>  Sat, 07 Sep 2024 20:10:58 -0600
+  -- Simon Glass <sjg@chromium.org>  Sat, 07 Sep 2024 20:10:58 -0600
 
 
 paperman (1.2-1VENDOR_VERSION) UNRELEASED; urgency=medium
