@@ -1003,6 +1003,22 @@ TreeItem *utilReadTree(QString fname, QString rootName)
    return root;
 }
 
+bool utilSetDirGroup(const QString& dirname)
+{
+    if (chmod(qPrintable(dirname), 0777) == -1) {
+        qInfo() << "Failed to change permissions";
+        return false;
+    }
+    if (public_gid != -1) {
+        if (chown(qPrintable(dirname), -1, public_gid) == -1) {
+            qInfo() << "Failed to change group" << public_gid;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool utilSetGroup(const QString& fname)
 {
     if (chmod(qPrintable(fname), 0666) == -1) {

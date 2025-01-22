@@ -277,11 +277,18 @@ bool utilWriteTree(QString fname, TreeItem *tree);
 TreeItem *utilReadTree(QString fname, QString rootName);
 
 /**
- * @brief Set the correct groupfor a file
+ * @brief Set the correct permissions for a file
  * @param fname  Filename to update
  * @return true if OK, false on error
  */
 bool utilSetGroup(const QString& fname);
+
+/**
+ * @brief Set the correct group for a directory
+ * @param fname  Filename to update
+ * @return true if OK, false on error
+ */
+bool utilSetDirGroup(const QString& dirname);
 
 /**
  * @brief Set up the utils file

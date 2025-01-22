@@ -88,7 +88,9 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
 
    qRegisterMetaType<SANE_Status>("SANE_Status");
 
-   dir.mkdir (QDir::homePath()+ "/.maxview");
+   QString dirname = QDir::homePath()+ "/.maxview";
+   dir.mkdir(dirname);
+   utilSetDirGroup(dirname);
 
    xmlConfig->setCreator("MaxView");
 
