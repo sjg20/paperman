@@ -25,15 +25,15 @@ void Test::emptyDirectory(const QString &dirPath)
 
     // Get the list of files and directories within the directory
     QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot |
-                                              QDir::Files | QDir::Dirs);
+                                    QDir::Files | QDir::Dirs | QDir::Hidden);
 
     // Iterate through the entries and remove them
     foreach (const QFileInfo &entry, entries) {
         if (entry.isDir()) {
             emptyDirectory(entry.absoluteFilePath());
-            dir.rmdir(entry.fileName());
+            Q_ASSERT(dir.rmdir(entry.fileName()));
         } else {
-            dir.remove(entry.fileName());
+            Q_ASSERT(dir.remove(entry.fileName()));
         }
     }
 }
