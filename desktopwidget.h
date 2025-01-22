@@ -128,11 +128,20 @@ public:
 
    void closing (void);
 
-   /** select a directory in the view
-
-      \param index   index of directory to select. If this is QModelIndex()
-                     then select the first directory */
+   /**
+    * @brief select a directory in the view
+    * @param index of directory to select. If this is QModelIndex() then select
+    *   the first directory
+    * @param forceChange force a change of directory even if this new target
+    *   is the same as the old
+    */
    void selectDir(const QModelIndex &target, bool forceChange = false);
+
+   /**
+    * @brief get the path of the currently selected folder
+    * @return path to chosen directory
+    */
+   QString getSelectedPath();
 
    /** a convenience function to add a new action */
    void addAction (QAction *&_act, const char *text, const char *slot,
@@ -189,6 +198,11 @@ public:
 
    void showImports(const QString& path);
 
+   /**
+    * @brief Refresh the dirmode cache
+    * @param dirPath Full path to the directory to update
+    */
+   void refreshDirmodelCache(const QString& dirPath);
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 

@@ -409,6 +409,7 @@ private:
    Paperscan *_scan;       //!< the current scan in progress
 
    Mainwindow *_mainwindow;
+   QString _scan_path;     //!< directory path we are scanning into
    };
 
 

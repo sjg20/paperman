@@ -481,6 +481,14 @@ void Desktopwidget::selectDir(const QModelIndex &target, bool forceChange)
     dirSelected(ind, false, forceChange);
    }
 
+QString Desktopwidget::getSelectedPath()
+{
+   QModelIndex ind = _dir->currentIndex();
+   QModelIndex src_ind = _dir_proxy->mapToSource(ind);
+   QString path = _model->data(src_ind, QDirModel::FilePathRole).toString();
+
+   return path;
+}
 
 void Desktopwidget::slotDroppedOnFolder(const QMimeData *data, QString &dir)
    {
@@ -872,6 +880,14 @@ void Desktopwidget::dirSelected(const QModelIndex &index, bool allow_undo,
       }
    }
 
+void Desktopwidget::refreshDirmodelCache(const QString& dirPath)
+{
+   QModelIndex src_ind = _model->index (dirPath);
+
+   Operation op("Updating cache", 0, this);
+   _model->refreshCacheFrom(src_ind, &op);
+
+}
 
 void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
    {

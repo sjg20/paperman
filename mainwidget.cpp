@@ -382,7 +382,8 @@ void Mainwidget::scanInto(QModelIndex target)
       }
 
    if (target != QModelIndex())
-      _desktop->selectDir(target);
+        _desktop->selectDir(target);
+   _scan_path = _desktop->getSelectedPath();
 
    Paperscan scan;
 
@@ -503,6 +504,8 @@ void Mainwidget::slotStackConfirm (void)
       //FIXME: should we cancel in this case?
       if (err)
          _scan->cancelScan (err);
+
+      _desktop->refreshDirmodelCache(_scan_path);
       }
    }
 
