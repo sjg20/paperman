@@ -501,6 +501,7 @@ QVariant Dirmodel::headerData(int, Qt::Orientation orientation,
    return QVariant();
    }
 
+#if 0
 Diritem *Dirmodel::lookupItem(QModelIndex ind, QModelIndex& item_ind) const
 {
    Diritem *item = _map->value(ind).first;
@@ -516,6 +517,7 @@ Diritem *Dirmodel::lookupItem(QModelIndex ind, QModelIndex& item_ind) const
 
    return item;
 }
+#endif
 
 QModelIndex Dirmodel::index(int row, int column, const QModelIndex &parent)
              const
@@ -655,7 +657,7 @@ QModelIndex Dirmodel::findRoot(const QModelIndex &index) const
    return ind;
    }
 
-
+#if 0
 Diritem * Dirmodel::findItem(QModelIndex index) const
 {
    for (int i = 0; i < _item.size (); i++)
@@ -664,7 +666,7 @@ Diritem * Dirmodel::findItem(QModelIndex index) const
 
    return nullptr;
 }
-
+#endif
 
 QModelIndex Dirmodel::parent(const QModelIndex &index) const
    {

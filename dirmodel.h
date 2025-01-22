@@ -180,7 +180,7 @@ public:
        \returns the index of the root, or QModelIndex() if not found */
    QModelIndex findRoot(const QModelIndex &index) const;
 
-   Diritem * findItem(QModelIndex index) const;
+   // Diritem * findItem(QModelIndex index) const;
 
    /** move a directory from to inside the given destination directory */
    struct err_info *moveDir (QString src, QString dst);
@@ -329,7 +329,7 @@ private:
    // Build a new cache
    void buildCache(const QModelIndex& root_ind, Operation *op);
 
-   Diritem *lookupItem(QModelIndex ind, QModelIndex& item_ind) const;
+   // Diritem *lookupItem(QModelIndex ind, QModelIndex& item_ind) const;
 
    /**
     * @brief Get the top-level index for an item
