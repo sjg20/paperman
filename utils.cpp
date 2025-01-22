@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSettings>
 #include <QStringList>
 
+#include <sys/stat.h>
 #include <sys/types.h>
 
 #include <limits.h>
@@ -1004,6 +1005,10 @@ TreeItem *utilReadTree(QString fname, QString rootName)
 
 bool utilSetGroup(const QString& fname)
 {
+    if (chmod(qPrintable(fname), 0666) == -1) {
+        qInfo() << "Failed to change permissions";
+        return false;
+    }
    if (public_gid != -1) {
       if (chown(qPrintable(fname), -1, public_gid) == -1) {
          qInfo() << "Failed to change group" << public_gid;
