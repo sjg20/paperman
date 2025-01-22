@@ -139,6 +139,14 @@ TreeItem *Diritem::ensureCache(Operation *op)
 
 bool Diritem::refreshCache(const QString dirPath, Operation *op)
 {
+   if (!_dir_cache && !readCache()) {
+      if (!buildCache(op))
+         return false;
+
+      // No need to refresh as we just build it
+      return true;
+   }
+
     TreeItem *top;
 
     QString rel = dirPath.mid(_dir.size() + 1);
@@ -914,4 +922,15 @@ void Dirmodel::refreshCache(const QModelIndex& root_ind, Operation *op)
 {
    dropCache(root_ind);
    buildCache(root_ind, op);
+}
+
+void Dirmodel::refreshCacheFrom(const QModelIndex& parent, Operation *op)
+{
+   QDir dir;
+   QString path = dir.absoluteFilePath(filePath(parent));
+
+   Diritem *item = findItem(parent);
+
+   Q_ASSERT(item);
+   item->refreshCache(path, op);
 }

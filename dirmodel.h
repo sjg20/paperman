@@ -283,6 +283,15 @@ public:
    //! Refresh the cache for a given repository
    void refreshCache(const QModelIndex& root_ind, Operation *op);
 
+   /**
+    * @brief Refresh a part of the cache
+    * @param parent  Parent index to refresh
+    * @param op      Operation to report to user
+    *
+    * All children of ind are regenerated but ind itself remains the same
+    */
+   void refreshCacheFrom(const QModelIndex& parent, Operation *op);
+
 private:
    /** counts the number of files in 'path', adds it to count and returns it.
        Stops if count > max

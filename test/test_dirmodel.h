@@ -21,6 +21,7 @@ private slots:
    void testProxy();
    void testModel();
    void testAddDir();
+   void testAddFiles();
 
    //! Check that the cache has files in it
    void testCacheFiles();
