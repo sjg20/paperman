@@ -634,10 +634,9 @@ void Desktopwidget::slotRefreshCache()
 {
    QModelIndex index = _dir->menuGetModelIndex();
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
-   QModelIndex root = _model->findRoot (src_ind);
 
    Operation op ("Refreshing cache", 0, this);
-   _model->refreshCache(root, &op);
+   _model->refreshCacheFrom(src_ind, &op);
 }
 
 void Desktopwidget::deleteDir ()
