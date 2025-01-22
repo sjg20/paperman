@@ -35,6 +35,8 @@ private:
    void checkModel(const QAbstractItemModel *model, const Dirmodel *dirmodel,
                    const QAbstractProxyModel *proxy);
 
+   // Read the .papertree file from a path and return it as a string
+   QString getPaperTree(QString &path);
 };
 
 #endif // TEST_DIRMODEL_H

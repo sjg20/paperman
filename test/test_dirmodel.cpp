@@ -33,11 +33,34 @@ void TestDirmodel::testModel()
    QAbstractItemModelTester modelTester(model); // Default Fatal mode
 }
 
+QString TestDirmodel::getPaperTree(QString &path)
+{
+    QFile file(path + "/.papertree");
+    Q_ASSERT(file.open(QIODevice::ReadOnly));
+
+    QString lines;
+    QTextStream inf(&file);
+
+    while (!inf.atEnd())
+        lines.append(inf.readLine() + "|");
+
+    return lines;
+}
+
 void TestDirmodel::testAddDir()
 {
    Dirmodel *model;
 
    model = setupModel();
+
+   QString main_path = _tempDir->path() + "/main";
+
+   QModelIndex main = model->index(main_path);
+   model->buildCache(main, 0);
+
+   QCOMPARE(getPaperTree(main_path), " one|  a|  b| two|");
+
+   Q_ASSERT(main.isValid());
 
    QDir dira(_tempDir->path() + "/main/one/new-dira");
    QModelIndex dir_one = model->index(_tempDir->path() + "/main/one");
@@ -49,10 +72,15 @@ void TestDirmodel::testAddDir()
    Q_ASSERT(dira.exists());
    QCOMPARE(model->data(new_a, Qt::DisplayRole).toString(), "new-dira");
 
+   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  new-dira| two|");
+
    QDir dirb(_tempDir->path() + "/main/one/new-dirb");
    QModelIndex new_b = model->mkdir(dir_one, "new-dirb", 0);
    Q_ASSERT(new_b.isValid());
    Q_ASSERT(dirb.exists());
+
+   QCOMPARE(getPaperTree(main_path),
+            " one|  a|  b|  new-dira|  new-dirb| two|");
 
    // Since we added something to the model, the old index isn't valid, so get
    // a new one

@@ -137,6 +137,28 @@ TreeItem *Diritem::ensureCache(Operation *op)
    return buildCache(op);
 }
 
+bool Diritem::refreshCache(const QString dirPath, Operation *op)
+{
+    TreeItem *top;
+
+    QString rel = dirPath.mid(_dir.size() + 1);
+
+    Q_ASSERT(_dir_cache);
+    top = _dir_cache->findItemW(rel);
+
+    TreeItem *updated = utilScanDir(dirPath, op);
+
+    top->freeChildren();
+    top->adopt(updated);
+    delete updated;
+
+    if (!utilWriteTree(dirCacheFilename(), _dir_cache)) {
+        qInfo() << "Failed to write cache";
+        return false;
+    }
+    return true;
+}
+
 Dirmodel::Dirmodel (QObject * parent)
       : QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot,
                    QDir::IgnoreCase, parent)
@@ -241,6 +263,7 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
                             Operation *op)
 {
     QModelIndex parent = par;
+    Diritem *item = findItem(par);
 
     QDir adir (filePath (parent));
 
@@ -257,6 +280,8 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
         return QModelIndex(); // nothing happened
 
     utilSetDirGroup(dir.filePath(name));
+    item->refreshCache(path, op);
+
     qDebug() << "Dirmodel::mkdir" << parent << isRoot (parent) << parent.isValid ();
     if (isRoot (parent))
        parent = _item [parent.row ()]->index ();
@@ -656,6 +681,17 @@ QModelIndex Dirmodel::findRoot(const QModelIndex &index) const
       ind = ind.parent ();
    return ind;
    }
+
+Diritem * Dirmodel::findItem(QModelIndex ind) const
+{
+    while (!isRoot(ind))
+        ind = ind.parent();
+
+    int seq = findIndex(ind);
+    Q_ASSERT(seq!= -1);
+
+    return _item[seq];
+}
 
 #if 0
 Diritem * Dirmodel::findItem(QModelIndex index) const

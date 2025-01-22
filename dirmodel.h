@@ -69,6 +69,14 @@ public:
 
    const QModelIndex rootIndex() const { return _root; }
 
+   /**
+    * @brief Refresh the cache from the given path
+    * @param Root path to refresh. Set this to the parent of anything that has
+    *        changed
+    * Return: true if OK, false on failure to write cache to file
+    */
+   bool refreshCache(const QString path, Operation *op);
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -117,6 +125,9 @@ QModelIndex()
 class Dirmodel : public QDirModel
    {
    Q_OBJECT
+
+   friend class TestDirmodel;
+
 public:
    Dirmodel (QObject * parent = 0);
    ~Dirmodel ();
@@ -330,6 +341,13 @@ private:
    void buildCache(const QModelIndex& root_ind, Operation *op);
 
    // Diritem *lookupItem(QModelIndex ind, QModelIndex& item_ind) const;
+
+   /**
+    * @brief Find an item
+    * @param ind
+    * @return
+    */
+   Diritem * findItem(QModelIndex ind) const;
 
    /**
     * @brief Get the top-level index for an item
