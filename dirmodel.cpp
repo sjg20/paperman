@@ -282,10 +282,10 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
     utilSetDirGroup(dir.filePath(name));
     item->refreshCache(path, op);
 
-    qDebug() << "Dirmodel::mkdir" << parent << isRoot (parent) << parent.isValid ();
+    // qDebug() << "Dirmodel::mkdir" << parent << isRoot (parent) << parent.isValid ();
     if (isRoot (parent))
        parent = _item [parent.row ()]->index ();
-    qDebug() << "Dirmodel::mkdir2" << parent << isRoot (parent) << parent.isValid ();
+    // qDebug() << "Dirmodel::mkdir2" << parent << isRoot (parent) << parent.isValid ();
     parent = index (path);
     if (parent.isValid ())
        refresh (parent);
