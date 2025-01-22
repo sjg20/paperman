@@ -5347,6 +5347,7 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
    chunk_info *chunk;
    bool temp;
 
+   CALL(ensure_open());
    CALL (find_page (pagenum, page));
    if (!page->text)
       return NULL;
@@ -5354,6 +5355,7 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
    QByteArray ba (chunk->size, '\0');
    CALL (max_read_data (chunk->start + POS_text_start, (byte *)ba.data (),
             chunk->size - POS_text_start));
+   ensure_closed();
    if (temp)
       {
       chunk_free (*chunk);
