@@ -79,6 +79,15 @@ public:
     void freeChildren();
     static void freeTree(TreeItem *tree);
 
+    /**
+     * @brief Adopt the children of another parent
+     * @param old_parent Parent containing children to adopt
+     *
+     * All children become children of this tree and are removed from the old
+     * parent
+     */
+    void adopt(TreeItem *old_parent);
+
 private:
     QVector<TreeItem*> m_childItems;
     QVector<QVariant> m_itemData;

@@ -20,6 +20,7 @@ private slots:
    void testDetectMonth();
    void testDetectMatches();
    void testScanDir();
+   void testAdopt();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);

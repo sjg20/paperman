@@ -859,6 +859,12 @@ int TreeItem::row() const
     return 0;
 }
 
+void TreeItem::adopt(TreeItem *old_parent)
+{
+    while (!old_parent->m_childItems.empty())
+        m_childItems.append(old_parent->m_childItems.takeFirst());
+}
+
 void TreeItem::dump(int indent) const {
    foreach (TreeItem *item, m_childItems) {
       qInfo() << QString("%1").arg(' ', indent) << item->dirName();

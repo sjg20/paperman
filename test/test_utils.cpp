@@ -202,3 +202,35 @@ void TestUtils::testScanDir()
 
    TreeItem::freeTree(root);
 }
+
+void TestUtils::testAdopt()
+{
+    QTemporaryDir tmp;
+    TreeItem *root, *chk;
+
+    createDirStructure(tmp);
+    root = utilScanDir(tmp.path(), nullptr);
+
+    QCOMPARE(root->childCount(), 6);
+
+    chk = new TreeItem({"wibble"});
+    chk->adopt(root);
+
+    QCOMPARE(root->childCount(), 0);
+    delete root;
+
+    QCOMPARE(chk->childCount(), 6);
+    QCOMPARE(chk->child(0)->data(0).toString(), "1");
+    QCOMPARE(chk->child(1)->data(0).toString(), "2");
+    QCOMPARE(chk->child(2)->data(0).toString(), "3");
+    QCOMPARE(chk->child(3)->data(0).toString(), "asc2");
+    QCOMPARE(chk->child(4)->data(0).toString(), "dir2");
+    QCOMPARE(chk->child(5)->data(0).toString(), "somedir");
+
+    QCOMPARE(chk->child(0)->childCount(), 0);
+    QCOMPARE(chk->child(1)->childCount(), 0);
+    QCOMPARE(chk->child(2)->childCount(), 0);
+    QCOMPARE(chk->child(3)->childCount(), 0);
+    QCOMPARE(chk->child(4)->childCount(), 1);
+    QCOMPARE(chk->child(5)->childCount(), 2);
+}
