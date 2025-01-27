@@ -181,7 +181,7 @@ void TestUtils::testScanDir()
 
    createDirStructure(tmp);
    root = utilScanDir(tmp.path(), nullptr);
-   QString fname = tmp.path() + "/.papertree";
+   QString fname = cacheFile(tmp.path());
    utilWriteTree(fname, root);
    chk = utilReadTree(fname, tmp.path());
    compare_trees(root, chk);

@@ -95,7 +95,12 @@ QModelIndex Diritem::index (void) const
 
 QString Diritem::dirCacheFilename() const
 {
-   return _dir + "/.papertree";
+   QString user = utilUserName();
+
+   if (!user.isEmpty())
+      user.prepend(".");
+
+   return _dir + "/.papertree" + user;
 }
 
 bool Diritem::readCache()

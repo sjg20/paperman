@@ -1,6 +1,7 @@
 #include <QTemporaryDir>
 
 #include "suite.h"
+#include "utils.h"
 
 const QString Test::testSrc = "test/files";
 
@@ -90,6 +91,16 @@ QString Test::trashFile(QString fname)
 {
    return _tempDir->path() + QDir::separator() + ".maxview-trash" +
          QDir::separator() + fname;
+}
+
+QString Test::cacheFile(const QString &path)
+{
+   QString user = utilUserName();
+
+   if (!user.isEmpty())
+      user.prepend(".");
+
+   return path + "/.papertree" + user;
 }
 
 Suite::Suite(QString name) :

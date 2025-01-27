@@ -310,6 +310,12 @@ bool utilSetGroup(const QString& fname);
 bool utilSetDirGroup(const QString& dirname);
 
 /**
+ * @brief Get the login name of the user
+ * @return login name, or "" if not found
+ */
+QString utilUserName();
+
+/**
  * @brief Set up the utils file
  * @param group  Name of the public group to use for utilSetGroup()
  */

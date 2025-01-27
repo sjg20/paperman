@@ -1065,6 +1065,17 @@ bool utilSetGroup(const QString& fname)
    return true;
 }
 
+QString utilUserName()
+{
+   QString user;
+   char username[80];
+
+   if (getlogin_r(username, sizeof(username)))
+      return "";
+
+   return username;
+}
+
 void utilInit(const QString& group)
 {
    struct group *grp;

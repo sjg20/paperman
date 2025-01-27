@@ -35,7 +35,7 @@ void TestDirmodel::testModel()
 
 QString TestDirmodel::getPaperTree(QString &path)
 {
-    QFile file(path + "/.papertree");
+    QFile file(cacheFile(path));
     Q_ASSERT(file.open(QIODevice::ReadOnly));
 
     QString lines;

@@ -25,6 +25,9 @@ public:
    // Get the path to a trash file given its filename
    QString trashFile(QString fname);
 
+   // Get the path to the cache file for a top-level paper directory
+   QString cacheFile(const QString &path);
+
    static const QString testSrc;
 
 protected:
