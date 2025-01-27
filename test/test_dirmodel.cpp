@@ -58,7 +58,7 @@ void TestDirmodel::testAddDir()
    QModelIndex main = model->index(main_path);
    model->buildCache(main, 0);
 
-   QCOMPARE(getPaperTree(main_path), " one|  a|  b| two|");
+   QCOMPARE(getPaperTree(main_path), " + one|  + a|  + b| + two|");
 
    Q_ASSERT(main.isValid());
 
@@ -72,7 +72,7 @@ void TestDirmodel::testAddDir()
    Q_ASSERT(dira.exists());
    QCOMPARE(model->data(new_a, Qt::DisplayRole).toString(), "new-dira");
 
-   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  new-dira| two|");
+   QCOMPARE(getPaperTree(main_path), " + one|  + a|  + b|  + new-dira| + two|");
 
    QDir dirb(_tempDir->path() + "/main/one/new-dirb");
    QModelIndex new_b = model->mkdir(dir_one, "new-dirb", 0);
@@ -80,7 +80,7 @@ void TestDirmodel::testAddDir()
    Q_ASSERT(dirb.exists());
 
    QCOMPARE(getPaperTree(main_path),
-            " one|  a|  b|  new-dira|  new-dirb| two|");
+            " + one|  + a|  + b|  + new-dira|  + new-dirb| + two|");
 
    // Since we added something to the model, the old index isn't valid, so get
    // a new one
@@ -100,7 +100,8 @@ void TestDirmodel::testCacheFiles()
    QModelIndex main = model->index(main_path);
    model->buildCache(main, 0);
 
-   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  ofile|  ofile2| two|");
+   QCOMPARE(getPaperTree(main_path),
+            " + one|  + a|  + b|  - ofile|  - ofile2| + two|");
 }
 
 void TestDirmodel::testAddFiles()
@@ -114,7 +115,8 @@ void TestDirmodel::testAddFiles()
    QModelIndex main = model->index(main_path);
    model->buildCache(main, 0);
 
-   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  ofile|  ofile2| two|");
+   QCOMPARE(getPaperTree(main_path),
+            " + one|  + a|  + b|  - ofile|  - ofile2| + two|");
 
    Q_ASSERT(main.isValid());
 
@@ -126,26 +128,30 @@ void TestDirmodel::testAddFiles()
    QModelIndex dir_a = model->index(main_path + "/one/a");
    model->refreshCacheFrom(dir_a, nullptr);
 
-   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  ofile|  ofile2| two|");
+   QCOMPARE(getPaperTree(main_path),
+            " + one|  + a|  + b|  - ofile|  - ofile2| + two|");
 
    // Refreshing 'one' should update
    QModelIndex one = model->index(main_path + "/one");
    model->refreshCacheFrom(one, nullptr);
 
    QCOMPARE(getPaperTree(main_path),
-            " one|  a|  b|  newfile|  ofile|  ofile2| two|");
+            " + one|  + a|  + b|  - newfile|  - ofile|  - ofile2| + two|");
 
    QDir dir;
    Q_ASSERT(dir.remove(dst + "/main/one/newfile"));
 
    // Refreshing 'two' should do nothing
-   QModelIndex two = model->index(main_path + "/two/a");
+   QModelIndex two = model->index(main_path + "/two");
+   Q_ASSERT(two.isValid());
    model->refreshCacheFrom(two, nullptr);
 
    // Refreshing 'one' should update
+   Q_ASSERT(one.isValid());
    model->refreshCacheFrom(one, nullptr);
 
-   QCOMPARE(getPaperTree(main_path), " one|  a|  b|  ofile|  ofile2| two|");
+   QCOMPARE(getPaperTree(main_path),
+            " + one|  + a|  + b|  - ofile|  - ofile2| + two|");
 }
 
 void TestDirmodel::checkModel(const QAbstractItemModel *model,

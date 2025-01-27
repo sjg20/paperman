@@ -67,6 +67,8 @@ public:
     TreeItem *child(const QString& name) const;
 
     const TreeItem *childConst(int row) const;
+    bool isDir() const;
+    void setDir(bool isdir);
     int childCount() const;
     int columnCount() const;
     QVariant data(int column) const;
@@ -102,6 +104,7 @@ private:
     QVector<TreeItem*> m_childItems;
     QVector<QVariant> m_itemData;
     TreeItem *m_parentItem;
+    bool m_isDir;  // true if this is a directory
 };
 
 /** retrieves a list of sizes from the Qt settings file.

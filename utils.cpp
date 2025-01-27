@@ -777,7 +777,7 @@ bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes)
 }
 
 TreeItem::TreeItem(const QVector<QVariant> &data, TreeItem *parent)
-    : m_itemData(data), m_parentItem(parent)
+    : m_itemData(data), m_parentItem(parent), m_isDir(false)
 {}
 
 TreeItem::~TreeItem()
@@ -827,6 +827,16 @@ const TreeItem *TreeItem::childConst(int row) const
 int TreeItem::childCount() const
 {
     return m_childItems.count();
+}
+
+bool TreeItem::isDir() const
+{
+    return m_isDir;
+}
+
+void TreeItem::setDir(bool isdir)
+{
+   m_isDir = isdir;
 }
 
 int TreeItem::columnCount() const
@@ -901,6 +911,10 @@ void TreeItem::write(QTextStream& stream, int level) const
    if (level) {
       for (int i = 0; i < level; i++)
          stream << QString(" ");
+      if (isDir())
+         stream << QString("+ ");
+      else
+         stream << QString("- ");
       stream << dirName() << '\n';
    }
    foreach (TreeItem *item, m_childItems)
@@ -925,9 +939,18 @@ bool TreeItem::read(QTextStream& stream, TreeItem *parent, int cur_level)
          qInfo() << "Invalid level < 1" << line;
          return false;
       }
-      QString fname = line.mid(level);
+
+      QString type, fname;
+      if (line.mid(level + 1, 1) == " ") {
+         type = line.mid(level, 1);
+         fname = line.mid(level + 2);
+      } else {
+         fname = line.mid(level);
+      }
 
       TreeItem *child = new TreeItem({fname}, nullptr);
+      if (type == "+")
+         child->setDir(true);
 
       if (level == cur_level) {
          child->m_parentItem = parent;
@@ -979,8 +1002,10 @@ static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
          TreeItem *child = new TreeItem(columnData, parent);
 
          parent->appendChild(child);
-         if (fi.isDir ())
+         if (fi.isDir ()) {
+            child->setDir(true);
             scanDir(dirPath + fi.fileName() + "/", child, 0);
+         }
       }
       if (op)
          op->setProgress(i);

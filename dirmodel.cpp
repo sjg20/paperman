@@ -853,7 +853,7 @@ void Dirmodel::addMatches(QStringList& matches, uint baseLen,
    for (int i = 0; i < parent->childCount(); i++) {
       const TreeItem *child = parent->childConst(i);
 
-      if (!child->childCount())
+      if (!child->isDir())
          continue;
       QString leaf = child->dirName();
       QString fname = dirPath + leaf;
@@ -893,14 +893,15 @@ void Dirmodel::addFileMatches(QStringList& matches, const uint baseLen,
       const TreeItem *child = parent->childConst(i);
       const QString& fname = child->dirName();
 
-      if (child->childCount()) {
+      if (child->isDir()) {
          addFileMatches(matches, baseLen, dirPath + fname + "/", child, text);
       } else {
-
          if (fname.contains(text, Qt::CaseInsensitive))
             matches << dirPath.mid(baseLen) + fname;
       }
    }
+   if (!parent->childCount())
+      matches << dirPath.mid(baseLen);
 }
 
 QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
