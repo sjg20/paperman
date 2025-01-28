@@ -3614,13 +3614,21 @@ int QScanner::findOption (const char *opt, bool settable)
 {
    int count = optionCount ();
    const char *name;
+   QList<int> found;
 
    for (int i = 0; i < count; i++)
    {
       name = getOptionName(i);
+      // qDebug() << "name" << name;
       if (name && 0 == strcmp (name, opt) && (!settable || isOptionSettable (i)))
-         return i;
+         found << i;
    }
+
+   if (found.size() == 1)
+      return found[0];
+   else if (found.size() > 1)
+      qDebug() << "Found two options named" << opt << ": " << found;
+
    return -1;
 }
 
@@ -3656,6 +3664,8 @@ void QScanner::findOptions (void)
   mOptionButton [BUT_copy] = findOption (SANE_NAME_COPY, false);
   mOptionButton [BUT_pdf] = findOption (SANE_NAME_PDF, false);
 #endif
+  // qDebug() << "scan option" << mOptionButton[BUT_scan];
+
 
   // function number (for Fujitsu)
   mOptionFunction = findOption ("function", false);
@@ -3671,18 +3681,26 @@ int QScanner::checkButtons (void)
        if (mOptionButton [i] != -1) {
            int val = saneWordValue (mOptionButton [i]);
 
+           // qDebug() << "val" << mOptionButton [i] << Qt::hex << val;
            if (val == INT_MIN)
                return INT_MIN;
            else if (val)
                value |= 1 << i;
+           // qDebug() << "value" << Qt::hex << value;
        }
    }
 
    // function button can emulate the others when 'scan' is pressed
    if (mOptionFunction != -1 && (value & 1))
    {
-      value |= 1 << (saneWordValue (mOptionFunction) - 1);
+      int option = saneWordValue (mOptionFunction);
+
+      // qDebug() << "option" << Qt::hex << option;
+      if (option)
+         value |= 1 << option;
    }
+   // qDebug() << "buttons" << Qt::hex << value;
+
    return value;
 }
 
