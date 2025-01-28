@@ -101,6 +101,11 @@ new in 1.3
 * Drop the 'recently used' folder
 * Set permissions on created files and directories
 
+new in 1.3.1
+
+* support Ubuntu oracular
+* update build scripts to work on 24.04 host
+* more tweaks to the findFolders() feature
 
 ## Command-line usage
 
