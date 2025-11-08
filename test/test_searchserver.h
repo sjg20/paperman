@@ -20,6 +20,9 @@ private slots:
    void testListEndpoint();
    void testInvalidEndpoint();
    void testMissingSearchParameter();
+   void testReposEndpoint();
+   void testSearchWithRepo();
+   void testFileEndpoint();
 
 private:
    // Helper to make HTTP GET request and return response

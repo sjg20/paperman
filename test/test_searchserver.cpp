@@ -239,3 +239,131 @@ void TestSearchServer::testMissingSearchParameter()
 
     server.stop();
 }
+
+void TestSearchServer::testReposEndpoint()
+{
+    QTemporaryDir tmpDir1;
+    QTemporaryDir tmpDir2;
+    QVERIFY(tmpDir1.isValid());
+    QVERIFY(tmpDir2.isValid());
+
+    // Test with multiple repositories
+    QStringList repos;
+    repos << tmpDir1.path() << tmpDir2.path();
+    SearchServer server(repos, 9882);
+    QVERIFY(server.start());
+
+    // Request repository list
+    QString response = httpGet("http://localhost:9882/repos");
+    QVERIFY(response.contains("\"success\":true"));
+    QVERIFY(response.contains("\"count\":2"));
+    QVERIFY(response.contains(tmpDir1.path()));
+    QVERIFY(response.contains(tmpDir2.path()));
+    QVERIFY(response.contains("\"repositories\""));
+    QVERIFY(response.contains("\"exists\":true"));
+
+    server.stop();
+
+    // Test with single repository (backward compatibility)
+    SearchServer server2(tmpDir1.path(), 9883);
+    QVERIFY(server2.start());
+
+    response = httpGet("http://localhost:9883/repos");
+    QVERIFY(response.contains("\"success\":true"));
+    QVERIFY(response.contains("\"count\":1"));
+    QVERIFY(response.contains(tmpDir1.path()));
+
+    server2.stop();
+}
+
+void TestSearchServer::testSearchWithRepo()
+{
+    QTemporaryDir tmpDir1;
+    QTemporaryDir tmpDir2;
+    QVERIFY(tmpDir1.isValid());
+    QVERIFY(tmpDir2.isValid());
+
+    // Create different test files in each repository
+    QFile file1(tmpDir1.path() + "/repo1-file.max");
+    file1.open(QIODevice::WriteOnly);
+    file1.write("repo1 content");
+    file1.close();
+
+    QFile file2(tmpDir2.path() + "/repo2-file.max");
+    file2.open(QIODevice::WriteOnly);
+    file2.write("repo2 content");
+    file2.close();
+
+    // Setup server with multiple repositories
+    QStringList repos;
+    repos << tmpDir1.path() << tmpDir2.path();
+    SearchServer server(repos, 9884);
+    QVERIFY(server.start());
+
+    // Get repository names from paths
+    QString repo1Name = QFileInfo(tmpDir1.path()).fileName();
+    QString repo2Name = QFileInfo(tmpDir2.path()).fileName();
+
+    // Search without repo parameter (should search in default/first repo)
+    QString response = httpGet("http://localhost:9884/search?q=repo1");
+    QVERIFY(response.contains("\"success\":true"));
+    QVERIFY(response.contains("repo1-file.max"));
+    QVERIFY(!response.contains("repo2-file.max"));
+
+    // Search in specific repo (repo2)
+    response = httpGet(QString("http://localhost:9884/search?q=repo2&repo=%1").arg(repo2Name));
+    QVERIFY(response.contains("\"success\":true"));
+    QVERIFY(response.contains("repo2-file.max"));
+    QVERIFY(!response.contains("repo1-file.max"));
+
+    // Search in specific repo (repo1)
+    response = httpGet(QString("http://localhost:9884/search?q=repo1&repo=%1").arg(repo1Name));
+    QVERIFY(response.contains("\"success\":true"));
+    QVERIFY(response.contains("repo1-file.max"));
+
+    // Search in non-existent repo
+    response = httpGet("http://localhost:9884/search?q=test&repo=nonexistent");
+    QVERIFY(response.contains("404") || response.contains("Repository not found"));
+
+    server.stop();
+}
+
+void TestSearchServer::testFileEndpoint()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    // Create a test file with known content
+    QString testContent = "This is test file content for the file endpoint test.";
+    QFile testFile(tmpDir.path() + "/test-file.pdf");
+    testFile.open(QIODevice::WriteOnly);
+    testFile.write(testContent.toUtf8());
+    testFile.close();
+
+    SearchServer server(tmpDir.path(), 9885);
+    QVERIFY(server.start());
+
+    // Test retrieving existing file
+    QString response = httpGet("http://localhost:9885/file?path=test-file.pdf");
+    QVERIFY(response.contains("200 OK"));
+    QVERIFY(response.contains("Content-Type: application/pdf"));
+    QVERIFY(response.contains(testContent));
+
+    // Test missing path parameter
+    response = httpGet("http://localhost:9885/file");
+    QVERIFY(response.contains("400") || response.contains("Missing 'path' parameter"));
+
+    // Test non-existent file
+    response = httpGet("http://localhost:9885/file?path=nonexistent.pdf");
+    QVERIFY(response.contains("404") || response.contains("File not found"));
+
+    // Test directory traversal prevention
+    response = httpGet("http://localhost:9885/file?path=../etc/passwd");
+    QVERIFY(response.contains("400") || response.contains("Invalid file path"));
+
+    // Test absolute path prevention
+    response = httpGet("http://localhost:9885/file?path=/etc/passwd");
+    QVERIFY(response.contains("400") || response.contains("Invalid file path"));
+
+    server.stop();
+}

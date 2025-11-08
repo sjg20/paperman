@@ -48,11 +48,20 @@ class SearchServer : public QTcpServer
 public:
     /**
      * Constructor
-     * @param rootPath  Root path of the paper repository
+     * @param rootPath  Root path of the paper repository (single path)
      * @param port      Port to listen on (default 8080)
      * @param parent    Parent QObject
      */
     explicit SearchServer(const QString &rootPath, quint16 port = 8080,
+                         QObject *parent = nullptr);
+
+    /**
+     * Constructor for multiple repositories
+     * @param rootPaths List of root paths to paper repositories
+     * @param port      Port to listen on (default 8080)
+     * @param parent    Parent QObject
+     */
+    explicit SearchServer(const QStringList &rootPaths, quint16 port = 8080,
                          QObject *parent = nullptr);
 
     virtual ~SearchServer();
@@ -77,6 +86,11 @@ public:
      * Check if server is running
      */
     bool isRunning() const { return isListening(); }
+
+    /**
+     * Get list of repository paths
+     */
+    QStringList repositories() const { return _rootPaths; }
 
 protected:
     /**
@@ -118,13 +132,14 @@ private:
 
     /**
      * Search for files matching a pattern
+     * @param repoPath    Repository root path
      * @param searchPath  Directory to search in (relative to root)
      * @param pattern     Search pattern (partial filename match)
      * @param recursive   Search subdirectories
      * @return JSON response with results
      */
-    QString searchFiles(const QString &searchPath, const QString &pattern,
-                       bool recursive);
+    QString searchFiles(const QString &repoPath, const QString &searchPath,
+                       const QString &pattern, bool recursive);
 
     /**
      * Get file list for a directory
@@ -132,6 +147,21 @@ private:
      * @return JSON response with file list
      */
     QString listFiles(const QString &dirPath);
+
+    /**
+     * Get list of all repositories
+     * @return JSON response with repository list
+     */
+    QString listRepositories();
+
+    /**
+     * Get file content
+     * @param repoPath   Repository root path
+     * @param filePath   File path (relative to repository root)
+     * @param type       Output type ("original" or "pdf")
+     * @return HTTP response with file content
+     */
+    QString getFile(const QString &repoPath, const QString &filePath, const QString &type = "original");
 
     /**
      * Build JSON response
@@ -155,12 +185,24 @@ private:
                              const QString &contentType, const QString &body);
 
     /**
+     * Build HTTP response with binary body
+     * @param statusCode  HTTP status code
+     * @param statusText  HTTP status text
+     * @param contentType Content type
+     * @param body        Response body (binary)
+     * @return Full HTTP response
+     */
+    QString buildHttpResponse(int statusCode, const QString &statusText,
+                             const QString &contentType, const QByteArray &body);
+
+    /**
      * URL decode a string
      */
     QString urlDecode(const QString &str);
 
 private:
-    QString _rootPath;      //!< Root path of paper repository
+    QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
+    QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on
     QList<QTcpSocket*> _clients;  //!< Connected clients
 };

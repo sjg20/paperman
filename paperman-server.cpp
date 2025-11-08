@@ -114,9 +114,11 @@ int main(int argc, char *argv[])
     std::cout << "\nServer is running!" << std::endl;
     std::cout << "Available endpoints:" << std::endl;
     std::cout << "  GET /status                      - Server status" << std::endl;
+    std::cout << "  GET /repos                       - List all repositories" << std::endl;
     std::cout << "  GET /search?q=<pattern>          - Search for files" << std::endl;
-    std::cout << "  GET /search?q=<pattern>&path=<dir>&recursive=true" << std::endl;
+    std::cout << "  GET /search?q=<pattern>&repo=<name>&path=<dir>&recursive=true" << std::endl;
     std::cout << "  GET /list?path=<dir>             - List files in directory" << std::endl;
+    std::cout << "  GET /file?path=<file>&repo=<name>&type=<original|pdf> - Retrieve file content" << std::endl;
     std::cout << "\nPress Ctrl+C to stop the server" << std::endl;
 
     return app.exec();
