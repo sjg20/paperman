@@ -236,14 +236,19 @@ test {
       test/test.cpp \
       test/suite.cpp \
       test/test_dirmodel.cpp \
-      test/test_ops.cpp 
-      
+      test/test_ops.cpp \
+      test/test_searchserver.cpp \
+      searchserver.cpp
+
    HEADERS += test/suite.h \
       test/test_dirmodel.h \
       test/test_ops.h \
-      test/test_utils.h
+      test/test_utils.h \
+      test/test_searchserver.h \
+      searchserver.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
+    QT += network
 }
 
 # tif_fax3sm.c   - causes tifflib to break
