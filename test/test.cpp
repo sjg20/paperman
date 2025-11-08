@@ -4,11 +4,13 @@
 
 #include "test_ops.h"
 #include "test_utils.h"
+#include "test_searchserver.h"
 
 //QTEST_MAIN(TestPaperman)
 
 static TestUtils TEST_UTILS("utils");
 static TestOps TEST_OPS("ops");
+static TestSearchServer TEST_SEARCHSERVER("searchserver");
 
 int test_run(int argc, char **in_argv, QApplication *)
 {
