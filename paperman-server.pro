@@ -26,4 +26,5 @@ unix {
 }
 
 message("Building Paperman Search Server")
+message("PDF conversion uses 'paperman -p' command")
 message("Run 'qmake && make' to build")

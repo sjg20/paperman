@@ -23,12 +23,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "searchserver.h"
 
+#include <QCoreApplication>
 #include <QTcpSocket>
 #include <QDir>
 #include <QFileInfo>
 #include <QDateTime>
 #include <QUrl>
 #include <QDebug>
+#include <QProcess>
+#include <QTemporaryDir>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 #include <QJsonDocument>
@@ -139,9 +142,10 @@ void SearchServer::onReadyRead()
     QHash<QString, QString> params;
 
     parseRequest(request, method, path, params);
-    QString response = handleRequest(method, path, params);
+    QByteArray response = handleRequest(method, path, params);
 
-    client->write(response.toUtf8());
+    // Write binary response directly
+    client->write(response);
     client->flush();
     client->disconnectFromHost();
 }
@@ -182,8 +186,8 @@ void SearchServer::parseRequest(const QString &request, QString &method,
     }
 }
 
-QString SearchServer::handleRequest(const QString &method, const QString &path,
-                                    const QHash<QString, QString> &params)
+QByteArray SearchServer::handleRequest(const QString &method, const QString &path,
+                                      const QHash<QString, QString> &params)
 {
     qDebug() << "SearchServer: Handling" << method << path;
 
@@ -462,7 +466,7 @@ QString SearchServer::listRepositories()
 #endif
 }
 
-QString SearchServer::getFile(const QString &repoPath, const QString &filePath, const QString &type)
+QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePath, const QString &type)
 {
     // Security: Prevent directory traversal
     if (filePath.contains("..") || filePath.startsWith("/")) {
@@ -489,18 +493,94 @@ QString SearchServer::getFile(const QString &repoPath, const QString &filePath, 
     QString ext = fileInfo.suffix().toLower();
 
     // Handle PDF conversion request
-    if (type == "pdf") {
-        // If file is already PDF, return it directly
-        if (ext == "pdf") {
-            // Fall through to normal file reading below
+    if (type == "pdf" && ext != "pdf") {
+        // Convert to PDF using maxview command-line tool
+        QTemporaryDir tmpDir;
+        if (!tmpDir.isValid()) {
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "Failed to create temporary directory"));
         }
-        // Otherwise, conversion not yet supported
-        else {
-            return buildHttpResponse(501, "Not Implemented", "application/json",
-                                   buildJsonResponse(false, "",
-                                       "PDF conversion not yet supported for " + ext + " files. " +
-                                       "Please use type=original to get the file in its original format."));
+
+        // Create output PDF path in temporary directory
+        QString baseName = fileInfo.completeBaseName();
+        QString outputPdf = tmpDir.path() + "/" + baseName + ".pdf";
+
+        // Set up environment for maxview (needs DISPLAY for Qt, but we use offscreen)
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("QT_QPA_PLATFORM", "offscreen");
+
+        // Run maxview to convert the file
+        QProcess process;
+        process.setProcessEnvironment(env);
+        process.setWorkingDirectory(tmpDir.path());
+
+        // Find paperman executable - use same directory as server executable
+        QString papermanPath = QCoreApplication::applicationDirPath() + "/paperman";
+        if (!QFile::exists(papermanPath)) {
+            // Fallback to current directory
+            papermanPath = "paperman";
         }
+
+        QStringList args;
+        args << "-p" << fullPath;
+
+        qDebug() << "SearchServer: Converting" << fullPath << "to PDF using" << papermanPath;
+        process.start(papermanPath, args);
+
+        if (!process.waitForStarted(5000)) {
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "Failed to start conversion process"));
+        }
+
+        if (!process.waitForFinished(30000)) {  // 30 second timeout
+            process.kill();
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "PDF conversion timed out (30s limit)"));
+        }
+
+        int exitCode = process.exitCode();
+        QString stdout_output = QString::fromUtf8(process.readAllStandardOutput());
+        QString stderr_output = QString::fromUtf8(process.readAllStandardError());
+
+        qDebug() << "SearchServer: Conversion process exit code:" << exitCode;
+        qDebug() << "SearchServer: stdout:" << stdout_output;
+        qDebug() << "SearchServer: stderr:" << stderr_output;
+
+        if (exitCode != 0) {
+            qWarning() << "SearchServer: Conversion failed with exit code" << exitCode;
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "PDF conversion failed: " + stderr_output));
+        }
+
+        // Find the generated PDF file (maxview generates it with various names)
+        QDir tmpDirObj(tmpDir.path());
+        QStringList allFiles = tmpDirObj.entryList(QDir::Files);
+        QStringList pdfFiles = tmpDirObj.entryList(QStringList() << "*.pdf", QDir::Files);
+
+        qDebug() << "SearchServer: Temp directory:" << tmpDir.path();
+        qDebug() << "SearchServer: All files in temp dir:" << allFiles;
+        qDebug() << "SearchServer: PDF files found:" << pdfFiles;
+
+        if (pdfFiles.isEmpty()) {
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "PDF file was not generated in " + tmpDir.path()));
+        }
+
+        // Read the generated PDF
+        QString pdfPath = tmpDir.path() + "/" + pdfFiles.first();
+        QFile pdfFile(pdfPath);
+        if (!pdfFile.open(QIODevice::ReadOnly)) {
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "Failed to read converted PDF"));
+        }
+
+        QByteArray pdfContent = pdfFile.readAll();
+        pdfFile.close();
+
+        qDebug() << "SearchServer: Successfully converted to PDF (" << pdfContent.size() << "bytes)";
+
+        // Return the PDF
+        return buildHttpResponse(200, "OK", "application/pdf", pdfContent);
     }
 
     // Determine content type based on extension
@@ -552,31 +632,32 @@ QString SearchServer::buildJsonResponse(bool success, const QString &data,
 #endif
 }
 
-QString SearchServer::buildHttpResponse(int statusCode, const QString &statusText,
-                                        const QString &contentType, const QString &body)
+QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &statusText,
+                                          const QString &contentType, const QString &body)
 {
-    QString response;
-    response += "HTTP/1.1 " + QString::number(statusCode) + " " + statusText + "\r\n";
-    response += "Content-Type: " + contentType + "\r\n";
-    response += "Content-Length: " + QString::number(body.toUtf8().size()) + "\r\n";
+    QByteArray response;
+    response += "HTTP/1.1 " + QByteArray::number(statusCode) + " " + statusText.toUtf8() + "\r\n";
+    response += "Content-Type: " + contentType.toUtf8() + "\r\n";
+    response += "Content-Length: " + QByteArray::number(body.toUtf8().size()) + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";  // Enable CORS
     response += "Connection: close\r\n";
     response += "\r\n";
-    response += body;
+    response += body.toUtf8();
     return response;
 }
 
-QString SearchServer::buildHttpResponse(int statusCode, const QString &statusText,
-                                        const QString &contentType, const QByteArray &body)
+QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &statusText,
+                                          const QString &contentType, const QByteArray &body)
 {
-    QString response;
-    response += "HTTP/1.1 " + QString::number(statusCode) + " " + statusText + "\r\n";
-    response += "Content-Type: " + contentType + "\r\n";
-    response += "Content-Length: " + QString::number(body.size()) + "\r\n";
+    // Build response as QByteArray to preserve binary data
+    QByteArray response;
+    response += "HTTP/1.1 " + QByteArray::number(statusCode) + " " + statusText.toUtf8() + "\r\n";
+    response += "Content-Type: " + contentType.toUtf8() + "\r\n";
+    response += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";  // Enable CORS
     response += "Connection: close\r\n";
     response += "\r\n";
-    response += QString::fromLatin1(body);  // Binary safe conversion
+    response += body;  // Append binary body directly
     return response;
 }
 
