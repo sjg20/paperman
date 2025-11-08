@@ -1,0 +1,25 @@
+[Unit]
+Description=Paperman Search Server
+Documentation=https://github.com/sjg20/paperman
+After=network.target
+
+[Service]
+Type=simple
+User=sglass
+Group=sglass
+WorkingDirectory=/home/sglass/files/max/git
+ExecStart=/home/sglass/files/max/git/paperman-server /home/sglass/papers
+Restart=on-failure
+RestartSec=5s
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=paperman-server
+
+[Install]
+WantedBy=multi-user.target
