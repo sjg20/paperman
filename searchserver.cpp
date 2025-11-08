@@ -44,6 +44,25 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
     // Ensure root path has no trailing slash
     if (_rootPath.endsWith('/'))
         _rootPath.chop(1);
+
+    // Also store in the list for compatibility
+    _rootPaths.append(_rootPath);
+}
+
+SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *parent)
+    : QTcpServer(parent)
+    , _port(port)
+{
+    // Store all paths, removing trailing slashes
+    foreach (QString path, rootPaths) {
+        if (path.endsWith('/'))
+            path.chop(1);
+        _rootPaths.append(path);
+    }
+
+    // Keep first path for backward compatibility
+    if (!_rootPaths.isEmpty())
+        _rootPath = _rootPaths.first();
 }
 
 SearchServer::~SearchServer()
@@ -171,7 +190,7 @@ QString SearchServer::handleRequest(const QString &method, const QString &path,
     // Only support GET requests
     if (method != "GET") {
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
-                                "Only GET requests are supported");
+                                QString("Only GET requests are supported"));
     }
 
     // Route requests
@@ -180,9 +199,15 @@ QString SearchServer::handleRequest(const QString &method, const QString &path,
                       .arg(_rootPath);
         return buildHttpResponse(200, "OK", "application/json", data);
     }
+    else if (path == "/repos") {
+        // List all repositories
+        QString result = listRepositories();
+        return buildHttpResponse(200, "OK", "application/json", result);
+    }
     else if (path == "/search") {
         QString searchPath = params.value("path", "");
         QString pattern = params.value("q", "");
+        QString repoName = params.value("repo", "");
         bool recursive = params.value("recursive", "true") == "true";
 
         if (pattern.isEmpty()) {
@@ -190,7 +215,24 @@ QString SearchServer::handleRequest(const QString &method, const QString &path,
                                    buildJsonResponse(false, "", "Missing 'q' parameter"));
         }
 
-        QString result = searchFiles(searchPath, pattern, recursive);
+        // Find repository by name if specified
+        QString repoPath = _rootPath;  // Default to first/primary repo
+        if (!repoName.isEmpty()) {
+            bool found = false;
+            foreach (const QString &path, _rootPaths) {
+                if (QFileInfo(path).fileName() == repoName) {
+                    repoPath = path;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return buildHttpResponse(404, "Not Found", "application/json",
+                                       buildJsonResponse(false, "", "Repository not found: " + repoName));
+            }
+        }
+
+        QString result = searchFiles(repoPath, searchPath, pattern, recursive);
         return buildHttpResponse(200, "OK", "application/json", result);
     }
     else if (path == "/list") {
@@ -198,17 +240,51 @@ QString SearchServer::handleRequest(const QString &method, const QString &path,
         QString result = listFiles(dirPath);
         return buildHttpResponse(200, "OK", "application/json", result);
     }
+    else if (path == "/file") {
+        QString filePath = params.value("path", "");
+        QString repoName = params.value("repo", "");
+        QString type = params.value("type", "original");  // original or pdf
+
+        if (filePath.isEmpty()) {
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                   buildJsonResponse(false, "", "Missing 'path' parameter"));
+        }
+
+        if (type != "original" && type != "pdf") {
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                   buildJsonResponse(false, "", "Invalid type parameter. Must be 'original' or 'pdf'"));
+        }
+
+        // Find repository by name if specified
+        QString repoPath = _rootPath;  // Default to first/primary repo
+        if (!repoName.isEmpty()) {
+            bool found = false;
+            foreach (const QString &path, _rootPaths) {
+                if (QFileInfo(path).fileName() == repoName) {
+                    repoPath = path;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return buildHttpResponse(404, "Not Found", "application/json",
+                                       buildJsonResponse(false, "", "Repository not found: " + repoName));
+            }
+        }
+
+        return getFile(repoPath, filePath, type);
+    }
     else {
         return buildHttpResponse(404, "Not Found", "text/plain",
-                                "Endpoint not found");
+                                QString("Endpoint not found"));
     }
 }
 
-QString SearchServer::searchFiles(const QString &searchPath, const QString &pattern,
-                                  bool recursive)
+QString SearchServer::searchFiles(const QString &repoPath, const QString &searchPath,
+                                  const QString &pattern, bool recursive)
 {
     QStringList results;
-    QString fullSearchPath = _rootPath;
+    QString fullSearchPath = repoPath;
 
     if (!searchPath.isEmpty()) {
         fullSearchPath += "/" + searchPath;
@@ -235,7 +311,7 @@ QString SearchServer::searchFiles(const QString &searchPath, const QString &patt
             QString subPath = searchPath.isEmpty()
                             ? info.fileName()
                             : searchPath + "/" + info.fileName();
-            QString subResult = searchFiles(subPath, pattern, recursive);
+            QString subResult = searchFiles(repoPath, subPath, pattern, recursive);
             // Note: This is a simplified version - in production you'd merge the results properly
         }
         else if (info.isFile()) {
@@ -256,7 +332,7 @@ QString SearchServer::searchFiles(const QString &searchPath, const QString &patt
         QJsonObject fileObj;
         fileObj["path"] = file;
 
-        QFileInfo info(_rootPath + "/" + file);
+        QFileInfo info(repoPath + "/" + file);
         fileObj["name"] = info.fileName();
         fileObj["size"] = (qint64)info.size();
         fileObj["modified"] = info.lastModified().toString(Qt::ISODate);
@@ -276,7 +352,7 @@ QString SearchServer::searchFiles(const QString &searchPath, const QString &patt
     QString json = "{\"success\":true,\"count\":" + QString::number(results.size()) + ",\"results\":[";
     for (int i = 0; i < results.size(); i++) {
         if (i > 0) json += ",";
-        QFileInfo info(_rootPath + "/" + results[i]);
+        QFileInfo info(repoPath + "/" + results[i]);
         json += "{\"path\":\"" + results[i] + "\","
                 "\"name\":\"" + info.fileName() + "\","
                 "\"size\":" + QString::number(info.size()) + ","
@@ -340,6 +416,118 @@ QString SearchServer::listFiles(const QString &dirPath)
 #endif
 }
 
+QString SearchServer::listRepositories()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+    QJsonArray jsonArray;
+    foreach (const QString &path, _rootPaths) {
+        QJsonObject repoObj;
+        repoObj["path"] = path;
+
+        QDir dir(path);
+        if (dir.exists()) {
+            repoObj["exists"] = true;
+            repoObj["name"] = QFileInfo(path).fileName();
+        } else {
+            repoObj["exists"] = false;
+            repoObj["name"] = "";
+        }
+
+        jsonArray.append(repoObj);
+    }
+
+    QJsonObject responseObj;
+    responseObj["success"] = true;
+    responseObj["count"] = _rootPaths.size();
+    responseObj["repositories"] = jsonArray;
+
+    QJsonDocument doc(responseObj);
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+#else
+    // Qt 4 fallback
+    QString json = "{\"success\":true,\"count\":" + QString::number(_rootPaths.size())
+                  + ",\"repositories\":[";
+    for (int i = 0; i < _rootPaths.size(); i++) {
+        if (i > 0) json += ",";
+        const QString &path = _rootPaths[i];
+        QDir dir(path);
+        bool exists = dir.exists();
+        QString name = exists ? QFileInfo(path).fileName() : "";
+        json += "{\"path\":\"" + path + "\","
+                "\"exists\":" + QString(exists ? "true" : "false") + ","
+                "\"name\":\"" + name + "\"}";
+    }
+    json += "]}";
+    return json;
+#endif
+}
+
+QString SearchServer::getFile(const QString &repoPath, const QString &filePath, const QString &type)
+{
+    // Security: Prevent directory traversal
+    if (filePath.contains("..") || filePath.startsWith("/")) {
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                               buildJsonResponse(false, "", "Invalid file path"));
+    }
+
+    // Build full path
+    QString fullPath = repoPath + "/" + filePath;
+    QFileInfo fileInfo(fullPath);
+
+    // Check if file exists and is readable
+    if (!fileInfo.exists()) {
+        return buildHttpResponse(404, "Not Found", "application/json",
+                               buildJsonResponse(false, "", "File not found"));
+    }
+
+    if (!fileInfo.isFile()) {
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                               buildJsonResponse(false, "", "Path is not a file"));
+    }
+
+    // Get file extension
+    QString ext = fileInfo.suffix().toLower();
+
+    // Handle PDF conversion request
+    if (type == "pdf") {
+        // If file is already PDF, return it directly
+        if (ext == "pdf") {
+            // Fall through to normal file reading below
+        }
+        // Otherwise, conversion not yet supported
+        else {
+            return buildHttpResponse(501, "Not Implemented", "application/json",
+                                   buildJsonResponse(false, "",
+                                       "PDF conversion not yet supported for " + ext + " files. " +
+                                       "Please use type=original to get the file in its original format."));
+        }
+    }
+
+    // Determine content type based on extension
+    QString contentType = "application/octet-stream";  // Default
+    if (ext == "pdf") {
+        contentType = "application/pdf";
+    } else if (ext == "jpg" || ext == "jpeg") {
+        contentType = "image/jpeg";
+    } else if (ext == "tif" || ext == "tiff") {
+        contentType = "image/tiff";
+    } else if (ext == "max") {
+        contentType = "application/octet-stream";
+    }
+
+    // Read file content
+    QFile file(fullPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return buildHttpResponse(500, "Internal Server Error", "application/json",
+                               buildJsonResponse(false, "", "Failed to read file"));
+    }
+
+    QByteArray fileContent = file.readAll();
+    file.close();
+
+    return buildHttpResponse(200, "OK", contentType, fileContent);
+}
+
 QString SearchServer::buildJsonResponse(bool success, const QString &data,
                                         const QString &error)
 {
@@ -375,6 +563,20 @@ QString SearchServer::buildHttpResponse(int statusCode, const QString &statusTex
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
+    return response;
+}
+
+QString SearchServer::buildHttpResponse(int statusCode, const QString &statusText,
+                                        const QString &contentType, const QByteArray &body)
+{
+    QString response;
+    response += "HTTP/1.1 " + QString::number(statusCode) + " " + statusText + "\r\n";
+    response += "Content-Type: " + contentType + "\r\n";
+    response += "Content-Length: " + QString::number(body.size()) + "\r\n";
+    response += "Access-Control-Allow-Origin: *\r\n";  // Enable CORS
+    response += "Connection: close\r\n";
+    response += "\r\n";
+    response += QString::fromLatin1(body);  // Binary safe conversion
     return response;
 }
 
