@@ -125,10 +125,10 @@ private:
      * @param method   HTTP method
      * @param path     Request path
      * @param params   Query parameters
-     * @return HTTP response
+     * @return HTTP response as binary data
      */
-    QString handleRequest(const QString &method, const QString &path,
-                         const QHash<QString, QString> &params);
+    QByteArray handleRequest(const QString &method, const QString &path,
+                            const QHash<QString, QString> &params);
 
     /**
      * Search for files matching a pattern
@@ -159,9 +159,9 @@ private:
      * @param repoPath   Repository root path
      * @param filePath   File path (relative to repository root)
      * @param type       Output type ("original" or "pdf")
-     * @return HTTP response with file content
+     * @return HTTP response with file content (binary safe)
      */
-    QString getFile(const QString &repoPath, const QString &filePath, const QString &type = "original");
+    QByteArray getFile(const QString &repoPath, const QString &filePath, const QString &type = "original");
 
     /**
      * Build JSON response
@@ -179,10 +179,10 @@ private:
      * @param statusText  HTTP status text
      * @param contentType Content type
      * @param body        Response body
-     * @return Full HTTP response
+     * @return Full HTTP response (binary safe)
      */
-    QString buildHttpResponse(int statusCode, const QString &statusText,
-                             const QString &contentType, const QString &body);
+    QByteArray buildHttpResponse(int statusCode, const QString &statusText,
+                                const QString &contentType, const QString &body);
 
     /**
      * Build HTTP response with binary body
@@ -190,10 +190,10 @@ private:
      * @param statusText  HTTP status text
      * @param contentType Content type
      * @param body        Response body (binary)
-     * @return Full HTTP response
+     * @return Full HTTP response (binary safe)
      */
-    QString buildHttpResponse(int statusCode, const QString &statusText,
-                             const QString &contentType, const QByteArray &body);
+    QByteArray buildHttpResponse(int statusCode, const QString &statusText,
+                                const QString &contentType, const QByteArray &body);
 
     /**
      * URL decode a string
