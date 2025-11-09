@@ -323,6 +323,19 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         }
 
         QString result = browseDirectory(repoPath, dirPath);
+
+        // Check for error markers from browseDirectory
+        if (result.isEmpty()) {
+            // Invalid path (400 Bad Request)
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                   buildJsonResponse(false, "", "Invalid path"));
+        } else if (result == "NOT_FOUND") {
+            // Directory not found (404 Not Found)
+            return buildHttpResponse(404, "Not Found", "application/json",
+                                   buildJsonResponse(false, "", "Directory not found"));
+        }
+
+        // Success
         return buildHttpResponse(200, "OK", "application/json", result);
     }
     else if (path == "/file") {
@@ -795,7 +808,9 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
 {
     // Security: Prevent directory traversal
     if (dirPath.contains("..") || dirPath.startsWith("/")) {
-        return buildJsonResponse(false, "", "Invalid directory path");
+        // Invalid path - this is a client error (400)
+        // We return an empty string to signal the caller to send a 400 response
+        return "";  // Will be handled by caller with 400 error
     }
 
     // Build full path
@@ -806,12 +821,17 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
 
     QDir dir(fullPath);
     if (!dir.exists()) {
-        return buildJsonResponse(false, "", "Directory does not exist");
+        // Directory not found - return special marker for 404
+        return "NOT_FOUND";  // Will be handled by caller with 404 error
     }
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
     QJsonArray filesArray;
     QJsonArray dirsArray;
+
+    // File extensions to count
+    QStringList nameFilters;
+    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
 
     // Get subdirectories
     QFileInfoList subdirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
@@ -822,7 +842,6 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
 
         QJsonObject dirObj;
         dirObj["name"] = subdir.fileName();
-        dirObj["type"] = "directory";
 
         // Build relative path
         QString relativePath = dirPath.isEmpty()
@@ -830,18 +849,19 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
                               : dirPath + "/" + subdir.fileName();
         dirObj["path"] = relativePath;
 
+        // Count files in this directory recursively
+        QString subdirFullPath = fullPath + "/" + subdir.fileName();
+        int fileCount = countFilesRecursive(subdirFullPath, nameFilters);
+        dirObj["count"] = fileCount;
+
         dirsArray.append(dirObj);
     }
 
     // Get files (only supported file types)
-    QStringList nameFilters;
-    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
-
     QFileInfoList files = dir.entryInfoList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
     foreach (const QFileInfo &file, files) {
         QJsonObject fileObj;
         fileObj["name"] = file.fileName();
-        fileObj["type"] = "file";
         fileObj["size"] = (qint64)file.size();
         fileObj["modified"] = file.lastModified().toString(Qt::ISODate);
 
@@ -856,45 +876,69 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
 
     QJsonObject responseObj;
     responseObj["success"] = true;
-    responseObj["path"] = dirPath.isEmpty() ? "/" : "/" + dirPath;
+    responseObj["path"] = dirPath;
+    responseObj["count"] = dirsArray.size() + filesArray.size();
     responseObj["directories"] = dirsArray;
     responseObj["files"] = filesArray;
-    responseObj["dirCount"] = dirsArray.size();
-    responseObj["fileCount"] = filesArray.size();
 
     QJsonDocument doc(responseObj);
     return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 #else
     // Qt 4 fallback
-    QString json = "{\"success\":true,\"path\":\"" + (dirPath.isEmpty() ? "/" : "/" + dirPath) + "\",";
+    QStringList nameFilters;
+    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
 
     // Count items
     QStringList subdirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-    QStringList nameFilters;
-    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
     QStringList files = dir.entryList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
 
+    // Filter hidden subdirs
+    QStringList visibleSubdirs;
+    foreach (const QString &subdir, subdirs) {
+        if (!subdir.startsWith('.'))
+            visibleSubdirs.append(subdir);
+    }
+
+    QString json = "{\"success\":true,\"path\":\"" + dirPath + "\",";
+    json += "\"count\":" + QString::number(visibleSubdirs.size() + files.size()) + ",";
+
     json += "\"directories\":[";
-    for (int i = 0; i < subdirs.size(); i++) {
-        if (subdirs[i].startsWith('.')) continue;
+    for (int i = 0; i < visibleSubdirs.size(); i++) {
         if (i > 0) json += ",";
-        QString relativePath = dirPath.isEmpty() ? subdirs[i] : dirPath + "/" + subdirs[i];
-        json += "{\"name\":\"" + subdirs[i] + "\",\"type\":\"directory\",\"path\":\"" + relativePath + "\"}";
+        QString relativePath = dirPath.isEmpty() ? visibleSubdirs[i] : dirPath + "/" + visibleSubdirs[i];
+        QString subdirFullPath = fullPath + "/" + visibleSubdirs[i];
+        int fileCount = countFilesRecursive(subdirFullPath, nameFilters);
+        json += "{\"name\":\"" + visibleSubdirs[i] + "\",\"path\":\"" + relativePath
+              + "\",\"count\":" + QString::number(fileCount) + "}";
     }
     json += "],\"files\":[";
     for (int i = 0; i < files.size(); i++) {
         if (i > 0) json += ",";
         QFileInfo info(fullPath + "/" + files[i]);
         QString relativePath = dirPath.isEmpty() ? files[i] : dirPath + "/" + files[i];
-        json += "{\"name\":\"" + files[i] + "\",\"type\":\"file\","
+        json += "{\"name\":\"" + files[i] + "\","
                 "\"size\":" + QString::number(info.size()) + ","
                 "\"modified\":\"" + info.lastModified().toString(Qt::ISODate) + "\","
                 "\"path\":\"" + relativePath + "\"}";
     }
-    json += "],\"dirCount\":" + QString::number(subdirs.size())
-          + ",\"fileCount\":" + QString::number(files.size()) + "}";
+    json += "]}";
     return json;
 #endif
+}
+
+int SearchServer::countFilesRecursive(const QString &dirPath, const QStringList &nameFilters)
+{
+    int count = 0;
+    QDirIterator it(dirPath, nameFilters,
+                    QDir::Files | QDir::Readable,
+                    QDirIterator::Subdirectories);
+
+    while (it.hasNext()) {
+        it.next();
+        count++;
+    }
+
+    return count;
 }
 
 void SearchServer::scanDirectory(const QString &repoPath, const QString &dirPath,

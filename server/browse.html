@@ -320,8 +320,10 @@
                 }
 
                 displayContents(data);
+                const dirCount = data.directories ? data.directories.length : 0;
+                const fileCount = data.files ? data.files.length : 0;
                 document.getElementById('browse-stats').textContent =
-                    `${data.dirCount} folder(s), ${data.fileCount} file(s)`;
+                    `${dirCount} folder(s), ${fileCount} file(s) - ${data.count} total items`;
 
             } catch (error) {
                 showStatus('Error: ' + error.message, 'error');
@@ -344,11 +346,12 @@
 
             // Display directories first
             dirs.forEach(dir => {
+                const itemCount = dir.count !== undefined ? `${dir.count} item(s)` : '';
                 html += `
                     <li class="item directory" onclick="browse('${dir.path}', '${currentRepo}')">
                         <div class="item-icon">📁</div>
                         <div class="item-name">${dir.name}</div>
-                        <div class="item-size"></div>
+                        <div class="item-size">${itemCount}</div>
                         <div class="item-date"></div>
                     </li>
                 `;

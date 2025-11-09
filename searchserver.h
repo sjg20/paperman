@@ -240,6 +240,14 @@ private:
     void scanDirectory(const QString &repoPath, const QString &dirPath,
                       QList<CachedFile> &fileList);
 
+    /**
+     * Count files recursively in a directory
+     * @param dirPath Full path to directory
+     * @param nameFilters File name filters to match
+     * @return Number of files found recursively
+     */
+    int countFilesRecursive(const QString &dirPath, const QStringList &nameFilters);
+
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on
