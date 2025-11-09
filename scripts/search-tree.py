@@ -8,7 +8,7 @@ import json
 import requests
 from collections import defaultdict
 
-def search_files(pattern, server="https://tunbridge.chapterst.org", path="", repo="", api_key=""):
+def search_files(pattern, server="https://tunbridge.chapterst.org", path="", repo="", api_key="", verify_ssl=True):
     """Search for files matching pattern"""
     params = {
         "q": pattern,
@@ -25,7 +25,7 @@ def search_files(pattern, server="https://tunbridge.chapterst.org", path="", rep
         headers["X-API-Key"] = api_key
 
     try:
-        response = requests.get(f"{server}/search", params=params, headers=headers)
+        response = requests.get(f"{server}/search", params=params, headers=headers, verify=verify_ssl)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -117,8 +117,15 @@ def main():
                        help="Don't show file sizes")
     parser.add_argument("--show-date", action="store_true",
                        help="Show modification dates")
+    parser.add_argument("--insecure", action="store_true",
+                       help="Disable SSL certificate verification (for self-signed certs)")
 
     args = parser.parse_args()
+
+    # Suppress SSL warnings if --insecure is used
+    if args.insecure:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     # Perform search
     print(f"Searching for: {args.pattern}")
@@ -126,7 +133,8 @@ def main():
         print(f"In path: {args.path}")
     print()
 
-    result = search_files(args.pattern, args.server, args.path, args.repo, args.api_key)
+    result = search_files(args.pattern, args.server, args.path, args.repo, args.api_key,
+                         verify_ssl=not args.insecure)
 
     if not result.get("success"):
         print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
