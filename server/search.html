@@ -493,15 +493,20 @@
         let previewTimeout = null;
         let currentPreview = null;
 
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        document.addEventListener('mousemove', function(e) {
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+
         document.addEventListener('mouseover', function(e) {
             const fileItem = e.target.closest('.file-item[data-path]');
             if (fileItem) {
                 if (previewTimeout) clearTimeout(previewTimeout);
                 previewTimeout = setTimeout(() => {
-                    // Get the filename element specifically
-                    const nameElement = fileItem.querySelector('.file-name');
-                    const nameRect = nameElement.getBoundingClientRect();
-                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, nameRect);
+                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, lastMouseX, lastMouseY);
                 }, 500);
             }
         });
@@ -514,28 +519,41 @@
             }
         });
 
-        async function showThumbnailPreview(filePath, fileName, nameRect) {
+        async function showThumbnailPreview(filePath, fileName, mouseX, mouseY) {
             const preview = document.getElementById('thumbnailPreview');
 
-            // Check if there's enough space on the right side
+            // Position near the mouse cursor with smart placement
             const previewWidth = 320; // max-width of preview
-            const spaceOnRight = window.innerWidth - nameRect.right;
+            const previewHeight = 450; // approximate height
+            const offset = 15; // offset from cursor
 
-            let leftPos;
-            if (spaceOnRight >= previewWidth + 20) {
-                // Position to the right of the filename
-                leftPos = nameRect.right + 10;
-            } else {
-                // Position to the left of the filename
-                leftPos = nameRect.left - previewWidth - 10;
-                // Make sure it doesn't go off the left edge
-                if (leftPos < 10) {
-                    leftPos = 10;
-                }
+            let leftPos = mouseX + offset;
+            let topPos = mouseY + offset;
+
+            // Check if preview would go off the right edge
+            if (leftPos + previewWidth > window.innerWidth) {
+                // Position to the left of cursor instead
+                leftPos = mouseX - previewWidth - offset;
+            }
+
+            // Check if preview would go off the bottom edge
+            if (topPos + previewHeight > window.innerHeight) {
+                // Position above cursor instead
+                topPos = mouseY - previewHeight - offset;
+            }
+
+            // Ensure it doesn't go off the left edge
+            if (leftPos < 10) {
+                leftPos = 10;
+            }
+
+            // Ensure it doesn't go off the top edge
+            if (topPos < 10) {
+                topPos = 10;
             }
 
             preview.style.left = leftPos + 'px';
-            preview.style.top = nameRect.top + 'px';
+            preview.style.top = topPos + 'px';
             preview.style.display = 'block';
             preview.innerHTML = '<div class="loading">Loading preview...</div>';
             currentPreview = filePath;
