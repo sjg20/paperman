@@ -498,7 +498,10 @@
             if (fileItem) {
                 if (previewTimeout) clearTimeout(previewTimeout);
                 previewTimeout = setTimeout(() => {
-                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, e.pageX, e.pageY);
+                    const rect = fileItem.getBoundingClientRect();
+                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name,
+                                        rect.right + window.scrollX,
+                                        rect.top + window.scrollY);
                 }, 500);
             }
         });
