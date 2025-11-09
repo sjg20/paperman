@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paperman File Browser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .nav-links {
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .nav-links a {
+            color: #4CAF50;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb {
+            background: #f8f8f8;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb span {
+            color: #999;
+            margin: 0 8px;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+
+        .browse-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .browse-stats {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .item-list {
+            list-style: none;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .item:hover {
+            background: #f8f8f8;
+        }
+
+        .item-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            font-size: 20px;
+        }
+
+        .item-name {
+            flex: 1;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .item.directory .item-name {
+            color: #4CAF50;
+        }
+
+        .item-size {
+            color: #999;
+            margin-right: 12px;
+            font-size: 14px;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .item-date {
+            color: #999;
+            margin-right: 12px;
+            font-size: 14px;
+            min-width: 100px;
+        }
+
+        .download-btn {
+            padding: 6px 14px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .download-btn:hover {
+            background: #1976D2;
+        }
+
+        .download-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📂 Paperman File Browser</h1>
+        <p class="subtitle">Browse your document repository</p>
+
+        <div class="nav-links">
+            <a href="search.html">🔍 Search Files</a>
+            <a href="browse.html" style="font-weight: 600;">📂 Browse Files</a>
+        </div>
+
+        <div id="breadcrumb" class="breadcrumb"></div>
+        <div id="status" class="status"></div>
+
+        <div class="browse-header">
+            <div id="browse-stats" class="browse-stats"></div>
+        </div>
+
+        <div id="content"></div>
+
+        <div class="footer">
+            Powered by Paperman Search Server
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let currentPath = '';
+        let currentRepo = '';
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        function formatSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return size.toFixed(1) + ' ' + units[unitIndex];
+        }
+
+        function formatDate(isoDate) {
+            const date = new Date(isoDate);
+            return date.toLocaleDateString();
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const parts = currentPath ? currentPath.split('/') : [];
+
+            let html = '<a href="#" onclick="browse(\'\'); return false;">🏠 Home</a>';
+
+            let path = '';
+            parts.forEach((part, index) => {
+                if (!part) return;
+                path += (path ? '/' : '') + part;
+                const fullPath = path;
+                html += '<span>/</span>';
+                html += `<a href="#" onclick="browse('${fullPath}'); return false;">${part}</a>`;
+            });
+
+            breadcrumb.innerHTML = html;
+        }
+
+        async function browse(path = '', repo = '') {
+            currentPath = path;
+            currentRepo = repo;
+
+            updateBreadcrumb();
+            hideStatus();
+
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading...</p></div>';
+
+            try {
+                let url = `${API_URL}/browse?path=${encodeURIComponent(path)}`;
+                if (repo) {
+                    url += `&repo=${encodeURIComponent(repo)}`;
+                }
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showStatus(data.error || 'Failed to browse directory', 'error');
+                    content.innerHTML = '';
+                    return;
+                }
+
+                displayContents(data);
+                document.getElementById('browse-stats').textContent =
+                    `${data.dirCount} folder(s), ${data.fileCount} file(s)`;
+
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                content.innerHTML = '';
+                console.error('Browse error:', error);
+            }
+        }
+
+        function displayContents(data) {
+            const content = document.getElementById('content');
+            const dirs = data.directories || [];
+            const files = data.files || [];
+
+            if (dirs.length === 0 && files.length === 0) {
+                content.innerHTML = '<div class="empty">This folder is empty</div>';
+                return;
+            }
+
+            let html = '<ul class="item-list">';
+
+            // Display directories first
+            dirs.forEach(dir => {
+                html += `
+                    <li class="item directory" onclick="browse('${dir.path}', '${currentRepo}')">
+                        <div class="item-icon">📁</div>
+                        <div class="item-name">${dir.name}</div>
+                        <div class="item-size"></div>
+                        <div class="item-date"></div>
+                    </li>
+                `;
+            });
+
+            // Then files
+            files.forEach(file => {
+                const icon = getFileIcon(file.name);
+                html += `
+                    <li class="item file">
+                        <div class="item-icon">${icon}</div>
+                        <div class="item-name">${file.name}</div>
+                        <div class="item-size">${formatSize(file.size)}</div>
+                        <div class="item-date">${formatDate(file.modified)}</div>
+                        <button class="download-btn" onclick="downloadFile('${file.path}'); event.stopPropagation();">
+                            Download PDF
+                        </button>
+                    </li>
+                `;
+            });
+
+            html += '</ul>';
+            content.innerHTML = html;
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📄',
+                'max': '📋',
+                'jpg': '🖼️',
+                'jpeg': '🖼️',
+                'tiff': '🖼️',
+                'tif': '🖼️'
+            };
+            return icons[ext] || '📄';
+        }
+
+        async function downloadFile(path) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Downloading...';
+
+            try {
+                let url = `${API_URL}/file?path=${encodeURIComponent(path)}&type=pdf`;
+                if (currentRepo) {
+                    url += `&repo=${encodeURIComponent(currentRepo)}`;
+                }
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+
+                // Generate filename
+                const filename = path.split('/').pop();
+                const baseName = filename.replace(/\.[^.]+$/, '');
+                a.download = baseName + '.pdf';
+
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                showStatus('Download started!', 'info');
+                setTimeout(hideStatus, 3000);
+            } catch (error) {
+                showStatus('Download failed: ' + error.message, 'error');
+                console.error('Download error:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Download PDF';
+            }
+        }
+
+        // Load root directory on page load
+        window.addEventListener('load', function() {
+            browse('');
+        });
+    </script>
+</body>
+</html>
