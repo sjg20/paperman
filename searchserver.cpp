@@ -50,6 +50,12 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
 
     // Also store in the list for compatibility
     _rootPaths.append(_rootPath);
+
+    // Load API key from environment variable
+    _apiKey = QString::fromUtf8(qgetenv("PAPERMAN_API_KEY"));
+    if (!_apiKey.isEmpty()) {
+        qDebug() << "SearchServer: API key authentication enabled";
+    }
 }
 
 SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *parent)
@@ -66,6 +72,12 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     // Keep first path for backward compatibility
     if (!_rootPaths.isEmpty())
         _rootPath = _rootPaths.first();
+
+    // Load API key from environment variable
+    _apiKey = QString::fromUtf8(qgetenv("PAPERMAN_API_KEY"));
+    if (!_apiKey.isEmpty()) {
+        qDebug() << "SearchServer: API key authentication enabled";
+    }
 }
 
 SearchServer::~SearchServer()
@@ -184,6 +196,24 @@ void SearchServer::parseRequest(const QString &request, QString &method,
     } else {
         path = fullPath;
     }
+
+    // Parse headers (look for X-API-Key)
+    for (int i = 1; i < lines.size(); i++) {
+        QString line = lines[i];
+        if (line.isEmpty())
+            break;  // End of headers
+
+        int colonPos = line.indexOf(':');
+        if (colonPos > 0) {
+            QString headerName = line.left(colonPos).trimmed();
+            QString headerValue = line.mid(colonPos + 1).trimmed();
+
+            // Store X-API-Key header for authentication
+            if (headerName.toLower() == "x-api-key") {
+                params["__api_key__"] = headerValue;
+            }
+        }
+    }
 }
 
 QByteArray SearchServer::handleRequest(const QString &method, const QString &path,
@@ -195,6 +225,17 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     if (method != "GET") {
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("Only GET requests are supported"));
+    }
+
+    // Check authentication (except for /status endpoint)
+    if (isAuthEnabled() && path != "/status") {
+        QString providedKey = params.value("__api_key__");
+        if (!validateApiKey(providedKey)) {
+            qWarning() << "SearchServer: Authentication failed for" << path;
+            return buildHttpResponse(401, "Unauthorized", "application/json",
+                                   buildJsonResponse(false, "", "Invalid or missing API key. "
+                                       "Please provide X-API-Key header."));
+        }
     }
 
     // Route requests
@@ -665,4 +706,20 @@ QString SearchServer::urlDecode(const QString &str)
 {
     QByteArray bytes = QByteArray::fromPercentEncoding(str.toUtf8());
     return QString::fromUtf8(bytes);
+}
+
+bool SearchServer::validateApiKey(const QString &token)
+{
+    // If no API key is configured, authentication is disabled
+    if (_apiKey.isEmpty()) {
+        return true;
+    }
+
+    // Compare provided token with configured API key
+    return token == _apiKey;
+}
+
+bool SearchServer::isAuthEnabled()
+{
+    return !_apiKey.isEmpty();
 }

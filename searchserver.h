@@ -200,11 +200,25 @@ private:
      */
     QString urlDecode(const QString &str);
 
+    /**
+     * Validate API key for authentication
+     * @param token API key to validate
+     * @return true if valid, false otherwise
+     */
+    bool validateApiKey(const QString &token);
+
+    /**
+     * Check if authentication is enabled
+     * @return true if API key is configured
+     */
+    bool isAuthEnabled();
+
 private:
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on
     QList<QTcpSocket*> _clients;  //!< Connected clients
+    QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
 };
 
 #endif // __searchserver_h

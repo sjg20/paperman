@@ -12,7 +12,45 @@ All endpoints use the `GET` HTTP method and return JSON responses (except file d
 
 ## Authentication
 
-Currently, no authentication is required. The server is designed for local or trusted network use.
+The server supports **optional API key authentication** via the `X-API-Key` header.
+
+### Enabling Authentication
+
+Set the `PAPERMAN_API_KEY` environment variable when starting the server:
+
+```bash
+export PAPERMAN_API_KEY="your-secret-key-here"
+./paperman-server /path/to/repository
+```
+
+Or with systemd:
+```bash
+# Edit /etc/systemd/system/paperman-server.service
+[Service]
+Environment="PAPERMAN_API_KEY=your-secret-key-here"
+```
+
+### Using Authentication
+
+Once enabled, all endpoints (except `/status`) require the API key:
+
+```bash
+# Without API key - fails
+curl http://localhost:8080/search?q=test
+# Response: {"error":"Invalid or missing API key...","success":false}
+
+# With API key - works
+curl -H "X-API-Key: your-secret-key-here" http://localhost:8080/search?q=test
+```
+
+### Authentication Behavior
+
+- **Disabled by default**: If `PAPERMAN_API_KEY` is not set, no authentication is required
+- **Status endpoint exempt**: `/status` always works without authentication (for health checks)
+- **All other endpoints protected**: When enabled, `/search`, `/list`, `/file`, `/repos` require valid API key
+- **401 Unauthorized**: Invalid or missing API key returns HTTP 401 with JSON error
+
+**Security Note**: Always use HTTPS (SSL/TLS) when accessing the server over a network to prevent API key interception.
 
 ## Common Response Format
 
@@ -298,6 +336,7 @@ The server handles the following file types:
 |-----------|----------------------------|-----------------------------------------|
 | 200       | OK                         | Request successful                      |
 | 400       | Bad Request                | Invalid path, missing parameters        |
+| 401       | Unauthorized               | Invalid or missing API key              |
 | 404       | Not Found                  | File/endpoint not found                 |
 | 405       | Method Not Allowed         | Non-GET request                         |
 | 500       | Internal Server Error      | Conversion failed, file read error      |
@@ -327,8 +366,14 @@ Currently, no rate limiting is implemented. The server is designed for trusted l
 ### JavaScript/Fetch API
 
 ```javascript
+const API_KEY = 'your-secret-key-here';  // Set if authentication is enabled
+
 // Search for files
-fetch('http://localhost:8080/search?q=invoice')
+fetch('http://localhost:8080/search?q=invoice', {
+  headers: {
+    'X-API-Key': API_KEY  // Include if auth enabled
+  }
+})
   .then(response => response.json())
   .then(data => {
     console.log(`Found ${data.count} files`);
@@ -338,7 +383,11 @@ fetch('http://localhost:8080/search?q=invoice')
   });
 
 // Download a file
-fetch('http://localhost:8080/file?path=document.pdf')
+fetch('http://localhost:8080/file?path=document.pdf', {
+  headers: {
+    'X-API-Key': API_KEY
+  }
+})
   .then(response => response.blob())
   .then(blob => {
     const url = URL.createObjectURL(blob);
@@ -349,7 +398,11 @@ fetch('http://localhost:8080/file?path=document.pdf')
   });
 
 // Convert to PDF
-fetch('http://localhost:8080/file?path=scan.jpg&type=pdf')
+fetch('http://localhost:8080/file?path=scan.jpg&type=pdf', {
+  headers: {
+    'X-API-Key': API_KEY
+  }
+})
   .then(response => response.blob())
   .then(blob => {
     const url = URL.createObjectURL(blob);
@@ -362,19 +415,27 @@ fetch('http://localhost:8080/file?path=scan.jpg&type=pdf')
 ```python
 import requests
 
+API_KEY = 'your-secret-key-here'  # Set if authentication is enabled
+headers = {'X-API-Key': API_KEY}  # Include if auth enabled
+
 # Search for files
-response = requests.get('http://localhost:8080/search', params={'q': 'invoice'})
+response = requests.get('http://localhost:8080/search',
+                       params={'q': 'invoice'},
+                       headers=headers)
 data = response.json()
 print(f"Found {data['count']} files")
 
 # Download a file
-response = requests.get('http://localhost:8080/file', params={'path': 'document.pdf'})
+response = requests.get('http://localhost:8080/file',
+                       params={'path': 'document.pdf'},
+                       headers=headers)
 with open('document.pdf', 'wb') as f:
     f.write(response.content)
 
 # Convert to PDF
 response = requests.get('http://localhost:8080/file',
-                       params={'path': 'scan.jpg', 'type': 'pdf'})
+                       params={'path': 'scan.jpg', 'type': 'pdf'},
+                       headers=headers)
 with open('scan.pdf', 'wb') as f:
     f.write(response.content)
 ```
@@ -382,23 +443,26 @@ with open('scan.pdf', 'wb') as f:
 ### cURL
 
 ```bash
-# Get server status
+# Set API key if authentication is enabled
+API_KEY="your-secret-key-here"
+
+# Get server status (no auth required)
 curl http://localhost:8080/status
 
-# Search files
-curl "http://localhost:8080/search?q=invoice" | jq
+# Search files (with auth)
+curl -H "X-API-Key: $API_KEY" "http://localhost:8080/search?q=invoice" | jq
 
-# List directory
-curl "http://localhost:8080/list?path=2023" | jq
+# List directory (with auth)
+curl -H "X-API-Key: $API_KEY" "http://localhost:8080/list?path=2023" | jq
 
-# Download file
-curl "http://localhost:8080/file?path=document.pdf" -o document.pdf
+# Download file (with auth)
+curl -H "X-API-Key: $API_KEY" "http://localhost:8080/file?path=document.pdf" -o document.pdf
 
-# Convert to PDF
-curl "http://localhost:8080/file?path=scan.jpg&type=pdf" -o scan.pdf
+# Convert to PDF (with auth)
+curl -H "X-API-Key: $API_KEY" "http://localhost:8080/file?path=scan.jpg&type=pdf" -o scan.pdf
 
-# Pretty print JSON response
-curl -s http://localhost:8080/repos | jq .
+# Pretty print JSON response (with auth)
+curl -s -H "X-API-Key: $API_KEY" http://localhost:8080/repos | jq .
 ```
 
 ---
