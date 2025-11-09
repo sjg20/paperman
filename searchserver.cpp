@@ -829,11 +829,7 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
     QJsonArray filesArray;
     QJsonArray dirsArray;
 
-    // File extensions to count
-    QStringList nameFilters;
-    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
-
-    // Get subdirectories
+    // Get subdirectories (still need filesystem for this)
     QFileInfoList subdirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     foreach (const QFileInfo &subdir, subdirs) {
         // Skip hidden directories
@@ -849,27 +845,31 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
                               : dirPath + "/" + subdir.fileName();
         dirObj["path"] = relativePath;
 
-        // Count files in this directory recursively
-        QString subdirFullPath = fullPath + "/" + subdir.fileName();
-        int fileCount = countFilesRecursive(subdirFullPath, nameFilters);
+        // Count files in this directory recursively using cache
+        int fileCount = countFilesRecursive(repoPath, relativePath);
         dirObj["count"] = fileCount;
 
         dirsArray.append(dirObj);
     }
 
-    // Get files (only supported file types)
-    QFileInfoList files = dir.entryInfoList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
-    foreach (const QFileInfo &file, files) {
-        QJsonObject fileObj;
-        fileObj["name"] = file.fileName();
-        fileObj["size"] = (qint64)file.size();
-        fileObj["modified"] = file.lastModified().toString(Qt::ISODate);
+    // Get files from cache (much faster than filesystem scan)
+    const QList<CachedFile> &cachedFiles = _fileCache.value(repoPath);
+    foreach (const CachedFile &file, cachedFiles) {
+        // Check if file is in current directory (not subdirectories)
+        QString fileDir = QFileInfo(file.path).path();
+        if (fileDir == "." && dirPath.isEmpty()) {
+            // File is in root
+        } else if (fileDir == dirPath) {
+            // File is in this directory
+        } else {
+            continue;  // Skip files not in current directory
+        }
 
-        // Build relative path
-        QString relativePath = dirPath.isEmpty()
-                              ? file.fileName()
-                              : dirPath + "/" + file.fileName();
-        fileObj["path"] = relativePath;
+        QJsonObject fileObj;
+        fileObj["name"] = file.name;
+        fileObj["size"] = file.size;
+        fileObj["modified"] = file.modified.toString(Qt::ISODate);
+        fileObj["path"] = file.path;
 
         filesArray.append(fileObj);
     }
@@ -885,12 +885,8 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
     return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 #else
     // Qt 4 fallback
-    QStringList nameFilters;
-    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
-
-    // Count items
+    // Get subdirectories
     QStringList subdirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-    QStringList files = dir.entryList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
 
     // Filter hidden subdirs
     QStringList visibleSubdirs;
@@ -899,43 +895,61 @@ QString SearchServer::browseDirectory(const QString &repoPath, const QString &di
             visibleSubdirs.append(subdir);
     }
 
+    // Count files from cache for this directory
+    const QList<CachedFile> &cachedFiles = _fileCache.value(repoPath);
+    int fileCount = 0;
+    foreach (const CachedFile &file, cachedFiles) {
+        QString fileDir = QFileInfo(file.path).path();
+        if ((fileDir == "." && dirPath.isEmpty()) || fileDir == dirPath) {
+            fileCount++;
+        }
+    }
+
     QString json = "{\"success\":true,\"path\":\"" + dirPath + "\",";
-    json += "\"count\":" + QString::number(visibleSubdirs.size() + files.size()) + ",";
+    json += "\"count\":" + QString::number(visibleSubdirs.size() + fileCount) + ",";
 
     json += "\"directories\":[";
     for (int i = 0; i < visibleSubdirs.size(); i++) {
         if (i > 0) json += ",";
         QString relativePath = dirPath.isEmpty() ? visibleSubdirs[i] : dirPath + "/" + visibleSubdirs[i];
-        QString subdirFullPath = fullPath + "/" + visibleSubdirs[i];
-        int fileCount = countFilesRecursive(subdirFullPath, nameFilters);
+        int fileCount = countFilesRecursive(repoPath, relativePath);
         json += "{\"name\":\"" + visibleSubdirs[i] + "\",\"path\":\"" + relativePath
               + "\",\"count\":" + QString::number(fileCount) + "}";
     }
     json += "],\"files\":[";
-    for (int i = 0; i < files.size(); i++) {
-        if (i > 0) json += ",";
-        QFileInfo info(fullPath + "/" + files[i]);
-        QString relativePath = dirPath.isEmpty() ? files[i] : dirPath + "/" + files[i];
-        json += "{\"name\":\"" + files[i] + "\","
-                "\"size\":" + QString::number(info.size()) + ","
-                "\"modified\":\"" + info.lastModified().toString(Qt::ISODate) + "\","
-                "\"path\":\"" + relativePath + "\"}";
+
+    // Get files from cache
+    const QList<CachedFile> &cachedFiles = _fileCache.value(repoPath);
+    int fileIdx = 0;
+    foreach (const CachedFile &file, cachedFiles) {
+        QString fileDir = QFileInfo(file.path).path();
+        if ((fileDir == "." && dirPath.isEmpty()) || fileDir == dirPath) {
+            if (fileIdx > 0) json += ",";
+            json += "{\"name\":\"" + file.name + "\","
+                    "\"size\":" + QString::number(file.size) + ","
+                    "\"modified\":\"" + file.modified.toString(Qt::ISODate) + "\","
+                    "\"path\":\"" + file.path + "\"}";
+            fileIdx++;
+        }
     }
     json += "]}";
     return json;
 #endif
 }
 
-int SearchServer::countFilesRecursive(const QString &dirPath, const QStringList &nameFilters)
+int SearchServer::countFilesRecursive(const QString &repoPath, const QString &dirPath)
 {
-    int count = 0;
-    QDirIterator it(dirPath, nameFilters,
-                    QDir::Files | QDir::Readable,
-                    QDirIterator::Subdirectories);
+    // Use cached file list for fast counting
+    const QList<CachedFile> &fileList = _fileCache.value(repoPath);
 
-    while (it.hasNext()) {
-        it.next();
-        count++;
+    int count = 0;
+    QString prefix = dirPath.isEmpty() ? "" : dirPath + "/";
+
+    // Count files that are under this directory path
+    foreach (const CachedFile &file, fileList) {
+        if (dirPath.isEmpty() || file.path.startsWith(prefix)) {
+            count++;
+        }
     }
 
     return count;

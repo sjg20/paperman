@@ -241,12 +241,12 @@ private:
                       QList<CachedFile> &fileList);
 
     /**
-     * Count files recursively in a directory
-     * @param dirPath Full path to directory
-     * @param nameFilters File name filters to match
-     * @return Number of files found recursively
+     * Count files recursively in a directory using cached data
+     * @param repoPath Repository root path
+     * @param dirPath Relative directory path within repository
+     * @return Number of files found recursively in cache
      */
-    int countFilesRecursive(const QString &dirPath, const QStringList &nameFilters);
+    int countFilesRecursive(const QString &repoPath, const QString &dirPath);
 
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
