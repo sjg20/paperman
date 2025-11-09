@@ -289,6 +289,14 @@ private:
      */
     int countFilesRecursive(const QString &repoPath, const QString &dirPath);
 
+    /**
+     * Load file cache from .papertree file
+     * @param repoPath Repository root path
+     * @param fileList Returns list of cached files
+     * @return true if successfully loaded from papertree, false otherwise
+     */
+    bool loadFromPapertree(const QString &repoPath, QList<CachedFile> &fileList);
+
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on

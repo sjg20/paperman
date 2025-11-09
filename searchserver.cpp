@@ -67,12 +67,17 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
     // Build file cache for the repository
     qDebug() << "SearchServer: Building file cache for" << _rootPath;
     QList<CachedFile> &fileList = _fileCache[_rootPath];
-    scanDirectory(_rootPath, "", fileList);
-    qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+
+    QString papertreeFile = _rootPath + "/.papertree";
+    if (QFile::exists(papertreeFile) && loadFromPapertree(_rootPath, fileList)) {
+        qDebug() << "SearchServer: File cache loaded from papertree with" << fileList.size() << "files";
+    } else {
+        scanDirectory(_rootPath, "", fileList);
+        qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+    }
 
     // Set up file system watcher for papertree file
     _fsWatcher = new QFileSystemWatcher(this);
-    QString papertreeFile = _rootPath + "/.papertree";
     if (QFile::exists(papertreeFile)) {
         _fsWatcher->addPath(papertreeFile);
         qDebug() << "SearchServer: Watching papertree file for changes:" << papertreeFile;
@@ -112,8 +117,14 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     foreach (const QString &path, _rootPaths) {
         qDebug() << "SearchServer: Building file cache for" << path;
         QList<CachedFile> &fileList = _fileCache[path];
-        scanDirectory(path, "", fileList);
-        qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+
+        QString papertreeFile = path + "/.papertree";
+        if (QFile::exists(papertreeFile) && loadFromPapertree(path, fileList)) {
+            qDebug() << "SearchServer: File cache loaded from papertree with" << fileList.size() << "files";
+        } else {
+            scanDirectory(path, "", fileList);
+            qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+        }
     }
 
     // Set up file system watcher for papertree files in all repositories
@@ -1099,6 +1110,79 @@ int SearchServer::countFilesRecursive(const QString &repoPath, const QString &di
     }
 
     return count;
+}
+
+bool SearchServer::loadFromPapertree(const QString &repoPath, QList<CachedFile> &fileList)
+{
+    QString papertreeFile = repoPath + "/.papertree";
+    QFile file(papertreeFile);
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "SearchServer: Failed to open papertree file:" << papertreeFile;
+        return false;
+    }
+
+    QTextStream in(&file);
+    QString currentDir = "";
+    QStringList dirStack;  // Track directory hierarchy
+
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+
+        // Count leading spaces to determine nesting level
+        int level = 0;
+        for (int i = 0; i < line.length(); i++) {
+            if (line[i] == ' ')
+                level++;
+            else
+                break;
+        }
+
+        if (level < 1)
+            continue;  // Skip invalid lines
+
+        QString name = line.mid(level);
+
+        // Adjust directory stack based on level
+        while (dirStack.size() >= level) {
+            dirStack.removeLast();
+        }
+
+        // Build current path
+        QString relativePath = dirStack.join("/");
+        if (!relativePath.isEmpty())
+            relativePath += "/";
+        relativePath += name;
+
+        QString fullPath = repoPath + "/" + relativePath;
+        QFileInfo fileInfo(fullPath);
+
+        if (!fileInfo.exists()) {
+            // File/dir no longer exists, skip it
+            continue;
+        }
+
+        if (fileInfo.isDir()) {
+            // Add to directory stack for building paths of children
+            dirStack.append(name);
+        } else if (fileInfo.isFile()) {
+            // Check if it's a supported file type
+            QString ext = name.section('.', -1).toLower();
+            if (ext == "max" || ext == "pdf" || ext == "jpg" ||
+                ext == "jpeg" || ext == "tiff" || ext == "tif") {
+
+                CachedFile cachedFile;
+                cachedFile.path = relativePath;
+                cachedFile.name = name;
+                cachedFile.size = fileInfo.size();
+                cachedFile.modified = fileInfo.lastModified();
+                fileList.append(cachedFile);
+            }
+        }
+    }
+
+    file.close();
+    return fileList.size() > 0;
 }
 
 void SearchServer::scanDirectory(const QString &repoPath, const QString &dirPath,
