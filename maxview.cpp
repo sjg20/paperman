@@ -31,6 +31,10 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <sys/resource.h>
 
 #include <QDebug>
+#include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QImage>
 #include <QSettings>
 #include <QTranslator>
 
@@ -47,7 +51,9 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "mainwindow.h"
 #include "md5.h"
 #include "desk.h"
+#include "filemax.h"
 #include "maxview.h"
+#include "ocr.h"
 #include "op.h"
 #include "test/test.h"
 
@@ -58,6 +64,149 @@ extern "C" void decpp_set_hack (int d);
 extern "C" int test_main (void);
 */
 #include "err.h"
+
+static err_info *batch_ocr_directory(const QString &dirPath)
+   {
+   printf("Scanning directory: %s\n", qPrintable(dirPath));
+
+   // Get OCR engine
+   err_info *err = nullptr;
+   Ocr *ocr = Ocr::getOcr(err);
+   if (err || !ocr)
+      {
+      fprintf(stderr, "Failed to initialize OCR engine: %s\n",
+              err ? err->errstr : "unknown error");
+      return err;
+      }
+
+   int total_files = 0;
+   int processed = 0;
+   int skipped = 0;
+   int errors = 0;
+
+   // Recursively find all .max files
+   QDirIterator it(dirPath, QStringList() << "*.max", QDir::Files,
+                   QDirIterator::Subdirectories);
+
+   while (it.hasNext())
+      {
+      QString filePath = it.next();
+      total_files++;
+      }
+
+   printf("Found %d .max files to process\n\n", total_files);
+
+   // Process each file
+   QDirIterator it2(dirPath, QStringList() << "*.max", QDir::Files,
+                    QDirIterator::Subdirectories);
+
+   while (it2.hasNext())
+      {
+      QString filePath = it2.next();
+      QFileInfo fileInfo(filePath);
+      QString fileDir = fileInfo.absolutePath();
+      if (!fileDir.endsWith('/'))
+         fileDir += '/';
+      QString fileName = fileInfo.fileName();
+
+      printf("[%d/%d] Processing: %s\n", processed + 1, total_files,
+             qPrintable(fileName));
+
+      // Open the .max file
+      Filemax *file = new Filemax(fileDir, fileName, nullptr);
+      err = file->load();
+
+      if (err)
+         {
+         fprintf(stderr, "  ERROR: Failed to load file: %s\n", err->errstr);
+         errors++;
+         delete file;
+         continue;
+         }
+
+      // Check if file already has OCR text
+      QString existing_ocr;
+      err = file->getAnnot(File::Annot_ocr, existing_ocr);
+      if (!err && !existing_ocr.isEmpty())
+         {
+         printf("  Skipped: Already has OCR text (%d chars)\n",
+                existing_ocr.length());
+         skipped++;
+         delete file;
+         continue;
+         }
+
+      // Process each page
+      int page_count = file->pagecount();
+      QString all_text;
+
+      for (int page = 0; page < page_count; page++)
+         {
+         // Get the page image
+         QImage qimage;
+         QSize size, trueSize;
+         int bpp;
+
+         err = file->getImage(page, false, qimage, size, trueSize, bpp, false);
+
+         if (err || qimage.isNull())
+            {
+            if (err)
+               fprintf(stderr, "  WARNING: Failed to get image for page %d: %s\n",
+                      page, err->errstr);
+            continue;
+            }
+
+         // Run OCR on the page
+         QString page_text;
+         err = ocr->imageToText(qimage, page_text);
+
+         if (!err && !page_text.isEmpty())
+            {
+            if (page > 0)
+               all_text += "\n\n--- Page " + QString::number(page + 1) + " ---\n\n";
+            all_text += page_text;
+            }
+         }
+
+      // Save OCR text if we got any
+      if (!all_text.isEmpty())
+         {
+         QHash<int, QString> updates;
+         updates[File::Annot_ocr] = all_text;
+         err = file->putAnnot(updates);
+
+         if (!err)
+            {
+            file->flush();
+            printf("  SUCCESS: Extracted %d characters from %d pages\n",
+                   all_text.length(), page_count);
+            processed++;
+            }
+         else
+            {
+            fprintf(stderr, "  ERROR: Failed to save OCR text: %s\n",
+                   err->errstr);
+            errors++;
+            }
+         }
+      else
+         {
+         printf("  Skipped: No text extracted\n");
+         skipped++;
+         }
+
+      delete file;
+      }
+
+   printf("\n=== OCR Batch Processing Complete ===\n");
+   printf("Total files:     %d\n", total_files);
+   printf("Processed:       %d\n", processed);
+   printf("Skipped:         %d\n", skipped);
+   printf("Errors:          %d\n", errors);
+
+   return nullptr;
+   }
 
 static void usage (void)
    {
@@ -73,6 +222,7 @@ static void usage (void)
 */
    printf ("   -h|--help       display this usage information\n");
    printf ("   -s|--sum        do an md5 checksum on a directory\n");
+   printf ("   -o|--ocr        run OCR on all .max files in directory (recursive)\n");
 /*
    printf ("   -d|--debug <n>  set debug level (0-3)\n");
    printf ("   -f|--force      force overwriting of existing file\n");
@@ -105,6 +255,7 @@ int main (int argc, char *argv[])
      {"info", 0, 0, 'i'},
 */
      {"max", 1, 0, 'm'},
+     {"ocr", 1, 0, 'o'},
      {"pdf", 1, 0, 'p'},
 /*
      {"relocate", 0, 0, 'r'},
@@ -131,10 +282,11 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "hj:m:p:s:t",
+   while (c = getopt_long (argc, argv, "hj:m:o:p:s:t",
                            long_options, NULL), c != -1)
       switch (c)
          {
+         case 'o' :
          case 's' :
             dir = optarg;
             op_type = c;
@@ -171,7 +323,7 @@ int main (int argc, char *argv[])
          }
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
-       op_type != 'j')
+       op_type != 'j' && op_type != 'o')
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -181,6 +333,14 @@ int main (int argc, char *argv[])
 #endif
    if (op_type == 't')
       useGUI = true;
+
+   // OCR batch mode doesn't need GUI
+   if (op_type == 'o')
+      {
+      useGUI = false;
+      // Force offscreen platform for batch OCR mode
+      setenv("QT_QPA_PLATFORM", "offscreen", 1);
+      }
 
    if (!need_gui && op_type == -1 && !useGUI)
       {
@@ -206,6 +366,18 @@ int main (int argc, char *argv[])
 
    switch (op_type)
       {
+      case 'o' :
+         {
+         QString mydir = QString (dir);
+         err_info *err;
+
+         // Run OCR on all .max files in the directory
+         err = batch_ocr_directory(mydir);
+         if (err)
+            fprintf(stderr, "OCR batch error: %s\n", err->errstr);
+         break;
+         }
+
       case 's' :
          {
          QString mydir = QString (dir);
