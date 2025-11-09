@@ -111,8 +111,8 @@ def main():
                        help="Search within subdirectory")
     parser.add_argument("--repo", default="",
                        help="Repository name (for multi-repo setups)")
-    parser.add_argument("--api-key", default="",
-                       help="API key for authentication")
+    parser.add_argument("--api-key", default="vOXCHGeJvzkj7PiM17J9kON6j+b5oAZA1EW7/SBZEmw=",
+                       help="API key for authentication (default: configured key)")
     parser.add_argument("--no-size", action="store_true",
                        help="Don't show file sizes")
     parser.add_argument("--show-date", action="store_true",
