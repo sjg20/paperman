@@ -592,8 +592,23 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         process.start(papermanPath, args);
 
         if (!process.waitForStarted(5000)) {
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "Failed to start conversion process"));
+            qWarning() << "SearchServer: Failed to start paperman - falling back to original file";
+            // Fallback: return original file instead of failing
+            QFile file(fullPath);
+            if (!file.open(QIODevice::ReadOnly)) {
+                return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                       buildJsonResponse(false, "", "PDF conversion not available and cannot read original file"));
+            }
+            QByteArray fileContent = file.readAll();
+            file.close();
+
+            // Determine content type based on extension
+            QString contentType = "application/octet-stream";
+            if (ext == "max") contentType = "application/x-max";
+            else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
+            else if (ext == "tiff" || ext == "tif") contentType = "image/tiff";
+
+            return buildHttpResponse(200, "OK", contentType, fileContent);
         }
 
         if (!process.waitForFinished(30000)) {  // 30 second timeout
