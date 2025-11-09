@@ -516,8 +516,25 @@
 
         async function showThumbnailPreview(filePath, fileName, nameRect) {
             const preview = document.getElementById('thumbnailPreview');
-            // Position to the right of the filename
-            preview.style.left = (nameRect.right + 10) + 'px';
+
+            // Check if there's enough space on the right side
+            const previewWidth = 320; // max-width of preview
+            const spaceOnRight = window.innerWidth - nameRect.right;
+
+            let leftPos;
+            if (spaceOnRight >= previewWidth + 20) {
+                // Position to the right of the filename
+                leftPos = nameRect.right + 10;
+            } else {
+                // Position to the left of the filename
+                leftPos = nameRect.left - previewWidth - 10;
+                // Make sure it doesn't go off the left edge
+                if (leftPos < 10) {
+                    leftPos = 10;
+                }
+            }
+
+            preview.style.left = leftPos + 'px';
             preview.style.top = nameRect.top + 'px';
             preview.style.display = 'block';
             preview.innerHTML = '<div class="loading">Loading preview...</div>';
