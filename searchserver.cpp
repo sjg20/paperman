@@ -727,7 +727,12 @@ QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &status
 
 QString SearchServer::urlDecode(const QString &str)
 {
-    QByteArray bytes = QByteArray::fromPercentEncoding(str.toUtf8());
+    // Replace + with space (URL query string encoding)
+    QString decoded = str;
+    decoded.replace('+', ' ');
+
+    // Then handle percent-encoded characters
+    QByteArray bytes = QByteArray::fromPercentEncoding(decoded.toUtf8());
     return QString::fromUtf8(bytes);
 }
 
