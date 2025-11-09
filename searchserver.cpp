@@ -32,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QProcess>
 #include <QTemporaryDir>
+#include <QTemporaryFile>
 #include <QDirIterator>
 #include <QCryptographicHash>
 
@@ -1160,59 +1161,78 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     
     // 5. Determine if we need to convert to PDF first
     QString pdfPath = fullPath;
-    bool needsCleanup = false;
     QString ext = fileInfo.suffix().toLower();
-    
+
     // 5a. For .max files, convert to PDF first using paperman
+    QTemporaryFile *tmpPdf = nullptr;
     if (ext == "max") {
         QTemporaryDir tmpDir;
         if (!tmpDir.isValid()) {
             qWarning() << "SearchServer: Failed to create temp directory";
             return "";
         }
-        
-        pdfPath = tmpDir.path() + "/" + fileInfo.completeBaseName() + ".pdf";
-        
+
         // Use paperman to convert .max to PDF
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert("QT_QPA_PLATFORM", "offscreen");
-        
+
         QProcess convertProcess;
         convertProcess.setProcessEnvironment(env);
         convertProcess.setWorkingDirectory(tmpDir.path());
-        
+
         QString papermanPath = QCoreApplication::applicationDirPath() + "/paperman";
         if (!QFile::exists(papermanPath))
             papermanPath = "paperman";
-        
+
         QStringList convertArgs;
         convertArgs << "-p" << fullPath;
-        
+
         qDebug() << "SearchServer: Converting .max to PDF:" << papermanPath << convertArgs;
         convertProcess.start(papermanPath, convertArgs);
-        
+
         if (!convertProcess.waitForFinished(30000)) {  // 30 second timeout
             convertProcess.kill();
             qWarning() << "SearchServer: Conversion timed out";
             return "";
         }
-        
+
         if (convertProcess.exitCode() != 0) {
             qWarning() << "SearchServer: Conversion failed:" << convertProcess.readAllStandardError();
             return "";
         }
-        
+
         // Find the generated PDF
         QDir tmpDirObj(tmpDir.path());
         QStringList pdfFiles = tmpDirObj.entryList(QStringList() << "*.pdf", QDir::Files);
-        
+
         if (pdfFiles.isEmpty()) {
             qWarning() << "SearchServer: No PDF generated";
             return "";
         }
-        
-        pdfPath = tmpDir.path() + "/" + pdfFiles.first();
-        needsCleanup = true;  // We'll clean up after extracting thumbnail
+
+        QString generatedPdf = tmpDir.path() + "/" + pdfFiles.first();
+
+        // Copy PDF to a new temporary file that will persist after tmpDir is destroyed
+        tmpPdf = new QTemporaryFile();
+        tmpPdf->setAutoRemove(true);
+        if (!tmpPdf->open()) {
+            qWarning() << "SearchServer: Failed to create temp PDF file";
+            delete tmpPdf;
+            return "";
+        }
+
+        QFile srcPdf(generatedPdf);
+        if (!srcPdf.open(QIODevice::ReadOnly)) {
+            qWarning() << "SearchServer: Failed to read generated PDF";
+            delete tmpPdf;
+            return "";
+        }
+
+        tmpPdf->write(srcPdf.readAll());
+        tmpPdf->flush();
+        srcPdf.close();
+
+        pdfPath = tmpPdf->fileName();
     }
     // For image files (.jpg, .jpeg, .tiff, .tif), we could optimize by copying directly
     // but for consistency, we'll convert through PDF if available
@@ -1225,17 +1245,18 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     // 6. Extract thumbnail from PDF
     int thumbSize = getThumbnailSize(size);
     bool success = extractPdfThumbnail(pdfPath, page, thumbSize, cachedThumb);
-    
+
     // 7. Cleanup temp PDF if we created one
-    if (needsCleanup && !pdfPath.isEmpty() && pdfPath != fullPath) {
-        QFile::remove(pdfPath);
+    if (tmpPdf) {
+        delete tmpPdf;  // QTemporaryFile auto-removes on delete
+        tmpPdf = nullptr;
     }
-    
+
     if (success) {
         qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
         return cachedThumb;
     }
-    
+
     qWarning() << "SearchServer: Failed to generate thumbnail";
     return "";
 }
