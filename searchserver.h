@@ -38,6 +38,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QStringList>
 #include <QHash>
 #include <QDateTime>
+#include <QFileSystemWatcher>
 
 // Simple struct for cached file information
 struct CachedFile {
@@ -117,6 +118,12 @@ private slots:
      * Read data from client
      */
     void onReadyRead();
+
+    /**
+     * Handle file system changes (files added/removed/modified)
+     * @param path Path to the directory that changed
+     */
+    void onDirectoryChanged(const QString &path);
 
 private:
     /**
@@ -288,6 +295,7 @@ private:
     QList<QTcpSocket*> _clients;  //!< Connected clients
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
+    QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
 };
 
 #endif // __searchserver_h
