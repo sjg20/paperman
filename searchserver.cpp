@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QProcess>
 #include <QTemporaryDir>
 #include <QDirIterator>
+#include <QCryptographicHash>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 #include <QJsonDocument>
@@ -57,6 +58,9 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
     if (!_apiKey.isEmpty()) {
         qDebug() << "SearchServer: API key authentication enabled";
     }
+
+    // Clean old thumbnails from cache
+    cleanThumbnailCache();
 
     // Build file cache for the repository
     qDebug() << "SearchServer: Building file cache for" << _rootPath;
@@ -85,6 +89,9 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     if (!_apiKey.isEmpty()) {
         qDebug() << "SearchServer: API key authentication enabled";
     }
+
+    // Clean old thumbnails from cache
+    cleanThumbnailCache();
 
     // Build file cache for each repository
     foreach (const QString &path, _rootPaths) {
@@ -371,6 +378,80 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         }
 
         return getFile(repoPath, filePath, type);
+    }
+    else if (path == "/thumbnail") {
+        QString filePath = params.value("path", "");
+        QString repoName = params.value("repo", "");
+        int page = params.value("page", "1").toInt();
+        QString size = params.value("size", "medium");
+
+        if (page <= 0) page = 1;
+
+        if (filePath.isEmpty()) {
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                   buildJsonResponse(false, "", "Missing required parameter: path"));
+        }
+
+        // Security: prevent directory traversal
+        if (filePath.contains("..") || filePath.startsWith("/")) {
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                   buildJsonResponse(false, "", "Invalid path"));
+        }
+
+        // Find repository by name if specified
+        QString repoPath = _rootPath;  // Default to first/primary repo
+        if (!repoName.isEmpty()) {
+            bool found = false;
+            foreach (const QString &path, _rootPaths) {
+                if (QFileInfo(path).fileName() == repoName) {
+                    repoPath = path;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return buildHttpResponse(404, "Not Found", "application/json",
+                                       buildJsonResponse(false, "", "Repository not found: " + repoName));
+            }
+        }
+
+        // Check file exists
+        QString fullPath = repoPath + "/" + filePath;
+        if (!QFile::exists(fullPath)) {
+            return buildHttpResponse(404, "Not Found", "application/json",
+                                   buildJsonResponse(false, "", "File not found"));
+        }
+
+        // Generate thumbnail
+        QString thumbnailPath = generateThumbnail(repoPath, filePath, page, size);
+
+        if (thumbnailPath.isEmpty()) {
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "Failed to generate thumbnail"));
+        }
+
+        // Read thumbnail file
+        QFile thumbFile(thumbnailPath);
+        if (!thumbFile.open(QIODevice::ReadOnly)) {
+            return buildHttpResponse(500, "Internal Server Error", "application/json",
+                                   buildJsonResponse(false, "", "Failed to read thumbnail"));
+        }
+
+        QByteArray thumbData = thumbFile.readAll();
+        thumbFile.close();
+
+        // Build HTTP response with caching headers
+        QByteArray response;
+        response += "HTTP/1.1 200 OK\r\n";
+        response += "Content-Type: image/jpeg\r\n";
+        response += "Content-Length: " + QByteArray::number(thumbData.size()) + "\r\n";
+        response += "Cache-Control: public, max-age=86400\r\n";  // Cache for 24 hours
+        response += "Access-Control-Allow-Origin: *\r\n";
+        response += "Connection: close\r\n";
+        response += "\r\n";
+        response += thumbData;
+
+        return response;
     }
     else {
         return buildHttpResponse(404, "Not Found", "text/plain",
@@ -990,5 +1071,197 @@ void SearchServer::scanDirectory(const QString &repoPath, const QString &dirPath
         cached.modified = info.lastModified();
 
         fileList.append(cached);
+    }
+}
+
+int SearchServer::getThumbnailSize(const QString &size)
+{
+    if (size == "small") return 150;
+    if (size == "large") return 600;
+    return 300; // medium (default)
+}
+
+bool SearchServer::extractPdfThumbnail(const QString &pdfPath, int page, int size,
+                                      const QString &outputPath)
+{
+    // Use pdftocairo for high-quality thumbnails
+    QProcess process;
+    QStringList args;
+    
+    // pdftocairo will add .jpg extension, so remove it from output path
+    QString basePath = outputPath;
+    if (basePath.endsWith(".jpg", Qt::CaseInsensitive))
+        basePath = basePath.left(basePath.length() - 4);
+    
+    args << "-jpeg"
+         << "-singlefile"
+         << "-f" << QString::number(page)
+         << "-l" << QString::number(page)
+         << "-scale-to" << QString::number(size)
+         << pdfPath
+         << basePath;
+    
+    qDebug() << "SearchServer: Generating thumbnail:" << args.join(" ");
+    
+    process.start("pdftocairo", args);
+    if (!process.waitForFinished(5000)) {  // 5 second timeout
+        process.kill();
+        qWarning() << "SearchServer: pdftocairo timed out";
+        return false;
+    }
+    
+    if (process.exitCode() != 0) {
+        qWarning() << "SearchServer: pdftocairo failed:" << process.readAllStandardError();
+        return false;
+    }
+    
+    // pdftocairo adds .jpg extension
+    QString generatedFile = basePath + ".jpg";
+    
+    // Rename if needed
+    if (generatedFile != outputPath && QFile::exists(generatedFile)) {
+        QFile::remove(outputPath);  // Remove if exists
+        QFile::rename(generatedFile, outputPath);
+    }
+    
+    return QFile::exists(outputPath);
+}
+
+QString SearchServer::generateThumbnail(const QString &repoPath, const QString &filePath,
+                                       int page, const QString &size)
+{
+    // 1. Create thumbnail cache directory
+    QString cacheDir = "/tmp/paperman-thumbnails";
+    QDir().mkpath(cacheDir);
+    
+    // 2. Build full file path
+    QString fullPath = repoPath + "/" + filePath;
+    QFileInfo fileInfo(fullPath);
+    
+    if (!fileInfo.exists()) {
+        qWarning() << "SearchServer: File not found for thumbnail:" << fullPath;
+        return "";
+    }
+    
+    // 3. Generate cache key (hash of path + page + size + mtime)
+    QString cacheKeyData = filePath + "_" + QString::number(page) + "_" + size + "_"
+                          + QString::number(fileInfo.lastModified().toMSecsSinceEpoch());
+    QString cacheKeyHash = QString(QCryptographicHash::hash(cacheKeyData.toUtf8(),
+                                   QCryptographicHash::Md5).toHex());
+    QString cachedThumb = cacheDir + "/" + cacheKeyHash + ".jpg";
+    
+    // 4. Return cached thumbnail if exists
+    if (QFile::exists(cachedThumb)) {
+        qDebug() << "SearchServer: Using cached thumbnail:" << cachedThumb;
+        return cachedThumb;
+    }
+    
+    qDebug() << "SearchServer: Generating new thumbnail for:" << filePath;
+    
+    // 5. Determine if we need to convert to PDF first
+    QString pdfPath = fullPath;
+    bool needsCleanup = false;
+    QString ext = fileInfo.suffix().toLower();
+    
+    // 5a. For .max files, convert to PDF first using paperman
+    if (ext == "max") {
+        QTemporaryDir tmpDir;
+        if (!tmpDir.isValid()) {
+            qWarning() << "SearchServer: Failed to create temp directory";
+            return "";
+        }
+        
+        pdfPath = tmpDir.path() + "/" + fileInfo.completeBaseName() + ".pdf";
+        
+        // Use paperman to convert .max to PDF
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("QT_QPA_PLATFORM", "offscreen");
+        
+        QProcess convertProcess;
+        convertProcess.setProcessEnvironment(env);
+        convertProcess.setWorkingDirectory(tmpDir.path());
+        
+        QString papermanPath = QCoreApplication::applicationDirPath() + "/paperman";
+        if (!QFile::exists(papermanPath))
+            papermanPath = "paperman";
+        
+        QStringList convertArgs;
+        convertArgs << "-p" << fullPath;
+        
+        qDebug() << "SearchServer: Converting .max to PDF:" << papermanPath << convertArgs;
+        convertProcess.start(papermanPath, convertArgs);
+        
+        if (!convertProcess.waitForFinished(30000)) {  // 30 second timeout
+            convertProcess.kill();
+            qWarning() << "SearchServer: Conversion timed out";
+            return "";
+        }
+        
+        if (convertProcess.exitCode() != 0) {
+            qWarning() << "SearchServer: Conversion failed:" << convertProcess.readAllStandardError();
+            return "";
+        }
+        
+        // Find the generated PDF
+        QDir tmpDirObj(tmpDir.path());
+        QStringList pdfFiles = tmpDirObj.entryList(QStringList() << "*.pdf", QDir::Files);
+        
+        if (pdfFiles.isEmpty()) {
+            qWarning() << "SearchServer: No PDF generated";
+            return "";
+        }
+        
+        pdfPath = tmpDir.path() + "/" + pdfFiles.first();
+        needsCleanup = true;  // We'll clean up after extracting thumbnail
+    }
+    // For image files (.jpg, .jpeg, .tiff, .tif), we could optimize by copying directly
+    // but for consistency, we'll convert through PDF if available
+    else if (ext != "pdf") {
+        // For now, only support PDF and .max files for thumbnails
+        qWarning() << "SearchServer: Unsupported file type for thumbnail:" << ext;
+        return "";
+    }
+    
+    // 6. Extract thumbnail from PDF
+    int thumbSize = getThumbnailSize(size);
+    bool success = extractPdfThumbnail(pdfPath, page, thumbSize, cachedThumb);
+    
+    // 7. Cleanup temp PDF if we created one
+    if (needsCleanup && !pdfPath.isEmpty() && pdfPath != fullPath) {
+        QFile::remove(pdfPath);
+    }
+    
+    if (success) {
+        qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
+        return cachedThumb;
+    }
+    
+    qWarning() << "SearchServer: Failed to generate thumbnail";
+    return "";
+}
+
+void SearchServer::cleanThumbnailCache()
+{
+    QString cacheDir = "/tmp/paperman-thumbnails";
+    QDir dir(cacheDir);
+    
+    if (!dir.exists()) {
+        return;
+    }
+    
+    QFileInfoList files = dir.entryInfoList(QDir::Files);
+    QDateTime cutoff = QDateTime::currentDateTime().addDays(-7);
+    int removed = 0;
+    
+    foreach (const QFileInfo &file, files) {
+        if (file.lastModified() < cutoff) {
+            if (QFile::remove(file.absoluteFilePath())) {
+                removed++;
+            }
+        }
+    }
+    
+    if (removed > 0) {
+        qDebug() << "SearchServer: Cleaned" << removed << "old thumbnails from cache";
     }
 }

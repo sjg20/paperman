@@ -211,6 +211,48 @@
             color: #999;
             font-size: 14px;
         }
+
+        /* Thumbnail preview styles */
+        .thumbnail-preview {
+            position: fixed;
+            display: none;
+            z-index: 1000;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            padding: 10px;
+            max-width: 320px;
+            pointer-events: none;
+        }
+
+        .thumbnail-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 4px;
+        }
+
+        .thumbnail-preview .filename {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            word-wrap: break-word;
+        }
+
+        .thumbnail-preview .loading {
+            width: 300px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+
+        .item.file {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -235,6 +277,11 @@
         <div class="footer">
             Powered by Paperman Search Server
         </div>
+    </div>
+
+    <!-- Thumbnail preview container -->
+    <div id="thumbnailPreview" class="thumbnail-preview">
+        <div class="loading">Loading preview...</div>
     </div>
 
     <script>
@@ -361,7 +408,7 @@
             files.forEach(file => {
                 const icon = getFileIcon(file.name);
                 html += `
-                    <li class="item file">
+                    <li class="item file" data-path="${file.path}" data-name="${file.name}">
                         <div class="item-icon">${icon}</div>
                         <div class="item-name">${file.name}</div>
                         <div class="item-size">${formatSize(file.size)}</div>
@@ -435,6 +482,65 @@
 
         // Load root directory on page load
         window.addEventListener('load', function() {
+
+        // Thumbnail preview functionality
+        const thumbnailCache = new Map();
+        let previewTimeout = null;
+        let currentPreview = null;
+
+        document.addEventListener('mouseover', function(e) {
+            const fileItem = e.target.closest('.file[data-path]');
+            if (fileItem) {
+                if (previewTimeout) clearTimeout(previewTimeout);
+                previewTimeout = setTimeout(() => {
+                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, e.pageX, e.pageY);
+                }, 500);
+            }
+        });
+
+        document.addEventListener('mouseout', function(e) {
+            const fileItem = e.target.closest('.file[data-path]');
+            if (fileItem) {
+                if (previewTimeout) clearTimeout(previewTimeout);
+                setTimeout(() => hideThumbnailPreview(), 200);
+            }
+        });
+
+        async function showThumbnailPreview(filePath, fileName, mouseX, mouseY) {
+            const preview = document.getElementById('thumbnailPreview');
+            preview.style.left = (mouseX + 20) + 'px';
+            preview.style.top = (mouseY - 50) + 'px';
+            preview.style.display = 'block';
+            preview.innerHTML = '<div class="loading">Loading preview...</div>';
+            currentPreview = filePath;
+
+            try {
+                let thumbnailUrl;
+                if (thumbnailCache.has(filePath)) {
+                    thumbnailUrl = thumbnailCache.get(filePath);
+                } else {
+                    const response = await fetch(API_URL + '/thumbnail?path=' + encodeURIComponent(filePath) + '&size=medium');
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    const blob = await response.blob();
+                    thumbnailUrl = URL.createObjectURL(blob);
+                    thumbnailCache.set(filePath, thumbnailUrl);
+                }
+
+                if (currentPreview === filePath) {
+                    preview.innerHTML = '<img src="' + thumbnailUrl + '" alt="Preview"><div class="filename">' + fileName + '</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load thumbnail:', error);
+                if (currentPreview === filePath) {
+                    preview.innerHTML = '<div class="loading">Preview unavailable</div>';
+                }
+            }
+        }
+
+        function hideThumbnailPreview() {
+            document.getElementById('thumbnailPreview').style.display = 'none';
+            currentPreview = null;
+        }
             browse('');
         });
     </script>

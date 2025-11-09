@@ -230,6 +230,40 @@ private:
      */
     bool isAuthEnabled();
 
+    /**
+     * Generate thumbnail for a file
+     * @param repoPath Repository root path
+     * @param filePath File path relative to repository
+     * @param page Page number (for multi-page documents)
+     * @param size Thumbnail size (small, medium, large)
+     * @return Path to generated thumbnail, or empty string on failure
+     */
+    QString generateThumbnail(const QString &repoPath, const QString &filePath,
+                             int page, const QString &size);
+
+    /**
+     * Get thumbnail pixel size from size string
+     * @param size Size string (small, medium, large)
+     * @return Pixel dimension for thumbnail
+     */
+    int getThumbnailSize(const QString &size);
+
+    /**
+     * Extract thumbnail from PDF using pdftocairo
+     * @param pdfPath Path to PDF file
+     * @param page Page number
+     * @param size Pixel size for thumbnail
+     * @param outputPath Output path for thumbnail
+     * @return true if successful
+     */
+    bool extractPdfThumbnail(const QString &pdfPath, int page, int size,
+                            const QString &outputPath);
+
+    /**
+     * Clean old thumbnails from cache
+     */
+    void cleanThumbnailCache();
+
 private:
     /**
      * Scan a directory recursively and build file cache
