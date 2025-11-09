@@ -509,8 +509,8 @@
 
         async function showThumbnailPreview(filePath, fileName, rect) {
             const preview = document.getElementById('thumbnailPreview');
-            // Position to the right of the item, aligned with its top
-            preview.style.left = (rect.right + 10) + 'px';
+            // Position next to the left edge of the item
+            preview.style.left = (rect.left - 330) + 'px';  // 330px = 320px preview width + 10px gap
             preview.style.top = rect.top + 'px';
             preview.style.display = 'block';
             preview.innerHTML = '<div class="loading">Loading preview...</div>';
