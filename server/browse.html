@@ -494,9 +494,7 @@
                 if (previewTimeout) clearTimeout(previewTimeout);
                 previewTimeout = setTimeout(() => {
                     const rect = fileItem.getBoundingClientRect();
-                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name,
-                                        rect.right + window.scrollX,
-                                        rect.top + window.scrollY);
+                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, rect);
                 }, 500);
             }
         });
@@ -509,10 +507,11 @@
             }
         });
 
-        async function showThumbnailPreview(filePath, fileName, mouseX, mouseY) {
+        async function showThumbnailPreview(filePath, fileName, rect) {
             const preview = document.getElementById('thumbnailPreview');
-            preview.style.left = (mouseX + 20) + 'px';
-            preview.style.top = (mouseY - 50) + 'px';
+            // Position to the right of the item, aligned with its top
+            preview.style.left = (rect.right + 10) + 'px';
+            preview.style.top = rect.top + 'px';
             preview.style.display = 'block';
             preview.innerHTML = '<div class="loading">Loading preview...</div>';
             currentPreview = filePath;
