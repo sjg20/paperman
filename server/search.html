@@ -498,8 +498,10 @@
             if (fileItem) {
                 if (previewTimeout) clearTimeout(previewTimeout);
                 previewTimeout = setTimeout(() => {
-                    const rect = fileItem.getBoundingClientRect();
-                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, rect);
+                    // Get the filename element specifically
+                    const nameElement = fileItem.querySelector('.file-name');
+                    const nameRect = nameElement.getBoundingClientRect();
+                    showThumbnailPreview(fileItem.dataset.path, fileItem.dataset.name, nameRect);
                 }, 500);
             }
         });
@@ -512,11 +514,11 @@
             }
         });
 
-        async function showThumbnailPreview(filePath, fileName, rect) {
+        async function showThumbnailPreview(filePath, fileName, nameRect) {
             const preview = document.getElementById('thumbnailPreview');
-            // Position to the right of the file item
-            preview.style.left = (rect.right + 10) + 'px';
-            preview.style.top = rect.top + 'px';
+            // Position to the right of the filename
+            preview.style.left = (nameRect.right + 10) + 'px';
+            preview.style.top = nameRect.top + 'px';
             preview.style.display = 'block';
             preview.innerHTML = '<div class="loading">Loading preview...</div>';
             currentPreview = filePath;
