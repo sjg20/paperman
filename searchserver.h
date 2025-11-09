@@ -158,6 +158,14 @@ private:
     QString listFiles(const QString &dirPath);
 
     /**
+     * Browse directory contents (files and subdirectories)
+     * @param repoPath   Repository root path
+     * @param dirPath    Directory path (relative to repository root)
+     * @return JSON response with files and directories
+     */
+    QString browseDirectory(const QString &repoPath, const QString &dirPath);
+
+    /**
      * Get list of all repositories
      * @return JSON response with repository list
      */

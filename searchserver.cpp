@@ -301,6 +301,30 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         QString result = listFiles(dirPath);
         return buildHttpResponse(200, "OK", "application/json", result);
     }
+    else if (path == "/browse") {
+        QString dirPath = params.value("path", "");
+        QString repoName = params.value("repo", "");
+
+        // Find repository by name if specified
+        QString repoPath = _rootPath;  // Default to first/primary repo
+        if (!repoName.isEmpty()) {
+            bool found = false;
+            foreach (const QString &path, _rootPaths) {
+                if (QFileInfo(path).fileName() == repoName) {
+                    repoPath = path;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return buildHttpResponse(404, "Not Found", "application/json",
+                                       buildJsonResponse(false, "", "Repository not found: " + repoName));
+            }
+        }
+
+        QString result = browseDirectory(repoPath, dirPath);
+        return buildHttpResponse(200, "OK", "application/json", result);
+    }
     else if (path == "/file") {
         QString filePath = params.value("path", "");
         QString repoName = params.value("repo", "");
@@ -765,6 +789,112 @@ bool SearchServer::validateApiKey(const QString &token)
 bool SearchServer::isAuthEnabled()
 {
     return !_apiKey.isEmpty();
+}
+
+QString SearchServer::browseDirectory(const QString &repoPath, const QString &dirPath)
+{
+    // Security: Prevent directory traversal
+    if (dirPath.contains("..") || dirPath.startsWith("/")) {
+        return buildJsonResponse(false, "", "Invalid directory path");
+    }
+
+    // Build full path
+    QString fullPath = repoPath;
+    if (!dirPath.isEmpty()) {
+        fullPath += "/" + dirPath;
+    }
+
+    QDir dir(fullPath);
+    if (!dir.exists()) {
+        return buildJsonResponse(false, "", "Directory does not exist");
+    }
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+    QJsonArray filesArray;
+    QJsonArray dirsArray;
+
+    // Get subdirectories
+    QFileInfoList subdirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    foreach (const QFileInfo &subdir, subdirs) {
+        // Skip hidden directories
+        if (subdir.fileName().startsWith('.'))
+            continue;
+
+        QJsonObject dirObj;
+        dirObj["name"] = subdir.fileName();
+        dirObj["type"] = "directory";
+
+        // Build relative path
+        QString relativePath = dirPath.isEmpty()
+                              ? subdir.fileName()
+                              : dirPath + "/" + subdir.fileName();
+        dirObj["path"] = relativePath;
+
+        dirsArray.append(dirObj);
+    }
+
+    // Get files (only supported file types)
+    QStringList nameFilters;
+    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
+
+    QFileInfoList files = dir.entryInfoList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
+    foreach (const QFileInfo &file, files) {
+        QJsonObject fileObj;
+        fileObj["name"] = file.fileName();
+        fileObj["type"] = "file";
+        fileObj["size"] = (qint64)file.size();
+        fileObj["modified"] = file.lastModified().toString(Qt::ISODate);
+
+        // Build relative path
+        QString relativePath = dirPath.isEmpty()
+                              ? file.fileName()
+                              : dirPath + "/" + file.fileName();
+        fileObj["path"] = relativePath;
+
+        filesArray.append(fileObj);
+    }
+
+    QJsonObject responseObj;
+    responseObj["success"] = true;
+    responseObj["path"] = dirPath.isEmpty() ? "/" : "/" + dirPath;
+    responseObj["directories"] = dirsArray;
+    responseObj["files"] = filesArray;
+    responseObj["dirCount"] = dirsArray.size();
+    responseObj["fileCount"] = filesArray.size();
+
+    QJsonDocument doc(responseObj);
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+#else
+    // Qt 4 fallback
+    QString json = "{\"success\":true,\"path\":\"" + (dirPath.isEmpty() ? "/" : "/" + dirPath) + "\",";
+
+    // Count items
+    QStringList subdirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    QStringList nameFilters;
+    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
+    QStringList files = dir.entryList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
+
+    json += "\"directories\":[";
+    for (int i = 0; i < subdirs.size(); i++) {
+        if (subdirs[i].startsWith('.')) continue;
+        if (i > 0) json += ",";
+        QString relativePath = dirPath.isEmpty() ? subdirs[i] : dirPath + "/" + subdirs[i];
+        json += "{\"name\":\"" + subdirs[i] + "\",\"type\":\"directory\",\"path\":\"" + relativePath + "\"}";
+    }
+    json += "],\"files\":[";
+    for (int i = 0; i < files.size(); i++) {
+        if (i > 0) json += ",";
+        QFileInfo info(fullPath + "/" + files[i]);
+        QString relativePath = dirPath.isEmpty() ? files[i] : dirPath + "/" + files[i];
+        json += "{\"name\":\"" + files[i] + "\",\"type\":\"file\","
+                "\"size\":" + QString::number(info.size()) + ","
+                "\"modified\":\"" + info.lastModified().toString(Qt::ISODate) + "\","
+                "\"path\":\"" + relativePath + "\"}";
+    }
+    json += "],\"dirCount\":" + QString::number(subdirs.size())
+          + ",\"fileCount\":" + QString::number(files.size()) + "}";
+    return json;
+#endif
 }
 
 void SearchServer::scanDirectory(const QString &repoPath, const QString &dirPath,
