@@ -264,6 +264,9 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
       case Role_notes :
          return getAnnot (index, File::Annot_notes);
 
+      case Role_ocr :
+         return getAnnot (index, File::Annot_ocr);
+
       case Role_error :
          if (f->err ())
             return f->err ()->errstr;

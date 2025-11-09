@@ -141,6 +141,7 @@ public:
       Role_title,             // QString  the title (filename with perhaps some special characters like /)
       Role_keywords,          // QString  the keywords
       Role_notes,             // QString  the notes
+      Role_ocr,               // QString  the OCR text
       Role_error,             // QString  an error message, if available
 
       Role_count

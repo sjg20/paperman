@@ -985,6 +985,7 @@ void Pagewidget::commit (void)
    _pagemodel->updateAnnot (File::Annot_title, _pageattr->title->text ());
    _pagemodel->updateAnnot (File::Annot_keywords, _pageattr->keywords->text ());
    _pagemodel->updateAnnot (File::Annot_notes, _pageattr->notes->toPlainText());
+   _pagemodel->updateAnnot (File::Annot_ocr, _ocr_edit->toPlainText());
    Mainwidget::singleton()->complain(_pagemodel->commit());
    updatePagetools ();
    }
@@ -1037,19 +1038,7 @@ void Pagewidget::updateOcrText (void)
    _ocr_edit->blockSignals (true);
    if (_index.isValid ())
       {
-      Desktopmodel *contents;
-      QModelIndex sindex = _index;
-
-      contents = _modelconv->getDesktopmodel (_model);
-      _modelconv->indexToSource (_model, sindex);
-
-      // update OCR text
-      QString str;
-
-      contents->getPageText (sindex, _pagenum, str);
-      // ignore error, text will report it to the user
-
-      _ocr_edit->setText (str);
+      _ocr_edit->setText (_model->data (_index, Desktopmodel::Role_ocr).toString ());
       }
    else
       _ocr_edit->clear ();

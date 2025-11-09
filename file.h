@@ -128,6 +128,7 @@ public:
       Annot_title,
       Annot_keywords,
       Annot_notes,
+      Annot_ocr,
 
       Annot_count,
       Annot_none = Annot_count
