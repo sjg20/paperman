@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paperman File Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4CAF50;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .results-count {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .directory {
+            margin-bottom: 30px;
+        }
+
+        .directory-header {
+            background: #f8f8f8;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+
+        .file-item:hover {
+            background: #f8f8f8;
+        }
+
+        .file-number {
+            background: #4CAF50;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .file-name {
+            flex: 1;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .file-size {
+            color: #999;
+            margin-right: 12px;
+            font-size: 14px;
+        }
+
+        .file-date {
+            color: #999;
+            margin-right: 12px;
+            font-size: 14px;
+        }
+
+        .download-btn {
+            padding: 6px 14px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .download-btn:hover {
+            background: #1976D2;
+        }
+
+        .download-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 Paperman File Search</h1>
+        <p class="subtitle">Search through your document repository</p>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Enter search term (e.g., invoice, buick, 2024)..." autofocus>
+            <button id="searchBtn" onclick="search()">Search</button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="results"></div>
+
+        <div class="footer">
+            Powered by Paperman Search Server
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let searchResults = [];
+
+        // Allow Enter key to trigger search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                search();
+            }
+        });
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        function formatSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return size.toFixed(1) + ' ' + units[unitIndex];
+        }
+
+        function formatDate(isoDate) {
+            const date = new Date(isoDate);
+            return date.toLocaleDateString();
+        }
+
+        function groupByDirectory(files) {
+            const groups = {};
+
+            files.forEach((file, index) => {
+                const path = file.path;
+                const lastSlash = path.lastIndexOf('/');
+                const dir = lastSlash > -1 ? path.substring(0, lastSlash) : '.';
+
+                if (!groups[dir]) {
+                    groups[dir] = [];
+                }
+
+                groups[dir].push({ ...file, index: index + 1 });
+            });
+
+            return groups;
+        }
+
+        async function search() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+
+            if (!searchTerm) {
+                showStatus('Please enter a search term', 'error');
+                return;
+            }
+
+            const searchBtn = document.getElementById('searchBtn');
+            searchBtn.disabled = true;
+            searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
+
+            hideStatus();
+            document.getElementById('results').innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(searchTerm)}&recursive=true`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showStatus(data.error || 'Search failed', 'error');
+                    return;
+                }
+
+                searchResults = data.results || [];
+                displayResults(searchResults);
+
+                if (searchResults.length > 0) {
+                    showStatus(`Found ${searchResults.length} file(s)`, 'success');
+                } else {
+                    showStatus('No files found', 'info');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                console.error('Search error:', error);
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search';
+            }
+        }
+
+        function displayResults(files) {
+            const resultsDiv = document.getElementById('results');
+
+            if (files.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">No files found. Try a different search term.</div>';
+                return;
+            }
+
+            const groups = groupByDirectory(files);
+            const sortedDirs = Object.keys(groups).sort();
+
+            let html = `
+                <div class="results-header">
+                    <div class="results-count">${files.length} file(s) found</div>
+                </div>
+            `;
+
+            sortedDirs.forEach(dir => {
+                const dirLabel = dir === '.' ? 'Root Directory' : dir + '/';
+                const dirFiles = groups[dir];
+
+                html += `
+                    <div class="directory">
+                        <div class="directory-header">${dirLabel}</div>
+                        <ul class="file-list">
+                `;
+
+                dirFiles.forEach(file => {
+                    html += `
+                        <li class="file-item">
+                            <span class="file-number">${file.index}</span>
+                            <span class="file-name">${file.name}</span>
+                            <span class="file-size">${formatSize(file.size)}</span>
+                            <span class="file-date">${formatDate(file.modified)}</span>
+                            <button class="download-btn" onclick="downloadFile(${file.index - 1})">
+                                Download PDF
+                            </button>
+                        </li>
+                    `;
+                });
+
+                html += `
+                        </ul>
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+        }
+
+        async function downloadFile(index) {
+            const file = searchResults[index];
+            if (!file) return;
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Downloading...';
+
+            try {
+                const response = await fetch(`${API_URL}/file?path=${encodeURIComponent(file.path)}&type=pdf`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+
+                // Generate filename: original name with .pdf extension
+                const baseName = file.name.replace(/\.[^.]+$/, '');
+                a.download = baseName + '.pdf';
+
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showStatus('Download started!', 'success');
+            } catch (error) {
+                showStatus('Download failed: ' + error.message, 'error');
+                console.error('Download error:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Download PDF';
+            }
+        }
+
+        // Load example on page load
+        window.addEventListener('load', function() {
+            // Auto-focus on search input
+            document.getElementById('searchInput').focus();
+        });
+    </script>
+</body>
+</html>
