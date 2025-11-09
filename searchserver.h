@@ -37,6 +37,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QString>
 #include <QStringList>
 #include <QHash>
+#include <QDateTime>
+
+// Simple struct for cached file information
+struct CachedFile {
+    QString path;        // Relative path from repository root
+    QString name;        // Filename only
+    qint64 size;         // File size in bytes
+    QDateTime modified;  // Last modification time
+};
 
 /**
  * Simple HTTP server for searching paper repository
@@ -214,11 +223,21 @@ private:
     bool isAuthEnabled();
 
 private:
+    /**
+     * Scan a directory recursively and build file cache
+     * @param repoPath Repository root path
+     * @param dirPath Current directory being scanned (relative to repo)
+     * @param fileList Returns list of cached files
+     */
+    void scanDirectory(const QString &repoPath, const QString &dirPath,
+                      QList<CachedFile> &fileList);
+
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on
     QList<QTcpSocket*> _clients;  //!< Connected clients
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
+    QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
 };
 
 #endif // __searchserver_h

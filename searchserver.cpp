@@ -32,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QProcess>
 #include <QTemporaryDir>
+#include <QDirIterator>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 #include <QJsonDocument>
@@ -56,6 +57,12 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
     if (!_apiKey.isEmpty()) {
         qDebug() << "SearchServer: API key authentication enabled";
     }
+
+    // Build file cache for the repository
+    qDebug() << "SearchServer: Building file cache for" << _rootPath;
+    QList<CachedFile> &fileList = _fileCache[_rootPath];
+    scanDirectory(_rootPath, "", fileList);
+    qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
 }
 
 SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *parent)
@@ -78,11 +85,20 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     if (!_apiKey.isEmpty()) {
         qDebug() << "SearchServer: API key authentication enabled";
     }
+
+    // Build file cache for each repository
+    foreach (const QString &path, _rootPaths) {
+        qDebug() << "SearchServer: Building file cache for" << path;
+        QList<CachedFile> &fileList = _fileCache[path];
+        scanDirectory(path, "", fileList);
+        qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+    }
 }
 
 SearchServer::~SearchServer()
 {
     stop();
+    // File cache cleanup is automatic (QHash and QList)
 }
 
 bool SearchServer::start()
@@ -328,82 +344,89 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
 QString SearchServer::searchFiles(const QString &repoPath, const QString &searchPath,
                                   const QString &pattern, bool recursive)
 {
-    QStringList results;
-    QString fullSearchPath = repoPath;
-
-    if (!searchPath.isEmpty()) {
-        fullSearchPath += "/" + searchPath;
+    // Get file cache for this repository
+    const QList<CachedFile> &fileList = _fileCache.value(repoPath);
+    if (fileList.isEmpty()) {
+        qWarning() << "SearchServer: No file cache found for" << repoPath;
+        return buildJsonResponse(false, "", "Repository not found in cache");
     }
 
-    QDir searchDir(fullSearchPath);
-    if (!searchDir.exists()) {
-        return buildJsonResponse(false, "", "Search path does not exist");
-    }
-
-    // Search for files
-    QStringList nameFilters;
-    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
-
-    QDir::Filters filters = QDir::Files | QDir::Readable;
-    if (recursive)
-        filters |= QDir::AllDirs | QDir::NoDotAndDotDot;
-
-    QFileInfoList entries = searchDir.entryInfoList(nameFilters, filters);
-
-    foreach (const QFileInfo &info, entries) {
-        if (info.isDir() && recursive) {
-            // Recursively search subdirectories
-            QString subPath = searchPath.isEmpty()
-                            ? info.fileName()
-                            : searchPath + "/" + info.fileName();
-            QString subResult = searchFiles(repoPath, subPath, pattern, recursive);
-            // Note: This is a simplified version - in production you'd merge the results properly
-        }
-        else if (info.isFile()) {
-            // Check if filename matches pattern (case-insensitive)
-            if (info.fileName().contains(pattern, Qt::CaseInsensitive)) {
-                QString relativePath = searchPath.isEmpty()
-                                      ? info.fileName()
-                                      : searchPath + "/" + info.fileName();
-                results.append(relativePath);
-            }
-        }
-    }
+    qDebug() << "SearchServer: Searching" << fileList.size() << "files for pattern:" << pattern;
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
     // Build JSON array with Qt 5
     QJsonArray jsonArray;
-    foreach (const QString &file, results) {
-        QJsonObject fileObj;
-        fileObj["path"] = file;
+    int matchCount = 0;
 
-        QFileInfo info(repoPath + "/" + file);
-        fileObj["name"] = info.fileName();
-        fileObj["size"] = (qint64)info.size();
-        fileObj["modified"] = info.lastModified().toString(Qt::ISODate);
+    // Iterate through all files in the cache
+    foreach (const CachedFile &file, fileList) {
+        // Skip if searchPath is specified and file is not in that path
+        if (!searchPath.isEmpty()) {
+            if (recursive) {
+                // For recursive search, check if file is under the searchPath
+                if (!file.path.startsWith(searchPath + "/") && file.path != searchPath)
+                    continue;
+            } else {
+                // For non-recursive, check if file is directly in searchPath
+                QString fileDir = QFileInfo(file.path).path();
+                if (fileDir != searchPath && fileDir != ".")
+                    continue;
+            }
+        }
 
-        jsonArray.append(fileObj);
+        // Check if filename matches pattern (case-insensitive)
+        if (file.name.contains(pattern, Qt::CaseInsensitive)) {
+            QJsonObject fileObj;
+            fileObj["path"] = file.path;
+            fileObj["name"] = file.name;
+            fileObj["size"] = file.size;
+            fileObj["modified"] = file.modified.toString(Qt::ISODate);
+
+            jsonArray.append(fileObj);
+            matchCount++;
+        }
     }
+
+    qDebug() << "SearchServer: Found" << matchCount << "matches";
 
     QJsonObject responseObj;
     responseObj["success"] = true;
-    responseObj["count"] = results.size();
+    responseObj["count"] = matchCount;
     responseObj["results"] = jsonArray;
 
     QJsonDocument doc(responseObj);
     return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 #else
     // Fallback for Qt 4 - simple JSON string building
-    QString json = "{\"success\":true,\"count\":" + QString::number(results.size()) + ",\"results\":[";
-    for (int i = 0; i < results.size(); i++) {
-        if (i > 0) json += ",";
-        QFileInfo info(repoPath + "/" + results[i]);
-        json += "{\"path\":\"" + results[i] + "\","
-                "\"name\":\"" + info.fileName() + "\","
-                "\"size\":" + QString::number(info.size()) + ","
-                "\"modified\":\"" + info.lastModified().toString(Qt::ISODate) + "\"}";
+    QString json = "{\"success\":true,\"results\":[";
+    int matchCount = 0;
+
+    foreach (const CachedFile &file, fileList) {
+        // Skip if searchPath is specified and file is not in that path
+        if (!searchPath.isEmpty()) {
+            if (recursive) {
+                if (!file.path.startsWith(searchPath + "/") && file.path != searchPath)
+                    continue;
+            } else {
+                QString fileDir = QFileInfo(file.path).path();
+                if (fileDir != searchPath && fileDir != ".")
+                    continue;
+            }
+        }
+
+        // Check if filename matches pattern
+        if (file.name.contains(pattern, Qt::CaseInsensitive)) {
+            if (matchCount > 0) json += ",";
+
+            json += "{\"path\":\"" + file.path + "\","
+                    "\"name\":\"" + file.name + "\","
+                    "\"size\":" + QString::number(file.size) + ","
+                    "\"modified\":\"" + file.modified.toString(Qt::ISODate) + "\"}";
+            matchCount++;
+        }
     }
-    json += "]}";
+
+    json += "],\"count\":" + QString::number(matchCount) + "}";
     return json;
 #endif
 }
@@ -722,4 +745,42 @@ bool SearchServer::validateApiKey(const QString &token)
 bool SearchServer::isAuthEnabled()
 {
     return !_apiKey.isEmpty();
+}
+
+void SearchServer::scanDirectory(const QString &repoPath, const QString &dirPath,
+                                 QList<CachedFile> &fileList)
+{
+    QString fullPath = repoPath;
+    if (!dirPath.isEmpty())
+        fullPath += "/" + dirPath;
+
+    // File extensions to cache
+    QStringList nameFilters;
+    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
+
+    // Use QDirIterator for efficient recursive scanning
+    QDirIterator it(fullPath, nameFilters,
+                    QDir::Files | QDir::Readable,
+                    QDirIterator::Subdirectories);
+
+    while (it.hasNext()) {
+        QString filePath = it.next();
+        QFileInfo info(filePath);
+
+        // Calculate relative path from repository root
+        QString relativePath = filePath;
+        if (relativePath.startsWith(repoPath + "/"))
+            relativePath = relativePath.mid(repoPath.length() + 1);
+        else if (relativePath.startsWith(repoPath))
+            relativePath = relativePath.mid(repoPath.length());
+
+        // Add to cache
+        CachedFile cached;
+        cached.path = relativePath;
+        cached.name = info.fileName();
+        cached.size = info.size();
+        cached.modified = info.lastModified();
+
+        fileList.append(cached);
+    }
 }
