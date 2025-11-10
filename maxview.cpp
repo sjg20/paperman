@@ -33,8 +33,10 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QRegExp>
 #include <QSettings>
 #include <QTranslator>
 
@@ -55,6 +57,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "maxview.h"
 #include "ocr.h"
 #include "op.h"
+#include "searchindex.h"
 #include "test/test.h"
 
 /*
@@ -69,8 +72,17 @@ static err_info *batch_ocr_directory(const QString &dirPath)
    {
    printf("Scanning directory: %s\n", qPrintable(dirPath));
 
+   // Initialize search index
+   SearchIndex searchIndex;
+   err_info *err = searchIndex.init(dirPath);
+   if (err)
+      {
+      fprintf(stderr, "Warning: Could not initialize search index: %s\n",
+              err->errstr);
+      fprintf(stderr, "Continuing without indexing...\n");
+      }
+
    // Get OCR engine
-   err_info *err = nullptr;
    Ocr *ocr = Ocr::getOcr(err);
    if (err || !ocr)
       {
@@ -129,16 +141,44 @@ static err_info *batch_ocr_directory(const QString &dirPath)
       err = file->getAnnot(File::Annot_ocr, existing_ocr);
       if (!err && !existing_ocr.isEmpty())
          {
-         printf("  Skipped: Already has OCR text (%d chars)\n",
+         // File already has OCR text - index it without re-OCRing
+         printf("  Indexing existing OCR text (%d chars)\n",
                 existing_ocr.length());
-         skipped++;
+
+         if (searchIndex.isOpen())
+            {
+            // Parse the existing OCR text to extract per-page content
+            // Format: "text\n\n--- Page N ---\n\ntext..."
+            QStringList parts = existing_ocr.split(QRegExp("\n\n--- Page \\d+ ---\n\n"));
+
+            for (int page = 0; page < parts.size(); page++)
+               {
+               QString page_text = parts[page].trimmed();
+               if (!page_text.isEmpty())
+                  {
+                  err = searchIndex.addPage(filePath, fileName, page, page_text);
+                  if (err)
+                     fprintf(stderr, "  WARNING: Failed to index page %d: %s\n",
+                            page, err->errstr);
+                  }
+               }
+
+            printf("  SUCCESS: Indexed %d pages from existing OCR\n", parts.size());
+            processed++;
+            }
+         else
+            {
+            skipped++;
+            }
+
          delete file;
          continue;
          }
 
-      // Process each page
+      // No existing OCR text - process each page
       int page_count = file->pagecount();
       QString all_text;
+      int pages_with_text = 0;
 
       for (int page = 0; page < page_count; page++)
          {
@@ -163,9 +203,21 @@ static err_info *batch_ocr_directory(const QString &dirPath)
 
          if (!err && !page_text.isEmpty())
             {
+            // Add to combined text for annotation
             if (page > 0)
                all_text += "\n\n--- Page " + QString::number(page + 1) + " ---\n\n";
             all_text += page_text;
+
+            // Add to search index (one entry per page)
+            if (searchIndex.isOpen())
+               {
+               err = searchIndex.addPage(filePath, fileName, page, page_text);
+               if (err)
+                  fprintf(stderr, "  WARNING: Failed to index page %d: %s\n",
+                         page, err->errstr);
+               }
+
+            pages_with_text++;
             }
          }
 
@@ -180,7 +232,7 @@ static err_info *batch_ocr_directory(const QString &dirPath)
             {
             file->flush();
             printf("  SUCCESS: Extracted %d characters from %d pages\n",
-                   all_text.length(), page_count);
+                   all_text.length(), pages_with_text);
             processed++;
             }
          else
@@ -205,6 +257,76 @@ static err_info *batch_ocr_directory(const QString &dirPath)
    printf("Skipped:         %d\n", skipped);
    printf("Errors:          %d\n", errors);
 
+   if (searchIndex.isOpen())
+      {
+      printf("\nSearch index created: %s\n", qPrintable(searchIndex.indexPath()));
+      printf("Use --search <query> to search the indexed text\n");
+      }
+
+   return nullptr;
+   }
+
+static err_info *search_ocr_index(const QString &dirPath, const QString &query)
+   {
+   printf("Searching for: %s\n", qPrintable(query));
+
+   // Determine directory to search in
+   QString searchDir = dirPath;
+   if (searchDir.isEmpty())
+      {
+      // If no directory specified, use current directory
+      searchDir = QDir::currentPath();
+      }
+
+   // Ensure directory path ends with /
+   if (!searchDir.endsWith('/'))
+      searchDir += '/';
+
+   QString indexPath = searchDir + ".paperindex";
+
+   // Check if index exists
+   if (!QFile::exists(indexPath))
+      {
+      fprintf(stderr, "Error: No search index found at %s\n", qPrintable(indexPath));
+      fprintf(stderr, "Run --ocr on the directory first to create an index.\n");
+      return err_make(ERRFN, ERR_cannot_open_file1, qPrintable(indexPath));
+      }
+
+   // Open search index
+   SearchIndex searchIndex;
+   err_info *err = searchIndex.init(searchDir);
+   if (err)
+      {
+      fprintf(stderr, "Failed to open search index: %s\n", err->errstr);
+      return err;
+      }
+
+   // Perform search
+   QList<SearchResult> results;
+   err = searchIndex.search(query, results, 100);
+   if (err)
+      {
+      fprintf(stderr, "Search failed: %s\n", err->errstr);
+      return err;
+      }
+
+   // Display results
+   printf("\nFound %d results:\n\n", results.size());
+
+   for (int i = 0; i < results.size(); i++)
+      {
+      const SearchResult &result = results[i];
+      printf("[%d] %s (page %d)\n", i + 1, qPrintable(result.filename),
+             result.pagenum + 1);
+      printf("    Path: %s\n", qPrintable(result.filepath));
+      printf("    %s\n\n", qPrintable(result.snippet));
+      }
+
+   if (results.isEmpty())
+      {
+      printf("No results found for '%s'\n", qPrintable(query));
+      }
+
    return nullptr;
    }
 
@@ -223,6 +345,7 @@ static void usage (void)
    printf ("   -h|--help       display this usage information\n");
    printf ("   -s|--sum        do an md5 checksum on a directory\n");
    printf ("   -o|--ocr        run OCR on all .max files in directory (recursive)\n");
+   printf ("   -q|--search     search indexed OCR text for a query\n");
 /*
    printf ("   -d|--debug <n>  set debug level (0-3)\n");
    printf ("   -f|--force      force overwriting of existing file\n");
@@ -257,6 +380,7 @@ int main (int argc, char *argv[])
      {"max", 1, 0, 'm'},
      {"ocr", 1, 0, 'o'},
      {"pdf", 1, 0, 'p'},
+     {"search", 1, 0, 'q'},
 /*
      {"relocate", 0, 0, 'r'},
 */
@@ -270,6 +394,7 @@ int main (int argc, char *argv[])
    int op_type = -1, c;
    QString index;
    QString fname;
+   QString searchQuery;
 
    struct rlimit limit;
 
@@ -282,7 +407,7 @@ int main (int argc, char *argv[])
          qDebug() << "Setting nofile limit failed";
    }
 
-   while (c = getopt_long (argc, argv, "hj:m:o:p:s:t",
+   while (c = getopt_long (argc, argv, "hj:m:o:p:q:s:t",
                            long_options, NULL), c != -1)
       switch (c)
          {
@@ -295,6 +420,11 @@ int main (int argc, char *argv[])
          case 'm' :
          case 'p' :
             fname = optarg;
+            op_type = c;
+            break;
+
+         case 'q' :
+            searchQuery = QString(optarg);
             op_type = c;
             break;
 
@@ -323,7 +453,7 @@ int main (int argc, char *argv[])
          }
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
-       op_type != 'j' && op_type != 'o')
+       op_type != 'j' && op_type != 'o' && op_type != 'q')
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -334,11 +464,11 @@ int main (int argc, char *argv[])
    if (op_type == 't')
       useGUI = true;
 
-   // OCR batch mode doesn't need GUI
-   if (op_type == 'o')
+   // OCR batch mode and search don't need GUI
+   if (op_type == 'o' || op_type == 'q')
       {
       useGUI = false;
-      // Force offscreen platform for batch OCR mode
+      // Force offscreen platform for console mode
       setenv("QT_QPA_PLATFORM", "offscreen", 1);
       }
 
@@ -375,6 +505,22 @@ int main (int argc, char *argv[])
          err = batch_ocr_directory(mydir);
          if (err)
             fprintf(stderr, "OCR batch error: %s\n", err->errstr);
+         break;
+         }
+
+      case 'q' :
+         {
+         // Get directory from remaining arguments if provided
+         QString searchDir;
+         if (optind < argc)
+            searchDir = QString(argv[optind]);
+
+         err_info *err;
+
+         // Search the OCR index
+         err = search_ocr_index(searchDir, searchQuery);
+         if (err)
+            fprintf(stderr, "Search error: %s\n", err->errstr);
          break;
          }
 

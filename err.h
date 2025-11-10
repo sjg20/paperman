@@ -114,6 +114,8 @@ enum
    ERR_directory_could_not_be_added1,
    ERR_directories_and_overlap3,
    ERR_could_not_remove_dir1,
+   ERR_sql_error1,
+   ERR_index_not_open,
 
    ERR_count
    };

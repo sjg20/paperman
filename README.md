@@ -126,7 +126,7 @@ results are written to a file called 'checksums.md5' in the current directory.
 For example:
 
     maxview -s /paper
-   
+
 The file format is a line for each page, containing space-separated fields:
 
     Length of filename in characters
@@ -134,13 +134,117 @@ The file format is a line for each page, containing space-separated fields:
     Page number
     Image size in bytes
     md5 checksum, grouped by 32-bit words
-   
+
 For example:
-   
+
     27 Property taxes  pd 2020.max 0 1093872 a3eb8cd8 b0cffff0 b845833c e370368e
     27 Property taxes  pd 2020.max 1 1093872 40f34c34 ae5f9549 158f97ab d6c1e6a8
     27 Property taxes  pd 2020.max 2 1093872 78572475 16422b9a c900d2a7 61ce49d6
     27 Property taxes  pd 2020.max 3 1093872 96562c4e cebfc3b3 5c863b22 d80abde6
+
+### -o <directory> | --ocr <directory>
+
+Recursively process all .max files in a directory, performing OCR (Optical Character
+Recognition) on each page and saving the extracted text. The OCR text is saved both
+within the .max file as an annotation and in a searchable SQLite FTS5 index.
+
+Features:
+- Processes all .max files recursively in the specified directory
+- Runs Tesseract OCR on each page to extract text
+- Saves OCR text as an annotation in the .max file
+- Builds a full-text search index (.paperindex) for fast searching
+- If a file already has OCR text, it indexes the existing text without re-OCRing
+- Runs in console mode (no GUI required)
+
+Example:
+
+    paperman --ocr /paper/2024
+
+This will:
+1. Scan all .max files in /paper/2024 and subdirectories
+2. Run OCR on each page (or use existing OCR text if available)
+3. Save the extracted text in each .max file
+4. Create a searchable index at /paper/2024/.paperindex
+
+### -q <query> [directory] | --search <query> [directory]
+
+Search the OCR text index for files containing the specified query. Returns a list
+of matching files with page numbers and text snippets showing the context.
+
+Features:
+- Full-text search using SQLite FTS5 with porter stemming
+- Returns ranked results with highlighted search terms
+- Shows file path, filename, page number, and text snippet for each match
+- Supports complex queries and boolean operators
+- Runs in console mode (no GUI required)
+
+Example:
+
+    paperman --search "invoice" /paper/2024
+
+This will search the index at /paper/2024/.paperindex and display results like:
+
+    Found 3 results:
+
+    [1] expenses-jan.max (page 2)
+        Path: /paper/2024/01jan/expenses-jan.max
+        ...payment details for <b>invoice</b> #12345...
+
+    [2] receipts.max (page 1)
+        Path: /paper/2024/02feb/receipts.max
+        ...<b>invoice</b> dated February 15th...
+
+If no directory is specified, searches the current directory.
+
+Note: You must run --ocr on a directory first to create the search index.
+
+
+## Testing
+
+Paperman includes a comprehensive test suite to verify functionality. Tests are built
+using the Qt Test framework.
+
+### Building with Tests
+
+To build paperman with test support enabled:
+
+    qmake "CONFIG+=test" paperman.pro
+    make
+
+### Running Tests
+
+Run all tests:
+
+    env QT_QPA_PLATFORM=offscreen ./paperman -t
+
+This will run all test suites including:
+- **utils** - Utility function tests
+- **ops** - File operation tests (duplicate, stack, unstack, rename, etc.)
+- **searchserver** - HTTP search server tests
+- **ocrsearch** - OCR indexing and search functionality tests
+
+### OCR Search Tests
+
+The OCR search test suite (`test/test_ocrsearch.cpp`) includes:
+
+1. **testOcrIndexing()** - Tests creating a search index and adding OCR text
+2. **testOcrSearch()** - Tests searching indexed text and verifying results
+3. **testReindexing()** - Tests re-indexing existing OCR text
+4. **testSearchNoResults()** - Tests handling of queries with no matches
+
+All tests use temporary directories and clean up after themselves.
+
+### Test Output Example
+
+    ********* Start testing of TestOcrSearch *********
+    PASS   : TestOcrSearch::initTestCase()
+    PASS   : TestOcrSearch::testOcrIndexing()
+    PASS   : TestOcrSearch::testOcrSearch()
+    PASS   : TestOcrSearch::testReindexing()
+    PASS   : TestOcrSearch::testSearchNoResults()
+    PASS   : TestOcrSearch::cleanupTestCase()
+    Totals: 6 passed, 0 failed, 0 skipped, 0 blacklisted
+    ********* Finished testing of TestOcrSearch *********
 
 
 ## Future Features

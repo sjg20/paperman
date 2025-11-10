@@ -3,6 +3,7 @@ LANGUAGE = C++
 QT += widgets
 QT += printsupport
 QT += testlib
+QT += sql
 
 unix:target.path = usr/bin
 target.files = paperman
@@ -129,7 +130,8 @@ HEADERS += desktopwidget.h \
  senddialog.h \
  transfer.h \
     filejpeg.h \
-    qlistwidgetitemiterator.h
+    qlistwidgetitemiterator.h \
+    searchindex.h
 
 SOURCES += desktopwidget.cpp \
    folderlist.cpp \
@@ -213,7 +215,8 @@ SOURCES += desktopwidget.cpp \
  senddialog.cpp \
  transfer.cpp \
     filejpeg.cpp \
-    qlistwidgetitemiterator.cpp 
+    qlistwidgetitemiterator.cpp \
+    searchindex.cpp 
 
 # add qtcreator debug macros if we are debugging
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
@@ -238,6 +241,7 @@ test {
       test/test_dirmodel.cpp \
       test/test_ops.cpp \
       test/test_searchserver.cpp \
+      test/test_ocrsearch.cpp \
       searchserver.cpp
 
    HEADERS += test/suite.h \
@@ -245,6 +249,7 @@ test {
       test/test_ops.h \
       test/test_utils.h \
       test/test_searchserver.h \
+      test/test_ocrsearch.h \
       searchserver.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
