@@ -23,6 +23,9 @@ private slots:
 
    //! Test search with no results
    void testSearchNoResults();
+
+   //! Test with realistic sample document text
+   void testRealDocument();
 };
 
 #endif // TEST_OCRSEARCH_H
