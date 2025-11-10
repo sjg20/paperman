@@ -179,41 +179,41 @@ void TestOcrSearch::testRealDocument()
    err = searchIndex.addPage(dirPath + filename, filename, 2, page3Text);
    QVERIFY2(!err, err ? err->errstr : "");
 
-   // Test searching for "PDF" - should find it on page 1
+   // Test searching for "PDF" - should find it exactly once on page 1
    QList<SearchResult> results;
    err = searchIndex.search("PDF", results, 100);
    QVERIFY2(!err, err ? err->errstr : "");
-   QVERIFY(results.size() > 0);
+   QCOMPARE(results.size(), 1);  // Should find exactly 1 result
    QCOMPARE(results[0].filename, filename);
    QCOMPARE(results[0].pagenum, 0);  // Page 1 (0-indexed)
    QVERIFY(results[0].snippet.contains("PDF") || results[0].snippet.contains("pdf"));
 
-   // Test searching for "three" - should find it on page 1
+   // Test searching for "three" - should find it on page 1 and page 3
    results.clear();
    err = searchIndex.search("three", results, 100);
    QVERIFY2(!err, err ? err->errstr : "");
-   QVERIFY(results.size() > 0);
-   QCOMPARE(results[0].pagenum, 0);  // Page 1
+   QCOMPARE(results.size(), 2);  // Should find exactly 2 results (page 1 and page 3)
+   QCOMPARE(results[0].pagenum, 0);  // Page 1 (should be first due to more occurrences)
 
-   // Test searching for "second" - should find it on page 2
+   // Test searching for "second" - should find it exactly once on page 2
    results.clear();
    err = searchIndex.search("second", results, 100);
    QVERIFY2(!err, err ? err->errstr : "");
-   QVERIFY(results.size() > 0);
+   QCOMPARE(results.size(), 1);  // Should find exactly 1 result
    QCOMPARE(results[0].pagenum, 1);  // Page 2 (0-indexed)
 
-   // Test searching for "final" - should find it on page 3
+   // Test searching for "final" - should find it exactly once on page 3
    results.clear();
    err = searchIndex.search("final", results, 100);
    QVERIFY2(!err, err ? err->errstr : "");
-   QVERIFY(results.size() > 0);
+   QCOMPARE(results.size(), 1);  // Should find exactly 1 result
    QCOMPARE(results[0].pagenum, 2);  // Page 3 (0-indexed)
 
-   // Test searching for "quick" - should find it on page 2
+   // Test searching for "quick" - should find it twice on page 2
    results.clear();
    err = searchIndex.search("quick", results, 100);
    QVERIFY2(!err, err ? err->errstr : "");
-   QVERIFY(results.size() > 0);
+   QCOMPARE(results.size(), 1);  // Should find 1 result (same page, indexed once)
    QCOMPARE(results[0].pagenum, 1);  // Page 2
    QVERIFY(results[0].snippet.contains("quick"));
 
@@ -221,7 +221,19 @@ void TestOcrSearch::testRealDocument()
    results.clear();
    err = searchIndex.search("testing PDF Object", results, 100);
    QVERIFY2(!err, err ? err->errstr : "");
-   QVERIFY(results.size() > 0);
+   QCOMPARE(results.size(), 1);  // Should find exactly 1 result
+
+   // Test searching for word that doesn't appear anywhere
+   results.clear();
+   err = searchIndex.search("xylophone", results, 100);
+   QVERIFY2(!err, err ? err->errstr : "");
+   QCOMPARE(results.size(), 0);  // Should find no results
+
+   // Test searching for another non-existent word
+   results.clear();
+   err = searchIndex.search("dinosaur", results, 100);
+   QVERIFY2(!err, err ? err->errstr : "");
+   QCOMPARE(results.size(), 0);  // Should find no results
 
    qDebug() << "Real document test passed - tested multi-page indexing and searching";
 }
