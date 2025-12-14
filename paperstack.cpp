@@ -737,7 +737,12 @@ void Paperscan::scan ()
                 busy_count++)
             {
             if (busy_count)
+               {
                usleep (10000);
+               // Check for double-feed while waiting
+               if (_scanner->checkDoubleFeed ())
+                  emit doubleFeedDetected ();
+               }
             status = _scanner->start ();
             if (status == SANE_STATUS_INVAL && !busy_count)
                {
@@ -783,6 +788,10 @@ void Paperscan::scan ()
 //             qDebug () << "thread up to " << total;
             emit stackPageProgress (_stack->curPage ());
             }
+
+         // Check if error was due to double-feed
+         if (status == SANE_STATUS_JAMMED && _scanner->checkDoubleFeed ())
+            emit doubleFeedDetected ();
 
          // end of file is ok - indicates we have an image
          if (status == SANE_STATUS_EOF && total && !isCancelled ())

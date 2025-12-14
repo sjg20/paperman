@@ -399,6 +399,8 @@ void Mainwidget::scanInto(QModelIndex target)
       this, SLOT (slotStackPageStarting (int, const PPage *)));
    connect (&scan, SIGNAL (stackPageProgress (const PPage *)),
       this, SLOT (slotStackPageProgress (const PPage *)));
+   connect (&scan, SIGNAL (doubleFeedDetected (void)),
+      this, SLOT (slotDoubleFeedDetected (void)));
 
    scan.setup (_scanner, stack_name, page_name);
    scan.start ();
@@ -560,6 +562,14 @@ void Mainwidget::slotStackPageProgress (const PPage *page)
       if (_pscan && _scan->getData (page, data, size))
          _pscan->progress (size * 100 / _progressTotal);
       }
+   }
+
+
+void Mainwidget::slotDoubleFeedDetected (void)
+   {
+   // Show a message to the user that double-feed was detected
+   // This is emitted from the scanning thread, so use queued connection behavior
+   info (tr("Double feed detected - please clear the scanner"));
    }
 
 

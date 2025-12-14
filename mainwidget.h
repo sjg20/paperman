@@ -290,6 +290,9 @@ private slots:
       \param page    the page in progress */
    void slotStackPageProgress (const PPage *page);
 
+   /** handle double-feed detection from scanner */
+   void slotDoubleFeedDetected (void);
+
    void slotWarning (QString &str);
 
 private:

@@ -435,6 +435,11 @@ is able to choose an option value automatically. */
      \param settable   if true, then only settable parameters are returned */
   int findOption (const char *opt, bool settable = true);
 
+  /** check if scanner has detected a double-feed condition
+
+     \returns true if double-feed is detected, false otherwise */
+  bool checkDoubleFeed (void);
+
 private: // Private attributes
 
   /** locate option numbers for common options */
@@ -457,6 +462,7 @@ private: // Private attributes
   /** sane option numbers for the buttons */
   int mOptionButton [BUT_count];
   int mOptionFunction;  // function number selector
+  int mOptionDoubleFeed; // double-feed hardware status (for Fujitsu)
 
   /** set to true if the call to sane_init was
 successfull */

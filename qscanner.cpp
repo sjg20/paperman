@@ -3669,6 +3669,9 @@ void QScanner::findOptions (void)
 
   // function number (for Fujitsu)
   mOptionFunction = findOption ("function", false);
+
+  // double-feed hardware status (for Fujitsu)
+  mOptionDoubleFeed = findOption ("double-feed", false);
 }
 
 
@@ -3708,6 +3711,17 @@ int QScanner::checkButtons (void)
 bool QScanner::isScanning (void)
 {
    return mScanning;
+}
+
+
+bool QScanner::checkDoubleFeed (void)
+{
+   if (mOptionDoubleFeed == -1)
+      return false;
+
+   int val = saneWordValue (mOptionDoubleFeed);
+
+   return val > 0;
 }
 
 #if 0

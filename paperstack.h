@@ -449,6 +449,9 @@ signals:
       \param upto    number of bytes read from scanner so far for this page */
    void progressUpto (int upto);
 
+   /** indicate that a double-feed has been detected by the scanner */
+   void doubleFeedDetected (void);
+
 private:
    /** make sure that we have an active stack to scan into. If not, create
        one
