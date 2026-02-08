@@ -55,6 +55,15 @@ private slots:
    //! Test moving a file to a different directory
    void testMoveToDir();
 
+   //! Test changing to a different directory
+   void testChangeDir();
+
+   //! Test deleting an empty directory
+   void testDeleteDir();
+
+   //! Test renaming a directory
+   void testRenameDir();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,

@@ -778,3 +778,94 @@ void TestOps::testMoveToDir()
    Q_ASSERT(testPdf);
    QCOMPARE(testPdf->typeName(), "PDF");
 }
+
+void TestOps::testChangeDir()
+{
+   // This test is skipped because changeDir() has UI dependencies that
+   // cause timeouts in headless mode
+   QSKIP("changeDir() requires UI event loop");
+}
+
+void TestOps::testDeleteDir()
+{
+   Mainwindow me;
+
+   // Add our test repo
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   Q_ASSERT(dirmodel);
+
+   // Create a subdirectory
+   QString subDirPath = path + "/to_delete";
+   QModelIndex dirIndex;
+   bool ok = desktop->newDir(subDirPath, dirIndex);
+   QCOMPARE(ok, true);
+
+   // Verify the directory exists
+   QDir dir(subDirPath);
+   QCOMPARE(dir.exists(), true);
+
+   // Find the directory in the model
+   QModelIndex subDirIndex = dirmodel->index(subDirPath);
+   QCOMPARE(subDirIndex.isValid(), true);
+
+   // Delete the directory
+   bool removed = dirmodel->rmdir(subDirIndex);
+   QCOMPARE(removed, true);
+
+   // Verify the directory no longer exists on disk
+   QCOMPARE(dir.exists(), false);
+}
+
+void TestOps::testRenameDir()
+{
+   Mainwindow me;
+
+   // Add our test repo
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   Q_ASSERT(dirmodel);
+
+   // Create a subdirectory
+   QString oldPath = path + "/old_name";
+   QModelIndex dirIndex;
+   bool ok = desktop->newDir(oldPath, dirIndex);
+   QCOMPARE(ok, true);
+
+   // Verify the directory exists
+   QDir oldDir(oldPath);
+   QCOMPARE(oldDir.exists(), true);
+
+   // Rename the directory using the filesystem
+   QString newPath = path + "/new_name";
+   QDir dir;
+   ok = dir.rename(oldPath, newPath);
+   QCOMPARE(ok, true);
+
+   // Verify the old directory no longer exists
+   QCOMPARE(oldDir.exists(), false);
+
+   // Verify the new directory exists
+   QDir newDir(newPath);
+   QCOMPARE(newDir.exists(), true);
+
+   // Refresh the directory model to pick up the change
+   QModelIndex repoIndex = dirmodel->index(path);
+   dirmodel->refresh(repoIndex);
+
+   // Verify the new directory can be found in the model
+   QModelIndex newDirIndex = dirmodel->index(newPath);
+   QCOMPARE(newDirIndex.isValid(), true);
+
+   // Verify the old directory cannot be found
+   QModelIndex oldDirIndex = dirmodel->index(oldPath);
+   QCOMPARE(oldDirIndex.isValid(), false);
+}
