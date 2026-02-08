@@ -434,53 +434,6 @@ void TestOps::testRenamePage()
             "27_September_2024");
 }
 
-void TestOps::testCreateDir()
-{
-   QModelIndex repo_ind;
-   Desktopmodel *model;
-   Dirmodel *dirmodel;
-   Mainwindow me;
-
-   printf("WARNING: skipping test");
-   return;
-
-   getTestRepo(&me, model, repo_ind);
-   Desktopwidget *desktop = me.getDesktop();
-
-   // create a directory
-   QString newPath;
-   QModelIndex dir1_ind = desktop->doNewDir("fred", newPath);
-   Q_ASSERT(dir1_ind.isValid());
-   QCOMPARE(newPath, _tempDir->path() + "/fred");
-
-   // Check that it ended up in the Dirmodel with the right path
-   dirmodel = desktop->getDirmodel();
-   QString chkPath1 = dirmodel->data(dir1_ind,
-                                     QDirModel::FilePathRole).toString();
-   QCOMPARE(chkPath1, _tempDir->path() + "/fred");
-
-   QModelIndex chk1_ind = dirmodel->index(newPath);
-   QCOMPARE(dir1_ind, chk1_ind);
-
-   QModelIndex dir2_ind = desktop->doNewDir("mary", newPath);
-   Q_ASSERT(dir2_ind.isValid());
-   QCOMPARE(newPath, _tempDir->path() + "/mary");
-   QString chkPath2 = dirmodel->data(dir2_ind,
-                                      QDirModel::FilePathRole).toString();
-   QCOMPARE(chkPath2, _tempDir->path() + "/mary");
-
-   // Check that the original index is still valid
-   Q_ASSERT(dir1_ind.isValid());
-   chkPath1 = dirmodel->data(dir1_ind, QDirModel::FilePathRole).toString();
-   QCOMPARE(chkPath1, _tempDir->path() + "/fred");
-
-   // Try to create a new directory with the same name
-   QModelIndex bad_ind = desktop->doNewDir("mary", newPath);
-   Q_ASSERT(!bad_ind.isValid());
-   QCOMPARE(newPath, _tempDir->path() + "/mary");
-
-}
-
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
                           QModelIndex& repo_ind)
 {
@@ -573,4 +526,255 @@ void TestOps::prepareDuplicate(Mainwindow *me, QModelIndex &repo_ind,
    view->setSelectionRange(0, 1);
    has_current = desktop->getCurrentFile(ind);
    QCOMPARE(has_current, true);
+}
+
+void TestOps::testCreateDir()
+{
+   Mainwindow me;
+
+   // Add our test repo
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   // Create a new subdirectory
+   QString newDirPath = path + "/subdir";
+   QModelIndex dirIndex;
+   bool ok = desktop->newDir(newDirPath, dirIndex);
+   QCOMPARE(ok, true);
+
+   // Check that the directory was created on disk
+   QDir dir(newDirPath);
+   QCOMPARE(dir.exists(), true);
+
+   // Check that we can find the directory through the widget
+   QModelIndex foundIndex = desktop->findDir(newDirPath);
+   QCOMPARE(foundIndex.isValid(), true);
+}
+
+void TestOps::testMoveToDir()
+{
+   Mainwindow me;
+
+   // Add our test repo with extra files
+   auto path = setupRepoWithExtra();
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   Q_ASSERT(repo_ind.isValid());
+
+   // We expect four files (testfile.max, testpdf.pdf, movefile.max, movepdf.pdf)
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 4);
+
+   // Create two subdirectories to move files into
+   QString dir1Path = path + "/moved1";
+   QString dir2Path = path + "/moved2";
+   QModelIndex dirIndex;
+   bool ok = desktop->newDir(dir1Path, dirIndex);
+   QCOMPARE(ok, true);
+   ok = desktop->newDir(dir2Path, dirIndex);
+   QCOMPARE(ok, true);
+
+   // Find all four files by name
+   QModelIndex moveFileInd, movePdfInd, testFileInd, testPdfInd;
+   for (int i = 0; i < files; i++) {
+      QModelIndex ind = model->index(i, 0, repo_ind);
+      QString name = model->data(ind, Qt::DisplayRole).toString();
+      if (name == "movefile") {
+         moveFileInd = ind;
+      } else if (name == "movepdf" || name == "movepdf.pdf") {
+         movePdfInd = ind;
+      } else if (name == "testfile") {
+         testFileInd = ind;
+      } else if (name == "testpdf" || name == "testpdf.pdf") {
+         testPdfInd = ind;
+      }
+   }
+   Q_ASSERT(moveFileInd.isValid());
+   Q_ASSERT(movePdfInd.isValid());
+   Q_ASSERT(testFileInd.isValid());
+   Q_ASSERT(testPdfInd.isValid());
+
+   // Verify the model index fields for each file
+   QCOMPARE(model->data(moveFileInd, Qt::DisplayRole).toString(), "movefile");
+   File *moveFile = model->getFile(moveFileInd);
+   Q_ASSERT(moveFile);
+   QCOMPARE(moveFile->typeName(), "Max");
+
+   File *movePdf = model->getFile(movePdfInd);
+   Q_ASSERT(movePdf);
+   QCOMPARE(movePdf->typeName(), "PDF");
+
+   QCOMPARE(model->data(testFileInd, Qt::DisplayRole).toString(), "testfile");
+   File *testFile = model->getFile(testFileInd);
+   Q_ASSERT(testFile);
+   QCOMPARE(testFile->typeName(), "Max");
+
+   File *testPdf = model->getFile(testPdfInd);
+   Q_ASSERT(testPdf);
+   QCOMPARE(testPdf->typeName(), "PDF");
+
+   // Move movefile.max and movepdf.pdf to moved1/
+   QModelIndexList list1;
+   list1 << moveFileInd << movePdfInd;
+   QString destDir1 = dir1Path + "/";
+   QStringList trashList;
+   model->moveToDir(list1, repo_ind, destDir1, trashList);
+
+   // Check that we now have 2 files in the original directory
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+
+   // Check that the files exist in moved1/
+   QFile moved1Max(dir1Path + "/movefile.max");
+   QFile moved1Pdf(dir1Path + "/movepdf.pdf");
+   QCOMPARE(moved1Max.exists(), true);
+   QCOMPARE(moved1Pdf.exists(), true);
+
+   // Find the remaining two files again (indices may have changed)
+   files = model->rowCount(repo_ind);
+   testFileInd = QModelIndex();
+   testPdfInd = QModelIndex();
+   for (int i = 0; i < files; i++) {
+      QModelIndex ind = model->index(i, 0, repo_ind);
+      QString name = model->data(ind, Qt::DisplayRole).toString();
+      if (name == "testfile") {
+         testFileInd = ind;
+      } else if (name == "testpdf" || name == "testpdf.pdf") {
+         testPdfInd = ind;
+      }
+   }
+   Q_ASSERT(testFileInd.isValid());
+   Q_ASSERT(testPdfInd.isValid());
+
+   // Verify the model index fields for the remaining files
+   QCOMPARE(model->data(testFileInd, Qt::DisplayRole).toString(), "testfile");
+   testFile = model->getFile(testFileInd);
+   Q_ASSERT(testFile);
+   QCOMPARE(testFile->typeName(), "Max");
+
+   testPdf = model->getFile(testPdfInd);
+   Q_ASSERT(testPdf);
+   QCOMPARE(testPdf->typeName(), "PDF");
+
+   // Move testfile.max and testpdf.pdf to moved2/
+   QModelIndexList list2;
+   list2 << testFileInd << testPdfInd;
+   QString destDir2 = dir2Path + "/";
+   model->moveToDir(list2, repo_ind, destDir2, trashList);
+
+   // Check that original directory is now empty
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 0);
+
+   // Check that the files exist in moved2/
+   QFile moved2Max(dir2Path + "/testfile.max");
+   QFile moved2Pdf(dir2Path + "/testpdf.pdf");
+   QCOMPARE(moved2Max.exists(), true);
+   QCOMPARE(moved2Pdf.exists(), true);
+
+   // Check that no files exist in the original directory
+   QFile origMoveMax(path + "/movefile.max");
+   QFile origMovePdf(path + "/movepdf.pdf");
+   QFile origTestMax(path + "/testfile.max");
+   QFile origTestPdf(path + "/testpdf.pdf");
+   QCOMPARE(origMoveMax.exists(), false);
+   QCOMPARE(origMovePdf.exists(), false);
+   QCOMPARE(origTestMax.exists(), false);
+   QCOMPARE(origTestPdf.exists(), false);
+
+   // Undo the second move (testfile/testpdf to moved2/)
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   // Check that we have 2 files again (testfile and testpdf)
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
+   QCOMPARE(origTestMax.exists(), true);
+   QCOMPARE(origTestPdf.exists(), true);
+   QCOMPARE(moved2Max.exists(), false);
+   QCOMPARE(moved2Pdf.exists(), false);
+
+   // Verify the restored files have correct model index fields
+   testFileInd = QModelIndex();
+   testPdfInd = QModelIndex();
+   for (int i = 0; i < files; i++) {
+      QModelIndex ind = model->index(i, 0, repo_ind);
+      QString name = model->data(ind, Qt::DisplayRole).toString();
+      if (name == "testfile") {
+         testFileInd = ind;
+      } else if (name == "testpdf" || name == "testpdf.pdf") {
+         testPdfInd = ind;
+      }
+   }
+   Q_ASSERT(testFileInd.isValid());
+   Q_ASSERT(testPdfInd.isValid());
+
+   QCOMPARE(model->data(testFileInd, Qt::DisplayRole).toString(), "testfile");
+   testFile = model->getFile(testFileInd);
+   Q_ASSERT(testFile);
+   QCOMPARE(testFile->typeName(), "Max");
+
+   testPdf = model->getFile(testPdfInd);
+   Q_ASSERT(testPdf);
+   QCOMPARE(testPdf->typeName(), "PDF");
+
+   // Undo the first move (movefile/movepdf to moved1/)
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+
+   // Check that we have all 4 files back
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 4);
+   QCOMPARE(origMoveMax.exists(), true);
+   QCOMPARE(origMovePdf.exists(), true);
+   QCOMPARE(moved1Max.exists(), false);
+   QCOMPARE(moved1Pdf.exists(), false);
+
+   // Verify all four restored files have correct model index fields
+   moveFileInd = QModelIndex();
+   movePdfInd = QModelIndex();
+   testFileInd = QModelIndex();
+   testPdfInd = QModelIndex();
+   for (int i = 0; i < files; i++) {
+      QModelIndex ind = model->index(i, 0, repo_ind);
+      QString name = model->data(ind, Qt::DisplayRole).toString();
+      if (name == "movefile") {
+         moveFileInd = ind;
+      } else if (name == "movepdf" || name == "movepdf.pdf") {
+         movePdfInd = ind;
+      } else if (name == "testfile") {
+         testFileInd = ind;
+      } else if (name == "testpdf" || name == "testpdf.pdf") {
+         testPdfInd = ind;
+      }
+   }
+   Q_ASSERT(moveFileInd.isValid());
+   Q_ASSERT(movePdfInd.isValid());
+   Q_ASSERT(testFileInd.isValid());
+   Q_ASSERT(testPdfInd.isValid());
+
+   QCOMPARE(model->data(moveFileInd, Qt::DisplayRole).toString(), "movefile");
+   moveFile = model->getFile(moveFileInd);
+   Q_ASSERT(moveFile);
+   QCOMPARE(moveFile->typeName(), "Max");
+
+   movePdf = model->getFile(movePdfInd);
+   Q_ASSERT(movePdf);
+   QCOMPARE(movePdf->typeName(), "PDF");
+
+   QCOMPARE(model->data(testFileInd, Qt::DisplayRole).toString(), "testfile");
+   testFile = model->getFile(testFileInd);
+   Q_ASSERT(testFile);
+   QCOMPARE(testFile->typeName(), "Max");
+
+   testPdf = model->getFile(testPdfInd);
+   Q_ASSERT(testPdf);
+   QCOMPARE(testPdf->typeName(), "PDF");
 }

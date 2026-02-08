@@ -87,6 +87,23 @@ QString Test::setupRepo(bool add_files)
    return _tempDir->path();
 }
 
+QString Test::setupRepoWithExtra()
+{
+   // First set up the base repo
+   QString path = setupRepo();
+
+   // Then copy extra files from the extra subdirectory
+   QString extraSrc = testSrc + "/extra";
+   QDir extraDir(extraSrc);
+
+   foreach (QString fname, extraDir.entryList(QDir::Files)) {
+       QFile::copy(extraSrc + QDir::separator() + fname,
+                   path + QDir::separator() + fname);
+   }
+
+   return path;
+}
+
 QString Test::trashFile(QString fname)
 {
    return _tempDir->path() + QDir::separator() + ".maxview-trash" +

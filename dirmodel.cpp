@@ -172,10 +172,13 @@ bool Diritem::refreshCache(const QString dirPath, Operation *op)
     return true;
 }
 
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
 Dirmodel::Dirmodel (QObject * parent)
       : QDirModel (QStringList (), QDir::Dirs | QDir::NoDotAndDotDot,
                    QDir::IgnoreCase, parent)
    {
+QT_WARNING_POP
    QStringList filters;
 
    _root = index ("/");
@@ -215,7 +218,7 @@ err_info *Dirmodel::checkOverlap (QString &dirname, QString &user_dirname)
    }
 
 
-void Dirmodel::addToRecent (QModelIndex &index)
+void Dirmodel::addToRecent (QModelIndex &index __attribute__((unused)))
 {
 #if 0 //p
    if (!_recent.contains(index))

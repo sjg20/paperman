@@ -22,6 +22,9 @@ public:
     */
    QString setupRepo(bool add_files = false);
 
+   // Set up a test repo with extra files for move tests
+   QString setupRepoWithExtra();
+
    // Get the path to a trash file given its filename
    QString trashFile(QString fname);
 
