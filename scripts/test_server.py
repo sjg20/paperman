@@ -432,11 +432,15 @@ class TestRunner:
             return False
 
 def main():
+    from paperman_config import load_config
+
+    cfg_server, cfg_api_key = load_config()
+
     parser = argparse.ArgumentParser(description="Test paperman-server REST API")
-    parser.add_argument("--url", default="http://localhost:8080",
-                       help="Server URL (default: http://localhost:8080)")
-    parser.add_argument("--api-key", default="",
-                       help="API key for authentication")
+    parser.add_argument("--url", default=cfg_server,
+                       help="Server URL (default: from config file)")
+    parser.add_argument("--api-key", default=cfg_api_key,
+                       help="API key for authentication (default: from config file)")
 
     args = parser.parse_args()
 

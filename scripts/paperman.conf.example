@@ -1,0 +1,8 @@
+# Paperman server configuration
+# Copy to ~/.config/paperman/config or ~/.paperman.conf
+#
+# CLI flags (--server, --api-key) override these values.
+
+[server]
+url = https://your-server.example.com
+api_key = your-key-here

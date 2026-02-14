@@ -132,19 +132,22 @@ def print_tree(tree, show_size=True, show_date=False):
 
 def main():
     import argparse
+    from paperman_config import load_config
+
+    cfg_server, cfg_api_key = load_config()
 
     parser = argparse.ArgumentParser(
         description="Search paperman-server and display results in tree structure"
     )
     parser.add_argument("pattern", help="Search pattern (case-insensitive)")
-    parser.add_argument("--server", default="https://your-server.example.com",
-                       help="Server URL (default: https://your-server.example.com)")
+    parser.add_argument("--server", default=cfg_server,
+                       help="Server URL (default: from config file)")
     parser.add_argument("--path", default="",
                        help="Search within subdirectory")
     parser.add_argument("--repo", default="",
                        help="Repository name (for multi-repo setups)")
-    parser.add_argument("--api-key", default="",
-                       help="API key for authentication")
+    parser.add_argument("--api-key", default=cfg_api_key,
+                       help="API key for authentication (default: from config file)")
     parser.add_argument("--no-size", action="store_true",
                        help="Don't show file sizes")
     parser.add_argument("--show-date", action="store_true",
