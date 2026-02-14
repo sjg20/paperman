@@ -9,11 +9,17 @@ BUILDDIR      = $(DOCDIR)/_build
 
 .DEFAULT_GOAL := all
 
-all: paperman docs
+all: paperman app docs
 
 # Targets handled here
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
+
+app:
+	cd app && flutter build linux
+
+app-clean:
+	cd app && flutter clean
 
 docs-clean:
 	rm -rf $(BUILDDIR)
