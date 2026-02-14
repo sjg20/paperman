@@ -1,4 +1,4 @@
-# Deploying Paperman Server with HTTPS with HTTPS
+# Deploying Paperman Server with HTTPS
 
 This guide covers deploying the paperman search server with HTTPS and authentication on your server.
 

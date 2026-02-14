@@ -32,7 +32,7 @@ def search_files(pattern, server="https://your-server.example.com", path="", rep
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-def get_file_as_pdf(file_path, repo="", server="https://tunbridge.chapterst.org", api_key="", verify_ssl=True):
+def get_file_as_pdf(file_path, repo="", server="https://your-server.example.com", api_key="", verify_ssl=True):
     """Download a file as PDF"""
     params = {
         "path": file_path,

@@ -1,4 +1,4 @@
-# Migrating from Apache to Nginx to Nginx
+# Migrating from Apache to Nginx
 
 This guide will help you safely switch from Apache to nginx for the paperman server.
 
