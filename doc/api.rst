@@ -301,22 +301,43 @@ Retrieve a file’s content, optionally converting it to PDF.
 
 **Parameters**:
 
-+-------+-----+-------+--------+-------------------------------------+
-| Para  | T   | Req   | D      | Description                         |
-| meter | ype | uired | efault |                                     |
-+=======+=====+=======+========+=====================================+
-| ``p   | str | Yes   | -      | File path (relative to repository)  |
-| ath`` | ing |       |        |                                     |
-+-------+-----+-------+--------+-------------------------------------+
-| ``r   | str | No    | First  | Repository name                     |
-| epo`` | ing |       |        |                                     |
-+-------+-----+-------+--------+-------------------------------------+
-| ``t   | str | No    | ``orig | Output type: ``original`` or        |
-| ype`` | ing |       | inal`` | ``pdf``                             |
-+-------+-----+-------+--------+-------------------------------------+
++-----------+------+-------+-----------+------------------------------------+
+| Parameter | Type | Req   | Default   | Description                        |
+|           |      | uired |           |                                    |
++===========+======+=======+===========+====================================+
+| ``path``  | str  | Yes   | -         | File path (relative to repository) |
+|           | ing  |       |           |                                    |
++-----------+------+-------+-----------+------------------------------------+
+| ``repo``  | str  | No    | First     | Repository name                    |
+|           | ing  |       |           |                                    |
++-----------+------+-------+-----------+------------------------------------+
+| ``type``  | str  | No    | ``orig    | Output type: ``original`` or       |
+|           | ing  |       | inal``    | ``pdf``                            |
++-----------+------+-------+-----------+------------------------------------+
+| ``page``  | int  | No    | 0         | Extract a single page from a PDF   |
+|           |      |       |           | (1-based). Returns a standalone    |
+|           |      |       |           | single-page PDF.                   |
++-----------+------+-------+-----------+------------------------------------+
+| ``pages`` | str  | No    | -         | Set to ``true`` to return the page |
+|           | ing  |       |           | count as JSON instead of file      |
+|           |      |       |           | content. PDF files only.           |
++-----------+------+-------+-----------+------------------------------------+
 
 **Response**: - **Success**: Binary file content with appropriate
 ``Content-Type`` header - **Error**: JSON error response
+
+When ``pages=true`` is given, the response is JSON:
+
+.. code:: json
+
+   {
+     "success": true,
+     "pages": 5
+   }
+
+When ``page=N`` is given, the response is a single-page PDF
+(``application/pdf``). Extracted pages are cached in
+``/tmp/paperman-pages/`` with the same 7-day expiry as thumbnails.
 
 **Content-Type Headers**: - ``.pdf`` → ``application/pdf`` - ``.jpg``,
 ``.jpeg`` → ``image/jpeg`` - ``.tif``, ``.tiff`` → ``image/tiff`` -
@@ -338,6 +359,12 @@ Retrieve a file’s content, optionally converting it to PDF.
 
    # Convert .max file to PDF
    curl "http://localhost:8080/file?path=document.max&type=pdf" -o document.pdf
+
+   # Get page count for a PDF
+   curl "http://localhost:8080/file?path=document.pdf&pages=true"
+
+   # Download just page 1 (for fast initial display)
+   curl "http://localhost:8080/file?path=document.pdf&page=1" -o page1.pdf
 
 **PDF Conversion**: - Supports: ``.max``, ``.jpg``, ``.jpeg``, ``.tif``,
 ``.tiff`` - Conversion timeout: 30 seconds - Uses paperman’s built-in
@@ -601,10 +628,13 @@ PDF convert 1-30s         Depends on file size/complexity
 Caching
 ~~~~~~~
 
-Currently, no caching is implemented. Each request reads from disk. For
-improved performance, consider: - Implementing a caching layer - Using a
-reverse proxy with caching - Pre-generating PDFs for frequently accessed
-files
+Thumbnails and extracted single pages are cached on disk
+(``/tmp/paperman-thumbnails/`` and ``/tmp/paperman-pages/``). Cache
+entries expire after 7 days and are cleaned on server start.
+
+For other requests, no caching is implemented. Each request reads from
+disk. For improved performance, consider using a reverse proxy with
+caching or pre-generating PDFs for frequently accessed files.
 
 --------------
 
@@ -639,8 +669,15 @@ path is relative to repository root, not absolute
 Changelog
 ---------
 
-Version 1.0 (Current)
+Version 1.1 (Current)
 ~~~~~~~~~~~~~~~~~~~~~
+
+-  Single-page PDF extraction via ``page=N`` parameter
+-  Page count query via ``pages=true`` parameter
+-  Page cache with 7-day expiry (``/tmp/paperman-pages/``)
+
+Version 1.0
+~~~~~~~~~~~
 
 -  Initial release
 -  Basic search, list, and file retrieval
