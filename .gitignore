@@ -32,3 +32,4 @@ pm
 __pycache__/
 .claude/
 .qtc_clangd/
+doc/_build/
