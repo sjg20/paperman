@@ -3,7 +3,7 @@
 # automatically while the qmake Makefile is left untouched.
 
 SPHINXBUILD   ?= sphinx-build
-SPHINXOPTS    ?=
+SPHINXOPTS    ?= -q
 DOCDIR        = doc
 BUILDDIR      = $(DOCDIR)/_build
 
