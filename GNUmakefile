@@ -12,6 +12,15 @@ BUILDDIR      = $(DOCDIR)/_build
 all: paperman app docs
 
 # Targets handled here
+paperman-server: Makefile.server
+	$(MAKE) -f Makefile.server
+
+Makefile.server: paperman-server.pro
+	qmake paperman-server.pro -o Makefile.server
+
+test: paperman-server
+	scripts/test_page_fetch.sh
+
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 
