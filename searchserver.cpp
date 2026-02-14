@@ -75,6 +75,7 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
         scanDirectory(_rootPath, "", fileList);
         qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
     }
+    qDebug() << "SearchServer: File cache ready";
 
     // Set up file system watcher for papertree file
     _fsWatcher = new QFileSystemWatcher(this);
@@ -126,6 +127,7 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
             qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
         }
     }
+    qDebug() << "SearchServer: File cache ready";
 
     // Set up file system watcher for papertree files in all repositories
     _fsWatcher = new QFileSystemWatcher(this);
