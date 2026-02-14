@@ -456,7 +456,10 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
             }
         }
 
-        return getFile(repoPath, filePath, type);
+        int page = params.value("page", "0").toInt();
+        bool wantPageCount = params.value("pages", "") == "true";
+
+        return getFile(repoPath, filePath, type, page, wantPageCount);
     }
     else if (path == "/thumbnail") {
         QString filePath = params.value("path", "");
@@ -727,7 +730,9 @@ QString SearchServer::listRepositories()
 #endif
 }
 
-QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePath, const QString &type)
+QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePath,
+                                 const QString &type, int page,
+                                 bool wantPageCount)
 {
     // Security: Prevent directory traversal
     if (filePath.contains("..") || filePath.startsWith("/")) {
@@ -752,6 +757,56 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
 
     // Get file extension
     QString ext = fileInfo.suffix().toLower();
+
+    // Handle page-count request for PDFs
+    if (wantPageCount && ext == "pdf") {
+        int pages = getPdfPageCount(fullPath);
+        if (pages < 0) {
+            return buildHttpResponse(500, "Internal Server Error",
+                                    "application/json",
+                                    buildJsonResponse(false, "",
+                                        "Failed to get page count"));
+        }
+        QString json = QString("{\"success\":true,\"pages\":%1}")
+                      .arg(pages);
+        return buildHttpResponse(200, "OK", "application/json", json);
+    }
+
+    // Handle single-page extraction for PDFs
+    if (page > 0 && ext == "pdf") {
+        // Build cache path using MD5 of file path + page + mtime
+        QString cacheDir = "/tmp/paperman-pages";
+        QDir().mkpath(cacheDir);
+
+        QString cacheKeyData = filePath + "_page" + QString::number(page)
+                              + "_" + QString::number(
+                                  fileInfo.lastModified().toMSecsSinceEpoch());
+        QString cacheKeyHash = QString(QCryptographicHash::hash(
+            cacheKeyData.toUtf8(), QCryptographicHash::Md5).toHex());
+        QString cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
+
+        if (!QFile::exists(cachedPage)) {
+            if (!extractPdfPage(fullPath, page, cachedPage)) {
+                return buildHttpResponse(500, "Internal Server Error",
+                                        "application/json",
+                                        buildJsonResponse(false, "",
+                                            "Failed to extract page"));
+            }
+        }
+
+        QFile pageFile(cachedPage);
+        if (!pageFile.open(QIODevice::ReadOnly)) {
+            return buildHttpResponse(500, "Internal Server Error",
+                                    "application/json",
+                                    buildJsonResponse(false, "",
+                                        "Failed to read extracted page"));
+        }
+
+        QByteArray pageData = pageFile.readAll();
+        pageFile.close();
+
+        return buildHttpResponse(200, "OK", "application/pdf", pageData);
+    }
 
     // Handle PDF conversion request
     if (type == "pdf" && ext != "pdf") {
@@ -1412,28 +1467,92 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     return "";
 }
 
-void SearchServer::cleanThumbnailCache()
+int SearchServer::getPdfPageCount(const QString &pdfPath)
 {
-    QString cacheDir = "/tmp/paperman-thumbnails";
-    QDir dir(cacheDir);
-    
-    if (!dir.exists()) {
-        return;
+    QProcess process;
+    process.start("pdfinfo", QStringList() << pdfPath);
+    if (!process.waitForFinished(5000)) {
+        process.kill();
+        qWarning() << "SearchServer: pdfinfo timed out";
+        return -1;
     }
-    
-    QFileInfoList files = dir.entryInfoList(QDir::Files);
-    QDateTime cutoff = QDateTime::currentDateTime().addDays(-7);
-    int removed = 0;
-    
-    foreach (const QFileInfo &file, files) {
-        if (file.lastModified() < cutoff) {
-            if (QFile::remove(file.absoluteFilePath())) {
-                removed++;
-            }
+
+    if (process.exitCode() != 0) {
+        qWarning() << "SearchServer: pdfinfo failed:"
+                   << process.readAllStandardError();
+        return -1;
+    }
+
+    QString output = QString::fromUtf8(process.readAllStandardOutput());
+    QStringList lines = output.split('\n');
+    foreach (const QString &line, lines) {
+        if (line.startsWith("Pages:")) {
+            bool ok;
+            int pages = line.mid(6).trimmed().toInt(&ok);
+            if (ok)
+                return pages;
         }
     }
-    
-    if (removed > 0) {
-        qDebug() << "SearchServer: Cleaned" << removed << "old thumbnails from cache";
+
+    qWarning() << "SearchServer: could not parse page count from pdfinfo";
+    return -1;
+}
+
+bool SearchServer::extractPdfPage(const QString &pdfPath, int page,
+                                  const QString &outputPath)
+{
+    // pdftocairo -pdf writes directly to the output path (no extension added)
+    QProcess process;
+    QStringList args;
+    args << "-pdf"
+         << "-f" << QString::number(page)
+         << "-l" << QString::number(page)
+         << pdfPath
+         << outputPath;
+
+    qDebug() << "SearchServer: Extracting page:" << args.join(" ");
+
+    process.start("pdftocairo", args);
+    if (!process.waitForFinished(5000)) {
+        process.kill();
+        qWarning() << "SearchServer: pdftocairo timed out";
+        return false;
+    }
+
+    if (process.exitCode() != 0) {
+        qWarning() << "SearchServer: pdftocairo failed:"
+                   << process.readAllStandardError();
+        return false;
+    }
+
+    return QFile::exists(outputPath);
+}
+
+void SearchServer::cleanThumbnailCache()
+{
+    QStringList cacheDirs;
+    cacheDirs << "/tmp/paperman-thumbnails" << "/tmp/paperman-pages";
+
+    foreach (const QString &cacheDir, cacheDirs) {
+        QDir dir(cacheDir);
+
+        if (!dir.exists())
+            continue;
+
+        QFileInfoList files = dir.entryInfoList(QDir::Files);
+        QDateTime cutoff = QDateTime::currentDateTime().addDays(-7);
+        int removed = 0;
+
+        foreach (const QFileInfo &file, files) {
+            if (file.lastModified() < cutoff) {
+                if (QFile::remove(file.absoluteFilePath()))
+                    removed++;
+            }
+        }
+
+        if (removed > 0) {
+            qDebug() << "SearchServer: Cleaned" << removed
+                     << "old cache files from" << cacheDir;
+        }
     }
 }

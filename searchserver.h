@@ -180,12 +180,33 @@ private:
 
     /**
      * Get file content
-     * @param repoPath   Repository root path
-     * @param filePath   File path (relative to repository root)
-     * @param type       Output type ("original" or "pdf")
+     * @param repoPath       Repository root path
+     * @param filePath       File path (relative to repository root)
+     * @param type           Output type ("original" or "pdf")
+     * @param page           Extract single page (0 = return whole file)
+     * @param wantPageCount  Return page count as JSON instead of file data
      * @return HTTP response with file content (binary safe)
      */
-    QByteArray getFile(const QString &repoPath, const QString &filePath, const QString &type = "original");
+    QByteArray getFile(const QString &repoPath, const QString &filePath,
+                       const QString &type = "original", int page = 0,
+                       bool wantPageCount = false);
+
+    /**
+     * Get page count of a PDF file using pdfinfo
+     * @param pdfPath Path to PDF file
+     * @return Number of pages, or -1 on failure
+     */
+    int getPdfPageCount(const QString &pdfPath);
+
+    /**
+     * Extract a single page from a PDF using pdftocairo
+     * @param pdfPath    Path to source PDF file
+     * @param page       Page number (1-based)
+     * @param outputPath Output path for single-page PDF
+     * @return true if successful
+     */
+    bool extractPdfPage(const QString &pdfPath, int page,
+                        const QString &outputPath);
 
     /**
      * Build JSON response
