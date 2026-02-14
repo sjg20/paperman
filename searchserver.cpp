@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include "searchserver.h"
+#include "config.h"
 
 #include <QCoreApplication>
 #include <QTcpSocket>
@@ -341,8 +342,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
 
     // Route requests
     if (path == "/" || path == "/status") {
-        QString data = QString("{\"status\":\"running\",\"repository\":\"%1\"}")
-                      .arg(_rootPath);
+        QString data = QString("{\"status\":\"running\",\"repository\":\"%1\",\"version\":\"%2\"}")
+                      .arg(_rootPath, CONFIG_version_str);
         return buildHttpResponse(200, "OK", "application/json", data);
     }
     else if (path == "/repos") {

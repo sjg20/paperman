@@ -286,7 +286,7 @@
         <div id="results"></div>
 
         <div class="footer">
-            Powered by Paperman Search Server
+            Powered by Paperman Search Server <span id="version"></span>
         </div>
     </div>
 
@@ -590,6 +590,12 @@
         window.addEventListener('load', function() {
             // Auto-focus on search input
             document.getElementById('searchInput').focus();
+            fetch(API_URL + '/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.version)
+                        document.getElementById('version').textContent = 'v' + data.version;
+                });
         });
     </script>
 </body>
