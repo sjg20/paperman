@@ -5,6 +5,8 @@ its own variant of PaperPort's .max file format.
 
 See the INSTALL file for installation instructions.
 
+Full documentation is available at https://paperman.readthedocs.io
+
 Desktop view | Select scanner | Dated files | Open file | Preview | Preview2
 ------------ | -------------- | ----------- | --------- | ------- | --------
 ![1](doc/1.jpeg) | ![2](doc/2.jpeg) | ![3](doc/3.jpeg) | ![4](doc/4.jpeg) | ![5](doc/5.png) | ![6](doc/all.png)
