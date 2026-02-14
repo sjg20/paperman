@@ -12,9 +12,13 @@
 *.a
 
 *.moc
+moc_*.cpp
+moc_*.h
 *.obj
 /Makefile
 /paperman
+/paperman-server
+/Makefile.server
 /qrc_maxview.cpp
 /qmake_image_collection.cpp
 /maxview.pro.user
@@ -33,3 +37,4 @@ __pycache__/
 .claude/
 .qtc_clangd/
 doc/_build/
+install-*
