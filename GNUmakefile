@@ -1,0 +1,21 @@
+# Wrapper around the qmake-generated Makefile that adds a docs target.
+# GNU make prefers GNUmakefile over Makefile, so this is picked up
+# automatically while the qmake Makefile is left untouched.
+
+SPHINXBUILD   ?= sphinx-build
+SPHINXOPTS    ?=
+DOCDIR        = doc
+BUILDDIR      = $(DOCDIR)/_build
+
+.DEFAULT_GOAL := all
+
+# Targets handled here
+docs:
+	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
+
+docs-clean:
+	rm -rf $(BUILDDIR)
+
+# Forward everything else to the qmake-generated Makefile
+%:
+	$(MAKE) -f Makefile $@
