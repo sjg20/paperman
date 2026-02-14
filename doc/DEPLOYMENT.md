@@ -1,6 +1,6 @@
-# Deploying Paperman Server on Palo with HTTPS
+# Deploying Paperman Server with HTTPS with HTTPS
 
-This guide covers deploying the paperman search server with HTTPS and authentication on your palo machine.
+This guide covers deploying the paperman search server with HTTPS and authentication on your server.
 
 ## Option 1: Using Apache (Recommended - Already Installed)
 
@@ -9,7 +9,7 @@ Since you already have Apache running, this is the simplest option.
 ### Step 1: Enable Required Apache Modules
 
 ```bash
-# On palo machine
+# On your server machine
 sudo a2enmod ssl
 sudo a2enmod proxy
 sudo a2enmod proxy_http
@@ -28,7 +28,7 @@ sudo mkdir -p /etc/ssl/private
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/ssl/private/paperman.key \
     -out /etc/ssl/certs/paperman.crt \
-    -subj "/CN=palo.local"
+    -subj "/CN=your-server.local"
 
 # Set permissions
 sudo chmod 600 /etc/ssl/private/paperman.key
@@ -42,7 +42,7 @@ sudo apt update
 sudo apt install certbot python3-certbot-apache
 
 # Get certificate (requires domain name and port 80 open)
-sudo certbot --apache -d palo.yourdomain.com
+sudo certbot --apache -d your-server.example.com
 ```
 
 ### Step 3: Install Apache Configuration
@@ -68,12 +68,12 @@ sudo systemctl reload apache2
 ### Step 4: Deploy Paperman Server
 
 ```bash
-# Copy files to palo
-scp paperman-server paperman palo:/home/user/
+# Copy files to server
+scp paperman-server paperman your-server:/home/user/
 
-# On palo, install systemd service
-scp paperman-server.service palo:/home/user/
-ssh palo
+# On your server, install systemd service
+scp paperman-server.service your-server:/home/user/
+ssh your-server
 cd /home/user
 sudo ./install-service.sh
 
@@ -99,14 +99,14 @@ sudo systemctl status paperman-server
 ```bash
 # From another machine
 # Status (no auth required)
-curl https://palo.yourdomain.com/status
+curl https://your-server.example.com/status
 
 # Search with API key
 curl -H "X-API-Key: your-strong-random-key-here" \
-     https://palo.yourdomain.com/search?q=test
+     https://your-server.example.com/search?q=test
 
 # For self-signed cert, use -k to skip verification (testing only!)
-curl -k https://palo.local/status
+curl -k https://your-server.local/status
 ```
 
 ---
@@ -118,7 +118,7 @@ If you prefer nginx over Apache:
 ### Step 1: Install Nginx
 
 ```bash
-# On palo
+# On your server
 sudo apt update
 sudo apt install nginx
 
@@ -198,7 +198,7 @@ sudo netfilter-persistent save
 - [ ] Strong API key generated (use `openssl rand -base64 32`)
 - [ ] Systemd service running as non-root user
 - [ ] Logs being monitored (`sudo journalctl -u paperman-server -f`)
-- [ ] Automatic updates enabled on palo
+- [ ] Automatic updates enabled on your server
 - [ ] Backups configured
 
 ---
@@ -253,7 +253,7 @@ sudo tail -f /var/log/nginx/paperman-access.log
 
 ```bash
 # Check certificate
-openssl s_client -connect palo.yourdomain.com:443 -showcerts
+openssl s_client -connect your-server.example.com:443 -showcerts
 
 # Check what's listening on ports
 sudo netstat -tlnp | grep -E ':(80|443|8080)'
@@ -288,7 +288,7 @@ Create a bookmarklet to add API key automatically:
 
 ```javascript
 javascript:(function(){
-  var url = 'https://palo.yourdomain.com/search?q=' +
+  var url = 'https://your-server.example.com/search?q=' +
             encodeURIComponent(window.getSelection().toString() || prompt('Search:'));
   fetch(url, {
     headers: {'X-API-Key': 'your-api-key-here'}
@@ -303,7 +303,7 @@ javascript:(function(){
 import requests
 
 API_KEY = "your-api-key-here"
-BASE_URL = "https://palo.yourdomain.com"
+BASE_URL = "https://your-server.example.com"
 
 def search_papers(query):
     response = requests.get(
@@ -328,7 +328,7 @@ if __name__ == "__main__":
 # paperman-search.sh
 
 API_KEY="your-api-key-here"
-BASE_URL="https://palo.yourdomain.com"
+BASE_URL="https://your-server.example.com"
 
 search() {
     curl -s -H "X-API-Key: $API_KEY" \
@@ -365,7 +365,7 @@ sudo nano /etc/logrotate.d/paperman-server
     compress
     delaycompress
     notifempty
-    create 0640 sglass sglass
+    create 0640 paperman paperman
     sharedscripts
     postrotate
         systemctl reload paperman-server > /dev/null

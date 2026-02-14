@@ -17,7 +17,7 @@ This directory contains a systemd service unit for running paperman-server as a 
 
    Change this line to point to your papers directory:
    ```
-   ExecStart=/home/sglass/files/max/git/paperman-server /home/sglass/papers
+   ExecStart=/opt/paperman/paperman-server /srv/papers
    ```
 
 2. **Install the service** (requires root):
@@ -73,11 +73,11 @@ sudo systemctl restart paperman-server
 
 The service runs with these settings:
 
-- **User**: sglass
-- **Group**: sglass
-- **Working Directory**: /home/sglass/files/max/git
+- **User**: paperman
+- **Group**: paperman
+- **Working Directory**: /opt/paperman
 - **Default Port**: 8080
-- **Repository**: /home/sglass/papers (change in ExecStart line)
+- **Repository**: /srv/papers (change in ExecStart line)
 - **Auto-restart**: On failure, with 5 second delay
 - **Private temp**: Yes (isolated /tmp)
 
@@ -105,12 +105,12 @@ If you need to change the configuration:
 ### Change port
 Edit the service file and modify ExecStart:
 ```
-ExecStart=/home/sglass/files/max/git/paperman-server -p 9000 /home/sglass/papers
+ExecStart=/opt/paperman/paperman-server -p 9000 /srv/papers
 ```
 
 ### Multiple repositories
 ```
-ExecStart=/home/sglass/files/max/git/paperman-server /home/sglass/papers /home/sglass/archive
+ExecStart=/opt/paperman/paperman-server /srv/papers /home/paperman/archive
 ```
 
 ## Troubleshooting
@@ -151,7 +151,7 @@ sudo systemctl daemon-reload
 The service runs with:
 - `NoNewPrivileges=true` - Prevents privilege escalation
 - `PrivateTmp=yes` - Isolated temporary directory
-- Runs as non-root user (sglass)
+- Runs as non-root user (paperman)
 
 For additional security, consider:
 - Using a dedicated service account

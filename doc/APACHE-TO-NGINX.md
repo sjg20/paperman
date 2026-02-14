@@ -1,4 +1,4 @@
-# Migrating from Apache to Nginx on Palo
+# Migrating from Apache to Nginx to Nginx
 
 This guide will help you safely switch from Apache to nginx for the paperman server.
 
@@ -7,7 +7,7 @@ This guide will help you safely switch from Apache to nginx for the paperman ser
 Before starting, gather this information:
 
 ```bash
-# On palo - check what Apache is serving
+# Check what Apache is serving
 sudo apache2ctl -S
 
 # Check if anything else uses Apache
@@ -25,7 +25,7 @@ ls -la /etc/apache2/sites-enabled/
 ### Step 1: Install Nginx
 
 ```bash
-# On palo machine
+# On your server
 sudo apt update
 sudo apt install nginx
 
@@ -48,11 +48,11 @@ sudo netstat -tlnp | grep -E ':(80|443)'
 ### Step 3: Install Nginx Configuration
 
 ```bash
-# Copy the nginx config file to palo (if not already there)
+# Copy the nginx config file to the server (if not already there)
 # From dev machine:
-# scp nginx-paperman.conf palo:/tmp/
+# scp nginx-paperman.conf your-server:/tmp/
 
-# On palo:
+# On your server:
 sudo cp /tmp/nginx-paperman.conf /etc/nginx/sites-available/paperman
 
 # Edit the configuration
@@ -61,12 +61,12 @@ sudo nano /etc/nginx/sites-available/paperman
 
 **Update these lines:**
 ```nginx
-server_name palo.yourdomain.com;  # Change to your domain or IP
+server_name your-server.example.com;  # Change to your domain or IP
 
 # Update SSL certificate paths:
 # If you had Let's Encrypt with Apache, the certs are already there:
-ssl_certificate /etc/letsencrypt/live/palo.yourdomain.com/fullchain.pem;
-ssl_certificate_key /etc/letsencrypt/live/palo.yourdomain.com/privkey.pem;
+ssl_certificate /etc/letsencrypt/live/your-server.example.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/your-server.example.com/privkey.pem;
 
 # OR for self-signed:
 ssl_certificate /etc/nginx/ssl/paperman.crt;
@@ -97,7 +97,7 @@ sudo mkdir -p /etc/nginx/ssl
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/nginx/ssl/paperman.key \
     -out /etc/nginx/ssl/paperman.crt \
-    -subj "/CN=palo"
+    -subj "/CN=your-server"
 
 # Set permissions
 sudo chmod 600 /etc/nginx/ssl/paperman.key
@@ -108,10 +108,10 @@ sudo chmod 644 /etc/nginx/ssl/paperman.crt
 
 ```bash
 # With Apache stopped and nginx not yet started
-sudo certbot certonly --standalone -d palo.yourdomain.com
+sudo certbot certonly --standalone -d your-server.example.com
 
 # This will create certificates in:
-# /etc/letsencrypt/live/palo.yourdomain.com/
+# /etc/letsencrypt/live/your-server.example.com/
 ```
 
 ### Step 5: Configure Nginx
@@ -157,21 +157,21 @@ tcp  0  0  0.0.0.0:443    0.0.0.0:*  LISTEN  1234/nginx
 ### Step 7: Test the Setup
 
 ```bash
-# From another machine (or palo itself)
+# From another machine (or the server itself)
 # Test HTTP redirect to HTTPS
-curl -I http://palo.yourdomain.com
+curl -I http://your-server.example.com
 # Should see: HTTP/1.1 301 Moved Permanently
 
 # Test HTTPS (status endpoint - no auth needed)
-curl -k https://palo.yourdomain.com/status
+curl -k https://your-server.example.com/status
 # Should see: {"status":"running",...}
 
 # Test with API key
-curl -k -H "X-API-Key: YOUR-KEY" https://palo.yourdomain.com/search?q=test
+curl -k -H "X-API-Key: YOUR-KEY" https://your-server.example.com/search?q=test
 
 # Test PDF conversion
 curl -k -H "X-API-Key: YOUR-KEY" \
-    "https://palo.yourdomain.com/file?path=test.jpg&type=pdf" \
+    "https://your-server.example.com/file?path=test.jpg&type=pdf" \
     -o test.pdf
 ```
 
@@ -205,7 +205,7 @@ sudo systemctl is-enabled nginx
 sudo certbot renew --dry-run --nginx
 
 # Edit renewal config if needed
-sudo nano /etc/letsencrypt/renewal/palo.yourdomain.com.conf
+sudo nano /etc/letsencrypt/renewal/your-server.example.com.conf
 ```
 
 Change:
@@ -245,8 +245,8 @@ After migration, verify:
 
 - [ ] Nginx is running: `sudo systemctl status nginx`
 - [ ] Ports 80 and 443 are listening: `sudo netstat -tlnp | grep nginx`
-- [ ] HTTP redirects to HTTPS: `curl -I http://palo/`
-- [ ] HTTPS works: `curl -k https://palo/status`
+- [ ] HTTP redirects to HTTPS: `curl -I http://your-server/`
+- [ ] HTTPS works: `curl -k https://your-server/status`
 - [ ] API key authentication works
 - [ ] PDF conversion works
 - [ ] SSL certificate is valid (or self-signed warning expected)
@@ -408,7 +408,7 @@ sudo systemctl stop apache2
 
 ```bash
 # Check certificate files exist
-sudo ls -la /etc/letsencrypt/live/palo.yourdomain.com/
+sudo ls -la /etc/letsencrypt/live/your-server.example.com/
 # OR
 sudo ls -la /etc/nginx/ssl/
 
@@ -454,7 +454,7 @@ sudo certbot renew --dry-run
 sudo systemctl status nginx
 
 # Check port 80 is accessible (needed for renewal)
-curl -I http://palo.yourdomain.com
+curl -I http://your-server.example.com
 ```
 
 ---
@@ -490,7 +490,7 @@ curl -I http://palo.yourdomain.com
 3. **Better for reverse proxy** - Designed for it
 4. **Simpler configuration** - Less complex than Apache
 5. **Better for concurrent connections** - Event-driven architecture
-6. **Lower resource usage** - Important if palo runs other services
+6. **Lower resource usage** - Important if the server runs other services
 
 ---
 

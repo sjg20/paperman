@@ -8,7 +8,7 @@ import json
 import requests
 from collections import defaultdict
 
-def search_files(pattern, server="https://tunbridge.chapterst.org", path="", repo="", api_key="", verify_ssl=True):
+def search_files(pattern, server="https://your-server.example.com", path="", repo="", api_key="", verify_ssl=True):
     """Search for files matching pattern"""
     params = {
         "q": pattern,
@@ -105,14 +105,14 @@ def main():
         description="Search paperman-server and display results in tree structure"
     )
     parser.add_argument("pattern", help="Search pattern (case-insensitive)")
-    parser.add_argument("--server", default="https://tunbridge.chapterst.org",
-                       help="Server URL (default: https://tunbridge.chapterst.org)")
+    parser.add_argument("--server", default="https://your-server.example.com",
+                       help="Server URL (default: https://your-server.example.com)")
     parser.add_argument("--path", default="",
                        help="Search within subdirectory")
     parser.add_argument("--repo", default="",
                        help="Repository name (for multi-repo setups)")
-    parser.add_argument("--api-key", default="vOXCHGeJvzkj7PiM17J9kON6j+b5oAZA1EW7/SBZEmw=",
-                       help="API key for authentication (default: configured key)")
+    parser.add_argument("--api-key", default="",
+                       help="API key for authentication")
     parser.add_argument("--no-size", action="store_true",
                        help="Don't show file sizes")
     parser.add_argument("--show-date", action="store_true",

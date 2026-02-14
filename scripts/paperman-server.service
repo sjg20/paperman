@@ -5,10 +5,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=sglass
-Group=sglass
-WorkingDirectory=/home/sglass/files/max/git
-ExecStart=/home/sglass/files/max/git/paperman-server /home/sglass/papers
+User=paperman
+Group=paperman
+WorkingDirectory=/opt/paperman
+ExecStart=/opt/paperman/paperman-server /srv/papers
 Restart=on-failure
 RestartSec=5s
 
