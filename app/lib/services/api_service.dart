@@ -154,6 +154,33 @@ class ApiService {
     return _buildUri('/thumbnail', params);
   }
 
+  /// Get page count for a PDF file.
+  Future<int> getPageCount({required String path, String? repo}) async {
+    final params = <String, String>{'path': path, 'pages': 'true'};
+    if (repo != null) params['repo'] = repo;
+    final json = await _getJson('/file', params);
+    return json['pages'] as int;
+  }
+
+  /// Download a single page of a PDF file.
+  Future<http.Response> downloadFilePage({
+    required String path,
+    required int page,
+    String? repo,
+  }) async {
+    final params = <String, String>{
+      'path': path,
+      'page': page.toString(),
+    };
+    if (repo != null) params['repo'] = repo;
+    final uri = Uri.parse('$_baseUrl/file').replace(queryParameters: params);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, 'Failed to download page');
+    }
+    return response;
+  }
+
   /// Download a file and return its bytes.
   Future<http.Response> downloadFile({
     required String path,
