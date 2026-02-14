@@ -32,6 +32,7 @@ Features
 
    server
    api
+   app
 
 .. toctree::
    :maxdepth: 2
