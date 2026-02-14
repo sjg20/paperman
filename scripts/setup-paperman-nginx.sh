@@ -69,7 +69,7 @@ check_files() {
 
     [ -f "$PROJ_DIR/paperman" ] || error "paperman binary not found in $PROJ_DIR"
     [ -f "$PROJ_DIR/paperman-server" ] || error "paperman-server binary not found in $PROJ_DIR"
-    [ -f "$PROJ_DIR/nginx-paperman.conf" ] || error "nginx-paperman.conf not found in $PROJ_DIR"
+    [ -f "$SCRIPT_DIR/nginx-paperman.conf" ] || error "nginx-paperman.conf not found in $SCRIPT_DIR"
     [ -f "$SCRIPT_DIR/paperman-server.service" ] || error "paperman-server.service not found in $SCRIPT_DIR"
 
     # Make binaries executable
@@ -116,7 +116,7 @@ generate_ssl_cert() {
 install_nginx_config() {
     info "Installing nginx configuration..."
 
-    cp "$PROJ_DIR/nginx-paperman.conf" /etc/nginx/sites-available/paperman
+    cp "$SCRIPT_DIR/nginx-paperman.conf" /etc/nginx/sites-available/paperman
 
     # Update hostname in config
     HOSTNAME=$(hostname -f 2>/dev/null || hostname)
