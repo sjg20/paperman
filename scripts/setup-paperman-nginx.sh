@@ -13,6 +13,9 @@ set -e  # Exit on error
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJ_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Server port (override with: sudo PORT=8082 ./setup-paperman-nginx.sh)
+PORT="${PORT:-8081}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -118,9 +121,10 @@ install_nginx_config() {
 
     cp "$SCRIPT_DIR/nginx-paperman.conf" /etc/nginx/sites-available/paperman
 
-    # Update hostname in config
+    # Update hostname and port in config
     HOSTNAME=$(hostname -f 2>/dev/null || hostname)
     sed -i "s/your-server.example.com/$HOSTNAME/g" /etc/nginx/sites-available/paperman
+    sed -i "s/localhost:8081/localhost:$PORT/g" /etc/nginx/sites-available/paperman
 
     # Remove default site
     rm -f /etc/nginx/sites-enabled/default
@@ -176,9 +180,10 @@ install_paperman_service() {
     sed -i "s|User=paperman|User=$REAL_USER|g" /etc/systemd/system/paperman-server.service
     sed -i "s|Group=paperman|Group=$REAL_GROUP|g" /etc/systemd/system/paperman-server.service
 
-    # Update paths to point at the project directory
+    # Update paths and port in the service file
     sed -i "s|/opt/paperman|$PROJ_DIR|g" /etc/systemd/system/paperman-server.service
     sed -i "s|/srv/papers|$PROJ_DIR/papers|g" /etc/systemd/system/paperman-server.service
+    sed -i "s|paperman-server |paperman-server -p $PORT |" /etc/systemd/system/paperman-server.service
 
     # Create papers directory
     mkdir -p "$PROJ_DIR/papers"
@@ -192,7 +197,7 @@ install_paperman_service() {
     info "Waiting for server to start and build file cache..."
     local waited=0
     while [ $waited -lt 120 ]; do
-        if curl -k -s http://localhost:8080/status >/dev/null 2>&1; then
+        if curl -k -s http://localhost:$PORT/status >/dev/null 2>&1; then
             break
         fi
         sleep 5
@@ -217,14 +222,14 @@ configure_firewall() {
         # Using UFW
         ufw allow 443/tcp >/dev/null 2>&1 || true
         ufw allow 80/tcp >/dev/null 2>&1 || true
-        ufw deny 8080/tcp >/dev/null 2>&1 || true
+        ufw deny $PORT/tcp >/dev/null 2>&1 || true
         info "Firewall configured with ufw"
     elif command -v iptables >/dev/null 2>&1; then
         # Using iptables
         iptables -A INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
         iptables -A INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
-        iptables -A INPUT -p tcp --dport 8080 -i lo -j ACCEPT 2>/dev/null || true
-        iptables -A INPUT -p tcp --dport 8080 -j DROP 2>/dev/null || true
+        iptables -A INPUT -p tcp --dport $PORT -i lo -j ACCEPT 2>/dev/null || true
+        iptables -A INPUT -p tcp --dport $PORT -j DROP 2>/dev/null || true
 
         if command -v netfilter-persistent >/dev/null 2>&1; then
             netfilter-persistent save >/dev/null 2>&1 || true
