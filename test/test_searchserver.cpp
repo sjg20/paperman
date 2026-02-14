@@ -81,6 +81,68 @@ QString TestSearchServer::httpGet(const QString& url)
     return QString::fromUtf8(response);
 }
 
+QByteArray TestSearchServer::httpGetRaw(const QString& url)
+{
+    // Parse URL to get host, port, and path
+    QUrl qurl(url);
+    QString host = qurl.host();
+    int port = qurl.port();
+    QString path = qurl.path();
+    if (qurl.hasQuery())
+        path += "?" + qurl.query();
+
+    QTcpSocket socket;
+    socket.connectToHost(host, port);
+
+    // Process events to allow server to accept connection
+    QCoreApplication::processEvents();
+
+    if (!socket.waitForConnected(2000)) {
+        qWarning() << "Failed to connect:" << socket.errorString();
+        return QByteArray();
+    }
+
+    // Send HTTP GET request
+    QString request = QString("GET %1 HTTP/1.1\r\n"
+                             "Host: %2\r\n"
+                             "Connection: close\r\n"
+                             "\r\n").arg(path, host);
+
+    socket.write(request.toUtf8());
+    socket.flush();
+
+    // Process events to allow server to handle request
+    QCoreApplication::processEvents();
+
+    // Wait for response with timeout
+    int totalWait = 0;
+    const int maxWait = 5000; // 5 second timeout (pdftocairo may be slow)
+    while (socket.bytesAvailable() == 0 && totalWait < maxWait) {
+        QCoreApplication::processEvents();
+
+        if (!socket.waitForReadyRead(200)) {
+            if (socket.state() != QAbstractSocket::ConnectedState)
+                break;
+        }
+        totalWait += 200;
+    }
+
+    // Read all data
+    QByteArray response;
+    response += socket.readAll();
+
+    // Wait a bit more for any remaining data
+    totalWait = 0;
+    while (socket.state() == QAbstractSocket::ConnectedState && totalWait < 2000) {
+        if (socket.waitForReadyRead(100))
+            response += socket.readAll();
+        totalWait += 100;
+    }
+
+    socket.close();
+    return response;
+}
+
 void TestSearchServer::createTestFiles(const QString& path)
 {
     QDir dir(path);
@@ -364,6 +426,71 @@ void TestSearchServer::testFileEndpoint()
     // Test absolute path prevention
     response = httpGet("http://localhost:9885/file?path=/etc/passwd");
     QVERIFY(response.contains("400") || response.contains("Invalid file path"));
+
+    server.stop();
+}
+
+void TestSearchServer::testFilePageCount()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    // Copy test PDF into temp directory
+    QString srcPdf = testSrc + "/testpdf.pdf";
+    QString dstPdf = tmpDir.path() + "/testpdf.pdf";
+    QVERIFY2(QFile::copy(srcPdf, dstPdf),
+             qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
+
+    SearchServer server(tmpDir.path(), 9886);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // Request page count
+    QString response = httpGet(
+        "http://localhost:9886/file?path=testpdf.pdf&pages=true");
+    qDebug() << "Page count response:" << response;
+    QVERIFY(response.contains("200 OK"));
+    QVERIFY(response.contains("\"success\":true"));
+    QVERIFY(response.contains("\"pages\":5"));
+
+    server.stop();
+}
+
+void TestSearchServer::testFilePageExtract()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    // Copy test PDF into temp directory
+    QString srcPdf = testSrc + "/testpdf.pdf";
+    QString dstPdf = tmpDir.path() + "/testpdf.pdf";
+    QVERIFY2(QFile::copy(srcPdf, dstPdf),
+             qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
+
+    // Get full file size for comparison
+    qint64 fullSize = QFileInfo(dstPdf).size();
+
+    SearchServer server(tmpDir.path(), 9887);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // Request single page
+    QByteArray raw = httpGetRaw(
+        "http://localhost:9887/file?path=testpdf.pdf&page=1");
+    QVERIFY(!raw.isEmpty());
+
+    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
+    qDebug() << "Page extract header:" << header;
+    QVERIFY(header.contains("200 OK"));
+    QVERIFY(header.contains("application/pdf"));
+
+    // Body should be smaller than the full file
+    int bodyStart = raw.indexOf("\r\n\r\n") + 4;
+    qint64 bodySize = raw.size() - bodyStart;
+    qDebug() << "Full file:" << fullSize << "bytes, page 1:" << bodySize << "bytes";
+    QVERIFY2(bodySize < fullSize,
+             qPrintable(QString("Page (%1) should be smaller than full file (%2)")
+                       .arg(bodySize).arg(fullSize)));
 
     server.stop();
 }

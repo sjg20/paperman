@@ -23,10 +23,15 @@ private slots:
    void testReposEndpoint();
    void testSearchWithRepo();
    void testFileEndpoint();
+   void testFilePageCount();
+   void testFilePageExtract();
 
 private:
-   // Helper to make HTTP GET request and return response
+   // Helper to make HTTP GET request and return response as string
    QString httpGet(const QString& url);
+
+   // Helper to make HTTP GET request and return raw response bytes
+   QByteArray httpGetRaw(const QString& url);
 
    // Helper to create test files
    void createTestFiles(const QString& path);
