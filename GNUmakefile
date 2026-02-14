@@ -9,6 +9,8 @@ BUILDDIR      = $(DOCDIR)/_build
 
 .DEFAULT_GOAL := all
 
+all: paperman docs
+
 # Targets handled here
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
