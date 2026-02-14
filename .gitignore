@@ -29,3 +29,6 @@ pm
 .ui/
 .qmake.stash
 /junk/
+__pycache__/
+.claude/
+.qtc_clangd/
