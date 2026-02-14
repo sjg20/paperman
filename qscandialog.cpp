@@ -27,7 +27,7 @@
 #include "err.h"
 
 #include "images/setup.xpm"
-#include "images/maxview.xpm"
+#include "images/paperman.xpm"
 #include "images/fileopen.xpm"
 #include "previewwidget.h"
 #include "qbooloption.h"
@@ -1210,7 +1210,7 @@ void QScanDialog::slotShowPreviewWidget()
 /**  */
 void QScanDialog::slotAbout()
 {
-	QPixmap qp((const char **)maxview_logo_xpm);
+	QPixmap qp((const char **)paperman_logo_xpm);
   QString text;
   text =
   tr("<center><b><h1>QuiteInsane V%1</h1></b></center>"

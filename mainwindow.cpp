@@ -149,6 +149,8 @@ void Mainwindow::runGui(QApplication& app, QStringList args)
     {
     Mainwindow *me;
 
+    app.setWindowIcon(QIcon(":/images/images/paperman.png"));
+
     me = new Mainwindow();
 
     me->startup(args);

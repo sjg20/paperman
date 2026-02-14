@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Blue rounded background -->
+  <rect width="512" height="512" rx="96" ry="96" fill="#1565C0"/>
+
+  <!-- Document shadow -->
+  <g transform="translate(4, 4)">
+    <path d="M148 72 h152 l80 80 v288 a24 24 0 0 1 -24 24 h-208 a24 24 0 0 1 -24-24 v-344 a24 24 0 0 1 24-24z"
+          fill="#0D47A1" opacity="0.4"/>
+  </g>
+
+  <!-- Document body -->
+  <path d="M148 72 h152 l80 80 v288 a24 24 0 0 1 -24 24 h-208 a24 24 0 0 1 -24-24 v-344 a24 24 0 0 1 24-24z"
+        fill="#FFFFFF"/>
+
+  <!-- Folded corner -->
+  <path d="M300 72 v56 a24 24 0 0 0 24 24 h56z"
+        fill="#BBDEFB"/>
+
+  <!-- Text lines on document -->
+  <rect x="168" y="192" width="160" height="12" rx="6" fill="#90CAF9"/>
+  <rect x="168" y="224" width="128" height="12" rx="6" fill="#90CAF9"/>
+  <rect x="168" y="256" width="144" height="12" rx="6" fill="#90CAF9"/>
+  <rect x="168" y="288" width="100" height="12" rx="6" fill="#90CAF9"/>
+
+  <!-- Magnifying glass -->
+  <g transform="translate(280, 300)">
+    <!-- Glass circle -->
+    <circle cx="40" cy="40" r="48" fill="none" stroke="#FFC107" stroke-width="14"/>
+    <circle cx="40" cy="40" r="48" fill="#FFC107" opacity="0.15"/>
+    <!-- Handle -->
+    <line x1="74" y1="74" x2="112" y2="112" stroke="#FFC107" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>
