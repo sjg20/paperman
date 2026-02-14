@@ -7,7 +7,7 @@ Overview
 --------
 
 The Paperman mobile app provides a convenient way to access your paper
-repositories from an Android device. It connects to a running paperman
+repositories from an Android or iOS device. It connects to a running paperman
 server and lets you browse directories, search for documents, and view
 files as PDFs. The server converts .max, .jpg and .tiff files to PDF on
 the fly, so all document types are viewable directly in the app.
@@ -28,21 +28,58 @@ Features
 Building
 --------
 
-Requires Flutter SDK (tested with 3.41.x) and the Android SDK.
+Requires Flutter SDK (tested with 3.41.x). Start by fetching the
+dependencies:
 
 .. code:: bash
 
    cd app
    flutter pub get
+
+Android
+~~~~~~~
+
+Requires the Android SDK.
+
+.. code:: bash
+
    flutter build apk --debug
 
 The APK is written to ``build/app/outputs/flutter-apk/app-debug.apk``.
 
-You can also build the app from the top-level directory:
+You can also build from the top-level directory:
 
 .. code:: bash
 
    make app
+
+iOS
+~~~
+
+Requires Xcode and CocoaPods on macOS. Install the CocoaPods
+dependencies first, then build:
+
+.. code:: bash
+
+   cd ios
+   pod install
+   cd ..
+   flutter build ios --debug
+
+To run on a connected device:
+
+.. code:: bash
+
+   flutter run
+
+For a release build you need an Apple Developer account and a valid
+signing configuration in Xcode. Open ``ios/Runner.xcworkspace`` in
+Xcode, set your team and provisioning profile under **Signing &
+Capabilities**, then build with:
+
+.. code:: bash
+
+   flutter build ipa
 
 Project Structure
 -----------------
