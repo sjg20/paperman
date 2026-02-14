@@ -6,6 +6,7 @@ Automated test suite for paperman-server REST API
 import sys
 import requests
 import json
+import urllib3
 from typing import Dict, Optional
 import argparse
 
@@ -18,9 +19,11 @@ class Colors:
     NC = '\033[0m'  # No Color
 
 class TestRunner:
-    def __init__(self, server_url: str, api_key: Optional[str] = None):
+    def __init__(self, server_url: str, api_key: Optional[str] = None,
+                 verify_ssl: bool = True):
         self.server_url = server_url.rstrip('/')
         self.api_key = api_key
+        self.verify_ssl = verify_ssl
         self.tests_run = 0
         self.tests_passed = 0
         self.tests_failed = 0
@@ -31,6 +34,11 @@ class TestRunner:
         if self.api_key:
             headers['X-API-Key'] = self.api_key
         return headers
+
+    def _get(self, url: str, **kwargs) -> requests.Response:
+        """Perform a GET request with SSL verification setting"""
+        kwargs.setdefault('verify', self.verify_ssl)
+        return requests.get(url, **kwargs)
 
     def print_header(self, text: str):
         """Print a section header"""
@@ -69,7 +77,7 @@ class TestRunner:
         # Test 1: Returns 200
         self.print_test("GET /status returns 200")
         try:
-            response = requests.get(f"{self.server_url}/status", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/status", headers=self._get_headers())
             if response.status_code == 200:
                 self.pass_test()
             else:
@@ -79,23 +87,23 @@ class TestRunner:
             self.fail_test(str(e))
             return
 
-        # Test 2: Valid JSON with success field
+        # Test 2: Valid JSON with status field
         self.print_test("Response contains valid JSON")
         try:
             data = response.json()
-            if 'success' in data:
-                self.pass_test()
+            if 'status' in data:
+                self.pass_test(f"Status: {data['status']}")
             else:
-                self.warn_test("Missing success field")
+                self.warn_test("Missing status field")
         except Exception as e:
             self.fail_test(f"Invalid JSON: {e}")
 
-        # Test 3: Contains server info
-        self.print_test("Response contains server info")
-        if 'server' in data:
-            self.pass_test(f"Server: {data.get('server', 'unknown')}")
+        # Test 3: Contains repository info
+        self.print_test("Response contains repository info")
+        if 'repository' in data:
+            self.pass_test(f"Repository: {data['repository']}")
         else:
-            self.warn_test("Missing server field")
+            self.warn_test("Missing repository field")
 
     def test_repos(self):
         """Test /repos endpoint"""
@@ -104,7 +112,7 @@ class TestRunner:
         # Test 1: Returns 200
         self.print_test("GET /repos returns 200")
         try:
-            response = requests.get(f"{self.server_url}/repos", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/repos", headers=self._get_headers())
             if response.status_code == 200:
                 self.pass_test()
             else:
@@ -142,7 +150,7 @@ class TestRunner:
         # Test 1: Without query returns 400
         self.print_test("GET /search without query returns 400")
         try:
-            response = requests.get(f"{self.server_url}/search", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/search", headers=self._get_headers())
             if response.status_code == 400:
                 self.pass_test()
             else:
@@ -153,7 +161,7 @@ class TestRunner:
         # Test 2: With query returns 200
         self.print_test("GET /search?q=test returns 200")
         try:
-            response = requests.get(f"{self.server_url}/search?q=test", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/search?q=test", headers=self._get_headers())
             if response.status_code == 200:
                 self.pass_test()
             else:
@@ -187,7 +195,7 @@ class TestRunner:
         # Test 5: Recursive parameter
         self.print_test("Search with recursive parameter")
         try:
-            response = requests.get(f"{self.server_url}/search?q=test&recursive=true", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/search?q=test&recursive=true", headers=self._get_headers())
             data = response.json()
             if data.get('success'):
                 self.pass_test()
@@ -199,7 +207,7 @@ class TestRunner:
         # Test 6: Path parameter
         self.print_test("Search with path parameter")
         try:
-            response = requests.get(f"{self.server_url}/search?q=test&path=.", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/search?q=test&path=.", headers=self._get_headers())
             data = response.json()
             if data.get('success') is not None:  # Can be true or false
                 self.pass_test()
@@ -215,7 +223,7 @@ class TestRunner:
         # Test 1: Returns 200
         self.print_test("GET /browse returns 200")
         try:
-            response = requests.get(f"{self.server_url}/browse?path=", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/browse?path=", headers=self._get_headers())
             if response.status_code == 200:
                 self.pass_test()
             else:
@@ -247,17 +255,17 @@ class TestRunner:
 
         # Test 4: Contains counts
         self.print_test("Browse response contains counts")
-        dir_count = data.get('dirCount', -1)
-        file_count = data.get('fileCount', -1)
-        if dir_count >= 0 and file_count >= 0:
+        dir_count = len(data.get('directories', []))
+        file_count = len(data.get('files', []))
+        if 'count' in data:
             self.pass_test(f"Found {dir_count} dir(s) and {file_count} file(s)")
         else:
-            self.fail_test("Invalid counts")
+            self.fail_test("Missing count field")
 
         # Test 5: Directory traversal protection
         self.print_test("Browse with directory traversal attack")
         try:
-            response = requests.get(f"{self.server_url}/browse?path=../../../etc", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/browse?path=../../../etc", headers=self._get_headers())
             if response.status_code in [400, 404]:
                 self.pass_test()
             else:
@@ -271,7 +279,7 @@ class TestRunner:
 
         self.print_test("GET /list returns 200")
         try:
-            response = requests.get(f"{self.server_url}/list?path=", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/list?path=", headers=self._get_headers())
             if response.status_code == 200:
                 self.pass_test()
             else:
@@ -286,7 +294,7 @@ class TestRunner:
         # Test 1: Without path returns 400
         self.print_test("GET /file without path returns 400")
         try:
-            response = requests.get(f"{self.server_url}/file", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/file", headers=self._get_headers())
             if response.status_code == 400:
                 self.pass_test()
             else:
@@ -297,7 +305,7 @@ class TestRunner:
         # Test 2: Nonexistent file returns 404
         self.print_test("GET /file with nonexistent file returns 404")
         try:
-            response = requests.get(f"{self.server_url}/file?path=nonexistent.max", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/file?path=nonexistent.max", headers=self._get_headers())
             if response.status_code == 404:
                 self.pass_test()
             else:
@@ -308,7 +316,7 @@ class TestRunner:
         # Test 3: Directory traversal protection
         self.print_test("GET /file with directory traversal returns 400")
         try:
-            response = requests.get(f"{self.server_url}/file?path=../../etc/passwd", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/file?path=../../etc/passwd", headers=self._get_headers())
             if response.status_code in [400, 404]:
                 self.pass_test()
             else:
@@ -319,7 +327,7 @@ class TestRunner:
         # Test 4: Invalid type parameter
         self.print_test("GET /file with invalid type returns 400")
         try:
-            response = requests.get(f"{self.server_url}/file?path=test.max&type=invalid", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/file?path=test.max&type=invalid", headers=self._get_headers())
             if response.status_code == 400:
                 self.pass_test()
             else:
@@ -338,7 +346,7 @@ class TestRunner:
         # Test 1: Request without API key
         self.print_test("Request without API key returns 401")
         try:
-            response = requests.get(f"{self.server_url}/search?q=test")
+            response = self._get(f"{self.server_url}/search?q=test")
             if response.status_code == 401:
                 self.pass_test()
             else:
@@ -349,7 +357,7 @@ class TestRunner:
         # Test 2: Request with invalid API key
         self.print_test("Request with invalid API key returns 401")
         try:
-            response = requests.get(f"{self.server_url}/search?q=test", headers={'X-API-Key': 'invalid-key'})
+            response = self._get(f"{self.server_url}/search?q=test", headers={'X-API-Key': 'invalid-key'})
             if response.status_code == 401:
                 self.pass_test()
             else:
@@ -360,7 +368,7 @@ class TestRunner:
         # Test 3: Status endpoint without auth
         self.print_test("/status endpoint works without API key")
         try:
-            response = requests.get(f"{self.server_url}/status")
+            response = self._get(f"{self.server_url}/status")
             if response.status_code == 200:
                 self.pass_test()
             else:
@@ -375,7 +383,7 @@ class TestRunner:
         # Test 1: Invalid endpoint
         self.print_test("Invalid endpoint returns 404")
         try:
-            response = requests.get(f"{self.server_url}/invalid-endpoint", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/invalid-endpoint", headers=self._get_headers())
             if response.status_code == 404:
                 self.pass_test()
             else:
@@ -386,7 +394,7 @@ class TestRunner:
         # Test 2: Malformed request
         self.print_test("Malformed request handled gracefully")
         try:
-            response = requests.get(f"{self.server_url}/search?q=%ZZ", headers=self._get_headers())
+            response = self._get(f"{self.server_url}/search?q=%ZZ", headers=self._get_headers())
             if 200 <= response.status_code < 500:
                 self.pass_test()
             else:
@@ -402,7 +410,7 @@ class TestRunner:
 
         # Check if server is running
         try:
-            response = requests.get(f"{self.server_url}/status", timeout=5)
+            response = self._get(f"{self.server_url}/status", timeout=5)
         except Exception as e:
             print(f"\n{Colors.RED}Error: Server at {self.server_url} is not responding{Colors.NC}")
             print("Make sure paperman-server is running")
@@ -441,10 +449,16 @@ def main():
                        help="Server URL (default: from config file)")
     parser.add_argument("--api-key", default=cfg_api_key,
                        help="API key for authentication (default: from config file)")
+    parser.add_argument("-k", "--no-verify", action="store_true",
+                       help="Disable SSL certificate verification")
 
     args = parser.parse_args()
 
-    runner = TestRunner(args.url, args.api_key or None)
+    if args.no_verify:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    runner = TestRunner(args.url, args.api_key or None,
+                        verify_ssl=not args.no_verify)
     success = runner.run_all_tests()
 
     sys.exit(0 if success else 1)
