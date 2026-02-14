@@ -170,6 +170,12 @@ install_paperman_service() {
     # Add API key to service
     sed -i "/\[Service\]/a Environment=\"PAPERMAN_API_KEY=$API_KEY\"" /etc/systemd/system/paperman-server.service
 
+    # Update user/group to the invoking user
+    REAL_USER="${SUDO_USER:-$(whoami)}"
+    REAL_GROUP="$(id -gn "$REAL_USER")"
+    sed -i "s|User=paperman|User=$REAL_USER|g" /etc/systemd/system/paperman-server.service
+    sed -i "s|Group=paperman|Group=$REAL_GROUP|g" /etc/systemd/system/paperman-server.service
+
     # Update paths to point at the project directory
     sed -i "s|/opt/paperman|$PROJ_DIR|g" /etc/systemd/system/paperman-server.service
     sed -i "s|/srv/papers|$PROJ_DIR/papers|g" /etc/systemd/system/paperman-server.service
@@ -177,16 +183,28 @@ install_paperman_service() {
     # Create papers directory
     mkdir -p "$PROJ_DIR/papers"
 
-    # Reload systemd and start service
+    # Reload systemd and restart service
     systemctl daemon-reload
-    systemctl start paperman-server
+    systemctl restart paperman-server
     systemctl enable paperman-server
 
-    # Wait a moment for service to start
-    sleep 2
+    # Wait for the service to start and build its file cache
+    info "Waiting for server to start and build file cache..."
+    local waited=0
+    while [ $waited -lt 120 ]; do
+        if curl -k -s http://localhost:8080/status >/dev/null 2>&1; then
+            break
+        fi
+        sleep 5
+        waited=$((waited + 5))
+    done
 
     if systemctl is-active --quiet paperman-server; then
-        info "Paperman service is running"
+        if [ $waited -ge 120 ]; then
+            warn "Service is running but server did not respond within 120s (may still be building cache)"
+        else
+            info "Paperman service is running and responding"
+        fi
     else
         error "Paperman service failed to start. Check: journalctl -u paperman-server -n 50"
     fi
