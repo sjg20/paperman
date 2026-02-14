@@ -3,10 +3,15 @@
 # Automated setup script for Paperman Search Server with nginx
 # This script sets up nginx reverse proxy with HTTPS and systemd service
 #
-# Usage: sudo ./setup-paperman-nginx.sh
+# Usage: sudo scripts/setup-paperman-nginx.sh   (from project root)
+#    or: sudo ./setup-paperman-nginx.sh          (from scripts/)
 #
 
 set -e  # Exit on error
+
+# Resolve project root from the script's location
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJ_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -60,15 +65,15 @@ check_prerequisites() {
 }
 
 check_files() {
-    info "Checking required files..."
+    info "Checking required files in $PROJ_DIR ..."
 
-    [ -f "paperman" ] || error "paperman binary not found in current directory"
-    [ -f "paperman-server" ] || error "paperman-server binary not found in current directory"
-    [ -f "nginx-paperman.conf" ] || error "nginx-paperman.conf not found in current directory"
-    [ -f "paperman-server.service" ] || error "paperman-server.service not found in current directory"
+    [ -f "$PROJ_DIR/paperman" ] || error "paperman binary not found in $PROJ_DIR"
+    [ -f "$PROJ_DIR/paperman-server" ] || error "paperman-server binary not found in $PROJ_DIR"
+    [ -f "$PROJ_DIR/nginx-paperman.conf" ] || error "nginx-paperman.conf not found in $PROJ_DIR"
+    [ -f "$SCRIPT_DIR/paperman-server.service" ] || error "paperman-server.service not found in $SCRIPT_DIR"
 
     # Make binaries executable
-    chmod +x paperman paperman-server
+    chmod +x "$PROJ_DIR/paperman" "$PROJ_DIR/paperman-server"
 
     info "All required files present"
 }
@@ -111,7 +116,7 @@ generate_ssl_cert() {
 install_nginx_config() {
     info "Installing nginx configuration..."
 
-    cp nginx-paperman.conf /etc/nginx/sites-available/paperman
+    cp "$PROJ_DIR/nginx-paperman.conf" /etc/nginx/sites-available/paperman
 
     # Update hostname in config
     HOSTNAME=$(hostname -f 2>/dev/null || hostname)
@@ -160,20 +165,17 @@ install_paperman_service() {
     echo ""
 
     # Copy service file
-    cp paperman-server.service /etc/systemd/system/
-
-    # Update service file with current directory and API key
-    CURRENT_DIR=$(pwd)
+    cp "$SCRIPT_DIR/paperman-server.service" /etc/systemd/system/
 
     # Add API key to service
     sed -i "/\[Service\]/a Environment=\"PAPERMAN_API_KEY=$API_KEY\"" /etc/systemd/system/paperman-server.service
 
-    # Update paths
-    sed -i "s|/opt/paperman|$CURRENT_DIR|g" /etc/systemd/system/paperman-server.service
-    sed -i "s|/srv/papers|$CURRENT_DIR/papers|g" /etc/systemd/system/paperman-server.service
+    # Update paths to point at the project directory
+    sed -i "s|/opt/paperman|$PROJ_DIR|g" /etc/systemd/system/paperman-server.service
+    sed -i "s|/srv/papers|$PROJ_DIR/papers|g" /etc/systemd/system/paperman-server.service
 
     # Create papers directory
-    mkdir -p "$CURRENT_DIR/papers"
+    mkdir -p "$PROJ_DIR/papers"
 
     # Reload systemd and start service
     systemctl daemon-reload
