@@ -30,6 +30,7 @@ Features
    :maxdepth: 2
    :caption: User Guide
 
+   cli
    server
    api
    app
