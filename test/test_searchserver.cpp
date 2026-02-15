@@ -499,18 +499,17 @@ void TestSearchServer::testFilePageExtract()
 
 void TestSearchServer::testLargePdfProgressive()
 {
-    // Test progressive loading with a large real-world PDF (22 MB, 546 pages)
-    QString largePdf = "/vid/homepaper/other/books/BBCMicroCompendium.pdf";
-    if (!QFile::exists(largePdf)) {
-        QSKIP("Large test PDF not available");
-    }
+    // Test progressive loading with a 100-page PDF
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
 
-    qint64 fullFileSize = QFileInfo(largePdf).size();
-    qDebug() << "Large PDF:" << largePdf << "(" << fullFileSize << "bytes)";
+    QString srcPdf = testSrc + "/100pp.pdf";
+    QString dstPdf = tmpDir.path() + "/100pp.pdf";
+    QVERIFY2(QFile::copy(srcPdf, dstPdf),
+             qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
 
-    // Point the server at the directory containing the PDF
-    QString repoPath = QFileInfo(largePdf).absolutePath();
-    QString fileName = QFileInfo(largePdf).fileName();
+    qint64 fullFileSize = QFileInfo(dstPdf).size();
+    QString fileName = "100pp.pdf";
 
     // Clear on-disk page cache so results are deterministic
     QDir pageCache("/tmp/paperman-pages");
@@ -519,24 +518,24 @@ void TestSearchServer::testLargePdfProgressive()
             pageCache.remove(f);
     }
 
-    SearchServer server(repoPath, 9888, nullptr, true);
+    SearchServer server(tmpDir.path(), 9888, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
 
-    // 1. Page count — should return 546 and log PageCount
+    // 1. Page count — should return 100 and log PageCount
     ServerLog::clear();
     QString response = httpGet(
         QString("http://localhost:9888/file?path=%1&pages=true")
             .arg(fileName));
     QVERIFY(response.contains("200 OK"));
-    QVERIFY(response.contains("\"pages\":546"));
+    QVERIFY(response.contains("\"pages\":100"));
 
     QList<ServerLog::Entry> log = ServerLog::entries();
     QCOMPARE(log.size(), 1);
     QCOMPARE(log[0].action, ServerLog::PageCount);
-    QCOMPARE(log[0].detail, 546);
+    QCOMPARE(log[0].detail, 100);
 
-    // 2. Extract page 1 — should log PageExtract
+    // 2. Extract page 1 — should only render page 1
     ServerLog::clear();
     QByteArray raw = httpGetRaw(
         QString("http://localhost:9888/file?path=%1&page=1").arg(fileName),
@@ -559,6 +558,7 @@ void TestSearchServer::testLargePdfProgressive()
     QVERIFY2(body.startsWith("%PDF"),
              "Page 1 should be a valid PDF");
 
+    // Only one log entry: a single PageExtract for page 1
     log = ServerLog::entries();
     QCOMPARE(log.size(), 1);
     QCOMPARE(log[0].action, ServerLog::PageExtract);
@@ -579,24 +579,24 @@ void TestSearchServer::testLargePdfProgressive()
     QCOMPARE(log[0].action, ServerLog::PageCacheHit);
     QCOMPARE(log[0].detail, 1);
 
-    // 4. Extract page 100 — should log PageExtract
+    // 4. Extract page 50 — should only render page 50
     ServerLog::clear();
     raw = httpGetRaw(
-        QString("http://localhost:9888/file?path=%1&page=100").arg(fileName),
+        QString("http://localhost:9888/file?path=%1&page=50").arg(fileName),
         10000);
     QVERIFY(!raw.isEmpty());
     header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
     QVERIFY2(header.contains("200 OK"),
-             qPrintable("Page 100 extraction failed: " + header));
+             qPrintable("Page 50 extraction failed: " + header));
 
     body = raw.mid(raw.indexOf("\r\n\r\n") + 4);
     QVERIFY2(body.startsWith("%PDF"),
-             "Page 100 should be a valid PDF");
+             "Page 50 should be a valid PDF");
 
     log = ServerLog::entries();
     QCOMPARE(log.size(), 1);
     QCOMPARE(log[0].action, ServerLog::PageExtract);
-    QCOMPARE(log[0].detail, 100);
+    QCOMPARE(log[0].detail, 50);
 
     server.stop();
 }
