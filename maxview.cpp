@@ -763,7 +763,8 @@ int main (int argc, char *argv[])
                } else {
                   err = newfile->create();
                   if (!err)
-                     err = file->copyTo(newfile, 3, op);
+                     err = file->copyTo(newfile, 3, op, false,
+                                     page_start - 1, page_end - 1);
                   delete newfile;
                }
             } else {
