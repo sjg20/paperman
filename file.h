@@ -150,7 +150,8 @@ public:
 
    static Filepage *createPage (e_type type);
 
-   err_info *copyTo (File *fnew, int odd_even, Operation &op, bool verbose = false);
+   err_info *copyTo (File *fnew, int odd_even, Operation &op, bool verbose = false,
+                     int first_page = 0, int last_page = -1);
 
    /** converts a name into an e_env value */
    static e_env envFromName (const QString &name);
@@ -403,7 +404,8 @@ public:
       \param fnew    returns the newly created file
       \returns error, or NULL If ok */
    err_info *duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
-      int odd_even, Operation &op, File *&fnew);
+      int odd_even, Operation &op, File *&fnew,
+      int first_page = 0, int last_page = -1);
 
    /** as above but bases uniq on the existing file's name with _copy appended,
        and puts the file in the same desk */

@@ -702,7 +702,8 @@ err_info *File::not_impl (void)
 
 
 err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
-            int odd_even, Operation &op, File *&fnew)
+            int odd_even, Operation &op, File *&fnew,
+            int first_page, int last_page)
    {
    bool supported;
 
@@ -750,7 +751,7 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
       return not_impl ();
    CALL (fnew->create ());
 
-   err_info *err = copyTo (fnew, odd_even, op);
+   err_info *err = copyTo (fnew, odd_even, op, false, first_page, last_page);
 
    // if we got no pages, delete the file
    if (!fnew->valid () || !fnew->pagecount ())
@@ -782,16 +783,22 @@ err_info *File::duplicateAny (File::e_type type, int odd_even, Operation &op, Fi
    }
 
 
-err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose)
+err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
+                        int first_page, int last_page)
    {
    int pagenum;
    int page_count = pagecount ();
+
+   if (first_page < 0)
+      first_page = 0;
+   if (last_page < 0 || last_page >= page_count)
+      last_page = page_count - 1;
 
    // we may generate fewer pages than we receive
    int out_page_count = 0;
 
    load();
-   for (pagenum = 0; pagenum < page_count; pagenum++)
+   for (pagenum = first_page; pagenum <= last_page; pagenum++)
       {
       if (verbose) {
          printf ("\rpage %d/%d", pagenum + 1, page_count);
