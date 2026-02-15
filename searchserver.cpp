@@ -823,38 +823,43 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
 
     // Handle single-page extraction
     if (page > 0) {
-        QString pdfPath = fullPath;
+        QString cachedPage;
+
         if (ext != "pdf") {
-            pdfPath = convertToPdf(fullPath);
-            if (pdfPath.isEmpty()) {
+            // Convert just the requested page directly
+            cachedPage = convertPageToPdf(fullPath, page, fileInfo);
+            if (cachedPage.isEmpty()) {
                 return buildHttpResponse(500, "Internal Server Error",
                                         "application/json",
                                         buildJsonResponse(false, "",
-                                            "Failed to convert file to PDF"));
+                                            "Failed to convert page"));
             }
-        }
-
-        // Build cache path using MD5 of file path + page + mtime
-        QString cacheDir = "/tmp/paperman-pages";
-        QDir().mkpath(cacheDir);
-
-        QString cacheKeyData = filePath + "_page" + QString::number(page)
-                              + "_" + QString::number(
-                                  fileInfo.lastModified().toMSecsSinceEpoch());
-        QString cacheKeyHash = QString(QCryptographicHash::hash(
-            cacheKeyData.toUtf8(), QCryptographicHash::Md5).toHex());
-        QString cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
-
-        if (QFile::exists(cachedPage)) {
-            ServerLog::log(ServerLog::PageCacheHit, filePath, page);
         } else {
-            if (!extractPdfPage(pdfPath, page, cachedPage)) {
-                return buildHttpResponse(500, "Internal Server Error",
-                                        "application/json",
-                                        buildJsonResponse(false, "",
-                                            "Failed to extract page"));
+            // For native PDFs, extract the page using pdftocairo
+            QString cacheDir = "/tmp/paperman-pages";
+            QDir().mkpath(cacheDir);
+
+            QString cacheKeyData = filePath + "_page"
+                + QString::number(page) + "_" + QString::number(
+                    fileInfo.lastModified().toMSecsSinceEpoch());
+            QString cacheKeyHash = QString(QCryptographicHash::hash(
+                cacheKeyData.toUtf8(),
+                QCryptographicHash::Md5).toHex());
+            cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
+
+            if (QFile::exists(cachedPage)) {
+                ServerLog::log(ServerLog::PageCacheHit, filePath,
+                               page);
+            } else {
+                if (!extractPdfPage(fullPath, page, cachedPage)) {
+                    return buildHttpResponse(500,
+                        "Internal Server Error", "application/json",
+                        buildJsonResponse(false, "",
+                            "Failed to extract page"));
+                }
+                ServerLog::log(ServerLog::PageExtract, filePath,
+                               page);
             }
-            ServerLog::log(ServerLog::PageExtract, filePath, page);
         }
 
         QFile pageFile(cachedPage);
@@ -1471,6 +1476,74 @@ QString SearchServer::convertToPdf(const QString &fullPath)
 
     ServerLog::log(ServerLog::ConvertToPdf, fullPath);
     qDebug() << "SearchServer: Cached converted PDF:" << cachedPdf;
+    return cachedPdf;
+}
+
+QString SearchServer::convertPageToPdf(const QString &fullPath, int page,
+                                       const QFileInfo &fileInfo)
+{
+    // Build cache key from path + page + mtime
+    QString cacheDir = "/tmp/paperman-pages";
+    QDir().mkpath(cacheDir);
+
+    QString cacheKeyData = fullPath + "_page" + QString::number(page)
+        + "_" + QString::number(fileInfo.lastModified().toMSecsSinceEpoch());
+    QString cacheKeyHash = QString(QCryptographicHash::hash(
+        cacheKeyData.toUtf8(), QCryptographicHash::Md5).toHex());
+    QString cachedPdf = cacheDir + "/" + cacheKeyHash + ".pdf";
+
+    // Return cached version if it exists
+    if (QFile::exists(cachedPdf)) {
+        ServerLog::log(ServerLog::PageCacheHit, fullPath, page);
+        return cachedPdf;
+    }
+
+    // Convert single page using paperman -p with --page-range
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("QT_QPA_PLATFORM", "offscreen");
+
+    QProcess process;
+    process.setProcessEnvironment(env);
+
+    QString papermanPath = QCoreApplication::applicationDirPath()
+                           + "/paperman";
+    if (!QFile::exists(papermanPath))
+        papermanPath = "paperman";
+
+    QString pageRange = QString("%1:%1").arg(page);
+    QStringList args;
+    args << "-p" << fullPath
+         << "--page-range" << pageRange
+         << "--output" << cachedPdf;
+
+    qDebug() << "SearchServer: Converting page" << page << "of"
+             << fullPath << "to PDF";
+    process.start(papermanPath, args);
+
+    if (!process.waitForStarted(5000)) {
+        qWarning() << "SearchServer: Failed to start paperman"
+                      " for page conversion";
+        return QString();
+    }
+
+    if (!process.waitForFinished(10000)) {
+        process.kill();
+        qWarning() << "SearchServer: Page conversion timed out";
+        return QString();
+    }
+
+    if (process.exitCode() != 0) {
+        qWarning() << "SearchServer: Page conversion failed:"
+                   << process.readAllStandardError();
+        return QString();
+    }
+
+    if (!QFile::exists(cachedPdf)) {
+        qWarning() << "SearchServer: Page PDF not generated";
+        return QString();
+    }
+
+    ServerLog::log(ServerLog::PageExtract, fullPath, page);
     return cachedPdf;
 }
 
