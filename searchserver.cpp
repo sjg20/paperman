@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTemporaryFile>
 #include <QDirIterator>
 #include <QCryptographicHash>
+#include <QElapsedTimer>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 #include <QJsonDocument>
@@ -222,14 +223,46 @@ void SearchServer::onReadyRead()
     if (!client)
         return;
 
+    QElapsedTimer timer;
+    timer.start();
+
     QString request = QString::fromUtf8(client->readAll());
-    qDebug() << "SearchServer: Request:" << request.left(100);
+    QString clientAddr = client->peerAddress().toString();
 
     QString method, path;
     QHash<QString, QString> params;
 
     parseRequest(request, method, path, params);
+
+    // Reconstruct the request URI for logging
+    QString requestUri = path;
+    QStringList queryParts;
+    QHashIterator<QString, QString> it(params);
+    while (it.hasNext()) {
+        it.next();
+        if (!it.key().startsWith("__"))
+            queryParts << it.key() + "=" + it.value();
+    }
+    if (!queryParts.isEmpty())
+        requestUri += "?" + queryParts.join("&");
+
     QByteArray response = handleRequest(method, path, params);
+
+    // Extract the status code from the HTTP response line
+    int statusCode = 0;
+    int spacePos = response.indexOf(' ');
+    if (spacePos > 0) {
+        int nextSpace = response.indexOf(' ', spacePos + 1);
+        if (nextSpace > spacePos)
+            statusCode = response.mid(spacePos + 1, nextSpace - spacePos - 1).toInt();
+    }
+
+    qint64 elapsedMs = timer.elapsed();
+    qDebug().noquote() << QString("%1 %2 %3 %4 %5bytes %6ms")
+        .arg(clientAddr, method, requestUri)
+        .arg(statusCode)
+        .arg(response.size())
+        .arg(elapsedMs);
 
     // Write binary response directly
     client->write(response);
@@ -328,8 +361,6 @@ void SearchServer::parseRequest(const QString &request, QString &method,
 QByteArray SearchServer::handleRequest(const QString &method, const QString &path,
                                       const QHash<QString, QString> &params)
 {
-    qDebug() << "SearchServer: Handling" << method << path;
-
     // Only support GET requests
     if (method != "GET") {
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
