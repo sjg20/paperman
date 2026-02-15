@@ -242,7 +242,8 @@ test {
       test/test_ops.cpp \
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
-      searchserver.cpp
+      searchserver.cpp \
+      serverlog.cpp
 
    HEADERS += test/suite.h \
       test/test_dirmodel.h \
@@ -250,7 +251,8 @@ test {
       test/test_utils.h \
       test/test_searchserver.h \
       test/test_ocrsearch.h \
-      searchserver.h
+      searchserver.h \
+      serverlog.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
     QT += network

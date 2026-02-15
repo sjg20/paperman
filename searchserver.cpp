@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include "searchserver.h"
+#include "serverlog.h"
 #include "config.h"
 
 #include <QCoreApplication>
@@ -783,6 +784,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
                                     buildJsonResponse(false, "",
                                         "Failed to get page count"));
         }
+        ServerLog::log(ServerLog::PageCount, filePath, pages);
         QString json = QString("{\"success\":true,\"pages\":%1}")
                       .arg(pages);
         return buildHttpResponse(200, "OK", "application/json", json);
@@ -812,13 +814,16 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
             cacheKeyData.toUtf8(), QCryptographicHash::Md5).toHex());
         QString cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
 
-        if (!QFile::exists(cachedPage)) {
+        if (QFile::exists(cachedPage)) {
+            ServerLog::log(ServerLog::PageCacheHit, filePath, page);
+        } else {
             if (!extractPdfPage(pdfPath, page, cachedPage)) {
                 return buildHttpResponse(500, "Internal Server Error",
                                         "application/json",
                                         buildJsonResponse(false, "",
                                             "Failed to extract page"));
             }
+            ServerLog::log(ServerLog::PageExtract, filePath, page);
         }
 
         QFile pageFile(cachedPage);
@@ -897,6 +902,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
     QByteArray fileContent = file.readAll();
     file.close();
 
+    ServerLog::log(ServerLog::ServeFile, filePath);
     return buildHttpResponse(200, "OK", contentType, fileContent);
 }
 
@@ -1368,8 +1374,10 @@ QString SearchServer::convertToPdf(const QString &fullPath)
     QString cachedPdf = cacheDir + "/" + cacheKeyHash + ".pdf";
 
     // Return cached version if it exists
-    if (QFile::exists(cachedPdf))
+    if (QFile::exists(cachedPdf)) {
+        ServerLog::log(ServerLog::ConvertCacheHit, fullPath);
         return cachedPdf;
+    }
 
     // Convert using paperman -p
     QTemporaryDir tmpDir;
@@ -1430,6 +1438,7 @@ QString SearchServer::convertToPdf(const QString &fullPath)
         return QString();
     }
 
+    ServerLog::log(ServerLog::ConvertToPdf, fullPath);
     qDebug() << "SearchServer: Cached converted PDF:" << cachedPdf;
     return cachedPdf;
 }

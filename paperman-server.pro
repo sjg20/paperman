@@ -14,9 +14,11 @@ equals(QT_MAJOR_VERSION, 5) {
   QT += core
 }
 
-HEADERS += searchserver.h
+HEADERS += searchserver.h \
+    serverlog.h
 
 SOURCES += searchserver.cpp \
+    serverlog.cpp \
     paperman-server.cpp
 
 unix {
