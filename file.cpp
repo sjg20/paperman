@@ -814,6 +814,13 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose)
       if (image.isNull ())
          continue;
 
+      // auto-detect optimal depth for this page
+      int target_depth = utilImageDepth(image);
+      if (target_depth < bpp) {
+         image = utilReduceDepth(image, target_depth);
+         bpp = image.depth();
+      }
+
       int image_size;
 #if QT_VERSION >= 0x050a00
       image_size = image.sizeInBytes();
