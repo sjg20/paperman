@@ -18,11 +18,15 @@ paperman-server: Makefile.server
 Makefile.server: paperman-server.pro
 	qmake paperman-server.pro -o Makefile.server
 
-test: paperman-server
+test: paperman-server paperman
 	scripts/test_page_fetch.sh
+	scripts/test_parallel.sh
 
 test-progressive: paperman-server
 	scripts/test_progressive.sh
+
+test-parallel: paperman
+	scripts/test_parallel.sh
 
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
