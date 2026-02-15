@@ -22,6 +22,7 @@ private slots:
    void testScanDir();
    void testAdopt();
    void testFindItem();
+   void testImageDepth();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);

@@ -243,6 +243,36 @@ void TestUtils::testAdopt()
     QCOMPARE(chk->child(5)->childCount(), 2);
 }
 
+void TestUtils::testImageDepth()
+{
+   // Pure black image should be detected as 1bpp
+   QImage black(10, 10, QImage::Format_ARGB32);
+   black.fill(QColor(0, 0, 0));
+   QCOMPARE(utilImageDepth(black), 1);
+
+   // Mid-grey image should be detected as 8bpp
+   QImage grey(10, 10, QImage::Format_ARGB32);
+   grey.fill(QColor(128, 128, 128));
+   QCOMPARE(utilImageDepth(grey), 8);
+
+   // Colour image should be detected as 24bpp
+   QImage colour(10, 10, QImage::Format_ARGB32);
+   colour.fill(QColor(255, 0, 0));
+   QCOMPARE(utilImageDepth(colour), 24);
+
+   // Mostly black with one grey pixel should be 8bpp
+   QImage mixGrey(10, 10, QImage::Format_ARGB32);
+   mixGrey.fill(QColor(0, 0, 0));
+   mixGrey.setPixelColor(5, 5, QColor(128, 128, 128));
+   QCOMPARE(utilImageDepth(mixGrey), 8);
+
+   // Mostly grey with one colour pixel should be 24bpp
+   QImage mixColour(10, 10, QImage::Format_ARGB32);
+   mixColour.fill(QColor(128, 128, 128));
+   mixColour.setPixelColor(5, 5, QColor(255, 0, 0));
+   QCOMPARE(utilImageDepth(mixColour), 24);
+}
+
 void TestUtils::testFindItem()
 {
     const TreeItem *chk;
