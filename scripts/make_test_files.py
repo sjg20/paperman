@@ -6,6 +6,7 @@
 import argparse
 import os
 import random
+import subprocess
 
 import numpy as np
 from PIL import Image
@@ -15,6 +16,7 @@ from reportlab.pdfgen import canvas
 
 # All generated files go here
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'test', 'files')
+PAPERMAN = os.path.join(os.path.dirname(__file__), '..', 'paperman')
 
 
 def _plasma_layer(rng, xgrid, ygrid, channels):
@@ -237,6 +239,27 @@ def make_random_pdf(fname, pages=100):
     print(f'Wrote {fname} ({pages} pages)')
 
 
+def pdf_to_max(pdf_path, max_name=None):
+    """Convert a PDF file to .max format using paperman
+
+    Args:
+        pdf_path (str): Path to the input PDF file
+        max_name (str): Optional output filename (without directory)
+    """
+    env = os.environ.copy()
+    env['QT_QPA_PLATFORM'] = 'offscreen'
+    cwd = os.path.dirname(os.path.abspath(pdf_path))
+    subprocess.run([PAPERMAN, '-m', os.path.basename(pdf_path)],
+                   check=True, env=env, cwd=cwd)
+    default_max = os.path.splitext(pdf_path)[0] + '.max'
+    if max_name:
+        max_path = os.path.join(cwd, max_name)
+        os.rename(default_max, max_path)
+    else:
+        max_path = default_max
+    print(f'Wrote {max_path}')
+
+
 def main():
     """Create all test files"""
     parser = argparse.ArgumentParser(description='Create test files')
@@ -247,7 +270,10 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     make_plasma_jpeg(os.path.join(args.output_dir, 'colour_plasma.jpg'))
-    make_random_pdf(os.path.join(args.output_dir, '100pp.pdf'))
+
+    pdf_path = os.path.join(args.output_dir, '100pp.pdf')
+    make_random_pdf(pdf_path)
+    pdf_to_max(pdf_path, '100pp_from_pdf.max')
 
 
 if __name__ == '__main__':
