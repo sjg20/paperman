@@ -1781,7 +1781,7 @@ static err_info *rle_decode (QString &fname, byte *buf, int size,
                case 2 :
                   if (debug_count < DEBUG_MAX_COUNT)
                      printf ("   :");
-                  if (out + count - rev <= bytes) while (count > 0)
+                  if (out + count * 4 - rev <= bytes) while (count > 0)
                      {
                      ch = *ptr++;
                      if (debug_count < DEBUG_MAX_COUNT)
