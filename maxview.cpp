@@ -36,8 +36,11 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QProcess>
 #include <QRegExp>
 #include <QSettings>
+#include <QTemporaryDir>
+#include <QThread>
 #include <QTranslator>
 
 #include "qapplication.h"
@@ -330,6 +333,146 @@ static err_info *search_ocr_index(const QString &dirPath, const QString &query)
    return nullptr;
    }
 
+/**
+ * Convert a PDF to .max using parallel child processes
+ *
+ * Each child converts a range of pages to a temporary .max file, then all
+ * parts are merged via stackStack() which copies compressed chunks directly
+ * with no decompression.
+ *
+ * @param file     Source PDF file (already loaded)
+ * @param fname    Path to the PDF file
+ * @param leaf     Leaf name for the output file
+ * @param desk     Desk to create the output file in
+ * @param jobs     Number of workers (0 = auto)
+ * @return error, or NULL if ok
+ */
+static err_info *parallel_convert_to_max(File *file, const QString &fname,
+                                         const QString &leaf, Desk *desk,
+                                         int jobs)
+   {
+   int pc = file->pagecount();
+
+   // Determine worker count: use CPU count but ensure each worker
+   // has at least MIN_PAGES_PER_WORKER pages, to avoid process-spawn
+   // overhead dominating on high-core machines
+   const int MIN_PAGES_PER_WORKER = 10;
+   int workers = QThread::idealThreadCount();
+   if (workers < 1)
+      workers = 2;
+   if (jobs > 0)
+      workers = jobs;
+   if (workers > pc / MIN_PAGES_PER_WORKER)
+      workers = pc / MIN_PAGES_PER_WORKER;
+   if (workers < 1)
+      workers = 1;
+
+   // Find the paperman binary (argv[0] resolved through /proc/self/exe)
+   QString self = QCoreApplication::applicationFilePath();
+
+   QTemporaryDir tmpdir;
+   if (!tmpdir.isValid())
+      return err_make(ERRFN, ERR_cannot_open_file1, "temporary directory");
+
+   // Split pages into N roughly-equal ranges (1-based for CLI)
+   QVector<QPair<int, int>> ranges;
+   int pages_per = pc / workers;
+   int extra = pc % workers;
+   int start = 1;
+
+   for (int i = 0; i < workers; i++) {
+      int count = pages_per + (i < extra ? 1 : 0);
+      int end = start + count - 1;
+      ranges.append(qMakePair(start, end));
+      start = end + 1;
+   }
+
+   // Spawn child processes
+   QVector<QProcess *> children;
+   QStringList partPaths;
+
+   for (int i = 0; i < workers; i++) {
+      QString partPath = tmpdir.path() + QString("/part%1.max").arg(i);
+      partPaths.append(partPath);
+
+      QProcess *child = new QProcess();
+      QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+      env.insert("QT_QPA_PLATFORM", "offscreen");
+      child->setProcessEnvironment(env);
+
+      QStringList args;
+      args << "-m" << fname
+           << "--page-range"
+           << QString("%1:%2").arg(ranges[i].first).arg(ranges[i].second)
+           << "--output" << partPath;
+      child->start(self, args);
+      children.append(child);
+   }
+
+   // Wait for all children
+   bool all_ok = true;
+
+   for (int i = 0; i < children.size(); i++) {
+      children[i]->waitForFinished(-1);
+      if (children[i]->exitCode() != 0 ||
+          children[i]->exitStatus() != QProcess::NormalExit) {
+         fprintf(stderr, "child %d failed (exit code %d)\n",
+                 i, children[i]->exitCode());
+         QByteArray err_out = children[i]->readAllStandardError();
+         if (!err_out.isEmpty())
+            fprintf(stderr, "  stderr: %s\n", err_out.constData());
+         all_ok = false;
+      }
+   }
+
+   // Clean up child processes
+   qDeleteAll(children);
+
+   if (!all_ok)
+      return err_make(ERRFN, ERR_could_not_execute1, "parallel conversion");
+
+   // Copy first part to final destination as the base
+   QString ext = File::typeExt(File::Type_max);
+   QString destDir = desk->dir();
+   QString destName = leaf + ext;
+   QString destPath = destDir + destName;
+   if (!QFile::copy(partPaths[0], destPath))
+      return err_make(ERRFN, ERR_cannot_open_file1,
+                      qPrintable(destPath));
+
+   // Open the destination and stack remaining parts onto it
+   Filemax *dest = new Filemax(destDir, destName, desk);
+   err_info *err = dest->load();
+   if (err) {
+      delete dest;
+      return err;
+   }
+
+   for (int i = 1; i < partPaths.size(); i++) {
+      QFileInfo fi(partPaths[i]);
+      Filemax *part = new Filemax(fi.absolutePath() + '/', fi.fileName(),
+                                  nullptr);
+      err = part->load();
+      if (err) {
+         delete part;
+         delete dest;
+         return err;
+      }
+
+      dest->setPagenum(dest->pagecount());
+      err = dest->stackItem(part);
+      delete part;
+      if (err) {
+         delete dest;
+         return err;
+      }
+   }
+
+   desk->newFile(dest, nullptr, 1);
+   return NULL;
+   }
+
+
 static void usage (void)
    {
    printf ("maxview - An electronic filing cabinet: scan, print, stack, arrange\n\n");
@@ -354,6 +497,9 @@ static void usage (void)
    printf ("      --index <f>  build/update an index file f for the given directory\n");
 */
    printf ("   -t|--test       run unit tests\n");
+   printf ("   --page-range S:E  convert only pages S to E (1-based)\n");
+   printf ("   --output FILE   write output to FILE (used with --page-range)\n");
+   printf ("   --jobs N        use N parallel workers (0 = auto)\n");
 /*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
@@ -389,12 +535,18 @@ int main (int argc, char *argv[])
      /*
      {"verbose", 0, 0, 'v'},
 */
+     {"page-range", 1, 0, 256},
+     {"output", 1, 0, 257},
+     {"jobs", 1, 0, 258},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
    QString index;
    QString fname;
    QString searchQuery;
+   int page_start = -1, page_end = -1;   // 1-based, -1 = all
+   QString output_path;
+   int jobs = 0;                          // 0 = auto
 
    struct rlimit limit;
 
@@ -436,6 +588,25 @@ int main (int argc, char *argv[])
          case '1' :
             op_type = c;
             index = QString (optarg);
+            break;
+
+         case 256 :    // --page-range S:E
+            {
+            QString range = QString(optarg);
+            QStringList parts = range.split(':');
+            if (parts.size() == 2) {
+               page_start = parts[0].toInt();
+               page_end = parts[1].toInt();
+            }
+            break;
+            }
+
+         case 257 :    // --output
+            output_path = QString(optarg);
+            break;
+
+         case 258 :    // --jobs
+            jobs = atoi(optarg);
             break;
 
          case 'h' :
@@ -566,8 +737,47 @@ int main (int argc, char *argv[])
          break;
          }
       case 'j' :
-      case 'm' :
       case 'p' :
+         {
+         QDir mydir(fname);
+         mydir.cdUp();
+         Desk desk(dir, QString(), false);
+         File *file, *newfile;
+         Operation op("Convert file", 0, 0);
+         err_info *err;
+
+         file = desk.createFile(dir, fname);
+         err = file->load();
+         if (!err) {
+            File::e_type type = op_type == 'p' ? File::Type_pdf :
+                     File::Type_jpeg;
+
+            if (!output_path.isEmpty()) {
+               QFileInfo outInfo(output_path);
+               QString outDir = outInfo.absolutePath() + '/';
+               QString outFname = outInfo.fileName();
+               newfile = File::createFile(outDir, outFname, nullptr,
+                                          type);
+               if (!newfile) {
+                  err = File::not_impl();
+               } else {
+                  err = newfile->create();
+                  if (!err)
+                     err = file->copyTo(newfile, 3, op);
+                  delete newfile;
+               }
+            } else {
+               QString leaf = QFileInfo(fname).completeBaseName();
+               err = file->duplicateToDesk(&desk, type, leaf, 3, op,
+                                           newfile);
+            }
+         }
+         if (err)
+            printf("error: %s", err->errstr);
+         break;
+         }
+
+      case 'm' :
          {
          QDir mydir(fname);
          mydir.cdUp();
@@ -581,11 +791,32 @@ int main (int argc, char *argv[])
          if (!err) {
             QString leaf = QFileInfo(fname).completeBaseName();
 
-            File::e_type type = op_type == 'p' ? File::Type_pdf :
-                     op_type == 'j' ? File::Type_jpeg :
-                     File::Type_max;
-            err = file->duplicateToDesk(&desk, type, leaf, 3, op,
-                                        newfile);
+            if (!output_path.isEmpty()) {
+               // Child-mode: write to specified output file
+               QFileInfo outInfo(output_path);
+               QString outDir = outInfo.absolutePath() + '/';
+               QString outFname = outInfo.fileName();
+               newfile = File::createFile(outDir, outFname, nullptr,
+                                          File::Type_max);
+               if (!newfile) {
+                  err = File::not_impl();
+               } else {
+                  err = newfile->create();
+                  if (!err)
+                     err = file->copyTo(newfile, 3, op, false,
+                                        page_start - 1, page_end - 1);
+                  delete newfile;
+               }
+            } else {
+               int pc = file->pagecount();
+               const int PARALLEL_THRESHOLD = 8;
+               if (pc >= PARALLEL_THRESHOLD && page_start < 0)
+                  err = parallel_convert_to_max(file, fname, leaf,
+                                                &desk, jobs);
+               else
+                  err = file->duplicateToDesk(&desk, File::Type_max,
+                           leaf, 3, op, newfile);
+            }
          }
          if (err)
             printf("error: %s", err->errstr);
