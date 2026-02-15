@@ -5871,7 +5871,9 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
          break;
       }
 
-   pixmap = QPixmap::fromImage(image);
+   // Deep-copy the image before freeing the preview buffer, since the
+   // QImage wraps the raw pointer without copying
+   pixmap = QPixmap::fromImage(image.copy());
    free (preview);
    return pixmap.isNull () ? err_make (ERRFN, ERR_failed_to_generate_preview_image) : NULL;
    }
