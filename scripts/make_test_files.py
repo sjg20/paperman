@@ -180,6 +180,44 @@ def _draw_wrapped(cvs, text, y, text_width):
     return y
 
 
+def _draw_colour_bars(cvs, width, height):
+    """Draw coloured rectangles across the page so it registers as colour
+
+    Args:
+        cvs (canvas.Canvas): Reportlab canvas to draw on
+        width (float): Page width in points
+        height (float): Page height in points
+    """
+    from reportlab.lib.colors import HexColor
+
+    colours = ['#e63946', '#457b9d', '#2a9d8f', '#e9c46a', '#f4a261',
+               '#264653', '#6a4c93']
+    bar_h = (height - 2 * _MARGIN) / len(colours)
+    y = _MARGIN
+    for hex_col in colours:
+        cvs.setFillColor(HexColor(hex_col))
+        cvs.rect(_MARGIN, y, width - 2 * _MARGIN, bar_h, fill=1, stroke=0)
+        y += bar_h
+
+
+def _draw_grey_gradient(cvs, width, height):
+    """Draw grey rectangles across the page so it registers as greyscale
+
+    Args:
+        cvs (canvas.Canvas): Reportlab canvas to draw on
+        width (float): Page width in points
+        height (float): Page height in points
+    """
+    steps = 16
+    bar_h = (height - 2 * _MARGIN) / steps
+    y = _MARGIN
+    for i in range(steps):
+        grey = i / (steps - 1)
+        cvs.setFillGray(grey)
+        cvs.rect(_MARGIN, y, width - 2 * _MARGIN, bar_h, fill=1, stroke=0)
+        y += bar_h
+
+
 def _draw_page(cvs, rng, page_num, width, height):
     """Draw a single page with heading, body paragraphs and page number
 
@@ -218,21 +256,30 @@ def _draw_page(cvs, rng, page_num, width, height):
     cvs.showPage()
 
 
-def make_random_pdf(fname, pages=100):
+def make_random_pdf(fname, pages=100, plasma_path=None):
     """Create a multi-page PDF with headings, body text and page numbers
 
-    Each page has a heading in Helvetica Bold, body paragraphs in Times
-    Roman with occasional sub-headings, and a centred page number.
+    Page 1 has colour bars, page 2 has a greyscale gradient, and page 3
+    embeds the plasma JPEG (if provided). The remaining pages are plain
+    monochrome text. This gives a mix of depths for testing auto-detection.
 
     Args:
         fname (str): Output file path
         pages (int): Number of pages to generate
+        plasma_path (str): Optional path to a JPEG to embed on page 3
     """
     rng = random.Random(42)
     width, height = letter
     cvs = canvas.Canvas(fname, pagesize=letter)
 
     for page_num in range(1, pages + 1):
+        if page_num == 1:
+            _draw_colour_bars(cvs, width, height)
+        elif page_num == 2:
+            _draw_grey_gradient(cvs, width, height)
+        elif page_num == 3 and plasma_path:
+            cvs.drawImage(plasma_path, 0, 0, width, height)
+
         _draw_page(cvs, rng, page_num, width, height)
 
     cvs.save()
@@ -269,10 +316,11 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    make_plasma_jpeg(os.path.join(args.output_dir, 'colour_plasma.jpg'))
+    plasma_path = os.path.join(args.output_dir, 'colour_plasma.jpg')
+    make_plasma_jpeg(plasma_path)
 
     pdf_path = os.path.join(args.output_dir, '100pp.pdf')
-    make_random_pdf(pdf_path)
+    make_random_pdf(pdf_path, plasma_path=plasma_path)
     pdf_to_max(pdf_path, '100pp_from_pdf.max')
 
 
