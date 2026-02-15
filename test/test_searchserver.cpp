@@ -616,7 +616,7 @@ void TestSearchServer::testLargeMaxProgressive()
     QVERIFY(server.start());
     QTest::qWait(100);
 
-    // 1. Page count — needs ConvertToPdf first, then PageCount
+    // 1. Page count — File class loads directly, no ConvertToPdf needed
     ServerLog::clear();
     QByteArray raw = httpGetRaw(
         QString("http://localhost:9888/file?path=%1&pages=true")
@@ -631,14 +631,13 @@ void TestSearchServer::testLargeMaxProgressive()
              qPrintable("Expected 100 pages, got: " + body));
 
     QList<ServerLog::Entry> log = ServerLog::entries();
-    QCOMPARE(log.size(), 2);
-    QCOMPARE(log[0].action, ServerLog::ConvertToPdf);
-    QCOMPARE(log[1].action, ServerLog::PageCount);
-    QCOMPARE(log[1].detail, 100);
+    QCOMPARE(log.size(), 1);
+    QCOMPARE(log[0].action, ServerLog::PageCount);
+    QCOMPARE(log[0].detail, 100);
 
-    // 2. Extract page 10 — uses ConvertPage for non-PDF files
+    // 2. Extract page 10 — File class converts to PDF in-process
     qint64 pageSize;
-    verifyPageFetch(fileName, 10, ServerLog::ConvertPage, &pageSize, 30000);
+    verifyPageFetch(fileName, 10, ServerLog::PageExtract, &pageSize, 30000);
     QVERIFY2(pageSize < fullFileSize / 5,
              qPrintable(QString("Page 10 (%1 bytes) should be < 1/5 of full "
                                 "file (%2)")
@@ -648,7 +647,7 @@ void TestSearchServer::testLargeMaxProgressive()
     verifyPageFetch(fileName, 10, ServerLog::PageCacheHit);
 
     // 4. Extract page 50
-    verifyPageFetch(fileName, 50, ServerLog::ConvertPage, nullptr, 30000);
+    verifyPageFetch(fileName, 50, ServerLog::PageExtract, nullptr, 30000);
 
     server.stop();
 }

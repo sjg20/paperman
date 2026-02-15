@@ -202,14 +202,21 @@ private:
     QString convertToPdf(const QString &fullPath);
 
     /**
-     * Convert a single page of a non-PDF file to PDF, caching the result
+     * Get page count of a non-PDF file using the File class
+     * @param fullPath Absolute path to the source file
+     * @return Number of pages, or -1 on failure
+     */
+    int getFilePageCount(const QString &fullPath);
+
+    /**
+     * Convert a single page of a non-PDF file to PDF using the File class
      * @param fullPath  Absolute path to the source file
      * @param page      Page number (1-based)
      * @param fileInfo  QFileInfo for the source file (used for mtime)
      * @return Path to cached single-page PDF, or empty string on failure
      */
-    QString convertPageToPdf(const QString &fullPath, int page,
-                             const QFileInfo &fileInfo);
+    QString convertPageWithFile(const QString &fullPath, int page,
+                                const QFileInfo &fileInfo);
 
     /**
      * Get page count of a PDF file using pdfinfo

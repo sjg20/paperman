@@ -7,9 +7,8 @@
 struct ServerLog {
     enum Action {
         PageCount,       // got page count
-        PageExtract,     // extracted single page from PDF (pdftocairo)
+        PageExtract,     // extracted single page to PDF
         ConvertToPdf,    // ran paperman -p conversion
-        ConvertPage,     // converted single page from non-PDF (paperman)
         ConvertCacheHit, // found cached converted PDF
         PageCacheHit,    // found cached extracted page
         ServeFile,       // served a file directly
