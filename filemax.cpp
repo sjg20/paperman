@@ -3100,6 +3100,86 @@ static int scale_24bpp (byte *image, cpoint *image_size, byte *preview,
    }
 
 
+/** scale down an 8bpp greyscale image by a factor of PREVIEW_SCALE
+
+   \param image       pointer to image
+   \param image_size  size of image (x, y)
+   \param preview     buffer to use for preview
+   \param preview_size required size for preview
+   \param stride      line stride for image
+   \returns number of bytes in preview image */
+
+static int scale_8bpp (byte *image, cpoint *image_size, byte *preview,
+                       cpoint *preview_size, int stride)
+   {
+   int *line;    // pixel sums for current preview line
+   int sum;      // current pixel sum being calculated
+   int image_line_bytes;
+   int line_bytes;
+   int x, y;     // work through the preview
+   int xsub, ysub;  // which image pixel we are up to
+   byte *in;     // image data in
+   byte *out;    // preview data out
+   int ysubcount;  // number of image lines to scan for this preview line
+   int result;
+
+   out = preview;
+
+   // add together all the PREVIEW_SCALE pixels into one int in
+   // each direction
+   line_bytes = preview_size->x * sizeof (int);
+   line = (int *)malloc (line_bytes);
+
+   image_line_bytes = stride;
+   for (y = 0; y < preview_size->y; y++)
+      {
+      memset (line, '\0', line_bytes);
+
+      // work out how many lines we need to scan
+      ysubcount = image_size->y - 1 - y * PREVIEW_SCALE;
+      if (ysubcount > PREVIEW_SCALE)
+         ysubcount = PREVIEW_SCALE;
+
+      // now scan the lines, building up a pixel value sum in line[]
+      for (ysub = 0; ysub < ysubcount; ysub++)
+         {
+         in = image + image_line_bytes *
+                    ((preview_size->y - y - 1) * PREVIEW_SCALE + (ysubcount - ysub - 1));
+         assert (in >= image && in <= image + image_line_bytes * (image_size->y - 1));
+
+         for (x = 0; x < preview_size->x; x++)
+            {
+            sum = 0;
+            for (xsub = 0; xsub < PREVIEW_SCALE; xsub++)
+               sum += *in++;
+            line [x] += sum;
+            }
+         }
+
+      // we now have the line values - each represents
+      // PREVIEW_SCALE x PREVIEW_SCALE pixels
+      // convert to 8bpp preview, word-aligned
+      for (x = 0; x < preview_size->x; x++)
+         {
+         result = line [x] / PREVIEW_SCALE / ysubcount;
+         if (result > 0xff)
+            result = 0xff;
+         *out++ = result;
+         }
+
+      // word align
+      for (; x & 3; x++)
+         *out++ = 0;
+      }
+
+   free (line);
+
+   // done
+   debug2 (("8bit preview: %d bytes\n", out - preview));
+   return out - preview;
+   }
+
+
 static int build_preview (chunk_info &chunk, int stride, int bpp)
    {
    int size, width;
@@ -3126,8 +3206,17 @@ static int build_preview (chunk_info &chunk, int stride, int bpp)
          break;
          }
 
-      case 8 : // not sure what to do
-         printf ("8bpp preview not supported\n");
+      case 8 :  // build an 8bpp greyscale preview padded to words at EOL
+         width = (chunk.preview_size.x + 3) & ~3;
+         size = width * chunk.preview_size.y;
+         chunk.preview_bytes = size;
+         chunk.preview = (byte *)malloc (size);
+         if (!chunk.preview)
+            return ERR (-ENOMEM);
+         memset (chunk.preview, '\0', size);
+         len = scale_8bpp (chunk.image, &chunk.image_size,
+              chunk.preview, &chunk.preview_size, stride);
+         debug2 (("8bpp preview size %d, alloced %d\n", len, size));
          break;
 
       case 24 :  // build a 24bpp colour preview padded to words at EOL
@@ -4204,10 +4293,9 @@ static int add_preview (chunk_info &chunk, part_info &part)
          }
 
       case 8 :
-         dest = (byte *)malloc (4);
-         len = 4;
-         *(int *)dest = 0;
-         printf ("cannot add_preview for %dbpp\n", chunk.bits);
+         dest = (byte *)malloc (chunk.preview_bytes);
+         memcpy (dest, chunk.preview, chunk.preview_bytes);
+         len = chunk.preview_bytes;
          break;
 
       case 24 :
