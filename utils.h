@@ -324,4 +324,23 @@ QString utilUserName();
  */
 void utilInit(const QString& group);
 
+/**
+ * @brief Detect the effective colour depth of an image
+ * @param image  Image to analyse (should be 32bpp ARGB)
+ * @return 1 for monochrome, 8 for greyscale, 24 for colour
+ *
+ * Scans all pixels to classify the image. Anti-aliased text fringes (grey
+ * values near black or white) are treated as monochrome since at 300 DPI
+ * the thresholded result is visually identical.
+ */
+int utilImageDepth(const QImage &image);
+
+/**
+ * @brief Convert an image to a lower colour depth
+ * @param image         Image to convert
+ * @param target_depth  Desired depth: 1, 8 or 24
+ * @return Converted image (may share data if no conversion is needed)
+ */
+QImage utilReduceDepth(QImage &image, int target_depth);
+
 #endif

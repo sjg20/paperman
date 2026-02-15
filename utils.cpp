@@ -1114,3 +1114,40 @@ void utilInit(const QString& group)
       public_gid = grp->gr_gid;
    }
 }
+
+
+int utilImageDepth(const QImage &image)
+{
+   bool grey_seen = false;
+   int w = image.width();
+   int h = image.height();
+
+   for (int y = 0; y < h; y++) {
+      const QRgb *line = (const QRgb *)image.constScanLine(y);
+
+      for (int x = 0; x < w; x++) {
+         int r = qRed(line[x]);
+         int g = qGreen(line[x]);
+         int b = qBlue(line[x]);
+
+         if (r != g || r != b)
+            return 24;
+
+         if (!grey_seen && r >= 32 && r <= 224)
+            grey_seen = true;
+      }
+   }
+
+   return grey_seen ? 8 : 1;
+}
+
+
+QImage utilReduceDepth(QImage &image, int target_depth)
+{
+   if (target_depth == 1)
+      return image.convertToFormat(QImage::Format_Mono);
+   if (target_depth == 8)
+      return utilConvertImageToGrey(image);
+
+   return image;
+}
