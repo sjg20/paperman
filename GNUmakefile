@@ -21,6 +21,9 @@ Makefile.server: paperman-server.pro
 test: paperman-server
 	scripts/test_page_fetch.sh
 
+test-progressive: paperman-server
+	scripts/test_progressive.sh
+
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 

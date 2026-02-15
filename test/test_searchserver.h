@@ -25,13 +25,14 @@ private slots:
    void testFileEndpoint();
    void testFilePageCount();
    void testFilePageExtract();
+   void testLargePdfProgressive();
 
 private:
    // Helper to make HTTP GET request and return response as string
    QString httpGet(const QString& url);
 
    // Helper to make HTTP GET request and return raw response bytes
-   QByteArray httpGetRaw(const QString& url);
+   QByteArray httpGetRaw(const QString& url, int timeoutMs = 5000);
 
    // Helper to create test files
    void createTestFiles(const QString& path);

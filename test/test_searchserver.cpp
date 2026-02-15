@@ -5,6 +5,7 @@
 #include <QFile>
 
 #include "../searchserver.h"
+#include "../serverlog.h"
 #include "test.h"
 
 #include "test_searchserver.h"
@@ -81,7 +82,7 @@ QString TestSearchServer::httpGet(const QString& url)
     return QString::fromUtf8(response);
 }
 
-QByteArray TestSearchServer::httpGetRaw(const QString& url)
+QByteArray TestSearchServer::httpGetRaw(const QString& url, int timeoutMs)
 {
     // Parse URL to get host, port, and path
     QUrl qurl(url);
@@ -116,8 +117,7 @@ QByteArray TestSearchServer::httpGetRaw(const QString& url)
 
     // Wait for response with timeout
     int totalWait = 0;
-    const int maxWait = 5000; // 5 second timeout (pdftocairo may be slow)
-    while (socket.bytesAvailable() == 0 && totalWait < maxWait) {
+    while (socket.bytesAvailable() == 0 && totalWait < timeoutMs) {
         QCoreApplication::processEvents();
 
         if (!socket.waitForReadyRead(200)) {
@@ -131,9 +131,11 @@ QByteArray TestSearchServer::httpGetRaw(const QString& url)
     QByteArray response;
     response += socket.readAll();
 
-    // Wait a bit more for any remaining data
+    // Wait for remaining data (proportional to main timeout)
+    int drainTimeout = qMin(timeoutMs / 2, 5000);
     totalWait = 0;
-    while (socket.state() == QAbstractSocket::ConnectedState && totalWait < 2000) {
+    while (socket.state() == QAbstractSocket::ConnectedState &&
+           totalWait < drainTimeout) {
         if (socket.waitForReadyRead(100))
             response += socket.readAll();
         totalWait += 100;
@@ -491,6 +493,110 @@ void TestSearchServer::testFilePageExtract()
     QVERIFY2(bodySize < fullSize,
              qPrintable(QString("Page (%1) should be smaller than full file (%2)")
                        .arg(bodySize).arg(fullSize)));
+
+    server.stop();
+}
+
+void TestSearchServer::testLargePdfProgressive()
+{
+    // Test progressive loading with a large real-world PDF (22 MB, 546 pages)
+    QString largePdf = "/vid/homepaper/other/books/BBCMicroCompendium.pdf";
+    if (!QFile::exists(largePdf)) {
+        QSKIP("Large test PDF not available");
+    }
+
+    qint64 fullFileSize = QFileInfo(largePdf).size();
+    qDebug() << "Large PDF:" << largePdf << "(" << fullFileSize << "bytes)";
+
+    // Point the server at the directory containing the PDF
+    QString repoPath = QFileInfo(largePdf).absolutePath();
+    QString fileName = QFileInfo(largePdf).fileName();
+
+    // Clear on-disk page cache so results are deterministic
+    QDir pageCache("/tmp/paperman-pages");
+    if (pageCache.exists()) {
+        foreach (const QString &f, pageCache.entryList(QDir::Files))
+            pageCache.remove(f);
+    }
+
+    SearchServer server(repoPath, 9888, nullptr, true);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // 1. Page count — should return 546 and log PageCount
+    ServerLog::clear();
+    QString response = httpGet(
+        QString("http://localhost:9888/file?path=%1&pages=true")
+            .arg(fileName));
+    QVERIFY(response.contains("200 OK"));
+    QVERIFY(response.contains("\"pages\":546"));
+
+    QList<ServerLog::Entry> log = ServerLog::entries();
+    QCOMPARE(log.size(), 1);
+    QCOMPARE(log[0].action, ServerLog::PageCount);
+    QCOMPARE(log[0].detail, 546);
+
+    // 2. Extract page 1 — should log PageExtract
+    ServerLog::clear();
+    QByteArray raw = httpGetRaw(
+        QString("http://localhost:9888/file?path=%1&page=1").arg(fileName),
+        10000);
+    QVERIFY(!raw.isEmpty());
+
+    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
+    QVERIFY2(header.contains("200 OK"),
+             qPrintable("Page 1 extraction failed: " + header));
+    QVERIFY(header.contains("application/pdf"));
+
+    int bodyStart = raw.indexOf("\r\n\r\n") + 4;
+    qint64 page1Size = raw.size() - bodyStart;
+    QVERIFY2(page1Size < fullFileSize / 5,
+             qPrintable(QString("Page 1 (%1 bytes) should be < 1/5 of full "
+                                "file (%2)")
+                       .arg(page1Size).arg(fullFileSize)));
+
+    QByteArray body = raw.mid(bodyStart);
+    QVERIFY2(body.startsWith("%PDF"),
+             "Page 1 should be a valid PDF");
+
+    log = ServerLog::entries();
+    QCOMPARE(log.size(), 1);
+    QCOMPARE(log[0].action, ServerLog::PageExtract);
+    QCOMPARE(log[0].detail, 1);
+
+    // 3. Request page 1 again — should log PageCacheHit
+    ServerLog::clear();
+    raw = httpGetRaw(
+        QString("http://localhost:9888/file?path=%1&page=1").arg(fileName),
+        10000);
+    QVERIFY(!raw.isEmpty());
+    header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
+    QVERIFY2(header.contains("200 OK"),
+             qPrintable("Page 1 cache-hit failed: " + header));
+
+    log = ServerLog::entries();
+    QCOMPARE(log.size(), 1);
+    QCOMPARE(log[0].action, ServerLog::PageCacheHit);
+    QCOMPARE(log[0].detail, 1);
+
+    // 4. Extract page 100 — should log PageExtract
+    ServerLog::clear();
+    raw = httpGetRaw(
+        QString("http://localhost:9888/file?path=%1&page=100").arg(fileName),
+        10000);
+    QVERIFY(!raw.isEmpty());
+    header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
+    QVERIFY2(header.contains("200 OK"),
+             qPrintable("Page 100 extraction failed: " + header));
+
+    body = raw.mid(raw.indexOf("\r\n\r\n") + 4);
+    QVERIFY2(body.startsWith("%PDF"),
+             "Page 100 should be a valid PDF");
+
+    log = ServerLog::entries();
+    QCOMPARE(log.size(), 1);
+    QCOMPARE(log[0].action, ServerLog::PageExtract);
+    QCOMPARE(log[0].detail, 100);
 
     server.stop();
 }
