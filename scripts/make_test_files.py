@@ -9,6 +9,9 @@ import random
 
 import numpy as np
 from PIL import Image
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 
 # All generated files go here
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'test', 'files')
@@ -82,6 +85,158 @@ def make_plasma_jpeg(fname, width=2400, height=3300, quality=90):
     print(f'Wrote {fname} ({width}x{height}, quality {quality})')
 
 
+# Words for generating random text (a mix of common English words)
+WORDS = (
+    'the be to of and a in that have I it for not on with he as you do at '
+    'this but his by from they we say her she or an will my one all would '
+    'there their what so up out if about who get which go me when make can '
+    'like time no just him know take people into year your good some could '
+    'them see other than then now look only come its over think also back '
+    'after use two how our work first well way even new want because any '
+    'these give day most us great small large report system process data '
+    'program information method function result value number type set point '
+    'table line part group order change place state form each begin between '
+    'both under last right move try again still found hand high keep left '
+    'change end near old long show here next below few along every further'
+).split()
+
+
+def _random_text(rng, min_words=30, max_words=80):
+    """Generate a random paragraph with sentence breaks
+
+    Args:
+        rng (random.Random): Random number generator
+        min_words (int): Minimum number of words
+        max_words (int): Maximum number of words
+
+    Returns:
+        str: A paragraph of random text
+    """
+    n = rng.randint(min_words, max_words)
+    words = [rng.choice(WORDS) for _ in range(n)]
+    words[0] = words[0].capitalize()
+
+    # Add some sentence breaks
+    i = rng.randint(8, 15)
+    while i < len(words):
+        words[i - 1] += '.'
+        words[i] = words[i].capitalize()
+        i += rng.randint(8, 15)
+    words[-1] += '.'
+    return ' '.join(words)
+
+
+def _random_heading(rng):
+    """Generate a random section heading
+
+    Args:
+        rng (random.Random): Random number generator
+
+    Returns:
+        str: A title-cased heading of 2-5 words
+    """
+    n = rng.randint(2, 5)
+    words = [rng.choice(WORDS).capitalize() for _ in range(n)]
+    return ' '.join(words)
+
+
+_HEADING_FONT = 'Helvetica-Bold'
+_BODY_FONT = 'Times-Roman'
+_HEADING_SIZE = 16
+_BODY_SIZE = 11
+_LINE_SPACING = _BODY_SIZE * 1.4
+_MARGIN = inch
+
+
+def _draw_wrapped(cvs, text, y, text_width):
+    """Draw word-wrapped body text, returning the updated y position
+
+    Args:
+        cvs (canvas.Canvas): Reportlab canvas to draw on
+        text (str): Paragraph text to wrap and draw
+        y (float): Starting y coordinate
+        text_width (float): Available width for text
+
+    Returns:
+        float: The y position after drawing
+    """
+    words = text.split()
+    line = ''
+    for word in words:
+        test = f'{line} {word}'.strip()
+        if cvs.stringWidth(test, _BODY_FONT, _BODY_SIZE) > text_width:
+            cvs.drawString(_MARGIN, y, line)
+            y -= _LINE_SPACING
+            line = word
+            if y <= _MARGIN + 30:
+                break
+        else:
+            line = test
+    if line and y > _MARGIN + 30:
+        cvs.drawString(_MARGIN, y, line)
+        y -= _LINE_SPACING
+    return y
+
+
+def _draw_page(cvs, rng, page_num, width, height):
+    """Draw a single page with heading, body paragraphs and page number
+
+    Args:
+        cvs (canvas.Canvas): Reportlab canvas to draw on
+        rng (random.Random): Random number generator
+        page_num (int): Page number to display
+        width (float): Page width in points
+        height (float): Page height in points
+    """
+    text_width = width - 2 * _MARGIN
+    y = height - _MARGIN
+
+    # Page heading
+    cvs.setFont(_HEADING_FONT, _HEADING_SIZE)
+    cvs.drawString(_MARGIN, y, _random_heading(rng))
+    y -= _HEADING_SIZE * 2
+
+    # Body paragraphs
+    cvs.setFont(_BODY_FONT, _BODY_SIZE)
+    while y > _MARGIN + 30:
+        y = _draw_wrapped(cvs, _random_text(rng), y, text_width)
+        y -= _LINE_SPACING * 0.5
+
+        # Occasional sub-heading
+        if y > _MARGIN + 60 and rng.random() < 0.3:
+            y -= _LINE_SPACING * 0.5
+            cvs.setFont(_HEADING_FONT, _HEADING_SIZE - 2)
+            cvs.drawString(_MARGIN, y, _random_heading(rng))
+            y -= _HEADING_SIZE * 1.5
+            cvs.setFont(_BODY_FONT, _BODY_SIZE)
+
+    # Page number centred at the bottom
+    cvs.setFont(_BODY_FONT, 10)
+    cvs.drawCentredString(width / 2, _MARGIN / 2, str(page_num))
+    cvs.showPage()
+
+
+def make_random_pdf(fname, pages=100):
+    """Create a multi-page PDF with headings, body text and page numbers
+
+    Each page has a heading in Helvetica Bold, body paragraphs in Times
+    Roman with occasional sub-headings, and a centred page number.
+
+    Args:
+        fname (str): Output file path
+        pages (int): Number of pages to generate
+    """
+    rng = random.Random(42)
+    width, height = letter
+    cvs = canvas.Canvas(fname, pagesize=letter)
+
+    for page_num in range(1, pages + 1):
+        _draw_page(cvs, rng, page_num, width, height)
+
+    cvs.save()
+    print(f'Wrote {fname} ({pages} pages)')
+
+
 def main():
     """Create all test files"""
     parser = argparse.ArgumentParser(description='Create test files')
@@ -92,6 +247,7 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     make_plasma_jpeg(os.path.join(args.output_dir, 'colour_plasma.jpg'))
+    make_random_pdf(os.path.join(args.output_dir, '100pp.pdf'))
 
 
 if __name__ == '__main__':
