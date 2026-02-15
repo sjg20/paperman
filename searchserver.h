@@ -58,12 +58,14 @@ class SearchServer : public QTcpServer
 public:
     /**
      * Constructor
-     * @param rootPath  Root path of the paper repository (single path)
-     * @param port      Port to listen on (default 8080)
-     * @param parent    Parent QObject
+     * @param rootPath   Root path of the paper repository (single path)
+     * @param port       Port to listen on (default 8080)
+     * @param parent     Parent QObject
+     * @param skipCache  Skip building file cache at startup
      */
     explicit SearchServer(const QString &rootPath, quint16 port = 8080,
-                         QObject *parent = nullptr);
+                         QObject *parent = nullptr,
+                         bool skipCache = false);
 
     /**
      * Constructor for multiple repositories
@@ -190,6 +192,13 @@ private:
     QByteArray getFile(const QString &repoPath, const QString &filePath,
                        const QString &type = "original", int page = 0,
                        bool wantPageCount = false);
+
+    /**
+     * Convert a non-PDF file to PDF, caching the result
+     * @param fullPath Absolute path to the source file
+     * @return Path to cached PDF, or empty string on failure
+     */
+    QString convertToPdf(const QString &fullPath);
 
     /**
      * Get page count of a PDF file using pdfinfo

@@ -43,7 +43,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QJsonArray>
 #endif
 
-SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *parent)
+SearchServer::SearchServer(const QString &rootPath, quint16 port,
+                           QObject *parent, bool skipCache)
     : QTcpServer(parent)
     , _rootPath(rootPath)
     , _port(port)
@@ -65,18 +66,23 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port, QObject *paren
     // Clean old thumbnails from cache
     cleanThumbnailCache();
 
-    // Build file cache for the repository
-    qDebug() << "SearchServer: Building file cache for" << _rootPath;
-    QList<CachedFile> &fileList = _fileCache[_rootPath];
-
     QString papertreeFile = _rootPath + "/.papertree";
-    if (QFile::exists(papertreeFile) && loadFromPapertree(_rootPath, fileList)) {
-        qDebug() << "SearchServer: File cache loaded from papertree with" << fileList.size() << "files";
+
+    if (skipCache) {
+        qDebug() << "SearchServer: Skipping file cache build (--no-cache)";
     } else {
-        scanDirectory(_rootPath, "", fileList);
-        qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+        // Build file cache for the repository
+        qDebug() << "SearchServer: Building file cache for" << _rootPath;
+        QList<CachedFile> &fileList = _fileCache[_rootPath];
+
+        if (QFile::exists(papertreeFile) && loadFromPapertree(_rootPath, fileList)) {
+            qDebug() << "SearchServer: File cache loaded from papertree with" << fileList.size() << "files";
+        } else {
+            scanDirectory(_rootPath, "", fileList);
+            qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
+        }
+        qDebug() << "SearchServer: File cache ready";
     }
-    qDebug() << "SearchServer: File cache ready";
 
     // Set up file system watcher for papertree file
     _fsWatcher = new QFileSystemWatcher(this);
@@ -758,9 +764,19 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
     // Get file extension
     QString ext = fileInfo.suffix().toLower();
 
-    // Handle page-count request for PDFs
-    if (wantPageCount && ext == "pdf") {
-        int pages = getPdfPageCount(fullPath);
+    // Handle page-count request
+    if (wantPageCount) {
+        QString pdfPath = fullPath;
+        if (ext != "pdf") {
+            pdfPath = convertToPdf(fullPath);
+            if (pdfPath.isEmpty()) {
+                return buildHttpResponse(500, "Internal Server Error",
+                                        "application/json",
+                                        buildJsonResponse(false, "",
+                                            "Failed to convert file to PDF"));
+            }
+        }
+        int pages = getPdfPageCount(pdfPath);
         if (pages < 0) {
             return buildHttpResponse(500, "Internal Server Error",
                                     "application/json",
@@ -772,8 +788,19 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         return buildHttpResponse(200, "OK", "application/json", json);
     }
 
-    // Handle single-page extraction for PDFs
-    if (page > 0 && ext == "pdf") {
+    // Handle single-page extraction
+    if (page > 0) {
+        QString pdfPath = fullPath;
+        if (ext != "pdf") {
+            pdfPath = convertToPdf(fullPath);
+            if (pdfPath.isEmpty()) {
+                return buildHttpResponse(500, "Internal Server Error",
+                                        "application/json",
+                                        buildJsonResponse(false, "",
+                                            "Failed to convert file to PDF"));
+            }
+        }
+
         // Build cache path using MD5 of file path + page + mtime
         QString cacheDir = "/tmp/paperman-pages";
         QDir().mkpath(cacheDir);
@@ -786,7 +813,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         QString cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
 
         if (!QFile::exists(cachedPage)) {
-            if (!extractPdfPage(fullPath, page, cachedPage)) {
+            if (!extractPdfPage(pdfPath, page, cachedPage)) {
                 return buildHttpResponse(500, "Internal Server Error",
                                         "application/json",
                                         buildJsonResponse(false, "",
@@ -810,51 +837,19 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
 
     // Handle PDF conversion request
     if (type == "pdf" && ext != "pdf") {
-        // Convert to PDF using maxview command-line tool
-        QTemporaryDir tmpDir;
-        if (!tmpDir.isValid()) {
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "Failed to create temporary directory"));
-        }
-
-        // Create output PDF path in temporary directory
-        QString baseName = fileInfo.completeBaseName();
-        QString outputPdf = tmpDir.path() + "/" + baseName + ".pdf";
-
-        // Set up environment for maxview (needs DISPLAY for Qt, but we use offscreen)
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        env.insert("QT_QPA_PLATFORM", "offscreen");
-
-        // Run maxview to convert the file
-        QProcess process;
-        process.setProcessEnvironment(env);
-        process.setWorkingDirectory(tmpDir.path());
-
-        // Find paperman executable - use same directory as server executable
-        QString papermanPath = QCoreApplication::applicationDirPath() + "/paperman";
-        if (!QFile::exists(papermanPath)) {
-            // Fallback to current directory
-            papermanPath = "paperman";
-        }
-
-        QStringList args;
-        args << "-p" << fullPath;
-
-        qDebug() << "SearchServer: Converting" << fullPath << "to PDF using" << papermanPath;
-        process.start(papermanPath, args);
-
-        if (!process.waitForStarted(5000)) {
-            qWarning() << "SearchServer: Failed to start paperman - falling back to original file";
+        QString pdfPath = convertToPdf(fullPath);
+        if (pdfPath.isEmpty()) {
             // Fallback: return original file instead of failing
             QFile file(fullPath);
             if (!file.open(QIODevice::ReadOnly)) {
-                return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                       buildJsonResponse(false, "", "PDF conversion not available and cannot read original file"));
+                return buildHttpResponse(500, "Internal Server Error",
+                    "application/json",
+                    buildJsonResponse(false, "",
+                        "PDF conversion failed and cannot read original file"));
             }
             QByteArray fileContent = file.readAll();
             file.close();
 
-            // Determine content type based on extension
             QString contentType = "application/octet-stream";
             if (ext == "max") contentType = "application/x-max";
             else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
@@ -863,54 +858,20 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
             return buildHttpResponse(200, "OK", contentType, fileContent);
         }
 
-        if (!process.waitForFinished(30000)) {  // 30 second timeout
-            process.kill();
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "PDF conversion timed out (30s limit)"));
-        }
-
-        int exitCode = process.exitCode();
-        QString stdout_output = QString::fromUtf8(process.readAllStandardOutput());
-        QString stderr_output = QString::fromUtf8(process.readAllStandardError());
-
-        qDebug() << "SearchServer: Conversion process exit code:" << exitCode;
-        qDebug() << "SearchServer: stdout:" << stdout_output;
-        qDebug() << "SearchServer: stderr:" << stderr_output;
-
-        if (exitCode != 0) {
-            qWarning() << "SearchServer: Conversion failed with exit code" << exitCode;
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "PDF conversion failed: " + stderr_output));
-        }
-
-        // Find the generated PDF file (maxview generates it with various names)
-        QDir tmpDirObj(tmpDir.path());
-        QStringList allFiles = tmpDirObj.entryList(QDir::Files);
-        QStringList pdfFiles = tmpDirObj.entryList(QStringList() << "*.pdf", QDir::Files);
-
-        qDebug() << "SearchServer: Temp directory:" << tmpDir.path();
-        qDebug() << "SearchServer: All files in temp dir:" << allFiles;
-        qDebug() << "SearchServer: PDF files found:" << pdfFiles;
-
-        if (pdfFiles.isEmpty()) {
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "PDF file was not generated in " + tmpDir.path()));
-        }
-
-        // Read the generated PDF
-        QString pdfPath = tmpDir.path() + "/" + pdfFiles.first();
+        // Read the cached PDF
         QFile pdfFile(pdfPath);
         if (!pdfFile.open(QIODevice::ReadOnly)) {
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "Failed to read converted PDF"));
+            return buildHttpResponse(500, "Internal Server Error",
+                "application/json",
+                buildJsonResponse(false, "", "Failed to read converted PDF"));
         }
 
         QByteArray pdfContent = pdfFile.readAll();
         pdfFile.close();
 
-        qDebug() << "SearchServer: Successfully converted to PDF (" << pdfContent.size() << "bytes)";
+        qDebug() << "SearchServer: Serving converted PDF ("
+                 << pdfContent.size() << "bytes)";
 
-        // Return the PDF
         return buildHttpResponse(200, "OK", "application/pdf", pdfContent);
     }
 
@@ -1369,94 +1330,17 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     QString pdfPath = fullPath;
     QString ext = fileInfo.suffix().toLower();
 
-    // 5a. For .max files, convert to PDF first using paperman
-    QTemporaryFile *tmpPdf = nullptr;
-    if (ext == "max") {
-        QTemporaryDir tmpDir;
-        if (!tmpDir.isValid()) {
-            qWarning() << "SearchServer: Failed to create temp directory";
+    if (ext != "pdf") {
+        pdfPath = convertToPdf(fullPath);
+        if (pdfPath.isEmpty()) {
+            qWarning() << "SearchServer: Failed to convert to PDF for thumbnail";
             return "";
         }
-
-        // Use paperman to convert .max to PDF
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        env.insert("QT_QPA_PLATFORM", "offscreen");
-
-        QProcess convertProcess;
-        convertProcess.setProcessEnvironment(env);
-        convertProcess.setWorkingDirectory(tmpDir.path());
-
-        QString papermanPath = QCoreApplication::applicationDirPath() + "/paperman";
-        if (!QFile::exists(papermanPath))
-            papermanPath = "paperman";
-
-        QStringList convertArgs;
-        convertArgs << "-p" << fullPath;
-
-        qDebug() << "SearchServer: Converting .max to PDF:" << papermanPath << convertArgs;
-        convertProcess.start(papermanPath, convertArgs);
-
-        if (!convertProcess.waitForFinished(30000)) {  // 30 second timeout
-            convertProcess.kill();
-            qWarning() << "SearchServer: Conversion timed out";
-            return "";
-        }
-
-        if (convertProcess.exitCode() != 0) {
-            qWarning() << "SearchServer: Conversion failed:" << convertProcess.readAllStandardError();
-            return "";
-        }
-
-        // Find the generated PDF
-        QDir tmpDirObj(tmpDir.path());
-        QStringList pdfFiles = tmpDirObj.entryList(QStringList() << "*.pdf", QDir::Files);
-
-        if (pdfFiles.isEmpty()) {
-            qWarning() << "SearchServer: No PDF generated";
-            return "";
-        }
-
-        QString generatedPdf = tmpDir.path() + "/" + pdfFiles.first();
-
-        // Copy PDF to a new temporary file that will persist after tmpDir is destroyed
-        tmpPdf = new QTemporaryFile();
-        tmpPdf->setAutoRemove(true);
-        if (!tmpPdf->open()) {
-            qWarning() << "SearchServer: Failed to create temp PDF file";
-            delete tmpPdf;
-            return "";
-        }
-
-        QFile srcPdf(generatedPdf);
-        if (!srcPdf.open(QIODevice::ReadOnly)) {
-            qWarning() << "SearchServer: Failed to read generated PDF";
-            delete tmpPdf;
-            return "";
-        }
-
-        tmpPdf->write(srcPdf.readAll());
-        tmpPdf->flush();
-        srcPdf.close();
-
-        pdfPath = tmpPdf->fileName();
     }
-    // For image files (.jpg, .jpeg, .tiff, .tif), we could optimize by copying directly
-    // but for consistency, we'll convert through PDF if available
-    else if (ext != "pdf") {
-        // For now, only support PDF and .max files for thumbnails
-        qWarning() << "SearchServer: Unsupported file type for thumbnail:" << ext;
-        return "";
-    }
-    
+
     // 6. Extract thumbnail from PDF
     int thumbSize = getThumbnailSize(size);
     bool success = extractPdfThumbnail(pdfPath, page, thumbSize, cachedThumb);
-
-    // 7. Cleanup temp PDF if we created one
-    if (tmpPdf) {
-        delete tmpPdf;  // QTemporaryFile auto-removes on delete
-        tmpPdf = nullptr;
-    }
 
     if (success) {
         qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
@@ -1465,6 +1349,89 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
 
     qWarning() << "SearchServer: Failed to generate thumbnail";
     return "";
+}
+
+QString SearchServer::convertToPdf(const QString &fullPath)
+{
+    QFileInfo fileInfo(fullPath);
+    if (!fileInfo.exists())
+        return QString();
+
+    // Build cache key from path + mtime
+    QString cacheDir = "/tmp/paperman-converted";
+    QDir().mkpath(cacheDir);
+
+    QString cacheKeyData = fullPath + "_"
+        + QString::number(fileInfo.lastModified().toMSecsSinceEpoch());
+    QString cacheKeyHash = QString(QCryptographicHash::hash(
+        cacheKeyData.toUtf8(), QCryptographicHash::Md5).toHex());
+    QString cachedPdf = cacheDir + "/" + cacheKeyHash + ".pdf";
+
+    // Return cached version if it exists
+    if (QFile::exists(cachedPdf))
+        return cachedPdf;
+
+    // Convert using paperman -p
+    QTemporaryDir tmpDir;
+    if (!tmpDir.isValid()) {
+        qWarning() << "SearchServer: Failed to create temp directory for conversion";
+        return QString();
+    }
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("QT_QPA_PLATFORM", "offscreen");
+
+    QProcess process;
+    process.setProcessEnvironment(env);
+    process.setWorkingDirectory(tmpDir.path());
+
+    QString papermanPath = QCoreApplication::applicationDirPath() + "/paperman";
+    if (!QFile::exists(papermanPath))
+        papermanPath = "paperman";
+
+    QStringList args;
+    args << "-p" << fullPath;
+
+    qDebug() << "SearchServer: Converting" << fullPath << "to PDF using"
+             << papermanPath;
+    process.start(papermanPath, args);
+
+    if (!process.waitForStarted(5000)) {
+        qWarning() << "SearchServer: Failed to start paperman for conversion";
+        return QString();
+    }
+
+    if (!process.waitForFinished(30000)) {
+        process.kill();
+        qWarning() << "SearchServer: PDF conversion timed out";
+        return QString();
+    }
+
+    if (process.exitCode() != 0) {
+        qWarning() << "SearchServer: Conversion failed:"
+                   << process.readAllStandardError();
+        return QString();
+    }
+
+    // Find the generated PDF
+    QDir tmpDirObj(tmpDir.path());
+    QStringList pdfFiles = tmpDirObj.entryList(QStringList() << "*.pdf",
+                                               QDir::Files);
+
+    if (pdfFiles.isEmpty()) {
+        qWarning() << "SearchServer: No PDF generated";
+        return QString();
+    }
+
+    // Copy to cache location
+    QString generatedPdf = tmpDir.path() + "/" + pdfFiles.first();
+    if (!QFile::copy(generatedPdf, cachedPdf)) {
+        qWarning() << "SearchServer: Failed to cache converted PDF";
+        return QString();
+    }
+
+    qDebug() << "SearchServer: Cached converted PDF:" << cachedPdf;
+    return cachedPdf;
 }
 
 int SearchServer::getPdfPageCount(const QString &pdfPath)
@@ -1531,7 +1498,8 @@ bool SearchServer::extractPdfPage(const QString &pdfPath, int page,
 void SearchServer::cleanThumbnailCache()
 {
     QStringList cacheDirs;
-    cacheDirs << "/tmp/paperman-thumbnails" << "/tmp/paperman-pages";
+    cacheDirs << "/tmp/paperman-thumbnails" << "/tmp/paperman-pages"
+              << "/tmp/paperman-converted";
 
     foreach (const QString &cacheDir, cacheDirs) {
         QDir dir(cacheDir);
