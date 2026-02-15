@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
@@ -179,6 +180,57 @@ class ApiService {
       throw ApiException(response.statusCode, 'Failed to download page');
     }
     return response;
+  }
+
+  /// Download a single page with streaming progress.
+  Future<Uint8List> downloadFilePageStreamed({
+    required String path,
+    required int page,
+    String? repo,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    final params = <String, String>{
+      'path': path,
+      'page': page.toString(),
+    };
+    if (repo != null) params['repo'] = repo;
+    final uri = Uri.parse('$_baseUrl/file').replace(queryParameters: params);
+
+    final request = http.Request('GET', uri);
+    final auth = _basicAuth;
+    if (auth != null) {
+      request.headers['Authorization'] = auth;
+    }
+
+    final client = http.Client();
+    try {
+      final streamed = await client.send(request);
+      if (streamed.statusCode != 200) {
+        throw ApiException(streamed.statusCode, 'Failed to download page');
+      }
+
+      final total = streamed.contentLength ?? -1;
+      final chunks = <List<int>>[];
+      var received = 0;
+
+      await for (final chunk in streamed.stream) {
+        chunks.add(chunk);
+        received += chunk.length;
+        if (onProgress != null) {
+          onProgress(received, total);
+        }
+      }
+
+      final bytes = Uint8List(received);
+      var offset = 0;
+      for (final chunk in chunks) {
+        bytes.setRange(offset, offset + chunk.length, chunk);
+        offset += chunk.length;
+      }
+      return bytes;
+    } finally {
+      client.close();
+    }
   }
 
   /// Download a file and return its bytes.

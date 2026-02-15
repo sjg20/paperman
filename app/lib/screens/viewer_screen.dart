@@ -26,6 +26,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   int _currentPage = 1;
   final Map<int, String> _pageFiles = {};
   final Set<int> _fetching = {};
+  final Map<int, double> _progress = {};
   bool _loading = true;
   String? _error;
   late String _safeName;
@@ -83,24 +84,32 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final api = context.read<ApiService>();
 
     try {
-      final response = await api.downloadFilePage(
+      final bytes = await api.downloadFilePageStreamed(
         path: widget.filePath,
         page: page,
         repo: widget.repo,
+        onProgress: (received, total) {
+          if (!mounted) return;
+          setState(() {
+            _progress[page] = total > 0 ? received / total : 0;
+          });
+        },
       );
 
       final file = File(
         '${_cacheDir.path}/paperman_${_safeName}_p$page.pdf',
       );
-      await file.writeAsBytes(response.bodyBytes);
+      await file.writeAsBytes(bytes);
 
       if (!mounted) return;
       setState(() {
         _pageFiles[page] = file.path;
         _fetching.remove(page);
+        _progress.remove(page);
       });
     } catch (_) {
       _fetching.remove(page);
+      _progress.remove(page);
     }
   }
 
@@ -199,9 +208,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
           );
         }
 
-        // Page not yet fetched — trigger fetch and show spinner
+        // Page not yet fetched — trigger fetch and show progress
         _fetchPage(page);
-        return const Center(child: CircularProgressIndicator());
+        final fraction = _progress[page];
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                value: fraction,
+              ),
+              if (fraction != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${(fraction * 100).round()}%',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        );
       },
     );
   }
