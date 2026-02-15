@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "suite.h"
+#include "../serverlog.h"
 
 class SearchServer;
 
@@ -26,6 +27,7 @@ private slots:
    void testFilePageCount();
    void testFilePageExtract();
    void testLargePdfProgressive();
+   void testLargeMaxProgressive();
 
 private:
    // Helper to make HTTP GET request and return response as string
@@ -36,6 +38,12 @@ private:
 
    // Helper to create test files
    void createTestFiles(const QString& path);
+
+   // Helper to fetch a page, verify 200/PDF response, and check the log
+   void verifyPageFetch(const QString &fileName, int page,
+                        ServerLog::Action expectedAction,
+                        qint64 *bodySize = nullptr,
+                        int timeoutMs = 10000);
 };
 
 #endif // TEST_SEARCHSERVER_H

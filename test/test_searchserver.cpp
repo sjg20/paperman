@@ -497,6 +497,37 @@ void TestSearchServer::testFilePageExtract()
     server.stop();
 }
 
+void TestSearchServer::verifyPageFetch(const QString &fileName, int page,
+                                       ServerLog::Action expectedAction,
+                                       qint64 *bodySize, int timeoutMs)
+{
+    ServerLog::clear();
+    QByteArray raw = httpGetRaw(
+        QString("http://localhost:9888/file?path=%1&page=%2")
+            .arg(fileName).arg(page),
+        timeoutMs);
+    QVERIFY(!raw.isEmpty());
+
+    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
+    QVERIFY2(header.contains("200 OK"),
+             qPrintable(QString("Page %1 fetch failed: %2")
+                       .arg(page).arg(header)));
+    QVERIFY(header.contains("application/pdf"));
+
+    int bodyStart = raw.indexOf("\r\n\r\n") + 4;
+    QByteArray body = raw.mid(bodyStart);
+    QVERIFY2(body.startsWith("%PDF"),
+             qPrintable(QString("Page %1 should be a valid PDF").arg(page)));
+
+    if (bodySize)
+        *bodySize = body.size();
+
+    QList<ServerLog::Entry> log = ServerLog::entries();
+    QCOMPARE(log.size(), 1);
+    QCOMPARE(log[0].action, expectedAction);
+    QCOMPARE(log[0].detail, page);
+}
+
 void TestSearchServer::testLargePdfProgressive()
 {
     // Test progressive loading with a 100-page PDF
@@ -534,69 +565,90 @@ void TestSearchServer::testLargePdfProgressive()
     QCOMPARE(log.size(), 1);
     QCOMPARE(log[0].action, ServerLog::PageCount);
     QCOMPARE(log[0].detail, 100);
+    // PDF should not need conversion to get a page count
+    for (const auto &e : log)
+        QVERIFY(e.action != ServerLog::ConvertToPdf);
 
-    // 2. Extract page 1 — should only render page 1
-    ServerLog::clear();
-    QByteArray raw = httpGetRaw(
-        QString("http://localhost:9888/file?path=%1&page=1").arg(fileName),
-        10000);
-    QVERIFY(!raw.isEmpty());
-
-    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
-    QVERIFY2(header.contains("200 OK"),
-             qPrintable("Page 1 extraction failed: " + header));
-    QVERIFY(header.contains("application/pdf"));
-
-    int bodyStart = raw.indexOf("\r\n\r\n") + 4;
-    qint64 page1Size = raw.size() - bodyStart;
+    // 2. Extract page 1
+    qint64 page1Size;
+    verifyPageFetch(fileName, 1, ServerLog::PageExtract, &page1Size);
     QVERIFY2(page1Size < fullFileSize / 5,
              qPrintable(QString("Page 1 (%1 bytes) should be < 1/5 of full "
                                 "file (%2)")
                        .arg(page1Size).arg(fullFileSize)));
 
-    QByteArray body = raw.mid(bodyStart);
-    QVERIFY2(body.startsWith("%PDF"),
-             "Page 1 should be a valid PDF");
+    // 3. Request page 1 again — should hit cache
+    verifyPageFetch(fileName, 1, ServerLog::PageCacheHit);
 
-    // Only one log entry: a single PageExtract for page 1
-    log = ServerLog::entries();
-    QCOMPARE(log.size(), 1);
-    QCOMPARE(log[0].action, ServerLog::PageExtract);
-    QCOMPARE(log[0].detail, 1);
+    // 4. Extract page 50
+    verifyPageFetch(fileName, 50, ServerLog::PageExtract);
 
-    // 3. Request page 1 again — should log PageCacheHit
+    server.stop();
+}
+
+void TestSearchServer::testLargeMaxProgressive()
+{
+    // Test progressive loading with a 100-page MAX file
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    QString srcMax = testSrc + "/100pp_from_pdf.max";
+    QString dstMax = tmpDir.path() + "/100pp_from_pdf.max";
+    QVERIFY2(QFile::copy(srcMax, dstMax),
+             qPrintable("Failed to copy " + srcMax + " to " + dstMax));
+
+    qint64 fullFileSize = QFileInfo(dstMax).size();
+    QString fileName = "100pp_from_pdf.max";
+
+    // Clear on-disk caches so results are deterministic
+    QDir pageCache("/tmp/paperman-pages");
+    if (pageCache.exists()) {
+        foreach (const QString &f, pageCache.entryList(QDir::Files))
+            pageCache.remove(f);
+    }
+    QDir convertCache("/tmp/paperman-converted");
+    if (convertCache.exists()) {
+        foreach (const QString &f, convertCache.entryList(QDir::Files))
+            convertCache.remove(f);
+    }
+
+    SearchServer server(tmpDir.path(), 9888, nullptr, true);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // 1. Page count — needs ConvertToPdf first, then PageCount
     ServerLog::clear();
-    raw = httpGetRaw(
-        QString("http://localhost:9888/file?path=%1&page=1").arg(fileName),
-        10000);
+    QByteArray raw = httpGetRaw(
+        QString("http://localhost:9888/file?path=%1&pages=true")
+            .arg(fileName),
+        30000);
     QVERIFY(!raw.isEmpty());
-    header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
-    QVERIFY2(header.contains("200 OK"),
-             qPrintable("Page 1 cache-hit failed: " + header));
+    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
+    QVERIFY(header.contains("200 OK"));
 
-    log = ServerLog::entries();
-    QCOMPARE(log.size(), 1);
-    QCOMPARE(log[0].action, ServerLog::PageCacheHit);
-    QCOMPARE(log[0].detail, 1);
+    QString body = QString::fromUtf8(raw.mid(raw.indexOf("\r\n\r\n") + 4));
+    QVERIFY2(body.contains("\"pages\":100"),
+             qPrintable("Expected 100 pages, got: " + body));
 
-    // 4. Extract page 50 — should only render page 50
-    ServerLog::clear();
-    raw = httpGetRaw(
-        QString("http://localhost:9888/file?path=%1&page=50").arg(fileName),
-        10000);
-    QVERIFY(!raw.isEmpty());
-    header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
-    QVERIFY2(header.contains("200 OK"),
-             qPrintable("Page 50 extraction failed: " + header));
+    QList<ServerLog::Entry> log = ServerLog::entries();
+    QCOMPARE(log.size(), 2);
+    QCOMPARE(log[0].action, ServerLog::ConvertToPdf);
+    QCOMPARE(log[1].action, ServerLog::PageCount);
+    QCOMPARE(log[1].detail, 100);
 
-    body = raw.mid(raw.indexOf("\r\n\r\n") + 4);
-    QVERIFY2(body.startsWith("%PDF"),
-             "Page 50 should be a valid PDF");
+    // 2. Extract page 10 — uses ConvertPage for non-PDF files
+    qint64 pageSize;
+    verifyPageFetch(fileName, 10, ServerLog::ConvertPage, &pageSize, 30000);
+    QVERIFY2(pageSize < fullFileSize / 5,
+             qPrintable(QString("Page 10 (%1 bytes) should be < 1/5 of full "
+                                "file (%2)")
+                       .arg(pageSize).arg(fullFileSize)));
 
-    log = ServerLog::entries();
-    QCOMPARE(log.size(), 1);
-    QCOMPARE(log[0].action, ServerLog::PageExtract);
-    QCOMPARE(log[0].detail, 50);
+    // 3. Request page 10 again — should hit cache
+    verifyPageFetch(fileName, 10, ServerLog::PageCacheHit);
+
+    // 4. Extract page 50
+    verifyPageFetch(fileName, 50, ServerLog::ConvertPage, nullptr, 30000);
 
     server.stop();
 }

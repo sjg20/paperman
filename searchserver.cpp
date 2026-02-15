@@ -1543,7 +1543,7 @@ QString SearchServer::convertPageToPdf(const QString &fullPath, int page,
         return QString();
     }
 
-    ServerLog::log(ServerLog::PageExtract, fullPath, page);
+    ServerLog::log(ServerLog::ConvertPage, fullPath, page);
     return cachedPdf;
 }
 
