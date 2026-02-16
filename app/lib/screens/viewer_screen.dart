@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
@@ -22,27 +22,41 @@ class ViewerScreen extends StatefulWidget {
 }
 
 class _ViewerScreenState extends State<ViewerScreen> {
+  static const _defaultAspectRatio = 1.414; // A4 portrait
+  static const _pageGap = 4.0;
+  static const _prefetchBefore = 2;
+  static const _prefetchAfter = 5;
+  static const _evictDistance = 10;
+
   int _totalPages = 0;
   int _currentPage = 1;
-  final Map<int, String> _pageFiles = {};
-  final Set<int> _fetching = {};
-  final Map<int, double> _progress = {};
   bool _loading = true;
   String? _error;
+
+  final Map<int, PdfDocument> _documents = {};
+  final Map<int, String> _diskPaths = {};
+  final Map<int, Size> _pageSizes = {};
+  final Set<int> _fetching = {};
+  final Map<int, double> _progress = {};
+
   late String _safeName;
   late Directory _cacheDir;
-  late PageController _pageController;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     _init();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _scrollController.dispose();
+    for (final doc in _documents.values) {
+      doc.dispose();
+    }
     super.dispose();
   }
 
@@ -64,8 +78,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _loading = false;
       });
 
-      // Fetch page 1 immediately
-      _fetchPage(1);
+      _prefetchAround(1);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -76,34 +89,53 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Future<void> _fetchPage(int page) async {
-    if (_pageFiles.containsKey(page) || _fetching.contains(page)) return;
+    if (_documents.containsKey(page) || _fetching.contains(page)) return;
     if (page < 1 || page > _totalPages) return;
 
     _fetching.add(page);
 
-    final api = context.read<ApiService>();
-
     try {
-      final bytes = await api.downloadFilePageStreamed(
-        path: widget.filePath,
-        page: page,
-        repo: widget.repo,
-        onProgress: (received, total) {
-          if (!mounted) return;
-          setState(() {
-            _progress[page] = total > 0 ? received / total : 0;
-          });
-        },
-      );
+      final path = _diskPaths[page];
+      PdfDocument doc;
 
-      final file = File(
-        '${_cacheDir.path}/paperman_${_safeName}_p$page.pdf',
-      );
-      await file.writeAsBytes(bytes);
+      if (path != null && File(path).existsSync()) {
+        // Reopen from disk cache
+        doc = await PdfDocument.openFile(path);
+      } else {
+        // Download from server
+        final api = context.read<ApiService>();
+        final bytes = await api.downloadFilePageStreamed(
+          path: widget.filePath,
+          page: page,
+          repo: widget.repo,
+          onProgress: (received, total) {
+            if (!mounted) return;
+            setState(() {
+              _progress[page] = total > 0 ? received / total : 0;
+            });
+          },
+        );
 
-      if (!mounted) return;
+        final filePath =
+            '${_cacheDir.path}/paperman_${_safeName}_p$page.pdf';
+        await File(filePath).writeAsBytes(bytes);
+        _diskPaths[page] = filePath;
+
+        doc = await PdfDocument.openFile(filePath);
+      }
+
+      // Read actual page dimensions
+      if (doc.pages.isNotEmpty) {
+        final pdfPage = doc.pages[0];
+        _pageSizes[page] = Size(pdfPage.width, pdfPage.height);
+      }
+
+      if (!mounted) {
+        doc.dispose();
+        return;
+      }
       setState(() {
-        _pageFiles[page] = file.path;
+        _documents[page] = doc;
         _fetching.remove(page);
         _progress.remove(page);
       });
@@ -114,11 +146,58 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   void _prefetchAround(int page) {
-    // Pre-fetch a window around the current page
-    for (int p = page - 1; p <= page + 4; p++) {
+    for (int p = page - _prefetchBefore; p <= page + _prefetchAfter; p++) {
       if (p >= 1 && p <= _totalPages) {
         _fetchPage(p);
       }
+    }
+    _evictDistantPages(page);
+  }
+
+  void _evictDistantPages(int page) {
+    final toEvict = <int>[];
+    for (final p in _documents.keys) {
+      if ((p - page).abs() > _evictDistance) {
+        toEvict.add(p);
+      }
+    }
+    for (final p in toEvict) {
+      _documents[p]!.dispose();
+      _documents.remove(p);
+    }
+  }
+
+  /// Calculate the display height for a given page at the given width.
+  double _pageHeight(int page, double viewWidth) {
+    final size = _pageSizes[page];
+    if (size != null && size.width > 0) {
+      return viewWidth * size.height / size.width;
+    }
+    return viewWidth * _defaultAspectRatio;
+  }
+
+  void _onScroll() {
+    if (_totalPages == 0) return;
+
+    final viewWidth = MediaQuery.of(context).size.width;
+    final offset = _scrollController.offset;
+
+    // Walk through cumulative heights to find which page is at the viewport
+    var cumulative = 0.0;
+    var page = 1;
+    for (int p = 1; p <= _totalPages; p++) {
+      final h = _pageHeight(p, viewWidth) + (p < _totalPages ? _pageGap : 0);
+      if (cumulative + h > offset) {
+        page = p;
+        break;
+      }
+      cumulative += h;
+      if (p == _totalPages) page = p;
+    }
+
+    if (page != _currentPage) {
+      setState(() => _currentPage = page);
+      _prefetchAround(page);
     }
   }
 
@@ -184,51 +263,69 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
     if (_totalPages == 0) return const SizedBox();
 
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: _totalPages,
-      onPageChanged: (index) {
-        final page = index + 1;
-        setState(() => _currentPage = page);
-        _prefetchAround(page);
-      },
-      itemBuilder: (context, index) {
-        final page = index + 1;
-        final path = _pageFiles[page];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewWidth = constraints.maxWidth;
 
-        if (path != null) {
-          return PDFView(
-            key: ValueKey('page_$page'),
-            filePath: path,
-            enableSwipe: false,
-            pageFling: false,
-            onError: (error) {
-              setState(() => _error = 'PDF render error: $error');
+        return InteractiveViewer(
+          minScale: 1.0,
+          maxScale: 5.0,
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: _totalPages,
+            itemBuilder: (context, index) {
+              final page = index + 1;
+              final height = _pageHeight(page, viewWidth);
+
+              return Column(
+                children: [
+                  if (index > 0) const SizedBox(height: _pageGap),
+                  _buildPage(page, viewWidth, height),
+                ],
+              );
             },
-          );
-        }
-
-        // Page not yet fetched — trigger fetch and show progress
-        _fetchPage(page);
-        final fraction = _progress[page];
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(
-                value: fraction,
-              ),
-              if (fraction != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  '${(fraction * 100).round()}%',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPage(int page, double width, double height) {
+    final doc = _documents[page];
+
+    if (doc != null) {
+      return SizedBox(
+        width: width,
+        height: height,
+        child: PdfPageView(
+          document: doc,
+          pageNumber: 1,
+          alignment: Alignment.center,
+        ),
+      );
+    }
+
+    // Page not yet loaded — trigger fetch and show progress
+    _fetchPage(page);
+    final fraction = _progress[page];
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(value: fraction),
+            if (fraction != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                '${(fraction * 100).round()}%',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
