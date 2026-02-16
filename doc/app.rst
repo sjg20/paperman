@@ -25,14 +25,11 @@ Features
 -  **Dark mode** follows the system theme
 -  Credentials and server URL saved locally for auto-reconnect
 
-Installing Flutter
-------------------
+Prerequisites
+-------------
 
-Install the system dependencies:
-
-.. code:: bash
-
-   sudo apt-get install cmake ninja-build clang lld pkg-config libgtk-3-dev
+Flutter SDK
+~~~~~~~~~~~
 
 Download and extract the Flutter SDK:
 
@@ -46,7 +43,32 @@ Download and extract the Flutter SDK:
 
 Add the ``export PATH`` line to your shell profile to make it permanent.
 
-Verify the installation:
+Android SDK
+~~~~~~~~~~~
+
+If you don't have Android Studio installed, set up the command-line
+tools manually:
+
+.. code:: bash
+
+   curl -fSL -o cmdline-tools.zip \
+     https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+   mkdir -p ~/android-sdk/cmdline-tools
+   unzip -q cmdline-tools.zip -d ~/android-sdk/cmdline-tools
+   mv ~/android-sdk/cmdline-tools/cmdline-tools ~/android-sdk/cmdline-tools/latest
+   rm cmdline-tools.zip
+   export ANDROID_HOME=~/android-sdk
+   export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+Accept the licences and install the required SDK components:
+
+.. code:: bash
+
+   sdkmanager --licenses
+   sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+   flutter config --android-sdk ~/android-sdk
+
+Verify that both toolchains are working:
 
 .. code:: bash
 
@@ -55,68 +77,19 @@ Verify the installation:
 Building
 --------
 
-Requires Flutter SDK (tested with 3.41.x). Start by fetching the
-dependencies:
-
-.. code:: bash
-
-   cd app
-   flutter pub get
-
-Linux
-~~~~~
-
-.. code:: bash
-
-   flutter build linux --dart-define=BUILD_DATE=$(date +%Y-%m-%d)
-
-The binary is written to ``build/linux/x64/release/bundle/paperman``.
-
-You can also build from the top-level directory (this passes the build
-date automatically):
+From the top-level directory:
 
 .. code:: bash
 
    make app
 
-Android
-~~~~~~~
+This builds both the Android APK and the Linux desktop binary, passing
+the current date as the build date. The outputs are:
 
-Requires the Android SDK.
+-  ``app/build/app/outputs/flutter-apk/app-release.apk``
+-  ``app/build/linux/x64/release/bundle/paperman``
 
-.. code:: bash
-
-   flutter build apk --dart-define=BUILD_DATE=$(date +%Y-%m-%d)
-
-The APK is written to ``build/app/outputs/flutter-apk/app-release.apk``.
-
-iOS
-~~~
-
-Requires Xcode and CocoaPods on macOS. Install the CocoaPods
-dependencies first, then build:
-
-.. code:: bash
-
-   cd ios
-   pod install
-   cd ..
-   flutter build ios --debug
-
-To run on a connected device:
-
-.. code:: bash
-
-   flutter run
-
-For a release build you need an Apple Developer account and a valid
-signing configuration in Xcode. Open ``ios/Runner.xcworkspace`` in
-Xcode, set your team and provisioning profile under **Signing &
-Capabilities**, then build with:
-
-.. code:: bash
-
-   flutter build ipa
+To build just one target, use ``make app-apk`` or ``make app-linux``.
 
 Project Structure
 -----------------

@@ -31,8 +31,15 @@ test-parallel: paperman
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 
-app:
-	cd app && flutter build linux --dart-define=BUILD_DATE=$(shell date "+%Y-%m-%d %H:%M")
+BUILD_DATE := $(shell date "+%Y-%m-%d %H:%M")
+
+app: app-apk app-linux
+
+app-apk:
+	cd app && flutter build apk --dart-define=BUILD_DATE=$(BUILD_DATE)
+
+app-linux:
+	cd app && flutter build linux --dart-define=BUILD_DATE=$(BUILD_DATE)
 
 app-clean:
 	-cd app && flutter clean
