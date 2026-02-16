@@ -14,6 +14,15 @@ class TestSearchServer: public Suite
 public:
     using Suite::Suite;
 
+    static constexpr quint16 PORT = 9876;
+
+    struct Response {
+        QString header;
+        QByteArray body;
+
+        bool ok() const { return header.contains("200 OK"); }
+    };
+
 private slots:
    void testServerStartStop();
    void testStatusEndpoint();
@@ -30,10 +39,10 @@ private slots:
    void testLargeMaxProgressive();
 
 private:
-   // Helper to make HTTP GET request and return response as string
-   QString httpGet(const QString& url);
+   // HTTP GET returning split header and body
+   Response get(const QString &path, int timeoutMs = 5000);
 
-   // Helper to make HTTP GET request and return raw response bytes
+   // Low-level HTTP GET returning raw response bytes
    QByteArray httpGetRaw(const QString& url, int timeoutMs = 5000);
 
    // Helper to create test files

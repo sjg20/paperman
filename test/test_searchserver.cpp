@@ -10,76 +10,19 @@
 
 #include "test_searchserver.h"
 
-QString TestSearchServer::httpGet(const QString& url)
+TestSearchServer::Response TestSearchServer::get(const QString &path,
+                                                  int timeoutMs)
 {
-    // Parse URL to get host, port, and path
-    QUrl qurl(url);
-    QString host = qurl.host();
-    int port = qurl.port();
-    QString path = qurl.path();
-    if (qurl.hasQuery())
-        path += "?" + qurl.query();
+    QByteArray raw = httpGetRaw(
+        QString("http://localhost:%1%2").arg(PORT).arg(path), timeoutMs);
 
-    QTcpSocket socket;
-    socket.connectToHost(host, port);
-
-    // Process events to allow server to accept connection
-    QCoreApplication::processEvents();
-
-    if (!socket.waitForConnected(2000)) {
-        qWarning() << "Failed to connect:" << socket.errorString();
-        return QString();
+    Response resp;
+    int sep = raw.indexOf("\r\n\r\n");
+    if (sep >= 0) {
+        resp.header = QString::fromUtf8(raw.left(sep));
+        resp.body = raw.mid(sep + 4);
     }
-
-    // Send HTTP GET request
-    QString request = QString("GET %1 HTTP/1.1\r\n"
-                             "Host: %2\r\n"
-                             "Connection: close\r\n"
-                             "\r\n").arg(path, host);
-
-    socket.write(request.toUtf8());
-    socket.flush();
-
-    // Process events to allow server to handle request
-    QCoreApplication::processEvents();
-
-    // Wait for response with timeout
-    int totalWait = 0;
-    const int maxWait = 3000; // 3 second timeout
-    while (socket.bytesAvailable() == 0 && totalWait < maxWait) {
-        // Process events to allow server to send response
-        QCoreApplication::processEvents();
-
-        if (!socket.waitForReadyRead(200)) {
-            if (socket.state() != QAbstractSocket::ConnectedState) {
-                break;
-            }
-        }
-        totalWait += 200;
-    }
-
-    // Read all data
-    QByteArray response;
-    response += socket.readAll();
-
-    // Wait a bit more for any remaining data
-    totalWait = 0;
-    while (socket.state() == QAbstractSocket::ConnectedState && totalWait < 1000) {
-        if (socket.waitForReadyRead(100)) {
-            response += socket.readAll();
-        }
-        totalWait += 100;
-    }
-
-    socket.close();
-
-    if (response.isEmpty()) {
-        qWarning() << "No response data received";
-        return QString();
-    }
-
-    // Return full HTTP response (including headers) for status code checking
-    return QString::fromUtf8(response);
+    return resp;
 }
 
 QByteArray TestSearchServer::httpGetRaw(const QString& url, int timeoutMs)
@@ -178,13 +121,13 @@ void TestSearchServer::testServerStartStop()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    qDebug() << "Creating server on port 9876";
-    SearchServer server(tmpDir.path(), 9876);
+    qDebug() << "Creating server on port" << PORT;
+    SearchServer server(tmpDir.path(), PORT);
 
     qDebug() << "Starting server...";
     QVERIFY(server.start());
     qDebug() << "Server started";
-    QCOMPARE(server.port(), (quint16)9876);
+    QCOMPARE(server.port(), PORT);
     QVERIFY(server.isRunning());
 
     qDebug() << "Stopping server...";
@@ -200,20 +143,21 @@ void TestSearchServer::testStatusEndpoint()
     QVERIFY(tmpDir.isValid());
 
     qDebug() << "Starting test status endpoint...";
-    SearchServer server(tmpDir.path(), 9877);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
 
     // Give server a moment to fully initialize
     QTest::qWait(100);
 
     qDebug() << "Making HTTP request to /status";
-    QString response = httpGet("http://localhost:9877/status");
-    qDebug() << "Response:" << response;
-    QVERIFY(!response.isEmpty());
-    QVERIFY(response.contains("\"status\""));
-    QVERIFY(response.contains("\"running\""));
-    QVERIFY(response.contains("\"repository\""));
-    QVERIFY(response.contains(tmpDir.path()));
+    auto resp = get("/status");
+    qDebug() << "Response:" << resp.header;
+    QVERIFY(resp.ok());
+    QString body = QString::fromUtf8(resp.body);
+    QVERIFY(body.contains("\"status\""));
+    QVERIFY(body.contains("\"running\""));
+    QVERIFY(body.contains("\"repository\""));
+    QVERIFY(body.contains(tmpDir.path()));
 
     server.stop();
     qDebug() << "testStatusEndpoint PASSED";
@@ -226,24 +170,25 @@ void TestSearchServer::testSearchEndpoint()
 
     createTestFiles(tmpDir.path());
 
-    SearchServer server(tmpDir.path(), 9878);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
 
     // Search for "invoice"
-    QString response = httpGet("http://localhost:9878/search?q=invoice");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("invoice-2024.pdf"));
-    QVERIFY(response.contains("\"count\":1"));
+    auto resp = get("/search?q=invoice");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("invoice-2024.pdf"));
+    QVERIFY(resp.body.contains("\"count\":1"));
 
     // Search for "test"
-    response = httpGet("http://localhost:9878/search?q=test");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("test-document.max"));
+    resp = get("/search?q=test");
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("test-document.max"));
 
     // Search for something that doesn't exist
-    response = httpGet("http://localhost:9878/search?q=nonexistent");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("\"count\":0"));
+    resp = get("/search?q=nonexistent");
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("\"count\":0"));
 
     server.stop();
 }
@@ -255,22 +200,23 @@ void TestSearchServer::testListEndpoint()
 
     createTestFiles(tmpDir.path());
 
-    SearchServer server(tmpDir.path(), 9879);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
 
     // List files in root
-    QString response = httpGet("http://localhost:9879/list");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("test-document.max"));
-    QVERIFY(response.contains("invoice-2024.pdf"));
-    QVERIFY(response.contains("photo.jpg"));
-    QVERIFY(response.contains("\"count\":3"));
+    auto resp = get("/list");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("test-document.max"));
+    QVERIFY(resp.body.contains("invoice-2024.pdf"));
+    QVERIFY(resp.body.contains("photo.jpg"));
+    QVERIFY(resp.body.contains("\"count\":3"));
 
     // List files in subdirectory
-    response = httpGet("http://localhost:9879/list?path=archive");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("old-doc.max"));
-    QVERIFY(response.contains("\"count\":1"));
+    resp = get("/list?path=archive");
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("old-doc.max"));
+    QVERIFY(resp.body.contains("\"count\":1"));
 
     server.stop();
 }
@@ -280,11 +226,11 @@ void TestSearchServer::testInvalidEndpoint()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    SearchServer server(tmpDir.path(), 9880);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
 
-    QString response = httpGet("http://localhost:9880/invalid");
-    QVERIFY(response.contains("404") || response.contains("Not Found"));
+    auto resp = get("/invalid");
+    QVERIFY(resp.header.contains("404") || resp.header.contains("Not Found"));
 
     server.stop();
 }
@@ -294,12 +240,13 @@ void TestSearchServer::testMissingSearchParameter()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    SearchServer server(tmpDir.path(), 9881);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
 
     // Search without 'q' parameter should return error
-    QString response = httpGet("http://localhost:9881/search");
-    QVERIFY(response.contains("\"success\":false") || response.contains("error") || response.contains("400"));
+    auto resp = get("/search");
+    QVERIFY(resp.header.contains("400") || resp.body.contains("\"success\":false")
+            || resp.body.contains("error"));
 
     server.stop();
 }
@@ -314,28 +261,29 @@ void TestSearchServer::testReposEndpoint()
     // Test with multiple repositories
     QStringList repos;
     repos << tmpDir1.path() << tmpDir2.path();
-    SearchServer server(repos, 9882);
+    SearchServer server(repos, PORT);
     QVERIFY(server.start());
 
     // Request repository list
-    QString response = httpGet("http://localhost:9882/repos");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("\"count\":2"));
-    QVERIFY(response.contains(tmpDir1.path()));
-    QVERIFY(response.contains(tmpDir2.path()));
-    QVERIFY(response.contains("\"repositories\""));
-    QVERIFY(response.contains("\"exists\":true"));
+    auto resp = get("/repos");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("\"count\":2"));
+    QVERIFY(resp.body.contains(tmpDir1.path().toUtf8()));
+    QVERIFY(resp.body.contains(tmpDir2.path().toUtf8()));
+    QVERIFY(resp.body.contains("\"repositories\""));
+    QVERIFY(resp.body.contains("\"exists\":true"));
 
     server.stop();
 
     // Test with single repository (backward compatibility)
-    SearchServer server2(tmpDir1.path(), 9883);
+    SearchServer server2(tmpDir1.path(), PORT);
     QVERIFY(server2.start());
 
-    response = httpGet("http://localhost:9883/repos");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("\"count\":1"));
-    QVERIFY(response.contains(tmpDir1.path()));
+    resp = get("/repos");
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("\"count\":1"));
+    QVERIFY(resp.body.contains(tmpDir1.path().toUtf8()));
 
     server2.stop();
 }
@@ -361,7 +309,7 @@ void TestSearchServer::testSearchWithRepo()
     // Setup server with multiple repositories
     QStringList repos;
     repos << tmpDir1.path() << tmpDir2.path();
-    SearchServer server(repos, 9884);
+    SearchServer server(repos, PORT);
     QVERIFY(server.start());
 
     // Get repository names from paths
@@ -369,25 +317,23 @@ void TestSearchServer::testSearchWithRepo()
     QString repo2Name = QFileInfo(tmpDir2.path()).fileName();
 
     // Search without repo parameter (should search in default/first repo)
-    QString response = httpGet("http://localhost:9884/search?q=repo1");
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("repo1-file.max"));
-    QVERIFY(!response.contains("repo2-file.max"));
+    auto resp = get("/search?q=repo1");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.body.contains("repo1-file.max"));
+    QVERIFY(!resp.body.contains("repo2-file.max"));
 
     // Search in specific repo (repo2)
-    response = httpGet(QString("http://localhost:9884/search?q=repo2&repo=%1").arg(repo2Name));
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("repo2-file.max"));
-    QVERIFY(!response.contains("repo1-file.max"));
+    resp = get(QString("/search?q=repo2&repo=%1").arg(repo2Name));
+    QVERIFY(resp.body.contains("repo2-file.max"));
+    QVERIFY(!resp.body.contains("repo1-file.max"));
 
     // Search in specific repo (repo1)
-    response = httpGet(QString("http://localhost:9884/search?q=repo1&repo=%1").arg(repo1Name));
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("repo1-file.max"));
+    resp = get(QString("/search?q=repo1&repo=%1").arg(repo1Name));
+    QVERIFY(resp.body.contains("repo1-file.max"));
 
     // Search in non-existent repo
-    response = httpGet("http://localhost:9884/search?q=test&repo=nonexistent");
-    QVERIFY(response.contains("404") || response.contains("Repository not found"));
+    resp = get("/search?q=test&repo=nonexistent");
+    QVERIFY(resp.header.contains("404") || resp.body.contains("Repository not found"));
 
     server.stop();
 }
@@ -404,30 +350,30 @@ void TestSearchServer::testFileEndpoint()
     testFile.write(testContent.toUtf8());
     testFile.close();
 
-    SearchServer server(tmpDir.path(), 9885);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
 
     // Test retrieving existing file
-    QString response = httpGet("http://localhost:9885/file?path=test-file.pdf");
-    QVERIFY(response.contains("200 OK"));
-    QVERIFY(response.contains("Content-Type: application/pdf"));
-    QVERIFY(response.contains(testContent));
+    auto resp = get("/file?path=test-file.pdf");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.header.contains("Content-Type: application/pdf"));
+    QVERIFY(resp.body.contains(testContent.toUtf8()));
 
     // Test missing path parameter
-    response = httpGet("http://localhost:9885/file");
-    QVERIFY(response.contains("400") || response.contains("Missing 'path' parameter"));
+    resp = get("/file");
+    QVERIFY(resp.header.contains("400") || resp.body.contains("Missing 'path' parameter"));
 
     // Test non-existent file
-    response = httpGet("http://localhost:9885/file?path=nonexistent.pdf");
-    QVERIFY(response.contains("404") || response.contains("File not found"));
+    resp = get("/file?path=nonexistent.pdf");
+    QVERIFY(resp.header.contains("404") || resp.body.contains("File not found"));
 
     // Test directory traversal prevention
-    response = httpGet("http://localhost:9885/file?path=../etc/passwd");
-    QVERIFY(response.contains("400") || response.contains("Invalid file path"));
+    resp = get("/file?path=../etc/passwd");
+    QVERIFY(resp.header.contains("400") || resp.body.contains("Invalid file path"));
 
     // Test absolute path prevention
-    response = httpGet("http://localhost:9885/file?path=/etc/passwd");
-    QVERIFY(response.contains("400") || response.contains("Invalid file path"));
+    resp = get("/file?path=/etc/passwd");
+    QVERIFY(resp.header.contains("400") || resp.body.contains("Invalid file path"));
 
     server.stop();
 }
@@ -443,17 +389,16 @@ void TestSearchServer::testFilePageCount()
     QVERIFY2(QFile::copy(srcPdf, dstPdf),
              qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
 
-    SearchServer server(tmpDir.path(), 9886);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
     QTest::qWait(100);
 
     // Request page count
-    QString response = httpGet(
-        "http://localhost:9886/file?path=testpdf.pdf&pages=true");
-    qDebug() << "Page count response:" << response;
-    QVERIFY(response.contains("200 OK"));
-    QVERIFY(response.contains("\"success\":true"));
-    QVERIFY(response.contains("\"pages\":5"));
+    auto resp = get("/file?path=testpdf.pdf&pages=true");
+    qDebug() << "Page count response:" << resp.header;
+    QVERIFY(resp.ok());
+    QVERIFY(resp.body.contains("\"success\":true"));
+    QVERIFY(resp.body.contains("\"pages\":5"));
 
     server.stop();
 }
@@ -472,23 +417,18 @@ void TestSearchServer::testFilePageExtract()
     // Get full file size for comparison
     qint64 fullSize = QFileInfo(dstPdf).size();
 
-    SearchServer server(tmpDir.path(), 9887);
+    SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
     QTest::qWait(100);
 
     // Request single page
-    QByteArray raw = httpGetRaw(
-        "http://localhost:9887/file?path=testpdf.pdf&page=1");
-    QVERIFY(!raw.isEmpty());
-
-    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
-    qDebug() << "Page extract header:" << header;
-    QVERIFY(header.contains("200 OK"));
-    QVERIFY(header.contains("application/pdf"));
+    auto resp = get("/file?path=testpdf.pdf&page=1");
+    qDebug() << "Page extract header:" << resp.header;
+    QVERIFY(resp.ok());
+    QVERIFY(resp.header.contains("application/pdf"));
 
     // Body should be smaller than the full file
-    int bodyStart = raw.indexOf("\r\n\r\n") + 4;
-    qint64 bodySize = raw.size() - bodyStart;
+    qint64 bodySize = resp.body.size();
     qDebug() << "Full file:" << fullSize << "bytes, page 1:" << bodySize << "bytes";
     QVERIFY2(bodySize < fullSize,
              qPrintable(QString("Page (%1) should be smaller than full file (%2)")
@@ -502,25 +442,17 @@ void TestSearchServer::verifyPageFetch(const QString &fileName, int page,
                                        qint64 *bodySize, int timeoutMs)
 {
     ServerLog::clear();
-    QByteArray raw = httpGetRaw(
-        QString("http://localhost:9888/file?path=%1&page=%2")
-            .arg(fileName).arg(page),
-        timeoutMs);
-    QVERIFY(!raw.isEmpty());
-
-    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
-    QVERIFY2(header.contains("200 OK"),
+    auto resp = get(QString("/file?path=%1&page=%2").arg(fileName).arg(page),
+                    timeoutMs);
+    QVERIFY2(resp.ok(),
              qPrintable(QString("Page %1 fetch failed: %2")
-                       .arg(page).arg(header)));
-    QVERIFY(header.contains("application/pdf"));
-
-    int bodyStart = raw.indexOf("\r\n\r\n") + 4;
-    QByteArray body = raw.mid(bodyStart);
-    QVERIFY2(body.startsWith("%PDF"),
+                       .arg(page).arg(resp.header)));
+    QVERIFY(resp.header.contains("application/pdf"));
+    QVERIFY2(resp.body.startsWith("%PDF"),
              qPrintable(QString("Page %1 should be a valid PDF").arg(page)));
 
     if (bodySize)
-        *bodySize = body.size();
+        *bodySize = resp.body.size();
 
     QList<ServerLog::Entry> log = ServerLog::entries();
     QCOMPARE(log.size(), 1);
@@ -549,17 +481,15 @@ void TestSearchServer::testLargePdfProgressive()
             pageCache.remove(f);
     }
 
-    SearchServer server(tmpDir.path(), 9888, nullptr, true);
+    SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
 
     // 1. Page count — should return 100 and log PageCount
     ServerLog::clear();
-    QString response = httpGet(
-        QString("http://localhost:9888/file?path=%1&pages=true")
-            .arg(fileName));
-    QVERIFY(response.contains("200 OK"));
-    QVERIFY(response.contains("\"pages\":100"));
+    auto resp = get(QString("/file?path=%1&pages=true").arg(fileName));
+    QVERIFY(resp.ok());
+    QVERIFY(resp.body.contains("\"pages\":100"));
 
     QList<ServerLog::Entry> log = ServerLog::entries();
     QCOMPARE(log.size(), 1);
@@ -617,27 +547,20 @@ void TestSearchServer::testLargeMaxProgressive()
             thumbCache.remove(f);
     }
 
-    SearchServer server(tmpDir.path(), 9888, nullptr, true);
+    SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
 
     // 1. Fetch a thumbnail for page 1
     ServerLog::clear();
-    QByteArray thumbRaw = httpGetRaw(
-        QString("http://localhost:9888/thumbnail?path=%1&page=1&size=small")
-            .arg(fileName),
+    auto resp = get(
+        QString("/thumbnail?path=%1&page=1&size=small").arg(fileName),
         30000);
-    QVERIFY(!thumbRaw.isEmpty());
-    QString thumbHeader = QString::fromUtf8(
-        thumbRaw.left(thumbRaw.indexOf("\r\n\r\n")));
-    QVERIFY2(thumbHeader.contains("200 OK"),
-             qPrintable("Thumbnail fetch failed: " + thumbHeader));
-    QVERIFY(thumbHeader.contains("image/jpeg"));
-
-    int thumbBodyStart = thumbRaw.indexOf("\r\n\r\n") + 4;
-    QByteArray thumbBody = thumbRaw.mid(thumbBodyStart);
-    QVERIFY2(thumbBody.size() > 0, "Thumbnail should not be empty");
-    QVERIFY2(thumbBody.startsWith("\xff\xd8"),
+    QVERIFY2(resp.ok(),
+             qPrintable("Thumbnail fetch failed: " + resp.header));
+    QVERIFY(resp.header.contains("image/jpeg"));
+    QVERIFY2(resp.body.size() > 0, "Thumbnail should not be empty");
+    QVERIFY2(resp.body.startsWith("\xff\xd8"),
              "Thumbnail should be a valid JPEG");
 
     QList<ServerLog::Entry> thumbLog = ServerLog::entries();
@@ -648,17 +571,12 @@ void TestSearchServer::testLargeMaxProgressive()
 
     // 2. Page count — File class loads directly, no ConvertToPdf needed
     ServerLog::clear();
-    QByteArray raw = httpGetRaw(
-        QString("http://localhost:9888/file?path=%1&pages=true")
-            .arg(fileName),
-        30000);
-    QVERIFY(!raw.isEmpty());
-    QString header = QString::fromUtf8(raw.left(raw.indexOf("\r\n\r\n")));
-    QVERIFY(header.contains("200 OK"));
-
-    QString body = QString::fromUtf8(raw.mid(raw.indexOf("\r\n\r\n") + 4));
-    QVERIFY2(body.contains("\"pages\":100"),
-             qPrintable("Expected 100 pages, got: " + body));
+    resp = get(
+        QString("/file?path=%1&pages=true").arg(fileName), 30000);
+    QVERIFY(resp.ok());
+    QVERIFY2(resp.body.contains("\"pages\":100"),
+             qPrintable("Expected 100 pages, got: " +
+                        QString::fromUtf8(resp.body)));
 
     QList<ServerLog::Entry> log = ServerLog::entries();
     QCOMPARE(log.size(), 1);
