@@ -37,11 +37,41 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QString>
 #include <QStringList>
 #include <QHash>
+#include <QMap>
 #include <QDateTime>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QProcess>
 
 #include "serverlog.h"
+
+/**
+ * Tracks an in-flight Ghostscript page extraction.
+ *
+ * When a client requests a single page from a multi-page PDF,
+ * the server spawns a Ghostscript process to extract it.  A
+ * PendingExtraction records everything needed to deliver the
+ * result once the process finishes.
+ *
+ * Multiple clients may request the same page while an
+ * extraction is already running.  Rather than spawning a
+ * duplicate process, subsequent clients are appended to
+ * @c waiters so they all receive the response when the single
+ * extraction completes.  If a client disconnects while
+ * waiting, it is removed from @c waiters (the extraction
+ * itself continues so the result is cached).
+ *
+ * Instances are stored in SearchServer::_pendingExtractions,
+ * keyed by the cache path (@c outputPath) of the extracted
+ * page.
+ */
+struct PendingExtraction {
+    QProcess *process;          //!< Ghostscript process extracting the page
+    QString outputPath;         //!< Dest path for extracted single-page PDF
+    QString filePath;           //!< Source document (for logging)
+    int page;                   //!< 1-based page number (for logging)
+    QList<QTcpSocket *> waiters; //!< Clients waiting
+};
 
 // Simple struct for cached file information
 struct CachedFile {
@@ -125,6 +155,11 @@ private slots:
     void onReadyRead();
 
     /**
+     * Handle completion of an async Ghostscript page extraction
+     */
+    void onExtractionFinished(int exitCode, QProcess::ExitStatus exitStatus);
+
+    /**
      * Handle file system changes (files added/removed/modified)
      * @param path Path to the directory that changed
      */
@@ -146,10 +181,12 @@ private:
      * @param method   HTTP method
      * @param path     Request path
      * @param params   Query parameters
-     * @return HTTP response as binary data
+     * @param client   Client socket (needed for async responses)
+     * @return HTTP response, or empty QByteArray if the response is deferred
      */
     QByteArray handleRequest(const QString &method, const QString &path,
-                            const QHash<QString, QString> &params);
+                            const QHash<QString, QString> &params,
+                            QTcpSocket *client = nullptr);
 
     /**
      * Search for files matching a pattern
@@ -190,11 +227,13 @@ private:
      * @param type           Output type ("original" or "pdf")
      * @param page           Extract single page (0 = return whole file)
      * @param wantPageCount  Return page count as JSON instead of file data
-     * @return HTTP response with file content (binary safe)
+     * @param client         Client socket (needed for async PDF extraction)
+     * @return HTTP response, or empty QByteArray if the response is deferred
      */
     QByteArray getFile(const QString &repoPath, const QString &filePath,
                        const QString &type = "original", int page = 0,
-                       bool wantPageCount = false);
+                       bool wantPageCount = false,
+                       QTcpSocket *client = nullptr);
 
     /**
      * Convert a non-PDF file to PDF, caching the result
@@ -228,7 +267,7 @@ private:
     int getPdfPageCount(const QString &pdfPath);
 
     /**
-     * Extract a single page from a PDF using pdftocairo
+     * Extract a single page from a PDF using pdftocairo (synchronous)
      * @param pdfPath    Path to source PDF file
      * @param page       Page number (1-based)
      * @param outputPath Output path for single-page PDF
@@ -236,6 +275,19 @@ private:
      */
     bool extractPdfPage(const QString &pdfPath, int page,
                         const QString &outputPath);
+
+    /**
+     * Launch an async Ghostscript extraction for a PDF page
+     * @param pdfPath    Absolute path to source PDF
+     * @param page       Page number (1-based)
+     * @param outputPath Cache path for extracted page
+     * @param filePath   Relative file path (for logging)
+     * @param client     Client socket awaiting the result
+     */
+    void startAsyncExtraction(const QString &pdfPath, int page,
+                              const QString &outputPath,
+                              const QString &filePath,
+                              QTcpSocket *client);
 
     /**
      * Build JSON response
@@ -358,6 +410,7 @@ private:
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
     QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
+    QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path
 };
 
 #endif // __searchserver_h
