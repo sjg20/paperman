@@ -123,7 +123,7 @@ void TestOps::testUnstackPage()
    QModelIndex page_ind = model->index(2, 0, repo_ind);
    Q_ASSERT(page_ind.isValid());
    QCOMPARE(model->data(page_ind, Qt::DisplayRole).toString(),
-            "27_September_2024");
+            "Page 1");
 
    File *page = model->getFile(page_ind);
    Q_ASSERT(page);
@@ -420,7 +420,7 @@ void TestOps::testRenamePage()
    QCOMPARE(max->pagecount(), 5);
 
    QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
-            "27_September_2024");
+            "Page 1");
 
    model->renamePage(max_ind, "new-name");
    QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
@@ -431,7 +431,7 @@ void TestOps::testRenamePage()
    Q_ASSERT(stk->canUndo());
    stk->undo();
    QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
-            "27_September_2024");
+            "Page 1");
 }
 
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,

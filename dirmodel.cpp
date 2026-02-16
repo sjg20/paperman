@@ -179,6 +179,7 @@ Dirmodel::Dirmodel (QObject * parent)
                    QDir::IgnoreCase, parent)
    {
 QT_WARNING_POP
+   setReadOnly(false);
    QStringList filters;
 
    _root = index ("/");
