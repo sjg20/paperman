@@ -4,6 +4,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/demo_data.dart';
 
 class ViewerScreen extends StatefulWidget {
   final String filePath;
@@ -39,6 +40,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Set<int> _fetching = {};
   final Map<int, double> _progress = {};
 
+  /// In demo mode the full multi-page PDF is kept open here.
+  PdfDocument? _demoDoc;
+
   late String _safeName;
   late Directory _cacheDir;
   late ScrollController _scrollController;
@@ -54,6 +58,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _demoDoc?.dispose();
     for (final doc in _documents.values) {
       doc.dispose();
     }
@@ -67,18 +72,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final api = context.read<ApiService>();
 
     try {
-      final pageCount = await api.getPageCount(
-        path: widget.filePath,
-        repo: widget.repo,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _totalPages = pageCount;
-        _loading = false;
-      });
-
-      _prefetchAround(1);
+      if (api.isDemo) {
+        await _initDemo();
+      } else {
+        await _initRemote(api);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -86,6 +84,43 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _error = 'Failed to load document: $e';
       });
     }
+  }
+
+  Future<void> _initDemo() async {
+    final bytes = await DemoData.loadPageBytes(widget.filePath);
+    final filePath = '${_cacheDir.path}/paperman_${_safeName}_full.pdf';
+    await File(filePath).writeAsBytes(bytes);
+    final doc = await PdfDocument.openFile(filePath);
+
+    for (int i = 0; i < doc.pages.length; i++) {
+      final p = doc.pages[i];
+      _pageSizes[i + 1] = Size(p.width, p.height);
+    }
+
+    if (!mounted) {
+      doc.dispose();
+      return;
+    }
+    setState(() {
+      _demoDoc = doc;
+      _totalPages = doc.pages.length;
+      _loading = false;
+    });
+  }
+
+  Future<void> _initRemote(ApiService api) async {
+    final pageCount = await api.getPageCount(
+      path: widget.filePath,
+      repo: widget.repo,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _totalPages = pageCount;
+      _loading = false;
+    });
+
+    _prefetchAround(1);
   }
 
   Future<void> _fetchPage(int page) async {
@@ -291,6 +326,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Widget _buildPage(int page, double width, double height) {
+    if (_demoDoc != null) {
+      return SizedBox(
+        width: width,
+        height: height,
+        child: PdfPageView(
+          document: _demoDoc!,
+          pageNumber: page,
+          alignment: Alignment.center,
+        ),
+      );
+    }
+
     final doc = _documents[page];
 
     if (doc != null) {

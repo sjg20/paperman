@@ -39,3 +39,4 @@ __pycache__/
 .qtc_clangd/
 doc/_build/
 install-*
+/server.mk

@@ -52,6 +52,14 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     }
   }
 
+  void _connectDemo() {
+    final api = context.read<ApiService>();
+    api.enableDemo();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const BrowseScreen()),
+    );
+  }
+
   Future<void> _connect() async {
     var url = _urlController.text.trim();
     if (url.isEmpty) {
@@ -174,6 +182,15 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                       : const Icon(Icons.login),
               label: Text(_connecting ? 'Connecting...' : 'Connect'),
               style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _connecting ? null : _connectDemo,
+              icon: const Icon(Icons.play_circle_outline),
+              label: const Text('Try Demo'),
+              style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),

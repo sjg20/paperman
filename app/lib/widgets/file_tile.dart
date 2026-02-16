@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/demo_data.dart';
 
 class FileTile extends StatelessWidget {
   final FileEntry file;
@@ -33,23 +34,28 @@ class FileTile extends StatelessWidget {
       size: 'small',
     );
 
+    final thumbnail = api.isDemo
+        ? Image.asset(DemoData.thumbnailAsset(file.path),
+            width: 48, height: 48, fit: BoxFit.cover)
+        : CachedNetworkImage(
+            imageUrl: thumbUrl.toString(),
+            httpHeaders: api.basicAuth != null
+                ? {'Authorization': api.basicAuth!}
+                : {},
+            fit: BoxFit.cover,
+            placeholder:
+                (_, __) =>
+                    const Icon(Icons.insert_drive_file, color: Colors.grey),
+            errorWidget:
+                (_, __, ___) =>
+                    const Icon(Icons.insert_drive_file, color: Colors.grey),
+          );
+
     return ListTile(
       leading: SizedBox(
         width: 48,
         height: 48,
-        child: CachedNetworkImage(
-          imageUrl: thumbUrl.toString(),
-          httpHeaders: api.basicAuth != null
-              ? {'Authorization': api.basicAuth!}
-              : {},
-          fit: BoxFit.cover,
-          placeholder:
-              (_, __) =>
-                  const Icon(Icons.insert_drive_file, color: Colors.grey),
-          errorWidget:
-              (_, __, ___) =>
-                  const Icon(Icons.insert_drive_file, color: Colors.grey),
-        ),
+        child: thumbnail,
       ),
       title: Text(
         showFullPath ? file.path : file.name,

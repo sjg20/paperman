@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
+import 'demo_data.dart';
 
 class ApiService {
   String _baseUrl;
@@ -12,6 +13,12 @@ class ApiService {
     : _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''),
       _username = username,
       _password = password;
+
+  bool _isDemo = false;
+  bool get isDemo => _isDemo;
+
+  void enableDemo() => _isDemo = true;
+  void disableDemo() => _isDemo = false;
 
   String get baseUrl => _baseUrl;
   String? get username => _username;
@@ -76,6 +83,7 @@ class ApiService {
 
   /// Check server status. Returns normally on success, throws on failure.
   Future<void> checkStatus() async {
+    if (_isDemo) return;
     final uri = Uri.parse('$_baseUrl/status');
     final http.Response response;
     try {
@@ -99,6 +107,7 @@ class ApiService {
   }
 
   Future<List<Repository>> getRepos() async {
+    if (_isDemo) return DemoData.getRepos();
     final json = await _getJson('/repos');
     return (json['repositories'] as List<dynamic>)
         .map((r) => Repository.fromJson(r as Map<String, dynamic>))
@@ -106,6 +115,7 @@ class ApiService {
   }
 
   Future<BrowseResult> browse({String? path, String? repo}) async {
+    if (_isDemo) return DemoData.browse(path: path);
     final params = <String, String>{};
     if (path != null && path.isNotEmpty) params['path'] = path;
     if (repo != null) params['repo'] = repo;
@@ -118,6 +128,7 @@ class ApiService {
     String? repo,
     String? path,
   }) async {
+    if (_isDemo) return DemoData.search(query: query);
     final params = <String, String>{'q': query};
     if (repo != null) params['repo'] = repo;
     if (path != null && path.isNotEmpty) params['path'] = path;
@@ -146,6 +157,7 @@ class ApiService {
     int page = 1,
     String size = 'medium',
   }) {
+    if (_isDemo) return Uri.parse('asset://${DemoData.thumbnailAsset(path)}');
     final params = <String, String>{
       'path': path,
       'page': page.toString(),
@@ -157,6 +169,7 @@ class ApiService {
 
   /// Get page count for a PDF file.
   Future<int> getPageCount({required String path, String? repo}) async {
+    if (_isDemo) return DemoData.getPageCount(path);
     final params = <String, String>{'path': path, 'pages': 'true'};
     if (repo != null) params['repo'] = repo;
     final json = await _getJson('/file', params);
@@ -169,6 +182,10 @@ class ApiService {
     required int page,
     String? repo,
   }) async {
+    if (_isDemo) {
+      final bytes = await DemoData.loadPageBytes(path);
+      return http.Response.bytes(bytes, 200);
+    }
     final params = <String, String>{
       'path': path,
       'page': page.toString(),
@@ -189,6 +206,7 @@ class ApiService {
     String? repo,
     void Function(int received, int total)? onProgress,
   }) async {
+    if (_isDemo) return DemoData.loadPageBytes(path);
     final params = <String, String>{
       'path': path,
       'page': page.toString(),
@@ -239,6 +257,10 @@ class ApiService {
     String? repo,
     bool asPdf = true,
   }) async {
+    if (_isDemo) {
+      final bytes = await DemoData.loadPageBytes(path);
+      return http.Response.bytes(bytes, 200);
+    }
     final params = <String, String>{'path': path};
     if (repo != null) params['repo'] = repo;
     if (asPdf) params['type'] = 'pdf';

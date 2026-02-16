@@ -22,6 +22,8 @@ Features
 -  **View** documents as PDF (server converts .max, .jpg, .tiff on the fly)
 -  **Multiple repositories** with a switcher in the toolbar
 -  **HTTP Basic Auth** for servers behind nginx authentication
+-  **Demo mode** for trying the app without a server (for Play Store
+   reviewers)
 -  **Dark mode** follows the system theme
 -  Credentials and server URL saved locally for auto-reconnect
 
@@ -159,7 +161,9 @@ Project Structure
    lib/
      main.dart                  Entry point, Provider setup, theme
      models/models.dart         Data classes (Repository, FileEntry, etc.)
-     services/api_service.dart  REST client for all paperman endpoints
+     services/
+       api_service.dart         REST client for all paperman endpoints
+       demo_data.dart           Hardcoded catalogue for demo mode
      screens/
        connection_screen.dart   Server URL + credentials input
        browse_screen.dart       Directory listing with breadcrumbs
@@ -168,6 +172,8 @@ Project Structure
      widgets/
        file_tile.dart           Thumbnail + filename list item
        directory_tile.dart      Folder list item
+   assets/
+     demo/                      Bundled PDFs and thumbnail for demo mode
 
 Architecture
 ------------
@@ -488,6 +494,26 @@ on the device to install it.
    ``gdrive`` of type ``drive``, and when asked for auto config answer
    **n** and paste the token from step 2.
 
+Quick install via scp
+~~~~~~~~~~~~~~~~~~~~~
+
+Alternatively, copy the APK directly to a web server:
+
+.. code:: bash
+
+   make app-scp
+
+This builds the APK and copies it to the location defined in
+``server.mk`` (gitignored).  Create this file in the project root:
+
+.. code:: makefile
+
+   APP_SERVER = user@host:/var/www/paperman/app-release.apk
+
+Then configure nginx to serve it (e.g. ``location /app.apk { alias
+/var/www/paperman/app-release.apk; }``).  Use ``make app-scp-only`` to
+upload a previously built APK without rebuilding.
+
 Connecting to the Server
 ------------------------
 
@@ -500,3 +526,45 @@ Connecting to the Server
    reachable
 5. Browse repositories and directories, search for documents, or tap a
    file to view it as PDF
+
+Demo Mode
+---------
+
+The app includes a demo mode so that Google Play reviewers (and anyone
+without a paperman server) can explore the full UI.  Tap **Try Demo** on
+the login screen to enter demo mode.  No server connection is needed --
+all data comes from bundled assets.
+
+The demo catalogue contains one repository ("Sample Documents") with two
+directories and three documents:
+
+- ``Reports/Annual Report.pdf`` -- 100 pages with coloured chapter headings
+- ``Reports/Summary.pdf`` -- 5-page colour PDF with text and tables
+- ``Photos/Image Document.pdf`` -- 2 pages with an embedded image and text
+
+Browsing, search and the PDF viewer all work normally in demo mode.
+Tapping the disconnect (logout) button returns to the login screen and
+leaves demo mode.
+
+Implementation
+~~~~~~~~~~~~~~
+
+Demo mode is driven by a ``_isDemo`` flag on the existing ``ApiService``
+singleton.  ``enableDemo()`` and ``disableDemo()`` toggle it.  Each API
+method (``checkStatus``, ``getRepos``, ``browse``, ``search``,
+``getPageCount``, ``downloadFilePageStreamed``, etc.) has a one-line
+early return that delegates to the ``DemoData`` helper class in
+``lib/services/demo_data.dart``.  This avoids any Provider restructuring.
+
+``DemoData`` holds the hardcoded directory tree, file metadata and asset
+paths.  ``FileTile`` checks ``api.isDemo`` to switch between
+``CachedNetworkImage`` (normal mode) and ``Image.asset()`` (demo mode)
+for per-document thumbnails.  ``ViewerScreen`` loads the full bundled
+PDF once as a single ``PdfDocument`` and renders each page by number,
+rather than fetching individual single-page PDFs from the server.
+
+The demo assets (three PDFs and a thumbnail per document) live in
+``app/assets/demo/`` and are registered in ``pubspec.yaml``.  They are
+generated at build time by ``app/tools/gen_demo_assets.py`` (using
+ReportLab for the PDFs and ``pdftoppm`` for the thumbnails) and
+gitignored.  Run ``make app-demo`` to regenerate them manually.
