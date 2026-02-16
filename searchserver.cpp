@@ -197,6 +197,14 @@ bool SearchServer::start()
 
 void SearchServer::stop()
 {
+    // Kill any in-flight gs processes
+    for (auto it = _pendingExtractions.begin();
+         it != _pendingExtractions.end(); ++it) {
+        it->process->kill();
+        it->process->deleteLater();
+    }
+    _pendingExtractions.clear();
+
     // Disconnect all clients
     foreach (QTcpSocket *client, _clients) {
         client->disconnectFromHost();
@@ -235,6 +243,13 @@ void SearchServer::onClientDisconnected()
 
     qDebug() << "SearchServer: Client disconnected";
     _clients.removeAll(client);
+
+    // Remove from any pending extraction waiter lists (the gs process
+    // keeps running so its result still gets cached)
+    for (auto it = _pendingExtractions.begin();
+         it != _pendingExtractions.end(); ++it)
+        it->waiters.removeAll(client);
+
     client->deleteLater();
 }
 
@@ -267,7 +282,11 @@ void SearchServer::onReadyRead()
     if (!queryParts.isEmpty())
         requestUri += "?" + queryParts.join("&");
 
-    QByteArray response = handleRequest(method, path, params);
+    QByteArray response = handleRequest(method, path, params, client);
+
+    // Empty response means the request is handled asynchronously
+    if (response.isEmpty())
+        return;
 
     // Extract the status code from the HTTP response line
     int statusCode = 0;
@@ -380,7 +399,8 @@ void SearchServer::parseRequest(const QString &request, QString &method,
 }
 
 QByteArray SearchServer::handleRequest(const QString &method, const QString &path,
-                                      const QHash<QString, QString> &params)
+                                      const QHash<QString, QString> &params,
+                                      QTcpSocket *client)
 {
     // Only support GET requests
     if (method != "GET") {
@@ -518,7 +538,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         int page = params.value("page", "0").toInt();
         bool wantPageCount = params.value("pages", "") == "true";
 
-        return getFile(repoPath, filePath, type, page, wantPageCount);
+        return getFile(repoPath, filePath, type, page, wantPageCount,
+                       client);
     }
     else if (path == "/thumbnail") {
         QString filePath = params.value("path", "");
@@ -791,7 +812,7 @@ QString SearchServer::listRepositories()
 
 QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePath,
                                  const QString &type, int page,
-                                 bool wantPageCount)
+                                 bool wantPageCount, QTcpSocket *client)
 {
     // Security: Prevent directory traversal
     if (filePath.contains("..") || filePath.startsWith("/")) {
@@ -851,7 +872,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
                                             "Failed to convert page"));
             }
         } else {
-            // For native PDFs, extract the page using pdftocairo
+            // For native PDFs, extract the page using Ghostscript
             QString cacheDir = "/tmp/paperman-pages";
             QDir().mkpath(cacheDir);
 
@@ -864,17 +885,17 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
             cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
 
             if (QFile::exists(cachedPage)) {
-                _log.log(ServerLog::PageCacheHit, filePath,
-                               page);
+                _log.log(ServerLog::PageCacheHit, filePath, page);
             } else {
-                if (!extractPdfPage(fullPath, page, cachedPage)) {
-                    return buildHttpResponse(500,
-                        "Internal Server Error", "application/json",
-                        buildJsonResponse(false, "",
-                            "Failed to extract page"));
+                // Check for an in-flight extraction of the same page
+                if (_pendingExtractions.contains(cachedPage)) {
+                    _pendingExtractions[cachedPage].waiters.append(
+                        client);
+                } else {
+                    startAsyncExtraction(fullPath, page, cachedPage,
+                                         filePath, client);
                 }
-                _log.log(ServerLog::PageExtract, filePath,
-                               page);
+                return QByteArray();  // response sent later
             }
         }
 
@@ -1735,6 +1756,104 @@ bool SearchServer::extractPdfPage(const QString &pdfPath, int page,
     }
 
     return QFile::exists(outputPath);
+}
+
+void SearchServer::startAsyncExtraction(const QString &pdfPath, int page,
+                                        const QString &outputPath,
+                                        const QString &filePath,
+                                        QTcpSocket *client)
+{
+    QProcess *process = new QProcess(this);
+    QStringList args;
+    args << "-sDEVICE=pdfwrite"
+         << "-dFirstPage=" + QString::number(page)
+         << "-dLastPage=" + QString::number(page)
+         << "-dNOPAUSE" << "-dBATCH" << "-dQUIET"
+         << "-sOutputFile=" + outputPath
+         << pdfPath;
+
+    qDebug() << "SearchServer: Async extracting page:" << args.join(" ");
+
+    connect(process,
+            SIGNAL(finished(int, QProcess::ExitStatus)),
+            this,
+            SLOT(onExtractionFinished(int, QProcess::ExitStatus)));
+
+    PendingExtraction pe;
+    pe.process = process;
+    pe.outputPath = outputPath;
+    pe.filePath = filePath;
+    pe.page = page;
+    pe.waiters.append(client);
+    _pendingExtractions[outputPath] = pe;
+
+    process->start("gs", args);
+}
+
+void SearchServer::onExtractionFinished(int exitCode,
+                                        QProcess::ExitStatus exitStatus)
+{
+    QProcess *process = qobject_cast<QProcess *>(sender());
+    if (!process)
+        return;
+
+    // Find the matching PendingExtraction by process pointer
+    QString key;
+    for (auto it = _pendingExtractions.constBegin();
+         it != _pendingExtractions.constEnd(); ++it) {
+        if (it->process == process) {
+            key = it.key();
+            break;
+        }
+    }
+
+    if (key.isEmpty()) {
+        process->deleteLater();
+        return;
+    }
+
+    PendingExtraction pe = _pendingExtractions.take(key);
+    QByteArray response;
+
+    if (exitStatus == QProcess::NormalExit && exitCode == 0
+        && QFile::exists(pe.outputPath)) {
+        QFile pageFile(pe.outputPath);
+        if (pageFile.open(QIODevice::ReadOnly)) {
+            QByteArray pageData = pageFile.readAll();
+            pageFile.close();
+            response = buildHttpResponse(200, "OK", "application/pdf",
+                                         pageData);
+            _log.log(ServerLog::PageExtract, pe.filePath, pe.page);
+        } else {
+            response = buildHttpResponse(500, "Internal Server Error",
+                "application/json",
+                buildJsonResponse(false, "",
+                    "Failed to read extracted page"));
+        }
+    } else {
+        qWarning() << "SearchServer: gs failed for" << pe.filePath
+                   << "page" << pe.page << "exit" << exitCode
+                   << process->readAllStandardError();
+        response = buildHttpResponse(500, "Internal Server Error",
+            "application/json",
+            buildJsonResponse(false, "", "Failed to extract page"));
+    }
+
+    // Send response to all waiting clients
+    foreach (QTcpSocket *client, pe.waiters) {
+        if (client->state() == QAbstractSocket::ConnectedState) {
+            qDebug().noquote()
+                << QString("%1 GET /file (async) %2 %3bytes")
+                       .arg(client->peerAddress().toString())
+                       .arg(pe.filePath)
+                       .arg(response.size());
+            client->write(response);
+            client->flush();
+            client->disconnectFromHost();
+        }
+    }
+
+    process->deleteLater();
 }
 
 void SearchServer::cleanThumbnailCache()
