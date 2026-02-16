@@ -329,6 +329,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 },
               ),
             ),
+            if (_scrubTarget != null)
+              const Center(child: CircularProgressIndicator()),
             if (_totalPages > 1)
               _buildPageSlider(constraints.maxHeight, extent),
           ],
@@ -351,11 +353,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _scrubTarget = null;
       _scrollController.jumpTo((page - 1) * itemExtent);
     } else {
-      // Page not yet loaded — defer the scroll
+      // Page not yet loaded — start fetching but don't scroll yet.
+      // Don't call _prefetchAround() here: that would evict pages
+      // around the current viewport while it is still visible.
+      // Prefetching and eviction happen naturally via _onScroll once
+      // the deferred jump fires.
       _scrubTarget = page;
+      _fetchPage(page);
     }
-
-    _prefetchAround(page);
   }
 
   Widget _buildPageSlider(double height, double itemExtent) {
