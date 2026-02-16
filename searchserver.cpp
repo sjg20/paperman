@@ -1707,26 +1707,29 @@ int SearchServer::getPdfPageCount(const QString &pdfPath)
 bool SearchServer::extractPdfPage(const QString &pdfPath, int page,
                                   const QString &outputPath)
 {
-    // pdftocairo -pdf writes directly to the output path (no extension added)
+    // Use Ghostscript to extract a single page — it re-serialises the PDF
+    // and strips unreferenced objects, producing much smaller output than
+    // pdftocairo (which copies all shared font/resource objects).
     QProcess process;
     QStringList args;
-    args << "-pdf"
-         << "-f" << QString::number(page)
-         << "-l" << QString::number(page)
-         << pdfPath
-         << outputPath;
+    args << "-sDEVICE=pdfwrite"
+         << "-dFirstPage=" + QString::number(page)
+         << "-dLastPage=" + QString::number(page)
+         << "-dNOPAUSE" << "-dBATCH" << "-dQUIET"
+         << "-sOutputFile=" + outputPath
+         << pdfPath;
 
     qDebug() << "SearchServer: Extracting page:" << args.join(" ");
 
-    process.start("pdftocairo", args);
-    if (!process.waitForFinished(5000)) {
+    process.start("gs", args);
+    if (!process.waitForFinished(10000)) {
         process.kill();
-        qWarning() << "SearchServer: pdftocairo timed out";
+        qWarning() << "SearchServer: gs timed out";
         return false;
     }
 
     if (process.exitCode() != 0) {
-        qWarning() << "SearchServer: pdftocairo failed:"
+        qWarning() << "SearchServer: gs failed:"
                    << process.readAllStandardError();
         return false;
     }
