@@ -5786,14 +5786,20 @@ err_info *Filemax::getImage (int pagenum, bool,
    byte *imagep = image.bits ();
 
    chunk_info *chunk;
+   bool temp;  //!< chunk is temporarily allocated
 
-   CALL (find_page_chunk (pagenum, chunk, NULL, NULL));
+   CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    CALL(ensure_open());
    CALL (decode_image (*chunk, imagep, &trueSize));
    ensure_closed();
 
    // the QImage 'owns' the bitmap, so remove it from the chunk, otherwise we free twice
    chunk->image = NULL;
+   if (temp)
+      {
+      chunk_free (*chunk);
+      delete chunk;
+      }
    return NULL;
    }
 
