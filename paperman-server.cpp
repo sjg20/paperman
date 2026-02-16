@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    Main entry point for the Paperman search server.
 */
 
+#include "builddate.h"
 #include "config.h"
 #include "searchserver.h"
 

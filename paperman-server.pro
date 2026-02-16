@@ -7,8 +7,7 @@ QT -= gui
 CONFIG += qt warn_on console
 CONFIG -= app_bundle
 
-BUILD_DATE = $$system(date "+%Y-%m-%d %H:%M")
-DEFINES += SERVER_BUILD_DATE=\\\"$$BUILD_DATE\\\"
+# Build date is written to builddate.h by GNUmakefile
 
 # Use QCoreApplication instead of QApplication
 DEFINES += QT_NO_GUI
@@ -17,7 +16,8 @@ equals(QT_MAJOR_VERSION, 5) {
   QT += core
 }
 
-HEADERS += searchserver.h \
+HEADERS += builddate.h \
+    searchserver.h \
     serverlog.h
 
 SOURCES += searchserver.cpp \

@@ -12,7 +12,11 @@ BUILDDIR      = $(DOCDIR)/_build
 all: paperman paperman-server app docs
 
 # Targets handled here
-paperman-server: Makefile.server
+.PHONY: builddate.h
+builddate.h:
+	@echo '#define SERVER_BUILD_DATE "$(BUILD_DATE)"' > $@
+
+paperman-server: Makefile.server builddate.h
 	$(MAKE) -f Makefile.server
 
 Makefile.server: paperman-server.pro
@@ -31,9 +35,9 @@ test-parallel: paperman
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 
-BUILD_DATE := $(shell date "+%Y-%m-%d %H:%M")
+BUILD_DATE := $(shell date "+%a %d %b %H:%M:%S %Z %Y")
 APP_VERSION := $(shell sed -n 's/.*CONFIG_version_str "\(.*\)"/\1.0/p' config.h)
-FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define=BUILD_DATE=$(BUILD_DATE)
+FLUTTER_ARGS = --build-name=$(APP_VERSION) '--dart-define=BUILD_DATE=$(BUILD_DATE)'
 
 app: app-apk app-linux
 
@@ -75,6 +79,7 @@ app-clean:
 
 clean: app-clean docs-clean
 	$(MAKE) -f Makefile clean
+	rm -f builddate.h
 
 docs-clean:
 	rm -rf $(BUILDDIR)
