@@ -196,16 +196,16 @@ void TestUtils::testScanDir()
    root->write(stream, 0);
    stream.flush();
    stream.seek(0);
-   QCOMPARE(stream.readLine(), " 1");
-   QCOMPARE(stream.readLine(), " 2");
-   QCOMPARE(stream.readLine(), " 3");
-   QCOMPARE(stream.readLine(), " asc2");
-   QCOMPARE(stream.readLine(), " dir2");
-   QCOMPARE(stream.readLine(), "  4");
-   QCOMPARE(stream.readLine(), " somedir");
-   QCOMPARE(stream.readLine(), "  more-subdir");
-   QCOMPARE(stream.readLine(), "   another-file");
-   QCOMPARE(stream.readLine(), "  somefile");
+   QCOMPARE(stream.readLine(), " - 1");
+   QCOMPARE(stream.readLine(), " - 2");
+   QCOMPARE(stream.readLine(), " - 3");
+   QCOMPARE(stream.readLine(), " - asc2");
+   QCOMPARE(stream.readLine(), " + dir2");
+   QCOMPARE(stream.readLine(), "  - 4");
+   QCOMPARE(stream.readLine(), " + somedir");
+   QCOMPARE(stream.readLine(), "  + more-subdir");
+   QCOMPARE(stream.readLine(), "   - another-file");
+   QCOMPARE(stream.readLine(), "  - somefile");
    QVERIFY(stream.atEnd());
 
    TreeItem::freeTree(root);
