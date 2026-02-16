@@ -21,8 +21,33 @@ int test_run(int argc, char **in_argv, QApplication *,
              const char *filter)
 {
    int status = 0;
-   auto runTest = [&status, argc, in_argv](QObject* obj) {
-       status |= QTest::qExec(obj, argc, in_argv);
+   const char *className = filter;
+   const char *funcName = nullptr;
+
+   // Split "Class::function" into class filter and function filter
+   static char filterBuf[256];
+   if (filter) {
+      const char *sep = strstr(filter, "::");
+      if (sep) {
+         size_t len = sep - filter;
+         if (len >= sizeof(filterBuf))
+            len = sizeof(filterBuf) - 1;
+         memcpy(filterBuf, filter, len);
+         filterBuf[len] = '\0';
+         className = filterBuf;
+         funcName = sep + 2;
+      }
+   }
+
+   // Build argv for QTest, optionally including function name
+   char *qt_argv[3] = { in_argv[0], nullptr, nullptr };
+   int qt_argc = 1;
+   if (funcName) {
+      qt_argv[qt_argc++] = const_cast<char *>(funcName);
+   }
+
+   auto runTest = [&status, qt_argc, &qt_argv](QObject* obj) {
+       status |= QTest::qExec(obj, qt_argc, qt_argv);
    };
 
    auto &suite = Suite::suite();
@@ -39,7 +64,7 @@ int test_run(int argc, char **in_argv, QApplication *,
    // Run suites
    for (auto it = suite.begin(); it != suite.end(); ++it) {
       const Test *test = *it;
-      if (filter && strcmp(test->metaObject()->className(), filter))
+      if (className && strcmp(test->metaObject()->className(), className))
          continue;
       qDebug() << "suite" << test->_name;
       runTest(*it);
