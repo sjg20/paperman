@@ -611,12 +611,42 @@ void TestSearchServer::testLargeMaxProgressive()
         foreach (const QString &f, convertCache.entryList(QDir::Files))
             convertCache.remove(f);
     }
+    QDir thumbCache("/tmp/paperman-thumbnails");
+    if (thumbCache.exists()) {
+        foreach (const QString &f, thumbCache.entryList(QDir::Files))
+            thumbCache.remove(f);
+    }
 
     SearchServer server(tmpDir.path(), 9888, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
 
-    // 1. Page count — File class loads directly, no ConvertToPdf needed
+    // 1. Fetch a thumbnail for page 1
+    ServerLog::clear();
+    QByteArray thumbRaw = httpGetRaw(
+        QString("http://localhost:9888/thumbnail?path=%1&page=1&size=small")
+            .arg(fileName),
+        30000);
+    QVERIFY(!thumbRaw.isEmpty());
+    QString thumbHeader = QString::fromUtf8(
+        thumbRaw.left(thumbRaw.indexOf("\r\n\r\n")));
+    QVERIFY2(thumbHeader.contains("200 OK"),
+             qPrintable("Thumbnail fetch failed: " + thumbHeader));
+    QVERIFY(thumbHeader.contains("image/jpeg"));
+
+    int thumbBodyStart = thumbRaw.indexOf("\r\n\r\n") + 4;
+    QByteArray thumbBody = thumbRaw.mid(thumbBodyStart);
+    QVERIFY2(thumbBody.size() > 0, "Thumbnail should not be empty");
+    QVERIFY2(thumbBody.startsWith("\xff\xd8"),
+             "Thumbnail should be a valid JPEG");
+
+    QList<ServerLog::Entry> thumbLog = ServerLog::entries();
+    QCOMPARE(thumbLog.size(), 2);
+    QCOMPARE(thumbLog[0].action, ServerLog::ConvertToPdf);
+    QCOMPARE(thumbLog[1].action, ServerLog::Thumbnail);
+    QCOMPARE(thumbLog[1].detail, 1);
+
+    // 2. Page count — File class loads directly, no ConvertToPdf needed
     ServerLog::clear();
     QByteArray raw = httpGetRaw(
         QString("http://localhost:9888/file?path=%1&pages=true")
@@ -635,7 +665,7 @@ void TestSearchServer::testLargeMaxProgressive()
     QCOMPARE(log[0].action, ServerLog::PageCount);
     QCOMPARE(log[0].detail, 100);
 
-    // 2. Extract page 10 — File class converts to PDF in-process
+    // 3. Extract page 10 — File class converts to PDF in-process
     qint64 pageSize;
     verifyPageFetch(fileName, 10, ServerLog::PageExtract, &pageSize, 30000);
     QVERIFY2(pageSize < fullFileSize / 5,
@@ -643,10 +673,10 @@ void TestSearchServer::testLargeMaxProgressive()
                                 "file (%2)")
                        .arg(pageSize).arg(fullFileSize)));
 
-    // 3. Request page 10 again — should hit cache
+    // 4. Request page 10 again — should hit cache
     verifyPageFetch(fileName, 10, ServerLog::PageCacheHit);
 
-    // 4. Extract page 50
+    // 5. Extract page 50
     verifyPageFetch(fileName, 50, ServerLog::PageExtract, nullptr, 30000);
 
     server.stop();

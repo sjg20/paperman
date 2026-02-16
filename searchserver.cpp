@@ -1384,6 +1384,7 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     // 4. Return cached thumbnail if exists
     if (QFile::exists(cachedThumb)) {
         qDebug() << "SearchServer: Using cached thumbnail:" << cachedThumb;
+        ServerLog::log(ServerLog::ThumbnailCacheHit, filePath, page);
         return cachedThumb;
     }
     
@@ -1407,6 +1408,7 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
 
     if (success) {
         qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
+        ServerLog::log(ServerLog::Thumbnail, filePath, page);
         return cachedThumb;
     }
 

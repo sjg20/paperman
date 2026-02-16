@@ -12,6 +12,8 @@ struct ServerLog {
         ConvertCacheHit, // found cached converted PDF
         PageCacheHit,    // found cached extracted page
         ServeFile,       // served a file directly
+        Thumbnail,       // generated a thumbnail
+        ThumbnailCacheHit, // found cached thumbnail
     };
 
     struct Entry {
