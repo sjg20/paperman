@@ -6,7 +6,9 @@ import '../services/api_service.dart' show ApiException, ApiService;
 import 'browse_screen.dart';
 
 class ConnectionScreen extends StatefulWidget {
-  const ConnectionScreen({super.key});
+  final bool autoConnect;
+
+  const ConnectionScreen({super.key, this.autoConnect = true});
 
   @override
   State<ConnectionScreen> createState() => _ConnectionScreenState();
@@ -44,8 +46,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     _urlController.text = prefs.getString('server_url') ?? '';
     _userController.text = prefs.getString('username') ?? '';
     _passController.text = prefs.getString('password') ?? '';
-    // Auto-connect if we have a saved URL
-    if (_urlController.text.isNotEmpty) {
+    // Auto-connect if we have a saved URL (unless returning from disconnect)
+    if (widget.autoConnect && _urlController.text.isNotEmpty) {
       _connect();
     }
   }

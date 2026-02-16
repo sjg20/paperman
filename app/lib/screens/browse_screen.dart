@@ -110,7 +110,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   void _disconnect() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const ConnectionScreen()),
+      MaterialPageRoute(
+        builder: (_) => const ConnectionScreen(autoConnect: false),
+      ),
     );
   }
 
