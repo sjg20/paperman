@@ -42,6 +42,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Map<int, double> _progress = {};
   final Map<int, int> _progressTotal = {};
   Timer? _scrollDebounce;
+  int? _scrubTarget; // page the user wants to reach via the scroller
 
   /// In demo mode the full multi-page PDF is kept open here.
   PdfDocument? _demoDoc;
@@ -173,12 +174,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
         doc.dispose();
         return;
       }
+      final pendingScrub = _scrubTarget == page;
+      if (pendingScrub) _scrubTarget = null;
+
       setState(() {
         _documents[page] = doc;
         _fetching.remove(page);
         _progress.remove(page);
         _progressTotal.remove(page);
       });
+
+      if (pendingScrub) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final viewWidth = MediaQuery.of(context).size.width;
+          final extent = _itemExtent(viewWidth);
+          _scrollController.jumpTo((page - 1) * extent);
+        });
+      }
     } catch (_) {
       _fetching.remove(page);
       _progress.remove(page);
@@ -327,10 +340,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _scrubToPage(double dy, double sliderHeight, double itemExtent) {
     final fraction = (dy / sliderHeight).clamp(0.0, 1.0);
     final page = (fraction * (_totalPages - 1)).round() + 1;
-    _scrollController.jumpTo((page - 1) * itemExtent);
+
+    // Update the thumb and appbar immediately
     if (page != _currentPage) {
       setState(() => _currentPage = page);
     }
+
+    if (_documents.containsKey(page)) {
+      // Page is ready — scroll now
+      _scrubTarget = null;
+      _scrollController.jumpTo((page - 1) * itemExtent);
+    } else {
+      // Page not yet loaded — defer the scroll
+      _scrubTarget = page;
+    }
+
+    _prefetchAround(page);
   }
 
   Widget _buildPageSlider(double height, double itemExtent) {
