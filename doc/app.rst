@@ -109,6 +109,169 @@ Project Structure
        file_tile.dart           Thumbnail + filename list item
        directory_tile.dart      Folder list item
 
+Architecture
+------------
+
+The app uses Provider-based dependency injection with a single ``ApiService``
+instance created at the root of the widget tree.  There are four screens
+connected by imperative ``Navigator.push`` / ``pushReplacement`` navigation.
+All HTTP calls go through the shared ``ApiService``, and the UI follows
+Material 3 with automatic dark-mode support driven by the system theme.
+
+Data Models
+-----------
+
+Five model classes live in ``models/models.dart``.  Each has a
+``fromJson()`` factory constructor for deserialising server responses.
+
+``Repository``
+   A paper repository on the server.  Fields: ``path`` (filesystem path),
+   ``name`` (display name) and ``exists`` (whether the path is valid).
+
+``DirectoryEntry``
+   A subdirectory inside a repository.  Fields: ``name``, ``path`` and
+   ``count`` (number of items inside).
+
+``FileEntry``
+   A single document.  Fields: ``name``, ``path``, ``size`` (bytes) and
+   ``modified`` (date string).
+
+``BrowseResult``
+   Response from the ``/browse`` endpoint.  Fields: ``path`` (the directory
+   that was listed), ``directories`` (list of ``DirectoryEntry``) and
+   ``files`` (list of ``FileEntry``).
+
+``SearchResult``
+   Response from the ``/search`` endpoint.  Fields: ``count`` (total hits)
+   and ``results`` (list of ``FileEntry``).
+
+API Service
+-----------
+
+``api_service.dart`` contains the ``ApiService`` class and a small
+``ApiException`` class.
+
+Base URL handling
+   The constructor and ``updateConfig()`` strip trailing slashes from the
+   URL.  ``ConnectionScreen`` auto-prepends ``https://`` when the user
+   enters a bare hostname.
+
+Authentication
+   When a username is configured, ``_basicAuth`` produces a Base64-encoded
+   ``Authorization: Basic`` header.  The ``_headers`` getter attaches this
+   header (plus ``Accept: application/json``) to every request.  The public
+   ``basicAuth`` getter lets widgets such as ``FileTile`` pass the same
+   credentials to ``CachedNetworkImage``.
+
+``_getJson()`` helper
+   Performs a GET request, checks for 401 and other error codes, parses the
+   JSON body and returns it.  All typed endpoint methods (``getRepos()``,
+   ``browse()``, ``search()``) are thin wrappers around this helper.
+
+URL builders
+   ``getFileUrl()`` and ``getThumbnailUrl()`` return ``Uri`` objects without
+   embedded credentials -- widgets use them together with auth headers.
+
+Streaming downloads
+   ``downloadFilePageStreamed()`` uses ``http.Client.send()`` to stream a
+   single-page PDF.  It accepts an ``onProgress`` callback that reports
+   bytes received versus ``Content-Length``, which ``ViewerScreen`` turns
+   into a percentage indicator.
+
+Page-count query
+   ``getPageCount()`` calls the ``/file`` endpoint with ``pages=true`` to
+   retrieve the number of pages in a document without downloading it.
+
+Screens
+-------
+
+ConnectionScreen
+~~~~~~~~~~~~~~~~
+
+Login form with URL, username and password fields.  On startup it loads
+saved values from ``SharedPreferences`` (keys ``server_url``, ``username``,
+``password``) and, if a URL exists, auto-connects by calling
+``ApiService.checkStatus()``.  The ``autoConnect`` flag (default ``true``)
+is set to ``false`` when the user disconnects, preventing an immediate
+reconnect loop.  After a successful status check the credentials are
+persisted and the screen is replaced (``pushReplacement``) with
+``BrowseScreen``.  The app version and build date appear at the bottom.
+
+BrowseScreen
+~~~~~~~~~~~~
+
+Main navigation screen.  Loads the repository list on init and selects the
+first one.  A ``PopupMenuButton`` in the app bar lets the user switch
+repositories (only shown when more than one exists).  The directory listing
+is wrapped in a ``RefreshIndicator`` for pull-to-refresh.
+
+Breadcrumbs are rendered in a horizontal ``ListView`` at the top of the
+screen.  Tapping a breadcrumb segment navigates to that directory.  Below
+the breadcrumbs the listing shows directories (``DirectoryTile``) followed
+by files (``FileTile``).  Tapping a directory calls ``_browse()`` with the
+new path; tapping a file pushes ``ViewerScreen``.  The search icon pushes
+``SearchScreen`` with the current repo and path.
+
+SearchScreen
+~~~~~~~~~~~~
+
+Takes the current repository and path as constructor arguments.  A
+checkbox controls whether the search is scoped to the current directory or
+runs across the whole repository.  Results are displayed in a
+``ListView.builder`` of ``FileTile`` widgets with ``showFullPath: true``
+so the user can see where each match lives.  Tapping a result pushes
+``ViewerScreen``.
+
+ViewerScreen
+~~~~~~~~~~~~
+
+The most complex screen.  It receives the file path, display name and
+optional repo, then:
+
+1. Queries ``getPageCount()`` to learn how many pages the document has.
+2. Immediately fetches page 1 via ``downloadFilePageStreamed()``.
+3. Writes the returned bytes to a temp file under the pattern
+   ``paperman_<safeName>_p<N>.pdf`` in the system temp directory.
+4. Displays each page inside a horizontal ``PageView.builder``.  Each page
+   item is either a ``PDFView`` widget (from ``flutter_pdfview``) when the
+   file is ready, or a ``CircularProgressIndicator`` with a download
+   percentage while streaming.
+5. On every page change, ``_prefetchAround()`` downloads pages in a window
+   of one page before and four pages ahead of the current position.  The
+   ``_fetching`` set prevents duplicate requests.
+
+Widgets
+-------
+
+FileTile
+~~~~~~~~
+
+A ``ListTile`` showing a ``CachedNetworkImage`` thumbnail (48 x 48), the
+filename (or full path when ``showFullPath`` is ``true``) and a
+human-readable file size (B / KB / MB).  The thumbnail URL is built by
+``ApiService.getThumbnailUrl()`` and the ``Authorization`` header is passed
+through via the ``httpHeaders`` parameter of the image widget.
+
+DirectoryTile
+~~~~~~~~~~~~~
+
+A ``ListTile`` with an amber folder icon, the directory name and an item
+count shown in the trailing position.
+
+Navigation Flow
+---------------
+
+::
+
+   ConnectionScreen ──pushReplacement──> BrowseScreen ──push──> ViewerScreen
+                   <──pushReplacement──          │
+                                                 └────push──> SearchScreen
+
+``pushReplacement`` is used between ``ConnectionScreen`` and
+``BrowseScreen`` so that the back button on the browse screen does not
+return to the login form.  ``push`` is used for ``ViewerScreen`` and
+``SearchScreen`` so the user can pop back to the directory listing.
+
 Server API Endpoints
 --------------------
 
