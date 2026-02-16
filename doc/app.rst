@@ -28,6 +28,29 @@ Features
 Prerequisites
 -------------
 
+Java JDK
+~~~~~~~~
+
+Gradle requires Java 17 or newer with a full JDK (not just a JRE).
+Install the headless JDK package:
+
+.. code:: bash
+
+   sudo apt-get install -y openjdk-21-jdk-headless
+
+Then set ``JAVA_HOME`` so Gradle finds the compiler:
+
+.. code:: bash
+
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+Add this to your shell profile to make it permanent.  You can verify
+that ``javac`` is available:
+
+.. code:: bash
+
+   $JAVA_HOME/bin/javac -version
+
 Flutter SDK
 ~~~~~~~~~~~
 
@@ -64,9 +87,12 @@ Accept the licences and install the required SDK components:
 
 .. code:: bash
 
-   sdkmanager --licenses
+   yes | sdkmanager --licenses
    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
    flutter config --android-sdk ~/android-sdk
+
+Gradle auto-installs extra components (NDK, CMake, additional
+platforms) on the first build, so an internet connection is needed.
 
 Verify that both toolchains are working:
 
@@ -74,10 +100,44 @@ Verify that both toolchains are working:
 
    flutter doctor
 
+Troubleshooting
+~~~~~~~~~~~~~~~
+
+**Stale build directory** -- If the ``app/build/`` tree was created on a
+different machine (e.g. a CI container), Gradle caches contain
+hard-coded paths that cause ``Failed to create parent directory``
+errors.  Delete ``app/build/`` and rebuild:
+
+.. code:: bash
+
+   rm -rf app/build
+
+**"Does not provide the required capabilities: [JAVA_COMPILER]"** --
+Gradle found a JRE but not a JDK.  Make sure
+``openjdk-21-jdk-headless`` (not just the JRE) is installed and
+``JAVA_HOME`` points to it.
+
+**"Toolchain installation ... does not provide the required
+capabilities"** after installing the JDK -- Gradle may have cached
+the old JDK probe results.  Clear the Gradle caches and retry:
+
+.. code:: bash
+
+   rm -rf ~/.gradle/caches ~/.gradle/daemon ~/.gradle/native
+
 Building
 --------
 
-From the top-level directory:
+Make sure the following environment variables are set (from the
+prerequisites above):
+
+.. code:: bash
+
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+   export ANDROID_HOME=~/android-sdk
+   export PATH="$HOME/flutter/bin:$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+Then, from the top-level directory:
 
 .. code:: bash
 
