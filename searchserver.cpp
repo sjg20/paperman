@@ -90,6 +90,12 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
             scanDirectory(_rootPath, "", fileList);
             qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
         }
+        qint64 totalBytes = 0;
+        for (const CachedFile &f : fileList)
+            totalBytes += f.size;
+        qDebug().noquote().nospace()
+            << "SearchServer: Repository size "
+            << QString::number(totalBytes / 1e9, 'f', 1) << " GB";
         qDebug().nospace() << "SearchServer: File cache ready in "
                            << cacheTimer.elapsed() / 1000.0 << "s";
     }
@@ -145,6 +151,12 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
             scanDirectory(path, "", fileList);
             qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
         }
+        qint64 totalBytes = 0;
+        for (const CachedFile &f : fileList)
+            totalBytes += f.size;
+        qDebug().noquote().nospace()
+            << "SearchServer: Repository size "
+            << QString::number(totalBytes / 1e9, 'f', 1) << " GB";
     }
     qDebug().nospace() << "SearchServer: File cache ready in "
                        << cacheTimer.elapsed() / 1000.0 << "s";
