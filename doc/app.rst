@@ -339,7 +339,7 @@ The Play Store prefers an Android App Bundle (``.aab``) over an APK:
 
 .. code:: bash
 
-   cd app && flutter build appbundle
+   make app-aab
 
 The output is at ``app/build/app/outputs/bundle/release/app-release.aab``
 
@@ -354,6 +354,79 @@ Uploading
 4. Complete the content rating questionnaire and data safety form
 5. Upload the ``.aab`` to a release track (start with internal testing)
 6. Submit for review
+
+Automated upload
+~~~~~~~~~~~~~~~~
+
+The build system includes the `Gradle Play Publisher
+<https://github.com/Triple-T/gradle-play-publisher>`_ plugin so you can
+upload an app bundle to the Play Store internal testing track from the
+command line.
+
+**Service account setup**
+
+You can use an existing Google Cloud service account or create a new one.
+Either way it needs a JSON key and the right Play Console permissions:
+
+1. In the `Google Cloud Console <https://console.cloud.google.com/>`_, go to
+   **IAM & Admin -> Service Accounts**.
+
+   - To use an existing account, click it and skip to step 3.
+   - To create a new one, click **Create Service Account**, give it a name
+     (e.g. ``play-publisher``) and click **Done** (no extra Cloud IAM roles
+     are needed -- permissions are granted in Play Console instead).
+
+2. In the `Google Play Console <https://play.google.com/console>`_, go to
+   **Users and permissions -> Invite new users**.  Paste the service
+   account's email address (it looks like
+   ``name@project.iam.gserviceaccount.com``).  Under **Account
+   permissions**, grant at least **Release to production, exclude devices,
+   and use Play App Signing** (which covers all release tracks including
+   internal testing).  Click **Invite user** and confirm.
+
+   .. note::
+
+      Only the Play Console **account owner** can invite service accounts.
+      It can take up to 24 hours for Google's servers to activate a newly
+      invited service account.
+
+3. Back in the Cloud Console, click the service account, go to
+   **Keys -> Add Key -> Create new key -> JSON** and download the file.
+   Save it as ``app/android/play-account.json`` (this path is gitignored).
+
+**Running the upload**
+
+.. code:: bash
+
+   make app-publish
+
+This builds the AAB (``make app-aab``) then runs
+``./gradlew publishReleaseBundle``, which uploads it to the internal
+testing track.  Check the Play Console under **Internal testing** for the
+new release.
+
+Quick install via Google Drive
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Play Store processing can take up to an hour.  For faster testing, upload
+the APK to Google Drive and install it directly on the device:
+
+.. code:: bash
+
+   make app-upload
+
+This builds the APK (``make app-apk``) and copies it to the ``apps``
+folder on Google Drive using ``rclone``.  Open the file from Google Drive
+on the device to install it.
+
+**rclone setup** (one-time):
+
+1. Install rclone (``sudo apt install rclone``).
+2. On a machine with a browser, run ``rclone authorize "drive"`` and
+   complete the OAuth flow.
+3. On the build machine, run ``rclone config``, create a remote called
+   ``gdrive`` of type ``drive``, and when asked for auto config answer
+   **n** and paste the token from step 2.
 
 Connecting to the Server
 ------------------------

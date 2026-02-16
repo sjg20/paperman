@@ -44,14 +44,24 @@ app: app-apk app-linux
 app-apk:
 	cd app && flutter build apk $(FLUTTER_ARGS)
 
+app-aab:
+	cd app && flutter build appbundle $(FLUTTER_ARGS)
+
+app-publish: app-aab
+	cd app/android && ./gradlew publishReleaseBundle
+
+app-upload: app-apk
+	rclone copy $(APP_APK) gdrive:apps/
+
 app-linux:
 	cd app && flutter build linux $(FLUTTER_ARGS)
 
 APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
+APP_AAB  = app/build/app/outputs/bundle/release/app-release.aab
 APP_BIN  = app/build/linux/x64/release/bundle/paperman
 
 info:
-	@ls -l paperman paperman-server $(APP_APK) $(APP_BIN) 2>/dev/null || echo "No binaries found (run 'make' first)"
+	@ls -l paperman paperman-server $(APP_APK) $(APP_AAB) $(APP_BIN) 2>/dev/null || echo "No binaries found (run 'make' first)"
 
 help:
 	@echo "Build targets:"
@@ -60,6 +70,9 @@ help:
 	@echo "  paperman-server  Build the standalone server"
 	@echo "  app              Build the Flutter app (Android + Linux)"
 	@echo "  app-apk          Build the Flutter Android APK only"
+	@echo "  app-aab          Build the Flutter Android App Bundle only"
+	@echo "  app-publish      Build AAB and upload to Play Store internal testing"
+	@echo "  app-upload       Build APK and upload to Google Drive"
 	@echo "  app-linux        Build the Flutter Linux binary only"
 	@echo "  docs             Build the Sphinx documentation"
 	@echo ""

@@ -3,6 +3,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.github.triplet.play")
 }
 
 import java.util.Properties
@@ -53,6 +54,12 @@ android {
                 signingConfigs.getByName("debug")
         }
     }
+}
+
+play {
+    serviceAccountCredentials.set(file("play-account.json"))
+    track.set("internal")
+    defaultToAppBundles.set(true)
 }
 
 flutter {
