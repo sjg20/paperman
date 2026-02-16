@@ -132,6 +132,18 @@ void TestSearchServer::clearCaches()
     }
 }
 
+qint64 TestSearchServer::copyTestFile(const QString &fileName,
+                                      const QString &destDir)
+{
+    QString src = testSrc + "/" + fileName;
+    QString dst = destDir + "/" + fileName;
+    if (!QFile::copy(src, dst)) {
+        qWarning() << "Failed to copy" << src << "to" << dst;
+        return -1;
+    }
+    return QFileInfo(dst).size();
+}
+
 void TestSearchServer::testServerStartStop()
 {
     QTemporaryDir tmpDir;
@@ -399,11 +411,7 @@ void TestSearchServer::testFilePageCount()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    // Copy test PDF into temp directory
-    QString srcPdf = testSrc + "/testpdf.pdf";
-    QString dstPdf = tmpDir.path() + "/testpdf.pdf";
-    QVERIFY2(QFile::copy(srcPdf, dstPdf),
-             qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
+    QVERIFY(copyTestFile("testpdf.pdf", tmpDir.path()) > 0);
 
     SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
@@ -424,14 +432,8 @@ void TestSearchServer::testFilePageExtract()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    // Copy test PDF into temp directory
-    QString srcPdf = testSrc + "/testpdf.pdf";
-    QString dstPdf = tmpDir.path() + "/testpdf.pdf";
-    QVERIFY2(QFile::copy(srcPdf, dstPdf),
-             qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
-
-    // Get full file size for comparison
-    qint64 fullSize = QFileInfo(dstPdf).size();
+    qint64 fullSize = copyTestFile("testpdf.pdf", tmpDir.path());
+    QVERIFY(fullSize > 0);
 
     SearchServer server(tmpDir.path(), PORT);
     QVERIFY(server.start());
@@ -482,13 +484,9 @@ void TestSearchServer::testLargePdfProgressive()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    QString srcPdf = testSrc + "/100pp.pdf";
-    QString dstPdf = tmpDir.path() + "/100pp.pdf";
-    QVERIFY2(QFile::copy(srcPdf, dstPdf),
-             qPrintable("Failed to copy " + srcPdf + " to " + dstPdf));
-
-    qint64 fullFileSize = QFileInfo(dstPdf).size();
     QString fileName = "100pp.pdf";
+    qint64 fullFileSize = copyTestFile(fileName, tmpDir.path());
+    QVERIFY(fullFileSize > 0);
 
     clearCaches();
 
@@ -533,13 +531,9 @@ void TestSearchServer::testLargeMaxProgressive()
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());
 
-    QString srcMax = testSrc + "/100pp_from_pdf.max";
-    QString dstMax = tmpDir.path() + "/100pp_from_pdf.max";
-    QVERIFY2(QFile::copy(srcMax, dstMax),
-             qPrintable("Failed to copy " + srcMax + " to " + dstMax));
-
-    qint64 fullFileSize = QFileInfo(dstMax).size();
     QString fileName = "100pp_from_pdf.max";
+    qint64 fullFileSize = copyTestFile(fileName, tmpDir.path());
+    QVERIFY(fullFileSize > 0);
 
     clearCaches();
 

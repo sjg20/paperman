@@ -51,6 +51,9 @@ private:
    // Clear all on-disk caches so results are deterministic
    void clearCaches();
 
+   // Copy a test file into a directory and return its size
+   qint64 copyTestFile(const QString &fileName, const QString &destDir);
+
    // Helper to fetch a page, verify 200/PDF response, and check the log
    void verifyPageFetch(const QString &fileName, int page,
                         ServerLog::Action expectedAction,
