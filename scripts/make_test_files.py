@@ -256,7 +256,7 @@ def _draw_page(cvs, rng, page_num, width, height):
     cvs.showPage()
 
 
-def make_random_pdf(fname, pages=100, plasma_path=None):
+def make_random_pdf(fname, pages=100, plasma_path=None, seed=42):
     """Create a multi-page PDF with headings, body text and page numbers
 
     Page 1 has colour bars, page 2 has a greyscale gradient, and page 3
@@ -267,8 +267,9 @@ def make_random_pdf(fname, pages=100, plasma_path=None):
         fname (str): Output file path
         pages (int): Number of pages to generate
         plasma_path (str): Optional path to a JPEG to embed on page 3
+        seed (int): Random seed for reproducible content
     """
-    rng = random.Random(42)
+    rng = random.Random(seed)
     width, height = letter
     cvs = canvas.Canvas(fname, pagesize=letter)
 
@@ -315,10 +316,23 @@ def main():
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
+    extra_dir = os.path.join(args.output_dir, 'extra')
+    os.makedirs(extra_dir, exist_ok=True)
 
     plasma_path = os.path.join(args.output_dir, 'colour_plasma.jpg')
     make_plasma_jpeg(plasma_path)
 
+    # Core test files used by setupRepo()
+    testpdf = os.path.join(args.output_dir, 'testpdf.pdf')
+    make_random_pdf(testpdf, pages=5)
+    pdf_to_max(testpdf, 'testfile.max')
+
+    # Extra files used by setupRepoWithExtra() / testMoveToDir()
+    movepdf = os.path.join(extra_dir, 'movepdf.pdf')
+    make_random_pdf(movepdf, pages=3, seed=99)
+    pdf_to_max(movepdf, 'movefile.max')
+
+    # Large files for progressive-loading tests
     pdf_path = os.path.join(args.output_dir, '100pp.pdf')
     make_random_pdf(pdf_path, plasma_path=plasma_path)
     pdf_to_max(pdf_path, '100pp_from_pdf.max')

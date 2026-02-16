@@ -38,5 +38,6 @@ __pycache__/
 .claude/
 .qtc_clangd/
 doc/_build/
+/test/files/
 install-*
 /server.mk

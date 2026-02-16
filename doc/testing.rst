@@ -37,6 +37,16 @@ Use ``-t list`` to print the registered suite names:
 Test Files
 ----------
 
-Large test files live in ``test/files/`` and are not tracked in git. The
-search-server tests copy them into temporary directories for each run so the
-originals are never modified.
+All test files live in ``test/files/`` and are generated at build time, not
+tracked in git. Run ``make test-setup`` to create them:
+
+.. code:: bash
+
+   make test-setup
+
+This calls ``scripts/make_test_files.py`` which generates PDFs, ``.max``
+files, and a plasma JPEG. The ``make test`` target depends on ``test-setup``
+so the files are created automatically before running tests.
+
+The search-server tests copy them into temporary directories for each run so
+the originals are never modified.

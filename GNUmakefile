@@ -22,7 +22,10 @@ paperman-server: Makefile.server builddate.h
 Makefile.server: paperman-server.pro
 	qmake paperman-server.pro -o Makefile.server
 
-test: paperman-server paperman
+test-setup: paperman
+	python3 scripts/make_test_files.py
+
+test: paperman-server paperman test-setup
 	scripts/test_page_fetch.sh
 	scripts/test_parallel.sh
 
@@ -91,6 +94,7 @@ help:
 	@echo ""
 	@echo "Test targets:"
 	@echo "  test             Run all tests"
+	@echo "  test-setup       Generate test files in test/files/"
 	@echo "  test-progressive Run progressive-loading tests"
 	@echo "  test-parallel    Run parallel tests"
 	@echo ""

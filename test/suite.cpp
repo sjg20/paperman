@@ -61,8 +61,8 @@ QString Test::setupRepo(bool add_files)
 
    emptyDirectory(dst);
 
-   // Copy over the test files
-   foreach (QString fname, dir.entryList(QDir::Files))
+   // Copy over the core test files
+   for (auto &fname : {"testfile.max", "testpdf.pdf"})
        QFile::copy(testSrc + "/" + fname, dst + "/" + fname);
 
    // Create subdirectories which won't appear in the model
