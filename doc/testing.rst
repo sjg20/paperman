@@ -50,3 +50,17 @@ so the files are created automatically before running tests.
 
 The search-server tests copy them into temporary directories for each run so
 the originals are never modified.
+
+Flutter Widget Tests
+--------------------
+
+The Flutter app has its own widget tests in ``app/test/``.  Run them with:
+
+.. code:: bash
+
+   make app-test
+
+This runs ``flutter test`` inside the ``app/`` directory.  The tests use
+`mocktail <https://pub.dev/packages/mocktail>`_ to mock ``ApiService`` and
+cover the ``ViewerScreen`` UI states: loading indicator, error/retry, page
+counter, and page slider behaviour.

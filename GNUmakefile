@@ -25,7 +25,10 @@ Makefile.server: paperman-server.pro
 test-setup: paperman
 	python3 scripts/make_test_files.py
 
-test: paperman-server paperman test-setup
+app-test:
+	cd app && flutter test
+
+test: paperman-server paperman test-setup app-test
 	scripts/test_page_fetch.sh
 	scripts/test_parallel.sh
 
@@ -45,8 +48,8 @@ FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define-from-file=dart-defines.
 
 app: app-apk app-linux
 
-.PHONY: app app-demo dart-defines app-apk app-aab app-publish app-upload
-.PHONY: app-scp app-scp-only app-linux app-clean
+.PHONY: app app-demo app-test dart-defines app-apk app-aab app-publish
+.PHONY: app-upload app-scp app-scp-only app-linux app-clean
 dart-defines:
 	@echo '{"BUILD_DATE":"$(BUILD_DATE)"}' > $(DART_DEFINES)
 
@@ -103,6 +106,7 @@ help:
 	@echo "  test-setup       Generate test files in test/files/"
 	@echo "  test-progressive Run progressive-loading tests"
 	@echo "  test-parallel    Run parallel tests"
+	@echo "  app-test         Run Flutter widget tests"
 	@echo ""
 	@echo "Other targets:"
 	@echo "  info             List built binaries"

@@ -112,6 +112,7 @@ The most useful targets during development:
    make paperman          # Build the desktop app only
    make test              # Build and run all tests (includes test-setup)
    make test-setup        # Generate test files without running tests
+   make app-test          # Run Flutter widget tests
    make docs              # Build the Sphinx documentation
    make clean             # Remove all build artefacts
 
