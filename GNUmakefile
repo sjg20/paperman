@@ -40,17 +40,23 @@ docs:
 
 BUILD_DATE := $(shell date "+%a %d %b %H:%M:%S %Z %Y")
 APP_VERSION := $(shell sed -n 's/.*CONFIG_version_str "\(.*\)"/\1.0/p' config.h)
-FLUTTER_ARGS = --build-name=$(APP_VERSION) '--dart-define=BUILD_DATE=$(BUILD_DATE)'
+DART_DEFINES = app/dart-defines.json
+FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define-from-file=dart-defines.json
 
 app: app-apk app-linux
+
+.PHONY: app app-demo dart-defines app-apk app-aab app-publish app-upload
+.PHONY: app-scp app-scp-only app-linux app-clean
+dart-defines:
+	@echo '{"BUILD_DATE":"$(BUILD_DATE)"}' > $(DART_DEFINES)
 
 app-demo:
 	python3 app/tools/gen_demo_assets.py
 
-app-apk: app-demo
+app-apk: app-demo dart-defines
 	cd app && flutter build apk $(FLUTTER_ARGS)
 
-app-aab: app-demo
+app-aab: app-demo dart-defines
 	cd app && flutter build appbundle $(FLUTTER_ARGS)
 
 app-publish: app-aab
@@ -67,7 +73,7 @@ app-scp-only:
 	@test -n "$(APP_SERVER)" || { echo "Set APP_SERVER in server.mk (e.g. APP_SERVER = user@host:/var/www/app.apk)"; exit 1; }
 	scp $(APP_APK) $(APP_SERVER)
 
-app-linux:
+app-linux: dart-defines
 	cd app && flutter build linux $(FLUTTER_ARGS)
 
 APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
@@ -107,6 +113,7 @@ help:
 app-clean:
 	-cd app && flutter clean
 	-rm -rf app/build app/android/.gradle
+	rm -f $(DART_DEFINES)
 
 clean: app-clean docs-clean
 	$(MAKE) -f Makefile clean

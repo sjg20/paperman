@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -39,6 +40,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Map<int, Size> _pageSizes = {};
   final Set<int> _fetching = {};
   final Map<int, double> _progress = {};
+  Timer? _scrollDebounce;
 
   /// In demo mode the full multi-page PDF is kept open here.
   PdfDocument? _demoDoc;
@@ -57,6 +59,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
+    _scrollDebounce?.cancel();
     _scrollController.dispose();
     _demoDoc?.dispose();
     for (final doc in _documents.values) {
@@ -211,29 +214,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return viewWidth * _defaultAspectRatio;
   }
 
+  double _itemExtent(double viewWidth) =>
+      viewWidth * _defaultAspectRatio + _pageGap;
+
   void _onScroll() {
     if (_totalPages == 0) return;
 
-    final viewWidth = MediaQuery.of(context).size.width;
-    final offset = _scrollController.offset;
+    _scrollDebounce?.cancel();
+    _scrollDebounce = Timer(const Duration(milliseconds: 200), () {
+      final viewWidth = MediaQuery.of(context).size.width;
+      final extent = _itemExtent(viewWidth);
+      final page =
+          (_scrollController.offset / extent).floor().clamp(0, _totalPages - 1) + 1;
 
-    // Walk through cumulative heights to find which page is at the viewport
-    var cumulative = 0.0;
-    var page = 1;
-    for (int p = 1; p <= _totalPages; p++) {
-      final h = _pageHeight(p, viewWidth) + (p < _totalPages ? _pageGap : 0);
-      if (cumulative + h > offset) {
-        page = p;
-        break;
+      if (page != _currentPage) {
+        setState(() => _currentPage = page);
       }
-      cumulative += h;
-      if (p == _totalPages) page = p;
-    }
-
-    if (page != _currentPage) {
-      setState(() => _currentPage = page);
       _prefetchAround(page);
-    }
+    });
   }
 
   @override
@@ -302,26 +300,105 @@ class _ViewerScreenState extends State<ViewerScreen> {
       builder: (context, constraints) {
         final viewWidth = constraints.maxWidth;
 
-        return InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: ListView.builder(
-            controller: _scrollController,
-            itemCount: _totalPages,
-            itemBuilder: (context, index) {
-              final page = index + 1;
-              final height = _pageHeight(page, viewWidth);
+        final extent = _itemExtent(viewWidth);
 
-              return Column(
-                children: [
-                  if (index > 0) const SizedBox(height: _pageGap),
-                  _buildPage(page, viewWidth, height),
-                ],
-              );
-            },
-          ),
+        return Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: _totalPages,
+                itemExtent: extent,
+                itemBuilder: (context, index) {
+                  final page = index + 1;
+                  final height = extent - _pageGap;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: _pageGap),
+                    child: _buildPage(page, viewWidth, height),
+                  );
+                },
+              ),
+            ),
+            if (_totalPages > 1)
+              _buildPageSlider(constraints.maxHeight, extent),
+          ],
         );
       },
+    );
+  }
+
+  void _scrubToPage(double dy, double sliderHeight, double itemExtent) {
+    final fraction = (dy / sliderHeight).clamp(0.0, 1.0);
+    final page = (fraction * (_totalPages - 1)).round() + 1;
+    _scrollController.jumpTo((page - 1) * itemExtent);
+    if (page != _currentPage) {
+      setState(() => _currentPage = page);
+    }
+  }
+
+  Widget _buildPageSlider(double height, double itemExtent) {
+    const thumbHeight = 32.0;
+    final fraction = _totalPages > 1
+        ? (_currentPage - 1) / (_totalPages - 1)
+        : 0.0;
+    final trackSpace = height - thumbHeight;
+    final color = Theme.of(context).colorScheme.primary;
+
+    return Positioned(
+      right: 4,
+      top: 0,
+      bottom: 0,
+      width: 28,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: (d) =>
+            _scrubToPage(d.localPosition.dy, height, itemExtent),
+        onVerticalDragUpdate: (d) =>
+            _scrubToPage(d.localPosition.dy, height, itemExtent),
+        onTapDown: (d) =>
+            _scrubToPage(d.localPosition.dy, height, itemExtent),
+        child: Stack(
+          children: [
+            // Track
+            Positioned.fill(
+              child: Center(
+                child: Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+            // Thumb
+            Positioned(
+              top: fraction * trackSpace,
+              left: 0,
+              right: 0,
+              height: thumbHeight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$_currentPage',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -352,8 +429,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       );
     }
 
-    // Page not yet loaded — trigger fetch and show progress
-    _fetchPage(page);
+    // Page not yet loaded — show progress placeholder
     final fraction = _progress[page];
     return SizedBox(
       width: width,

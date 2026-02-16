@@ -33,6 +33,7 @@ Paperman
    :caption: Development
 
    develop
+   build
    testing
    claude-setup-nginx
    install-claude

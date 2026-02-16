@@ -45,5 +45,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Generated demo assets (rebuilt by make app-demo)
+# Generated at build time
 /assets/demo/
+dart-defines.json
