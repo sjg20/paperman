@@ -35,7 +35,10 @@ app:
 	cd app && flutter build linux --dart-define=BUILD_DATE=$(shell date "+%Y-%m-%d %H:%M")
 
 app-clean:
-	cd app && flutter clean
+	-cd app && flutter clean
+
+clean: app-clean docs-clean
+	$(MAKE) -f Makefile clean
 
 docs-clean:
 	rm -rf $(BUILDDIR)
