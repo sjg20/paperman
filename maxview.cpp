@@ -496,7 +496,7 @@ static void usage (void)
    printf ("   -i|--info       display full info about a file\n");
    printf ("      --index <f>  build/update an index file f for the given directory\n");
 */
-   printf ("   -t|--test       run unit tests\n");
+   printf ("   -t|--test [class]  run unit tests (or a single suite; 'list' to list)\n");
    printf ("   --page-range S:E  convert only pages S to E (1-based)\n");
    printf ("   --output FILE   write output to FILE (used with --page-range)\n");
    printf ("   --jobs N        use N parallel workers (0 = auto)\n");
@@ -724,13 +724,17 @@ int main (int argc, char *argv[])
 //    if (maxdesk.test (fname))
 //	   printf ("test error %s\n", e->errstr);
 #endif
-         // Drop the -t argument
+         // Build a clean argv for QTest (drop -t and optional suite name)
 #ifdef ENABLE_TEST
-         argv[argc--] = 0;
-         int result = test_run(argc, argv, &app);
+         {
+         const char *filter = (optind < argc) ? argv[optind] : nullptr;
+         char *qt_argv[] = { argv[0], nullptr };
+         int qt_argc = 1;
+         int result = test_run(qt_argc, qt_argv, &app, filter);
 
          if (result)
             qInfo() << "Failed: " << result;
+         }
 #else
          qInfo() << "Use this to build with tests: qmake CONFIG+=test";
 #endif
