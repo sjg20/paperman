@@ -528,7 +528,6 @@ void TestSearchServer::testLargeMaxProgressive()
     QVERIFY2(resp.body.size() > 0, "Thumbnail should not be empty");
     QVERIFY2(resp.body.startsWith("\xff\xd8"),
              "Thumbnail should be a valid JPEG");
-    QVERIFY(slog.next(ServerLog::ConvertToPdf));
     QVERIFY(slog.next(ServerLog::Thumbnail, 1));
 
     // 2. Page count — File class loads directly, no ConvertToPdf needed

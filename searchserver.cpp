@@ -1389,23 +1389,79 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     }
     
     qDebug() << "SearchServer: Generating new thumbnail for:" << filePath;
-    
-    // 5. Determine if we need to convert to PDF first
-    QString pdfPath = fullPath;
+
+    int thumbSize = getThumbnailSize(size);
     QString ext = fileInfo.suffix().toLower();
 
+#ifndef QT_NO_GUI
     if (ext != "pdf") {
-        pdfPath = convertToPdf(fullPath);
+        // Use the File class to get a page image directly
+        QString dir = fileInfo.absolutePath() + "/";
+        QString fname = fileInfo.fileName();
+
+        File::e_type type = File::typeFromName(fname);
+        File *file = File::createFile(dir, fname, nullptr, type);
+        if (!file) {
+            qWarning() << "SearchServer: Failed to create File for thumbnail";
+            return "";
+        }
+
+        err_info *err = file->load();
+        if (err) {
+            qWarning() << "SearchServer: Failed to load file for thumbnail:"
+                       << fullPath;
+            delete file;
+            return "";
+        }
+
+        QImage image;
+        QSize imgSize, trueSize;
+        int bpp;
+
+        err = file->getImage(page - 1, false, image, imgSize, trueSize,
+                             bpp, false);
+        delete file;
+        if (err || image.isNull()) {
+            qWarning() << "SearchServer: Failed to get image for thumbnail";
+            return "";
+        }
+
+        QImage thumb = image.scaled(thumbSize, thumbSize,
+                                    Qt::KeepAspectRatio,
+                                    Qt::SmoothTransformation);
+        if (thumb.save(cachedThumb, "JPEG")) {
+            qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
+            _log.log(ServerLog::Thumbnail, filePath, page);
+            return cachedThumb;
+        }
+
+        qWarning() << "SearchServer: Failed to save thumbnail JPEG";
+        return "";
+    }
+#else
+    if (ext != "pdf") {
+        // Convert to PDF first, then extract thumbnail from that
+        QString pdfPath = convertToPdf(fullPath);
         if (pdfPath.isEmpty()) {
             qWarning() << "SearchServer: Failed to convert to PDF for thumbnail";
             return "";
         }
+
+        bool success = extractPdfThumbnail(pdfPath, page, thumbSize,
+                                           cachedThumb);
+        if (success) {
+            qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
+            _log.log(ServerLog::Thumbnail, filePath, page);
+            return cachedThumb;
+        }
+
+        qWarning() << "SearchServer: Failed to generate thumbnail";
+        return "";
     }
+#endif
 
-    // 6. Extract thumbnail from PDF
-    int thumbSize = getThumbnailSize(size);
-    bool success = extractPdfThumbnail(pdfPath, page, thumbSize, cachedThumb);
-
+    // PDF files — extract thumbnail directly with pdftocairo
+    bool success = extractPdfThumbnail(fullPath, page, thumbSize, cachedThumb);
     if (success) {
         qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
         _log.log(ServerLog::Thumbnail, filePath, page);
