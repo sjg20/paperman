@@ -32,17 +32,23 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTextStream>
 
 #include "config.h"
+#ifndef QT_NO_WIDGETS
 #include "desk.h"
+#endif
 #include "err.h"
 #include "file.h"
 #include "filejpeg.h"
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
+#ifndef QT_NO_WIDGETS
 #include "mainwindow.h"
 #include "maxview.h"
+#endif
 #include "mem.h"
+#ifndef QT_NO_WIDGETS
 #include "op.h"
+#endif
 #include "utils.h"
 
 
@@ -243,9 +249,13 @@ File *File::createFile (const QString &dir, const QString fname, Desk *desk, e_t
          break;
 
       default :
+#ifndef QT_NO_WIDGETS
          Mainwidget::singleton()->complain(err_make(ERRFN,
                                                     ERR_file_type_unsupported1,
                                                     qPrintable(typeName (type))));
+#else
+         qWarning() << "Unsupported file type:" << typeName(type);
+#endif
          f = new Fileother (dir, fname, desk);
       }
    return f;
@@ -552,6 +562,7 @@ err_info *File::copyFile (QString from, QString to)
    }
 
 
+#ifndef QT_NO_WIDGETS
 err_info *File::rename (QString &fname, bool auto_rename)
    {
    QString oldname, newname, name, ext;
@@ -589,6 +600,7 @@ err_info *File::rename (QString &fname, bool auto_rename)
    fname = name;
    return NULL;
    }
+#endif
 
 
 #if 0
@@ -603,6 +615,7 @@ err_info *File::moveToTrash (QString &trashname)
 #endif
 
 
+#ifndef QT_NO_WIDGETS
 err_info *File::move (QString &newDir, QString &newName, bool copy)
    {
    QString old_fname = _filename;
@@ -642,6 +655,7 @@ err_info *File::move (QString &newDir, QString &newName, bool copy)
 
    return NULL;
    }
+#endif
 
 
 err_info *File::stackItem (File *src)
@@ -655,6 +669,7 @@ err_info *File::stackItem (File *src)
    }
 
 
+#ifndef QT_NO_WIDGETS
 err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
                QString fname, File *&dest, int &itemnum, int seq)
    {
@@ -693,6 +708,7 @@ err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
    itemnum = _desk->newFile (dest, this, seq);
    return NULL;
    }
+#endif
 
 
 err_info *File::not_impl (void)
@@ -701,6 +717,7 @@ err_info *File::not_impl (void)
    }
 
 
+#ifndef QT_NO_WIDGETS
 err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
             int odd_even, Operation &op, File *&fnew,
             int first_page, int last_page)
@@ -855,6 +872,7 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
    fnew->load ();
    return NULL;
    }
+#endif
 
 bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
                              QString &ext)
