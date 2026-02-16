@@ -24,8 +24,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "searchserver.h"
 #include "serverlog.h"
 #include "config.h"
+
+#ifndef QT_NO_GUI
 #include "file.h"
 #include "utils.h"
+#endif
 
 #include <QCoreApplication>
 #include <QTcpSocket>
@@ -802,7 +805,18 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
     if (wantPageCount) {
         int pages;
         if (ext != "pdf") {
+#ifndef QT_NO_GUI
             pages = getFilePageCount(fullPath);
+#else
+            QString pdfPath = convertToPdf(fullPath);
+            if (pdfPath.isEmpty()) {
+                return buildHttpResponse(500, "Internal Server Error",
+                                        "application/json",
+                                        buildJsonResponse(false, "",
+                                            "Failed to convert file to PDF"));
+            }
+            pages = getPdfPageCount(pdfPath);
+#endif
         } else {
             pages = getPdfPageCount(fullPath);
         }
@@ -823,8 +837,12 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         QString cachedPage;
 
         if (ext != "pdf") {
+#ifndef QT_NO_GUI
             // Convert just the requested page using the File class
             cachedPage = convertPageWithFile(fullPath, page, fileInfo);
+#else
+            cachedPage = convertPageToPdf(fullPath, page, fileInfo);
+#endif
             if (cachedPage.isEmpty()) {
                 return buildHttpResponse(500, "Internal Server Error",
                                         "application/json",
@@ -1476,6 +1494,8 @@ QString SearchServer::convertToPdf(const QString &fullPath)
     return cachedPdf;
 }
 
+#ifndef QT_NO_GUI
+
 int SearchServer::getFilePageCount(const QString &fullPath)
 {
     QFileInfo fi(fullPath);
@@ -1617,6 +1637,78 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
     ServerLog::log(ServerLog::PageExtract, fullPath, page);
     return cachedPdf;
 }
+
+#else // QT_NO_GUI — fall back to spawning paperman
+
+QString SearchServer::convertPageToPdf(const QString &fullPath, int page,
+                                       const QFileInfo &fileInfo)
+{
+    // Build cache key from path + page + mtime
+    QString cacheDir = "/tmp/paperman-pages";
+    QDir().mkpath(cacheDir);
+
+    QString cacheKeyData = fullPath + "_page" + QString::number(page)
+        + "_" + QString::number(fileInfo.lastModified().toMSecsSinceEpoch());
+    QString cacheKeyHash = QString(QCryptographicHash::hash(
+        cacheKeyData.toUtf8(), QCryptographicHash::Md5).toHex());
+    QString cachedPdf = cacheDir + "/" + cacheKeyHash + ".pdf";
+
+    // Return cached version if it exists
+    if (QFile::exists(cachedPdf)) {
+        ServerLog::log(ServerLog::PageCacheHit, fullPath, page);
+        return cachedPdf;
+    }
+
+    // Convert single page using paperman -p with --page-range
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("QT_QPA_PLATFORM", "offscreen");
+
+    QProcess process;
+    process.setProcessEnvironment(env);
+
+    QString papermanPath = QCoreApplication::applicationDirPath()
+                           + "/paperman";
+    if (!QFile::exists(papermanPath))
+        papermanPath = "paperman";
+
+    QString pageRange = QString("%1:%1").arg(page);
+    QStringList args;
+    args << "-p" << fullPath
+         << "--page-range" << pageRange
+         << "--output" << cachedPdf;
+
+    qDebug() << "SearchServer: Converting page" << page << "of"
+             << fullPath << "to PDF";
+    process.start(papermanPath, args);
+
+    if (!process.waitForStarted(5000)) {
+        qWarning() << "SearchServer: Failed to start paperman"
+                      " for page conversion";
+        return QString();
+    }
+
+    if (!process.waitForFinished(10000)) {
+        process.kill();
+        qWarning() << "SearchServer: Page conversion timed out";
+        return QString();
+    }
+
+    if (process.exitCode() != 0) {
+        qWarning() << "SearchServer: Page conversion failed:"
+                   << process.readAllStandardError();
+        return QString();
+    }
+
+    if (!QFile::exists(cachedPdf)) {
+        qWarning() << "SearchServer: Page PDF not generated";
+        return QString();
+    }
+
+    ServerLog::log(ServerLog::PageExtract, fullPath, page);
+    return cachedPdf;
+}
+
+#endif // QT_NO_GUI
 
 int SearchServer::getPdfPageCount(const QString &pdfPath)
 {
