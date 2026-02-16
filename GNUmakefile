@@ -89,10 +89,11 @@ help:
 
 app-clean:
 	-cd app && flutter clean
+	-rm -rf app/build app/android/.gradle
 
 clean: app-clean docs-clean
 	$(MAKE) -f Makefile clean
-	rm -f builddate.h
+	rm -f builddate.h Makefile.server
 
 docs-clean:
 	rm -rf $(BUILDDIR)
