@@ -27,6 +27,10 @@ struct ServerLog {
                     int detail = 0, qint64 elapsedMs = 0);
     static QList<Entry> entries();
     static void clear();
+
+    // Test helpers: read position advances through the log
+    static bool next(Action action, int detail = -1);
+    static bool end();
 };
 
 #endif // SERVERLOG_H

@@ -445,7 +445,6 @@ void TestSearchServer::verifyPageFetch(const QString &fileName, int page,
                                        ServerLog::Action expectedAction,
                                        qint64 *bodySize, int timeoutMs)
 {
-    ServerLog::clear();
     auto resp = get(QString("/file?path=%1&page=%2").arg(fileName).arg(page),
                     timeoutMs);
     QVERIFY2(resp.ok(),
@@ -458,10 +457,7 @@ void TestSearchServer::verifyPageFetch(const QString &fileName, int page,
     if (bodySize)
         *bodySize = resp.body.size();
 
-    QList<ServerLog::Entry> log = ServerLog::entries();
-    QCOMPARE(log.size(), 1);
-    QCOMPARE(log[0].action, expectedAction);
-    QCOMPARE(log[0].detail, page);
+    QVERIFY(ServerLog::next(expectedAction, page));
 }
 
 void TestSearchServer::testLargePdfProgressive()
@@ -476,23 +472,16 @@ void TestSearchServer::testLargePdfProgressive()
 
     clearCaches();
 
+    ServerLog::clear();
     SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
 
     // 1. Page count — should return 100 and log PageCount
-    ServerLog::clear();
     auto resp = get(QString("/file?path=%1&pages=true").arg(fileName));
     QVERIFY(resp.ok());
     QVERIFY(resp.body.contains("\"pages\":100"));
-
-    QList<ServerLog::Entry> log = ServerLog::entries();
-    QCOMPARE(log.size(), 1);
-    QCOMPARE(log[0].action, ServerLog::PageCount);
-    QCOMPARE(log[0].detail, 100);
-    // PDF should not need conversion to get a page count
-    for (const auto &e : log)
-        QVERIFY(e.action != ServerLog::ConvertToPdf);
+    QVERIFY(ServerLog::next(ServerLog::PageCount, 100));
 
     // 2. Extract page 1
     qint64 page1Size;
@@ -508,6 +497,7 @@ void TestSearchServer::testLargePdfProgressive()
     // 4. Extract page 50
     verifyPageFetch(fileName, 50, ServerLog::PageExtract);
 
+    QVERIFY(ServerLog::end());
     server.stop();
 }
 
@@ -523,12 +513,12 @@ void TestSearchServer::testLargeMaxProgressive()
 
     clearCaches();
 
+    ServerLog::clear();
     SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
 
     // 1. Fetch a thumbnail for page 1
-    ServerLog::clear();
     auto resp = get(
         QString("/thumbnail?path=%1&page=1&size=small").arg(fileName),
         30000);
@@ -538,26 +528,17 @@ void TestSearchServer::testLargeMaxProgressive()
     QVERIFY2(resp.body.size() > 0, "Thumbnail should not be empty");
     QVERIFY2(resp.body.startsWith("\xff\xd8"),
              "Thumbnail should be a valid JPEG");
-
-    QList<ServerLog::Entry> thumbLog = ServerLog::entries();
-    QCOMPARE(thumbLog.size(), 2);
-    QCOMPARE(thumbLog[0].action, ServerLog::ConvertToPdf);
-    QCOMPARE(thumbLog[1].action, ServerLog::Thumbnail);
-    QCOMPARE(thumbLog[1].detail, 1);
+    QVERIFY(ServerLog::next(ServerLog::ConvertToPdf));
+    QVERIFY(ServerLog::next(ServerLog::Thumbnail, 1));
 
     // 2. Page count — File class loads directly, no ConvertToPdf needed
-    ServerLog::clear();
     resp = get(
         QString("/file?path=%1&pages=true").arg(fileName), 30000);
     QVERIFY(resp.ok());
     QVERIFY2(resp.body.contains("\"pages\":100"),
              qPrintable("Expected 100 pages, got: " +
                         QString::fromUtf8(resp.body)));
-
-    QList<ServerLog::Entry> log = ServerLog::entries();
-    QCOMPARE(log.size(), 1);
-    QCOMPARE(log[0].action, ServerLog::PageCount);
-    QCOMPARE(log[0].detail, 100);
+    QVERIFY(ServerLog::next(ServerLog::PageCount, 100));
 
     // 3. Extract page 10 — File class converts to PDF in-process
     qint64 pageSize;
@@ -573,5 +554,6 @@ void TestSearchServer::testLargeMaxProgressive()
     // 5. Extract page 50
     verifyPageFetch(fileName, 50, ServerLog::PageExtract, nullptr, 30000);
 
+    QVERIFY(ServerLog::end());
     server.stop();
 }
