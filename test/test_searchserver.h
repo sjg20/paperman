@@ -48,6 +48,9 @@ private:
    // Helper to create test files
    void createTestFiles(const QString& path);
 
+   // Clear all on-disk caches so results are deterministic
+   void clearCaches();
+
    // Helper to fetch a page, verify 200/PDF response, and check the log
    void verifyPageFetch(const QString &fileName, int page,
                         ServerLog::Action expectedAction,

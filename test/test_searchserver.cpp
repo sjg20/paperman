@@ -116,6 +116,22 @@ void TestSearchServer::createTestFiles(const QString& path)
     file4.close();
 }
 
+void TestSearchServer::clearCaches()
+{
+    const char *dirs[] = {
+        "/tmp/paperman-pages",
+        "/tmp/paperman-converted",
+        "/tmp/paperman-thumbnails",
+    };
+    for (const char *path : dirs) {
+        QDir dir(path);
+        if (dir.exists()) {
+            foreach (const QString &f, dir.entryList(QDir::Files))
+                dir.remove(f);
+        }
+    }
+}
+
 void TestSearchServer::testServerStartStop()
 {
     QTemporaryDir tmpDir;
@@ -474,12 +490,7 @@ void TestSearchServer::testLargePdfProgressive()
     qint64 fullFileSize = QFileInfo(dstPdf).size();
     QString fileName = "100pp.pdf";
 
-    // Clear on-disk page cache so results are deterministic
-    QDir pageCache("/tmp/paperman-pages");
-    if (pageCache.exists()) {
-        foreach (const QString &f, pageCache.entryList(QDir::Files))
-            pageCache.remove(f);
-    }
+    clearCaches();
 
     SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
@@ -530,22 +541,7 @@ void TestSearchServer::testLargeMaxProgressive()
     qint64 fullFileSize = QFileInfo(dstMax).size();
     QString fileName = "100pp_from_pdf.max";
 
-    // Clear on-disk caches so results are deterministic
-    QDir pageCache("/tmp/paperman-pages");
-    if (pageCache.exists()) {
-        foreach (const QString &f, pageCache.entryList(QDir::Files))
-            pageCache.remove(f);
-    }
-    QDir convertCache("/tmp/paperman-converted");
-    if (convertCache.exists()) {
-        foreach (const QString &f, convertCache.entryList(QDir::Files))
-            convertCache.remove(f);
-    }
-    QDir thumbCache("/tmp/paperman-thumbnails");
-    if (thumbCache.exists()) {
-        foreach (const QString &f, thumbCache.entryList(QDir::Files))
-            thumbCache.remove(f);
-    }
+    clearCaches();
 
     SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
