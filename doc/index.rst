@@ -32,6 +32,7 @@ Paperman
    :maxdepth: 2
    :caption: Development
 
+   develop
    testing
    claude-setup-nginx
    install-claude
