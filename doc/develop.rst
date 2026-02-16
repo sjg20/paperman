@@ -6,20 +6,40 @@ This guide covers building paperman from source and working on the codebase.
 Prerequisites
 -------------
 
-Install the required development libraries:
+The quickest way to set up a build environment is::
+
+   make setup
+
+This installs all Debian packages, the Flutter SDK, Java JDK and the
+Android SDK.  For a lighter install that only covers the Qt5/C++ desktop
+app and server::
+
+   scripts/setup.sh --qt
+
+The full list of what the script installs is documented in
+``scripts/setup.sh``.  The manual steps are shown below for reference.
+
+Qt5/C++ dependencies (desktop app + server):
 
 .. code:: bash
 
    sudo apt-get install -y \
-     build-essential qt5-qmake qtbase5-dev libqt5sql5-sqlite \
-     libpoppler-qt5-dev libpodofo-dev libtiff-dev libjpeg-dev \
-     libsane-dev zlib1g-dev
+     build-essential qt5-qmake qtbase5-dev qtbase5-dev-tools \
+     libqt5sql5-sqlite libpoppler-qt5-dev libpodofo-dev \
+     libtiff-dev libjpeg-dev libsane-dev zlib1g-dev \
+     imagemagick tesseract-ocr tesseract-ocr-eng
 
-For the documentation you also need Sphinx:
+Python packages for demo-asset generation and documentation:
 
 .. code:: bash
 
-   sudo apt-get install -y python3-sphinx python3-sphinx-rtd-theme
+   sudo apt-get install -y \
+     python3-reportlab python3-pil python3-numpy poppler-utils \
+     python3-sphinx python3-sphinx-rtd-theme
+
+Flutter app (Android + Linux desktop) additionally needs the Flutter SDK,
+Java 21 and several Linux desktop libraries.  See ``scripts/setup.sh`` for
+the full details.
 
 Building
 --------
@@ -109,6 +129,7 @@ The most useful targets during development:
 
 .. code:: bash
 
+   make setup             # Install all build dependencies
    make paperman          # Build the desktop app only
    make test              # Build and run all tests (includes test-setup)
    make test-setup        # Generate test files without running tests

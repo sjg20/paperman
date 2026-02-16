@@ -48,6 +48,10 @@ FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define-from-file=dart-defines.
 
 app: app-apk app-linux
 
+.PHONY: setup
+setup:
+	scripts/setup.sh
+
 .PHONY: app app-demo app-test dart-defines app-apk app-aab app-publish
 .PHONY: app-upload app-scp app-scp-only app-linux app-clean
 dart-defines:
@@ -109,6 +113,7 @@ help:
 	@echo "  app-test         Run Flutter widget tests"
 	@echo ""
 	@echo "Other targets:"
+	@echo "  setup            Install build dependencies (apt)"
 	@echo "  info             List built binaries"
 	@echo "  clean            Clean all build outputs"
 	@echo "  app-clean        Clean Flutter build outputs"
