@@ -32,7 +32,7 @@ docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 
 app:
-	cd app && flutter build linux
+	cd app && flutter build linux --dart-define=BUILD_DATE=$(shell date "+%Y-%m-%d %H:%M")
 
 app-clean:
 	cd app && flutter clean

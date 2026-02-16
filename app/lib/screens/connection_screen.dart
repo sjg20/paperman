@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart' show ApiException, ApiService;
@@ -17,11 +18,25 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   final _passController = TextEditingController();
   bool _connecting = false;
   String? _error;
+  String? _version;
+
+  static const _buildDate = String.fromEnvironment(
+    'BUILD_DATE',
+    defaultValue: 'unknown',
+  );
 
   @override
   void initState() {
     super.initState();
+    _loadVersion();
     _loadSaved();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() => _version = info.version);
+    }
   }
 
   Future<void> _loadSaved() async {
@@ -156,6 +171,15 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
+            const Spacer(),
+            if (_version != null)
+              Text(
+                'v$_version \u2014 Built $_buildDate',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                ),
+              ),
           ],
         ),
       ),

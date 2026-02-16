@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -16,6 +17,11 @@ class BrowseScreen extends StatefulWidget {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
+  static const _buildDate = String.fromEnvironment(
+    'BUILD_DATE',
+    defaultValue: 'unknown',
+  );
+
   List<Repository>? _repos;
   String? _selectedRepo;
   String _currentPath = '';
@@ -146,6 +152,26 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           )
                           .toList(),
             ),
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () async {
+              final info = await PackageInfo.fromPlatform();
+              if (!mounted) return;
+              showAboutDialog(
+                context: context,
+                applicationName: 'Paperman',
+                applicationVersion: info.version,
+                applicationIcon: const Icon(
+                  Icons.description,
+                  size: 48,
+                  color: Colors.blue,
+                ),
+                children: [
+                  Text('Built: $_buildDate'),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _disconnect,
