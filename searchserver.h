@@ -41,6 +41,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 
+#include "serverlog.h"
+
 // Simple struct for cached file information
 struct CachedFile {
     QString path;        // Relative path from repository root
@@ -357,6 +359,10 @@ private:
      */
     bool loadFromPapertree(const QString &repoPath, QList<CachedFile> &fileList);
 
+public:
+    ServerLog _log;         //!< Request log
+
+private:
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on

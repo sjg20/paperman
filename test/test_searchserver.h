@@ -51,9 +51,9 @@ private:
    // Copy a test file into a directory and return its size
    qint64 copyTestFile(const QString &fileName, const QString &destDir);
 
-   // Helper to fetch a page, verify 200/PDF response, and check the log
-   void verifyPageFetch(const QString &fileName, int page,
-                        ServerLog::Action expectedAction,
+   // Fetch a page, verify 200/PDF response, and check the log
+   void verifyPageFetch(ServerLog &slog, const QString &fileName,
+                        int page, ServerLog::Action expectedAction,
                         qint64 *bodySize = nullptr,
                         int timeoutMs = 10000);
 };

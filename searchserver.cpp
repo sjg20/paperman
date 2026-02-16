@@ -832,7 +832,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
                                     buildJsonResponse(false, "",
                                         "Failed to get page count"));
         }
-        ServerLog::log(ServerLog::PageCount, filePath, pages);
+        _log.log(ServerLog::PageCount, filePath, pages);
         QString json = QString("{\"success\":true,\"pages\":%1}")
                       .arg(pages);
         return buildHttpResponse(200, "OK", "application/json", json);
@@ -869,7 +869,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
             cachedPage = cacheDir + "/" + cacheKeyHash + ".pdf";
 
             if (QFile::exists(cachedPage)) {
-                ServerLog::log(ServerLog::PageCacheHit, filePath,
+                _log.log(ServerLog::PageCacheHit, filePath,
                                page);
             } else {
                 if (!extractPdfPage(fullPath, page, cachedPage)) {
@@ -878,7 +878,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
                         buildJsonResponse(false, "",
                             "Failed to extract page"));
                 }
-                ServerLog::log(ServerLog::PageExtract, filePath,
+                _log.log(ServerLog::PageExtract, filePath,
                                page);
             }
         }
@@ -959,7 +959,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
     QByteArray fileContent = file.readAll();
     file.close();
 
-    ServerLog::log(ServerLog::ServeFile, filePath);
+    _log.log(ServerLog::ServeFile, filePath);
     return buildHttpResponse(200, "OK", contentType, fileContent);
 }
 
@@ -1384,7 +1384,7 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     // 4. Return cached thumbnail if exists
     if (QFile::exists(cachedThumb)) {
         qDebug() << "SearchServer: Using cached thumbnail:" << cachedThumb;
-        ServerLog::log(ServerLog::ThumbnailCacheHit, filePath, page);
+        _log.log(ServerLog::ThumbnailCacheHit, filePath, page);
         return cachedThumb;
     }
     
@@ -1408,7 +1408,7 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
 
     if (success) {
         qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
-        ServerLog::log(ServerLog::Thumbnail, filePath, page);
+        _log.log(ServerLog::Thumbnail, filePath, page);
         return cachedThumb;
     }
 
@@ -1434,7 +1434,7 @@ QString SearchServer::convertToPdf(const QString &fullPath)
 
     // Return cached version if it exists
     if (QFile::exists(cachedPdf)) {
-        ServerLog::log(ServerLog::ConvertCacheHit, fullPath);
+        _log.log(ServerLog::ConvertCacheHit, fullPath);
         return cachedPdf;
     }
 
@@ -1497,7 +1497,7 @@ QString SearchServer::convertToPdf(const QString &fullPath)
         return QString();
     }
 
-    ServerLog::log(ServerLog::ConvertToPdf, fullPath);
+    _log.log(ServerLog::ConvertToPdf, fullPath);
     qDebug() << "SearchServer: Cached converted PDF:" << cachedPdf;
     return cachedPdf;
 }
@@ -1543,7 +1543,7 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
 
     // Return cached version if it exists
     if (QFile::exists(cachedPdf)) {
-        ServerLog::log(ServerLog::PageCacheHit, fullPath, page);
+        _log.log(ServerLog::PageCacheHit, fullPath, page);
         return cachedPdf;
     }
 
@@ -1642,7 +1642,7 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
     delete srcFile;
     delete dstFile;
 
-    ServerLog::log(ServerLog::PageExtract, fullPath, page);
+    _log.log(ServerLog::PageExtract, fullPath, page);
     return cachedPdf;
 }
 
@@ -1663,7 +1663,7 @@ QString SearchServer::convertPageToPdf(const QString &fullPath, int page,
 
     // Return cached version if it exists
     if (QFile::exists(cachedPdf)) {
-        ServerLog::log(ServerLog::PageCacheHit, fullPath, page);
+        _log.log(ServerLog::PageCacheHit, fullPath, page);
         return cachedPdf;
     }
 
@@ -1712,7 +1712,7 @@ QString SearchServer::convertPageToPdf(const QString &fullPath, int page,
         return QString();
     }
 
-    ServerLog::log(ServerLog::PageExtract, fullPath, page);
+    _log.log(ServerLog::PageExtract, fullPath, page);
     return cachedPdf;
 }
 

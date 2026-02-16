@@ -1,35 +1,27 @@
 #include "serverlog.h"
 
-static QList<ServerLog::Entry> _logEntries;
-static int _readPos;
-
 void ServerLog::log(Action action, const QString &path,
-                    int detail, qint64 elapsedMs)
+                    int detail, int elapsedMs)
 {
     Entry entry;
     entry.action = action;
     entry.path = path;
     entry.detail = detail;
     entry.elapsedMs = elapsedMs;
-    _logEntries.append(entry);
-}
-
-QList<ServerLog::Entry> ServerLog::entries()
-{
-    return _logEntries;
+    _entries.append(entry);
 }
 
 void ServerLog::clear()
 {
-    _logEntries.clear();
+    _entries.clear();
     _readPos = 0;
 }
 
 bool ServerLog::next(Action action, int detail)
 {
-    if (_readPos >= _logEntries.size())
+    if (_readPos >= _entries.size())
         return false;
-    const Entry &e = _logEntries[_readPos++];
+    const Entry &e = _entries[_readPos++];
     if (e.action != action)
         return false;
     if (detail >= 0 && e.detail != detail)
@@ -37,7 +29,7 @@ bool ServerLog::next(Action action, int detail)
     return true;
 }
 
-bool ServerLog::end()
+bool ServerLog::end() const
 {
-    return _readPos >= _logEntries.size();
+    return _readPos >= _entries.size();
 }

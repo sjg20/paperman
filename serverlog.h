@@ -4,6 +4,19 @@
 #include <QList>
 #include <QString>
 
+/**
+ * Per-server request log.
+ *
+ * Records the sequence of high-level actions that the server performs
+ * while handling requests (page extraction, format conversion, cache
+ * hits, thumbnail generation, etc.).  This gives tests a way to verify
+ * that the server took the expected code path for each request without
+ * inspecting the HTTP response alone.
+ *
+ * Each SearchServer owns a ServerLog instance.  Server methods call log()
+ * to append entries as they happen.  Tests walk the log with next()/end()
+ * to verify the expected sequence.
+ */
 struct ServerLog {
     enum Action {
         PageCount,       // got page count
@@ -16,21 +29,35 @@ struct ServerLog {
         ThumbnailCacheHit, // found cached thumbnail
     };
 
+    /** A single log entry recorded by the server */
     struct Entry {
-        Action action;
-        QString path;    // file that was operated on
-        int detail;      // e.g. page number or page count
-        qint64 elapsedMs;
+        Action action;   //!< what the server did
+        QString path;    //!< file that was operated on
+        int detail;      //!< action-specific value (e.g. page number)
+        int elapsedMs;   //!< wall-clock time for the action
     };
 
-    static void log(Action action, const QString &path,
-                    int detail = 0, qint64 elapsedMs = 0);
-    static QList<Entry> entries();
-    static void clear();
+    /** Append an entry to the log */
+    void log(Action action, const QString &path,
+             int detail = 0, int elapsedMs = 0);
 
-    // Test helpers: read position advances through the log
-    static bool next(Action action, int detail = -1);
-    static bool end();
+    /** Clear all entries and reset the read position */
+    void clear();
+
+    /**
+     * Check the entry at the read position and advance.
+     * @param action  Expected action
+     * @param detail  Expected detail, or -1 to skip the check
+     * @return true if the entry matches
+     */
+    bool next(Action action, int detail = -1);
+
+    /** Return true when the read position is past the last entry */
+    bool end() const;
+
+private:
+    QList<Entry> _entries;
+    int _readPos = 0;
 };
 
 #endif // SERVERLOG_H

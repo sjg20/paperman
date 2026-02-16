@@ -5,7 +5,6 @@
 #include <QFile>
 
 #include "../searchserver.h"
-#include "../serverlog.h"
 #include "test.h"
 
 #include "test_searchserver.h"
@@ -441,7 +440,8 @@ void TestSearchServer::testFilePageExtract()
     server.stop();
 }
 
-void TestSearchServer::verifyPageFetch(const QString &fileName, int page,
+void TestSearchServer::verifyPageFetch(ServerLog &slog,
+                                       const QString &fileName, int page,
                                        ServerLog::Action expectedAction,
                                        qint64 *bodySize, int timeoutMs)
 {
@@ -457,7 +457,7 @@ void TestSearchServer::verifyPageFetch(const QString &fileName, int page,
     if (bodySize)
         *bodySize = resp.body.size();
 
-    QVERIFY(ServerLog::next(expectedAction, page));
+    QVERIFY(slog.next(expectedAction, page));
 }
 
 void TestSearchServer::testLargePdfProgressive()
@@ -472,32 +472,32 @@ void TestSearchServer::testLargePdfProgressive()
 
     clearCaches();
 
-    ServerLog::clear();
     SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
+    ServerLog &slog = server._log;
 
     // 1. Page count — should return 100 and log PageCount
     auto resp = get(QString("/file?path=%1&pages=true").arg(fileName));
     QVERIFY(resp.ok());
     QVERIFY(resp.body.contains("\"pages\":100"));
-    QVERIFY(ServerLog::next(ServerLog::PageCount, 100));
+    QVERIFY(slog.next(ServerLog::PageCount, 100));
 
     // 2. Extract page 1
     qint64 page1Size;
-    verifyPageFetch(fileName, 1, ServerLog::PageExtract, &page1Size);
+    verifyPageFetch(slog, fileName, 1, ServerLog::PageExtract, &page1Size);
     QVERIFY2(page1Size < fullFileSize / 5,
              qPrintable(QString("Page 1 (%1 bytes) should be < 1/5 of full "
                                 "file (%2)")
                        .arg(page1Size).arg(fullFileSize)));
 
     // 3. Request page 1 again — should hit cache
-    verifyPageFetch(fileName, 1, ServerLog::PageCacheHit);
+    verifyPageFetch(slog, fileName, 1, ServerLog::PageCacheHit);
 
     // 4. Extract page 50
-    verifyPageFetch(fileName, 50, ServerLog::PageExtract);
+    verifyPageFetch(slog, fileName, 50, ServerLog::PageExtract);
 
-    QVERIFY(ServerLog::end());
+    QVERIFY(slog.end());
     server.stop();
 }
 
@@ -513,10 +513,10 @@ void TestSearchServer::testLargeMaxProgressive()
 
     clearCaches();
 
-    ServerLog::clear();
     SearchServer server(tmpDir.path(), PORT, nullptr, true);
     QVERIFY(server.start());
     QTest::qWait(100);
+    ServerLog &slog = server._log;
 
     // 1. Fetch a thumbnail for page 1
     auto resp = get(
@@ -528,8 +528,8 @@ void TestSearchServer::testLargeMaxProgressive()
     QVERIFY2(resp.body.size() > 0, "Thumbnail should not be empty");
     QVERIFY2(resp.body.startsWith("\xff\xd8"),
              "Thumbnail should be a valid JPEG");
-    QVERIFY(ServerLog::next(ServerLog::ConvertToPdf));
-    QVERIFY(ServerLog::next(ServerLog::Thumbnail, 1));
+    QVERIFY(slog.next(ServerLog::ConvertToPdf));
+    QVERIFY(slog.next(ServerLog::Thumbnail, 1));
 
     // 2. Page count — File class loads directly, no ConvertToPdf needed
     resp = get(
@@ -538,22 +538,22 @@ void TestSearchServer::testLargeMaxProgressive()
     QVERIFY2(resp.body.contains("\"pages\":100"),
              qPrintable("Expected 100 pages, got: " +
                         QString::fromUtf8(resp.body)));
-    QVERIFY(ServerLog::next(ServerLog::PageCount, 100));
+    QVERIFY(slog.next(ServerLog::PageCount, 100));
 
     // 3. Extract page 10 — File class converts to PDF in-process
     qint64 pageSize;
-    verifyPageFetch(fileName, 10, ServerLog::PageExtract, &pageSize, 30000);
+    verifyPageFetch(slog, fileName, 10, ServerLog::PageExtract, &pageSize, 30000);
     QVERIFY2(pageSize < fullFileSize / 5,
              qPrintable(QString("Page 10 (%1 bytes) should be < 1/5 of full "
                                 "file (%2)")
                        .arg(pageSize).arg(fullFileSize)));
 
     // 4. Request page 10 again — should hit cache
-    verifyPageFetch(fileName, 10, ServerLog::PageCacheHit);
+    verifyPageFetch(slog, fileName, 10, ServerLog::PageCacheHit);
 
     // 5. Extract page 50
-    verifyPageFetch(fileName, 50, ServerLog::PageExtract, nullptr, 30000);
+    verifyPageFetch(slog, fileName, 50, ServerLog::PageExtract, nullptr, 30000);
 
-    QVERIFY(ServerLog::end());
+    QVERIFY(slog.end());
     server.stop();
 }
