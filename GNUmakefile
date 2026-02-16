@@ -41,6 +41,33 @@ app-apk:
 app-linux:
 	cd app && flutter build linux --dart-define=BUILD_DATE=$(BUILD_DATE)
 
+APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
+APP_BIN  = app/build/linux/x64/release/bundle/paperman
+
+info:
+	@ls -l paperman $(APP_APK) $(APP_BIN) 2>/dev/null || echo "No binaries found (run 'make' first)"
+
+help:
+	@echo "Build targets:"
+	@echo "  all              Build everything (default)"
+	@echo "  paperman         Build the Qt desktop app"
+	@echo "  paperman-server  Build the standalone server"
+	@echo "  app              Build the Flutter app (Android + Linux)"
+	@echo "  app-apk          Build the Flutter Android APK only"
+	@echo "  app-linux        Build the Flutter Linux binary only"
+	@echo "  docs             Build the Sphinx documentation"
+	@echo ""
+	@echo "Test targets:"
+	@echo "  test             Run all tests"
+	@echo "  test-progressive Run progressive-loading tests"
+	@echo "  test-parallel    Run parallel tests"
+	@echo ""
+	@echo "Other targets:"
+	@echo "  info             List built binaries"
+	@echo "  clean            Clean all build outputs"
+	@echo "  app-clean        Clean Flutter build outputs"
+	@echo "  docs-clean       Clean Sphinx build outputs"
+
 app-clean:
 	-cd app && flutter clean
 
