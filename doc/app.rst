@@ -135,6 +135,63 @@ The app talks to the following paperman server endpoints:
 
 See :doc:`api` for full details on each endpoint.
 
+Publishing to the Play Store
+-----------------------------
+
+Signing
+~~~~~~~
+
+Release builds are signed using a keystore referenced by
+``app/android/key.properties`` (gitignored). To create a new keystore:
+
+.. code:: bash
+
+   keytool -genkey -v \
+     -keystore app/android/app/upload-keystore.jks \
+     -keyalg RSA -keysize 2048 -validity 10000 \
+     -alias upload
+
+Then create ``app/android/key.properties``:
+
+.. code:: ini
+
+   storePassword=<your password>
+   keyPassword=<your password>
+   keyAlias=upload
+   storeFile=upload-keystore.jks
+
+Keep the keystore file safe -- you cannot update the app without it.
+
+To change the passwords later:
+
+.. code:: bash
+
+   keytool -storepasswd -keystore app/android/app/upload-keystore.jks
+   keytool -keypasswd -alias upload -keystore app/android/app/upload-keystore.jks
+
+Building an app bundle
+~~~~~~~~~~~~~~~~~~~~~~
+
+The Play Store prefers an Android App Bundle (``.aab``) over an APK:
+
+.. code:: bash
+
+   cd app && flutter build appbundle
+
+The output is at ``app/build/app/outputs/bundle/release/app-release.aab``
+
+Uploading
+~~~~~~~~~
+
+1. Register a `Google Play Developer account
+   <https://play.google.com/console>`_ ($25 one-time fee)
+2. Create a new app in the Play Console
+3. Fill in the store listing: app name, description, category,
+   screenshots (phone + tablet), a 512x512 icon, and a privacy policy URL
+4. Complete the content rating questionnaire and data safety form
+5. Upload the ``.aab`` to a release track (start with internal testing)
+6. Submit for review
+
 Connecting to the Server
 ------------------------
 
