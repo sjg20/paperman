@@ -26,11 +26,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDate>
 #include <QDebug>
 #include <QDir>
+#ifndef QT_NO_WIDGETS
 #include <QDropEvent>
+#endif
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#ifndef QT_NO_WIDGETS
 #include <QMessageBox>
+#endif
 #include <QMimeData>
 #include <QSettings>
 #include <QStringList>
@@ -49,7 +53,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 #include "err.h"
 #include "mem.h"
+#ifndef QT_NO_WIDGETS
 #include "op.h"
+#endif
 #include "utils.h"
 #include "zip.h"
 
@@ -763,6 +769,7 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches,
    return final;
 }
 
+#ifndef QT_NO_WIDGETS
 bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes)
 {
    foreach (const QString& item, event->mimeData()->formats()) {
@@ -775,6 +782,7 @@ bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes)
 
    return true;
 }
+#endif
 
 TreeItem::TreeItem(const QVector<QVariant> &data, TreeItem *parent)
     : m_itemData(data), m_parentItem(parent), m_isDir(false)
@@ -979,6 +987,7 @@ bool TreeItem::read(QTextStream& stream, TreeItem *parent, int cur_level)
    return true;
 }
 
+#ifndef QT_NO_WIDGETS
 static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
 {
    QDir dir(dirPath);
@@ -1027,6 +1036,7 @@ TreeItem *utilScanDir(QString dirPath, Operation *op)
 
    return root;
 }
+#endif
 
 bool utilWriteTree(QString fname, TreeItem *tree)
 {
