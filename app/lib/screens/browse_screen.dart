@@ -109,6 +109,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   void _disconnect() {
+    context.read<ApiService>().disableDemo();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => const ConnectionScreen(autoConnect: false),

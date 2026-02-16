@@ -31,6 +31,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/build.old/
 /coverage/
 
 # Symbolication related
@@ -43,3 +44,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Generated demo assets (rebuilt by make app-demo)
+/assets/demo/

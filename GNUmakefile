@@ -41,10 +41,13 @@ FLUTTER_ARGS = --build-name=$(APP_VERSION) '--dart-define=BUILD_DATE=$(BUILD_DAT
 
 app: app-apk app-linux
 
-app-apk:
+app-demo:
+	python3 app/tools/gen_demo_assets.py
+
+app-apk: app-demo
 	cd app && flutter build apk $(FLUTTER_ARGS)
 
-app-aab:
+app-aab: app-demo
 	cd app && flutter build appbundle $(FLUTTER_ARGS)
 
 app-publish: app-aab
@@ -52,6 +55,14 @@ app-publish: app-aab
 
 app-upload: app-apk
 	rclone copy $(APP_APK) gdrive:apps/
+
+-include server.mk
+
+app-scp: app-apk app-scp-only
+
+app-scp-only:
+	@test -n "$(APP_SERVER)" || { echo "Set APP_SERVER in server.mk (e.g. APP_SERVER = user@host:/var/www/app.apk)"; exit 1; }
+	scp $(APP_APK) $(APP_SERVER)
 
 app-linux:
 	cd app && flutter build linux $(FLUTTER_ARGS)
@@ -73,6 +84,8 @@ help:
 	@echo "  app-aab          Build the Flutter Android App Bundle only"
 	@echo "  app-publish      Build AAB and upload to Play Store internal testing"
 	@echo "  app-upload       Build APK and upload to Google Drive"
+	@echo "  app-scp          Build APK and scp to server (needs server.mk)"
+	@echo "  app-demo         Generate demo assets (PDFs + thumbnails)"
 	@echo "  app-linux        Build the Flutter Linux binary only"
 	@echo "  docs             Build the Sphinx documentation"
 	@echo ""
