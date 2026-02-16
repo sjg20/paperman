@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/directory_tile.dart';
@@ -170,6 +171,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   color: Colors.blue,
                 ),
                 children: [
+                  const Text('Paper scanning and access'),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => launchUrl(
+                      Uri.parse('https://paperman.readthedocs.io'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    child: Text(
+                      'https://paperman.readthedocs.io',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text('Built: $_buildDate'),
                 ],
               );
