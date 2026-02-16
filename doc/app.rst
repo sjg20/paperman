@@ -25,6 +25,33 @@ Features
 -  **Dark mode** follows the system theme
 -  Credentials and server URL saved locally for auto-reconnect
 
+Installing Flutter
+------------------
+
+Install the system dependencies:
+
+.. code:: bash
+
+   sudo apt-get install cmake ninja-build clang lld pkg-config libgtk-3-dev
+
+Download and extract the Flutter SDK:
+
+.. code:: bash
+
+   curl -fSL -o flutter.tar.xz \
+     https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.1-stable.tar.xz
+   tar xf flutter.tar.xz -C ~/
+   rm flutter.tar.xz
+   export PATH="$HOME/flutter/bin:$PATH"
+
+Add the ``export PATH`` line to your shell profile to make it permanent.
+
+Verify the installation:
+
+.. code:: bash
+
+   flutter doctor
+
 Building
 --------
 
@@ -36,6 +63,22 @@ dependencies:
    cd app
    flutter pub get
 
+Linux
+~~~~~
+
+.. code:: bash
+
+   flutter build linux --dart-define=BUILD_DATE=$(date +%Y-%m-%d)
+
+The binary is written to ``build/linux/x64/release/bundle/paperman``.
+
+You can also build from the top-level directory (this passes the build
+date automatically):
+
+.. code:: bash
+
+   make app
+
 Android
 ~~~~~~~
 
@@ -43,15 +86,9 @@ Requires the Android SDK.
 
 .. code:: bash
 
-   flutter build apk --debug
+   flutter build apk --dart-define=BUILD_DATE=$(date +%Y-%m-%d)
 
-The APK is written to ``build/app/outputs/flutter-apk/app-debug.apk``.
-
-You can also build from the top-level directory:
-
-.. code:: bash
-
-   make app
+The APK is written to ``build/app/outputs/flutter-apk/app-release.apk``.
 
 iOS
 ~~~
