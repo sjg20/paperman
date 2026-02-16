@@ -79,6 +79,8 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
         qDebug() << "SearchServer: Skipping file cache build (--no-cache)";
     } else {
         // Build file cache for the repository
+        QElapsedTimer cacheTimer;
+        cacheTimer.start();
         qDebug() << "SearchServer: Building file cache for" << _rootPath;
         QList<CachedFile> &fileList = _fileCache[_rootPath];
 
@@ -88,7 +90,8 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
             scanDirectory(_rootPath, "", fileList);
             qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
         }
-        qDebug() << "SearchServer: File cache ready";
+        qDebug().nospace() << "SearchServer: File cache ready in "
+                           << cacheTimer.elapsed() / 1000.0 << "s";
     }
 
     // Set up file system watcher for papertree file
@@ -129,6 +132,8 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     cleanThumbnailCache();
 
     // Build file cache for each repository
+    QElapsedTimer cacheTimer;
+    cacheTimer.start();
     foreach (const QString &path, _rootPaths) {
         qDebug() << "SearchServer: Building file cache for" << path;
         QList<CachedFile> &fileList = _fileCache[path];
@@ -141,7 +146,8 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
             qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
         }
     }
-    qDebug() << "SearchServer: File cache ready";
+    qDebug().nospace() << "SearchServer: File cache ready in "
+                       << cacheTimer.elapsed() / 1000.0 << "s";
 
     // Set up file system watcher for papertree files in all repositories
     _fsWatcher = new QFileSystemWatcher(this);

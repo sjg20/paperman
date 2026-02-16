@@ -7,6 +7,9 @@ QT -= gui
 CONFIG += qt warn_on console
 CONFIG -= app_bundle
 
+BUILD_DATE = $$system(date "+%Y-%m-%d %H:%M")
+DEFINES += SERVER_BUILD_DATE=\\\"$$BUILD_DATE\\\"
+
 # Use QCoreApplication instead of QApplication
 DEFINES += QT_NO_GUI
 

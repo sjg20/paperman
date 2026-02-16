@@ -32,14 +32,16 @@ docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 
 BUILD_DATE := $(shell date "+%Y-%m-%d %H:%M")
+APP_VERSION := $(shell sed -n 's/.*CONFIG_version_str "\(.*\)"/\1.0/p' config.h)
+FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define=BUILD_DATE=$(BUILD_DATE)
 
 app: app-apk app-linux
 
 app-apk:
-	cd app && flutter build apk --dart-define=BUILD_DATE=$(BUILD_DATE)
+	cd app && flutter build apk $(FLUTTER_ARGS)
 
 app-linux:
-	cd app && flutter build linux --dart-define=BUILD_DATE=$(BUILD_DATE)
+	cd app && flutter build linux $(FLUTTER_ARGS)
 
 APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
 APP_BIN  = app/build/linux/x64/release/bundle/paperman

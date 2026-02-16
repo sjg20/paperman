@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    Main entry point for the Paperman search server.
 */
 
+#include "config.h"
 #include "searchserver.h"
 
 #include <QCoreApplication>
@@ -106,7 +107,8 @@ int main(int argc, char *argv[])
     repositoryPath = repoDir.absolutePath();
 
     // Create and start server
-    std::cout << "Starting Paperman Search Server..." << std::endl;
+    std::cout << "Starting Paperman Search Server v" CONFIG_version_str
+              << " (built " SERVER_BUILD_DATE ")" << std::endl;
     std::cout << "Repository: " << repositoryPath.toStdString() << std::endl;
     std::cout << "Port: " << port << std::endl;
 
