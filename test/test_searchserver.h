@@ -42,9 +42,6 @@ private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
 
-   // Low-level HTTP GET returning raw response bytes
-   QByteArray httpGetRaw(const QString& url, int timeoutMs = 5000);
-
    // Helper to create test files
    void createTestFiles(const QString& path);
 

@@ -10,35 +10,11 @@
 
 #include "test_searchserver.h"
 
-TestSearchServer::Response TestSearchServer::get(const QString &path,
-                                                  int timeoutMs)
+static QByteArray httpGetRaw(const QString &path, int port, int timeoutMs)
 {
-    QByteArray raw = httpGetRaw(
-        QString("http://localhost:%1%2").arg(PORT).arg(path), timeoutMs);
-
-    Response resp;
-    int sep = raw.indexOf("\r\n\r\n");
-    if (sep >= 0) {
-        resp.header = QString::fromUtf8(raw.left(sep));
-        resp.body = raw.mid(sep + 4);
-    }
-    return resp;
-}
-
-QByteArray TestSearchServer::httpGetRaw(const QString& url, int timeoutMs)
-{
-    // Parse URL to get host, port, and path
-    QUrl qurl(url);
-    QString host = qurl.host();
-    int port = qurl.port();
-    QString path = qurl.path();
-    if (qurl.hasQuery())
-        path += "?" + qurl.query();
-
     QTcpSocket socket;
-    socket.connectToHost(host, port);
+    socket.connectToHost("localhost", port);
 
-    // Process events to allow server to accept connection
     QCoreApplication::processEvents();
 
     if (!socket.waitForConnected(2000)) {
@@ -46,19 +22,17 @@ QByteArray TestSearchServer::httpGetRaw(const QString& url, int timeoutMs)
         return QByteArray();
     }
 
-    // Send HTTP GET request
     QString request = QString("GET %1 HTTP/1.1\r\n"
-                             "Host: %2\r\n"
+                             "Host: localhost\r\n"
                              "Connection: close\r\n"
-                             "\r\n").arg(path, host);
+                             "\r\n").arg(path);
 
     socket.write(request.toUtf8());
     socket.flush();
 
-    // Process events to allow server to handle request
     QCoreApplication::processEvents();
 
-    // Wait for response with timeout
+    // Wait for first response bytes
     int totalWait = 0;
     while (socket.bytesAvailable() == 0 && totalWait < timeoutMs) {
         QCoreApplication::processEvents();
@@ -70,11 +44,9 @@ QByteArray TestSearchServer::httpGetRaw(const QString& url, int timeoutMs)
         totalWait += 200;
     }
 
-    // Read all data
-    QByteArray response;
-    response += socket.readAll();
+    QByteArray response = socket.readAll();
 
-    // Wait for remaining data (proportional to main timeout)
+    // Drain remaining data
     int drainTimeout = qMin(timeoutMs / 2, 5000);
     totalWait = 0;
     while (socket.state() == QAbstractSocket::ConnectedState &&
@@ -86,6 +58,20 @@ QByteArray TestSearchServer::httpGetRaw(const QString& url, int timeoutMs)
 
     socket.close();
     return response;
+}
+
+TestSearchServer::Response TestSearchServer::get(const QString &path,
+                                                  int timeoutMs)
+{
+    QByteArray raw = httpGetRaw(path, PORT, timeoutMs);
+
+    Response resp;
+    int sep = raw.indexOf("\r\n\r\n");
+    if (sep >= 0) {
+        resp.header = QString::fromUtf8(raw.left(sep));
+        resp.body = raw.mid(sep + 4);
+    }
+    return resp;
 }
 
 void TestSearchServer::createTestFiles(const QString& path)
