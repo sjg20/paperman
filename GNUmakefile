@@ -9,7 +9,7 @@ BUILDDIR      = $(DOCDIR)/_build
 
 .DEFAULT_GOAL := all
 
-all: paperman app docs
+all: paperman paperman-server app docs
 
 # Targets handled here
 paperman-server: Makefile.server
@@ -47,7 +47,7 @@ APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
 APP_BIN  = app/build/linux/x64/release/bundle/paperman
 
 info:
-	@ls -l paperman $(APP_APK) $(APP_BIN) 2>/dev/null || echo "No binaries found (run 'make' first)"
+	@ls -l paperman paperman-server $(APP_APK) $(APP_BIN) 2>/dev/null || echo "No binaries found (run 'make' first)"
 
 help:
 	@echo "Build targets:"
