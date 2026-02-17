@@ -361,6 +361,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           children: [
             InteractiveViewer.builder(
               transformationController: _transformController,
+              interactionEndFrictionCoefficient: 0.01,
               minScale: 1.0,
               maxScale: 5.0,
               onInteractionStart: (_) {
