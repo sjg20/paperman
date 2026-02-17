@@ -506,18 +506,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// Return the DPI cap for PDF rendering.  The base DPI is 72 scaled by
-  /// the device pixel ratio so the render matches the screen's native
-  /// resolution at 1x zoom.  During an active gesture the DPI is frozen
-  /// at its pre-gesture value so PdfPageView does not re-render (which
-  /// would flash white).  Once the gesture settles the DPI is recomputed
-  /// from the current zoom level.
+  /// Return the DPI cap for PdfPageView.  When settled this returns the
+  /// pdfrx default (300) so PdfPageView renders at full quality.  During
+  /// an active gesture the DPI is frozen at the pre-gesture value so
+  /// PdfPageView does not re-render (which would flash white).
+  static const _defaultMaximumDpi = 300.0;
   double _effectiveDpi() {
-    const maxDpi = 300.0;
     if (_isGesturing) return _settledDpi;
-    final baseDpi = 72.0 * MediaQuery.of(context).devicePixelRatio;
-    final scale = _transformController.value.getMaxScaleOnAxis();
-    return _settledDpi = (baseDpi * scale).clamp(baseDpi, maxDpi);
+    return _settledDpi = _defaultMaximumDpi;
   }
 
   static String _formatBytes(int bytes) {
