@@ -19,6 +19,20 @@ class ViewerScreen extends StatefulWidget {
     this.repo,
   });
 
+  /// Return the range of 0-based page indices that overlap [viewportTop]
+  /// to [viewportBottom] in child coordinates, clamped to [0, pageCount).
+  @visibleForTesting
+  static (int first, int last) visibleRange({
+    required double viewportTop,
+    required double viewportBottom,
+    required double extent,
+    required int pageCount,
+  }) {
+    final first = (viewportTop / extent).floor().clamp(0, pageCount - 1);
+    final last = (viewportBottom / extent).ceil().clamp(0, pageCount - 1);
+    return (first, last);
+  }
+
   @override
   State<ViewerScreen> createState() => _ViewerScreenState();
 }
@@ -224,6 +238,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   double _itemExtent(double viewWidth) =>
       viewWidth * _defaultAspectRatio + _pageGap;
 
+  /// Return the range of 0-based page indices that overlap [viewportTop]
+  /// to [viewportBottom] in child coordinates, clamped to [0, pageCount).
+  (int first, int last) _visibleRange(double viewportTop, double viewportBottom) {
+    return ViewerScreen.visibleRange(
+      viewportTop: viewportTop,
+      viewportBottom: viewportBottom,
+      extent: _itemExtent(MediaQuery.of(context).size.width),
+      pageCount: _totalPages,
+    );
+  }
+
   /// Derive the current page from the transform and trigger prefetching.
   void _onTransformChanged() {
     if (_totalPages == 0) return;
@@ -338,10 +363,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 final top = viewport.point0.y.clamp(0.0, totalHeight);
                 final bottom =
                     viewport.point2.y.clamp(0.0, totalHeight);
-                final firstIdx =
-                    (top / extent).floor().clamp(0, _totalPages - 1);
-                final lastIdx =
-                    (bottom / extent).ceil().clamp(0, _totalPages - 1);
+                final (firstIdx, lastIdx) = ViewerScreen.visibleRange(
+                  viewportTop: top,
+                  viewportBottom: bottom,
+                  extent: extent,
+                  pageCount: _totalPages,
+                );
 
                 return SizedBox(
                   width: viewWidth,
