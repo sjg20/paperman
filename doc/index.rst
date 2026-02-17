@@ -34,6 +34,7 @@ Paperman
 
    develop
    build
+   ppa
    testing
    claude-setup-nginx
    install-claude
