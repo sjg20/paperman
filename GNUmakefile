@@ -47,6 +47,7 @@ DART_DEFINES = app/dart-defines.json
 FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define-from-file=dart-defines.json
 
 app: app-apk app-linux
+	rm -f $(DART_DEFINES)
 
 .PHONY: setup
 setup:
@@ -62,11 +63,9 @@ app-demo:
 
 app-apk: app-demo dart-defines
 	cd app && flutter build apk $(FLUTTER_ARGS)
-	rm -f $(DART_DEFINES)
 
 app-aab: app-demo dart-defines
 	cd app && flutter build appbundle $(FLUTTER_ARGS)
-	rm -f $(DART_DEFINES)
 
 app-publish: app-aab
 	cd app/android && ./gradlew publishReleaseBundle
@@ -84,7 +83,6 @@ app-scp-only:
 
 app-linux: dart-defines
 	cd app && flutter build linux $(FLUTTER_ARGS)
-	rm -f $(DART_DEFINES)
 
 APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
 APP_AAB  = app/build/app/outputs/bundle/release/app-release.aab
