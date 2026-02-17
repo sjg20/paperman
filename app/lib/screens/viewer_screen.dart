@@ -70,9 +70,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Future<void> _init() async {
     _safeName = widget.fileName.replaceAll(RegExp(r'[^\w.]'), '_');
-    _cacheDir = await getTemporaryDirectory();
-
     final api = context.read<ApiService>();
+    _cacheDir = await getTemporaryDirectory();
 
     try {
       if (api.isDemo) {
@@ -203,15 +202,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _documents[p]!.dispose();
       _documents.remove(p);
     }
-  }
-
-  /// Calculate the display height for a given page at the given width.
-  double _pageHeight(int page, double viewWidth) {
-    final size = _pageSizes[page];
-    if (size != null && size.width > 0) {
-      return viewWidth * size.height / size.width;
-    }
-    return viewWidth * _defaultAspectRatio;
   }
 
   double _itemExtent(double viewWidth) =>

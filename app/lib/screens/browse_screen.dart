@@ -159,7 +159,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             icon: const Icon(Icons.info_outline),
             onPressed: () async {
               final info = await PackageInfo.fromPlatform();
-              if (!mounted) return;
+              if (!context.mounted) return;
               showAboutDialog(
                 context: context,
                 applicationName: 'Paperman',
@@ -190,7 +190,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemCount: _breadcrumbs.length,
-              separatorBuilder: (_, __) => const Icon(Icons.chevron_right, size: 18),
+              separatorBuilder: (_, _) => const Icon(Icons.chevron_right, size: 18),
               itemBuilder: (_, i) {
                 return GestureDetector(
                   onTap: () {
