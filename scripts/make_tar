@@ -1,13 +1,16 @@
 #!/bin/bash
 
-dest=../paperman_1.3.1.orig.tar.bz2
+# Auto-detect project name and upstream version from debian/changelog.in
+version=$(head -1 debian/changelog.in | sed -n 's/.*(\([^)]*\)).*/\1/p' |
+          sed 's/VENDOR_VERSION//')
+upstream_version=$(echo "$version" | sed 's/-.*//')
+project=$(grep "^Source:" debian/control.in | head -1 | awk '{print $2}')
 
-exclude=".git"
-# .moc .ui .obj Makefile debian/changelog doc/ tests
+dest=../${project}_${upstream_version}.orig.tar.bz2
 
-for item in ${exclude}; do
-   excludes+="--exclude ${item} "
-done
-
-# Make a tar file excluding the compiled files
-tar cfj $dest ${excludes} .
+# Use git archive to exclude build artifacts and untracked files
+BZIP_CMD="bzip2"
+if command -v pbzip2 > /dev/null; then
+    BZIP_CMD="pbzip2"
+fi
+git archive --format=tar --prefix="" HEAD | $BZIP_CMD > "$dest"
