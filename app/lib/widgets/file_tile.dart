@@ -44,10 +44,10 @@ class FileTile extends StatelessWidget {
                 : {},
             fit: BoxFit.cover,
             placeholder:
-                (_, __) =>
+                (_, _) =>
                     const Icon(Icons.insert_drive_file, color: Colors.grey),
             errorWidget:
-                (_, __, ___) =>
+                (_, _, _) =>
                     const Icon(Icons.insert_drive_file, color: Colors.grey),
           );
 
