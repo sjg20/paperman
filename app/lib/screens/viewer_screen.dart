@@ -50,6 +50,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   late String _safeName;
   late Directory _cacheDir;
   late ScrollController _scrollController;
+  final _transformController = TransformationController();
+  int? _zoomedPage;
 
   @override
   void initState() {
@@ -63,6 +65,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void dispose() {
     _scrollDebounce?.cancel();
     _scrollController.dispose();
+    _transformController.dispose();
     _demoDoc?.dispose();
     for (final doc in _documents.values) {
       doc.dispose();
@@ -224,6 +227,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   double _itemExtent(double viewWidth) =>
       viewWidth * _defaultAspectRatio + _pageGap;
 
+  double _pageHeight(int page, double viewWidth) =>
+      viewWidth * _defaultAspectRatio;
+
   void _onScroll() {
     if (_totalPages == 0) return;
 
@@ -311,31 +317,68 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
         return Stack(
           children: [
-            InteractiveViewer(
-              minScale: 1.0,
-              maxScale: 5.0,
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: _totalPages,
-                itemExtent: extent,
-                itemBuilder: (context, index) {
-                  final page = index + 1;
-                  final height = extent - _pageGap;
+            ListView.builder(
+              controller: _scrollController,
+              itemCount: _totalPages,
+              itemExtent: extent,
+              itemBuilder: (context, index) {
+                final page = index + 1;
+                final height = extent - _pageGap;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: _pageGap),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: _pageGap),
+                  child: GestureDetector(
+                    onDoubleTap: () =>
+                        _handleDoubleTap(page, viewWidth, height),
                     child: _buildPage(page, viewWidth, height),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
             if (_scrubTarget != null)
               const Center(child: CircularProgressIndicator()),
             if (_totalPages > 1)
               _buildPageSlider(constraints.maxHeight, extent),
+            if (_zoomedPage != null)
+              _buildZoomOverlay(viewWidth, constraints.maxHeight),
           ],
         );
       },
+    );
+  }
+
+  void _handleDoubleTap(int page, double width, double height) {
+    if (_zoomedPage != null) {
+      _transformController.value = Matrix4.identity();
+      setState(() => _zoomedPage = null);
+    } else {
+      _transformController.value = Matrix4.identity();
+      setState(() => _zoomedPage = page);
+    }
+  }
+
+  Widget _buildZoomOverlay(double viewWidth, double viewHeight) {
+    final page = _zoomedPage!;
+    final pageHeight = _pageHeight(page, viewWidth);
+
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black,
+        child: GestureDetector(
+          onDoubleTap: () {
+            _transformController.value = Matrix4.identity();
+            setState(() => _zoomedPage = null);
+          },
+          child: InteractiveViewer(
+            transformationController: _transformController,
+            minScale: 1.0,
+            maxScale: 5.0,
+            child: Center(
+              child: _buildPage(page, viewWidth, pageHeight),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
