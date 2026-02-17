@@ -137,6 +137,26 @@ The most useful targets during development:
    make docs              # Build the Sphinx documentation
    make clean             # Remove all build artefacts
 
+Continuous Integration
+---------------------
+
+A GitHub Actions workflow (``.github/workflows/ci.yml``) runs on every push
+to ``master`` and on pull requests.  It has three parallel jobs:
+
+**qt** — Desktop app, server and C++ tests
+   Installs Qt5/C++ dependencies, builds ``paperman`` and
+   ``paperman-server``, generates test data, then runs the Qt unit tests,
+   page-fetch integration test and parallel conversion test.
+
+**flutter** — Flutter app and widget tests
+   Sets up Java 21 and Flutter 3.41.1, generates demo assets, runs
+   ``flutter analyze`` and ``flutter test``, then builds a release APK
+   and uploads it as a build artefact.
+
+**docs** — Sphinx documentation
+   Installs Python 3.12, the Sphinx dependencies from
+   ``doc/requirements.txt`` and builds the HTML documentation.
+
 Coding Style
 ------------
 
