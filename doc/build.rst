@@ -29,13 +29,14 @@ server, Flutter app and Sphinx documentation:
 The ``GNUmakefile`` wraps the qmake-generated ``Makefile`` and adds the extra
 targets listed below.
 
-Build Date
-~~~~~~~~~~
+Flutter Builds
+~~~~~~~~~~~~~~
 
-The Flutter targets pass the current date and time as a Dart define
-(``BUILD_DATE``) so it appears in the app UI.  This happens automatically
-when building through ``make``.  Running ``flutter build`` directly skips
-this, causing the app to show "Built: unknown".
+Always use ``make`` targets (``make app``, ``make app-linux``, etc.) for
+Flutter builds rather than running ``flutter`` directly.  The makefile sets
+up Dart defines (``BUILD_DATE`` and others) that the app needs at runtime.
+Running ``flutter build`` directly skips these, causing the app to show
+"Built: unknown".
 
 Build Targets
 -------------

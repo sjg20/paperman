@@ -56,6 +56,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Map<int, double> _progress = {};
   final Map<int, int> _progressTotal = {};
   Timer? _scrollDebounce;
+  Timer? _gestureTimer;
+  bool _isGesturing = false;
   int? _scrubTarget; // page the user wants to reach via the scroller
 
   /// In demo mode the full multi-page PDF is kept open here.
@@ -75,6 +77,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   void dispose() {
     _scrollDebounce?.cancel();
+    _gestureTimer?.cancel();
     _transformController.removeListener(_onTransformChanged);
     _transformController.dispose();
     _demoDoc?.dispose();
@@ -359,6 +362,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
               transformationController: _transformController,
               minScale: 1.0,
               maxScale: 5.0,
+              onInteractionStart: (_) {
+                _gestureTimer?.cancel();
+                if (!_isGesturing) {
+                  setState(() => _isGesturing = true);
+                }
+              },
+              onInteractionEnd: (_) {
+                _gestureTimer?.cancel();
+                _gestureTimer =
+                    Timer(const Duration(milliseconds: 200), () {
+                  if (!mounted) return;
+                  setState(() => _isGesturing = false);
+                });
+              },
               builder: (context, viewport) {
                 final top = viewport.point0.y.clamp(0.0, totalHeight);
                 final bottom =
@@ -486,6 +503,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// Return the DPI cap for PDF rendering.  During an active gesture use a
+  /// low value for fast feedback; once settled, scale with zoom level so we
+  /// only render at high DPI when the user has actually zoomed in.
+  double _effectiveDpi() {
+    const minDpi = 72.0;
+    const maxDpi = 300.0;
+    if (_isGesturing) return minDpi;
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    return (minDpi * scale).clamp(minDpi, maxDpi);
+  }
+
   static String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
@@ -493,14 +521,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Widget _buildPage(int page, double width, double height) {
+    final dpi = _effectiveDpi();
+    final key = ValueKey<int>(page);
+
     if (_demoDoc != null) {
       return SizedBox(
+        key: key,
         width: width,
         height: height,
         child: PdfPageView(
           document: _demoDoc!,
           pageNumber: page,
           alignment: Alignment.center,
+          maximumDpi: dpi,
         ),
       );
     }
@@ -509,12 +542,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
     if (doc != null) {
       return SizedBox(
+        key: key,
         width: width,
         height: height,
         child: PdfPageView(
           document: doc,
           pageNumber: 1,
           alignment: Alignment.center,
+          maximumDpi: dpi,
         ),
       );
     }
@@ -523,6 +558,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final fraction = _progress[page];
     final total = _progressTotal[page];
     return SizedBox(
+      key: key,
       width: width,
       height: height,
       child: Center(

@@ -145,4 +145,46 @@ void main() {
     // Page counter should no longer show page 1
     expect(find.text('1 / 50'), findsNothing);
   });
+
+  testWidgets('scrolling down shows correct page', (tester) async {
+    stubPageCount(50);
+    await pumpViewer(tester);
+    await settle(tester);
+
+    expect(find.text('1 / 50'), findsOneWidget);
+
+    // The default test surface is 800x600.  itemExtent = 800*1.414+4 = 1135.2
+    // Each tester.drag() loses ~20 px to touch-slop before the gesture
+    // recogniser activates, so add that back to get an effective pan of
+    // exactly one quarter-page per drag.
+    const extent = 800.0 * 1.414 + 4.0; // 1135.2
+    const slop = 20.0; // kDragSlopDefault
+    final quarterDrag = Offset(0, -(extent / 4 + slop));
+
+    final viewer = find.byType(InteractiveViewer);
+    expect(viewer, findsOneWidget);
+
+    // Scroll three pages in quarter-page increments, verifying the page
+    // counter and rendered pages after each full page.
+    for (int page = 1; page <= 3; page++) {
+      for (int q = 0; q < 4; q++) {
+        await tester.drag(viewer, quarterDrag);
+        await tester.pump();
+      }
+      // Let the 200 ms scroll-debounce fire.
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final expected = page + 1;
+      expect(find.text('$expected / 50'), findsOneWidget);
+
+      // Each page widget has ValueKey<int>(pageNumber).  Verify the
+      // builder laid out the expected pages, not the old ones.
+      expect(find.byKey(ValueKey<int>(expected)), findsOneWidget,
+          reason: 'page $expected should be visible');
+      expect(find.byKey(ValueKey<int>(expected + 1)), findsOneWidget,
+          reason: 'page ${expected + 1} should be visible');
+      expect(find.byKey(const ValueKey<int>(1)), findsNothing,
+          reason: 'page 1 should have scrolled off');
+    }
+  });
 }
