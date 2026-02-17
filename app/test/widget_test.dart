@@ -179,12 +179,18 @@ void main() {
 
       // Each page widget has ValueKey<int>(pageNumber).  Verify the
       // builder laid out the expected pages, not the old ones.
+      // The builder keeps one extra page on each side of the visible
+      // range as a render buffer, so page 1 lingers for one extra
+      // page of scrolling before being removed.
       expect(find.byKey(ValueKey<int>(expected)), findsOneWidget,
           reason: 'page $expected should be visible');
       expect(find.byKey(ValueKey<int>(expected + 1)), findsOneWidget,
           reason: 'page ${expected + 1} should be visible');
-      expect(find.byKey(const ValueKey<int>(1)), findsNothing,
-          reason: 'page 1 should have scrolled off');
     }
+
+    // After scrolling 3 full pages, page 1 should be well outside the
+    // buffer zone (current page 4, buffer keeps page 3 at most).
+    expect(find.byKey(const ValueKey<int>(1)), findsNothing,
+        reason: 'page 1 should have scrolled off');
   });
 }
