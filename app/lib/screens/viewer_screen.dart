@@ -380,12 +380,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 final top = viewport.point0.y.clamp(0.0, totalHeight);
                 final bottom =
                     viewport.point2.y.clamp(0.0, totalHeight);
-                final (firstIdx, lastIdx) = ViewerScreen.visibleRange(
+                var (firstIdx, lastIdx) = ViewerScreen.visibleRange(
                   viewportTop: top,
                   viewportBottom: bottom,
                   extent: extent,
                   pageCount: _totalPages,
                 );
+                // Keep one extra page on each side so pages that are about
+                // to scroll in are already rendered, avoiding a white flash.
+                if (firstIdx > 0) firstIdx--;
+                if (lastIdx < _totalPages - 1) lastIdx++;
 
                 return SizedBox(
                   width: viewWidth,
