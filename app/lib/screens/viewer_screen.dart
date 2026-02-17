@@ -397,6 +397,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     children: [
                       for (int i = firstIdx; i <= lastIdx; i++)
                         Positioned(
+                          key: ValueKey<int>(i + 1),
                           top: i * extent,
                           left: 0,
                           width: viewWidth,
@@ -524,11 +525,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Widget _buildPage(int page, double width, double height) {
     final dpi = _effectiveDpi();
-    final key = ValueKey<int>(page);
 
     if (_demoDoc != null) {
       return SizedBox(
-        key: key,
         width: width,
         height: height,
         child: PdfPageView(
@@ -544,7 +543,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
     if (doc != null) {
       return SizedBox(
-        key: key,
         width: width,
         height: height,
         child: PdfPageView(
@@ -560,7 +558,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final fraction = _progress[page];
     final total = _progressTotal[page];
     return SizedBox(
-      key: key,
       width: width,
       height: height,
       child: Center(
