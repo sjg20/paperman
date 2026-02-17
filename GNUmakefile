@@ -102,6 +102,7 @@ help:
 	@echo "  app-publish      Build AAB and upload to Play Store internal testing"
 	@echo "  app-upload       Build APK and upload to Google Drive"
 	@echo "  app-scp          Build APK and scp to server (needs server.mk)"
+	@echo "  app-scp-only     Copy previously built APK to server"
 	@echo "  app-demo         Generate demo assets (PDFs + thumbnails)"
 	@echo "  app-linux        Build the Flutter Linux binary only"
 	@echo "  docs             Build the Sphinx documentation"
