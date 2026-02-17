@@ -1,0 +1,186 @@
+#!/bin/bash
+#
+# Upload source packages to a Launchpad PPA
+#
+# Usage: ppa-upload [--dry-run] [distro ...]
+#
+# Run from a project directory containing debian/changelog.in and
+# debian/control.in. Builds a signed source package for each target Ubuntu
+# distribution and uploads it to the PPA.
+#
+# With --dry-run, builds source packages but skips the dput upload step.
+# If distro names are given, only those distros are processed.
+
+set -e
+
+GPG_KEY="15F34285DDE53E92EDD6B063A124647BC73DA562"
+ALL_DISTROS="bionic focal jammy noble oracular plucky questing"
+PPA="ppa"
+DRY_RUN=0
+DISTROS=""
+
+# Parse arguments
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+        *)
+            DISTROS="$DISTROS $arg"
+            ;;
+    esac
+done
+
+# Default to all distros if none specified
+if [ -z "$DISTROS" ]; then
+    DISTROS="$ALL_DISTROS"
+fi
+
+# Check that we are in a project directory
+if [ ! -f debian/changelog.in ]; then
+    echo "Error: debian/changelog.in not found" >&2
+    echo "Run this from the project source directory" >&2
+    exit 1
+fi
+
+if [ ! -f debian/control.in ]; then
+    echo "Error: debian/control.in not found" >&2
+    exit 1
+fi
+
+# Auto-detect project name and version
+PROJECT=$(grep "^Source:" debian/control.in | head -1 | awk '{print $2}')
+VERSION=$(head -1 debian/changelog.in | sed -n 's/.*(\([^)]*\)).*/\1/p' |
+          sed 's/VENDOR_VERSION//')
+
+if [ -z "$PROJECT" ] || [ -z "$VERSION" ]; then
+    echo "Error: could not detect project name or version" >&2
+    exit 1
+fi
+
+# Upstream version is everything before the debian revision
+UPSTREAM_VERSION=$(echo "$VERSION" | sed 's/-.*//')
+
+echo "Project: $PROJECT"
+echo "Version: $VERSION"
+echo "Upstream version: $UPSTREAM_VERSION"
+echo "Distros: $DISTROS"
+if [ "$DRY_RUN" -eq 1 ]; then
+    echo "*** DRY RUN - will not upload ***"
+fi
+echo
+
+# Set up working directory alongside the project
+BUILDDIR="../ppa-build"
+rm -rf "$BUILDDIR"
+mkdir -p "$BUILDDIR"
+
+# Create the orig tarball using git archive (respects .gitignore)
+ORIG_TAR="${BUILDDIR}/${PROJECT}_${UPSTREAM_VERSION}.orig.tar.bz2"
+echo "Creating $ORIG_TAR ..."
+BZIP_CMD="bzip2"
+if command -v pbzip2 > /dev/null; then
+    BZIP_CMD="pbzip2"
+fi
+git archive --format=tar --prefix="" HEAD | $BZIP_CMD > "$ORIG_TAR"
+echo
+
+# Build source package for a single distro
+# $1: distro name
+# All other variables are inherited from the parent scope
+build_distro() {
+    local DISTRO="$1"
+    local WORKDIR="${BUILDDIR}/${DISTRO}"
+    local LOGFILE="${BUILDDIR}/${DISTRO}.log"
+
+    mkdir -p "$WORKDIR"
+
+    # Place orig tarball where dpkg-source expects it (alongside source dir)
+    ln -f "$ORIG_TAR" "${WORKDIR}/"
+
+    # Extract the orig tarball into the work directory
+    mkdir -p "${WORKDIR}/${PROJECT}-${UPSTREAM_VERSION}"
+    tar xf "$ORIG_TAR" -C "${WORKDIR}/${PROJECT}-${UPSTREAM_VERSION}"
+
+    local SRCDIR="${WORKDIR}/${PROJECT}-${UPSTREAM_VERSION}"
+
+    # Generate distro-specific changelog
+    local VENDOR_VERSION="~${DISTRO}1"
+    sed -e "s/VENDOR_VERSION/${VENDOR_VERSION}/" \
+        -e "s/UNRELEASED/${DISTRO}/" \
+        debian/changelog.in > "${SRCDIR}/debian/changelog"
+
+    # Select distro-specific control file
+    if [ -f "debian/control.${DISTRO}" ]; then
+        cp "debian/control.${DISTRO}" "${SRCDIR}/debian/control"
+    else
+        cp debian/control.in "${SRCDIR}/debian/control"
+    fi
+
+    # Select distro-specific rules file
+    if [ -f "debian/rules.${DISTRO}" ]; then
+        cp "debian/rules.${DISTRO}" "${SRCDIR}/debian/rules"
+    else
+        cp debian/rules.in "${SRCDIR}/debian/rules"
+    fi
+    chmod a+x "${SRCDIR}/debian/rules"
+
+    # Build the source package (unsigned; signing is done sequentially later)
+    (cd "$SRCDIR" && debuild --no-lintian -S -sa -d -us -uc) > "$LOGFILE" 2>&1
+    local rc=$?
+
+    if [ $rc -ne 0 ]; then
+        echo "FAIL $DISTRO (see $LOGFILE)"
+        return $rc
+    fi
+    echo "OK   $DISTRO"
+}
+
+export -f build_distro
+
+# Build all distros in parallel
+echo "Building source packages..."
+PIDS=()
+DISTRO_LIST=()
+for DISTRO in $DISTROS; do
+    build_distro "$DISTRO" &
+    PIDS+=($!)
+    DISTRO_LIST+=("$DISTRO")
+done
+
+# Wait for all builds and collect results
+FAILED=0
+for i in "${!PIDS[@]}"; do
+    if ! wait "${PIDS[$i]}"; then
+        FAILED=1
+    fi
+done
+echo
+
+if [ "$FAILED" -ne 0 ]; then
+    echo "Some builds failed; check log files in $BUILDDIR/" >&2
+    exit 1
+fi
+
+# Sign and upload (sequentially — GPG agent can't handle parallel signing)
+for DISTRO in $DISTROS; do
+    WORKDIR="${BUILDDIR}/${DISTRO}"
+    CHANGES=$(ls "${WORKDIR}"/${PROJECT}_*_source.changes 2>/dev/null | head -1)
+    if [ -z "$CHANGES" ]; then
+        echo "Error: no .changes file found for $DISTRO" >&2
+        continue
+    fi
+
+    echo "Signing $DISTRO ..."
+    debsign -k"$GPG_KEY" "$CHANGES"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "Dry run: would upload $CHANGES"
+    else
+        echo "Uploading $CHANGES ..."
+        dput "$PPA" "$CHANGES"
+    fi
+done
+
+echo
+echo "Done."
