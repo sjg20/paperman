@@ -49,22 +49,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   late String _safeName;
   late Directory _cacheDir;
-  late ScrollController _scrollController;
   final _transformController = TransformationController();
-  int? _zoomedPage;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
+    _transformController.addListener(_onTransformChanged);
     _init();
   }
 
   @override
   void dispose() {
     _scrollDebounce?.cancel();
-    _scrollController.dispose();
+    _transformController.removeListener(_onTransformChanged);
     _transformController.dispose();
     _demoDoc?.dispose();
     for (final doc in _documents.values) {
@@ -192,7 +189,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           if (!mounted) return;
           final viewWidth = MediaQuery.of(context).size.width;
           final extent = _itemExtent(viewWidth);
-          _scrollController.jumpTo((page - 1) * extent);
+          _jumpToPage(page, extent);
         });
       }
     } catch (_) {
@@ -227,24 +224,40 @@ class _ViewerScreenState extends State<ViewerScreen> {
   double _itemExtent(double viewWidth) =>
       viewWidth * _defaultAspectRatio + _pageGap;
 
-  double _pageHeight(int page, double viewWidth) =>
-      viewWidth * _defaultAspectRatio;
-
-  void _onScroll() {
+  /// Derive the current page from the transform and trigger prefetching.
+  void _onTransformChanged() {
     if (_totalPages == 0) return;
 
     _scrollDebounce?.cancel();
     _scrollDebounce = Timer(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
       final viewWidth = MediaQuery.of(context).size.width;
       final extent = _itemExtent(viewWidth);
-      final page =
-          (_scrollController.offset / extent).floor().clamp(0, _totalPages - 1) + 1;
+      final page = _pageFromTransform(extent);
 
       if (page != _currentPage) {
         setState(() => _currentPage = page);
       }
       _prefetchAround(page);
     });
+  }
+
+  /// Return the 1-based page number visible at the top of the viewport.
+  int _pageFromTransform(double extent) {
+    final matrix = _transformController.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final ty = matrix.getTranslation().y;
+    final childTopY = -ty / scale;
+    return (childTopY / extent).floor().clamp(0, _totalPages - 1) + 1;
+  }
+
+  /// Set the transform to show the given page at the top of the viewport,
+  /// preserving the current zoom level.
+  void _jumpToPage(int page, double itemExtent) {
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    _transformController.value = Matrix4.identity()
+      ..translateByDouble(0.0, -scale * (page - 1) * itemExtent, 0.0, 1.0)
+      ..scaleByDouble(scale, scale, 1.0, 1.0);
   }
 
   @override
@@ -312,25 +325,39 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewWidth = constraints.maxWidth;
-
         final extent = _itemExtent(viewWidth);
+        final totalHeight = extent * _totalPages;
 
         return Stack(
           children: [
-            ListView.builder(
-              controller: _scrollController,
-              itemCount: _totalPages,
-              itemExtent: extent,
-              itemBuilder: (context, index) {
-                final page = index + 1;
-                final height = extent - _pageGap;
+            InteractiveViewer.builder(
+              transformationController: _transformController,
+              minScale: 1.0,
+              maxScale: 5.0,
+              builder: (context, viewport) {
+                final top = viewport.point0.y.clamp(0.0, totalHeight);
+                final bottom =
+                    viewport.point2.y.clamp(0.0, totalHeight);
+                final firstIdx =
+                    (top / extent).floor().clamp(0, _totalPages - 1);
+                final lastIdx =
+                    (bottom / extent).ceil().clamp(0, _totalPages - 1);
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: _pageGap),
-                  child: GestureDetector(
-                    onDoubleTap: () =>
-                        _handleDoubleTap(page, viewWidth, height),
-                    child: _buildPage(page, viewWidth, height),
+                return SizedBox(
+                  width: viewWidth,
+                  height: totalHeight,
+                  child: Stack(
+                    children: [
+                      for (int i = firstIdx; i <= lastIdx; i++)
+                        Positioned(
+                          top: i * extent,
+                          left: 0,
+                          width: viewWidth,
+                          height: extent - _pageGap,
+                          child:
+                              _buildPage(i + 1, viewWidth, extent - _pageGap),
+                        ),
+                    ],
                   ),
                 );
               },
@@ -339,46 +366,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               const Center(child: CircularProgressIndicator()),
             if (_totalPages > 1)
               _buildPageSlider(constraints.maxHeight, extent),
-            if (_zoomedPage != null)
-              _buildZoomOverlay(viewWidth, constraints.maxHeight),
           ],
         );
       },
-    );
-  }
-
-  void _handleDoubleTap(int page, double width, double height) {
-    if (_zoomedPage != null) {
-      _transformController.value = Matrix4.identity();
-      setState(() => _zoomedPage = null);
-    } else {
-      _transformController.value = Matrix4.identity();
-      setState(() => _zoomedPage = page);
-    }
-  }
-
-  Widget _buildZoomOverlay(double viewWidth, double viewHeight) {
-    final page = _zoomedPage!;
-    final pageHeight = _pageHeight(page, viewWidth);
-
-    return Positioned.fill(
-      child: ColoredBox(
-        color: Colors.black,
-        child: GestureDetector(
-          onDoubleTap: () {
-            _transformController.value = Matrix4.identity();
-            setState(() => _zoomedPage = null);
-          },
-          child: InteractiveViewer(
-            transformationController: _transformController,
-            minScale: 1.0,
-            maxScale: 5.0,
-            child: Center(
-              child: _buildPage(page, viewWidth, pageHeight),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -391,16 +381,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
       setState(() => _currentPage = page);
     }
 
-    if (_documents.containsKey(page)) {
+    if (_documents.containsKey(page) || _demoDoc != null) {
       // Page is ready — scroll now
       _scrubTarget = null;
-      _scrollController.jumpTo((page - 1) * itemExtent);
+      _jumpToPage(page, itemExtent);
     } else {
       // Page not yet loaded — start fetching but don't scroll yet.
       // Don't call _prefetchAround() here: that would evict pages
       // around the current viewport while it is still visible.
-      // Prefetching and eviction happen naturally via _onScroll once
-      // the deferred jump fires.
+      // Prefetching and eviction happen naturally via
+      // _onTransformChanged once the deferred jump fires.
       _scrubTarget = page;
       _fetchPage(page);
     }
