@@ -1,3 +1,5 @@
+[![CI](https://github.com/sjg20/paperman/actions/workflows/ci.yml/badge.svg)](https://github.com/sjg20/paperman/actions/workflows/ci.yml)
+
 # Paper Manager
 
 This program provides a viewer for image files such as pdf, jpeg and
