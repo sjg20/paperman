@@ -58,6 +58,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Timer? _scrollDebounce;
   Timer? _gestureTimer;
   bool _isGesturing = false;
+  double _settledDpi = 72.0;
   int? _scrubTarget; // page the user wants to reach via the scroller
 
   /// In demo mode the full multi-page PDF is kept open here.
@@ -364,9 +365,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               maxScale: 5.0,
               onInteractionStart: (_) {
                 _gestureTimer?.cancel();
-                if (!_isGesturing) {
-                  setState(() => _isGesturing = true);
-                }
+                _isGesturing = true;
               },
               onInteractionEnd: (_) {
                 _gestureTimer?.cancel();
@@ -507,15 +506,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// Return the DPI cap for PDF rendering.  During an active gesture use a
-  /// low value for fast feedback; once settled, scale with zoom level so we
-  /// only render at high DPI when the user has actually zoomed in.
+  /// Return the DPI cap for PDF rendering.  During an active gesture the
+  /// DPI is frozen at its pre-gesture value so PdfPageView does not
+  /// re-render (which would flash white).  Once the gesture settles the
+  /// DPI is recomputed from the current zoom level.
   double _effectiveDpi() {
     const minDpi = 72.0;
     const maxDpi = 300.0;
-    if (_isGesturing) return minDpi;
+    if (_isGesturing) return _settledDpi;
     final scale = _transformController.value.getMaxScaleOnAxis();
-    return (minDpi * scale).clamp(minDpi, maxDpi);
+    return _settledDpi = (minDpi * scale).clamp(minDpi, maxDpi);
   }
 
   static String _formatBytes(int bytes) {
