@@ -362,7 +362,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
             InteractiveViewer.builder(
               transformationController: _transformController,
               interactionEndFrictionCoefficient: 0.01,
-              minScale: 1.0,
+              boundaryMargin: EdgeInsets.symmetric(
+                vertical: constraints.maxHeight / 2,
+                horizontal: constraints.maxWidth / 2,
+              ),
+              panAxis: PanAxis.aligned,
+              minScale: 0.5,
               maxScale: 5.0,
               onInteractionStart: (_) {
                 _gestureTimer?.cancel();
