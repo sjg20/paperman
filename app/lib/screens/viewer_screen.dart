@@ -43,7 +43,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   static const _prefetchBefore = 2;
   static const _prefetchAfter = 5;
   static const _evictDistance = 10;
-  static const _overviewColumns = 6;
+  static const _defaultOverviewColumns = 6;
+  static const _minOverviewColumns = 2;
+  static const _maxOverviewColumns = 12;
   static const _overviewThreshold = 0.75;
 
   int _totalPages = 0;
@@ -51,6 +53,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _loading = true;
   String? _error;
   bool _showOverview = false;
+  int _overviewColumns = _defaultOverviewColumns;
+  final Map<int, Offset> _overviewPointers = {};
+  double? _overviewPinchStartDist;
+  int _overviewPinchBaseCols = _defaultOverviewColumns;
 
   final Map<int, PdfDocument> _documents = {};
   final Map<int, String> _diskPaths = {};
@@ -293,7 +299,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   void _enterOverview() {
-    setState(() => _showOverview = true);
+    setState(() {
+      _showOverview = true;
+      _overviewColumns = _defaultOverviewColumns;
+    });
     _transformController.value = Matrix4.identity();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -461,8 +470,81 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  void _onOverviewPointerDown(PointerDownEvent e) {
+    _overviewPointers[e.pointer] = e.position;
+  }
+
+  void _onOverviewPointerMove(PointerMoveEvent e) {
+    _overviewPointers[e.pointer] = e.position;
+    if (_overviewPointers.length != 2) return;
+
+    final pts = _overviewPointers.values.toList();
+    final dist = (pts[0] - pts[1]).distance;
+
+    if (_overviewPinchStartDist == null) {
+      _overviewPinchStartDist = dist;
+      _overviewPinchBaseCols = _overviewColumns;
+      return;
+    }
+
+    final scale = dist / _overviewPinchStartDist!;
+    // Zoom in (spread) → fewer columns; zoom out (pinch) → more.
+    final rawCols = (_overviewPinchBaseCols / scale).round();
+
+    if (rawCols < _minOverviewColumns) {
+      _overviewPointers.clear();
+      _overviewPinchStartDist = null;
+      final page = _overviewVisiblePage();
+      _exitOverview(page);
+      return;
+    }
+
+    final newCols = rawCols.clamp(_minOverviewColumns, _maxOverviewColumns);
+    if (newCols != _overviewColumns) {
+      _setOverviewColumns(newCols);
+    }
+  }
+
+  void _onOverviewPointerUp(PointerUpEvent e) {
+    _overviewPointers.remove(e.pointer);
+    if (_overviewPointers.length < 2) _overviewPinchStartDist = null;
+  }
+
+  void _onOverviewPointerCancel(PointerCancelEvent e) {
+    _overviewPointers.remove(e.pointer);
+    if (_overviewPointers.length < 2) _overviewPinchStartDist = null;
+  }
+
+  /// Return the first page visible at the top of the overview.
+  int _overviewVisiblePage() {
+    if (!_overviewScrollController.hasClients) return _currentPage;
+    final viewWidth = MediaQuery.of(context).size.width;
+    final cellWidth = viewWidth / _overviewColumns;
+    final extent = cellWidth * _defaultAspectRatio + _pageGap;
+    final row = (_overviewScrollController.offset / extent).floor();
+    return (row * _overviewColumns + 1).clamp(1, _totalPages);
+  }
+
+  void _setOverviewColumns(int newCols) {
+    final firstPage = _overviewVisiblePage();
+    setState(() => _overviewColumns = newCols);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_overviewScrollController.hasClients) return;
+      final viewWidth = MediaQuery.of(context).size.width;
+      final cellWidth = viewWidth / _overviewColumns;
+      final extent = cellWidth * _defaultAspectRatio + _pageGap;
+      final row = (firstPage - 1) ~/ _overviewColumns;
+      _overviewScrollController.jumpTo(row * extent);
+    });
+  }
+
   Widget _buildOverview() {
-    return LayoutBuilder(
+    return Listener(
+      onPointerDown: _onOverviewPointerDown,
+      onPointerMove: _onOverviewPointerMove,
+      onPointerUp: _onOverviewPointerUp,
+      onPointerCancel: _onOverviewPointerCancel,
+      child: LayoutBuilder(
       builder: (context, constraints) {
         final viewWidth = constraints.maxWidth;
         final cellWidth = viewWidth / _overviewColumns;
@@ -507,6 +589,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           },
         );
       },
+      ),
     );
   }
 
