@@ -2,6 +2,9 @@
 # GNU make prefers GNUmakefile over Makefile, so this is picked up
 # automatically while the qmake Makefile is left untouched.
 
+export ANDROID_HOME ?= $(HOME)/android-sdk
+export PATH         := $(HOME)/flutter/bin:$(PATH)
+
 SPHINXBUILD   ?= sphinx-build
 SPHINXOPTS    ?= -q
 DOCDIR        = doc

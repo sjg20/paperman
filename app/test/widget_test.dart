@@ -146,6 +146,61 @@ void main() {
     expect(find.text('1 / 50'), findsNothing);
   });
 
+  testWidgets('two-column layout when zoomed out below threshold',
+      (tester) async {
+    stubPageCount(10);
+    await pumpViewer(tester);
+    await settle(tester);
+
+    // Default zoom (scale 1.0): single-column layout.
+    // Test surface is 800×600 so viewWidth = 800.
+    var page1 = tester.widget<Positioned>(
+      find.byKey(const ValueKey<int>(1)),
+    );
+    expect(page1.left, 0);
+    expect(page1.width, 800);
+
+    // Zoom out below the 0.75 threshold to trigger two-column layout.
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    viewer.transformationController!.value =
+        Matrix4.identity()..scale(0.6);
+    await tester.pump();
+
+    // pageWidth = 800/2 = 400, w = 400 - _pageGap/2 = 400 - 2 = 398
+    page1 = tester.widget<Positioned>(
+      find.byKey(const ValueKey<int>(1)),
+    );
+    final page2 = tester.widget<Positioned>(
+      find.byKey(const ValueKey<int>(2)),
+    );
+    expect(page1.left, 0);
+    expect(page1.width, 398);
+    expect(page2.left, 400);
+    expect(page2.width, 398);
+    // Pages 1 and 2 share the same row
+    expect(page1.top, page2.top);
+
+    // Page 3 starts a new row
+    final page3 = tester.widget<Positioned>(
+      find.byKey(const ValueKey<int>(3)),
+    );
+    expect(page3.left, 0);
+    expect(page3.top, greaterThan(page1.top!));
+
+    // Zoom back in above threshold → single column again
+    viewer.transformationController!.value =
+        Matrix4.identity()..scale(1.0);
+    await tester.pump();
+
+    page1 = tester.widget<Positioned>(
+      find.byKey(const ValueKey<int>(1)),
+    );
+    expect(page1.left, 0);
+    expect(page1.width, 800);
+  });
+
   testWidgets('scrolling down shows correct page', (tester) async {
     stubPageCount(50);
     await pumpViewer(tester);
