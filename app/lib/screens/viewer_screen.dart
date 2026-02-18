@@ -575,10 +575,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     onTap: () => _exitOverview(page),
                     child: Padding(
                       padding: const EdgeInsets.all(_pageGap / 2),
-                      child: _buildPage(
-                        page,
-                        cellWidth - _pageGap,
-                        cellHeight - _pageGap,
+                      child: Stack(
+                        children: [
+                          _buildPage(
+                            page,
+                            cellWidth - _pageGap,
+                            cellHeight - _pageGap,
+                          ),
+                          Positioned(
+                            right: 2,
+                            bottom: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                '$page',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
