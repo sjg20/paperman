@@ -167,11 +167,13 @@ void main() {
     expect(find.byType(InteractiveViewer), findsNothing);
     expect(find.byType(ListView), findsOneWidget);
 
-    // First row should have pages 1–4 (4-across grid).
+    // First row should have pages 1–6 (6-across grid).
     expect(find.byKey(const ValueKey<int>(1)), findsOneWidget);
     expect(find.byKey(const ValueKey<int>(2)), findsOneWidget);
     expect(find.byKey(const ValueKey<int>(3)), findsOneWidget);
     expect(find.byKey(const ValueKey<int>(4)), findsOneWidget);
+    expect(find.byKey(const ValueKey<int>(5)), findsOneWidget);
+    expect(find.byKey(const ValueKey<int>(6)), findsOneWidget);
 
     // Tap page 3 → return to normal viewer at that page.
     await tester.tap(find.byKey(const ValueKey<int>(3)));

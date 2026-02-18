@@ -43,7 +43,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   static const _prefetchBefore = 2;
   static const _prefetchAfter = 5;
   static const _evictDistance = 10;
-  static const _overviewColumns = 4;
+  static const _overviewColumns = 6;
   static const _overviewThreshold = 0.75;
 
   int _totalPages = 0;
