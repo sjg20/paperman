@@ -483,6 +483,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 children.add(SizedBox(width: cellWidth));
                 continue;
               }
+              _fetchPage(page);
               children.add(
                 SizedBox(
                   key: ValueKey<int>(page),
