@@ -19,8 +19,8 @@ class ViewerScreen extends StatefulWidget {
     this.repo,
   });
 
-  /// Return the range of 0-based page indices that overlap [viewportTop]
-  /// to [viewportBottom] in child coordinates, clamped to [0, pageCount).
+  /// Return the range of 0-based indices that overlap [viewportTop]
+  /// to [viewportBottom] in child coordinates, clamped to [0, count).
   @visibleForTesting
   static (int first, int last) visibleRange({
     required double viewportTop,
@@ -43,6 +43,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   static const _prefetchBefore = 2;
   static const _prefetchAfter = 5;
   static const _evictDistance = 10;
+  static const _twoColumnThreshold = 0.75;
 
   int _totalPages = 0;
   int _currentPage = 1;
@@ -206,8 +207,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           final viewWidth = MediaQuery.of(context).size.width;
-          final extent = _itemExtent(viewWidth);
-          _jumpToPage(page, extent);
+          final cols = _cols();
+          final extent = _itemExtent(viewWidth, cols);
+          _jumpToPage(page, extent, cols);
         });
       }
     } catch (_) {
@@ -239,19 +241,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
-  double _itemExtent(double viewWidth) =>
-      viewWidth * _defaultAspectRatio + _pageGap;
-
-  /// Return the range of 0-based page indices that overlap [viewportTop]
-  /// to [viewportBottom] in child coordinates, clamped to [0, pageCount).
-  (int first, int last) _visibleRange(double viewportTop, double viewportBottom) {
-    return ViewerScreen.visibleRange(
-      viewportTop: viewportTop,
-      viewportBottom: viewportBottom,
-      extent: _itemExtent(MediaQuery.of(context).size.width),
-      pageCount: _totalPages,
-    );
+  /// Column count: 2 when zoomed out past the threshold, otherwise 1.
+  int _cols() {
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    return scale < _twoColumnThreshold ? 2 : 1;
   }
+
+  double _itemExtent(double viewWidth, [int cols = 1]) =>
+      (viewWidth / cols) * _defaultAspectRatio + _pageGap;
 
   /// Derive the current page from the transform and trigger prefetching.
   void _onTransformChanged() {
@@ -261,8 +258,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _scrollDebounce = Timer(const Duration(milliseconds: 200), () {
       if (!mounted) return;
       final viewWidth = MediaQuery.of(context).size.width;
-      final extent = _itemExtent(viewWidth);
-      final page = _pageFromTransform(extent);
+      final cols = _cols();
+      final extent = _itemExtent(viewWidth, cols);
+      final page = _pageFromTransform(extent, cols);
 
       if (page != _currentPage) {
         setState(() => _currentPage = page);
@@ -272,20 +270,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   /// Return the 1-based page number visible at the top of the viewport.
-  int _pageFromTransform(double extent) {
+  int _pageFromTransform(double extent, int cols) {
     final matrix = _transformController.value;
     final scale = matrix.getMaxScaleOnAxis();
     final ty = matrix.getTranslation().y;
     final childTopY = -ty / scale;
-    return (childTopY / extent).floor().clamp(0, _totalPages - 1) + 1;
+    final totalRows = (_totalPages + cols - 1) ~/ cols;
+    final row = (childTopY / extent).floor().clamp(0, totalRows - 1);
+    return (row * cols + 1).clamp(1, _totalPages);
   }
 
   /// Set the transform to show the given page at the top of the viewport,
   /// preserving the current zoom level.
-  void _jumpToPage(int page, double itemExtent) {
+  void _jumpToPage(int page, double itemExtent, [int cols = 1]) {
     final scale = _transformController.value.getMaxScaleOnAxis();
+    final row = (page - 1) ~/ cols;
     _transformController.value = Matrix4.identity()
-      ..translateByDouble(0.0, -scale * (page - 1) * itemExtent, 0.0, 1.0)
+      ..translateByDouble(0.0, -scale * row * itemExtent, 0.0, 1.0)
       ..scaleByDouble(scale, scale, 1.0, 1.0);
   }
 
@@ -354,8 +355,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewWidth = constraints.maxWidth;
-        final extent = _itemExtent(viewWidth);
-        final totalHeight = extent * _totalPages;
 
         return Stack(
           children: [
@@ -382,51 +381,64 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 });
               },
               builder: (context, viewport) {
+                final cols = _cols();
+                final pageWidth = viewWidth / cols;
+                final extent = _itemExtent(viewWidth, cols);
+                final totalRows = (_totalPages + cols - 1) ~/ cols;
+                final totalHeight = extent * totalRows;
+
                 final top = viewport.point0.y.clamp(0.0, totalHeight);
                 final bottom =
                     viewport.point2.y.clamp(0.0, totalHeight);
-                var (firstIdx, lastIdx) = ViewerScreen.visibleRange(
+                var (firstRow, lastRow) = ViewerScreen.visibleRange(
                   viewportTop: top,
                   viewportBottom: bottom,
                   extent: extent,
-                  pageCount: _totalPages,
+                  pageCount: totalRows,
                 );
-                // Keep one extra page on each side so pages that are about
+                // Keep one extra row on each side so pages that are about
                 // to scroll in are already rendered, avoiding a white flash.
-                if (firstIdx > 0) firstIdx--;
-                if (lastIdx < _totalPages - 1) lastIdx++;
+                if (firstRow > 0) firstRow--;
+                if (lastRow < totalRows - 1) lastRow++;
+
+                final children = <Widget>[];
+                for (int row = firstRow; row <= lastRow; row++) {
+                  for (int col = 0; col < cols; col++) {
+                    final page = row * cols + col + 1;
+                    if (page > _totalPages) break;
+                    final w =
+                        pageWidth - (cols > 1 ? _pageGap / 2 : 0);
+                    children.add(
+                      Positioned(
+                        key: ValueKey<int>(page),
+                        top: row * extent,
+                        left: col * pageWidth,
+                        width: w,
+                        height: extent - _pageGap,
+                        child: _buildPage(page, w, extent - _pageGap),
+                      ),
+                    );
+                  }
+                }
 
                 return SizedBox(
                   width: viewWidth,
                   height: totalHeight,
-                  child: Stack(
-                    children: [
-                      for (int i = firstIdx; i <= lastIdx; i++)
-                        Positioned(
-                          key: ValueKey<int>(i + 1),
-                          top: i * extent,
-                          left: 0,
-                          width: viewWidth,
-                          height: extent - _pageGap,
-                          child:
-                              _buildPage(i + 1, viewWidth, extent - _pageGap),
-                        ),
-                    ],
-                  ),
+                  child: Stack(children: children),
                 );
               },
             ),
             if (_scrubTarget != null)
               const Center(child: CircularProgressIndicator()),
             if (_totalPages > 1)
-              _buildPageSlider(constraints.maxHeight, extent),
+              _buildPageSlider(constraints.maxHeight),
           ],
         );
       },
     );
   }
 
-  void _scrubToPage(double dy, double sliderHeight, double itemExtent) {
+  void _scrubToPage(double dy, double sliderHeight) {
     final fraction = (dy / sliderHeight).clamp(0.0, 1.0);
     final page = (fraction * (_totalPages - 1)).round() + 1;
 
@@ -438,7 +450,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (_documents.containsKey(page) || _demoDoc != null) {
       // Page is ready — scroll now
       _scrubTarget = null;
-      _jumpToPage(page, itemExtent);
+      final viewWidth = MediaQuery.of(context).size.width;
+      final cols = _cols();
+      final extent = _itemExtent(viewWidth, cols);
+      _jumpToPage(page, extent, cols);
     } else {
       // Page not yet loaded — start fetching but don't scroll yet.
       // Don't call _prefetchAround() here: that would evict pages
@@ -450,7 +465,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
-  Widget _buildPageSlider(double height, double itemExtent) {
+  Widget _buildPageSlider(double height) {
     const thumbHeight = 32.0;
     final fraction = _totalPages > 1
         ? (_currentPage - 1) / (_totalPages - 1)
@@ -466,11 +481,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onVerticalDragStart: (d) =>
-            _scrubToPage(d.localPosition.dy, height, itemExtent),
+            _scrubToPage(d.localPosition.dy, height),
         onVerticalDragUpdate: (d) =>
-            _scrubToPage(d.localPosition.dy, height, itemExtent),
+            _scrubToPage(d.localPosition.dy, height),
         onTapDown: (d) =>
-            _scrubToPage(d.localPosition.dy, height, itemExtent),
+            _scrubToPage(d.localPosition.dy, height),
         child: Stack(
           children: [
             // Track
