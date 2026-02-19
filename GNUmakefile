@@ -82,6 +82,9 @@ app-scp-only:
 	scp $(APP_APK) $(APP_SERVER)
 
 app-linux: dart-defines
+	# Clear CMake cache so find_library() re-discovers libpdfium.so from
+	# the printing plugin's download rather than a stale bundle/lib/ path.
+	rm -f app/build/linux/x64/release/CMakeCache.txt
 	cd app && flutter build linux $(FLUTTER_ARGS)
 
 APP_APK  = app/build/app/outputs/flutter-apk/app-release.apk
