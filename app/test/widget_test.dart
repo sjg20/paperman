@@ -163,17 +163,14 @@ void main() {
         Matrix4.identity()..scale(0.6);
     await tester.pump();
 
-    // Overview replaces the InteractiveViewer with a ListView.
-    expect(find.byType(InteractiveViewer), findsNothing);
-    expect(find.byType(ListView), findsOneWidget);
+    // Overview still uses an InteractiveViewer (for zoom) but no ListView.
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.byType(ListView), findsNothing);
 
-    // First row should have pages 1–6 (6-across grid).
-    expect(find.byKey(const ValueKey<int>(1)), findsOneWidget);
-    expect(find.byKey(const ValueKey<int>(2)), findsOneWidget);
-    expect(find.byKey(const ValueKey<int>(3)), findsOneWidget);
-    expect(find.byKey(const ValueKey<int>(4)), findsOneWidget);
-    expect(find.byKey(const ValueKey<int>(5)), findsOneWidget);
-    expect(find.byKey(const ValueKey<int>(6)), findsOneWidget);
+    // All 10 pages should be visible in the overview grid.
+    for (int i = 1; i <= 10; i++) {
+      expect(find.byKey(ValueKey<int>(i)), findsOneWidget);
+    }
 
     // Tap page 3 → return to normal viewer at that page.
     await tester.tap(find.byKey(const ValueKey<int>(3)));

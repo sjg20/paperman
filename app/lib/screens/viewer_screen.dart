@@ -72,7 +72,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   late String _safeName;
   late Directory _cacheDir;
   final _transformController = TransformationController();
-  final _overviewScrollController = ScrollController();
+  final _overviewTransformController = TransformationController();
 
   @override
   void initState() {
@@ -87,7 +87,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _gestureTimer?.cancel();
     _transformController.removeListener(_onTransformChanged);
     _transformController.dispose();
-    _overviewScrollController.dispose();
+    _overviewTransformController.dispose();
     _demoDoc?.dispose();
     for (final doc in _documents.values) {
       doc.dispose();
@@ -303,18 +303,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _enterOverview() {
     final viewWidth = MediaQuery.of(context).size.width;
+    final cols = _columnsForWidth(viewWidth);
+    final cellWidth = viewWidth / cols;
+    final rowExtent = cellWidth * _defaultAspectRatio + _pageGap;
+    final row = (_currentPage - 1) ~/ cols;
+
     setState(() {
       _showOverview = true;
-      _overviewColumns = _columnsForWidth(viewWidth);
+      _overviewColumns = cols;
     });
     _transformController.value = Matrix4.identity();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final cellWidth = viewWidth / _overviewColumns;
-      final extent = cellWidth * _defaultAspectRatio + _pageGap;
-      final row = (_currentPage - 1) ~/ _overviewColumns;
-      _overviewScrollController.jumpTo(row * extent);
-    });
+    _overviewTransformController.value = Matrix4.identity()
+      ..translate(0.0, -row * rowExtent);
   }
 
   void _exitOverview(int page) {
@@ -500,68 +500,86 @@ class _ViewerScreenState extends State<ViewerScreen> {
         final viewWidth = constraints.maxWidth;
         final cellWidth = viewWidth / _overviewColumns;
         final cellHeight = cellWidth * _defaultAspectRatio;
-        final extent = cellHeight + _pageGap;
+        final rowExtent = cellHeight + _pageGap;
         final totalRows =
             (_totalPages + _overviewColumns - 1) ~/ _overviewColumns;
+        final totalHeight = rowExtent * totalRows;
 
-        return ListView.builder(
-          controller: _overviewScrollController,
-          itemCount: totalRows,
-          itemExtent: extent,
-          itemBuilder: (context, row) {
+        return InteractiveViewer.builder(
+          transformationController: _overviewTransformController,
+          boundaryMargin: EdgeInsets.symmetric(
+            vertical: constraints.maxHeight / 2,
+            horizontal: constraints.maxWidth / 2,
+          ),
+          minScale: 1.0,
+          maxScale: 5.0,
+          builder: (context, viewport) {
+            final top = viewport.point0.y.clamp(0.0, totalHeight);
+            final bottom = viewport.point2.y.clamp(0.0, totalHeight);
+            final firstRow =
+                (top / rowExtent).floor().clamp(0, totalRows - 1);
+            final lastRow =
+                (bottom / rowExtent).ceil().clamp(0, totalRows - 1);
+
             final children = <Widget>[];
-            for (int col = 0; col < _overviewColumns; col++) {
-              final page = row * _overviewColumns + col + 1;
-              if (page > _totalPages) {
-                children.add(SizedBox(width: cellWidth));
-                continue;
-              }
-              _fetchPage(page);
-              children.add(
-                SizedBox(
-                  key: ValueKey<int>(page),
-                  width: cellWidth,
-                  height: cellHeight,
-                  child: GestureDetector(
-                    onTap: () => _exitOverview(page),
-                    child: Padding(
-                      padding: const EdgeInsets.all(_pageGap / 2),
-                      child: Stack(
-                        children: [
-                          _buildPage(
-                            page,
-                            cellWidth - _pageGap,
-                            cellHeight - _pageGap,
-                          ),
-                          Positioned(
-                            right: 2,
-                            bottom: 2,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                              child: Text(
-                                '$page',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
+            for (int row = firstRow; row <= lastRow; row++) {
+              for (int col = 0; col < _overviewColumns; col++) {
+                final page = row * _overviewColumns + col + 1;
+                if (page > _totalPages) continue;
+                _fetchPage(page);
+                children.add(
+                  Positioned(
+                    key: ValueKey<int>(page),
+                    left: col * cellWidth,
+                    top: row * rowExtent,
+                    width: cellWidth,
+                    height: cellHeight,
+                    child: GestureDetector(
+                      onTap: () => _exitOverview(page),
+                      child: Padding(
+                        padding: const EdgeInsets.all(_pageGap / 2),
+                        child: Stack(
+                          children: [
+                            _buildPage(
+                              page,
+                              cellWidth - _pageGap,
+                              cellHeight - _pageGap,
+                            ),
+                            Positioned(
+                              right: 2,
+                              bottom: 2,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  '$page',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
+                );
+              }
             }
-            return Row(children: children);
+
+            return SizedBox(
+              width: viewWidth,
+              height: totalHeight,
+              child: Stack(children: children),
+            );
           },
         );
       },
