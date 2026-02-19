@@ -181,6 +181,45 @@ void main() {
     expect(find.text('3 / 10'), findsOneWidget);
   });
 
+  testWidgets('exiting overview preserves page and does not bounce',
+      (tester) async {
+    stubPageCount(10);
+    await pumpViewer(tester);
+    await settle(tester);
+
+    // Scroll to page 5 first.
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    const extent = 800.0 * 1.414 + 4.0;
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translate(0.0, -4 * extent); // page 5
+    await tester.pump();
+    // Let the debounce timer fire.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('5 / 10'), findsOneWidget);
+
+    // Zoom out to enter overview.
+    viewer.transformationController!.value =
+        Matrix4.identity()..scale(0.6);
+    await tester.pump();
+
+    // Should be in overview showing page 5 in the banner.
+    expect(find.textContaining('Back to page 5'), findsOneWidget);
+
+    // Tap page 7 to exit overview.
+    await tester.tap(find.byKey(const ValueKey<int>(7)));
+    await tester.pump();
+
+    // Should be back in normal viewer at page 7.
+    expect(find.text('7 / 10'), findsOneWidget);
+    expect(find.textContaining('Back to page'), findsNothing);
+
+    // Wait for debounce — page should not change back to 1.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('7 / 10'), findsOneWidget);
+  });
+
   testWidgets('scrolling down shows correct page', (tester) async {
     stubPageCount(50);
     await pumpViewer(tester);

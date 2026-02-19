@@ -88,6 +88,7 @@ app-scp-watch:
 	@test -n "$(APP_SERVER)" || { echo "Set APP_SERVER in server.mk (e.g. APP_SERVER = user@host:/var/www/app.apk)"; exit 1; }
 	@echo "Watching $(APP_APK) for changes..."
 	@while inotifywait -qq -e close_write $(APP_APK); do \
+		date; \
 		scp $(APP_APK) $(APP_SERVER); \
 	done
 

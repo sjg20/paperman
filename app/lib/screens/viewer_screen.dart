@@ -253,12 +253,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _onTransformChanged() {
     if (_totalPages == 0) return;
 
-    if (!_showOverview) {
-      final scale = _transformController.value.getMaxScaleOnAxis();
-      if (scale < _overviewThreshold) {
-        _enterOverview();
-        return;
-      }
+    if (_showOverview) return;
+
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    if (scale < _overviewThreshold) {
+      _enterOverview();
+      return;
     }
 
     _scrollDebounce?.cancel();
@@ -318,16 +318,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   void _exitOverview(int page) {
+    // Set the main transform while _showOverview is still true so the
+    // listener is suppressed.  This way the InteractiveViewer starts at
+    // the right page when it appears, with no intermediate identity
+    // frame that could re-trigger overview entry.
+    final viewWidth = MediaQuery.of(context).size.width;
+    final extent = _itemExtent(viewWidth);
+    _transformController.value = Matrix4.identity()
+      ..translate(0.0, -(page - 1) * extent);
+    _overviewTransformController.value = Matrix4.identity();
+    _scrollDebounce?.cancel();
     setState(() {
       _showOverview = false;
       _currentPage = page;
-    });
-    _overviewTransformController.value = Matrix4.identity();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final viewWidth = MediaQuery.of(context).size.width;
-      final extent = _itemExtent(viewWidth);
-      _jumpToPage(page, extent);
     });
   }
 
@@ -353,11 +356,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
       appBar: AppBar(
         title: Text(widget.fileName),
         actions: [
-          if (_showOverview)
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => _exitOverview(_currentPage),
-            ),
           if (_totalPages > 0)
             IconButton(
               icon: const Icon(Icons.print),
@@ -419,7 +417,48 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
     if (_totalPages == 0) return const SizedBox();
 
-    if (_showOverview) return _buildOverview();
+    if (_showOverview) {
+      return Column(
+        children: [
+          Material(
+            elevation: 2,
+            child: InkWell(
+              onTap: () => _exitOverview(_currentPage),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_back,
+                      size: 20,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Back to page $_currentPage',
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimaryContainer,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: _buildOverview()),
+        ],
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
