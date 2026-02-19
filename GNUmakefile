@@ -57,7 +57,7 @@ setup:
 	scripts/setup.sh
 
 .PHONY: app app-demo app-test dart-defines app-apk app-aab app-publish
-.PHONY: app-upload app-scp app-scp-only app-linux app-clean
+.PHONY: app-upload app-scp app-scp-only app-scp-watch app-linux app-clean
 dart-defines:
 	@echo '{"BUILD_DATE":"$(BUILD_DATE)"}' > $(DART_DEFINES)
 
@@ -84,6 +84,13 @@ app-scp-only:
 	@test -n "$(APP_SERVER)" || { echo "Set APP_SERVER in server.mk (e.g. APP_SERVER = user@host:/var/www/app.apk)"; exit 1; }
 	scp $(APP_APK) $(APP_SERVER)
 
+app-scp-watch:
+	@test -n "$(APP_SERVER)" || { echo "Set APP_SERVER in server.mk (e.g. APP_SERVER = user@host:/var/www/app.apk)"; exit 1; }
+	@echo "Watching $(APP_APK) for changes..."
+	@while inotifywait -qq -e close_write $(APP_APK); do \
+		scp $(APP_APK) $(APP_SERVER); \
+	done
+
 app-linux: dart-defines
 	# Clear CMake cache so find_library() re-discovers libpdfium.so from
 	# the printing plugin's download rather than a stale bundle/lib/ path.
@@ -109,6 +116,7 @@ help:
 	@echo "  app-upload       Build APK and upload to Google Drive"
 	@echo "  app-scp          Build APK and scp to server (needs server.mk)"
 	@echo "  app-scp-only     Copy previously built APK to server"
+	@echo "  app-scp-watch    Watch APK and copy to server on change"
 	@echo "  app-demo         Generate demo assets (PDFs + thumbnails)"
 	@echo "  app-linux        Build the Flutter Linux binary only"
 	@echo "  docs             Build the Sphinx documentation"
