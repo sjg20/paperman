@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/demo_data.dart';
@@ -327,12 +328,33 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
   }
 
+  Future<void> _printDocument() async {
+    final api = context.read<ApiService>();
+    final bytes;
+    if (api.isDemo) {
+      final file = File('${_cacheDir.path}/paperman_${_safeName}_full.pdf');
+      bytes = await file.readAsBytes();
+    } else {
+      final response = await api.downloadFile(
+        path: widget.filePath,
+        repo: widget.repo,
+      );
+      bytes = response.bodyBytes;
+    }
+    await Printing.layoutPdf(onLayout: (_) => bytes);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.fileName),
         actions: [
+          if (_totalPages > 0)
+            IconButton(
+              icon: const Icon(Icons.print),
+              onPressed: _printDocument,
+            ),
           if (_totalPages > 0)
             Center(
               child: Padding(
