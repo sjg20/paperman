@@ -322,6 +322,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _showOverview = false;
       _currentPage = page;
     });
+    _overviewTransformController.value = Matrix4.identity();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final viewWidth = MediaQuery.of(context).size.width;
@@ -352,6 +353,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
       appBar: AppBar(
         title: Text(widget.fileName),
         actions: [
+          if (_showOverview)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => _exitOverview(_currentPage),
+            ),
           if (_totalPages > 0)
             IconButton(
               icon: const Icon(Icons.print),
