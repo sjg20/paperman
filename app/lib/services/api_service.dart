@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io' as io;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import '../models/models.dart';
 import 'demo_data.dart';
 
@@ -9,6 +11,7 @@ class ApiService {
   String? _localBaseUrl;
   String? _username;
   String? _password;
+  http.Client? _localClient;
 
   ApiService({required String baseUrl, String? username, String? password})
     : _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''),
@@ -23,6 +26,8 @@ class ApiService {
 
   String get baseUrl => _baseUrl;
   String? get localBaseUrl => _localBaseUrl;
+  bool get isUsingLocalUrl =>
+      _localBaseUrl != null && _baseUrl == _localBaseUrl;
   String? get username => _username;
   String? get password => _password;
 
@@ -41,6 +46,18 @@ class ApiService {
     _password = password;
   }
 
+  /// Create an HTTP client that accepts TLS certificates for [host].
+  ///
+  /// When connecting to a local IP the server's certificate is issued
+  /// for the domain name, not the IP address. This client accepts
+  /// that mismatch for the specific local host only.
+  http.Client _createTrustingClient(String host) {
+    final ioClient = io.HttpClient()
+      ..badCertificateCallback =
+          (io.X509Certificate cert, String h, int port) => h == host;
+    return IOClient(ioClient);
+  }
+
   /// Try the local URL first; if it responds within [timeout], use it
   /// as the active base URL. Otherwise fall back to the main URL.
   Future<void> tryLocalUrl({
@@ -48,15 +65,41 @@ class ApiService {
   }) async {
     if (_localBaseUrl == null || _localBaseUrl!.isEmpty) return;
     final uri = Uri.parse('$_localBaseUrl/status');
+    final client = _createTrustingClient(uri.host);
     try {
-      final response = await http.get(uri, headers: _headers)
+      final response = await client.get(uri, headers: _headers)
           .timeout(timeout);
       if (response.statusCode == 200) {
         _baseUrl = _localBaseUrl!;
+        _localClient = client;
+      } else {
+        client.close();
       }
     } catch (_) {
+      client.close();
       // Local URL unreachable — keep the main URL
     }
+  }
+
+  /// Create an HTTP client suitable for the current connection.
+  ///
+  /// Returns the certificate-trusting client when connected via the
+  /// local URL, otherwise creates a default client.  Callers that
+  /// need a dedicated client (e.g. for cancellation) should pass
+  /// [forStreaming] = true and close it when done.
+  http.Client createClient({bool forStreaming = false}) {
+    if (_localClient != null && isUsingLocalUrl) {
+      if (forStreaming) {
+        return _createTrustingClient(Uri.parse(_baseUrl).host);
+      }
+      return _localClient!;
+    }
+    return http.Client();
+  }
+
+  Future<http.Response> _get(Uri uri) {
+    final client = createClient();
+    return client.get(uri, headers: _headers);
   }
 
   String? get basicAuth => _basicAuth;
@@ -87,7 +130,7 @@ class ApiService {
     final uri = Uri.parse('$_baseUrl$endpoint').replace(
       queryParameters: params?.isNotEmpty == true ? params : null,
     );
-    final response = await http.get(uri, headers: _headers);
+    final response = await _get(uri);
     if (response.statusCode == 401) {
       throw ApiException(401, 'Invalid username or password');
     }
@@ -112,7 +155,7 @@ class ApiService {
     final uri = Uri.parse('$_baseUrl/status');
     final http.Response response;
     try {
-      response = await http.get(uri, headers: _headers);
+      response = await _get(uri);
     } catch (e) {
       throw ApiException(0, 'Cannot reach server: $e');
     }
@@ -217,7 +260,7 @@ class ApiService {
     };
     if (repo != null) params['repo'] = repo;
     final uri = Uri.parse('$_baseUrl/file').replace(queryParameters: params);
-    final response = await http.get(uri, headers: _headers);
+    final response = await _get(uri);
     if (response.statusCode != 200) {
       throw ApiException(response.statusCode, 'Failed to download page');
     }
@@ -245,7 +288,7 @@ class ApiService {
       request.headers['Authorization'] = auth;
     }
 
-    final client = http.Client();
+    final client = createClient(forStreaming: true);
     try {
       final streamed = await client.send(request);
       if (streamed.statusCode != 200) {
@@ -290,7 +333,7 @@ class ApiService {
     if (repo != null) params['repo'] = repo;
     if (asPdf) params['type'] = 'pdf';
     final uri = Uri.parse('$_baseUrl/file').replace(queryParameters: params);
-    final response = await http.get(uri, headers: _headers);
+    final response = await _get(uri);
     if (response.statusCode != 200) {
       throw ApiException(response.statusCode, 'Failed to download file');
     }
@@ -323,7 +366,7 @@ class ApiService {
     }
 
     final ownClient = client == null;
-    final c = client ?? http.Client();
+    final c = client ?? createClient(forStreaming: true);
     try {
       final streamed = await c.send(request);
       if (streamed.statusCode != 200) {
@@ -373,7 +416,7 @@ class ApiService {
     final uri =
         Uri.parse('$_baseUrl/file').replace(queryParameters: params);
     try {
-      final response = await http.get(uri, headers: _headers);
+      final response = await _get(uri);
       if (response.statusCode != 200) return null;
       return jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
