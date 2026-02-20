@@ -336,18 +336,37 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Future<void> _printDocument() async {
     final api = context.read<ApiService>();
-    final bytes;
-    if (api.isDemo) {
-      final file = File('${_cacheDir.path}/paperman_${_safeName}_full.pdf');
-      bytes = await file.readAsBytes();
-    } else {
-      final response = await api.downloadFile(
-        path: widget.filePath,
-        repo: widget.repo,
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final bytes;
+      if (api.isDemo) {
+        final file =
+            File('${_cacheDir.path}/paperman_${_safeName}_full.pdf');
+        bytes = await file.readAsBytes();
+      } else {
+        final response = await api.downloadFile(
+          path: widget.filePath,
+          repo: widget.repo,
+        );
+        bytes = response.bodyBytes;
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      await Printing.layoutPdf(onLayout: (_) => bytes);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load document: $e')),
       );
-      bytes = response.bodyBytes;
     }
-    await Printing.layoutPdf(onLayout: (_) => bytes);
   }
 
   @override
