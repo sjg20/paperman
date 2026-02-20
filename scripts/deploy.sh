@@ -1,7 +1,8 @@
 #!/bin/bash
-# Deploy paperman and paperman-server to palo
+# Deploy paperman and paperman-server to a remote host
 #
-# Pushes the current dev branch, rebuilds on palo, and restarts the service.
+# Pushes the current dev branch, rebuilds on the remote, and restarts the
+# service.
 
 set -e
 
@@ -16,11 +17,13 @@ REMOTE_DIR=paperman
 INSTALL_DIR=/opt/paperman
 SERVICE=paperman-server.service
 
-echo "Pushing dev to palo..."
+echo "Pushing dev to $HOST..."
 git push --force "$HOST:$REMOTE_DIR" dev:master
 
-echo "Building on palo..."
+echo "Building on $HOST..."
 ssh "$HOST" "cd ~/$REMOTE_DIR \
+	&& make -f GNUmakefile builddate.h \
+	&& qmake paperman-server.pro -o Makefile.server \
 	&& make -j -f Makefile.server \
 	&& qmake paperman.pro -o Makefile \
 	&& make -j -f Makefile"
