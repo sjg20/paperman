@@ -56,6 +56,34 @@ def _to_uint8(arr, num_layers):
     return np.clip((arr / num_layers + 1) / 2 * 255, 0, 255).astype(np.uint8)
 
 
+def make_greyscale_jpeg(fname, width=2400, height=3300, quality=90):
+    """Create a greyscale JPEG with a smooth gradient and sine pattern
+
+    The image is mode 'L' (8-bit greyscale) so utilImageDepth() will
+    detect it as 8bpp after conversion to QImage, exercising the JPEG
+    compression path in convertPageWithFile().
+
+    Args:
+        fname (str): Output file path
+        width (int): Image width in pixels
+        height (int): Image height in pixels
+        quality (int): JPEG quality 1-100
+    """
+    ygrid, xgrid = np.meshgrid(
+        np.linspace(0, 1, height, dtype=np.float32),
+        np.linspace(0, 1, width, dtype=np.float32),
+        indexing='ij')
+
+    # Vertical gradient with horizontal sine ripple
+    arr = ygrid * 0.6 + 0.2
+    arr += 0.15 * np.sin(xgrid * 12 * np.pi) * np.sin(ygrid * 8 * np.pi)
+    grey = np.clip(arr * 255, 0, 255).astype(np.uint8)
+    img = Image.fromarray(grey, 'L')
+
+    img.save(fname, 'JPEG', quality=quality)
+    print(f'Wrote {fname} ({width}x{height}, greyscale, quality {quality})')
+
+
 def make_plasma_jpeg(fname, width=2400, height=3300, quality=90):
     """Create a colour JPEG with plasma-style fractal noise
 
@@ -321,6 +349,9 @@ def main():
 
     plasma_path = os.path.join(args.output_dir, 'colour_plasma.jpg')
     make_plasma_jpeg(plasma_path)
+
+    greyscale_path = os.path.join(args.output_dir, 'greyscale_gradient.jpg')
+    make_greyscale_jpeg(greyscale_path)
 
     # Core test files used by setupRepo()
     testpdf = os.path.join(args.output_dir, 'testpdf.pdf')
