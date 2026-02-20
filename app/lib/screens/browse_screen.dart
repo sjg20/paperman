@@ -122,7 +122,16 @@ class _BrowseScreenState extends State<BrowseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedRepo ?? 'Paperman'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_selectedRepo ?? 'Paperman'),
+            if (context.read<ApiService>().isUsingLocalUrl) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.wifi, size: 16),
+            ],
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -159,6 +168,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () async {
+              final api = context.read<ApiService>();
               final info = await PackageInfo.fromPlatform();
               if (!context.mounted) return;
               showAboutDialog(
@@ -186,6 +196,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Text('Server: ${api.baseUrl}'),
+                  if (api.isUsingLocalUrl)
+                    const Text('(LAN)'),
                   const SizedBox(height: 8),
                   Text('Built: $_buildDate'),
                 ],

@@ -81,7 +81,15 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     final api = context.read<ApiService>();
     final user = _userController.text.trim();
     final pass = _passController.text;
-    final localUrl = _localUrlController.text.trim();
+    var localUrl = _localUrlController.text.trim();
+    if (localUrl.isNotEmpty &&
+        !localUrl.startsWith('http://') &&
+        !localUrl.startsWith('https://')) {
+      // Use the same scheme as the main URL (e.g. https)
+      final scheme = Uri.parse(url).scheme;
+      localUrl = '$scheme://$localUrl';
+      _localUrlController.text = localUrl;
+    }
     api.updateConfig(
       baseUrl: url,
       localBaseUrl: localUrl.isEmpty ? null : localUrl,
@@ -150,7 +158,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               controller: _localUrlController,
               decoration: const InputDecoration(
                 labelText: 'Local URL (optional)',
-                hintText: 'http://192.168.1.10:8080',
+                hintText: '192.168.1.10',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.wifi),
               ),

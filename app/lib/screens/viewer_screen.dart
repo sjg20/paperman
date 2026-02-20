@@ -442,7 +442,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             File('${_cacheDir.path}/paperman_${_safeName}_full.pdf');
         bytes = await file.readAsBytes();
       } else {
-        httpClient = http.Client();
+        httpClient = api.createClient(forStreaming: true);
         bytes = await api.downloadFileStreamed(
           path: widget.filePath,
           repo: widget.repo,
