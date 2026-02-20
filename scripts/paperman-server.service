@@ -14,7 +14,8 @@ RestartSec=5s
 
 # Security settings
 NoNewPrivileges=true
-PrivateTmp=yes
+# PrivateTmp makes the cache directories in /tmp invisible to other users
+PrivateTmp=no
 
 # Logging
 StandardOutput=journal
