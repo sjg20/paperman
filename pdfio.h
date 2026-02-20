@@ -70,6 +70,18 @@ public :
 
    err_info *addPage (const Filepage *mp);
 
+   /** add a single page containing a pre-encoded JPEG image
+    *
+    *  The image is scaled to fill an A4 page (preserving aspect ratio).
+    *  No thumbnail is created.
+    *
+    *  @param jpegData   JPEG-compressed image bytes
+    *  @param width      image width in pixels
+    *  @param height     image height in pixels
+    *  @param colour     true for RGB, false for greyscale */
+   err_info *addPageJpeg(const QByteArray &jpegData, int width, int height,
+                         bool colour);
+
    err_info *open (void);
 
    err_info *close (void);
