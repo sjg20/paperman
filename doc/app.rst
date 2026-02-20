@@ -25,6 +25,7 @@ Features
 -  **Demo mode** for trying the app without a server (for Play Store
    reviewers)
 -  **Dark mode** follows the system theme
+-  **Local URL** for fast downloads when on the same LAN as the server
 -  Credentials and server URL saved locally for auto-reconnect
 
 Prerequisites
@@ -222,6 +223,14 @@ Base URL handling
    URL.  ``ConnectionScreen`` auto-prepends ``https://`` when the user
    enters a bare hostname.
 
+Local URL
+   An optional local URL (e.g. ``http://192.168.1.10:8080``) can be
+   configured alongside the main server URL.  On connect,
+   ``tryLocalUrl()`` sends a ``/status`` request to the local address
+   with a 2-second timeout.  If it responds, all subsequent requests
+   use the local URL directly, avoiding a round-trip through the
+   internet.  If unreachable, the main URL is used transparently.
+
 Authentication
    When a username is configured, ``_basicAuth`` produces a Base64-encoded
    ``Authorization: Basic`` header.  The ``_headers`` getter attaches this
@@ -254,14 +263,16 @@ Screens
 ConnectionScreen
 ~~~~~~~~~~~~~~~~
 
-Login form with URL, username and password fields.  On startup it loads
-saved values from ``SharedPreferences`` (keys ``server_url``, ``username``,
-``password``) and, if a URL exists, auto-connects by calling
-``ApiService.checkStatus()``.  The ``autoConnect`` flag (default ``true``)
-is set to ``false`` when the user disconnects, preventing an immediate
-reconnect loop.  After a successful status check the credentials are
-persisted and the screen is replaced (``pushReplacement``) with
-``BrowseScreen``.  The app version and build date appear at the bottom.
+Login form with URL, username, password and optional local URL fields.
+On startup it loads saved values from ``SharedPreferences`` (keys
+``server_url``, ``local_url``, ``username``, ``password``) and, if a
+URL exists, auto-connects.  When a local URL is configured the app
+tries it first (2-second timeout) before falling back to the main URL.
+The ``autoConnect`` flag (default ``true``) is set to ``false`` when the
+user disconnects, preventing an immediate reconnect loop.  After a
+successful status check the credentials are persisted and the screen is
+replaced (``pushReplacement``) with ``BrowseScreen``.  The app version
+and build date appear at the bottom.
 
 BrowseScreen
 ~~~~~~~~~~~~
