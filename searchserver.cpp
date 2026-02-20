@@ -1054,11 +1054,15 @@ void SearchServer::streamFile(const QString &filePath,
     headers += "\r\n";
     client->write(headers);
 
-    // Stream content in 64 KB chunks
-    static const qint64 chunkSize = 64 * 1024;
+    // Stream content in 512 KB chunks, waiting for the socket to
+    // drain when its write buffer exceeds 1 MB.
+    static const qint64 chunkSize = 512 * 1024;
+    static const qint64 highWater = 1024 * 1024;
     while (!file.atEnd()) {
         QByteArray chunk = file.read(chunkSize);
         client->write(chunk);
+        if (client->bytesToWrite() >= highWater)
+            client->waitForBytesWritten(-1);
     }
 
     file.close();
