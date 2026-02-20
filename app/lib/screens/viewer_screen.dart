@@ -40,6 +40,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Map<int, Size> _pageSizes = {};
   final Set<int> _fetching = {};
   final Map<int, double> _progress = {};
+  final Map<int, int> _progressTotal = {};
   Timer? _scrollDebounce;
 
   /// In demo mode the full multi-page PDF is kept open here.
@@ -149,6 +150,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (!mounted) return;
             setState(() {
               _progress[page] = total > 0 ? received / total : 0;
+              if (total > 0) _progressTotal[page] = total;
             });
           },
         );
@@ -175,10 +177,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _documents[page] = doc;
         _fetching.remove(page);
         _progress.remove(page);
+        _progressTotal.remove(page);
       });
     } catch (_) {
       _fetching.remove(page);
       _progress.remove(page);
+      _progressTotal.remove(page);
     }
   }
 
@@ -392,6 +396,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   Widget _buildPage(int page, double width, double height) {
     if (_demoDoc != null) {
       return SizedBox(
@@ -421,6 +431,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
     // Page not yet loaded — show progress placeholder
     final fraction = _progress[page];
+    final total = _progressTotal[page];
     return SizedBox(
       width: width,
       height: height,
@@ -432,7 +443,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (fraction != null) ...[
               const SizedBox(height: 12),
               Text(
-                '${(fraction * 100).round()}%',
+                total != null
+                    ? '${(fraction * 100).round()}% of ${_formatBytes(total)}'
+                    : '${(fraction * 100).round()}%',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
