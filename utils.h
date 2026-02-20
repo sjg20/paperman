@@ -326,12 +326,14 @@ void utilInit(const QString& group);
 
 /**
  * @brief Detect the effective colour depth of an image
- * @param image  Image to analyse (should be 32bpp ARGB)
+ * @param image  Image to analyse (32bpp ARGB, or 8/1bpp indexed)
  * @return 1 for monochrome, 8 for greyscale, 24 for colour
  *
- * Scans all pixels to classify the image. Anti-aliased text fringes (grey
- * values near black or white) are treated as monochrome since at 300 DPI
- * the thresholded result is visually identical.
+ * For images with depth <= 8 the stored depth is returned directly.
+ * For 32bpp images all pixels are scanned; a channel spread of <= 10 is
+ * treated as greyscale (handles scanner colour noise).  Anti-aliased text
+ * fringes (grey values near black or white) are treated as monochrome
+ * since at 300 DPI the thresholded result is visually identical.
  */
 int utilImageDepth(const QImage &image);
 
