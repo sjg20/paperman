@@ -556,3 +556,54 @@ void TestSearchServer::testLargeMaxProgressive()
     QVERIFY(slog.end());
     server.stop();
 }
+
+void TestSearchServer::testMaxPageJpegCompression()
+{
+    /*
+     * Verify that per-page PDFs use JPEG (DCTDecode) for greyscale
+     * pages.  Uses greyscale_gradient.jpg which is a true 8-bit
+     * greyscale image that goes through convertPageWithFile().
+     */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    QString fileName = "greyscale_gradient.jpg";
+    qint64 fullFileSize = copyTestFile(fileName, tmpDir.path());
+    QVERIFY(fullFileSize > 0);
+
+    clearCaches();
+
+    SearchServer server(tmpDir.path(), PORT, nullptr, true);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    ServerLog &slog = server._log;
+
+    // Extract the single page — should be JPEG-compressed
+    qint64 pageSize;
+    verifyPageFetch(slog, fileName, 1, ServerLog::PageExtract,
+                    &pageSize, 30000);
+
+    /*
+     * The source is a 2400x3300 greyscale JPEG (262 KB).  With
+     * FlateDecode the uncompressed 8-bit raster would be ~7.9 MB
+     * in the PDF.  JPEG q80 should keep it well under 800 KB.
+     */
+    QVERIFY2(pageSize < 800 * 1024,
+             qPrintable(QString("Greyscale page should be JPEG-compressed "
+                                "(got %1 bytes, expected < 800 KB)")
+                       .arg(pageSize)));
+
+    /*
+     * The PDF stream should contain the DCTDecode filter name,
+     * confirming JPEG encoding rather than FlateDecode.
+     */
+    auto resp = get(QString("/file?path=%1&page=1").arg(fileName),
+                    30000);
+    QVERIFY(resp.ok());
+    QVERIFY2(resp.body.contains("DCTDecode"),
+             "Page PDF should contain DCTDecode filter for greyscale pages");
+
+    QVERIFY(slog.next(ServerLog::PageCacheHit, 1));
+    QVERIFY(slog.end());
+    server.stop();
+}
