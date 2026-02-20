@@ -950,22 +950,11 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
                     "PDF conversion failed"));
         }
 
-        // Read the cached PDF
-        QFile pdfFile(pdfPath);
-        if (!pdfFile.open(QIODevice::ReadOnly)) {
-            return buildHttpResponse(500, "Internal Server Error",
-                "application/json",
-                buildJsonResponse(false, "", "Failed to read converted PDF"));
-        }
-
-        QByteArray pdfContent = pdfFile.readAll();
-        pdfFile.close();
-
         qDebug().noquote()
             << "SearchServer: Serving converted PDF"
-            << formatSize(pdfContent.size());
-
-        return buildHttpResponse(200, "OK", "application/pdf", pdfContent);
+            << formatSize(QFileInfo(pdfPath).size());
+        streamFile(pdfPath, "application/pdf", client);
+        return QByteArray();
     }
 
     // Determine content type based on extension
@@ -980,18 +969,9 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         contentType = "application/octet-stream";
     }
 
-    // Read file content
-    QFile file(fullPath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return buildHttpResponse(500, "Internal Server Error", "application/json",
-                               buildJsonResponse(false, "", "Failed to read file"));
-    }
-
-    QByteArray fileContent = file.readAll();
-    file.close();
-
     _log.log(ServerLog::ServeFile, filePath);
-    return buildHttpResponse(200, "OK", contentType, fileContent);
+    streamFile(fullPath, contentType, client);
+    return QByteArray();
 }
 
 QString SearchServer::buildJsonResponse(bool success, const QString &data,
@@ -1045,6 +1025,51 @@ QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &status
     response += "\r\n";
     response += body;  // Append binary body directly
     return response;
+}
+
+void SearchServer::streamFile(const QString &filePath,
+                              const QString &contentType,
+                              QTcpSocket *client)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QByteArray err = buildHttpResponse(500, "Internal Server Error",
+            "application/json",
+            buildJsonResponse(false, "", "Failed to read file"));
+        client->write(err);
+        client->flush();
+        client->disconnectFromHost();
+        return;
+    }
+
+    qint64 size = file.size();
+
+    // Write headers
+    QByteArray headers;
+    headers += "HTTP/1.1 200 OK\r\n";
+    headers += "Content-Type: " + contentType.toUtf8() + "\r\n";
+    headers += "Content-Length: " + QByteArray::number(size) + "\r\n";
+    headers += "Access-Control-Allow-Origin: *\r\n";
+    headers += "Connection: close\r\n";
+    headers += "\r\n";
+    client->write(headers);
+
+    // Stream content in 64 KB chunks
+    static const qint64 chunkSize = 64 * 1024;
+    while (!file.atEnd()) {
+        QByteArray chunk = file.read(chunkSize);
+        client->write(chunk);
+    }
+
+    file.close();
+
+    qDebug().noquote()
+        << QString("%1 GET (streamed) 200 %2")
+               .arg(client->peerAddress().toString())
+               .arg(formatSize(size));
+
+    client->flush();
+    client->disconnectFromHost();
 }
 
 QString SearchServer::urlDecode(const QString &str)
