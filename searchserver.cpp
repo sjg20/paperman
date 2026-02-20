@@ -915,7 +915,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
 
     // Handle PDF conversion request
     if (type == "pdf" && ext != "pdf") {
-        QString pdfPath = convertToPdf(fullPath);
+        QString pdfPath = convertToPdf(fullPath, client);
         if (pdfPath.isEmpty()) {
             return buildHttpResponse(500, "Internal Server Error",
                 "application/json",
@@ -1453,7 +1453,8 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
     return "";
 }
 
-QString SearchServer::convertToPdf(const QString &fullPath)
+QString SearchServer::convertToPdf(const QString &fullPath,
+                                   QTcpSocket *client)
 {
     QFileInfo fileInfo(fullPath);
     if (!fileInfo.exists())
@@ -1519,6 +1520,19 @@ QString SearchServer::convertToPdf(const QString &fullPath)
     qDebug() << "SearchServer: Converting" << fullPath << "to PDF,"
              << pageCount << "pages";
     for (int p = 0; p < pageCount; p++) {
+        // Let the event loop deliver disconnect signals, then check
+        QCoreApplication::processEvents();
+        if (client &&
+            client->state() != QAbstractSocket::ConnectedState) {
+            qDebug() << "SearchServer: Client disconnected at page"
+                     << p + 1 << "of" << pageCount
+                     << "- aborting conversion";
+            delete srcFile;
+            delete dstFile;
+            QFile::remove(cachedPdf);
+            return QString();
+        }
+
         QImage image;
         QSize size, trueSize;
         int bpp;
