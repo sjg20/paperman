@@ -1128,6 +1128,10 @@ void utilInit(const QString& group)
 
 int utilImageDepth(const QImage &image)
 {
+   /* Indexed and greyscale formats already have the right depth */
+   if (image.depth() <= 8)
+      return image.depth();
+
    bool grey_seen = false;
    int w = image.width();
    int h = image.height();
@@ -1140,7 +1144,10 @@ int utilImageDepth(const QImage &image)
          int g = qGreen(line[x]);
          int b = qBlue(line[x]);
 
-         if (r != g || r != b)
+         int maxc = qMax(r, qMax(g, b));
+         int minc = qMin(r, qMin(g, b));
+
+         if (maxc - minc > 10)
             return 24;
 
          if (!grey_seen && r >= 32 && r <= 224)
