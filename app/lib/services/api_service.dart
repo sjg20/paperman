@@ -273,10 +273,15 @@ class ApiService {
   }
 
   /// Download a complete file with streaming progress.
+  ///
+  /// If [client] is provided it is used for the request (and the
+  /// caller is responsible for closing it).  Otherwise a new client
+  /// is created and closed when the download finishes.
   Future<Uint8List> downloadFileStreamed({
     required String path,
     String? repo,
     bool asPdf = true,
+    http.Client? client,
     void Function(int received, int total)? onProgress,
   }) async {
     if (_isDemo) return DemoData.loadPageBytes(path);
@@ -292,9 +297,10 @@ class ApiService {
       request.headers['Authorization'] = auth;
     }
 
-    final client = http.Client();
+    final ownClient = client == null;
+    final c = client ?? http.Client();
     try {
-      final streamed = await client.send(request);
+      final streamed = await c.send(request);
       if (streamed.statusCode != 200) {
         throw ApiException(
             streamed.statusCode, 'Failed to download file');
@@ -320,7 +326,7 @@ class ApiService {
       }
       return bytes;
     } finally {
-      client.close();
+      if (ownClient) c.close();
     }
   }
 
