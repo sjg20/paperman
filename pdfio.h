@@ -110,6 +110,15 @@ public :
       \returns error, or NULL if ok */
    err_info *appendFrom (Pdfio *from);
 
+   /** append pages from another document without writing to disk
+
+      Use flush() to write the combined result after all pages are
+      appended.
+
+      \param from    source PDF document
+      \returns error, or NULL if ok */
+   err_info *appendPages (Pdfio *from);
+
    /** inserts pages from a pdf file into another
 
       \param from    source PDF file

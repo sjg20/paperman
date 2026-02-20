@@ -3,6 +3,7 @@ TARGET = paperman-server
 LANGUAGE = C++
 QT += network
 QT += gui
+QT += concurrent
 
 CONFIG += qt warn_on console
 CONFIG -= app_bundle

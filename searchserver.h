@@ -326,7 +326,7 @@ private:
     /**
      * Stream a file to a client socket with HTTP headers.
      *
-     * Writes headers first, then streams the file in 64 KB chunks
+     * Writes headers first, then streams the file in 512 KB chunks
      * to avoid buffering the entire file in memory.
      *
      * @param filePath    Path to the file to send
