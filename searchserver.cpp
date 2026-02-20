@@ -48,6 +48,18 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QJsonArray>
 #endif
 
+static QString formatSize(qint64 bytes)
+{
+    if (bytes < 1024)
+        return QString::number(bytes) + "B";
+    if (bytes < 1024 * 1024)
+        return QString::number(bytes / 1024) + "KB";
+    if (bytes < 1024 * 1024 * 1024)
+        return QString::number(bytes / (1024.0 * 1024), 'f', 1) + "MB";
+    return QString::number(bytes / (1024.0 * 1024 * 1024), 'f', 1)
+           + "GB";
+}
+
 SearchServer::SearchServer(const QString &rootPath, quint16 port,
                            QObject *parent, bool skipCache)
     : QTcpServer(parent)
@@ -298,10 +310,10 @@ void SearchServer::onReadyRead()
     }
 
     qint64 elapsedMs = timer.elapsed();
-    qDebug().noquote() << QString("%1 %2 %3 %4 %5bytes %6ms")
+    qDebug().noquote() << QString("%1 %2 %3 %4 %5 %6ms")
         .arg(clientAddr, method, requestUri)
         .arg(statusCode)
-        .arg(response.size())
+        .arg(formatSize(response.size()))
         .arg(elapsedMs);
 
     // Write binary response directly
@@ -949,8 +961,9 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         QByteArray pdfContent = pdfFile.readAll();
         pdfFile.close();
 
-        qDebug() << "SearchServer: Serving converted PDF ("
-                 << pdfContent.size() << "bytes)";
+        qDebug().noquote()
+            << "SearchServer: Serving converted PDF"
+            << formatSize(pdfContent.size());
 
         return buildHttpResponse(200, "OK", "application/pdf", pdfContent);
     }
@@ -1908,10 +1921,10 @@ void SearchServer::onExtractionFinished(int exitCode,
     foreach (QTcpSocket *client, pe.waiters) {
         if (client->state() == QAbstractSocket::ConnectedState) {
             qDebug().noquote()
-                << QString("%1 GET /file (async) %2 %3bytes")
+                << QString("%1 GET /file (async) %2 %3")
                        .arg(client->peerAddress().toString())
                        .arg(pe.filePath)
-                       .arg(response.size());
+                       .arg(formatSize(response.size()));
             client->write(response);
             client->flush();
             client->disconnectFromHost();
