@@ -413,6 +413,13 @@ private:
     QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
     QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
     QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path
+
+    /** Tracks progress of an in-flight PDF conversion */
+    struct ConvertProgress {
+        int currentPage;  //!< Last completed page (0 = not started)
+        int totalPages;   //!< Total pages in the source file
+    };
+    QHash<QString, ConvertProgress> _convertProgress;  //!< Keyed by source path
 };
 
 #endif // __searchserver_h

@@ -537,6 +537,21 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
 
         int page = params.value("page", "0").toInt();
         bool wantPageCount = params.value("pages", "") == "true";
+        bool wantProgress = params.value("progress", "") == "true";
+
+        if (wantProgress) {
+            QString fullPath = repoPath + "/" + filePath;
+            auto it = _convertProgress.find(fullPath);
+            QString json;
+            if (it != _convertProgress.end())
+                json = QString("{\"converting\":true,\"page\":%1,"
+                               "\"total\":%2}")
+                    .arg(it->currentPage).arg(it->totalPages);
+            else
+                json = "{\"converting\":false}";
+            return buildHttpResponse(200, "OK",
+                                     "application/json", json);
+        }
 
         return getFile(repoPath, filePath, type, page, wantPageCount,
                        client);
@@ -1476,6 +1491,14 @@ QString SearchServer::convertToPdf(const QString &fullPath,
         return cachedPdf;
     }
 
+    // Another request is already converting this file; don't start
+    // a second conversion (processEvents() can re-enter here).
+    if (_convertProgress.contains(fullPath)) {
+        qDebug() << "SearchServer: Conversion already in progress for"
+                 << fullPath;
+        return QString();
+    }
+
     // Convert using the File class directly
     QString dir = fileInfo.absolutePath() + "/";
     QString fname = fileInfo.fileName();
@@ -1519,6 +1542,7 @@ QString SearchServer::convertToPdf(const QString &fullPath,
     int pageCount = srcFile->pagecount();
     qDebug() << "SearchServer: Converting" << fullPath << "to PDF,"
              << pageCount << "pages";
+    _convertProgress[fullPath] = {0, pageCount};
     for (int p = 0; p < pageCount; p++) {
         // Let the event loop deliver disconnect signals, then check
         QCoreApplication::processEvents();
@@ -1530,6 +1554,7 @@ QString SearchServer::convertToPdf(const QString &fullPath,
             delete srcFile;
             delete dstFile;
             QFile::remove(cachedPdf);
+            _convertProgress.remove(fullPath);
             return QString();
         }
 
@@ -1544,6 +1569,7 @@ QString SearchServer::convertToPdf(const QString &fullPath,
             delete srcFile;
             delete dstFile;
             QFile::remove(cachedPdf);
+            _convertProgress.remove(fullPath);
             return QString();
         }
 
@@ -1575,14 +1601,17 @@ QString SearchServer::convertToPdf(const QString &fullPath,
             delete srcFile;
             delete dstFile;
             QFile::remove(cachedPdf);
+            _convertProgress.remove(fullPath);
             return QString();
         }
+        _convertProgress[fullPath].currentPage = p + 1;
     }
 
     dstFile->flush();
     delete srcFile;
     delete dstFile;
 
+    _convertProgress.remove(fullPath);
     _log.log(ServerLog::ConvertToPdf, fullPath);
     qDebug() << "SearchServer: Cached converted PDF:" << cachedPdf;
     return cachedPdf;

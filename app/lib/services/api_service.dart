@@ -323,6 +323,32 @@ class ApiService {
       client.close();
     }
   }
+
+  /// Poll conversion progress for a file.
+  ///
+  /// Returns a map with `converting` (bool) and, when true,
+  /// `page` and `total` (ints).  Returns null on error.
+  Future<Map<String, dynamic>?> getConvertProgress({
+    required String path,
+    String? repo,
+  }) async {
+    if (_isDemo) return null;
+    final params = <String, String>{
+      'path': path,
+      'type': 'pdf',
+      'progress': 'true',
+    };
+    if (repo != null) params['repo'] = repo;
+    final uri =
+        Uri.parse('$_baseUrl/file').replace(queryParameters: params);
+    try {
+      final response = await http.get(uri, headers: _headers);
+      if (response.statusCode != 200) return null;
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 class ApiException implements Exception {
