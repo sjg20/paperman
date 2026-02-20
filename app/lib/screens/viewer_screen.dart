@@ -43,8 +43,8 @@ class ViewerScreen extends StatefulWidget {
 class _ViewerScreenState extends State<ViewerScreen> {
   static const _defaultAspectRatio = 1.414; // A4 portrait
   static const _pageGap = 4.0;
-  static const _prefetchBefore = 2;
-  static const _prefetchAfter = 5;
+  static const _prefetchBefore = 1;
+  static const _prefetchAfter = 2;
   static const _evictDistance = 10;
   static const _minThumbWidthMm = 10.0;
   static const _overviewThreshold = 0.75;
@@ -62,6 +62,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Set<int> _fetching = {};
   final Map<int, double> _progress = {};
   final Map<int, int> _progressTotal = {};
+  final Map<int, Completer<void>> _pageCompleters = {};
   Timer? _scrollDebounce;
   Timer? _gestureTimer;
   bool _isGesturing = false;
@@ -154,12 +155,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _prefetchAround(1);
   }
 
-  Future<void> _fetchPage(int page) async {
-    if (_documents.containsKey(page) || _fetching.contains(page)) return;
-    if (page < 1 || page > _totalPages) return;
+  /// Start fetching [page] if not already loaded or in progress.
+  ///
+  /// Returns a future that completes when the page is ready (or
+  /// fails).  If the page is already being fetched the existing
+  /// future is returned so callers can await it.
+  Future<void> _fetchPage(int page) {
+    if (_documents.containsKey(page)) return Future.value();
+    if (page < 1 || page > _totalPages) return Future.value();
 
+    final existing = _pageCompleters[page];
+    if (existing != null) return existing.future;
+
+    final completer = Completer<void>();
+    _pageCompleters[page] = completer;
     _fetching.add(page);
+    _doFetchPage(page, completer);
+    return completer.future;
+  }
 
+  Future<void> _doFetchPage(int page, Completer<void> completer) async {
     try {
       final path = _diskPaths[page];
       PdfDocument doc;
@@ -206,9 +221,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
       setState(() {
         _documents[page] = doc;
-        _fetching.remove(page);
-        _progress.remove(page);
-        _progressTotal.remove(page);
       });
 
       if (pendingScrub) {
@@ -220,14 +232,42 @@ class _ViewerScreenState extends State<ViewerScreen> {
         });
       }
     } catch (_) {
+      // Page failed to load — leave it as unloaded so the placeholder
+      // keeps showing.
+    } finally {
       _fetching.remove(page);
       _progress.remove(page);
       _progressTotal.remove(page);
+      _pageCompleters.remove(page);
+      if (!completer.isCompleted) completer.complete();
     }
   }
 
-  void _prefetchAround(int page) {
-    for (int p = page - _prefetchBefore; p <= page + _prefetchAfter; p++) {
+  Future<void> _prefetchAround(int page) async {
+    // Start fetching the two visible pages (current + next) and wait
+    // for them to complete before firing off-screen prefetch requests.
+    final visible = <int>[page, page + 1]
+        .where((p) => p >= 1 && p <= _totalPages)
+        .toList();
+    try {
+      await Future.wait(visible.map((p) => _fetchPage(p)));
+    } catch (_) {
+      // Visible page failed — still try prefetch.
+    }
+
+    if (!mounted) return;
+    // If the user has scrolled away, don't bother prefetching for this page.
+    if (_currentPage != page) return;
+
+    // Fire off-screen prefetch (remaining forward + backward pages).
+    final prefetch = <int>[];
+    for (int d = 2; d <= _prefetchAfter; d++) {
+      prefetch.add(page + d);
+    }
+    for (int d = 1; d <= _prefetchBefore; d++) {
+      prefetch.add(page - d);
+    }
+    for (final p in prefetch) {
       if (p >= 1 && p <= _totalPages) {
         _fetchPage(p);
       }
