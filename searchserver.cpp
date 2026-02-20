@@ -40,6 +40,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTemporaryDir>
 #include <QTemporaryFile>
 #include <QDirIterator>
+#include <QBuffer>
 #include <QCryptographicHash>
 #include <QElapsedTimer>
 #include <QtConcurrent>
@@ -1780,28 +1781,7 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
         return QString();
     }
 
-    // Create destination PDF in cache directory
-    QFileInfo cacheInfo(cachedPdf);
-    QString dstDir = cacheInfo.absolutePath() + "/";
-    QString dstFname = cacheInfo.fileName();
-
-    File *dstFile = File::createFile(dstDir, dstFname, nullptr,
-                                     File::Type_pdf);
-    if (!dstFile) {
-        qWarning() << "SearchServer: Failed to create destination File";
-        delete srcFile;
-        return QString();
-    }
-
-    err = dstFile->create();
-    if (err) {
-        qWarning() << "SearchServer: Failed to create destination PDF";
-        delete srcFile;
-        delete dstFile;
-        return QString();
-    }
-
-    // Extract single page: get the image, create a Filepage, add it to PDF
+    // Extract single page image
     QImage image;
     QSize size, trueSize;
     int bpp;
@@ -1812,7 +1792,6 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
         qWarning() << "SearchServer: Failed to get image for page" << page
                    << "of" << fullPath;
         delete srcFile;
-        delete dstFile;
         return QString();
     }
 
@@ -1823,36 +1802,67 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
         bpp = image.depth();
     }
 
-    int image_size;
+    Pdfio pdfio(cachedPdf);
+    err = pdfio.create();
+    if (err) {
+        qWarning() << "SearchServer: Failed to create PDF";
+        delete srcFile;
+        return QString();
+    }
+
+    if (bpp > 1) {
+        /*
+         * Greyscale / colour pages: JPEG compress for ~3-5x size
+         * reduction over FlateDecode.
+         */
+        bool colour = bpp > 8;
+
+        QByteArray jpegData;
+        QBuffer buf(&jpegData);
+        buf.open(QIODevice::WriteOnly);
+        image.save(&buf, "JPEG", 80);
+        buf.close();
+
+        err = pdfio.addPageJpeg(jpegData, image.width(), image.height(),
+                                colour);
+    } else {
+        /*
+         * 1-bit (monochrome) pages: keep FlateDecode — it compresses
+         * hard black/white edges far better than JPEG.
+         */
+        int image_size;
 #if QT_VERSION >= 0x050a00
-    image_size = image.sizeInBytes();
+        image_size = image.sizeInBytes();
 #else
-    image_size = image.byteCount();
+        image_size = image.byteCount();
 #endif
-    QByteArray ba = QByteArray::fromRawData(
-        (const char *)image.bits(), image_size);
+        QByteArray ba = QByteArray::fromRawData(
+            (const char *)image.bits(), image_size);
+        int stride = image.bytesPerLine();
 
-    int stride = image.bytesPerLine();
+        Filepage fp;
+        QString pageName = QString("Page %1").arg(page);
+        fp.addData(image.width(), image.height(), image.depth(), stride,
+                   pageName, false, false, 0, ba, ba.size());
 
-    Filepage fp;
-    QString pageName = QString("Page %1").arg(page);
-    fp.addData(image.width(), image.height(), image.depth(), stride,
-               pageName, false, false, 0, ba, ba.size());
-
-    fp.compress();
-    err = dstFile->addPage(&fp, false);
+        fp.compress();
+        err = pdfio.addPage(&fp);
+    }
     if (err) {
         qWarning() << "SearchServer: Failed to add page" << page
                    << "to PDF";
         delete srcFile;
-        delete dstFile;
         return QString();
     }
 
-    dstFile->flush();
+    err = pdfio.close();
+    if (err) {
+        qWarning() << "SearchServer: Failed to write PDF";
+        delete srcFile;
+        return QString();
+    }
 
     delete srcFile;
-    delete dstFile;
 
     _log.log(ServerLog::PageExtract, fullPath, page);
     return cachedPdf;
