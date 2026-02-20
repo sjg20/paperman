@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:path_provider/path_provider.dart';
@@ -336,25 +337,63 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Future<void> _printDocument() async {
     final api = context.read<ApiService>();
+    final received = ValueNotifier<int>(0);
+    final total = ValueNotifier<int>(-1);
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ValueListenableBuilder<int>(
+              valueListenable: received,
+              builder: (_, recv, __) => ValueListenableBuilder<int>(
+                valueListenable: total,
+                builder: (_, tot, __) {
+                  final downloading = recv > 0;
+                  final pct = tot > 0 ? recv / tot : null;
+                  final text = !downloading
+                      ? 'Preparing document\u2026'
+                      : tot > 0
+                          ? '${(pct! * 100).toStringAsFixed(0)}%'
+                              '  ${_formatBytes(recv)}'
+                              ' / ${_formatBytes(tot)}'
+                          : 'Downloading\u2026'
+                              '  ${_formatBytes(recv)}';
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(
+                          value: downloading ? pct : null),
+                      const SizedBox(height: 12),
+                      Text(text),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
     );
 
     try {
-      final bytes;
+      final Uint8List bytes;
       if (api.isDemo) {
         final file =
             File('${_cacheDir.path}/paperman_${_safeName}_full.pdf');
         bytes = await file.readAsBytes();
       } else {
-        final response = await api.downloadFile(
+        bytes = await api.downloadFileStreamed(
           path: widget.filePath,
           repo: widget.repo,
+          onProgress: (recv, tot) {
+            received.value = recv;
+            total.value = tot;
+          },
         );
-        bytes = response.bodyBytes;
       }
 
       if (!mounted) return;
@@ -366,6 +405,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load document: $e')),
       );
+    } finally {
+      received.dispose();
+      total.dispose();
     }
   }
 

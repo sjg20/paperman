@@ -271,6 +271,58 @@ class ApiService {
     }
     return response;
   }
+
+  /// Download a complete file with streaming progress.
+  Future<Uint8List> downloadFileStreamed({
+    required String path,
+    String? repo,
+    bool asPdf = true,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    if (_isDemo) return DemoData.loadPageBytes(path);
+    final params = <String, String>{'path': path};
+    if (repo != null) params['repo'] = repo;
+    if (asPdf) params['type'] = 'pdf';
+    final uri =
+        Uri.parse('$_baseUrl/file').replace(queryParameters: params);
+
+    final request = http.Request('GET', uri);
+    final auth = _basicAuth;
+    if (auth != null) {
+      request.headers['Authorization'] = auth;
+    }
+
+    final client = http.Client();
+    try {
+      final streamed = await client.send(request);
+      if (streamed.statusCode != 200) {
+        throw ApiException(
+            streamed.statusCode, 'Failed to download file');
+      }
+
+      final total = streamed.contentLength ?? -1;
+      final chunks = <List<int>>[];
+      var received = 0;
+
+      await for (final chunk in streamed.stream) {
+        chunks.add(chunk);
+        received += chunk.length;
+        if (onProgress != null) {
+          onProgress(received, total);
+        }
+      }
+
+      final bytes = Uint8List(received);
+      var offset = 0;
+      for (final chunk in chunks) {
+        bytes.setRange(offset, offset + chunk.length, chunk);
+        offset += chunk.length;
+      }
+      return bytes;
+    } finally {
+      client.close();
+    }
+  }
 }
 
 class ApiException implements Exception {
