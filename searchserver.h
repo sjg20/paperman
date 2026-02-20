@@ -238,9 +238,11 @@ private:
     /**
      * Convert a non-PDF file to PDF, caching the result
      * @param fullPath Absolute path to the source file
+     * @param client If non-null, abort when this client disconnects
      * @return Path to cached PDF, or empty string on failure
      */
-    QString convertToPdf(const QString &fullPath);
+    QString convertToPdf(const QString &fullPath,
+                         QTcpSocket *client = nullptr);
 
     /**
      * Get page count of a non-PDF file using the File class
