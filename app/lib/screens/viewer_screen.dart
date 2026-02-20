@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
@@ -341,14 +342,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final total = ValueNotifier<int>(-1);
     final convertPage = ValueNotifier<int>(0);
     final convertTotal = ValueNotifier<int>(0);
+    var cancelled = false;
+    http.Client? httpClient;
+    Timer? pollTimer;
+
+    void cancel() {
+      cancelled = true;
+      httpClient?.close();
+      pollTimer?.cancel();
+    }
 
     // Poll the server for conversion progress until bytes arrive.
-    Timer? pollTimer;
     if (!api.isDemo) {
       pollTimer = Timer.periodic(
         const Duration(milliseconds: 500),
         (_) async {
-          if (received.value > 0) {
+          if (cancelled || received.value > 0) {
             pollTimer?.cancel();
             return;
           }
@@ -367,7 +376,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(
+      builder: (dialogContext) => Center(
         child: Card(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -407,6 +416,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
                           LinearProgressIndicator(value: pct),
                           const SizedBox(height: 12),
                           Text(text),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () {
+                              cancel();
+                              Navigator.of(dialogContext).pop();
+                            },
+                            child: const Text('Cancel'),
+                          ),
                         ],
                       );
                     },
@@ -426,9 +443,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
             File('${_cacheDir.path}/paperman_${_safeName}_full.pdf');
         bytes = await file.readAsBytes();
       } else {
+        httpClient = http.Client();
         bytes = await api.downloadFileStreamed(
           path: widget.filePath,
           repo: widget.repo,
+          client: httpClient,
           onProgress: (recv, tot) {
             received.value = recv;
             total.value = tot;
@@ -436,11 +455,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
         );
       }
 
-      if (!mounted) return;
+      if (!mounted || cancelled) return;
       Navigator.of(context).pop();
       await Printing.layoutPdf(onLayout: (_) => bytes);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || cancelled) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load document: $e')),
