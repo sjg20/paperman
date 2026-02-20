@@ -145,6 +145,25 @@ List all files in a directory.
      ]
    }
 
+Page Delivery
+-------------
+
+When an individual page is requested (``/file?path=...&page=N``),
+the server converts it to a single-page PDF.  The compression
+strategy depends on the page content:
+
+- **Greyscale/colour pages** (8 or 24 bpp) use JPEG compression
+  (DCTDecode) at quality 80.  This gives a 3--5x size reduction
+  for greyscale and up to 13x for colour pages that are really
+  greyscale with scanner noise.
+- **Monochrome pages** (1 bpp) keep FlateDecode (zlib).  JPEG is
+  unsuitable for hard black/white edges and FlateDecode already
+  compresses 1-bit data very well (~11 KB per page).
+
+Scanner-produced "colour" pages whose RGB channels differ by no more
+than 10 levels are automatically detected as greyscale and converted
+before JPEG encoding.
+
 Supported File Types
 --------------------
 
