@@ -398,8 +398,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         pct = tot > 0 ? recv / tot : null;
                         text = tot > 0
                             ? '${(pct! * 100).toStringAsFixed(0)}%'
-                                '  ${_formatBytes(recv)}'
-                                ' / ${_formatBytes(tot)}'
+                                ' of ${_formatBytes(tot)}'
                             : 'Downloading\u2026'
                                 '  ${_formatBytes(recv)}';
                       } else if (cvtTotal > 0) {
