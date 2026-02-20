@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paperman - Document Viewer and Search Server</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #555;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --card-bg: #f8f9fa;
+  --border: #e0e0e0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a2e;
+    --fg: #e0e0e0;
+    --muted: #aaa;
+    --accent: #60a5fa;
+    --accent-hover: #93bbfd;
+    --card-bg: #16213e;
+    --border: #2a2a4a;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+header {
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+}
+header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+header p { font-size: 1.15rem; color: var(--muted); max-width: 40rem; margin: 0 auto; }
+.badge { margin-top: 1rem; }
+.badge img { vertical-align: middle; }
+
+nav.links {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+nav.links a {
+  display: inline-block;
+  padding: 0.5rem 1.2rem;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+nav.links a:hover {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+nav.links a.primary {
+  background: var(--accent);
+  color: #fff;
+}
+nav.links a.primary:hover { background: var(--accent-hover); }
+
+section { max-width: 64rem; margin: 0 auto; padding: 2rem 1rem; }
+section h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.gallery a {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--card-bg);
+  transition: box-shadow 0.15s;
+}
+.gallery a:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.gallery img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.gallery .caption {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.features .card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.25rem;
+}
+.features .card h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+.features .card p { color: var(--muted); font-size: 0.95rem; }
+
+footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Paperman</h1>
+  <p>
+    A viewer for scanned documents (PDF, JPEG, TIFF and PaperPort .max files)
+    with a search server, REST API and Flutter mobile app.
+  </p>
+  <div class="badge">
+    <a href="https://github.com/sjg20/paperman/actions/workflows/ci.yml">
+      <img src="https://github.com/sjg20/paperman/actions/workflows/ci.yml/badge.svg"
+           alt="CI status">
+    </a>
+  </div>
+  <nav class="links">
+    <a class="primary" href="docs/">Documentation</a>
+    <a href="https://github.com/sjg20/paperman">GitHub</a>
+    <a href="https://play.google.com/store/apps/details?id=nz.co.sglass.paperman">Android App</a>
+  </nav>
+</header>
+
+<section>
+  <h2>Screenshots</h2>
+  <div class="gallery">
+    <a href="images/1.jpeg">
+      <img src="images/1.jpeg" alt="Desktop app showing thumbnail grid of magazine scans" loading="lazy">
+      <div class="caption">Thumbnail grid view</div>
+    </a>
+    <a href="images/all.png">
+      <img src="images/all.png" alt="Desktop app with dual-pane layout showing thumbnails and page preview" loading="lazy">
+      <div class="caption">Dual-pane preview</div>
+    </a>
+    <a href="images/3.jpeg">
+      <img src="images/3.jpeg" alt="Browsing scanned letters with page thumbnails" loading="lazy">
+      <div class="caption">Browsing scanned letters</div>
+    </a>
+    <a href="images/5.png">
+      <img src="images/5.png" alt="Desktop app with search results and page preview" loading="lazy">
+      <div class="caption">Search results with preview</div>
+    </a>
+    <a href="images/9.png">
+      <img src="images/9.png" alt="Desktop app showing product manuals with page view" loading="lazy">
+      <div class="caption">Viewing product manuals</div>
+    </a>
+    <a href="images/4.jpeg">
+      <img src="images/4.jpeg" alt="Full-page document view of a scanned recipe" loading="lazy">
+      <div class="caption">Full-page document view</div>
+    </a>
+    <a href="images/7.png">
+      <img src="images/7.png" alt="Scanner dialog with preset options" loading="lazy">
+      <div class="caption">Scan with folder presets</div>
+    </a>
+    <a href="images/8.png">
+      <img src="images/8.png" alt="Scanner configuration dialog" loading="lazy">
+      <div class="caption">Scanner configuration</div>
+    </a>
+    <a href="images/6.png">
+      <img src="images/6.png" alt="Desktop overview with scanning workflow" loading="lazy">
+      <div class="caption">Scanning workflow</div>
+    </a>
+    <a href="images/2.jpeg">
+      <img src="images/2.jpeg" alt="Print dialog with printer and page range options" loading="lazy">
+      <div class="caption">Print dialog</div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <h2>Features</h2>
+  <div class="features">
+    <div class="card">
+      <h3>Document Viewer</h3>
+      <p>Browse stacks and pages with thumbnail previews.
+         Supports PDF, JPEG, TIFF and PaperPort .max files.</p>
+    </div>
+    <div class="card">
+      <h3>Scanning</h3>
+      <p>Scan directly from SANE-compatible scanners with presets
+         for resolution, colour mode, duplex and destination folder.</p>
+    </div>
+    <div class="card">
+      <h3>OCR and Search</h3>
+      <p>Built-in OCR engine with full-text search across your entire
+         document collection.</p>
+    </div>
+    <div class="card">
+      <h3>Search Server</h3>
+      <p>REST API server for querying paper repositories remotely.
+         Converts documents to PDF on the fly.</p>
+    </div>
+    <div class="card">
+      <h3>Mobile App</h3>
+      <p>Flutter app for Android and iOS. Browse directories, search
+         documents and view files from your phone.</p>
+    </div>
+    <div class="card">
+      <h3>Print and Export</h3>
+      <p>Print stacks and pages with annotations. Convert between
+         PDF, JPEG and TIFF formats.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  &copy; 2009 Simon Glass &middot;
+  <a href="https://github.com/sjg20/paperman">Source on GitHub</a> &middot;
+  <a href="docs/">Full documentation</a>
+</footer>
+
+</body>
+</html>
