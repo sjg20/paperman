@@ -47,7 +47,7 @@ void main() {
     expect(lastQuadTop, closeTo(0, 1));
 
     // --- Pan down: set transform to translate(0, -600) ---
-    controller.value = Matrix4.identity()..translate(0.0, -600.0);
+    controller.value = Matrix4.identity()..translateByDouble(0.0, -600.0, 0.0, 1.0);
     await tester.pump();
 
     debugPrint('After translate(0,-600): quadTop=$lastQuadTop '
@@ -60,7 +60,7 @@ void main() {
         reason: 'transform-derived childTop should match Quad top');
 
     // --- Pan further: translate(0, -1800) ---
-    controller.value = Matrix4.identity()..translate(0.0, -1800.0);
+    controller.value = Matrix4.identity()..translateByDouble(0.0, -1800.0, 0.0, 1.0);
     await tester.pump();
 
     debugPrint('After translate(0,-1800): quadTop=$lastQuadTop '
@@ -73,8 +73,8 @@ void main() {
 
     // --- Zoom to 2x then pan ---
     controller.value = Matrix4.identity()
-      ..translate(0.0, -1200.0)
-      ..scale(2.0);
+      ..translateByDouble(0.0, -1200.0, 0.0, 1.0)
+      ..scaleByDouble(2.0, 2.0, 2.0, 1.0);
     await tester.pump();
 
     debugPrint('After translate(0,-1200)*scale(2): quadTop=$lastQuadTop '

@@ -160,7 +160,7 @@ void main() {
       find.byType(InteractiveViewer),
     );
     viewer.transformationController!.value =
-        Matrix4.identity()..scale(0.6);
+        Matrix4.identity()..scaleByDouble(0.6, 0.6, 0.6, 1.0);
     await tester.pump();
 
     // Overview still uses an InteractiveViewer (for zoom) but no ListView.
@@ -193,7 +193,7 @@ void main() {
     );
     const extent = 800.0 * 1.414 + 4.0;
     viewer.transformationController!.value = Matrix4.identity()
-      ..translate(0.0, -4 * extent); // page 5
+      ..translateByDouble(0.0, -4 * extent, 0.0, 1.0); // page 5
     await tester.pump();
     // Let the debounce timer fire.
     await tester.pump(const Duration(milliseconds: 300));
@@ -201,7 +201,7 @@ void main() {
 
     // Zoom out to enter overview.
     viewer.transformationController!.value =
-        Matrix4.identity()..scale(0.6);
+        Matrix4.identity()..scaleByDouble(0.6, 0.6, 0.6, 1.0);
     await tester.pump();
 
     // Should be in overview showing page 5 in the banner.

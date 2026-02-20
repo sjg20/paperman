@@ -15,12 +15,12 @@ void main() {
   });
 
   test('translate(0, -600) → childTop 600', () {
-    final m = Matrix4.identity()..translate(0.0, -600.0);
+    final m = Matrix4.identity()..translateByDouble(0.0, -600.0, 0.0, 1.0);
     expect(childTopFromMatrix(m), 600.0);
   });
 
   test('translate(0, -1200) → childTop 1200', () {
-    final m = Matrix4.identity()..translate(0.0, -1200.0);
+    final m = Matrix4.identity()..translateByDouble(0.0, -1200.0, 0.0, 1.0);
     expect(childTopFromMatrix(m), 1200.0);
   });
 
@@ -31,8 +31,8 @@ void main() {
     // For viewport top (y_viewport=0): 2*y - 1200 = 0 → y = 600
     // So childTop should be 600.
     final m = Matrix4.identity()
-      ..translate(0.0, -1200.0)
-      ..scale(2.0);
+      ..translateByDouble(0.0, -1200.0, 0.0, 1.0)
+      ..scaleByDouble(2.0, 2.0, 2.0, 1.0);
     expect(childTopFromMatrix(m), closeTo(600.0, 0.01));
   });
 
@@ -44,8 +44,8 @@ void main() {
     const extent = 600.0;
     const scale = 1.0;
     final m = Matrix4.identity()
-      ..translate(0.0, -scale * (page - 1) * extent)
-      ..scale(scale);
+      ..translateByDouble(0.0, -scale * (page - 1) * extent, 0.0, 1.0)
+      ..scaleByDouble(scale, scale, scale, 1.0);
 
     expect(childTopFromMatrix(m), closeTo(1200.0, 0.01));
   });
@@ -56,26 +56,26 @@ void main() {
     var m = Matrix4.identity();
 
     // First pan: child should move up by 300
-    final delta1 = Matrix4.identity()..translate(0.0, -300.0);
+    final delta1 = Matrix4.identity()..translateByDouble(0.0, -300.0, 0.0, 1.0);
     m = delta1 * m;
     expect(childTopFromMatrix(m), closeTo(300.0, 0.01));
 
     // Second pan: child should move up by another 300
-    final delta2 = Matrix4.identity()..translate(0.0, -300.0);
+    final delta2 = Matrix4.identity()..translateByDouble(0.0, -300.0, 0.0, 1.0);
     m = delta2 * m;
     expect(childTopFromMatrix(m), closeTo(600.0, 0.01));
   });
 
   test('InteractiveViewer-style pan at 2x zoom', () {
     // Start with scale 2x at origin
-    var m = Matrix4.identity()..scale(2.0);
+    var m = Matrix4.identity()..scaleByDouble(2.0, 2.0, 2.0, 1.0);
 
     // At 2x zoom, panning by 300 viewport pixels moves 150 child pixels.
     // But InteractiveViewer translates in viewport space, so:
     // m = translate(0, -300) * scale(2)
     // getTranslation().y = -300, scale = 2
     // childTop = 300/2 = 150
-    final delta = Matrix4.identity()..translate(0.0, -300.0);
+    final delta = Matrix4.identity()..translateByDouble(0.0, -300.0, 0.0, 1.0);
     m = delta * m;
 
     expect(childTopFromMatrix(m), closeTo(150.0, 0.01));
