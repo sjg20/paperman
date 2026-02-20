@@ -6,6 +6,7 @@ import 'demo_data.dart';
 
 class ApiService {
   String _baseUrl;
+  String? _localBaseUrl;
   String? _username;
   String? _password;
 
@@ -21,17 +22,41 @@ class ApiService {
   void disableDemo() => _isDemo = false;
 
   String get baseUrl => _baseUrl;
+  String? get localBaseUrl => _localBaseUrl;
   String? get username => _username;
   String? get password => _password;
 
   void updateConfig({
     required String baseUrl,
+    String? localBaseUrl,
     String? username,
     String? password,
   }) {
     _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), '');
+    _localBaseUrl = localBaseUrl?.replaceAll(RegExp(r'/+$'), '');
+    if (_localBaseUrl != null && _localBaseUrl!.isEmpty) {
+      _localBaseUrl = null;
+    }
     _username = username;
     _password = password;
+  }
+
+  /// Try the local URL first; if it responds within [timeout], use it
+  /// as the active base URL. Otherwise fall back to the main URL.
+  Future<void> tryLocalUrl({
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    if (_localBaseUrl == null || _localBaseUrl!.isEmpty) return;
+    final uri = Uri.parse('$_localBaseUrl/status');
+    try {
+      final response = await http.get(uri, headers: _headers)
+          .timeout(timeout);
+      if (response.statusCode == 200) {
+        _baseUrl = _localBaseUrl!;
+      }
+    } catch (_) {
+      // Local URL unreachable — keep the main URL
+    }
   }
 
   String? get basicAuth => _basicAuth;

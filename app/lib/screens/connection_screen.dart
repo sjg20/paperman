@@ -16,6 +16,7 @@ class ConnectionScreen extends StatefulWidget {
 
 class _ConnectionScreenState extends State<ConnectionScreen> {
   final _urlController = TextEditingController();
+  final _localUrlController = TextEditingController();
   final _userController = TextEditingController();
   final _passController = TextEditingController();
   bool _connecting = false;
@@ -44,6 +45,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   Future<void> _loadSaved() async {
     final prefs = await SharedPreferences.getInstance();
     _urlController.text = prefs.getString('server_url') ?? '';
+    _localUrlController.text = prefs.getString('local_url') ?? '';
     _userController.text = prefs.getString('username') ?? '';
     _passController.text = prefs.getString('password') ?? '';
     // Auto-connect if we have a saved URL (unless returning from disconnect)
@@ -79,18 +81,22 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     final api = context.read<ApiService>();
     final user = _userController.text.trim();
     final pass = _passController.text;
+    final localUrl = _localUrlController.text.trim();
     api.updateConfig(
       baseUrl: url,
+      localBaseUrl: localUrl.isEmpty ? null : localUrl,
       username: user.isEmpty ? null : user,
       password: pass.isEmpty ? null : pass,
     );
 
     try {
+      await api.tryLocalUrl();
       await api.checkStatus();
 
       // Save settings
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', url);
+      await prefs.setString('local_url', localUrl);
       await prefs.setString('username', user);
       await prefs.setString('password', pass);
 
@@ -110,6 +116,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   @override
   void dispose() {
     _urlController.dispose();
+    _localUrlController.dispose();
     _userController.dispose();
     _passController.dispose();
     super.dispose();
@@ -134,6 +141,18 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                 hintText: 'https://papers.example.com',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.link),
+              ),
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _localUrlController,
+              decoration: const InputDecoration(
+                labelText: 'Local URL (optional)',
+                hintText: 'http://192.168.1.10:8080',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.wifi),
               ),
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
