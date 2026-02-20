@@ -339,6 +339,30 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final api = context.read<ApiService>();
     final received = ValueNotifier<int>(0);
     final total = ValueNotifier<int>(-1);
+    final convertPage = ValueNotifier<int>(0);
+    final convertTotal = ValueNotifier<int>(0);
+
+    // Poll the server for conversion progress until bytes arrive.
+    Timer? pollTimer;
+    if (!api.isDemo) {
+      pollTimer = Timer.periodic(
+        const Duration(milliseconds: 500),
+        (_) async {
+          if (received.value > 0) {
+            pollTimer?.cancel();
+            return;
+          }
+          final status = await api.getConvertProgress(
+            path: widget.filePath,
+            repo: widget.repo,
+          );
+          if (status != null && status['converting'] == true) {
+            convertPage.value = status['page'] as int;
+            convertTotal.value = status['total'] as int;
+          }
+        },
+      );
+    }
 
     showDialog(
       context: context,
@@ -351,27 +375,43 @@ class _ViewerScreenState extends State<ViewerScreen> {
               valueListenable: received,
               builder: (_, recv, __) => ValueListenableBuilder<int>(
                 valueListenable: total,
-                builder: (_, tot, __) {
-                  final downloading = recv > 0;
-                  final pct = tot > 0 ? recv / tot : null;
-                  final text = !downloading
-                      ? 'Preparing document\u2026'
-                      : tot > 0
-                          ? '${(pct! * 100).toStringAsFixed(0)}%'
-                              '  ${_formatBytes(recv)}'
-                              ' / ${_formatBytes(tot)}'
-                          : 'Downloading\u2026'
-                              '  ${_formatBytes(recv)}';
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LinearProgressIndicator(
-                          value: downloading ? pct : null),
-                      const SizedBox(height: 12),
-                      Text(text),
-                    ],
-                  );
-                },
+                builder: (_, tot, __) =>
+                    ValueListenableBuilder<int>(
+                  valueListenable: convertPage,
+                  builder: (_, cvtPage, __) =>
+                      ValueListenableBuilder<int>(
+                    valueListenable: convertTotal,
+                    builder: (_, cvtTotal, __) {
+                      final downloading = recv > 0;
+                      final double? pct;
+                      final String text;
+                      if (downloading) {
+                        pct = tot > 0 ? recv / tot : null;
+                        text = tot > 0
+                            ? '${(pct! * 100).toStringAsFixed(0)}%'
+                                '  ${_formatBytes(recv)}'
+                                ' / ${_formatBytes(tot)}'
+                            : 'Downloading\u2026'
+                                '  ${_formatBytes(recv)}';
+                      } else if (cvtTotal > 0) {
+                        pct = cvtPage / cvtTotal;
+                        text = 'Converting page'
+                            ' $cvtPage / $cvtTotal\u2026';
+                      } else {
+                        pct = null;
+                        text = 'Preparing document\u2026';
+                      }
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LinearProgressIndicator(value: pct),
+                          const SizedBox(height: 12),
+                          Text(text),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -406,8 +446,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
         SnackBar(content: Text('Failed to load document: $e')),
       );
     } finally {
+      pollTimer?.cancel();
       received.dispose();
       total.dispose();
+      convertPage.dispose();
+      convertTotal.dispose();
     }
   }
 
