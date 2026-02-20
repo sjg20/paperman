@@ -235,6 +235,50 @@ err_info *Pdfio::addPage (const Filepage *mp)
    }
 
 
+err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
+                             bool colour)
+   {
+   mytry
+      {
+      Q_ASSERT (_doc);
+      PdfPage *page;
+      PdfPainter painter;
+
+      page = _doc->CreatePage (PdfPage::CreateStandardPageSize (ePdfPageSize_A4));
+      if (!page)
+         PODOFO_RAISE_ERROR (ePdfError_InvalidHandle);
+
+      painter.SetPage (page);
+
+      PdfImage *image = new PdfImage (_doc);
+      image->SetImageColorSpace (colour ? ePdfColorSpace_DeviceRGB
+                                        : ePdfColorSpace_DeviceGray);
+
+      /* Write the pre-compressed JPEG stream with DCTDecode filter */
+      PdfObject *obj = image->GetObject ();
+      obj->GetDictionary().AddKey ("Filter", PdfName ("DCTDecode"));
+
+      PdfMemoryInputStream input (jpegData.constData (), jpegData.size ());
+      image->SetImageDataRaw (width, height, 8, &input);
+
+      PdfRect rect = page->GetPageSize ();
+      double xscale = rect.GetWidth () / width;
+      double yscale = rect.GetHeight () / height;
+      double scale = qMin (xscale, yscale);
+      painter.DrawImage (rect.GetLeft (), rect.GetBottom (), image,
+                         scale, scale);
+      painter.FinishPage();
+      }
+#ifdef EXCEPTIONS
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+#endif
+   return NULL;
+   }
+
+
 err_info *Pdfio::make_error (const PdfError &eCode)
    {
    TDequeErrorInfo info = eCode.GetCallstack ();
