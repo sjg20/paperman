@@ -642,8 +642,11 @@ days and are cleaned on server start.
 ``/tmp/paperman-converted/``
    Full-document PDFs converted from non-PDF formats (e.g. ``.max``)
    via ``type=pdf``. Conversion uses the File class directly, so no
-   external binary is needed. If the requesting client disconnects
-   mid-conversion the partial file is removed.
+   external binary is needed. Page images are extracted sequentially,
+   then compressed in parallel across all available CPU cores using
+   ``QtConcurrent``, then merged into the final PDF. If the
+   requesting client disconnects mid-extraction the partial file is
+   removed.
 
 --------------
 
@@ -659,8 +662,9 @@ logs for detailed error messages:
 
 **Problem**: Conversion is slow for large files - **Solution**: The
 first request converts and caches the result; subsequent requests are
-served from ``/tmp/paperman-converted/``. If the client disconnects
-before conversion finishes, the server aborts and cleans up.
+served from ``/tmp/paperman-converted/``. Compression runs in
+parallel across all CPU cores. If the client disconnects before
+conversion finishes, the server aborts and cleans up.
 
 File Access Issues
 ~~~~~~~~~~~~~~~~~~
@@ -676,8 +680,16 @@ path is relative to repository root, not absolute
 Changelog
 ---------
 
-Version 1.2 (Current)
+Version 1.3 (Current)
 ~~~~~~~~~~~~~~~~~~~~~
+
+-  Parallel PDF compression using ``QtConcurrent`` across all CPU cores
+-  Streamed file responses (512 KB chunks with flow control)
+-  Conversion progress reporting via ``progress=true``
+-  Optional local URL for fast LAN downloads (app)
+
+Version 1.2
+~~~~~~~~~~~~
 
 -  PDF conversion uses the File class directly instead of spawning
    a ``paperman`` subprocess

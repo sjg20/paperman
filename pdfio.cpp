@@ -582,6 +582,22 @@ err_info *Pdfio::appendFrom (Pdfio *from)
 }
 
 
+err_info *Pdfio::appendPages (Pdfio *from)
+{
+   mytry
+      {
+      _doc->Append (*from->_doc);
+      }
+#ifdef EXCEPTIONS
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+#endif
+   return NULL;
+}
+
+
 err_info *Pdfio::insertPages (Pdfio *from, int start, int count)
 {
    mytry

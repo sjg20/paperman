@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 
 #include "file.h"
+#include "pdfio.h"
 #include "utils.h"
 
 #include <QCoreApplication>
@@ -41,6 +42,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDirIterator>
 #include <QCryptographicHash>
 #include <QElapsedTimer>
+#include <QtConcurrent>
+#include <QThread>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 #include <QJsonDocument>
@@ -1561,32 +1564,20 @@ QString SearchServer::convertToPdf(const QString &fullPath,
         return QString();
     }
 
-    QFileInfo cacheInfo(cachedPdf);
-    QString dstDir = cacheInfo.absolutePath() + "/";
-    QString dstFname = cacheInfo.fileName();
-
-    File *dstFile = File::createFile(dstDir, dstFname, nullptr,
-                                     File::Type_pdf);
-    if (!dstFile) {
-        qWarning() << "SearchServer: Failed to create destination File";
-        delete srcFile;
-        return QString();
-    }
-
-    err = dstFile->create();
-    if (err) {
-        qWarning() << "SearchServer: Failed to create destination PDF";
-        delete srcFile;
-        delete dstFile;
-        return QString();
-    }
-
     int pageCount = srcFile->pagecount();
     qDebug() << "SearchServer: Converting" << fullPath << "to PDF,"
              << pageCount << "pages";
     _convertProgress[fullPath] = {0, pageCount};
+
+    // Phase 1: Extract all images sequentially (getImage() uses
+    // shared File state so it cannot be parallelised).
+    struct PageData {
+        QImage image;
+        int bpp;
+    };
+    QVector<PageData> pages(pageCount);
+
     for (int p = 0; p < pageCount; p++) {
-        // Let the event loop deliver disconnect signals, then check
         QCoreApplication::processEvents();
         if (client &&
             client->state() != QAbstractSocket::ConnectedState) {
@@ -1594,7 +1585,6 @@ QString SearchServer::convertToPdf(const QString &fullPath,
                      << p + 1 << "of" << pageCount
                      << "- aborting conversion";
             delete srcFile;
-            delete dstFile;
             QFile::remove(cachedPdf);
             _convertProgress.remove(fullPath);
             return QString();
@@ -1609,7 +1599,6 @@ QString SearchServer::convertToPdf(const QString &fullPath,
         if (err || image.isNull()) {
             qWarning() << "SearchServer: Failed to get page" << p + 1;
             delete srcFile;
-            delete dstFile;
             QFile::remove(cachedPdf);
             _convertProgress.remove(fullPath);
             return QString();
@@ -1621,37 +1610,105 @@ QString SearchServer::convertToPdf(const QString &fullPath,
             bpp = image.depth();
         }
 
+        pages[p] = {image, bpp};
+        _convertProgress[fullPath].currentPage = p + 1;
+    }
+
+    delete srcFile;
+
+    // Phase 2: Create single-page PDFs in parallel.  Each thread
+    // gets its own Pdfio / PdfMemDocument so there is no shared
+    // state.  The CPU-intensive work (zlib compression inside
+    // PoDoFo SetImageData) runs across all available cores.
+    int threadCount = QThread::idealThreadCount();
+    qDebug() << "SearchServer: Compressing" << pageCount
+             << "pages using" << threadCount << "threads";
+
+    QVector<Pdfio *> pagePdfs(pageCount, nullptr);
+    QAtomicInt failed;
+    failed.storeRelease(0);
+
+    QList<int> indices;
+    for (int i = 0; i < pageCount; i++)
+        indices.append(i);
+
+    QtConcurrent::blockingMap(indices, [&](int p) {
+        if (failed.loadAcquire())
+            return;
+
+        Pdfio *pdfio = new Pdfio(QString());
+        if (pdfio->create()) {
+            failed.storeRelease(1);
+            delete pdfio;
+            return;
+        }
+
+        QImage &img = pages[p].image;
         int image_size;
 #if QT_VERSION >= 0x050a00
-        image_size = image.sizeInBytes();
+        image_size = img.sizeInBytes();
 #else
-        image_size = image.byteCount();
+        image_size = img.byteCount();
 #endif
         QByteArray ba = QByteArray::fromRawData(
-            (const char *)image.bits(), image_size);
-        int stride = image.bytesPerLine();
+            (const char *)img.bits(), image_size);
+        int stride = img.bytesPerLine();
 
         Filepage fp;
         QString pageName = QString("Page %1").arg(p + 1);
-        fp.addData(image.width(), image.height(), image.depth(),
+        fp.addData(img.width(), img.height(), img.depth(),
                    stride, pageName, false, false, p, ba, ba.size());
-        fp.compress();
 
-        err = dstFile->addPage(&fp, false);
-        if (err) {
-            qWarning() << "SearchServer: Failed to add page" << p + 1;
-            delete srcFile;
-            delete dstFile;
+        if (pdfio->addPage(&fp)) {
+            failed.storeRelease(1);
+            delete pdfio;
+            return;
+        }
+
+        pagePdfs[p] = pdfio;
+    });
+
+    // Free the extracted images — they are no longer needed.
+    pages.clear();
+
+    if (failed.loadAcquire()) {
+        qWarning() << "SearchServer: Parallel compression failed";
+        for (int p = 0; p < pageCount; p++)
+            delete pagePdfs[p];
+        _convertProgress.remove(fullPath);
+        return QString();
+    }
+
+    // Phase 3: Merge all single-page PDFs into the final document.
+    Pdfio finalPdf(cachedPdf);
+    if (finalPdf.create()) {
+        qWarning() << "SearchServer: Failed to create final PDF";
+        for (int p = 0; p < pageCount; p++)
+            delete pagePdfs[p];
+        _convertProgress.remove(fullPath);
+        return QString();
+    }
+
+    for (int p = 0; p < pageCount; p++) {
+        if (finalPdf.appendPages(pagePdfs[p])) {
+            qWarning() << "SearchServer: Failed to merge page"
+                       << p + 1;
+            for (int i = p; i < pageCount; i++)
+                delete pagePdfs[i];
             QFile::remove(cachedPdf);
             _convertProgress.remove(fullPath);
             return QString();
         }
-        _convertProgress[fullPath].currentPage = p + 1;
+        delete pagePdfs[p];
+        pagePdfs[p] = nullptr;
     }
 
-    dstFile->flush();
-    delete srcFile;
-    delete dstFile;
+    if (finalPdf.flush()) {
+        qWarning() << "SearchServer: Failed to write final PDF";
+        QFile::remove(cachedPdf);
+        _convertProgress.remove(fullPath);
+        return QString();
+    }
 
     _convertProgress.remove(fullPath);
     _log.log(ServerLog::ConvertToPdf, fullPath);
