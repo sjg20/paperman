@@ -256,6 +256,7 @@ test {
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
     QT += network
+    QT += concurrent
 }
 
 # tif_fax3sm.c   - causes tifflib to break
