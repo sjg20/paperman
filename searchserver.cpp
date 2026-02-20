@@ -917,23 +917,10 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
     if (type == "pdf" && ext != "pdf") {
         QString pdfPath = convertToPdf(fullPath);
         if (pdfPath.isEmpty()) {
-            // Fallback: return original file instead of failing
-            QFile file(fullPath);
-            if (!file.open(QIODevice::ReadOnly)) {
-                return buildHttpResponse(500, "Internal Server Error",
-                    "application/json",
-                    buildJsonResponse(false, "",
-                        "PDF conversion failed and cannot read original file"));
-            }
-            QByteArray fileContent = file.readAll();
-            file.close();
-
-            QString contentType = "application/octet-stream";
-            if (ext == "max") contentType = "application/x-max";
-            else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
-            else if (ext == "tiff" || ext == "tif") contentType = "image/tiff";
-
-            return buildHttpResponse(200, "OK", contentType, fileContent);
+            return buildHttpResponse(500, "Internal Server Error",
+                "application/json",
+                buildJsonResponse(false, "",
+                    "PDF conversion failed"));
         }
 
         // Read the cached PDF
