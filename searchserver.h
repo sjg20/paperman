@@ -324,6 +324,20 @@ private:
                                 const QString &contentType, const QByteArray &body);
 
     /**
+     * Stream a file to a client socket with HTTP headers.
+     *
+     * Writes headers first, then streams the file in 64 KB chunks
+     * to avoid buffering the entire file in memory.
+     *
+     * @param filePath    Path to the file to send
+     * @param contentType MIME type for the Content-Type header
+     * @param client      Client socket to write to
+     */
+    void streamFile(const QString &filePath,
+                    const QString &contentType,
+                    QTcpSocket *client);
+
+    /**
      * URL decode a string
      */
     QString urlDecode(const QString &str);
