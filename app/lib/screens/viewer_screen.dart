@@ -333,7 +333,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final scale = _transformController.value.getMaxScaleOnAxis();
     _transformController.value = Matrix4.identity()
       ..translateByDouble(0.0, -scale * (page - 1) * itemExtent, 0.0, 1.0)
-      ..scaleByDouble(scale, scale, 1.0, 1.0);
+      ..scaleByDouble(scale, scale, scale, 1.0);
   }
 
   /// Compute overview columns so each thumbnail is at least 10 mm wide.
@@ -356,7 +356,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
     _transformController.value = Matrix4.identity();
     _overviewTransformController.value = Matrix4.identity()
-      ..translate(0.0, -row * rowExtent);
+      ..translateByDouble(0.0, -row * rowExtent, 0.0, 1.0);
   }
 
   void _exitOverview(int page) {
@@ -367,7 +367,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final viewWidth = MediaQuery.of(context).size.width;
     final extent = _itemExtent(viewWidth);
     _transformController.value = Matrix4.identity()
-      ..translate(0.0, -(page - 1) * extent);
+      ..translateByDouble(0.0, -(page - 1) * extent, 0.0, 1.0);
     _overviewTransformController.value = Matrix4.identity();
     _scrollDebounce?.cancel();
     setState(() {
@@ -422,15 +422,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
             padding: const EdgeInsets.all(24),
             child: ValueListenableBuilder<int>(
               valueListenable: received,
-              builder: (_, recv, __) => ValueListenableBuilder<int>(
+              builder: (_, recv, _) => ValueListenableBuilder<int>(
                 valueListenable: total,
-                builder: (_, tot, __) =>
+                builder: (_, tot, _) =>
                     ValueListenableBuilder<int>(
                   valueListenable: convertPage,
-                  builder: (_, cvtPage, __) =>
+                  builder: (_, cvtPage, _) =>
                       ValueListenableBuilder<int>(
                     valueListenable: convertTotal,
-                    builder: (_, cvtTotal, __) {
+                    builder: (_, cvtTotal, _) {
                       final downloading = recv > 0;
                       final double? pct;
                       final String text;
