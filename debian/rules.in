@@ -6,11 +6,11 @@ DEB_UPSTREAM_VERSION=$(shell dpkg-parsechangelog | sed -rne 's,^Version: ([0-9]:
 	dh $@
 
 override_dh_auto_clean:
-	[ -f Makefile ] && dh_auto_clean || true
+	[ -f Makefile ] && dh_auto_clean -- -f Makefile || true
 
 override_dh_auto_build:
 	pod2man --section=1 --release="$(DEB_UPSTREAM_VERSION)" --center "" debian/paperman.pod > paperman.1
-	dh_auto_build
+	dh_auto_build -- -f Makefile
 
 CFLAGS=-O3
 CXXFLAGS=-O3
