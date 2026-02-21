@@ -6,22 +6,37 @@ version tag triggers two parallel jobs: one builds a ``.deb`` package and
 publishes a GitHub Release, the other signs and uploads source packages to
 the Launchpad PPA.
 
-Creating a Release
-------------------
+Release Checklist
+-----------------
 
-1. Update ``debian/changelog.in`` with the new version and changes.
+1. Update the version and changelog entry at the top of
+   ``debian/changelog.in``.  The first line sets the version used for
+   tagging, packaging and uploading — everything else is derived from it.
 
 2. Commit and push the changelog update.
 
-3. Tag the release and push the tag:
+3. Build ``.deb`` packages locally for all target distros::
 
-   .. code:: bash
+      scripts/do-build
 
-      git tag v1.3.3
-      git push origin v1.3.3
+4. Create the tag, push it and upload the ``.deb`` files::
 
-The workflow (``.github/workflows/release.yml``) runs automatically on any
-tag matching ``v*``.
+      make release
+
+   This:
+
+   - extracts the version from ``debian/changelog.in`` (e.g. ``1.3.3-1``
+     → tag ``v1.3.3``)
+   - checks that the tag does not already exist
+   - checks that ``.deb`` files are present in ``../release/all/``
+   - creates and pushes the tag, triggering the GitHub Actions workflow
+   - waits for the workflow to create the GitHub Release
+   - uploads all locally-built ``.deb`` packages to the release
+
+   If you need to re-upload ``.deb`` files to an existing release (e.g.
+   after rebuilding)::
+
+      make release-upload
 
 What the Workflow Does
 ----------------------
