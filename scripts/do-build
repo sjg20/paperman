@@ -1,18 +1,22 @@
 #!/bin/bash
 
 # script to build paperman for all available distributions and architectures
+#
+# Phase 1: generate source packages sequentially (fast, needs shared debian/)
+# Phase 2: run cowbuilder chroot builds in parallel (slow)
 
 #set -e
 
 RESULTDIR=../release
 ALLDIR=$RESULTDIR/all
 LOGDIR=../release/log
+SRCDIR=../release/source
 [ -d $RESULTDIR ] || mkdir $RESULTDIR
 [ -d $LOGDIR ] || mkdir $LOGDIR
+mkdir -p $ALLDIR $SRCDIR
 
 # the pbuilder runs as nobody and needs write access
 chmod 777 $RESULTDIR
-mkdir -p $ALLDIR
 
 DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
 SKIP_DISTS="buster"
@@ -22,24 +26,34 @@ make clean 2>/dev/null || true
 rm -rf test/files
 rm -f pm
 
+PROJECT=$(grep "^Source:" debian/control.in | head -1 | awk '{print $2}')
+
+# Clean stale source-package files (may be root-owned from prior sudo runs)
+sudo rm -f ../${PROJECT}_*.dsc ../${PROJECT}_*.debian.tar.* \
+    ../${PROJECT}_*_source.changes ../${PROJECT}_*.build
+
 ./scripts/make_tar
 
 UDISTS="focal jammy noble questing"
 
-# Build paperman for a particular distribution and architecture
-# $1: Distribution name, e.g. "bionic", "bookwork"
-# $2: Architecture name, e.g. "amd64", "arm64"
-doit() {
-    local DIST="$1"
-    local ARCH="$2"
+# --- Phase 1: generate source packages sequentially ---
+echo "=== Phase 1: generating source packages ==="
+
+declare -A DSC_FILES
+BUILD_DISTS=()
+
+for chrootdir in $DISTLIST; do
+    DIST=$(basename $chrootdir | cut -d'-' -f2)
+    ARCH=$(basename $chrootdir | cut -d'-' -f3)
+    ARCH=${ARCH%.cow}
+    case " $SKIP_DISTS " in
+        *" $DIST "*) echo "Skipping $DIST"; continue;;
+    esac
+
     VENDOR_VERSION=
     #if [[ "${UDISTS}" == *"${DIST}"* ]]; then
     #    VENDOR_VERSION=ubuntu1
     #fi
-
-    RESULT=$RESULTDIR/$DIST
-    mkdir -p $RESULT
-    chmod 777 $RESULT
 
     # Select a special control file if needed
     if [ -f debian/control.${DIST} ]; then
@@ -64,48 +78,81 @@ doit() {
         sed -i '/XSBC/a Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>' debian/control
     fi
 
-    # get version
-    VERSION=`grep "^paperman" debian/changelog |head -1 | awk -F "[()]" '{print $2}'`
-    echo $DIST $ARCH $VERSION
+    VERSION=$(grep "^${PROJECT}" debian/changelog | head -1 | awk -F "[()]" '{print $2}')
 
-    LOGFILE=$LOGDIR/$DIST-$ARCH.log
-    cmd="sudo ARCH=$ARCH DIST=$DIST pdebuild --pbuilder cowbuilder \
-        --debbuildopts "-i'.*'" \
-        --buildresult ../release/$DIST -- \
-        --basepath /var/cache/pbuilder/base-$DIST-amd64.cow/"
-    echo "$cmd" >$LOGFILE
-    $cmd >>$LOGFILE
-
+    # Build source package into a per-distro directory
+    DSCDEST=$SRCDIR/$DIST
+    mkdir -p $DSCDEST
+    dpkg-source -i'.*' -b . 2>$LOGDIR/$DIST-source.log
     if [ $? -ne 0 ]; then
-	echo "- error: $LOGFILE"
-    else
-	DEB=$RESULT/paperman_${VERSION}_$ARCH.deb
-	sudo chmod a+r $DEB
-
-	# copy into the 'all' directory with a _dist filename
-	cp $DEB $ALLDIR/paperman_${VERSION}_${ARCH}_$DIST.deb
+        echo "FAIL $DIST (source) — see $LOGDIR/$DIST-source.log"
+        continue
     fi
 
-    # Remove the created files
-    rm debian/changelog debian/control debian/rules
+    # Move source package files into per-distro dir to avoid collisions
+    mv ../${PROJECT}_${VERSION}.dsc $DSCDEST/
+    mv ../${PROJECT}_${VERSION}.debian.tar.* $DSCDEST/
+    ln -f ../${PROJECT}_*.orig.tar.* $DSCDEST/
 
-    # generates
-    # -rw-rw-r--  1 sglass sglass       898 2010-11-03 20:51 paperman_0.7-1.diff.gz
-    # -rw-r--r--  1 sglass sglass       848 2010-11-03 20:51 paperman_0.7-1.dsc
-    # -rw-------  1 nobody nogroup     1464 2010-11-03 20:56 paperman_0.7-1_i386.changes
-    # -rw-------  1 nobody nogroup  1159314 2010-11-03 20:56 paperman_0.7-1_i386.deb
-}
-
-# For testing individual builds
-#doit focal amd64
-#exit
-
-for chrootdir in $DISTLIST; do
-    DIST=$(basename $chrootdir | cut -d'-' -f2)
-    ARCH=$(basename $chrootdir | cut -d'-' -f3)
-    ARCH=${ARCH%.cow}
-    case " $SKIP_DISTS " in
-        *" $DIST "*) echo "Skipping $DIST"; continue;;
-    esac
-    doit ${DIST} ${ARCH}
+    DSC_FILES[$DIST]="$DSCDEST/${PROJECT}_${VERSION}.dsc"
+    BUILD_DISTS+=("$DIST:$ARCH:$VERSION")
+    echo "OK   $DIST"
 done
+
+rm -f debian/changelog debian/control debian/rules
+
+echo
+
+# --- Phase 2: run cowbuilder builds in parallel ---
+echo "=== Phase 2: building in chroots (parallel) ==="
+
+PIDS=()
+PID_DIST=()
+
+for entry in "${BUILD_DISTS[@]}"; do
+    DIST="${entry%%:*}"
+    rest="${entry#*:}"
+    ARCH="${rest%%:*}"
+    VERSION="${rest#*:}"
+
+    DSC="${DSC_FILES[$DIST]}"
+    RESULT=$RESULTDIR/$DIST
+    mkdir -p $RESULT
+    chmod 777 $RESULT
+
+    LOGFILE=$LOGDIR/$DIST-$ARCH.log
+    echo "Starting $DIST $ARCH $VERSION"
+    (
+        sudo cowbuilder --build "$DSC" \
+            --buildresult $RESULT \
+            --basepath /var/cache/pbuilder/base-$DIST-amd64.cow/ \
+            > $LOGFILE 2>&1
+        rc=$?
+
+        if [ $rc -ne 0 ]; then
+            echo "FAIL $DIST — see $LOGFILE"
+        else
+            DEB=$RESULT/${PROJECT}_${VERSION}_$ARCH.deb
+            sudo chmod a+r $DEB
+            cp $DEB $ALLDIR/${PROJECT}_${VERSION}_${ARCH}_$DIST.deb
+            echo "OK   $DIST"
+        fi
+    ) &
+    PIDS+=($!)
+    PID_DIST+=("$DIST")
+done
+
+# Wait for all builds
+FAILED=0
+for i in "${!PIDS[@]}"; do
+    if ! wait "${PIDS[$i]}"; then
+        FAILED=1
+    fi
+done
+
+echo
+if [ "$FAILED" -ne 0 ]; then
+    echo "Some builds failed; check log files in $LOGDIR/"
+else
+    echo "Done. Packages in $ALLDIR/"
+fi
