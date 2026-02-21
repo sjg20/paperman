@@ -14,7 +14,7 @@
 set -e
 
 GPG_KEY="15F34285DDE53E92EDD6B063A124647BC73DA562"
-ALL_DISTROS="bionic focal jammy noble oracular plucky questing"
+ALL_DISTROS="bionic focal jammy noble questing"
 PPA="ppa"
 DRY_RUN=0
 DISTROS=""
