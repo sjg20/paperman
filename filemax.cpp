@@ -5770,6 +5770,131 @@ Filemaxpage::~Filemaxpage (void)
    }
 
 
+err_info *Filemax::rebuildPreviews ()
+   {
+   CALL (ensure_open ());
+   CALL (ensure_all_chunks ());
+
+   int pc = pagecount ();
+
+   for (int pagenum = 0; pagenum < pc; pagenum++)
+      {
+      chunk_info *chunk;
+      page_info *page;
+
+      CALL (find_page_chunk (pagenum, chunk, NULL, &page));
+
+      // only fix 8bpp greyscale pages
+      if (chunk->bits != 8)
+         continue;
+
+      // skip pages that already have a real preview (> 4 bytes)
+      if (chunk->parts.size () <= PT_preview)
+         continue;
+      if (chunk->parts [PT_preview].size > 4)
+         continue;
+
+      // load the chunk buffer from disk so we can extract part data
+      CALL (read_chunk_buf (*chunk));
+
+      // copy each part's data from chunk.buf into individual part.buf
+      for (int i = 0; i < chunk->parts.size (); i++)
+         {
+         part_info &part = chunk->parts [i];
+
+         if (!part.buf && part.size > 0)
+            {
+            part.buf = (byte *)malloc (part.size);
+            memcpy (part.buf, chunk->buf + 0x20 + part.start, part.size);
+            }
+         }
+
+      // work on a local copy so insert_chunk can safely reallocate _chunks
+      chunk_info local = *chunk;
+
+      local.buf = NULL;  // don't share the original buffer pointer
+
+      // transfer tile ownership to local so chunk_free won't double-free
+      chunk->tile = NULL;
+      chunk->tile_count = 0;
+
+      // decode the full image from tile data
+      byte *imagep = NULL;
+
+      CALL (decode_image (local, imagep, NULL));
+
+      // set up the preview size and build the preview
+      local.preview_size.x = local.image_size.x / PREVIEW_SCALE;
+      local.preview_size.y = local.image_size.y / PREVIEW_SCALE;
+      build_preview (local, local.line_bytes, local.bits);
+
+      // free the old preview part buffer and create the new one
+      part_info &pv = local.parts [PT_preview];
+
+      if (pv.buf)
+         free (pv.buf);
+      pv.buf = NULL;
+      pv.size = 0;
+      add_preview (local, pv);
+
+      // recalculate part offsets
+      int total = POS_part0 + 8 * local.parts.size ();
+
+      for (int i = 0; i < local.parts.size (); i++)
+         {
+         part_info &part = local.parts [i];
+
+         part.start = total - 0x20;
+         total += part.size;
+         }
+      local.size = ALIGN_CHUNK (total);
+
+      // reassemble the chunk buffer
+      byte *buf;
+
+      // assign a new chunkid so find_page_chunk won't match the old
+      // unused chunk on the next load
+      local.chunkid = _chunkid_next++;
+      page->chunkid = local.chunkid;
+
+      CALL (alloc_chunk_buf (local, &buf));
+      add_image_header (local, buf);
+      for (int i = 0; i < local.parts.size (); i++)
+         {
+         part_info &part = local.parts [i];
+
+         memcpy (buf + 0x20 + part.start, part.buf, part.size);
+         }
+      CALL (insert_chunk (local, &page->image));
+
+      // clear local ownership: insert_chunk copied everything into _chunks
+      local.image = NULL;
+      local.preview = NULL;
+      local.tile = NULL;
+      local.tile_count = 0;
+      local.buf = NULL;
+      local.parts.clear ();
+
+      // update the roswell chunk to point to the new image position
+      chunk_info *ros_chunk;
+
+      CALL (chunk_find (page->roswell, ros_chunk, NULL));
+      CALL (read_chunk_buf (*ros_chunk));
+      unsigned short *rdata = (unsigned short *)(ros_chunk->buf + 0x42);
+
+      rdata [0] = page->image & 0xffff;
+      rdata [1] = page->image >> 16;
+      ros_chunk->saved = false;
+
+      printf ("Page %d: rebuilt preview (%dx%d)\n", pagenum + 1,
+              local.preview_size.x, local.preview_size.y);
+      }
+
+   CALL (flush ());
+   return NULL;
+   }
+
+
 err_info *Filemax::getImage (int pagenum, bool,
             QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank)
    {

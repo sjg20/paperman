@@ -217,6 +217,9 @@ public:
       int odd_even, Operation &op, bool &supported);
 
 
+   /** rebuild missing greyscale previews in the file */
+   err_info *rebuildPreviews ();
+
    /*********** end of functions which the base class should implement ******/
 
 public:
