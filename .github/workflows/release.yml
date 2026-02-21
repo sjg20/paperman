@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-deb:
+    name: Build .deb and create GitHub Release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential debhelper devscripts fakeroot \
+            qt5-qmake qtbase5-dev qtbase5-dev-tools libqt5sql5-sqlite \
+            libpoppler-qt5-dev libpodofo-dev \
+            libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
+            imagemagick tesseract-ocr tesseract-ocr-eng
+
+      - name: Prepare debian packaging files
+        run: |
+          sed -e 's/VENDOR_VERSION//' \
+              -e 's/UNRELEASED/noble/' \
+              debian/changelog.in > debian/changelog
+          cp debian/control.in debian/control
+          cp debian/rules.in debian/rules
+          chmod a+x debian/rules
+
+      - name: Build binary .deb
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Create GitHub Release
+        run: |
+          DEB=$(ls ../paperman_*.deb | head -1)
+          gh release create "$GITHUB_REF_NAME" "$DEB" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ppa-upload:
+    name: Sign and upload to Launchpad PPA
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            debhelper devscripts dput fakeroot bzip2
+
+      - name: Import GPG key
+        run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Configure gpg-agent for non-interactive signing
+        run: |
+          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye
+          KEYGRIP=$(gpg --list-secret-keys --with-keygrip \
+            | sed -n 's/.*Keygrip = \(.*\)/\1/p' | head -1)
+          gpg-connect-agent "PRESET_PASSPHRASE $KEYGRIP -1 \
+            $(echo -n "$GPG_PASSPHRASE" | xxd -p -c 256)" /bye
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Configure dput
+        run: |
+          cat > ~/.dput.cf <<'EOF'
+          [ppa]
+          fqdn = ppa.launchpad.net
+          method = ftp
+          incoming = ~sjg20/ubuntu/ppa/
+          login = anonymous
+          allow_unsigned_uploads = 0
+          EOF
+
+      - name: Upload to PPA
+        run: scripts/ppa-upload
