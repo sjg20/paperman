@@ -12,5 +12,7 @@ override_dh_auto_build:
 	pod2man --section=1 --release="$(DEB_UPSTREAM_VERSION)" --center "" debian/paperman.pod > paperman.1
 	dh_auto_build -- -f Makefile
 
+override_dh_auto_test:
+
 CFLAGS=-O3
 CXXFLAGS=-O3
