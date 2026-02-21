@@ -52,6 +52,49 @@ FLUTTER_ARGS = --build-name=$(APP_VERSION) --dart-define-from-file=dart-defines.
 app: app-apk app-linux
 	rm -f $(DART_DEFINES)
 
+GH_REMOTE   ?= gh
+DEB_VERSION := $(shell head -1 debian/changelog.in | grep -oP '\(\K[^)]+' | sed 's/VENDOR_VERSION//')
+DEB_UPSTREAM := $(firstword $(subst -, ,$(DEB_VERSION)))
+RELEASE_TAG  = v$(DEB_UPSTREAM)
+RELEASE_DEBS = $(wildcard ../release/all/paperman_$(DEB_VERSION)_*.deb)
+
+.PHONY: release release-upload
+release:
+	@TAG=$(RELEASE_TAG); \
+	if git rev-parse "$$TAG" >/dev/null 2>&1; then \
+		echo "Tag $$TAG already exists"; exit 1; \
+	fi; \
+	if [ -z "$(RELEASE_DEBS)" ]; then \
+		echo "No .deb files found — run scripts/do-build first"; exit 1; \
+	fi; \
+	echo "Creating tag $$TAG and pushing to $(GH_REMOTE)..."; \
+	git tag "$$TAG" || exit 1; \
+	git push $(GH_REMOTE) "$$TAG" || { echo "Push failed"; exit 1; }; \
+	echo "Waiting for GitHub Release to be created..."; \
+	found=0; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		sleep 10; \
+		if gh release view "$$TAG" >/dev/null 2>&1; then found=1; break; fi; \
+		echo "  (waiting...)"; \
+	done; \
+	if [ "$$found" -eq 0 ]; then \
+		echo "Timed out waiting for release — run 'make release-upload' later"; \
+		exit 1; \
+	fi; \
+	$(MAKE) -f GNUmakefile release-upload
+
+release-upload:
+	@TAG=$(RELEASE_TAG); \
+	if ! gh release view "$$TAG" >/dev/null 2>&1; then \
+		echo "GitHub Release $$TAG does not exist"; exit 1; \
+	fi; \
+	if [ -z "$(RELEASE_DEBS)" ]; then \
+		echo "No .deb files found — run scripts/do-build first"; exit 1; \
+	fi; \
+	echo "Uploading .deb packages to $$TAG..."; \
+	gh release upload "$$TAG" $(RELEASE_DEBS); \
+	echo "Done: https://github.com/sjg20/paperman/releases/tag/$$TAG"
+
 .PHONY: setup
 setup:
 	scripts/setup.sh
@@ -128,6 +171,10 @@ help:
 	@echo "  test-progressive Run progressive-loading tests"
 	@echo "  test-parallel    Run parallel tests"
 	@echo "  app-test         Run Flutter widget tests"
+	@echo ""
+	@echo "Release targets:"
+	@echo "  release          Tag, push and upload .debs to GitHub Release"
+	@echo "  release-upload   Upload .debs to an existing GitHub Release"
 	@echo ""
 	@echo "Other targets:"
 	@echo "  setup            Install build dependencies (apt)"
