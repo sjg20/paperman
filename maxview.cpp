@@ -500,6 +500,7 @@ static void usage (void)
    printf ("   --page-range S:E  convert only pages S to E (1-based)\n");
    printf ("   --output FILE   write output to FILE (used with --page-range)\n");
    printf ("   --jobs N        use N parallel workers (0 = auto)\n");
+   printf ("   --rebuild-previews FILE|DIR  regenerate missing greyscale previews\n");
 /*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
@@ -538,6 +539,7 @@ int main (int argc, char *argv[])
      {"page-range", 1, 0, 256},
      {"output", 1, 0, 257},
      {"jobs", 1, 0, 258},
+     {"rebuild-previews", 1, 0, 259},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -609,6 +611,11 @@ int main (int argc, char *argv[])
             jobs = atoi(optarg);
             break;
 
+         case 259 :    // --rebuild-previews
+            fname = optarg;
+            op_type = c;
+            break;
+
          case 'h' :
          case '?' :
             usage ();
@@ -624,7 +631,8 @@ int main (int argc, char *argv[])
          }
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
-       op_type != 'j' && op_type != 'o' && op_type != 'q')
+       op_type != 'j' && op_type != 'o' && op_type != 'q' &&
+       op_type != 259)
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -635,8 +643,8 @@ int main (int argc, char *argv[])
    if (op_type == 't')
       useGUI = true;
 
-   // OCR batch mode and search don't need GUI
-   if (op_type == 'o' || op_type == 'q')
+   // OCR batch mode, search, and rebuild-previews don't need GUI
+   if (op_type == 'o' || op_type == 'q' || op_type == 259)
       {
       useGUI = false;
       // Force offscreen platform for console mode
@@ -840,6 +848,59 @@ int main (int argc, char *argv[])
          break;
          }
 #endif
+      case 259 :
+         {
+         QFileInfo info(fname);
+         err_info *err = NULL;
+
+         if (info.isFile())
+            {
+            QString fileDir = info.absolutePath();
+            if (!fileDir.endsWith('/'))
+               fileDir += '/';
+            QString fileName = info.fileName();
+
+            Filemax *max = new Filemax(fileDir, fileName, nullptr);
+            err = max->load();
+            if (!err)
+               err = max->rebuildPreviews();
+            if (err)
+               fprintf(stderr, "Error processing %s: %s\n",
+                       qPrintable(fileName), err->errstr);
+            delete max;
+            }
+         else if (info.isDir())
+            {
+            QDirIterator it(fname, QStringList() << "*.max",
+                            QDir::Files,
+                            QDirIterator::Subdirectories);
+            while (it.hasNext())
+               {
+               QString filePath = it.next();
+               QFileInfo fi(filePath);
+               QString fileDir = fi.absolutePath();
+               if (!fileDir.endsWith('/'))
+                  fileDir += '/';
+               QString fileName = fi.fileName();
+
+               printf("Processing: %s\n", qPrintable(filePath));
+               Filemax *max = new Filemax(fileDir, fileName, nullptr);
+               err = max->load();
+               if (!err)
+                  err = max->rebuildPreviews();
+               if (err)
+                  fprintf(stderr, "Error: %s\n", err->errstr);
+               delete max;
+               }
+            }
+         else
+            {
+            fprintf(stderr, "Not a file or directory: %s\n",
+                    qPrintable(fname));
+            }
+         break;
+         }
+
       case -1 :
          QStringList args;
          for (int i = 1; i < argc; i++)
