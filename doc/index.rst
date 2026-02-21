@@ -8,6 +8,7 @@ Paperman
    :caption: Introduction
 
    introduction
+   install
 
 .. toctree::
    :maxdepth: 2
