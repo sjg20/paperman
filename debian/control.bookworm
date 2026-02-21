@@ -2,7 +2,7 @@ Source: paperman
 Section: graphics
 Priority: optional
 Maintainer: Simon Glass <sjg@chromium.org>
-Build-Depends: debhelper-compat (= 10), autotools-dev, qt5-qmake, cmake, libtiff5-dev, qtbase5-dev-tools, libsane-dev, libpoppler-qt5-dev, libpodofo-dev, imagemagick, tesseract-ocr, tesseract-ocr-eng
+Build-Depends: debhelper-compat (= 10), autotools-dev, qt5-qmake, cmake, libtiff-dev, qtbase5-dev-tools, libsane-dev, libpoppler-qt5-dev, libpodofo-dev, imagemagick, tesseract-ocr, tesseract-ocr-eng
 Standards-Version: 4.6.2
 Homepage: https://github.com/sjg20/paperman
 
