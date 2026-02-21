@@ -18,7 +18,7 @@ DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
 
 ./scripts/make_tar
 
-UDISTS="bionic focal jammy noble oracular"
+UDISTS="bionic focal jammy noble questing"
 
 # Build paperman for a particular distribution and architecture
 # $1: Distribution name, e.g. "bionic", "bookwork"
