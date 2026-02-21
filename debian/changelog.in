@@ -1,3 +1,10 @@
+paperman (1.3.2-1VENDOR_VERSION) UNRELEASED; urgency=medium
+
+  * Add --rebuild-previews for regenerating greyscale previews
+  * Fix PPA build: bypass GNUmakefile in debian/rules
+
+ -- Simon Glass <sjg@chromium.org>  Thu, 20 Feb 2026 12:00:00 +0000
+
 paperman (1.3.1-1VENDOR_VERSION) UNRELEASED; urgency=medium
 
   * Fix problems with dir cache being out of date
