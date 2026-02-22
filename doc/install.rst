@@ -20,6 +20,13 @@ This provides pre-built packages for the following Ubuntu releases:
 - Noble (24.04 LTS)
 - Questing (25.10)
 
+Pre-built .deb Packages
+-----------------------
+
+Pre-built ``.deb`` packages for a range of Debian and Ubuntu releases are
+available from the `latest GitHub Release
+<https://github.com/sjg20/paperman/releases/latest>`_.
+
 Building from Source
 --------------------
 
