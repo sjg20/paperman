@@ -51,21 +51,27 @@ class ApiService {
   /// When connecting to a local IP the server's certificate is issued
   /// for the domain name, not the IP address. This client accepts
   /// that mismatch for the specific local host only.
-  http.Client _createTrustingClient(String host) {
+  http.Client _createTrustingClient(
+    String host, {
+    Duration? connectionTimeout,
+  }) {
     final ioClient = io.HttpClient()
       ..badCertificateCallback =
           (io.X509Certificate cert, String h, int port) => h == host;
+    if (connectionTimeout != null) {
+      ioClient.connectionTimeout = connectionTimeout;
+    }
     return IOClient(ioClient);
   }
 
   /// Try the local URL first; if it responds within [timeout], use it
   /// as the active base URL. Otherwise fall back to the main URL.
   Future<void> tryLocalUrl({
-    Duration timeout = const Duration(seconds: 2),
+    Duration timeout = const Duration(milliseconds: 500),
   }) async {
     if (_localBaseUrl == null || _localBaseUrl!.isEmpty) return;
     final uri = Uri.parse('$_localBaseUrl/status');
-    final client = _createTrustingClient(uri.host);
+    final client = _createTrustingClient(uri.host, connectionTimeout: timeout);
     try {
       final response = await client.get(uri, headers: _headers)
           .timeout(timeout);
