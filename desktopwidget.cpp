@@ -290,6 +290,8 @@ Desktopwidget::~Desktopwidget ()
    delete _modelconv;
    delete _modelconv_assert;
    delete _dir;
+   delete _dir_proxy;
+   delete _model;
    }
 
 
