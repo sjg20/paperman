@@ -781,11 +781,22 @@ QModelIndex Desktopwidget::doNewDir(const QString& name, QString& path)
 {
    QModelIndex index = _dir->menuGetModelIndex ();
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
-   path = _model->data(src_ind, QDirModel::FilePathRole).toString() +
-         QDir::separator() + name;
+   QString parentPath = _model->data(src_ind,
+                                     QDirModel::FilePathRole).toString();
+   path = parentPath + QDir::separator() + name;
 
    Operation op("Creating directory", 0, this);
    QModelIndex new_ind = _model->mkdir(src_ind, name, &op);
+
+   // mkdir() refreshes the QDirModel, which can invalidate the
+   // proxy model's persistent indices, including _context in Dirview.
+   // Re-select the parent so that getRootIndex() and other operations
+   // that depend on _context still work.
+   src_ind = _model->index(parentPath);
+   if (src_ind.isValid()) {
+      QModelIndex proxy_ind = _dir_proxy->mapFromSource(src_ind);
+      _dir->selectContextItem(proxy_ind);
+   }
 
    return new_ind;
 }
