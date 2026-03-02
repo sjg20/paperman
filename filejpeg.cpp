@@ -46,6 +46,7 @@ Filejpeg::Filejpeg (const QString &dir, const QString &filename, Desk *desk)
 
 Filejpeg::~Filejpeg ()
    {
+   qDeleteAll (_pages);
    }
 
 err_info *Filejpeg::load (void)
