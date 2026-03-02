@@ -905,3 +905,50 @@ void TestOps::testRenameDir()
    QModelIndex oldDirIndex = dirmodel->index(oldPath);
    QCOMPARE(oldDirIndex.isValid(), false);
 }
+
+void TestOps::testFindFoldersSuggestsMonth()
+{
+   Mainwindow me;
+
+   // Set up a repo with bills/2026 but no month directories yet
+   auto path = setupRepo();
+   QDir dir(path);
+   Q_ASSERT(dir.mkpath("bills/2026"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   Q_ASSERT(dirmodel);
+
+   QModelIndex root = dirmodel->index(path);
+   QCOMPARE(root.isValid(), true);
+
+   // Trigger initial cache building by calling findFolders
+   QStringList missing;
+   QStringList folders = dirmodel->findFolders("bills", path, root, missing,
+                                               nullptr);
+   QCOMPARE(missing.size(), 0);
+
+   // Now create month directories through the app, as the user did
+   QString jan = path + "/bills/2026/01jan";
+   QString feb = path + "/bills/2026/02feb";
+   QModelIndex janIndex, febIndex;
+   bool ok = desktop->newDir(jan, janIndex);
+   QCOMPARE(ok, true);
+   ok = desktop->newDir(feb, febIndex);
+   QCOMPARE(ok, true);
+
+   // Re-obtain the root index since newDir modifies the model
+   root = dirmodel->index(path);
+   QCOMPARE(root.isValid(), true);
+
+   // Search again - the in-memory cache should now include the new
+   // directories and suggest creating the current month
+   folders = dirmodel->findFolders("bills", path, root, missing, nullptr);
+
+   QVERIFY2(missing.contains("bills/2026/03mar"),
+            qPrintable(QString("Expected 'bills/2026/03mar' in missing list, "
+                               "got: [%1]").arg(missing.join(", "))));
+}

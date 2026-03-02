@@ -67,6 +67,9 @@ private slots:
    //! Test renaming a directory
    void testRenameDir();
 
+   //! Test that findFolders suggests the next month directory
+   void testFindFoldersSuggestsMonth();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
