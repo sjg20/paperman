@@ -75,6 +75,7 @@ Desktopview::Desktopview (QWidget *parent)
 
 Desktopview::~Desktopview ()
    {
+   delete _measure;
    }
 
 Measure *Desktopview::getMeasure()
