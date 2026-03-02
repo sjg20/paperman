@@ -205,6 +205,7 @@ Dirmodel::~Dirmodel ()
    {
    while (!_item.empty ())
       delete _item.takeFirst ();
+   delete _map;
    }
 
 //     inline bool indexValid(const QModelIndex &index) const {
