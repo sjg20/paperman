@@ -4911,9 +4911,16 @@ err_info *Filemax::insert_chunk (chunk_info &new_chunk, int *posp)
       // we can't cope with any gaps!
       else
          {
-         unsigned short *ptr = (unsigned short *)new_chunk.buf;
+         int old_size = new_chunk.size;
 
          new_chunk.size = chunk->size;
+         new_chunk.buf = (byte *)realloc(new_chunk.buf, new_chunk.size);
+         if (new_chunk.size > old_size)
+            memset(new_chunk.buf + old_size, 0,
+                   new_chunk.size - old_size);
+
+         unsigned short *ptr = (unsigned short *)new_chunk.buf;
+
          ptr [1] = chunk->size;
          ptr [2] = chunk->size >> 16;
          }
