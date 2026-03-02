@@ -5741,13 +5741,13 @@ err_info *Filemax::create (void)
    _signature = 0x46476956;
    _valid = true;
 
-   const char *fname = _pathname.toLatin1().constData();
-   _fin = fopen (fname, "w+b");
+   QByteArray fname = _pathname.toLatin1();
+   _fin = fopen (fname.constData(), "w+b");
    if (!_fin)
       return err_make (ERRFN, ERR_cannot_open_file1,
-                       _pathname.toLatin1 ().constData());
+                       fname.constData());
 
-   utilSetGroup(fname);
+   utilSetGroup(fname.constData());
 
    debug2 (("page count %d, chunk count %d\n", _pages.size (), _chunks.size ()));
    return NULL;
