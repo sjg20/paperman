@@ -330,6 +330,7 @@ void Mainwindow::updateProgress(enum Operation::state_t state, int percent,
       delete _progress;
       delete _label;
       _progress = 0;
+      _label = 0;
       break;
    default:
       _progress->setValue (percent);
