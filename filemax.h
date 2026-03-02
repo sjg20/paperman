@@ -634,6 +634,11 @@ private:
    };
 
 
+// 8bpp preview encode/decode (nibble-based format)
+int decode_8bpp_preview (byte *ptr, byte *end, byte *out, byte *out_end);
+int encode_8bpp_preview (byte *raw, int size, byte *out);
+
+
 class Filemaxpage : public Filepage
    {
 public:

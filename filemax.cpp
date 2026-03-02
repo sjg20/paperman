@@ -1651,7 +1651,7 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
 #define DEBUG_MAX_COUNT 0
 
 
-static int decode_8bpp_preview (byte *ptr, byte *end, byte *out, byte *out_end)
+int decode_8bpp_preview (byte *ptr, byte *end, byte *out, byte *out_end)
    {
    byte *out_start = out;
    int count, value;
@@ -1673,6 +1673,64 @@ static int decode_8bpp_preview (byte *ptr, byte *end, byte *out, byte *out_end)
          count--;
          }
       }
+   return out - out_start;
+   }
+
+
+/**
+ * Encode 8bpp greyscale preview data in the nibble format expected by
+ * decode_8bpp_preview().
+ *
+ * Each output byte encodes a run of pixels:
+ *   upper nibble = count/2 (0 means count 1)
+ *   lower nibble = quantised grey value (inverted)
+ *
+ * The encoding is lossy: 256 grey levels are reduced to 16.
+ *
+ * @param raw   Raw 8bpp preview data
+ * @param size  Number of raw bytes
+ * @param out   Output buffer (must be at least @a size bytes)
+ * @return      Number of encoded bytes written
+ */
+int encode_8bpp_preview (byte *raw, int size, byte *out)
+   {
+   byte *raw_end = raw + size;
+   byte *out_start = out;
+
+   while (raw < raw_end)
+      {
+      // Quantise pixel to nibble; the decoder inverts via 255 - value,
+      // bridging the polarity difference between image (0=black) and
+      // preview colour table (0=white), so we do not invert here.
+      byte nibble = *raw >> 4;
+
+      // Count run of pixels that quantise to the same nibble
+      byte *run_start = raw;
+
+      while (raw < raw_end && (*raw >> 4) == nibble)
+         raw++;
+      int count = raw - run_start;
+
+      // Emit encoded bytes: max 30 pixels per byte (upper nibble 15)
+      while (count > 0)
+         {
+         if (count == 1)
+            {
+            *out++ = nibble;  // upper nibble 0 means count 1
+            count = 0;
+            }
+         else
+            {
+            int run = count > 30 ? 30 : count;
+
+            // upper nibble encodes count/2, so make even
+            run &= ~1;
+            *out++ = ((run >> 1) << 4) | nibble;
+            count -= run;
+            }
+         }
+      }
+
    return out - out_start;
    }
 
@@ -4297,8 +4355,7 @@ static int add_preview (chunk_info &chunk, part_info &part)
 
       case 8 :
          dest = (byte *)malloc (chunk.preview_bytes);
-         memcpy (dest, chunk.preview, chunk.preview_bytes);
-         len = chunk.preview_bytes;
+         len = encode_8bpp_preview (chunk.preview, chunk.preview_bytes, dest);
          break;
 
       case 24 :
