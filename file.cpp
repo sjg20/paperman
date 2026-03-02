@@ -526,10 +526,12 @@ void File::colour_image_for_blank (QImage &image)
    for (i = 0; i < image.height (); i++)
       {
       rgb = (QRgb *)image.scanLine (i);
-      for (int x = 0; x < image.width (); x++)
+      for (int x = 0; x < image.width (); x++, rgb++)
          {
          col = *rgb;
-         *rgb = qRed (col) * CONFIG_preview_col_mult + qGreen (col) * CONFIG_preview_col_mult + qBlue (col);
+         *rgb = qRgb (qRed (col) * CONFIG_preview_col_mult,
+                       qGreen (col) * CONFIG_preview_col_mult,
+                       qBlue (col));
          }
       }
    }
