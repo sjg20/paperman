@@ -159,6 +159,15 @@ bool Diritem::refreshCache(const QString dirPath, Operation *op)
     Q_ASSERT(_dir_cache);
     top = _dir_cache->findItemW(rel);
 
+    if (!top) {
+        // Directory is not in the cache, e.g. it was created outside the
+        // app since the cache was last built. Rebuild from scratch.
+        dropCache();
+        if (!buildCache(op))
+            return false;
+        return true;
+    }
+
     TreeItem *updated = utilScanDir(dirPath, op);
 
     top->freeChildren();

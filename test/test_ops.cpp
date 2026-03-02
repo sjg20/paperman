@@ -553,6 +553,42 @@ void TestOps::testCreateDir()
    QCOMPARE(foundIndex.isValid(), true);
 }
 
+void TestOps::testCreateDirInNewParent()
+{
+   Mainwindow me;
+
+   // Add our test repo
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   // Create a top-level subdirectory to trigger initial cache building
+   QString topDir = path + "/subdir";
+   QModelIndex dirIndex;
+   bool ok = desktop->newDir(topDir, dirIndex);
+   QCOMPARE(ok, true);
+
+   // Create a new directory on the filesystem, bypassing paperman. This
+   // simulates a directory that was created outside the app, or one that
+   // appeared since the cache was last built (e.g. a new year directory)
+   QDir(path + "/main/one").mkdir("c");
+   QDir dir(path + "/main/one/c");
+   QCOMPARE(dir.exists(), true);
+
+   // Now try to create a subdirectory inside the new directory. The cache
+   // does not know about "main/one/c", so refreshCache() must handle a
+   // missing parent gracefully rather than crashing.
+   QString nestedDir = path + "/main/one/c/leaf";
+   QModelIndex nestedIndex;
+   ok = desktop->newDir(nestedDir, nestedIndex);
+   QCOMPARE(ok, true);
+
+   // Check that the directory was created on disk
+   QDir leafDir(nestedDir);
+   QCOMPARE(leafDir.exists(), true);
+}
+
 void TestOps::testMoveToDir()
 {
    Mainwindow me;

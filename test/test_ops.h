@@ -52,6 +52,9 @@ private slots:
    //! Test creating a dir
    void testCreateDir();
 
+   //! Test creating a dir inside a directory not in the cache
+   void testCreateDirInNewParent();
+
    //! Test moving a file to a different directory
    void testMoveToDir();
 
