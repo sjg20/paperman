@@ -9,6 +9,7 @@
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "dirmodel.h"
+#include "dirview.h"
 #include "mainwindow.h"
 #include "test_ops.h"
 
@@ -951,4 +952,113 @@ void TestOps::testFindFoldersSuggestsMonth()
    QVERIFY2(missing.contains("bills/2026/03mar"),
             qPrintable(QString("Expected 'bills/2026/03mar' in missing list, "
                                "got: [%1]").arg(missing.join(", "))));
+}
+
+void TestOps::testFindFoldersSuggestsMonthViaDesktop()
+{
+   Mainwindow me;
+
+   // Set up a repo with bills/2026 but no month directories yet
+   auto path = setupRepo();
+   QDir dir(path);
+   Q_ASSERT(dir.mkpath("bills/2026"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   Q_ASSERT(dirmodel);
+
+   // Trigger initial cache building through the desktop path, which
+   // uses getRootDirectory() / getRootIndex() internally
+   QStringList missing;
+   QString dirPath;
+   QStringList folders = desktop->findFolders("bills", dirPath, missing);
+   QCOMPARE(dirPath, path);
+   QCOMPARE(missing.size(), 0);
+
+   // Simulate the UI workflow: user navigates to bills/2026 in the
+   // Dirview tree, then right-clicks to create directories. The UI
+   // doNewDir() creates via _model->mkdir() then re-selects the parent.
+   // First, set the Dirview context to bills/2026, as if the user
+   // right-clicked on it.
+   QModelIndex bills2026_src = dirmodel->index(path + "/bills/2026");
+   QVERIFY2(bills2026_src.isValid(),
+            "bills/2026 should exist in the model");
+   QModelIndex bills2026_proxy = desktop->_dir_proxy->mapFromSource(
+                                    bills2026_src);
+   desktop->_dir->selectContextItem(bills2026_proxy);
+
+   // Create 01jan via doNewDir(), as the UI does from the right-click menu
+   QString newPath;
+   QModelIndex jan_ind = desktop->doNewDir("01jan", newPath);
+   QVERIFY2(jan_ind.isValid(), "doNewDir 01jan should succeed");
+
+   // Create 02feb the same way - doNewDir uses _context as the parent
+   QModelIndex feb_ind = desktop->doNewDir("02feb", newPath);
+   QVERIFY2(feb_ind.isValid(), "doNewDir 02feb should succeed");
+
+   // Check that getRootIndex() still works after doNewDir
+   QModelIndex root = desktop->getRootIndex();
+   QVERIFY2(root.isValid(),
+            "getRootIndex() should still be valid after doNewDir");
+   QVERIFY2(dirmodel->isRoot(root),
+            "getRootIndex() should return a root index");
+
+   // Search through the desktop path - this is how the pscan dialog
+   // finds folders.
+   folders = desktop->findFolders("bills", dirPath, missing);
+
+   QVERIFY2(missing.contains("bills/2026/03mar"),
+            qPrintable(QString("Expected 'bills/2026/03mar' in missing list, "
+                               "got: [%1]").arg(missing.join(", "))));
+}
+
+void TestOps::testFindFoldersSuggestsMonthAfterRefresh()
+{
+   Mainwindow me;
+
+   // Set up a repo with bills/2026 but no month directories yet
+   auto path = setupRepo();
+   QDir dir(path);
+   Q_ASSERT(dir.mkpath("bills/2026"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   Q_ASSERT(dirmodel);
+
+   // Trigger initial cache building
+   QStringList missing;
+   QString dirPath;
+   QStringList folders = desktop->findFolders("bills", dirPath, missing);
+   QCOMPARE(dirPath, path);
+   QCOMPARE(missing.size(), 0);
+
+   // Set the Dirview context to bills/2026, as if the user right-clicked
+   QModelIndex bills2026_src = dirmodel->index(path + "/bills/2026");
+   QVERIFY(bills2026_src.isValid());
+   QModelIndex bills2026_proxy = desktop->_dir_proxy->mapFromSource(
+                                    bills2026_src);
+   desktop->_dir->selectContextItem(bills2026_proxy);
+
+   // Create directories via doNewDir, as the UI does
+   QString newPath;
+   desktop->doNewDir("01jan", newPath);
+   desktop->doNewDir("02feb", newPath);
+
+   // User presses "Refresh cache" from the context menu, which also
+   // uses _context to determine the refresh point
+   desktop->refreshDirmodelCache(path);
+
+   // Now search via desktop path
+   folders = desktop->findFolders("bills", dirPath, missing);
+
+   QVERIFY2(missing.contains("bills/2026/03mar"),
+            qPrintable(QString("Expected 'bills/2026/03mar' in missing list "
+                               "after cache refresh, got: [%1]")
+                       .arg(missing.join(", "))));
 }

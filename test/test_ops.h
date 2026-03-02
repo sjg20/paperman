@@ -70,6 +70,12 @@ private slots:
    //! Test that findFolders suggests the next month directory
    void testFindFoldersSuggestsMonth();
 
+   //! Test that findFolders via the desktop path suggests the next month
+   void testFindFoldersSuggestsMonthViaDesktop();
+
+   //! Test that findFolders works after a cache refresh
+   void testFindFoldersSuggestsMonthAfterRefresh();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
