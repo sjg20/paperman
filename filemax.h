@@ -220,6 +220,9 @@ public:
    /** rebuild missing greyscale previews in the file */
    err_info *rebuildPreviews ();
 
+   /** rebuild a stub greyscale preview for a single page, if needed */
+   err_info *rebuildPagePreview (int pagenum);
+
    /*********** end of functions which the base class should implement ******/
 
 public:
