@@ -1739,7 +1739,7 @@ static err_info *rle_decode (QString &fname, byte *buf, int size,
                *out++ = *ptr++;
                *out++ = *ptr++;
                *out++ = *ptr++;
-               *out++ = 0;
+               *out++ = 0xff;
                }
             while ((ptr - buf) & 3)
                ptr++;  // word align at the end of each line
