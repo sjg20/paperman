@@ -6039,6 +6039,23 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    if (debug_level >= 3)
       show_file (stderr);
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
+
+   // Rebuild stub greyscale previews on the fly
+   if (chunk->bits == 8
+       && chunk->parts.size () > PT_preview
+       && chunk->parts [PT_preview].size <= 4)
+      {
+      if (temp)
+         {
+         chunk_free (*chunk);
+         delete chunk;
+         }
+      ensure_closed ();
+      CALL (rebuildPagePreview (pagenum));
+      CALL (ensure_open ());
+      CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
+      }
+
    QSize Size = QSize (chunk->preview_size.x, chunk->preview_size.y);
    int bpp = chunk->bits == 24 ? 24 : 8;
    CALL(ensure_open());
