@@ -4696,7 +4696,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
       case CT_bermuda :
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + 0x16 + 0xc * _pages.size ());
-         //TODO: need to free old buf here
+         mem_free (CV &chunk.buf);
          CALL (alloc_chunk_buf (chunk, &buf));
          add_generic_chunk_header (chunk, buf);
          write_bermuda (buf);
@@ -4711,7 +4711,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
             count += 1 + strlen (_annot_data [type].toLatin1());
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + 0x45 + count);
-         //TODO: need to free old buf here
+         mem_free (CV &chunk.buf);
          CALL (alloc_chunk_buf (chunk, &buf));
          add_generic_chunk_header (chunk, buf);
          write_annot (buf, chunk.size, _annot_data);
@@ -4727,7 +4727,7 @@ err_info *Filemax::build_chunk (chunk_info &chunk, bool force)
             count += 1 + strlen (_env_data [type].toLatin1());
          chunk.size = ALIGN_CHUNK (POS_chunk_header_size
                      + POS_env_string0 + count);
-         //TODO: need to free old buf here
+         mem_free (CV &chunk.buf);
          CALL (alloc_chunk_buf (chunk, &buf));
          add_generic_chunk_header (chunk, buf);
          write_env (buf, chunk.size, _env_data);
