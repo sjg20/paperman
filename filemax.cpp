@@ -734,7 +734,10 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
    {
    int n;
 
-   cache.buff.resize (size);
+   // Allocate extra padding so that callers which read a 4-byte word
+   // near the end of the buffer (e.g. decode_compressed_tile) do not
+   // overflow.  Qt zero-fills the extra bytes.
+   cache.buff.resize (size + 4);
 
    // read the data
    fseek (_fin, pos, SEEK_SET);
