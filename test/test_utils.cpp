@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 
+#include "../filemax.h"
 #include "../utils.h"
 #include "test.h"
 
@@ -327,4 +328,117 @@ void TestUtils::testFindItem()
     QCOMPARE(chk->data(0).toString(), "another-file");
     chkw = root->findItemW("somedir/more-subdir/another-file");
     QCOMPARE(chk, chkw);
+}
+
+void TestUtils::testPreview8bppRoundtrip()
+{
+   // Create a test pattern with varying grey levels (image convention:
+   // 0=black, 255=white)
+   const int width = 100;
+   const int height = 50;
+   const int size = width * height;
+   byte raw[size];
+
+   for (int y = 0; y < height; y++)
+      for (int x = 0; x < width; x++)
+         raw[y * width + x] = (x * 255) / (width - 1);
+
+   // Encode
+   byte encoded[size];
+   int enc_len = encode_8bpp_preview(raw, size, encoded);
+
+   QVERIFY(enc_len > 0);
+   QVERIFY(enc_len <= size);
+
+   // Decode: the decoder inverts the polarity (image 0=black becomes
+   // preview 255=black) so the expected value is 255 - raw
+   byte decoded[size];
+
+   memset(decoded, 0, size);
+   int dec_len = decode_8bpp_preview(encoded, encoded + enc_len,
+                                     decoded, decoded + size);
+   QCOMPARE(dec_len, size);
+
+   // Check each pixel against the expected inverted value, within
+   // quantisation tolerance (nibble reduces 256 levels to 16)
+   int max_err = 0;
+
+   for (int i = 0; i < size; i++) {
+      int expected = 255 - raw[i];
+      int diff = abs(expected - (int)decoded[i]);
+
+      if (diff > max_err)
+         max_err = diff;
+   }
+
+   // Nibble quantisation can produce up to ~17 error per pixel
+   QVERIFY2(max_err <= 17,
+            qPrintable(QString("max pixel error %1 exceeds tolerance 17")
+                       .arg(max_err)));
+
+   // Verify the decoded data is not all one value
+   int sum = 0;
+
+   for (int i = 0; i < size; i++)
+      sum += decoded[i];
+   QVERIFY2(sum > 0, "decoded preview is all-zero");
+   QVERIFY2(sum < size * 255, "decoded preview is all-255");
+}
+
+void TestUtils::testPreviewFromJpeg()
+{
+   // Load the deterministic greyscale test image
+   QImage img(testSrc + "/greyscale_gradient.jpg");
+
+   QVERIFY2(!img.isNull(), "failed to load greyscale_gradient.jpg");
+
+   // Convert to 8bpp greyscale if needed
+   if (img.format() != QImage::Format_Indexed8)
+      img = img.convertToFormat(QImage::Format_Indexed8);
+
+   int pw = img.width() / 24;
+   int ph = img.height() / 24;
+   int pwidth = (pw + 3) & ~3;  // word-aligned
+   int psize = pwidth * ph;
+
+   // Scale down to preview size (matching scale_8bpp logic)
+   QByteArray preview(psize, 0);
+
+   for (int y = 0; y < ph; y++) {
+      for (int x = 0; x < pw; x++) {
+         int sum = 0;
+         int count = 0;
+
+         for (int sy = 0; sy < 24 && y * 24 + sy < img.height(); sy++) {
+            const uchar *line = img.scanLine(y * 24 + sy);
+
+            for (int sx = 0; sx < 24; sx++)
+               sum += line[x * 24 + sx];
+            count += 24;
+         }
+         preview[y * pwidth + x] = sum / count;
+      }
+   }
+
+   // Encode
+   QByteArray encoded(psize, 0);
+   int enc_len = encode_8bpp_preview((byte *)preview.data(), psize,
+                                     (byte *)encoded.data());
+   QVERIFY(enc_len > 0);
+
+   // Decode
+   byte *enc = (byte *)encoded.data();
+   QByteArray decoded(psize, 0);
+
+   decode_8bpp_preview(enc, enc + enc_len,
+                       (byte *)decoded.data(),
+                       (byte *)decoded.data() + psize);
+
+   // Compress and check deterministic size
+   QByteArray compressed = qCompress(decoded);
+   int csize = compressed.size();
+
+   QVERIFY2(csize > 50, qPrintable(
+      QString("compressed preview too small: %1").arg(csize)));
+   QCOMPARE(csize, 1412);
 }

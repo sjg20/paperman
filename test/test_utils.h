@@ -23,6 +23,12 @@ private slots:
    void testAdopt();
    void testFindItem();
    void testImageDepth();
+
+   //! Test 8bpp preview encode/decode roundtrip
+   void testPreview8bppRoundtrip();
+
+   //! Test preview encode/decode against the greyscale test image
+   void testPreviewFromJpeg();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);
