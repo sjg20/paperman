@@ -472,7 +472,7 @@ void PPage::finishJpeg (void)
       jpeg_destroy_decompress (&_cinfo);
       if (_jerr.err)
          qDebug () << "JPEG error" << _jerr.err;
-      delete _buffer;
+      delete[] _buffer;
       _jpeg_created = false;
       }
    }
