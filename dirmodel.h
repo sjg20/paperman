@@ -77,6 +77,14 @@ public:
     */
    bool refreshCache(const QString path, Operation *op);
 
+   /**
+    * @brief Add a single file to the cache
+    * @param dirPath  Full path to the directory containing the file
+    * @param filename Leaf filename to add
+    * @return true if OK, false on failure
+    */
+   bool addFileToCache(const QString &dirPath, const QString &filename);
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -291,6 +299,13 @@ public:
     * All children of ind are regenerated but ind itself remains the same
     */
    void refreshCacheFrom(const QModelIndex& parent, Operation *op);
+
+   /**
+    * @brief Add a single file to the cache
+    * @param parent    Parent index of the directory containing the file
+    * @param filename  Leaf filename to add
+    */
+   void addFileToCache(const QModelIndex &parent, const QString &filename);
 
 private:
    /** counts the number of files in 'path', adds it to count and returns it.

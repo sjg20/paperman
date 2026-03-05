@@ -203,6 +203,14 @@ public:
     * @param dirPath Full path to the directory to update
     */
    void refreshDirmodelCache(const QString& dirPath);
+
+   /**
+    * @brief Add a single file to the dirmodel cache
+    * @param dirPath  Full path to the directory containing the file
+    * @param filename Leaf filename to add
+    */
+   void addFileToDirmodelCache(const QString &dirPath,
+                               const QString &filename);
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 

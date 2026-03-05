@@ -898,7 +898,14 @@ void Desktopwidget::refreshDirmodelCache(const QString& dirPath)
 
    Operation op("Updating cache", 0, this);
    _model->refreshCacheFrom(src_ind, &op);
+}
 
+void Desktopwidget::addFileToDirmodelCache(const QString &dirPath,
+                                           const QString &filename)
+{
+   QModelIndex src_ind = _model->index(dirPath);
+
+   _model->addFileToCache(src_ind, filename);
 }
 
 void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)

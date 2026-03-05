@@ -853,8 +853,10 @@ public:
       \returns       error, or NULL if none */
    err_info *beginScan (QModelIndex parent, const QString &stack_name);
 
-   /** confirm and save the pending scan */
-   err_info *confirmScan (void);
+   /** confirm and save the pending scan
+    *
+    *  \param fname  if non-null, returns the filename of the scanned stack */
+   err_info *confirmScan (QString *fname = nullptr);
 
    /** cancel and remove the pending scan */
    err_info *cancelScan (void);

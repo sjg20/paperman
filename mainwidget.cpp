@@ -501,13 +501,14 @@ void Mainwidget::slotStackConfirm (void)
 //    qDebug () << "slotStackConfirm";
    if (!_scan_cancelling)
       {
-      err_info *err = _contents->confirmScan ();
+      QString fname;
+      err_info *err = _contents->confirmScan (&fname);
 
       //FIXME: should we cancel in this case?
       if (err)
          _scan->cancelScan (err);
 
-      _desktop->refreshDirmodelCache(_scan_path);
+      _desktop->addFileToDirmodelCache(_scan_path, fname);
       }
    }
 

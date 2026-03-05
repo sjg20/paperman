@@ -181,6 +181,31 @@ bool Diritem::refreshCache(const QString dirPath, Operation *op)
     return true;
 }
 
+bool Diritem::addFileToCache(const QString &dirPath,
+                             const QString &filename)
+{
+   if (!_dir_cache && !readCache())
+      return false;
+
+   QString rel = dirPath.mid(_dir.size() + 1);
+
+   Q_ASSERT(_dir_cache);
+   TreeItem *top = _dir_cache->findItemW(rel);
+   if (!top)
+      return false;
+
+   QVector<QVariant> columnData = {filename};
+   TreeItem *child = new TreeItem(columnData, top);
+
+   top->appendChild(child);
+   if (!utilWriteTree(dirCacheFilename(), _dir_cache)) {
+      qInfo() << "Failed to write cache";
+      return false;
+   }
+
+   return true;
+}
+
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 Dirmodel::Dirmodel (QObject * parent)
@@ -953,4 +978,15 @@ void Dirmodel::refreshCacheFrom(const QModelIndex& parent, Operation *op)
 
    Q_ASSERT(item);
    item->refreshCache(path, op);
+}
+
+void Dirmodel::addFileToCache(const QModelIndex &parent,
+                              const QString &filename)
+{
+   QDir dir;
+   QString path = dir.absoluteFilePath(filePath(parent));
+
+   Diritem *item = findItem(parent);
+   if (item)
+      item->addFileToCache(path, filename);
 }

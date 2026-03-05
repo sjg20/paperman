@@ -836,11 +836,13 @@ err_info *Desktopmodel::cancelScan (void)
    }
 
 
-err_info *Desktopmodel::confirmScan (void)
+err_info *Desktopmodel::confirmScan (QString *fname)
    {
 //    qDebug () << "Desktopmodel::confirmScan";
    Q_ASSERT (_scan_desk && _scan_file);
 
+   if (fname)
+      *fname = _scan_file->filename ();
    QModelIndex ind = index (_scan_file->filename (), _scan_parent);
 
    // flush the item
