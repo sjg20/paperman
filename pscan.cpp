@@ -67,6 +67,17 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     setObjectName(name);
     setModal(modal);
     setupUi(this);
+    connect(bright, SIGNAL(signalValueChanged(int)), this, SLOT(brightChanged(int)));
+    connect(contrast, SIGNAL(signalValueChanged(int)), this, SLOT(contrastChanged(int)));
+    connect(pageSize, SIGNAL(activated(int)), this, SLOT(size_activated(int)));
+    connect(res, SIGNAL(activated(int)), this, SLOT(res_activated(int)));
+    connect(duplex, SIGNAL(clicked()), this, SLOT(duplex_clicked()));
+    connect(adf, SIGNAL(clicked()), this, SLOT(adf_clicked()));
+    connect(scan, SIGNAL(clicked()), this, SLOT(scan_clicked()));
+    connect(settings, SIGNAL(clicked()), this, SLOT(settings_clicked()));
+    connect(source, SIGNAL(clicked()), this, SLOT(source_clicked()));
+    connect(reset, SIGNAL(clicked()), this, SLOT(reset_clicked()));
+    connect(options, SIGNAL(clicked()), this, SLOT(options_clicked()));
     connect(cancel, SIGNAL(clicked()), this, SLOT(cancel_clicked()));
     format->setId(mono, QScanner::mono);
     format->setId(grey, QScanner::grey);
