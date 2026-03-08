@@ -47,7 +47,7 @@ void QSwitchOffMessage::initDlg()
   button3 = 0;
 
   QGridLayout* mainlayout = new QGridLayout(this,3,1);
-  mainlayout->setMargin(10);
+  mainlayout->setContentsMargins(10, 10, 10, 10);
   mainlayout->setSpacing(8);
   QLabel* label = new QLabel(this);
   QWidget* buttonwidget = new QWidget(this);

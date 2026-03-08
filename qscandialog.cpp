@@ -77,7 +77,6 @@
 #include <qpixmap.h>
 #include <qpoint.h>
 #include <qpushbutton.h>
-#include <qregexp.h>
 #include <qrect.h>
 #include <qscrollbar.h>
 #include <qsizepolicy.h>
@@ -142,7 +141,7 @@ QIN::Status QScanDialog::initDialog()
 //////////
 //main layout
   mpMainLayout = new QGridLayout(this);
-  mpMainLayout->setMargin(3);
+  mpMainLayout->setContentsMargins(3, 3, 3, 3);
   mpMainLayout->setSpacing(5);
   mpMainLayout->setColumnStretch(0,1);
   mpInfoHBox = new QHBoxLayout();
@@ -247,17 +246,17 @@ QIN::Status QScanDialog::initDialog()
     mpSeparator->addWidget(frame);
     frame->setFrameStyle(QFrame::VLine|QFrame::Sunken);
     frame->setLineWidth(2);
-    mpSeparator->setMargin(5);
+    mpSeparator->setContentsMargins(5, 5, 5, 5);
       mpMainLayout->addLayout(mpSeparator,0,1,8,1);
     if(mpPreviewWidget->window() == mpPreviewWidget)
     {
       if(mpPreviewWidget->layout())
-          mpPreviewWidget->layout()->setMargin(5);
+          mpPreviewWidget->layout()->setContentsMargins(5, 5, 5, 5);
 //      mpSeparator->hide();
     }
     else
     {
-      if(mpPreviewWidget->layout()) mpPreviewWidget->layout()->setMargin(0);
+      if(mpPreviewWidget->layout()) mpPreviewWidget->layout()->setContentsMargins(0, 0, 0, 0);
       mpMainLayout->addWidget(mpPreviewWidget,0, 2, 8, 1);
     }
 //     connect(mpPreviewWidget,SIGNAL(signalPreviewRequest(double,double,double,double,int)),

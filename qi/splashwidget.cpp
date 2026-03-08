@@ -28,7 +28,7 @@ SplashWidget::SplashWidget(QWidget *parent, const char *name )
                                    WStyle_NoBorder)
 {
   QGridLayout* grid = new QGridLayout(this,1,2);
-  grid->setMargin(10);
+  grid->setContentsMargins(10, 10, 10, 10);
   grid->setSpacing(8);
   QLabel* label1 = new QLabel(this);
   QPixmap qp((const char **)quiteinsane_logo_xpm);

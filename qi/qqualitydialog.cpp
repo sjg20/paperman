@@ -171,7 +171,7 @@ void QQualityDialog::initDialog()
 
   mainlayout->addWidget(qgb,0,0,0,2);
   mainlayout->addWidget(button1,1,1);
-  mainlayout->setMargin(4);
+  mainlayout->setContentsMargins(4, 4, 4, 4);
 	mainlayout->setSpacing(3);
 
 	connect(button1,SIGNAL(clicked()),this,SLOT(accept()));

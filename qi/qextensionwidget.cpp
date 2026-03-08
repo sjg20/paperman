@@ -76,7 +76,7 @@ void QExtensionWidget::initWidget()
 //  QPixmap* pixmap = new QPixmap((const char **)fileopen);
 //the main layout
   mpMainLayout = new QGridLayout(this);
-  mpMainLayout->setMargin(8);
+  mpMainLayout->setContentsMargins(8, 8, 8, 8);
   mpMainLayout->setSpacing(5);
 //create mpWhatsThisButton in a HBox
 	QWidget* wtwidget = new QWidget(this);
@@ -115,7 +115,7 @@ void QExtensionWidget::initWidget()
 //metric system
   QWidget* opage = new QWidget(mpPagesStack);
   QGridLayout* sublayout = new QGridLayout(opage);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(3,1);
   mpRadioMM = new QRadioButton(tr("&Millimetre"),opage);
@@ -136,7 +136,7 @@ void QExtensionWidget::initWidget()
 //Layout
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,7,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(6,1);
   mpRadioScrollLayout = new QRadioButton(tr("&Scrollview"),opage);
@@ -167,7 +167,7 @@ void QExtensionWidget::initWidget()
 //scanner
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,5,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(4,1);
   mpCheckIoMode = new QCheckBox (tr("Use &non blocking IO if available"),opage);
@@ -202,7 +202,7 @@ void QExtensionWidget::initWidget()
 //OCR
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,2,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(1,1);
   QHBoxLayout* ocrhb = new QHBoxLayout(opage);
@@ -216,7 +216,7 @@ void QExtensionWidget::initWidget()
 //Image compression/quality
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,6,5);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(5,1);
   sublayout->setColStretch(2,1);
@@ -303,7 +303,7 @@ void QExtensionWidget::initWidget()
 //History
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,5,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(4,1);
   mpCheckBoxHistory = new QCheckBox(tr("&Enable history"),opage);
@@ -330,7 +330,7 @@ void QExtensionWidget::initWidget()
 //Viewer
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,3,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(2,1);
   QHBoxLayout* undohb = new QHBoxLayout(opage);
@@ -364,7 +364,7 @@ void QExtensionWidget::initWidget()
 //Preview
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,4,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(3,1);
   mpSmoothPreviewCheckBox = new QCheckBox(tr("&Use smooth scaling"),opage);
@@ -382,7 +382,7 @@ void QExtensionWidget::initWidget()
 //automatic selection
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,7,2);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(7,1);
   sublayout->setColStretch(0,1);
@@ -441,7 +441,7 @@ void QExtensionWidget::initWidget()
 //start dialog
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,2,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(1,1);
   QGroupBox* gb = new QGroupBox(1,Qt::Horizontal,
@@ -465,7 +465,7 @@ void QExtensionWidget::initWidget()
 //filename generation
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,4,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(3,1);
   QHBoxLayout* fchb = new QHBoxLayout(opage);
@@ -491,7 +491,7 @@ void QExtensionWidget::initWidget()
 //Miscelleanous
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,8,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(7,1);
   QLabel* doclabel = new QLabel(tr("Documentation path:"),opage);
@@ -537,7 +537,7 @@ void QExtensionWidget::initWidget()
 //Style
   opage = new QWidget(mpPagesStack);
   sublayout = new QGridLayout(opage,7,1);
-  sublayout->setMargin(15);
+  sublayout->setContentsMargins(15, 15, 15, 15);
   sublayout->setSpacing(subspacing);
   sublayout->setRowStretch(6,1);
   mpRadioWindowsStyle = new QRadioButton(tr("&Windows"),opage);

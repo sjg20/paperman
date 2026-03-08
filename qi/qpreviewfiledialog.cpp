@@ -63,7 +63,7 @@ void QPreviewFileDialog::initDlg()
             this,SLOT(slotShowPreview(bool)));
     mpPixWidget = new QLabel(widget);
     mpPixWidget->setMinimumWidth(200);
-    qvbl->setMargin(5);
+    qvbl->setContentsMargins(5, 5, 5, 5);
     qvbl->addWidget(mpPreviewCheckBox);
     qvbl->addWidget(mpPixWidget);
     qvbl->setStretchFactor (mpPixWidget,1);

@@ -95,7 +95,7 @@ void QCopyPrint::initWidget()
 {
   mpMainGrid = new QGridLayout(this,4,3);
   mpMainGrid->setSpacing( 6 );
-  mpMainGrid->setMargin( 11 );
+  mpMainGrid->setContentsMargins( 11 ,  11 ,  11 ,  11 );
 
 /////////////////////////////////////////////////////////////////
 // Scaling
@@ -105,11 +105,11 @@ void QCopyPrint::initWidget()
   mpScaleBox->setTitle( tr( "Scaling"  ) );
   mpScaleBox->setColumnLayout(0, Qt::Vertical );
   mpScaleBox->layout()->setSpacing( 0 );
-  mpScaleBox->layout()->setMargin( 0 );
+  mpScaleBox->layout()->setContentsMargins( 0 ,  0 ,  0 ,  0 );
 
   QGridLayout* scalegrid = new QGridLayout(mpScaleBox->layout(),5,3);
   scalegrid->setSpacing( 6 );
-  scalegrid->setMargin( 11 );
+  scalegrid->setContentsMargins( 11 ,  11 ,  11 ,  11 );
   scalegrid->setAlignment( Qt::AlignTop );
   scalegrid->addColSpacing(0,20);
   scalegrid->setColStretch(1,1);
@@ -160,11 +160,11 @@ void QCopyPrint::initWidget()
   mpMarginBox->setTitle( tr( "Margins"  ) );
   mpMarginBox->setColumnLayout(0, Qt::Vertical );
   mpMarginBox->layout()->setSpacing( 0 );
-  mpMarginBox->layout()->setMargin( 0 );
+  mpMarginBox->layout()->setContentsMargins( 0 ,  0 ,  0 ,  0 );
   mpMarginGrid = new QGridLayout( mpMarginBox->layout() );
   mpMarginGrid->setAlignment( Qt::AlignTop );
   mpMarginGrid->setSpacing( 6 );
-  mpMarginGrid->setMargin( 11 );
+  mpMarginGrid->setContentsMargins( 11 ,  11 ,  11 ,  11 );
 
   mpLeftSpin = new QDoubleSpinBox( mpMarginBox, "LeftSpin" );
   mpLeftSpin->setButtonSymbols( QSpinBox::PlusMinus );
@@ -227,11 +227,11 @@ void QCopyPrint::initWidget()
   mpImageResBox->setTitle( tr( "Image resolution"  ) );
   mpImageResBox->setColumnLayout(0, Qt::Vertical );
   mpImageResBox->layout()->setSpacing( 0 );
-  mpImageResBox->layout()->setMargin( 0 );
+  mpImageResBox->layout()->setContentsMargins( 0 ,  0 ,  0 ,  0 );
 
   QGridLayout* imagegrid = new QGridLayout(mpImageResBox->layout(),4,2);
   imagegrid->setSpacing( 6 );
-  imagegrid->setMargin( 11 );
+  imagegrid->setContentsMargins( 11 ,  11 ,  11 ,  11 );
   imagegrid->setAlignment( Qt::AlignTop );
   imagegrid->addColSpacing(0,20);
   imagegrid->setColStretch(1,1);

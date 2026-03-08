@@ -107,7 +107,7 @@ void ImageHistoryBrowser::initWidget()
 
   QGridLayout* mainlayout = new QGridLayout(this,4,3);
   mainlayout->setSpacing(6);
-  mainlayout->setMargin(6);
+  mainlayout->setContentsMargins(6, 6, 6, 6);
   mainlayout->setColStretch(0,1);
   mainlayout->setRowStretch(2,1);
 //label and (tool-)buttons - 1st row
@@ -770,7 +770,7 @@ void ImageHistoryBrowser::slotCreatePreview()
   dlg->setCaption(tr("Create preview images"));
   QGridLayout* dlglayout = new QGridLayout(dlg,2,3);
   dlglayout->setSpacing(5);
-  dlglayout->setMargin(5);
+  dlglayout->setContentsMargins(5, 5, 5, 5);
   dlglayout->setColStretch(1,1);
   dlglayout->setRowStretch(0,1);
   QButtonGroup* bg = new QButtonGroup(1,Qt::Horizontal,tr("Create preview"),dlg);

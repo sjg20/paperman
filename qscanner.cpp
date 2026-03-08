@@ -3217,7 +3217,7 @@ void QScanner::qis_authorization(SANE_String_Const resource,
     pd->setModal(true);
     pd->setWindowTitle(QObject::tr("QuiteInsane Authorization"));
     QGridLayout* mainlayout = new QGridLayout(pd);
-    mainlayout->setMargin(12);
+    mainlayout->setContentsMargins(12, 12, 12, 12);
     mainlayout->setSpacing(5);
 
     qs = QObject::tr("<center>The device</center>"
