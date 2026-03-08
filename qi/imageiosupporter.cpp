@@ -350,7 +350,7 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
     iio.setQuality(quality);
 //  iio.setImage(im);
 
-  bool ok;
+  bool ok = false;
 
   if((iformat == "PNM") || (iformat == "PNM") || (iformat == "PNM") ||
      (iformat == "PNM"))
@@ -471,7 +471,7 @@ bool ImageIOSupporter::saveImage(QString filename,QImage& image,QString iformat,
   if((quality >= 0) && (quality <= 100))
     iio.setQuality(quality);
 
-  bool ok;
+  bool ok = false;
 
   if((iformat == "PGM") || (iformat == "PBM") || (iformat == "PPM") ||
      (iformat == "PNM"))
