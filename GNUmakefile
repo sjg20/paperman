@@ -100,7 +100,7 @@ setup:
 	scripts/setup.sh
 
 .PHONY: app app-demo app-test dart-defines app-apk app-aab app-publish
-.PHONY: app-upload app-scp app-scp-only app-scp-watch app-ios app-ios-install app-linux app-clean
+.PHONY: app-upload app-scp app-scp-only app-scp-watch app-ios app-ios-install app-ipa app-ipa-upload app-linux app-clean
 dart-defines:
 	@echo '{"BUILD_DATE":"$(BUILD_DATE)"}' > $(DART_DEFINES)
 
@@ -141,10 +141,26 @@ app-ios: dart-defines
 app-ios-install: app-ios
 	xcrun devicectl device install app --device $(IOS_DEVICE) $(APP_IOS)
 
+app-ipa: dart-defines
+	cd app && flutter build ipa --build-name=$(IPA_VERSION) --build-number=$(IPA_BUILD) $(FLUTTER_ARGS)
+
+app-ipa-upload: app-ipa
+	xcrun altool --upload-app --type ios -f $(APP_IPA) \
+		--apiKey $(ASC_KEY_ID) --apiIssuer $(ASC_ISSUER_ID)
+
 # Set IOS_DEVICE to your iPad/iPhone device ID (from Xcode or
 # `xcrun devicectl list devices`).
 IOS_DEVICE ?= 00008122-0001786226E8401C
 APP_IOS    = app/build/ios/iphoneos/Runner.app
+APP_IPA    = app/build/ios/ipa/paperman.ipa
+
+# App Store Connect API key for TestFlight uploads. Create at
+# https://appstoreconnect.apple.com/access/integrations/api
+# and place the .p8 file in ~/.appstoreconnect/private_keys/
+ASC_KEY_ID    ?= 9WUW42HYF2
+ASC_ISSUER_ID ?= 88e66a40-c926-4812-82f4-1c80e7064078
+IPA_VERSION   ?= 1.3.1
+IPA_BUILD     ?= 1
 
 app-linux: dart-defines
 	# Clear CMake cache so find_library() re-discovers libpdfium.so from
