@@ -22,6 +22,7 @@ QMAKE_CXXFLAGS += -O2
 #QMAKE_LFLAGS += -static
 
 equals(QT_MAJOR_VERSION, 6) {
+  QT += statemachine
   LIBS += -lpoppler-qt6
   INCLUDEPATH += /usr/include/poppler/qt6
 }
