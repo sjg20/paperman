@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMessageBox>
 #endif
 #include <QMimeData>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStringList>
 
@@ -657,16 +658,18 @@ int utilDetectYear(const QString& fname, int& foundPos)
    int len = fname.length();
 
    // search for year from 1900 to 2099
-   QRegExp rx("(\\d{4})");
+   QRegularExpression rx("(\\d{4})");
+   QRegularExpressionMatchIterator it = rx.globalMatch(fname);
 
-   for (int pos = 0; pos = rx.indexIn(fname, pos), pos != -1;
-        pos += rx.matchedLength()) {
+   while (it.hasNext()) {
+      QRegularExpressionMatch m = it.next();
+      int pos = m.capturedStart();
 
       // make sure here is no digit either side
       if ((pos && fname[pos - 1].isDigit()) ||
           (pos + 4 < len && fname[pos + 4].isDigit()))
          continue;
-      int year = rx.cap(0).toInt();
+      int year = m.captured(0).toInt();
 
       if (year >= 1900 && year < 2100) {
          foundPos = pos;
@@ -680,19 +683,21 @@ int utilDetectYear(const QString& fname, int& foundPos)
 int utilDetectMonth(const QString& fname, int& foundPos)
 {
    QString months = "(01jan|02feb|03mar|04apr|05may|06jun|07jul|08aug|09sep|10oct|11nov|12dec)";
-   // search for year from 1900 to 2099
-   QRegExp rx(months, Qt::CaseInsensitive);
+   QRegularExpression rx(months,
+                         QRegularExpression::CaseInsensitiveOption);
+   QRegularExpressionMatchIterator it = rx.globalMatch(fname);
 
-   for (int pos = 0; pos = rx.indexIn(fname, pos), pos != -1;
-        pos += rx.matchedLength()) {
-      int len = rx.pos() + 5;
+   while (it.hasNext()) {
+      QRegularExpressionMatch m = it.next();
+      int pos = m.capturedStart();
+      int len = pos + 5;
 
       // make sure here is no letter either side
       if ((pos && fname[pos - 1].isLetter()) ||
           (fname.size() > len && fname[len].isLetter()))
          continue;
 
-      int month = 1 + months.indexOf(rx.cap(0)) / 6;
+      int month = 1 + months.indexOf(m.captured(0).toLower()) / 6;
       foundPos = pos;
 
       return month;
