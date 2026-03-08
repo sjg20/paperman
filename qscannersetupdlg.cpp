@@ -22,7 +22,7 @@
 #include "qscannersetupdlg.h"
 #include "qscanner.h"
 #include "qxmlconfig.h"
-#include <QDesktopWidget>
+#include <QScreen>
 #include <QShowEvent>
 #include <QTextStream>
 
@@ -162,8 +162,8 @@ void QScannerSetupDlg::initDialog()
           this,SLOT(slotAllDevices()));
   connect(mpLocalDeviceButton,SIGNAL(clicked()),
           this,SLOT(slotLocalDevices()));
-  setMaximumHeight(qApp->desktop()->height()-200);
-//  qDebug("set max height h %i",qApp->desktop()->height()-200);
+  setMaximumHeight(qApp->primaryScreen()->geometry().height()-200);
+//  qDebug("set max height h %i",qApp->primaryScreen()->geometry().height()-200);
 }
 /**  */
 void QScannerSetupDlg::addLVItem(QString name,QString vendor,QString model,QString type)
@@ -452,7 +452,7 @@ void QScannerSetupDlg::showEvent(QShowEvent * e)
   QRect qr1 = mpListView->frameRect();
   QRect qr2 = mpListView->contentsRect();
 
-  if (qr2.width()< qApp->desktop()->width()*2/3)
+  if (qr2.width()< qApp->primaryScreen()->geometry().width()*2/3)
     mpListView->setMinimumWidth(qr2.width()+ qr1.width()-qr2.width()+20);
   markLastDevice();
   QDialog::showEvent(e);
@@ -601,8 +601,8 @@ void QScannerSetupDlg::show()
     resize(width(),mpListView->contentsHeight()+h+mpListView->header()->height()+20);
 #endif
   //ensure that the dialog is centered on desktop
-  x = (qApp->desktop()->width()-width())/2;
-  y = (qApp->desktop()->height()-height())/2;
+  x = (qApp->primaryScreen()->geometry().width()-width())/2;
+  y = (qApp->primaryScreen()->geometry().height()-height())/2;
   move(x,y);
 }
 

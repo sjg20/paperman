@@ -17,7 +17,7 @@
 #include "err.h"
 #include "resource.h"
 
-#include <QDesktopWidget>
+#include <QScreen>
 
 #include <QDebug>
 #include <QGroupBox>
@@ -2320,11 +2320,11 @@ void QScanDialog::showEvent(QShowEvent* se)
 
     // make it a little bit bigger
     int w = sizeHint().width() * 3/2;
-    int h = qApp->desktop()->height()*2/3;
+    int h = qApp->primaryScreen()->geometry().height()*2/3;
     if (sizeHint().height() < h)
        resize(w, h);
-    if(height()>qApp->desktop()->height()*5/6)
-      resize(width(),qApp->desktop()->height()*5/6);
+    if(height()>qApp->primaryScreen()->geometry().height()*5/6)
+      resize(width(),qApp->primaryScreen()->geometry().height()*5/6);
     mShowCnt += 1;
   }
   if(!mpPreviewWidget)
