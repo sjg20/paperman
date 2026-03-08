@@ -48,6 +48,8 @@
 #include <qmessagebox.h>
 #include <qnamespace.h>
 #include <qpushbutton.h>
+#include <QPageLayout>
+#include <QPageSize>
 #include <qprinter.h>
 #include <qradiobutton.h>
 #include <qstring.h>
@@ -729,8 +731,8 @@ void QScannerSetupDlg::initConfig()
   xmlConfig->setBoolValue("PRINTER_MODE",false);
   xmlConfig->setStringValue("PRINTER_FILENAME","");
   xmlConfig->setBoolValue("PRINTER_COLOR",false);
-  xmlConfig->setIntValue("PRINTER_PAPER_ORIENTATION",int(QPrinter::Portrait));
-  xmlConfig->setIntValue("PRINTER_PAPER_FORMAT",int(QPrinter::A4));
+  xmlConfig->setIntValue("PRINTER_PAPER_ORIENTATION",int(QPageLayout::Portrait));
+  xmlConfig->setIntValue("PRINTER_PAPER_FORMAT",int(QPageSize::A4));
   xmlConfig->setIntValue("PRINTER_COPIES",1);
   xmlConfig->setStringValue("PRINTER_NAME","");
   //multi scan
