@@ -53,7 +53,7 @@ app: app-apk app-linux
 	rm -f $(DART_DEFINES)
 
 GH_REMOTE   ?= gh
-DEB_VERSION := $(shell head -1 debian/changelog.in | grep -oP '\(\K[^)]+' | sed 's/VENDOR_VERSION//')
+DEB_VERSION := $(shell head -1 debian/changelog.in | sed -n 's/.*(\([^)]*\)).*/\1/p' | sed 's/VENDOR_VERSION//')
 DEB_UPSTREAM := $(firstword $(subst -, ,$(DEB_VERSION)))
 RELEASE_TAG  = v$(DEB_UPSTREAM)
 RELEASE_DEBS = $(wildcard ../release/all/paperman_$(DEB_VERSION)_*.deb)
