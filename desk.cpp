@@ -1840,7 +1840,7 @@ err_info *Desk::scan_file (QString dir_name, QFileInfo *fi,
 
    // check for this file in the old list
    of = find_file (old, fname);
-   if (of && (unsigned)of->time != fi->lastModified ().toTime_t ())
+   if (of && (unsigned)of->time != fi->lastModified ().toSecsSinceEpoch())
       of = 0;
 
    // if no match, create a new entry
@@ -1887,7 +1887,7 @@ err_info *Desk::scan_file (QString dir_name, QFileInfo *fi,
 
       of->max = 0;
       of->pixmap = 0;
-      of->time = fi->lastModified ().toTime_t ();
+      of->time = fi->lastModified ().toSecsSinceEpoch();
       of->order = -1;
       of->ipos = QPoint (0, 0);
       }

@@ -2272,7 +2272,7 @@ err_info *Filemax::page_read_roswell (page_info &page)
    page.title = getword (page.roswell + POS_roswell_title);
    page.timestamp = _timestamp;
    if (_version >= 1)
-      page.timestamp.setTime_t (getword (page.roswell + POSn_roswell_timestamp));
+      page.timestamp.setSecsSinceEpoch(getword (page.roswell + POSn_roswell_timestamp));
 //    printf ("page_read_roswell: page = %d, timestamp = %d\n", page.title, page.timestamp);
    page.have_roswell = true;
    return NULL;
@@ -2444,7 +2444,7 @@ err_info *Filemax::max_openf()
 
    fstat(fileno(_fin), &stat);
    _size = stat.st_size;
-   _timestamp.setTime_t (stat.st_ctime);
+   _timestamp.setSecsSinceEpoch(stat.st_ctime);
 
    if (!_size)
       return err_make (ERRFN, ERR_signature_failure1, -1);
@@ -4655,7 +4655,7 @@ static void write_roswell (byte *buf, page_info &page)
    unsigned *idata = (unsigned *)buf;
 
 //    printf ("write_roswell page %d, timestamp %d\n", page.title, page.timestamp);
-   idata [POSn_roswell_timestamp / 4] = page.timestamp.toTime_t ();
+   idata [POSn_roswell_timestamp / 4] = page.timestamp.toSecsSinceEpoch();
 
    // curse of the unaligned positions
    data [0x42 / 2] = page.image;
@@ -5461,7 +5461,7 @@ err_info *Filemax::load ()  // was desk->ensureMax
       if (!stat(_pathname.toLatin1 (), &st))
          {
          _size = st.st_size;
-         _timestamp = QDateTime::fromTime_t (st.st_mtime);
+         _timestamp = QDateTime::fromSecsSinceEpoch(st.st_mtime);
          }
 
       err = max_open_file();
