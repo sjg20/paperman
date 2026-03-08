@@ -22,6 +22,7 @@
 #include "qxmlconfig.h"
 
 #include <qapplication.h>
+#include <QScreen>
 #include <qbuttongroup.h>
 #include <qcheckbox.h>
 #include <qdragobject.h>
@@ -216,7 +217,7 @@ void QTextEditorSetup::initDlg()
   else
     mpRadioWordWrap->setChecked(true);
   mpCheckSelected->setChecked(((QMultiLineEditPE*)parent())->mPrintSelected);
-  setMaximumWidth(3*QApplication::desktop()->width()/4);
+  setMaximumWidth(3*QApplication::primaryScreen()->geometry().width()/4);
 }
 /**  */
 void QTextEditorSetup::slotUse()
