@@ -64,7 +64,11 @@ public:
    void allowMove (bool allow);
 
    /** gets the options used in a view */
-   const QStyleOptionViewItem getViewOptions (void) { return viewOptions (); }
+   const QStyleOptionViewItem getViewOptions (void) {
+      QStyleOptionViewItem opt;
+      initViewItemOption(&opt);
+      return opt;
+   }
 
    /** scroll down to the maximum amount
 
