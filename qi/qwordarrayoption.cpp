@@ -29,7 +29,7 @@
 #include <qpushbutton.h>
 #include <qpixmap.h>
 #include <qvalidator.h>
-#include <qmatrix.h>
+#include <QTransform>
 #include <sane/saneopts.h>
 
 QWordArrayOption::QWordArrayOption(QString title,QWidget *parent,
@@ -100,8 +100,8 @@ void QWordArrayOption::setCurve()
 //- copy the data in a QPointArray
 //- map the QPointArray to 256 * 256
 //- create a QPointArray with a size of 256
-  QMatrix matrix;
-  QMatrix inv_matrix;
+  QTransform matrix;
+  QTransform inv_matrix;
   double m11;
   double m22;
   int z;
@@ -118,7 +118,7 @@ void QWordArrayOption::setCurve()
   m11 = 256.0/double(mDataArray.size());
   m22 = 256.0/double(mMaxVal-mMinVal);
 
-  matrix.setMatrix(m11,0.0,0.0,m22,0.0,0.0);
+  matrix = QTransform(m11,0.0,0.0,m22,0.0,0.0);
   inv_matrix = matrix.inverted();
   qpa2.resize(256);
   qDebug("qpa2.size(): %u",qpa2.size());
@@ -155,7 +155,7 @@ void QWordArrayOption::calcDataArray()
 //Here we do the following:
 //- map the data from a 256*256 QmPointArray
 //to a QVector
-  QMatrix matrix;
+  QTransform matrix;
   double m11;
   double m22;
   int z;
@@ -188,7 +188,7 @@ void QWordArrayOption::calcDataArray()
     m11 = double(mDataArray.size())/255.0;
     m22 = double(mMaxVal-mMinVal)/255.0;
 
-    matrix.setMatrix(m11,0.0,0.0,m22,0.0,0.0);
+    matrix = QTransform(m11,0.0,0.0,m22,0.0,0.0);
     //map to the real values
     qpa = matrix.map(qpa);
 

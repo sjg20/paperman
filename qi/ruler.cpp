@@ -23,7 +23,7 @@
 #include <qfontmetrics.h>
 #include <qapplication.h>
 #include <qpainter.h>
-#include <qmatrix.h>
+#include <QTransform>
 
 Ruler::Ruler( QWidget * parent, const char * name,Qt::Orientation o, Qt::WindowFlags f)
       :QFrame(parent, f)

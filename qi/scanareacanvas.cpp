@@ -24,7 +24,7 @@
 #include <qcursor.h>
 #include <qpaintdevice.h>
 #include <qpen.h>
-#include <qmatrix.h>
+#include <QTransform>
 #include <QResizeEvent>
 #include <QPixmap>
 #include <QMouseEvent>
