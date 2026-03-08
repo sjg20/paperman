@@ -212,8 +212,8 @@ static void my_error_exit (j_common_ptr cinfo)
 }
 
 
-void jpeg_decode (byte *data, int size, byte *dest, int line_bytes, int bpp,
-                  int max_width, int max_height)
+void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
+                  int bpp, int max_width, int max_height)
    {
    struct jpeg_decompress_struct cinfo;
    JSAMPARRAY buffer;/* Output row buffer */
