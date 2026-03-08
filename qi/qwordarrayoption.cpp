@@ -59,7 +59,7 @@ void QWordArrayOption::initWidget()
 {
     QGridLayout* qgl = new QGridLayout(this);
   qgl->setSpacing(4);
-  qgl->setMargin(4);
+  qgl->setContentsMargins(4, 4, 4, 4);
   mpTitleLabel = new QLabel(optionTitle(),this);
 	mpShowButton = new QPushButton(tr("Adjust..."),this);
   connect(mpShowButton,SIGNAL(clicked()),this,SLOT(slotShowOption()));
@@ -248,7 +248,7 @@ void QWordArrayOption::createCurveWidget()
   qhb3->addWidget(mpCloseButton);
 
   mainlayout->setSpacing(5);
-  mainlayout->setMargin(5);
+  mainlayout->setContentsMargins(5, 5, 5, 5);
   mainlayout->addWidget(label,0,0);
   mainlayout->addWidget(mpCurveWidget,1,0);
   mainlayout->addLayout(qhb1,2,0);

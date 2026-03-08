@@ -102,7 +102,7 @@ void QTextEditorSetup::initDlg()
   sublayout1->addWidget(mpDoubleSpinTop,1,1);
   sublayout1->addWidget(mpDoubleSpinRight,2,1);
   sublayout1->addWidget(mpDoubleSpinBottom,3,1);
-  sublayout1->setMargin(15);
+  sublayout1->setContentsMargins(15, 15, 15, 15);
   sublayout1->setSpacing(5);
 ///////////////////////
 //print mode
@@ -121,7 +121,7 @@ void QTextEditorSetup::initDlg()
   sublayout2->addWidget(mpRadioWordWrap,1,0);
   sublayout2->addWidget(mpCheckSelected,2,0);
 
-  sublayout2->setMargin(15);
+  sublayout2->setContentsMargins(15, 15, 15, 15);
   sublayout2->setSpacing(5);
   QButtonGroup* bg = new QButtonGroup(this);
   bg->hide();
@@ -148,7 +148,7 @@ void QTextEditorSetup::initDlg()
 	connect(mpFontButton,SIGNAL(clicked()),this,SLOT(slotChangeFont()));
 
   sublayout3->setColStretch(0,1);
-  sublayout3->setMargin(15);
+  sublayout3->setContentsMargins(15, 15, 15, 15);
   sublayout3->setSpacing(5);
 
 //create buttons
@@ -166,7 +166,7 @@ void QTextEditorSetup::initDlg()
   connect(mpSaveButton,SIGNAL(clicked()),this,SLOT(slotSave()));
 //add widgets to mainlayout
   mainlayout->setColStretch(0,1);
-  mainlayout->setMargin(5);
+  mainlayout->setContentsMargins(5, 5, 5, 5);
   mainlayout->setSpacing(5);
 	mainlayout->addMultiCellWidget(qhb1,0,0,0,1);	
   mainlayout->addWidget(qgb1,1,0);

@@ -33,7 +33,7 @@ QReadOnlyOption::~QReadOnlyOption()
 void QReadOnlyOption::initWidget()
 {
     QGridLayout* qgl = new QGridLayout(this);
-  qgl->setMargin(4);
+  qgl->setContentsMargins(4, 4, 4, 4);
   qgl->setSpacing(4);
   mpTitleLabel = new QLabel(mTitleText,this);
   mpValueLabel = new QLabel(this);

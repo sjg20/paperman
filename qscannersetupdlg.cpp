@@ -90,7 +90,7 @@ void QScannerSetupDlg::initDialog()
    */
   QGridLayout *qgl=new QGridLayout (this);
   qgl->setSpacing(4);
-  qgl->setMargin(6);
+  qgl->setContentsMargins(6, 6, 6, 6);
 
   QHBoxLayout* hb1 = new QHBoxLayout;
   QLabel* label1 = new QLabel(tr("Choose the device"));

@@ -556,11 +556,11 @@ void PreviewWidget::changeLayout(bool toplevel)
 
   if(toplevel)
   {
-    layout()->setMargin(5);
+    layout()->setContentsMargins(5, 5, 5, 5);
     layout()->activate();
   }
   else
-    layout()->setMargin(0);
+    layout()->setContentsMargins(0, 0, 0, 0);
 }
 /** */
 void PreviewWidget::resizeEvent(QResizeEvent* e)
@@ -1355,7 +1355,7 @@ void PreviewWidget::slotAddTemplate()
   mainlayout->setColumnStretch(1,1);
   mainlayout->setRowStretch(2,1);
   mainlayout->setSpacing(5);
-  mainlayout->setMargin(5);
+  mainlayout->setContentsMargins(5, 5, 5, 5);
   QLabel* label = new QLabel(tr("Please enter a template name:"),&d);
   QLineEdit* le = new QLineEdit(&d);
   le->setMaxLength(20);

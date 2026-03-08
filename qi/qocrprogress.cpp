@@ -69,7 +69,7 @@ void QOCRProgress::initDlg()
   mpMainLayout->addMultiCellWidget(mpUnknownProgress,1,1,0,2);
   mpMainLayout->addWidget(mpCancelButton,2,1);
   mpMainLayout->setSpacing(6);
-  mpMainLayout->setMargin(6);
+  mpMainLayout->setContentsMargins(6, 6, 6, 6);
   mpMainLayout->activate();
   setMinimumWidth(150);
   connect(mpCancelButton,SIGNAL(clicked()),this,SLOT(slotStopOCR()));

@@ -67,7 +67,7 @@ void QDeviceSettings::initWidget()
   QString qs;
   QGridLayout* mainlayout = new QGridLayout(this);
   mainlayout->setSpacing( 6 );
-  mainlayout->setMargin( 11 );
+  mainlayout->setContentsMargins( 11 ,  11 ,  11 ,  11 );
   mainlayout->setAlignment( Qt::AlignTop );
 
   QHBoxLayout* hbox1 = new QHBoxLayout();
@@ -83,7 +83,7 @@ void QDeviceSettings::initWidget()
   QGroupBox* gb = new QGroupBox();
   QGridLayout* sublayout = new QGridLayout(gb);
   sublayout->setSpacing( 6 );
-  sublayout->setMargin( 11 );
+  sublayout->setContentsMargins( 11 ,  11 ,  11 ,  11 );
 //the listview
     mpListWidget = new QListWidget(gb);
   mpListWidget->setMinimumHeight(100);
