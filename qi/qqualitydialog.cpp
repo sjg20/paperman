@@ -52,7 +52,7 @@ QQualityDialog::~QQualityDialog()
 void QQualityDialog::initDialog()
 {
   QGridLayout* mainlayout = new QGridLayout(this);
-  QGroupBox* qgb;
+  QGroupBox* qgb = nullptr;
   int qual;
 //  int type = 0;
 //the appearance depends on the image type
