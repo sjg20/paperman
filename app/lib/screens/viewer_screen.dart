@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
@@ -496,7 +497,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
       if (!mounted || cancelled) return;
       Navigator.of(context).pop();
-      await Printing.layoutPdf(onLayout: (_) => bytes);
+
+      // Read the first page's dimensions so iOS prints at the correct
+      // scale instead of using a default paper size.
+      var format = PdfPageFormat.standard;
+      final pdfDoc = await PdfDocument.openData(bytes);
+      try {
+        if (pdfDoc.pages.isNotEmpty) {
+          final page = pdfDoc.pages[0];
+          format = PdfPageFormat(page.width, page.height);
+        }
+      } finally {
+        pdfDoc.dispose();
+      }
+
+      await Printing.layoutPdf(
+        onLayout: (_) => bytes,
+        format: format,
+        dynamicLayout: false,
+      );
     } catch (e) {
       if (!mounted || cancelled) return;
       Navigator.of(context).pop();
