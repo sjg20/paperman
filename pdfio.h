@@ -41,9 +41,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #ifdef CONFIG_use_poppler
 # if QT_VERSION >= 0x050000
-#include <poppler-qt5.h>
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#  include <poppler-qt5.h>
+#  pragma GCC diagnostic pop
 # else
-#include <poppler-qt4.h>
+#  include <poppler-qt4.h>
 # endif
 #endif
 
