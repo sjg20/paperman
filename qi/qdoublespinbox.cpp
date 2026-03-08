@@ -46,7 +46,7 @@ int QDouble100SpinBox::mapTextToValue(bool* ok)
 /**  */
 void QDouble100SpinBox::selectAll()
 {
-  selectAll();
+  QSpinBox::selectAll();
 }
 
 QValidator::State QDouble100SpinBox::validate(QString &input, int &pos) const
