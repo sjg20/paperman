@@ -141,6 +141,8 @@ app-ios: dart-defines
 app-ios-install: app-ios
 	xcrun devicectl device install app --device $(IOS_DEVICE) $(APP_IOS)
 
+# Set IOS_DEVICE to your iPad/iPhone device ID (from Xcode or
+# `xcrun devicectl list devices`).
 IOS_DEVICE ?= 00008122-0001786226E8401C
 APP_IOS    = app/build/ios/iphoneos/Runner.app
 
