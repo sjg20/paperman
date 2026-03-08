@@ -26,7 +26,7 @@
 #include <qsize.h>
 #include <qcursor.h>
 #include <qcolor.h>
-#include <qmatrix.h>
+#include <QTransform>
 
 QCurveWidget::QCurveWidget(QWidget *parent, const char *name )
              : QWidget(parent)
@@ -59,7 +59,7 @@ void QCurveWidget::mouseMoveEvent(QMouseEvent* me)
   int by;
   int y;
 
-  QMatrix qwm(1.0,0.0,0.0,-1.0,-5.0,260.0);//to get 0,0 at bottom/left
+  QTransform qwm(1.0,0.0,0.0,-1.0,-5.0,260.0);//to get 0,0 at bottom/left
   int i;
   bool cflag;
   cflag = false;
@@ -173,7 +173,7 @@ void QCurveWidget::mouseMoveEvent(QMouseEvent* me)
 void QCurveWidget::mousePressEvent(QMouseEvent* me)
 {
   if(mCurveType == CurveType_Gamma) return;
-  QMatrix qwm(1.0,0.0,0.0,-1.0,-5.0,260.0);//to get 0,0 at bottom/left
+  QTransform qwm(1.0,0.0,0.0,-1.0,-5.0,260.0);//to get 0,0 at bottom/left
   if((qwm.map(me->pos()).x() < 0) || (qwm.map(me->pos()).x() > 255) ||
      (qwm.map(me->pos()).y() < 0) || (qwm.map(me->pos()).y() > 255))
   {

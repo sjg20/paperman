@@ -25,7 +25,7 @@
 #include <qbuffer.h>
 #include <qpainter.h>
 #include <qpaintdevice.h>
-#include <qmatrix.h>
+#include <QTransform>
 #include <QPixmap>
 #include <QPaintEvent>
 
@@ -80,7 +80,7 @@ void PreviewUpdateWidget::setData(QByteArray & data)
       f1 = f2;
     if(f1 > 1.0) f1 = 1.0/f1;
     if(f2 > 1.0) f2 = 1.0/f2;
-    QMatrix m;
+    QTransform m;
     m.scale(f1,f2);
 //p    pix = pix.xForm(m);
     m.map(i,h,&i,&j);
