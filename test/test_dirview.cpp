@@ -1,4 +1,3 @@
-#include <QFileSystemModel>
 #include <QSignalSpy>
 #include <QtTest/QtTest>
 
@@ -22,6 +21,15 @@ Dirview *TestDirview::setupView(Dirmodel *&model, Dirproxy *&proxy)
    Q_ASSERT(dir2.mkdir("photos/holiday"));
    Q_ASSERT(dir2.mkdir("photos/family"));
    Q_ASSERT(dir2.mkdir("photos/family/kids"));
+
+   // Add files alongside the directories
+   touch(path + "/main/one/scan1.pdf");
+   touch(path + "/main/one/scan2.pdf");
+   touch(path + "/main/two/receipt.pdf");
+   touch(_tempDir2->path() + "/photos/holiday/beach.jpg");
+   touch(_tempDir2->path() + "/photos/holiday/sunset.jpg");
+   touch(_tempDir2->path() + "/photos/family/portrait.jpg");
+   touch(_tempDir2->path() + "/photos/family/kids/play.jpg");
 
    QString repo2 = _tempDir2->path() + "/photos";
    model->addDir(repo2);
@@ -112,7 +120,7 @@ void TestDirview::testExpandDir()
    view->resize(400, 300);
    view->show();
 
-   // Expand "main" - should have children "one" and "two"
+   // Expand "main" - should show only subdirs "one" and "two", not files
    QModelIndex main_src = model->index(0, 0, QModelIndex());
    QModelIndex main_proxy = proxy->mapFromSource(main_src);
    view->expand(main_proxy);
@@ -128,6 +136,11 @@ void TestDirview::testExpandDir()
    // Check that the expanded children are visible in the view
    QVERIFY(view->visualRect(child0).isValid());
    QVERIFY(view->visualRect(child1).isValid());
+
+   // Expand "one" - has subdirs "a" and "b" plus files scan1.pdf, scan2.pdf
+   // Only subdirs should appear since Dirmodel filters to directories
+   view->expand(child0);
+   QCOMPARE(proxy->rowCount(child0), 2);
 
    // Expand "photos" - children sorted alphabetically: family, holiday
    QModelIndex photos_src = model->index(1, 0, QModelIndex());
