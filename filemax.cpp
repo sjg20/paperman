@@ -2748,7 +2748,7 @@ err_info *Filemax::dodump (FILE *f, byte *ptr, int start, int count)
    char str [33];
    int i, col, ch;
 
-   assert (this || ptr);
+   assert (ptr);
    memset (str, ' ', 32);
    str [32] = '\0';
    for (i = 0; i < count; i++)
@@ -3755,7 +3755,7 @@ Fax3Encode2DRow(TIFF* tif, u_char* bp, u_char* rp, uint32_t bits, int *badp)
   int a0 = -1, a0p = 0;
   int a1 = (PIXEL(bp, 0) != 0 ? 0 : finddiff(bp, 0, bits, 0));
   int b1 = (PIXEL(rp, 0) != 0 ? 0 : finddiff(rp, 0, bits, 0));
-  int a2, b2;
+  int a2 = 0, b2;
 
   *badp = 0;
   for (;;) {
@@ -4274,7 +4274,7 @@ number of resulting bytes */
 
 static int rle_encode (byte *in, int size, byte *out_buff)
    {
-   int ch, run;
+   int ch = 0, run;
    int count;
    byte *p, *end = in + size, *start, *out = out_buff;
    int debug_count = 0;
@@ -4340,8 +4340,8 @@ static int rle_encode (byte *in, int size, byte *out_buff)
 
 static int add_preview (chunk_info &chunk, part_info &part)
    {
-   byte *dest;
-   int len;
+   byte *dest = NULL;
+   int len = 0;
 
    switch (chunk.bits)
       {
