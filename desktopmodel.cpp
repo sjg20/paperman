@@ -2074,6 +2074,7 @@ void Desktopmodelconv::indexToProxy (const QAbstractItemModel *model, QModelInde
 void Desktopmodelconv::assertIsSource (const QAbstractItemModel *model,
       const QModelIndex *index, const QModelIndexList *list)
    {
+   Q_UNUSED(list);
    Q_ASSERT (!model || model == _source);
    Q_ASSERT (!index || !index->isValid () || index->model () == _source);
 #ifndef QT_NO_DEBUG
