@@ -829,7 +829,7 @@ err_info *Desk::checksum()
          image_size = image.byteCount();
 #endif
          md5_buffer((const char *)image.bits(), image_size, md5);
-         sprintf(line, "%d %s %d %d %x %x %x %x\n", f->filename().length(),
+         sprintf(line, "%d %s %d %d %x %x %x %x\n", (int)f->filename().length(),
                  qPrintable(f->filename()), pagenum, image_size,
                  md5 [0], md5 [1], md5 [2], md5 [3]);
          stream << line;
