@@ -28,10 +28,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QDebug>
-#include <QDirModel>
 #include <QHeaderView>
 #include <QMenu>
 
+#include "dirmodel.h"
 #include "dirview.h"
 #include "utils.h"
 
@@ -117,13 +117,13 @@ void Dirview::contextMenuEvent (QContextMenuEvent * e)
 
 QString Dirview::menuGetPath (void)
    {
-   return model ()->data (_context, QDirModel::FilePathRole).toString ();
+   return model ()->data (_context, Dirmodel::FilePathRole).toString ();
    }
 
 
 QString Dirview::menuGetName (void)
    {
-   return model ()->data (_context, QDirModel::FileNameRole).toString ();
+   return model ()->data (_context, Dirmodel::FileNameRole).toString ();
    }
 
 
