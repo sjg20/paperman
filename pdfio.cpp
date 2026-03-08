@@ -49,7 +49,7 @@ Pdfio::Pdfio (const QString &fname)
    {
    _doc = 0;
 #ifdef CONFIG_use_poppler
-   _pop = 0;
+   _pop = nullptr;
 #endif
    _pathname = fname;
    PoDoFo::PdfError::EnableDebug(false);
@@ -65,12 +65,16 @@ Pdfio::~Pdfio ()
 
 #ifdef CONFIG_use_poppler
 
-err_info *Pdfio::find_page (int pagenum, Poppler::Page *& page)
+err_info *Pdfio::find_page (int pagenum, std::unique_ptr<Poppler::Page> &page)
    {
    if (!_pop)
       return err_make (ERRFN, ERR_file_is_not_open1,
                        _pathname.toLatin1 ().constData());
+#if QT_VERSION >= 0x060000
    page = _pop->page (pagenum);
+#else
+   page.reset(_pop->page (pagenum));
+#endif
 
    if (!page)
       return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1, pagenum + 1);
@@ -83,7 +87,11 @@ err_info *Pdfio::find_page (int pagenum, Poppler::Page *& page)
 err_info *Pdfio::open (void)
    {
 #ifdef CONFIG_use_poppler
+#if QT_VERSION >= 0x060000
    _pop = Poppler::Document::load (_pathname);
+#else
+   _pop.reset(Poppler::Document::load (_pathname));
+#endif
    if (!_pop)
       return err_make (ERRFN, ERR_cannot_open_file1,
                        _pathname.toLatin1 ().constData());
@@ -144,8 +152,7 @@ err_info *Pdfio::close (void)
 #ifdef CONFIG_use_poppler
    if (_pop)
       {
-      delete _pop;
-      _pop = 0;
+      _pop.reset();
       CALL (open ());
       }
 #endif
@@ -297,7 +304,7 @@ err_info *Pdfio::make_error (const PdfError &eCode)
 err_info *Pdfio::getPageTitle (int pagenum, QString &title)
    {
 #ifdef CONFIG_use_poppler
-   Poppler::Page *page;
+   std::unique_ptr<Poppler::Page> page;
 
    CALL (find_page (pagenum, page));
    title = page->label ();
@@ -324,7 +331,7 @@ err_info *Pdfio::getAnnot (QString type, QString &str)
 err_info *Pdfio::getPageText (int pagenum, QString &str)
    {
 #ifdef CONFIG_use_poppler
-   Poppler::Page *page;
+   std::unique_ptr<Poppler::Page> page;
 
    CALL (find_page (pagenum, page));
    str = page->text (QRectF ());
@@ -367,7 +374,7 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
    else
       {
 #ifdef CONFIG_use_poppler
-      Poppler::Page *page;
+      std::unique_ptr<Poppler::Page> page;
       QSizeF fsize;
 
       CALL (find_page (pagenum, page));
@@ -451,7 +458,7 @@ err_info *Pdfio::getImage (QString fname, int pagenum, QImage &image, double xsc
       }
 
 #ifdef CONFIG_use_poppler
-   Poppler::Page *page;
+   std::unique_ptr<Poppler::Page> page;
 
    CALL (find_page (pagenum, page));
    image = page->renderToImage (xscale, yscale);
