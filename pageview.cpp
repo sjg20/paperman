@@ -50,7 +50,7 @@ Pageview::Pageview (QWidget *parent)
    setVerticalScrollMode (QAbstractItemView::ScrollPerPixel);
 
    setEditTriggers (QAbstractItemView::EditKeyPressed);
-   setStyleSheet ("QListView { background : lightgray }");
+   setStyleSheet (QString());
 
    _autoscroll = true;  // the user has not scrolled yet
    _ignore_scroll = false;

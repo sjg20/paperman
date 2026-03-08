@@ -48,6 +48,7 @@ Dirview::Dirview (QWidget *parent)
 //    _dir->setDropIndicatorShown (true); - defaults to this
    setDragEnabled (true);
    setAcceptDrops (true);
+   setStyleSheet ("QTreeView { background: palette(base); color: palette(text); }");
 
    // We can't use shortcuts here as they conflict with main view
    _search = new QAction ("&Search folder", this);

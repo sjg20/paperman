@@ -748,7 +748,7 @@ void Desktopwidget::specialView(const QString& prompt)
 {
    _toolbar->searchLabel->setText(prompt);
    _toolbar->setSearchEnabled(true);
-   _view->setStyleSheet("QListView { background: lightblue; }");
+   _view->setStyleSheet("QListView { background: palette(alternate-base); }");
    _dir->setEnabled(false);
    _main->getMainwindow()->setSearchEnabled(false);
    updateActions();
@@ -756,7 +756,7 @@ void Desktopwidget::specialView(const QString& prompt)
 
 void Desktopwidget::normalView()
 {
-   _view->setStyleSheet("QListView { background: lightgray; }");
+   _view->setStyleSheet("QListView { background: palette(mid); }");
    _dir->setEnabled(true);
    _toolbar->setFilterEnabled(true);
    _toolbar->setSearchEnabled(false);

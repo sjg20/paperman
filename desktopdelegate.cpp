@@ -433,9 +433,8 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
    painter->setFont (f);
    if (measure.multiple)
       {
-      painter->setPen (Qt::black);
       style->drawItemText (painter, measure.pagenameRect, Qt::AlignHCenter,
-         style->standardPalette (), false, measure.pagename);
+         style->standardPalette (), false, measure.pagename, QPalette::WindowText);
 //    printf ("%s\n", measure.title.latin1 ());
 
 #ifdef OUTLINE

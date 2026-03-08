@@ -66,7 +66,7 @@ Desktopview::Desktopview (QWidget *parent)
 
    connect (this, SIGNAL (indexesMoved (const QModelIndexList &)),
       this, SLOT (slotIndexesMoved (const QModelIndexList &)));
-   setStyleSheet ("QListView { background : lightgray }");
+   setStyleSheet ("QListView { background : palette(mid); }");
    QStyleOptionViewItem viewOpt;
 #if QT_VERSION >= 0x060000
    initViewItemOption(&viewOpt);
