@@ -80,7 +80,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     if (localUrl.isNotEmpty &&
         !localUrl.startsWith('http://') &&
         !localUrl.startsWith('https://')) {
-      final scheme = url.isNotEmpty ? Uri.parse(url).scheme : 'http';
+      final scheme = url.isNotEmpty ? Uri.parse(url).scheme : 'https';
       localUrl = '$scheme://$localUrl';
       _localUrlController.text = localUrl;
     }
