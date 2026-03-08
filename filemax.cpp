@@ -5539,7 +5539,6 @@ err_info *Filemax::renamePage (int pagenum, QString &name)
 
 err_info *Filemax::addPage (const Filepage *mp, bool do_flush)
    {
-   Q_ASSERT (this);
    Q_ASSERT (mp);
 
    page_info *page;
