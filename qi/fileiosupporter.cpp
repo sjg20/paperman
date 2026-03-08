@@ -22,7 +22,7 @@
 #include <qdir.h>
 #include <qfile.h>
 #include <qobject.h>
-#include <qregexp.h>
+#include <QRegularExpression>
 
 FileIOSupporter::FileIOSupporter()
 {
@@ -213,14 +213,14 @@ QStringList FileIOSupporter::getAbsPathList(QString dir_path,QString filetemplat
   }
 qDebug("reg_exp_str %s",reg_exp_str.latin1());
 qDebug("reg_exp_str2 %s",reg_exp_str2.latin1());
-  QRegExp re(reg_exp_str);
-  QRegExp re2(reg_exp_str2);
+  QRegularExpression re(reg_exp_str);
+  QRegularExpression re2(reg_exp_str2);
   //remove entries from filelist
   if(width<=0)
   {
     for(int n=int(filelist.count())-1;n>=0;n--)
     {
-      if((re.match(filelist[n]) == -1) && (re2.match(filelist[n]) == -1))
+      if(!re.match(filelist[n]).hasMatch() && !re2.match(filelist[n]).hasMatch())
         filelist.remove(filelist.at(n));
       else
         qDebug("matches %s",filelist[n].latin1());
@@ -230,7 +230,7 @@ qDebug("reg_exp_str2 %s",reg_exp_str2.latin1());
   {
     for(int n=int(filelist.count())-1;n>=0;n--)
     {
-      if(re.match(filelist[n]) == -1)
+      if(!re.match(filelist[n]).hasMatch())
         filelist.remove(filelist.at(n));
       else
         qDebug("matches %s",filelist[n].latin1());
