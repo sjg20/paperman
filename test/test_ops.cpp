@@ -1,4 +1,3 @@
-#include <QDirModel>
 #include <QtTest/QtTest>
 
 #include "../utils.h"

@@ -487,7 +487,7 @@ QString Desktopwidget::getSelectedPath()
 {
    QModelIndex ind = _dir->currentIndex();
    QModelIndex src_ind = _dir_proxy->mapToSource(ind);
-   QString path = _model->data(src_ind, QDirModel::FilePathRole).toString();
+   QString path = _model->data(src_ind, Dirmodel::FilePathRole).toString();
 
    return path;
 }
@@ -587,7 +587,7 @@ void Desktopwidget::updateSettings ()
       QModelIndex index = _model->index (i, 0, QModelIndex ());
 
       qs.setArrayIndex (i - 1);
-      qs.setValue("path", _model->data (index, QDirModel::FilePathRole));
+      qs.setValue("path", _model->data (index, Dirmodel::FilePathRole));
       }
    qs.endArray ();
    }
@@ -696,7 +696,7 @@ void Desktopwidget::startSearch(const QString& path, const QString& match)
    _contents_proxy->setFilterFixedString ("");
 
    QModelIndex root = getRootIndex();
-   QString root_path = _model->data(root, QDirModel::FilePathRole).toString ();
+   QString root_path = _model->data(root, Dirmodel::FilePathRole).toString ();
 
    Operation op("Scanning folders", 0, this);
    QStringList matches;
@@ -772,7 +772,7 @@ void Desktopwidget::exitSearch()
    QModelIndex index = _model->index (_path);
    _contents_proxy->setFilterFixedString ("");
    QModelIndex root = _model->findRoot (index);
-   QString root_path = _model->data (root, QDirModel::FilePathRole).toString ();
+   QString root_path = _model->data (root, Dirmodel::FilePathRole).toString ();
    QModelIndex sind = _contents->showDir(_path, root_path, _view->getMeasure());
    QModelIndex ind = sind;
    _modelconv->indexToProxy (ind.model (), ind);
@@ -784,7 +784,7 @@ QModelIndex Desktopwidget::doNewDir(const QString& name, QString& path)
    QModelIndex index = _dir->menuGetModelIndex ();
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
    QString parentPath = _model->data(src_ind,
-                                     QDirModel::FilePathRole).toString();
+                                     Dirmodel::FilePathRole).toString();
    path = parentPath + QDir::separator() + name;
 
    Operation op("Creating directory", 0, this);
@@ -865,9 +865,9 @@ void Desktopwidget::dirSelected(const QModelIndex &index, bool allow_undo,
                                 bool force_change)
    {
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
-   QString path = _model->data(src_ind, QDirModel::FilePathRole).toString();
+   QString path = _model->data(src_ind, Dirmodel::FilePathRole).toString();
    QModelIndex root = _model->findRoot(src_ind);
-   QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
+   QString root_path = _model->data(root, Dirmodel::FilePathRole).toString();
 
    //qDebug() << "dirSelected" << path << _contents->getDirPath();
 
@@ -1284,7 +1284,7 @@ void Desktopwidget::moveToFolder(void)
    // Wait for Move::accept() to be happy before continuing
    if (diag.exec()) {
       QModelIndex dest_ind = _dir_proxy->mapToSource(diag._ind);
-      QString destDir = _model->data(dest_ind, QDirModel::FilePathRole).toString();
+      QString destDir = _model->data(dest_ind, Dirmodel::FilePathRole).toString();
 
       // qDebug() << "destDir" << destDir;
 
@@ -1562,7 +1562,7 @@ const QString Desktopwidget::getRootDirectory()
    QModelIndex root = getRootIndex();
    if (root == QModelIndex())
       return "";
-   QString root_path = _model->data(root, QDirModel::FilePathRole).toString();
+   QString root_path = _model->data(root, Dirmodel::FilePathRole).toString();
 
    return root_path;
 }

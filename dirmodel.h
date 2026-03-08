@@ -22,13 +22,34 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
-#include <QDirModel>
+#include <QAbstractItemModel>
 #include <QSortFilterProxyModel>
 
 class Operation;
 class TreeItem;
 
 struct err_info;
+
+/**
+ * @brief A node in the directory tree
+ *
+ * Each node represents a directory. The invisible root has children
+ * that are the top-level repositories. Below that are subdirectories
+ * scanned lazily with QDir.
+ */
+struct DirNode
+   {
+   QString name;           //!< display name (leaf directory name)
+   QString fullPath;       //!< absolute path on disk
+   DirNode *parent;        //!< parent node, nullptr for invisible root
+   QVector<DirNode *> children;
+   bool populated;         //!< true if children have been scanned
+   int row;                //!< position among siblings
+
+   DirNode() : parent(nullptr), populated(false), row(0) {}
+   ~DirNode() { qDeleteAll(children); }
+   };
+
 
 /**
  * @brief An item in the list of top-level paper repositories
@@ -40,14 +61,12 @@ struct err_info;
 class Diritem
    {
 public:
-   Diritem (QDirModel *model);
+   Diritem ();
    ~Diritem ();
 
 //   void setRecent(QModelIndex index);
    bool isRecent(void) { return _recent; }
 
-//    QPersistentModelIndex index (void) const { return _index; }
-   QModelIndex index (void) const;
    QString dir (void) const { return _dir; }
 //   bool valid (void) { return _valid; }
 
@@ -67,8 +86,6 @@ public:
    // Drop the cache and free memory
    void dropCache();
 
-   const QModelIndex rootIndex() const { return _root; }
-
    /**
     * @brief Refresh the cache from the given path
     * @param Root path to refresh. Set this to the parent of anything that has
@@ -85,6 +102,9 @@ public:
     */
    bool addFileToCache(const QString &dirPath, const QString &filename);
 
+   DirNode *node() const { return _node; }
+   void setNode(DirNode *node) { _node = node; }
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -94,18 +114,14 @@ private:
 
 private:
    QString _dir;      //!< the directory
-   QDirModel *_model; //!< the directory model
-//   QPersistentModelIndex _index;  //!< the index of this directory in the model
-   bool _valid;      //!< true if the directory is valid
    bool _recent;     //!< true if this item displays a 'recent' list
-   QModelIndex _index;  //!< index of this item, if _recent
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
-   QModelIndex _root;  //!< index in this item's top-level dir in QDirModel
+   DirNode *_node;   //!< The associated DirNode in the model tree
    };
 
 
-/** this model is like a QDirModel, but adds the facility to create some
-top level 'mounts'. At the top level, only these mounts are present, and
+/** this model is like a QAbstractItemModel, but adds the facility to create
+some top level 'mounts'. At the top level, only these mounts are present, and
 each points to a directory somewhere in the tree. Therefore once in the
 tree somewhere it is only possible to rise up to the top level mount for
 that position
@@ -125,18 +141,23 @@ a Diritem). Going below (for example) /pub/paper you will see whatever
 is in that directory. In this case that is the three items finance,
 marketing and projects. Asking for the parent of one of these three will
 return our special Diritem parent for /pub/paper, not the normal
-QDirModel node. Asking for the parent again (of /pub/paper) will return
-QModelIndex()
+QAbstractItemModel node. Asking for the parent again (of /pub/paper) will
+return QModelIndex()
 
 */
 
-class Dirmodel : public QDirModel
+class Dirmodel : public QAbstractItemModel
    {
    Q_OBJECT
 
    friend class TestDirmodel;
 
 public:
+   enum Roles {
+      FilePathRole = Qt::UserRole + 1,
+      FileNameRole = Qt::UserRole + 2
+   };
+
    Dirmodel (QObject * parent = 0);
    ~Dirmodel ();
 
@@ -170,12 +191,17 @@ public:
    QString countFiles(const QModelIndex &parent, int max);
 
    /**
-    * @brief Create a root index for a Diritem
-    * @param item_ind   Index of the item in the underlying model
-    * @param row        Row number of the Diritem (position in _item)
-    * @return index in Dirmodel
+    * @brief Remove a directory from disk
+    * @param index  Model index of directory to remove
+    * @return true on success, false on failure
     */
-   QModelIndex createRootIndex(QModelIndex item_ind, int row) const;
+   bool rmdir(const QModelIndex &index);
+
+   /**
+    * @brief Invalidate cached directory contents so they are re-scanned
+    * @param parent  Model index of directory to refresh
+    */
+   void refresh(const QModelIndex &parent);
 
    QModelIndex index(const QString & path, int column = 0) const;
    int rowCount(const QModelIndex &parent) const override;
@@ -229,6 +255,9 @@ public:
    QModelIndex findPath (int i, Diritem *item, QString path) const;
 
    QString filePath (const QModelIndex &index) const;
+
+   /** Return the filename (leaf name) of the given index */
+   QString fileName (const QModelIndex &index) const;
 
    /** displays the filename of this index and all its parents up to the root */
    void traceIndex (const QModelIndex &index) const;
@@ -374,26 +403,25 @@ private:
    Diritem * findItem(QModelIndex ind) const;
 
    /**
-    * @brief Get the top-level index for an item
-    * @param row   Row number of the item
-    * @return index for the item
+    * @brief Scan a directory and populate a DirNode's children
+    * @param node  Node to populate
     */
-   QModelIndex itemRootIndex(int row) const;
+   void populateNode(DirNode *node) const;
+
+   /**
+    * @brief Get the DirNode from a QModelIndex
+    * @param index  Model index
+    * @return DirNode pointer, or _invisibleRoot if invalid index
+    */
+   DirNode *nodeFromIndex(const QModelIndex &index) const;
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
 
 private:
    QList<Diritem *> _item;   //!< a list of items to display
-   QModelIndex _root;   //!< the model index of the root node
    QModelIndexList _recent;   //!< list of recent directories
-
-   /**
-    * @brief Maps a Dirmodel index to its associated Diritem and QDirModel index
-    *
-    * This does not store the top-level index for each Diritem
-    */
-   QMap<QModelIndex, QPair<Diritem *, QModelIndex>> *_map;
+   DirNode *_invisibleRoot;   //!< invisible root of the directory tree
    };
 
 
@@ -413,5 +441,4 @@ protected:
 };
 
 void dirmodel_tests (void);
-
 

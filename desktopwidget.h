@@ -22,7 +22,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 class QCheckBox;
-class QDirModel;
 class QKeyEventTransition;
 class QLineEdit;
 class QSplitter;
