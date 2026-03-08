@@ -38,8 +38,9 @@ class ZipPrivate;
 class QIODevice;
 class QFile;
 class QDir;
-class QStringList;
 class QString;
+
+#include <QStringList>
 
 
 class Zip
