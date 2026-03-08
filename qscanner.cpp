@@ -15,6 +15,7 @@
  ***************************************************************************/
 
 #include <QPainter>
+#include <QRegularExpression>
 #include <QTextStream>
 
 extern "C"
@@ -3073,7 +3074,7 @@ void QScanner::settingsDomElement(QDomDocument doc,QDomElement domel)
            fname2 = mDeviceName+"-"+getOptionName(i)+"-"+
                    domel.attribute("username")+".vec";
            //we replace ":" and "/" with "_"
-           fname2.replace(QRegExp("[/:]"),"_");
+           fname2.replace(QRegularExpression("[/:]"),"_");
            fname += fname2;
            newelement.setAttribute("value",fname);
            QFile qf(fname);
