@@ -63,7 +63,7 @@ int SaneFixedSpinBox::mapTextToValue(bool* ok)
 /**  */
 void SaneFixedSpinBox::selectAll()
 {
-  selectAll();
+  QSpinBox::selectAll();
 }
 /** No descriptions */
 void SaneFixedSpinBox::setUnit(SANE_Unit unit)
