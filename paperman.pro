@@ -241,6 +241,7 @@ test {
       test/test.cpp \
       test/suite.cpp \
       test/test_dirmodel.cpp \
+      test/test_dirview.cpp \
       test/test_ops.cpp \
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
@@ -249,6 +250,7 @@ test {
 
    HEADERS += test/suite.h \
       test/test_dirmodel.h \
+      test/test_dirview.h \
       test/test_ops.h \
       test/test_utils.h \
       test/test_searchserver.h \

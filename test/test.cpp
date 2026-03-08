@@ -4,6 +4,7 @@
 #include "test.h"
 
 #include "test_dirmodel.h"
+#include "test_dirview.h"
 #include "test_ops.h"
 #include "test_utils.h"
 #include "test_searchserver.h"
@@ -14,6 +15,7 @@
 static TestUtils TEST_UTILS("utils");
 static TestOps TEST_OPS("ops");
 static TestDirmodel TEST_DIRMODEL("dirmodel");
+static TestDirview TEST_DIRVIEW("dirview");
 static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
 
