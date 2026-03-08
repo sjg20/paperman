@@ -31,7 +31,6 @@
 #include <qfile.h>
 #include <qmessagebox.h>
 #include <qobject.h>
-#include <qregexp.h>
 
 ImageIOSupporter::ImageIOSupporter()
 {

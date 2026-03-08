@@ -59,7 +59,6 @@ extern "C"
 #include <qmessagebox.h>
 #include <qpixmap.h>
 #include <qpushbutton.h>
-#include <qregexp.h>
 #include <qstring.h>
 #include <stdlib.h>
 #include <sys/poll.h>
