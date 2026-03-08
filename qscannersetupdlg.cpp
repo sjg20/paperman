@@ -51,7 +51,6 @@
 #include <qprinter.h>
 #include <qradiobutton.h>
 #include <qstring.h>
-#include <qtextcodec.h>
 #include <qtranslator.h>
 #include <qtoolbutton.h>
 #include <qwidget.h>
