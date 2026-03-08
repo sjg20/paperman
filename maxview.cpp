@@ -37,7 +37,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QFileInfo>
 #include <QImage>
 #include <QProcess>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QThread>
@@ -152,7 +152,7 @@ static err_info *batch_ocr_directory(const QString &dirPath)
             {
             // Parse the existing OCR text to extract per-page content
             // Format: "text\n\n--- Page N ---\n\ntext..."
-            QStringList parts = existing_ocr.split(QRegExp("\n\n--- Page \\d+ ---\n\n"));
+            QStringList parts = existing_ocr.split(QRegularExpression("\n\n--- Page \\d+ ---\n\n"));
 
             for (int page = 0; page < parts.size(); page++)
                {
