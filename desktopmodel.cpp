@@ -231,7 +231,7 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
 
       case Role_message :
          if (f->err ())
-            return f->err ()->errstr;
+            return QString(f->err ()->errstr);
          else
             {
             QString str;
@@ -269,7 +269,7 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
 
       case Role_error :
          if (f->err ())
-            return f->err ()->errstr;
+            return QString(f->err ()->errstr);
          break;
       }
 
