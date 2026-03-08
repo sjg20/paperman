@@ -33,6 +33,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <memory>
+
 #include <QString>
 
 #include "config.h"
@@ -154,7 +156,7 @@ protected:
       \param pagenum    page number to find
       \param page       returns pointer to page
       \returns error if any, else NULL */
-   err_info *find_page (int pagenum, Poppler::Page *&page);
+   err_info *find_page (int pagenum, std::unique_ptr<Poppler::Page> &page);
 #endif
 
    /** looks up a page number in the PDF file to see if it consists
@@ -192,7 +194,7 @@ protected:
 private:
    PoDoFo::PdfMemDocument *_doc; //!< document handle
 #ifdef CONFIG_use_poppler
-   Poppler::Document *_pop;
+   std::unique_ptr<Poppler::Document> _pop;
 #endif
    QString _pathname;            //!< filename (full path)
    };
