@@ -1293,7 +1293,8 @@ void PreviewWidget::slotAutoSelection()
         itemnum++;
         ci = (CheckListItemExt*) mpListView->item(itemnum);
       }
-      if(ci == (CheckListItemExt*) mpListView->item(0))
+      ci = (CheckListItemExt*) mpListView->item(0);
+      if(ci)
       {
         if (ci->checkState() != Qt::Checked)
         {
