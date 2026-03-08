@@ -36,7 +36,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QBitArray>
 #include <QDateTime>
 #include <QDebug>
-#include <QLinkedList>
 #include <QStandardPaths>
 #include <QtGlobal>
 
