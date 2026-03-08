@@ -347,7 +347,13 @@ _epeg_memfile_write_close(FILE *f)
           (*(_epeg_memfile_info[i].size)) = 0;
           return;
            }
-         fread((*(_epeg_memfile_info[i].data)), (*(_epeg_memfile_info[i].size)), 1, f);
+         if (fread((*(_epeg_memfile_info[i].data)), (*(_epeg_memfile_info[i].size)), 1, f) != 1) {
+            free(*(_epeg_memfile_info[i].data));
+            *(_epeg_memfile_info[i].data) = NULL;
+            *(_epeg_memfile_info[i].size) = 0;
+            fclose(f);
+            return;
+         }
          for (j = i + 1; j < _epeg_memfile_info_num; j++)
            _epeg_memfile_info[j - 1] = _epeg_memfile_info[j];
          _epeg_memfile_info_num--;
@@ -519,8 +525,8 @@ struct epeg_destination_mgr
 
 static int _epeg_encode(Epeg_Image *im)
 {
-	struct epeg_destination_mgr *dst_mgr = NULL;
-	int ok = 0;
+	struct epeg_destination_mgr * volatile dst_mgr = NULL;
+	volatile int ok = 0;
 
 	if ((im->out.w < 1) || (im->out.h < 1)) return 1;
 	if (im->out.f) return 1;
