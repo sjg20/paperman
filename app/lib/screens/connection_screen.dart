@@ -49,7 +49,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     _userController.text = prefs.getString('username') ?? '';
     _passController.text = prefs.getString('password') ?? '';
     // Auto-connect if we have a saved URL (unless returning from disconnect)
-    if (widget.autoConnect && _urlController.text.isNotEmpty) {
+    if (widget.autoConnect &&
+        (_urlController.text.isNotEmpty ||
+            _localUrlController.text.isNotEmpty)) {
       _connect();
     }
   }
@@ -64,13 +66,28 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   Future<void> _connect() async {
     var url = _urlController.text.trim();
-    if (url.isEmpty) {
-      setState(() => _error = 'Please enter a server URL');
+    var localUrl = _localUrlController.text.trim();
+    if (url.isEmpty && localUrl.isEmpty) {
+      setState(() => _error = 'Please enter a server URL or local URL');
       return;
     }
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    if (url.isNotEmpty &&
+        !url.startsWith('http://') &&
+        !url.startsWith('https://')) {
       url = 'https://$url';
       _urlController.text = url;
+    }
+    if (localUrl.isNotEmpty &&
+        !localUrl.startsWith('http://') &&
+        !localUrl.startsWith('https://')) {
+      final scheme = url.isNotEmpty ? Uri.parse(url).scheme : 'http';
+      localUrl = '$scheme://$localUrl';
+      _localUrlController.text = localUrl;
+    }
+    // If no server URL, use the local URL as both so that
+    // tryLocalUrl() creates a certificate-trusting client.
+    if (url.isEmpty) {
+      url = localUrl;
     }
 
     setState(() {
@@ -81,15 +98,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     final api = context.read<ApiService>();
     final user = _userController.text.trim();
     final pass = _passController.text;
-    var localUrl = _localUrlController.text.trim();
-    if (localUrl.isNotEmpty &&
-        !localUrl.startsWith('http://') &&
-        !localUrl.startsWith('https://')) {
-      // Use the same scheme as the main URL (e.g. https)
-      final scheme = Uri.parse(url).scheme;
-      localUrl = '$scheme://$localUrl';
-      _localUrlController.text = localUrl;
-    }
     api.updateConfig(
       baseUrl: url,
       localBaseUrl: localUrl.isEmpty ? null : localUrl,
