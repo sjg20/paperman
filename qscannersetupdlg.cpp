@@ -156,7 +156,7 @@ void QScannerSetupDlg::initDialog()
           this,SLOT(slotDeviceSelected(QTreeWidgetItem*, int)));
   connect(mpListView,SIGNAL(itemClicked(QTreeWidgetItem*, int)),
           this,SLOT(slotListViewClicked(QTreeWidgetItem*, int)));
-  connect(deviceButtonGroup,SIGNAL(buttonClicked(int)),
+  connect(deviceButtonGroup,SIGNAL(idClicked(int)),
           this,SLOT(slotDeviceGroup(int)));
   connect(mpDeviceButton,SIGNAL(clicked()),
           this,SLOT(slotAllDevices()));

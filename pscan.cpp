@@ -309,7 +309,7 @@ void Pscan::settings_clicked()
 }
 
 
-void Pscan::on_format_buttonClicked( int id)
+void Pscan::on_format_idClicked( int id)
 {
    QScanner::format_t format = (QScanner::format_t)id;
 
