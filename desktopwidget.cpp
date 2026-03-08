@@ -27,6 +27,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QCheckBox>
 #include <QFileDialog>
 #include <QKeyEventTransition>
+#include <QStateMachine>
+#include <QState>
 #include <QMenu>
 #include <QMessageBox>
 #include <QSettings>
