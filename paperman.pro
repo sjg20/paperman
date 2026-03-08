@@ -21,13 +21,13 @@ QMAKE_CXXFLAGS += -O2
 
 #QMAKE_LFLAGS += -static
 
+equals(QT_MAJOR_VERSION, 6) {
+  LIBS += -lpoppler-qt6
+  INCLUDEPATH += /usr/include/poppler/qt6
+}
 equals(QT_MAJOR_VERSION, 5) {
   LIBS += -lpoppler-qt5
   INCLUDEPATH += /usr/include/poppler/qt5
-}
-equals(QT_MAJOR_VERSION, 4) {
-  LIBS += -lpoppler-qt4
-  INCLUDEPATH += /usr/include/poppler/qt4
 }
 
 # libraries for omnipage

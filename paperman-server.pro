@@ -13,6 +13,11 @@ DEFINES += QT_NO_WIDGETS
 
 # Build date is written to builddate.h by GNUmakefile
 
+equals(QT_MAJOR_VERSION, 6) {
+  QT += core
+  LIBS += -lpoppler-qt6
+  INCLUDEPATH += /usr/include/poppler/qt6
+}
 equals(QT_MAJOR_VERSION, 5) {
   QT += core
   LIBS += -lpoppler-qt5
