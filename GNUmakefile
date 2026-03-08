@@ -201,7 +201,8 @@ app-clean:
 
 clean: app-clean docs-clean
 	$(MAKE) -f Makefile clean
-	rm -f builddate.h Makefile.server
+	-test -f Makefile.server && $(MAKE) -f Makefile.server clean
+	rm -f paperman paperman-server builddate.h Makefile.server *.o moc_*.cpp moc_predefs.h
 
 docs-clean:
 	rm -rf $(BUILDDIR)
