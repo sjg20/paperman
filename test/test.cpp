@@ -17,7 +17,7 @@ static TestDirmodel TEST_DIRMODEL("dirmodel");
 static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
 
-int test_run(int argc, char **in_argv, QApplication *,
+int test_run(int, char **in_argv, QApplication *,
              const char *filter)
 {
    int status = 0;
