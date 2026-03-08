@@ -67,7 +67,9 @@ Desktopview::Desktopview (QWidget *parent)
    connect (this, SIGNAL (indexesMoved (const QModelIndexList &)),
       this, SLOT (slotIndexesMoved (const QModelIndexList &)));
    setStyleSheet ("QListView { background : lightgray }");
-   QFont font = viewOptions().font;
+   QStyleOptionViewItem viewOpt;
+   initViewItemOption(&viewOpt);
+   QFont font = viewOpt.font;
    font.bold();
    _measure = new Measure(QApplication::style(), font);
    }
@@ -213,7 +215,8 @@ QModelIndex Desktopview::indexAt (const QPoint &in_point) const
    {
    QModelIndex ind;
    QModelIndex parent = rootIndex ();;
-   QStyleOptionViewItem opt = viewOptions ();
+   QStyleOptionViewItem opt;
+   initViewItemOption(&opt);
    Desktopdelegate *del = (Desktopdelegate *)itemDelegate ();
    QPoint point = in_point;
 
