@@ -100,7 +100,7 @@ setup:
 	scripts/setup.sh
 
 .PHONY: app app-demo app-test dart-defines app-apk app-aab app-publish
-.PHONY: app-upload app-scp app-scp-only app-scp-watch app-linux app-clean
+.PHONY: app-upload app-scp app-scp-only app-scp-watch app-ios app-ios-install app-linux app-clean
 dart-defines:
 	@echo '{"BUILD_DATE":"$(BUILD_DATE)"}' > $(DART_DEFINES)
 
@@ -134,6 +134,15 @@ app-scp-watch:
 		date; \
 		scp $(APP_APK) $(APP_SERVER); \
 	done
+
+app-ios: dart-defines
+	cd app && flutter build ios $(FLUTTER_ARGS)
+
+app-ios-install: app-ios
+	xcrun devicectl device install app --device $(IOS_DEVICE) $(APP_IOS)
+
+IOS_DEVICE ?= 00008122-0001786226E8401C
+APP_IOS    = app/build/ios/iphoneos/Runner.app
 
 app-linux: dart-defines
 	# Clear CMake cache so find_library() re-discovers libpdfium.so from
