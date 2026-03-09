@@ -51,7 +51,7 @@ Dirview::Dirview (QWidget *parent)
 
    // We can't use shortcuts here as they conflict with main view
    _search = new QAction ("&Search folder", this);
-   _search->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_S));
+   _search->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
    _new = new QAction ("&New subdirectory", this);
    _rename = new QAction ("&Rename", this);
    _delete = new QAction ("&Delete", this);

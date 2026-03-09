@@ -191,7 +191,7 @@ void Pscan::init()
     setupBright ();
 
     // setup the shortcuts for finding a folder
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_F), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::focusFind);
     QObject::connect(new QShortcut(QKeySequence(Qt::Key_F4), this,
@@ -199,26 +199,26 @@ void Pscan::init()
                      &QShortcut::activated, this, &Pscan::focusFind);
 
     // setup the keyboard shortcuts Ctrl-1 to Ctrl-5 for presets
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_1), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_1), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut1);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_2), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_2), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut2);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_3), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_3), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut3);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_4), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_4), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut4);
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_5), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_5), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::presetShortcut5);
 
-    QObject::connect(new QShortcut(QKeySequence(Qt::ALT + Qt::Key_A), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::ALT | Qt::Key_A), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::selectA4);
-    QObject::connect(new QShortcut(QKeySequence(Qt::ALT + Qt::Key_L), this,
+    QObject::connect(new QShortcut(QKeySequence(Qt::ALT | Qt::Key_L), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::toggleLetter);
 }
