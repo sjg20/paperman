@@ -1414,8 +1414,9 @@ void PreviewWidget::slotDeleteAllTemplates()
 {
   int i = QMessageBox::warning(this,tr("Delete templates"),
                              tr("Do you really want to delete all templates?"),
-                             tr("&Delete"),tr("&Cancel"),QString(),1,1);
-  if(i == 1)
+                             QMessageBox::Yes | QMessageBox::Cancel,
+                             QMessageBox::Cancel);
+  if(i == QMessageBox::Cancel)
     return;
   mTemplateVector.clear();
   mTemplateVector.resize(0);

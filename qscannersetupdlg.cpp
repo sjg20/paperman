@@ -511,9 +511,9 @@ void QScannerSetupDlg::createContents(bool intcall)
     mpScanner->getDeviceList(true);
     if(mpScanner->deviceCount()<=0)
     {
-      QMessageBox::critical(0,QObject::tr("No local devices found"),
+      QMessageBox::critical(nullptr,QObject::tr("No local devices found"),
       QObject::tr("No local devices were found."),
-       QObject::tr("&OK"));
+       QMessageBox::Ok);
       setCursor(Qt::ArrowCursor);
       return;
     }
@@ -527,9 +527,9 @@ void QScannerSetupDlg::createContents(bool intcall)
     mpScanner->getDeviceList(false);
     if(mpScanner->deviceCount()<=0)
     {
-      QMessageBox::critical(0,QObject::tr("No devices found"),
+      QMessageBox::critical(nullptr,QObject::tr("No devices found"),
       QObject::tr("No devices were found."),
-       QObject::tr("&OK"));
+       QMessageBox::Ok);
       setCursor(Qt::ArrowCursor);
       return;
     }
@@ -552,11 +552,11 @@ void QScannerSetupDlg::createContents(bool intcall)
 void QScannerSetupDlg::slotDeviceGroup(int id)
 {
   if(id == 3)
-    QMessageBox::information(0,QObject::tr("Information"),
+    QMessageBox::information(nullptr,QObject::tr("Information"),
        QObject::tr("<qt>With this setting, this dialog will not be shown when you start "
                    "QuiteInsane the next time. You can change this in the options dialog under "
                    "<b>Start dialog</b>.</qt>"),
-       QObject::tr("&OK"));
+       QMessageBox::Ok);
   //save value to config file
   xmlConfig->setIntValue("DEVICE_QUERY",id);
 }
@@ -909,10 +909,10 @@ void QScannerSetupDlg::initScanner()
   	if(mpScanner->isInit())
       return;
   }
-  QMessageBox::critical(0,tr("Initialisation failed"),
+  QMessageBox::critical(nullptr,tr("Initialisation failed"),
                tr("<center>A call to sane_init() failed.</center><br>"
 	                "<center>Press Quit to quit QuiteInsane.</center>"),
-               tr("&Quit"));
+               QMessageBox::Ok);
   slotQuit();
 }
 

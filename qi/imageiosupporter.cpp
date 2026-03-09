@@ -273,8 +273,8 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
     i = QMessageBox::warning(parent,QObject::tr("Save image"),
         QObject::tr("This file already exists.\n"
   	  	"Do you want to overwrite it ?\n") ,
-        QObject::tr("&Overwrite"),QObject::tr("&Cancel"));
-    if(i == 1)
+        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+    if(i == QMessageBox::Cancel)
     {
       return false;
     }
@@ -286,7 +286,8 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
     if(!f.open(QIODevice::WriteOnly))
     {
       QMessageBox::warning(parent,QObject::tr("Warning"),
-                           QObject::tr("The image could not be saved."),QObject::tr("&OK"));
+                           QObject::tr("The image could not be saved."),
+                           QMessageBox::Ok);
       return false;
     }
     iio.setDevice(&f);
@@ -336,8 +337,10 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
     i = QMessageBox::warning(parent,QObject::tr("Warning"),
                      QObject::tr("Saving the image in XPM format will change "
                      "the depth to 8 bit. This means a loss of "
-                     "color information."),QObject::tr("&Save"),QObject::tr("&Cancel"));
-    if(i == 1)
+                     "color information."),
+                     QMessageBox::Yes | QMessageBox::Cancel,
+                     QMessageBox::Cancel);
+    if(i == QMessageBox::Cancel)
     {
       return false;
     }
@@ -363,7 +366,8 @@ bool ImageIOSupporter::saveImageInteractive(QString filename,QImage& image,
   if(!ok)
   {
     QMessageBox::warning(parent,QObject::tr("Warning"),
-                         QObject::tr("The image could not be saved."),QObject::tr("&OK"));
+                         QObject::tr("The image could not be saved."),
+                         QMessageBox::Ok);
     return false;
   }
   return true;

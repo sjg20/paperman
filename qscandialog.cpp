@@ -1223,10 +1223,8 @@ void QScanDialog::slotAbout()
      "<center>FITNESS FOR A PARTICULAR PURPOSE.</center><br>"
     ).arg( VERSION );
 
-  QMessageBox qmb(tr("About QuiteInsane"),text,
-               QMessageBox::NoIcon,QMessageBox::Ok | QMessageBox::Default |
-               QMessageBox::Escape , Qt::NoButton,Qt::NoButton,
-               this);
+  QMessageBox qmb(QMessageBox::NoIcon, tr("About QuiteInsane"), text,
+               QMessageBox::Ok, this);
   qmb.setIconPixmap(qp);
   qmb.exec();
 }
