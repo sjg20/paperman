@@ -46,6 +46,46 @@ jobs:
       - name: Run parallel conversion test
         run: scripts/test_parallel.sh
 
+  qt6:
+    name: Qt6 desktop app + server + C++ tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6/C++ dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            qmake6 qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite \
+            libpoppler-qt6-dev libpodofo-dev \
+            qt6-scxml-dev libqt6statemachine6 \
+            libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
+            imagemagick tesseract-ocr tesseract-ocr-eng \
+            python3-reportlab python3-pil python3-numpy \
+            poppler-utils
+
+      - name: Build desktop app
+        run: qmake6 paperman.pro -o Makefile.qt6 && make -f Makefile.qt6 -j$(nproc)
+
+      - name: Build server
+        run: |
+          qmake6 paperman-server.pro -o server.mk
+          echo '#define SERVER_BUILD_DATE "CI"' > builddate.h
+          make -f server.mk -j$(nproc)
+
+      - name: Generate test data
+        run: python3 scripts/make_test_files.py
+
+      - name: Run Qt unit tests
+        run: QT_QPA_PLATFORM=offscreen ./paperman -t
+
+      - name: Run page-fetch integration test
+        run: scripts/test_page_fetch.sh
+
+      - name: Run parallel conversion test
+        run: scripts/test_parallel.sh
+
   flutter:
     name: Flutter app + widget tests
     runs-on: ubuntu-24.04
