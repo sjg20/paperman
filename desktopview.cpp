@@ -263,7 +263,7 @@ void Desktopview::dropEvent (QDropEvent* event)
    QAbstractItemModel *model = this->model ();
 
    setCursor(Qt::ArrowCursor);
-   QModelIndex ind, dest = indexAt (event->pos ());
+   QModelIndex ind, dest = indexAt (event->position().toPoint());
    QModelIndexList list = getSelectedList (true);
    Desktopmodel *dmodel = _modelconv->getDesktopmodel (model);
 
@@ -369,7 +369,7 @@ void Desktopview::checkAutoscroll (QPoint pos)
 
 void Desktopview::mouseMoveEvent (QMouseEvent *event)
    {
-   checkAutoscroll (event->pos ());
+   checkAutoscroll (event->position().toPoint());
    QListView::mouseMoveEvent (event);
    }
 
@@ -435,7 +435,7 @@ void Desktopview::dragMoveEvent (QDragMoveEvent *event)
    QListView::dragMoveEvent (event);
    QAbstractItemModel *model = this->model ();
 
-   QPoint pos = event->pos ();
+   QPoint pos = event->position().toPoint();
    QModelIndex dest = indexAt (pos);
    QModelIndexList list = selectedIndexes ();
 
@@ -463,7 +463,7 @@ void Desktopview::dragMoveEvent (QDragMoveEvent *event)
       update (dest);
       }
 
-   checkAutoscroll (event->pos ());
+   checkAutoscroll (event->position().toPoint());
    }
 
 
@@ -552,7 +552,7 @@ void Desktopview::scrollToLast (void)
 
       // find out delegate and ask its size
       QStyleOptionViewItem opt;
-      QAbstractItemDelegate *del = itemDelegate (ind);
+      QAbstractItemDelegate *del = itemDelegateForIndex(ind);
       QSize size = del->sizeHint (opt, ind);
 
       // finally get the item's position
