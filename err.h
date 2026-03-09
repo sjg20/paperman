@@ -116,6 +116,7 @@ enum
    ERR_could_not_remove_dir1,
    ERR_sql_error1,
    ERR_index_not_open,
+   ERR_could_not_open_file_for_reading1,
 
    ERR_count
    };
@@ -140,6 +141,9 @@ err_info *err_make (const char *func_name, int errnum, ...);
 err_info *err_vmake (const char *func_name, int errnum, va_list ptr);
 err_info *err_copy (err_info *err);
 int err_systemf (const char *cmd, ...);
+
+/** thread-safe variant of err_make() that heap-allocates the err_info */
+err_info *err_make_new (const char *func_name, int errnum, ...);
 
 #define ERRFN __PRETTY_FUNCTION__
 

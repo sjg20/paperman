@@ -104,6 +104,7 @@ static const char *err_msg [ERR_count] =
    "Could not remove directory '%s'",
    "SQL error: %s",
    "Search index not open",
+   "Could not open file '%s' for reading",
    };
 
 
@@ -140,6 +141,20 @@ err_info *err_make (const char *func_name, int errnum, ...)
    e = err_vmake (func_name, errnum, ptr);
    va_end (ptr);
    printf ("**Error: %s\n", e->errstr);
+   return e;
+   }
+
+
+err_info *err_make_new (const char *func_name, int errnum, ...)
+   {
+   va_list ptr;
+   err_info *e = new err_info;
+
+   e->func_name = func_name;
+   e->errnum = errnum;
+   va_start (ptr, errnum);
+   vsnprintf (e->errstr, sizeof (e->errstr), err_msg [errnum], ptr);
+   va_end (ptr);
    return e;
    }
 
