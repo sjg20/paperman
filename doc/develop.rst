@@ -29,6 +29,17 @@ Qt5/C++ dependencies (desktop app + server):
      libtiff-dev libjpeg-dev libsane-dev zlib1g-dev \
      imagemagick tesseract-ocr tesseract-ocr-eng
 
+Qt6/C++ dependencies (alternative to Qt5):
+
+.. code:: bash
+
+   sudo apt-get install -y \
+     build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
+     libqt6sql6-sqlite libpoppler-qt6-dev libpodofo-dev \
+     qt6-scxml-dev libqt6statemachine6 \
+     libtiff-dev libjpeg-dev libsane-dev zlib1g-dev \
+     imagemagick tesseract-ocr tesseract-ocr-eng
+
 Python packages for demo-asset generation and documentation:
 
 .. code:: bash
@@ -44,12 +55,19 @@ the full details.
 Building
 --------
 
-Generate the qmake Makefile and build:
+Generate the qmake Makefile and build with Qt5:
 
 .. code:: bash
 
    qmake "CONFIG+=test" paperman.pro
    make
+
+Or with Qt6:
+
+.. code:: bash
+
+   qmake6 "CONFIG+=test" paperman.pro -o Makefile.qt6
+   make -f Makefile.qt6
 
 The ``CONFIG+=test`` flag compiles in the built-in test suites.  Without it
 the ``-t`` option is not available.
@@ -138,15 +156,18 @@ The most useful targets during development:
    make clean             # Remove all build artefacts
 
 Continuous Integration
----------------------
+----------------------
 
 A GitHub Actions workflow (``.github/workflows/ci.yml``) runs on every push
-to ``master`` and on pull requests.  It has three parallel jobs:
+to ``master`` and on pull requests.  It has four parallel jobs:
 
-**qt** — Desktop app, server and C++ tests
+**qt** — Desktop app, server and C++ tests (Qt5)
    Installs Qt5/C++ dependencies, builds ``paperman`` and
    ``paperman-server``, generates test data, then runs the Qt unit tests,
    page-fetch integration test and parallel conversion test.
+
+**qt6** — Desktop app, server and C++ tests (Qt6)
+   Same as **qt** but builds against Qt6 instead of Qt5.
 
 **flutter** — Flutter app and widget tests
    Sets up Java 21 and Flutter 3.41.1, generates demo assets, runs
