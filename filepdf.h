@@ -105,6 +105,11 @@ public:
 
    virtual err_info *addPage (const Filepage *mp, bool flush);
 
+   virtual err_info *addPageJpeg (const QByteArray &jpegData, int width,
+                                  int height, bool colour);
+
+   virtual bool supportsJpeg () { return true; }
+
    virtual err_info *removePages (QBitArray &pages,
          QByteArray &del_info, int &count);
 
