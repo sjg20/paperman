@@ -65,9 +65,13 @@ public:
 
    /** gets the options used in a view */
    const QStyleOptionViewItem getViewOptions (void) {
+#if QT_VERSION >= 0x060000
       QStyleOptionViewItem opt;
       initViewItemOption(&opt);
       return opt;
+#else
+      return viewOptions();
+#endif
    }
 
    /** scroll down to the maximum amount
