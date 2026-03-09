@@ -345,4 +345,26 @@ int utilImageDepth(const QImage &image);
  */
 QImage utilReduceDepth(QImage &image, int target_depth);
 
+#ifndef QT_NO_WIDGETS
+class QWidget;
+
+/** update all action icons in a widget to use the correct theme
+ *
+ * Scans all QActions owned by the widget and inverts icon pixmaps
+ * when a dark desktop theme is detected.
+ *
+ * @param widget   widget whose actions should be updated */
+void utilUpdateIcons(QWidget *widget);
+#endif
+
+/** check whether the current desktop theme is dark
+ *
+ * @return true if the window text is brighter than the window background */
+bool utilIsDarkMode(void);
+
+/** return the resource path prefix for icons
+ *
+ * @return ":/images/images/dark/" in dark mode, ":/images/images/" otherwise */
+QString utilIconPath(void);
+
 #endif
