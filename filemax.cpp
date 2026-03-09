@@ -2845,8 +2845,8 @@ err_info *Filemax::show_file (FILE *f)
 
    fprintf (f, "\nfile: %s\n", _filename.toLatin1 ().constData());
    fprintf (f, "chunk0 start %x\n", _chunk0_start);
-   fprintf (f, "chunk count %d\n", _chunks.size ());
-   fprintf (f, "page count %d\n", _pages.size ());
+   fprintf (f, "chunk count %d\n", (int)_chunks.size ());
+   fprintf (f, "page count %d\n", (int)_pages.size ());
    fprintf (f, "signature %x\n", _signature);
 
    fprintf (f, "\nPage Summary:\n");
