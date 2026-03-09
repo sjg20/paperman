@@ -68,7 +68,11 @@ Desktopview::Desktopview (QWidget *parent)
       this, SLOT (slotIndexesMoved (const QModelIndexList &)));
    setStyleSheet ("QListView { background : lightgray }");
    QStyleOptionViewItem viewOpt;
+#if QT_VERSION >= 0x060000
    initViewItemOption(&viewOpt);
+#else
+   viewOpt = viewOptions();
+#endif
    QFont font = viewOpt.font;
    font.bold();
    _measure = new Measure(QApplication::style(), font);
@@ -216,7 +220,11 @@ QModelIndex Desktopview::indexAt (const QPoint &in_point) const
    QModelIndex ind;
    QModelIndex parent = rootIndex ();;
    QStyleOptionViewItem opt;
+#if QT_VERSION >= 0x060000
    initViewItemOption(&opt);
+#else
+   opt = viewOptions();
+#endif
    Desktopdelegate *del = (Desktopdelegate *)itemDelegate ();
    QPoint point = in_point;
 
@@ -263,7 +271,11 @@ void Desktopview::dropEvent (QDropEvent* event)
    QAbstractItemModel *model = this->model ();
 
    setCursor(Qt::ArrowCursor);
+#if QT_VERSION >= 0x060000
    QModelIndex ind, dest = indexAt (event->position().toPoint());
+#else
+   QModelIndex ind, dest = indexAt (event->pos());
+#endif
    QModelIndexList list = getSelectedList (true);
    Desktopmodel *dmodel = _modelconv->getDesktopmodel (model);
 
@@ -369,7 +381,11 @@ void Desktopview::checkAutoscroll (QPoint pos)
 
 void Desktopview::mouseMoveEvent (QMouseEvent *event)
    {
+#if QT_VERSION >= 0x060000
    checkAutoscroll (event->position().toPoint());
+#else
+   checkAutoscroll (event->pos());
+#endif
    QListView::mouseMoveEvent (event);
    }
 
@@ -435,7 +451,11 @@ void Desktopview::dragMoveEvent (QDragMoveEvent *event)
    QListView::dragMoveEvent (event);
    QAbstractItemModel *model = this->model ();
 
+#if QT_VERSION >= 0x060000
    QPoint pos = event->position().toPoint();
+#else
+   QPoint pos = event->pos();
+#endif
    QModelIndex dest = indexAt (pos);
    QModelIndexList list = selectedIndexes ();
 
@@ -463,7 +483,11 @@ void Desktopview::dragMoveEvent (QDragMoveEvent *event)
       update (dest);
       }
 
+#if QT_VERSION >= 0x060000
    checkAutoscroll (event->position().toPoint());
+#else
+   checkAutoscroll (event->pos());
+#endif
    }
 
 
@@ -552,7 +576,11 @@ void Desktopview::scrollToLast (void)
 
       // find out delegate and ask its size
       QStyleOptionViewItem opt;
+#if QT_VERSION >= 0x060000
       QAbstractItemDelegate *del = itemDelegateForIndex(ind);
+#else
+      QAbstractItemDelegate *del = itemDelegate(ind);
+#endif
       QSize size = del->sizeHint (opt, ind);
 
       // finally get the item's position
