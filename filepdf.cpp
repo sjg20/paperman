@@ -233,6 +233,13 @@ err_info *Filepdf::addPage (const Filepage *mp, bool do_flush)
    }
 
 
+err_info *Filepdf::addPageJpeg (const QByteArray &jpegData, int width,
+                                int height, bool colour)
+   {
+   return _pdfio->addPageJpeg (jpegData, width, height, colour);
+   }
+
+
 
 
 err_info *Filepdf::removePages (QBitArray &,
