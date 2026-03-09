@@ -16,6 +16,7 @@ moc_*.cpp
 moc_*.h
 *.obj
 /Makefile
+/Makefile.qt6
 /paperman
 /paperman-server
 /Makefile.server

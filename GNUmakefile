@@ -53,7 +53,8 @@ app: app-apk app-linux
 	rm -f $(DART_DEFINES)
 
 GH_REMOTE   ?= gh
-DEB_VERSION := $(shell head -1 debian/changelog.in | sed -n 's/.*(\([^)]*\)).*/\1/p' | sed 's/VENDOR_VERSION//')
+rparen      := )
+DEB_VERSION := $(shell head -1 debian/changelog.in | sed -n 's/.*(\([^$(rparen)]*\)).*/\1/p' | sed 's/VENDOR_VERSION//')
 DEB_UPSTREAM := $(firstword $(subst -, ,$(DEB_VERSION)))
 RELEASE_TAG  = v$(DEB_UPSTREAM)
 RELEASE_DEBS = $(wildcard ../release/all/paperman_$(DEB_VERSION)_*.deb)
@@ -119,6 +120,7 @@ app-publish: app-aab
 app-upload: app-apk
 	rclone copy $(APP_APK) gdrive:apps/
 
+server.mk: ;
 -include server.mk
 
 app-scp: app-apk app-scp-only
@@ -216,9 +218,14 @@ app-clean:
 	rm -f $(DART_DEFINES)
 
 clean: app-clean docs-clean
-	$(MAKE) -f Makefile clean
+	-test -f Makefile && $(MAKE) -f Makefile clean
 	-test -f Makefile.server && $(MAKE) -f Makefile.server clean
 	rm -f paperman paperman-server builddate.h Makefile.server *.o moc_*.cpp moc_predefs.h
+
+distclean: app-clean docs-clean
+	rm -f paperman paperman-server builddate.h *.o moc_*.cpp moc_predefs.h
+	rm -f Makefile Makefile.qt6 Makefile.server server.mk .qmake.stash
+	rm -rf .obj .moc .ui
 
 docs-clean:
 	rm -rf $(BUILDDIR)

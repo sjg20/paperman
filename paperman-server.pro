@@ -67,5 +67,4 @@ unix {
 }
 
 message("Building Paperman Search Server")
-message("Using File class for direct page access")
 message("Run 'qmake && make' to build")
