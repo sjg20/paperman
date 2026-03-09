@@ -2,8 +2,9 @@
 # Install build dependencies for paperman
 #
 # Usage:
-#   scripts/setup.sh          Install everything (Qt5, Flutter, Android SDK)
-#   scripts/setup.sh --qt     Install Qt5/C++ dependencies only
+#   scripts/setup.sh          Install everything (Qt6, Flutter, Android SDK)
+#   scripts/setup.sh --qt     Install Qt6/C++ dependencies only
+#   scripts/setup.sh --qt5    Install Qt5/C++ dependencies only
 #
 # This is also available as 'make setup'.
 
@@ -18,8 +19,11 @@ ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
 JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}"
 
 qt_only=false
+qt5_only=false
 if [ "$1" = "--qt" ]; then
     qt_only=true
+elif [ "$1" = "--qt5" ]; then
+    qt5_only=true
 fi
 
 # --- Debian packages ---
@@ -27,11 +31,27 @@ fi
 echo "Installing Debian packages..."
 sudo apt-get update -qq
 
-# Qt5/C++ build deps (desktop app + server)
+if $qt5_only; then
+    # Qt5/C++ build deps (desktop app + server)
+    sudo apt-get install -y \
+        build-essential \
+        qt5-qmake qtbase5-dev qtbase5-dev-tools libqt5sql5-sqlite \
+        libpoppler-qt5-dev libpodofo-dev \
+        libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
+        imagemagick tesseract-ocr tesseract-ocr-eng \
+        python3-reportlab python3-pil python3-numpy \
+        python3-sphinx python3-sphinx-rtd-theme \
+        poppler-utils
+    echo "Done (Qt5 only)."
+    exit 0
+fi
+
+# Qt6/C++ build deps (desktop app + server)
 sudo apt-get install -y \
     build-essential \
-    qt5-qmake qtbase5-dev qtbase5-dev-tools libqt5sql5-sqlite \
-    libpoppler-qt5-dev libpodofo-dev \
+    qmake6 qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite \
+    libpoppler-qt6-dev libpodofo-dev \
+    qt6-scxml-dev libqt6statemachine6 \
     libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
     imagemagick tesseract-ocr tesseract-ocr-eng \
     python3-reportlab python3-pil python3-numpy \
@@ -39,7 +59,7 @@ sudo apt-get install -y \
     poppler-utils
 
 if $qt_only; then
-    echo "Done (Qt5 only)."
+    echo "Done (Qt6 only)."
     exit 0
 fi
 
