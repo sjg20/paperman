@@ -42,3 +42,4 @@ doc/_build/
 /test/files/
 install-*
 /server.mk
+.stamp
