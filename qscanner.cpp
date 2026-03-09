@@ -3166,7 +3166,7 @@ void QScanner::qis_authorization(SANE_String_Const resource,
      //try to find username and password for the chosen device
      if(pass_file_insecure)
      {
-       QMessageBox::warning(0,
+       QMessageBox::warning(nullptr,
                     QObject::tr("Warning - Insecure password file"),
                     QObject::tr("<html>A password file with insecure "
                     "permissions has been found. You should change the "
@@ -3176,7 +3176,7 @@ void QScanner::qis_authorization(SANE_String_Const resource,
                     "owner may have read/write permission. If you don't "
                     "change the permissions, you will be prompted for your "
                     "username and password.</html>"),
-                    QObject::tr("OK"));
+                    QMessageBox::Ok);
      }
      else
      {

@@ -298,7 +298,7 @@ void QDeviceSettings::slotNew()
       QMessageBox::warning(this,tr("Warning"),
                            tr("An entry with this name already exists.\n"
                               "Please enter a unique name."),
-                           tr("OK"));
+                           QMessageBox::Ok);
       return;
     }
   }
@@ -309,7 +309,7 @@ void QDeviceSettings::slotNew()
   if(!saveDeviceSettings())
     QMessageBox::warning(this,tr("Warning"),
                          tr("The settings could not be saved."),
-                         tr("OK"));
+                         QMessageBox::Ok);
 
 }
 /**  */
@@ -424,7 +424,7 @@ bool QDeviceSettings::saveDeviceSettings(QString uname)
                         "not be created.\n"
                         "This can mean, that your disk is full, or "
                         "that you don't have write permission."),
-                     tr("OK"));
+                     QMessageBox::Ok);
       }
       return false;
     }
