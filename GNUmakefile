@@ -14,6 +14,14 @@ BUILDDIR      = $(DOCDIR)/_build
 
 all: paperman paperman-server app docs
 
+paperman:
+	$(MAKE) -f Makefile $@
+
+dark-icons:
+	python3 scripts/invert_xpm.py
+
+.PHONY: dark-icons paperman
+
 # Targets handled here
 .PHONY: builddate.h
 builddate.h:
