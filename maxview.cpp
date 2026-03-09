@@ -666,7 +666,7 @@ int main (int argc, char *argv[])
    QApplication app (argc, argv, useGUI);
 
    QTranslator translator;
-   translator.load("maxview_en");
+   (void)translator.load("maxview_en");
    app.installTranslator(&translator);
 
    QCoreApplication::setOrganizationName("maxview");

@@ -1150,7 +1150,7 @@ void PreviewWidget::showEvent(QShowEvent* se)
   QWidget::showEvent(se);
   int w = xmlConfig->intValue("SCANDIALOG_STANDALONE_PREVIEW_WIDTH",250);
   int h = xmlConfig->intValue("SCANDIALOG_STANDALONE_PREVIEW_HEIGHT",300);
-  if(isTopLevel())
+  if(isWindow())
   {
     if(w < width())
       w = width();
