@@ -26,6 +26,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSettings>
 #include <qvariant.h>
 
+#include "utils.h"
+
 
 /****************************************************************************
 ** ui.h extension file, included from the uic-generated form implementation.
@@ -70,6 +72,7 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _progress = 0;
    _label = 0;
    setupUi(this);
+   utilUpdateIcons(this);
    init();
    _welcome_shown = false;
    _desktop = _main->getDesktop ();

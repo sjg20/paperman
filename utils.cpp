@@ -30,6 +30,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDropEvent>
 #endif
 #include <QFile>
+#ifndef QT_NO_WIDGETS
+#include <QAbstractButton>
+#include <QAction>
+#endif
+#include <QGuiApplication>
+#include <QPalette>
 #include <QFileInfo>
 #include <QImage>
 #ifndef QT_NO_WIDGETS
@@ -1172,4 +1178,91 @@ QImage utilReduceDepth(QImage &image, int target_depth)
       return utilConvertImageToGrey(image);
 
    return image;
+}
+
+
+#ifndef QT_NO_WIDGETS
+
+/* Icon filenames used in the UI files and code */
+static const char *icon_names[] = {
+   "print", "swap", "prev", "next", "pprev", "pnext", "options",
+   "scan-go", "scan", "rleft", "rright", "hflip", "vflip",
+   "pointer", "hand", "scanmode", "info", "document-save",
+   "document-revert", "zoom-best-fit", "zoom-original", "zoom-out",
+   "zoom-in", "locate", "unknown", "no_access", "left", "right",
+   "pages", "pageblank", "pagekeep", "pageremove",
+   NULL
+};
+
+
+static QIcon darkIcon(const QIcon &icon)
+{
+   QString dark = QStringLiteral(":/images/images/dark/");
+
+   /* Compare the icon's pixmap against each known light icon to find
+      which one it is, then load the dark version */
+   QPixmap orig = icon.pixmap(48);
+
+   if (orig.isNull())
+      return icon;
+
+   QImage origImg = orig.toImage();
+
+   for (const char **p = icon_names; *p; p++) {
+      QString lightPath = QStringLiteral(":/images/images/") + *p + ".xpm";
+      QPixmap lightPix(lightPath);
+
+      if (lightPix.isNull())
+         continue;
+      if (lightPix.toImage() == origImg) {
+         QString darkPath = dark + *p + ".xpm";
+         QPixmap darkPix(darkPath);
+
+         if (!darkPix.isNull())
+            return QIcon(darkPix);
+      }
+   }
+
+   return icon;
+}
+
+
+void utilUpdateIcons(QWidget *widget)
+{
+   if (!utilIsDarkMode())
+      return;
+
+   /* Replace icons on all actions with their dark variants */
+   for (QAction *act : widget->findChildren<QAction *>()) {
+      if (act->icon().isNull() || act->isSeparator())
+         continue;
+      act->setIcon(darkIcon(act->icon()));
+   }
+
+   /* Handle tool buttons that have icons set directly */
+   for (QAbstractButton *btn : widget->findChildren<QAbstractButton *>()) {
+      if (btn->icon().isNull())
+         continue;
+      btn->setIcon(darkIcon(btn->icon()));
+   }
+}
+#endif
+
+
+bool utilIsDarkMode(void)
+{
+   QPalette pal = QGuiApplication::palette();
+   int bg = pal.color(QPalette::Window).lightness();
+   int fg = pal.color(QPalette::WindowText).lightness();
+
+   return fg > bg;
+}
+
+
+QString utilIconPath(void)
+{
+   if (utilIsDarkMode())
+      return QStringLiteral(":/images/images/dark/");
+
+   return QStringLiteral(":/images/images/");
 }

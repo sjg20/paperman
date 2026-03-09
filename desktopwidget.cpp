@@ -402,7 +402,7 @@ void Desktopwidget::addAction (QAction *&act, const char *text, const char *slot
    if (image)
       {
       QIcon icon;
-      QString str = QString (":/images/images/%1").arg (image);
+      QString str = utilIconPath() + image;
 
       icon.addPixmap (QPixmap(str), QIcon::Normal, QIcon::Off);
       act->setIcon (icon);
@@ -1619,6 +1619,7 @@ Toolbar::Toolbar(QWidget* parent, Qt::WindowFlags fl)
    : QFrame(parent, fl)
 {
    setupUi(this);
+   utilUpdateIcons(this);
 
    // When ESC is pressed, clear the field
    QStateMachine *machine = new QStateMachine(this);

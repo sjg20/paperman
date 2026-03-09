@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QFrame>
 
 #include "pagetools.h"
+#include "utils.h"
 
 
 /*
@@ -36,6 +37,7 @@ Pagetools::Pagetools(QWidget* parent, Qt::WindowFlags fl)
     : QFrame(parent,fl)
 {
     setupUi(this);
+    utilUpdateIcons(this);
 
     init();
 }

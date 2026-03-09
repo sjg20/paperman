@@ -33,5 +33,37 @@
         <file>images/scan.xpm</file>
         <file>images/swap.xpm</file>
         <file>images/vflip.xpm</file>
+        <file>images/dark/locate.xpm</file>
+        <file>images/dark/unknown.xpm</file>
+        <file>images/dark/no_access.xpm</file>
+        <file>images/dark/info.xpm</file>
+        <file>images/dark/left.xpm</file>
+        <file>images/dark/right.xpm</file>
+        <file>images/dark/pages.xpm</file>
+        <file>images/dark/document-revert.xpm</file>
+        <file>images/dark/document-save.xpm</file>
+        <file>images/dark/scanmode.xpm</file>
+        <file>images/dark/hand.xpm</file>
+        <file>images/dark/pointer.xpm</file>
+        <file>images/dark/pageblank.xpm</file>
+        <file>images/dark/pagekeep.xpm</file>
+        <file>images/dark/pageremove.xpm</file>
+        <file>images/dark/zoom-best-fit.xpm</file>
+        <file>images/dark/zoom-in.xpm</file>
+        <file>images/dark/zoom-out.xpm</file>
+        <file>images/dark/zoom-original.xpm</file>
+        <file>images/dark/hflip.xpm</file>
+        <file>images/dark/next.xpm</file>
+        <file>images/dark/options.xpm</file>
+        <file>images/dark/pnext.xpm</file>
+        <file>images/dark/pprev.xpm</file>
+        <file>images/dark/prev.xpm</file>
+        <file>images/dark/print.xpm</file>
+        <file>images/dark/rleft.xpm</file>
+        <file>images/dark/rright.xpm</file>
+        <file>images/dark/scan-go.xpm</file>
+        <file>images/dark/scan.xpm</file>
+        <file>images/dark/swap.xpm</file>
+        <file>images/dark/vflip.xpm</file>
     </qresource>
 </RCC>
