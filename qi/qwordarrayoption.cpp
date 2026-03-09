@@ -108,9 +108,9 @@ void QWordArrayOption::setCurve()
   int x;
   int i;
 
-  qDebug("mDataArray.size(): %u",mDataArray.size());
+  qDebug("mDataArray.size(): %u",(unsigned)mDataArray.size());
   QPolygon qpa(mDataArray.size());
-  qDebug("qpa.size(): %u",qpa.size());
+  qDebug("qpa.size(): %u",(unsigned)qpa.size());
   QPolygon qpa2;
 
   for(z=0;z<qpa.size();z++)
@@ -121,7 +121,7 @@ void QWordArrayOption::setCurve()
   matrix = QTransform(m11,0.0,0.0,m22,0.0,0.0);
   inv_matrix = matrix.inverted();
   qpa2.resize(256);
-  qDebug("qpa2.size(): %u",qpa2.size());
+  qDebug("qpa2.size(): %u",(unsigned)qpa2.size());
 
   x=0;
   for(i=0;i<256;i++)

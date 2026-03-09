@@ -146,7 +146,7 @@ static err_info *batch_ocr_directory(const QString &dirPath)
          {
          // File already has OCR text - index it without re-OCRing
          printf("  Indexing existing OCR text (%d chars)\n",
-                existing_ocr.length());
+                (int)existing_ocr.length());
 
          if (searchIndex.isOpen())
             {
@@ -166,7 +166,7 @@ static err_info *batch_ocr_directory(const QString &dirPath)
                   }
                }
 
-            printf("  SUCCESS: Indexed %d pages from existing OCR\n", parts.size());
+            printf("  SUCCESS: Indexed %d pages from existing OCR\n", (int)parts.size());
             processed++;
             }
          else
@@ -235,7 +235,7 @@ static err_info *batch_ocr_directory(const QString &dirPath)
             {
             file->flush();
             printf("  SUCCESS: Extracted %d characters from %d pages\n",
-                   all_text.length(), pages_with_text);
+                   (int)all_text.length(), pages_with_text);
             processed++;
             }
          else
@@ -314,7 +314,7 @@ static err_info *search_ocr_index(const QString &dirPath, const QString &query)
       }
 
    // Display results
-   printf("\nFound %d results:\n\n", results.size());
+   printf("\nFound %d results:\n\n", (int)results.size());
 
    for (int i = 0; i < results.size(); i++)
       {

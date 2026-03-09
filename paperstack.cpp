@@ -84,7 +84,7 @@ void Paperstack::cancel (void)
 
 void Paperstack::debug (void)
    {
-   qDebug ("(stack %d pages, plus scanning %p", _pages.size (), _page);
+   qDebug ("(stack %d pages, plus scanning %p", (int)_pages.size (), _page);
    for (int i = 0; i < _pages.size (); i++)
       qDebug () << "   " << i << _pages [i];
    qDebug () << "   stack)";
