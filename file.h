@@ -38,6 +38,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define __file_h
 
 
+#include <functional>
+
 #include <QBitArray>
 #include <QDateTime>
 #include <QImage>
@@ -153,6 +155,38 @@ public:
    err_info *copyTo (File *fnew, int odd_even, Operation &op, bool verbose = false,
                      int first_page = 0, int last_page = -1);
 
+#ifndef QT_NO_WIDGETS
+   /** result of processing a single page in parallel */
+   struct PageResult
+      {
+      Filepage *fp;     //!< compressed page, ready for addPage()
+      QImage image;     //!< processed image (kept alive for fp's raw data ref)
+      QByteArray jpeg;  //!< JPEG-encoded data (used instead of fp for PDF output)
+      int width;        //!< image width (for JPEG path)
+      int height;       //!< image height (for JPEG path)
+      bool colour;      //!< true if colour image (for JPEG path)
+      err_info *err;    //!< error, or NULL
+      };
+
+   /** callback for processing a page image; may modify image in place */
+   typedef std::function<void (QImage &image, int pagenum)> page_func;
+
+   /** process all pages in parallel using one File reader per thread
+
+      Each worker thread opens its own File instance to read and decompress
+      pages independently.  The callback is applied to each page image, then
+      the result is compressed into a Filepage.  Only the final addPage()
+      calls happen on the calling thread.
+
+      \param fnew      destination file
+      \param op        operation for progress tracking
+      \param func      callback applied to each page image
+      \param quality   JPEG quality for PDF output (1-100, default 75)
+      \returns error, or NULL if none */
+   err_info *processPages (File *fnew, Operation &op, page_func func,
+                           int quality = 75);
+#endif  // QT_NO_WIDGETS
+
    /** converts a name into an e_env value */
    static e_env envFromName (const QString &name);
 
@@ -256,6 +290,13 @@ public:
 
    //FIXME: should remove 'flush' as we can just call flush()
    virtual err_info *addPage (const Filepage *mp, bool flush) = 0;
+
+   /** add a page from pre-encoded JPEG data; returns not_impl() by default */
+   virtual err_info *addPageJpeg (const QByteArray &jpegData, int width,
+                                  int height, bool colour);
+
+   /** return true if this file type supports addPageJpeg() */
+   virtual bool supportsJpeg () { return false; }
 
 //    virtual err_info *unstack (int pagenum, bool remove,
 //             QString &newname, QString &pagename, File **dest);

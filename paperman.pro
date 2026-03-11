@@ -4,6 +4,7 @@ QT += widgets
 QT += printsupport
 QT += testlib
 QT += sql
+QT += concurrent
 
 unix:target.path = usr/bin
 target.files = paperman
