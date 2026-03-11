@@ -50,6 +50,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "config.h"
 
 #include "desktopmodel.h"
+#include "imageadjust.h"
 #include "desktopwidget.h"
 #include "dirmodel.h"
 #include "mainwidget.h"
@@ -501,6 +502,8 @@ static void usage (void)
    printf ("   --output FILE   write output to FILE (used with --page-range)\n");
    printf ("   --jobs N        use N parallel workers (0 = auto)\n");
    printf ("   --rebuild-previews FILE|DIR  regenerate missing greyscale previews\n");
+   printf ("   --adjust TYPE FILE  apply image adjustment (e.g. whiten) to a stack\n");
+   printf ("   --quality N         JPEG quality 1-100 for PDF output (default 75)\n");
 /*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
@@ -540,6 +543,8 @@ int main (int argc, char *argv[])
      {"output", 1, 0, 257},
      {"jobs", 1, 0, 258},
      {"rebuild-previews", 1, 0, 259},
+     {"adjust", 1, 0, 260},
+     {"quality", 1, 0, 261},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -549,6 +554,8 @@ int main (int argc, char *argv[])
    int page_start = -1, page_end = -1;   // 1-based, -1 = all
    QString output_path;
    int jobs = 0;                          // 0 = auto
+   int quality = 75;                      // JPEG quality (1-100)
+   QString adjust_name;
 
    struct rlimit limit;
 
@@ -616,6 +623,20 @@ int main (int argc, char *argv[])
             op_type = c;
             break;
 
+         case 260 :    // --adjust
+            adjust_name = QString(optarg);
+            op_type = c;
+            break;
+
+         case 261 :    // --quality
+            quality = atoi(optarg);
+            if (quality < 1 || quality > 100)
+               {
+               fprintf (stderr, "--quality must be 1-100\n");
+               return 1;
+               }
+            break;
+
          case 'h' :
          case '?' :
             usage ();
@@ -632,7 +653,7 @@ int main (int argc, char *argv[])
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
        op_type != 'j' && op_type != 'o' && op_type != 'q' &&
-       op_type != 259)
+       op_type != 259 && op_type != 260)
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -644,7 +665,8 @@ int main (int argc, char *argv[])
       useGUI = true;
 
    // OCR batch mode, search, and rebuild-previews don't need GUI
-   if (op_type == 'o' || op_type == 'q' || op_type == 259)
+   if (op_type == 'o' || op_type == 'q' || op_type == 259 ||
+       op_type == 260)
       {
       useGUI = false;
       // Force offscreen platform for console mode
@@ -898,6 +920,118 @@ int main (int argc, char *argv[])
             fprintf(stderr, "Not a file or directory: %s\n",
                     qPrintable(fname));
             }
+         break;
+         }
+
+      case 260 :    // --adjust TYPE FILE
+         {
+         // look up the adjustment type
+         ImageAdjust::e_adjust adjust = ImageAdjust::Adjust_count;
+         for (int i = 0; i < ImageAdjust::Adjust_count; i++)
+            {
+            ImageAdjust::e_adjust a = (ImageAdjust::e_adjust)i;
+            if (ImageAdjust::suffix (a).mid (1) == adjust_name ||
+                ImageAdjust::name (a).toLower ().contains (adjust_name.toLower ()))
+               {
+               adjust = a;
+               break;
+               }
+            }
+         if (adjust == ImageAdjust::Adjust_count)
+            {
+            fprintf (stderr, "Unknown adjustment '%s'. Available:\n",
+                     qPrintable (adjust_name));
+            for (int i = 0; i < ImageAdjust::Adjust_count; i++)
+               {
+               ImageAdjust::e_adjust a = (ImageAdjust::e_adjust)i;
+               fprintf (stderr, "  %s (%s)\n",
+                        qPrintable (ImageAdjust::suffix (a).mid (1)),
+                        qPrintable (ImageAdjust::name (a)));
+               }
+            return 1;
+            }
+
+         // the input file is the next argument after the option
+         if (optind >= argc)
+            {
+            fprintf (stderr, "--adjust requires a filename argument\n");
+            return 1;
+            }
+         fname = argv[optind];
+
+         QFileInfo fi (fname);
+         if (!fi.exists ())
+            {
+            fprintf (stderr, "File not found: %s\n", qPrintable (fname));
+            return 1;
+            }
+
+         QString srcDir = fi.absolutePath () + '/';
+         QString srcFname = fi.fileName ();
+         File::e_type type = File::typeFromName (srcFname);
+         File *srcFile = File::createFile (srcDir, srcFname, nullptr, type);
+         if (!srcFile)
+            {
+            fprintf (stderr, "Unsupported file type: %s\n",
+                     qPrintable (srcFname));
+            return 1;
+            }
+
+         err_info *err = srcFile->load ();
+         if (err)
+            {
+            fprintf (stderr, "Error loading %s: %s\n",
+                     qPrintable (srcFname), err->errstr);
+            delete srcFile;
+            return 1;
+            }
+
+         int page_count = srcFile->pagecount ();
+         printf ("Adjusting %s (%d pages, %s)...\n",
+                 qPrintable (srcFname), page_count,
+                 qPrintable (ImageAdjust::name (adjust)));
+         fflush (stdout);
+
+         // build output filename
+         QString outFname;
+         if (!output_path.isEmpty ())
+            outFname = output_path;
+         else
+            outFname = fi.absolutePath () + '/' + fi.completeBaseName ()
+                       + ImageAdjust::suffix (adjust) + '.' + fi.suffix ();
+
+         QFileInfo ofi (outFname);
+         QString outDir = ofi.absolutePath () + '/';
+         QString outName = ofi.fileName ();
+         File *dstFile = File::createFile (outDir, outName, nullptr, type);
+         if (!dstFile)
+            {
+            fprintf (stderr, "Could not create output file: %s\n",
+                     qPrintable (outName));
+            delete srcFile;
+            return 1;
+            }
+
+         err = dstFile->create ();
+         if (!err)
+            {
+            Operation op ("Adjust", page_count, nullptr);
+            err = srcFile->processPages (dstFile, op,
+               [adjust] (QImage &image, int)
+                  { ImageAdjust::apply (image, adjust); },
+               quality);
+            }
+
+         delete dstFile;
+         delete srcFile;
+
+         if (err)
+            {
+            fprintf (stderr, "Error: %s\n", err->errstr);
+            return 1;
+            }
+
+         printf ("Output: %s\n", qPrintable (outFname));
          break;
          }
 
