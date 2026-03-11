@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QPainter>
 #include <QPixmap>
 #include <QTextStream>
+#include <QtConcurrent>
 
 #include "config.h"
 #ifndef QT_NO_WIDGETS
@@ -717,6 +718,173 @@ err_info *File::not_impl (void)
    {
    return err_make (ERRFN, ERR_no_available_for_this_file_type);
    }
+
+
+err_info *File::addPageJpeg (const QByteArray &, int, int, bool)
+   {
+   return not_impl ();
+   }
+
+
+#ifndef QT_NO_WIDGETS
+err_info *File::processPages (File *fnew, Operation &op, page_func func,
+                              int quality)
+   {
+   int page_count = pagecount ();
+   e_type src_type = _type;
+   e_type dst_type = fnew->type ();
+   QString dir = _dir;
+   QString fname = _filename;
+   bool use_jpeg = fnew->supportsJpeg ();
+   int nthreads = QThread::idealThreadCount ();
+
+   if (nthreads < 1)
+      nthreads = 1;
+   if (nthreads > 64)
+      nthreads = 64;
+
+   QThreadPool pool;
+   pool.setMaxThreadCount (nthreads);
+
+   load ();
+
+   // process pages in batches of nthreads to limit memory use
+   int out_page_count = 0;
+   for (int start = 0; start < page_count; start += nthreads)
+      {
+      int end = std::min (start + nthreads, page_count);
+      int count = end - start;
+
+      QVector<PageResult> results (count);
+      for (int i = 0; i < count; i++)
+         {
+         results[i].fp = nullptr;
+         results[i].err = nullptr;
+         }
+
+      QList<int> offsets;
+      for (int i = 0; i < count; i++)
+         offsets.append (i);
+
+      // each thread creates its own File to read independently
+      QtConcurrent::blockingMap (&pool, offsets,
+         [&results, dir, fname, src_type, dst_type, &func, start,
+          use_jpeg, quality]
+         (int i)
+         {
+         int pagenum = start + i;
+
+         File *reader = createFile (dir, fname, nullptr, src_type);
+         if (!reader)
+            {
+            results[i].err = err_make_new (ERRFN,
+                  ERR_could_not_open_file_for_reading1,
+                  qPrintable (fname));
+            return;
+            }
+
+         err_info *err = reader->load ();
+         if (err)
+            {
+            results[i].err = new err_info (*err);
+            delete reader;
+            return;
+            }
+
+         QImage image;
+         QSize size, trueSize;
+         int bpp;
+
+         err = reader->getImage (pagenum, false, image, size, trueSize,
+                                 bpp, false);
+         delete reader;
+         if (err)
+            {
+            results[i].err = new err_info (*err);
+            return;
+            }
+
+         if (image.isNull ())
+            return;
+
+         func (image, pagenum);
+
+         if (use_jpeg)
+            {
+            // JPEG-encode for compact PDF output
+            QBuffer buf (&results[i].jpeg);
+            buf.open (QIODevice::WriteOnly);
+            image.save (&buf, "JPEG", quality);
+            results[i].width = image.width ();
+            results[i].height = image.height ();
+            results[i].colour = image.depth () > 8;
+            return;
+            }
+
+         int target_depth = utilImageDepth (image);
+         if (target_depth < bpp)
+            {
+            image = utilReduceDepth (image, target_depth);
+            bpp = image.depth ();
+            }
+
+         Filepage *fp = createPage (dst_type);
+
+         int image_size;
+#if QT_VERSION >= 0x050a00
+         image_size = image.sizeInBytes ();
+#else
+         image_size = image.byteCount ();
+#endif
+         QByteArray ba = QByteArray::fromRawData (
+               (const char *)image.bits (), image_size);
+         int stride = image.bytesPerLine ();
+
+         QString name = QString ("Page %1").arg (pagenum + 1);
+         fp->addData (image.width (), image.height (), image.depth (),
+               stride, name, false, false, pagenum, ba, ba.size ());
+         fp->compress ();
+
+         results[i].fp = fp;
+         results[i].image = image;
+         });
+
+      // collect this batch's results
+      for (int i = 0; i < count; i++)
+         {
+         if (results[i].err)
+            {
+            err_info *ret = results[i].err;
+            _serr = *ret;
+            delete ret;
+            for (int j = i + 1; j < count; j++)
+               if (results[j].err)
+                  delete results[j].err;
+            return &_serr;
+            }
+
+         if (use_jpeg)
+            {
+            if (results[i].jpeg.isEmpty ())
+               continue;
+            CALL (fnew->addPageJpeg (results[i].jpeg, results[i].width,
+                                     results[i].height, results[i].colour));
+            }
+         else
+            {
+            if (!results[i].fp)
+               continue;
+            CALL (fnew->addPage (results[i].fp, false));
+            }
+         out_page_count++;
+         op.incProgress (1);
+         }
+      }
+
+   fnew->flush ();
+   return NULL;
+   }
+#endif  // QT_NO_WIDGETS
 
 
 #ifndef QT_NO_WIDGETS
