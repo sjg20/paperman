@@ -1058,26 +1058,39 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
          bpp = image.depth();
       }
 
-      int image_size;
+      // use JPEG encoding for colour pages when the target supports it
+      if (fnew->supportsJpeg () && bpp > 8)
+         {
+         QByteArray jpeg;
+         QBuffer buf (&jpeg);
+         buf.open (QIODevice::WriteOnly);
+         image.save (&buf, "JPEG", 75);
+         CALL (fnew->addPageJpeg (jpeg, image.width (), image.height (),
+                                   true));
+         }
+      else
+         {
+         int image_size;
 #if QT_VERSION >= 0x050a00
-      image_size = image.sizeInBytes();
+         image_size = image.sizeInBytes();
 #else
-      image_size = image.byteCount();
+         image_size = image.byteCount();
 #endif
-      QByteArray ba = QByteArray::fromRawData ((const char *)image.bits (),
-                                               image_size);
+         QByteArray ba = QByteArray::fromRawData ((const char *)image.bits (),
+                                                  image_size);
 
-//       int stride = (trueSize.width () * bpp + 7) / 8;
-      int stride = image.bytesPerLine ();
-//      mp->stride = (true_size.x * (bpp == 24 ? 32 : bpp) + 7) / 8;
-      // changed from above line, since duplicating a normal colour max file created an error
+//          int stride = (trueSize.width () * bpp + 7) / 8;
+         int stride = image.bytesPerLine ();
+//         mp->stride = (true_size.x * (bpp == 24 ? 32 : bpp) + 7) / 8;
+         // changed from above line, since duplicating a normal colour max file created an error
 
-      QString name = QString (tr ("Page %1")).arg (out_page_count + 1);
-      fp->addData (image.width (), image.height (), image.depth (), stride,
-            name, false, false, out_page_count, ba, ba.size ());
+         QString name = QString (tr ("Page %1")).arg (out_page_count + 1);
+         fp->addData (image.width (), image.height (), image.depth (), stride,
+               name, false, false, out_page_count, ba, ba.size ());
 
-      fp->compress ();
-      CALL (fnew->addPage (fp, false));
+         fp->compress ();
+         CALL (fnew->addPage (fp, false));
+         }
       out_page_count++;
       op.incProgress (1);
       }
