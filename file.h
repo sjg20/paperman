@@ -44,6 +44,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDateTime>
 #include <QImage>
 #include <QObject>
+
+#include "imageadjust.h"
 #include <QPoint>
 #include <QPixmap>
 #include <QRect>
@@ -156,6 +158,15 @@ public:
                      int first_page = 0, int last_page = -1);
 
 #ifndef QT_NO_WIDGETS
+   /** copy pages to a new file, applying an image adjustment to each page
+
+      \param fnew     destination file
+      \param op       operation for progress tracking
+      \param adjust   which adjustment to apply
+      \returns error, or NULL if none */
+   err_info *copyToAdjusted (File *fnew, Operation &op,
+                             ImageAdjust::e_adjust adjust);
+
    /** result of processing a single page in parallel */
    struct PageResult
       {
@@ -185,6 +196,16 @@ public:
       \returns error, or NULL if none */
    err_info *processPages (File *fnew, Operation &op, page_func func,
                            int quality = 75);
+
+   /** duplicate this file with an image adjustment applied, creating a new
+       stack on the same desk
+
+      \param adjust   which adjustment to apply
+      \param op       operation for progress tracking
+      \param fnew     returns the new file
+      \returns error, or NULL if none */
+   err_info *duplicateAdjusted (ImageAdjust::e_adjust adjust, Operation &op,
+                                File *&fnew);
 #endif  // QT_NO_WIDGETS
 
    /** converts a name into an e_env value */

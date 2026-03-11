@@ -39,6 +39,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 #include "file.h"
 #include "filejpeg.h"
+#include "imageadjust.h"
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
@@ -968,6 +969,48 @@ err_info *File::duplicateAny (File::e_type type, int odd_even, Operation &op, Fi
 
    return duplicateToDesk (_desk, type, uniq, odd_even, op, fnew);
    }
+
+
+#ifndef QT_NO_WIDGETS
+err_info *File::duplicateAdjusted (ImageAdjust::e_adjust adjust, Operation &op,
+                                   File *&fnew)
+   {
+   QString suffix = ImageAdjust::suffix (adjust);
+   QString uniq = _desk->findNextFilename (_leaf + suffix, QString(), _ext);
+   QString dir = _desk->dir ();
+   e_type type = _type;
+
+   fnew = createFile (dir, uniq + _ext, _desk, type);
+   if (!fnew)
+      return not_impl ();
+   CALL (fnew->create ());
+
+   err_info *err = copyToAdjusted (fnew, op, adjust);
+
+   if (!fnew->valid () || !fnew->pagecount ())
+      {
+      fnew->remove ();
+      delete fnew;
+      fnew = 0;
+      if (!err)
+         return err_make (ERRFN, ERR_cannot_find_any_pages_in_source_document1,
+                          qPrintable (_pathname));
+      return err;
+      }
+   _desk->newFile (fnew, this, 1);
+   return NULL;
+   }
+
+
+err_info *File::copyToAdjusted (File *fnew, Operation &op,
+                                ImageAdjust::e_adjust adjust)
+   {
+   CALL (processPages (fnew, op,
+      [adjust] (QImage &image, int) { ImageAdjust::apply (image, adjust); }));
+   fnew->load ();
+   return NULL;
+   }
+#endif  // QT_NO_WIDGETS
 
 
 err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,

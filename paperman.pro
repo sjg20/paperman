@@ -123,6 +123,7 @@ HEADERS += desktopwidget.h \
  ocr.h \
  file.h \
  filemax.h \
+ imageadjust.h \
  filepdf.h \
  fileother.h \
  pdfio.h \
@@ -210,6 +211,7 @@ SOURCES += desktopwidget.cpp \
  dmuserop.cpp \
  file.cpp \
  filemax.cpp \
+ imageadjust.cpp \
  filepdf.cpp \
  fileother.cpp \
  pdfio.cpp \
