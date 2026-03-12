@@ -545,10 +545,14 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
 
             if (!_too_big && !_image.isNull ())
                {
+               // convert 1bpp to greyscale so smooth scaling can interpolate
+               const QImage &src = _image.depth () == 1
+                  ? _image.convertToFormat (QImage::Format_Grayscale8)
+                  : _image;
                QImage small = _smoothing || force_smooth
-                  ? _image.scaled(widgetSize, Qt::IgnoreAspectRatio,
+                  ? src.scaled(widgetSize, Qt::IgnoreAspectRatio,
                                   Qt::SmoothTransformation)
-                  : _image.scaledToWidth (widgetSize.width ());
+                  : src.scaledToWidth (widgetSize.width ());
 
                // create a pixmap of the right scale
                QPainter p (&_pixmap);
@@ -1261,7 +1265,15 @@ void MyScrollArea::paintEvent (QPaintEvent *event)
    painter.translate (tp);
    if (_too_big && !_image.isNull ())
       {
-      painter.drawImage(target, _image, exposedRect);
+      painter.setRenderHint (QPainter::SmoothPixmapTransform, true);
+      // 1bpp images need conversion for smooth scaling to work
+      if (_image.depth () == 1)
+         {
+         QImage grey = _image.convertToFormat (QImage::Format_Grayscale8);
+         painter.drawImage (target, grey, exposedRect);
+         }
+      else
+         painter.drawImage (target, _image, exposedRect);
 //       rrect.setLeft (_image->width ());
 //       brect.setTop (_image->height ());
 //       brect.setRight (_image->width ());
