@@ -1146,6 +1146,8 @@ int utilImageDepth(const QImage &image)
    bool grey_seen = false;
    int w = image.width();
    int h = image.height();
+   int colour_count = 0;
+   long npix = (long)w * h;
 
    for (int y = 0; y < h; y++) {
       const QRgb *line = (const QRgb *)image.constScanLine(y);
@@ -1158,13 +1160,16 @@ int utilImageDepth(const QImage &image)
          int maxc = qMax(r, qMax(g, b));
          int minc = qMin(r, qMin(g, b));
 
-         if (maxc - minc > 10)
-            return 24;
+         if (maxc - minc > 30)
+            colour_count++;
 
          if (!grey_seen && r >= 32 && r <= 224)
             grey_seen = true;
       }
    }
+
+   if (colour_count > npix / 200)
+      return 24;
 
    return grey_seen ? 8 : 1;
 }
