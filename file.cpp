@@ -24,6 +24,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QBuffer>
 #include <QDebug>
+
+#include <csetjmp>
+#include "jpeglib.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -57,6 +60,62 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #if QT_VERSION >= 0x040400
 #define USE_24BPP
 #endif
+
+
+/** encode a QImage as a greyscale JPEG using libjpeg directly
+ *
+ * Qt's JPEG encoder always produces RGB output even for greyscale data.
+ * This function computes luminance from the RGB32 pixels and feeds
+ * single-channel rows to libjpeg for a compact greyscale JPEG.
+ *
+ * @param image     source image (must be Format_RGB32 or Format_ARGB32)
+ * @param quality   JPEG quality 1-100
+ * @return          JPEG data, or empty on failure
+ */
+static QByteArray encodeGreyJpeg (const QImage &image, int quality)
+   {
+   QImage rgb = image;
+   if (rgb.format () != QImage::Format_RGB32 &&
+       rgb.format () != QImage::Format_ARGB32)
+      rgb = rgb.convertToFormat (QImage::Format_RGB32);
+   int w = rgb.width ();
+   int h = rgb.height ();
+
+   struct jpeg_compress_struct cinfo;
+   struct jpeg_error_mgr jerr;
+   unsigned char *buf = nullptr;
+   unsigned long buf_size = 0;
+
+   cinfo.err = jpeg_std_error (&jerr);
+   jpeg_create_compress (&cinfo);
+   jpeg_mem_dest (&cinfo, &buf, &buf_size);
+
+   cinfo.image_width = w;
+   cinfo.image_height = h;
+   cinfo.input_components = 1;
+   cinfo.in_color_space = JCS_GRAYSCALE;
+   jpeg_set_defaults (&cinfo);
+   jpeg_set_quality (&cinfo, quality, TRUE);
+   jpeg_start_compress (&cinfo, TRUE);
+
+   QByteArray row_buf (w, 0);
+   while (cinfo.next_scanline < (unsigned)h)
+      {
+      const QRgb *line = (const QRgb *)rgb.constScanLine (cinfo.next_scanline);
+      uchar *grey = (uchar *)row_buf.data ();
+      for (int x = 0; x < w; x++)
+         grey[x] = (uchar)((qRed (line[x]) * 299 + qGreen (line[x]) * 587
+                             + qBlue (line[x]) * 114) / 1000);
+      JSAMPROW row_ptr = grey;
+      jpeg_write_scanlines (&cinfo, &row_ptr, 1);
+      }
+
+   jpeg_finish_compress (&cinfo);
+   QByteArray result ((const char *)buf, buf_size);
+   free (buf);
+   jpeg_destroy_compress (&cinfo);
+   return result;
+   }
 
 
 
@@ -1051,25 +1110,31 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
       if (image.isNull ())
          continue;
 
-      // auto-detect optimal depth for this page
-      int target_depth = utilImageDepth(image);
-      if (target_depth < bpp) {
-         image = utilReduceDepth(image, target_depth);
-         bpp = image.depth();
-      }
-
-      // use JPEG encoding for colour pages when the target supports it
-      if (fnew->supportsJpeg () && bpp > 8)
+      // use JPEG encoding when the target supports it
+      if (fnew->supportsJpeg () && bpp > 1)
          {
+         bool colour = utilImageDepth (image) > 8;
          QByteArray jpeg;
-         QBuffer buf (&jpeg);
-         buf.open (QIODevice::WriteOnly);
-         image.save (&buf, "JPEG", 75);
+         if (colour)
+            {
+            QBuffer buf (&jpeg);
+            buf.open (QIODevice::WriteOnly);
+            image.save (&buf, "JPEG", 75);
+            }
+         else
+            jpeg = encodeGreyJpeg (image, 75);
          CALL (fnew->addPageJpeg (jpeg, image.width (), image.height (),
-                                   true));
+                                   colour));
          }
       else
          {
+         // auto-detect optimal depth for this page
+         int target_depth = utilImageDepth(image);
+         if (target_depth < bpp) {
+            image = utilReduceDepth(image, target_depth);
+            bpp = image.depth();
+         }
+
          int image_size;
 #if QT_VERSION >= 0x050a00
          image_size = image.sizeInBytes();

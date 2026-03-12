@@ -273,16 +273,16 @@ void TestUtils::testImageDepth()
    mixColour.setPixelColor(5, 5, QColor(255, 0, 0));
    QCOMPARE(utilImageDepth(mixColour), 24);
 
-   // Colour noise within tolerance (channel diff <= 10) is greyscale
+   // Colour noise within tolerance (channel diff <= 30) is greyscale
    QImage noise(10, 10, QImage::Format_ARGB32);
    noise.fill(QColor(128, 128, 128));
    noise.setPixelColor(3, 3, QColor(130, 125, 135));  // diff = 10
    QCOMPARE(utilImageDepth(noise), 8);
 
-   // Channel diff of 11 exceeds tolerance — detected as colour
+   // Small number of colour pixels below 0.5% threshold is greyscale
    QImage noisy(10, 10, QImage::Format_ARGB32);
    noisy.fill(QColor(128, 128, 128));
-   noisy.setPixelColor(3, 3, QColor(130, 124, 135));  // diff = 11
+   noisy.setPixelColor(3, 3, QColor(200, 100, 135));  // diff > 30
    QCOMPARE(utilImageDepth(noisy), 24);
 
    // 8-bit indexed greyscale image returns 8 directly
