@@ -185,3 +185,40 @@ Coding Style
   for classes)
 - Indentation is 3 spaces in most files
 - Commit messages use present/imperative tense and British spelling
+
+
+Main Classes
+~~~~~~~~~~~~
+
+The display is laid out as follows::
+
+   Mainwindow (QMainWindow)
+   +-- Mainwidget (QStackedWidget)
+       |
+       +-- Page 0: Desktopwidget (QSplitter, horizontal)
+       |   |
+       |   +-- LEFT: Dirview (QTreeView)
+       |   |         Model: Dirmodel
+       |   |
+       |   +-- MIDDLE: QWidget "group"
+       |   |   +-- Toolbar
+       |   |   +-- Desktopview (QListView, IconMode)
+       |   |       Delegate: Desktopdelegate
+       |   |       Model: Desktopmodel via Desktopproxy
+       |   |
+       |   +-- RIGHT: Pagewidget
+       |       +-- Pagetools (toolbar, from pagetools.ui)
+       |       +-- QStackedWidget
+       |           +-- _splitter (QSplitter, horizontal)
+       |           |   |
+       |           |   +-- LEFT: Pageview (QListView, IconMode)
+       |           |   |         Delegate: Pagedelegate
+       |           |   |         Model: Pagemodel
+       |           |   |
+       |           |   +-- RIGHT: _ocr_split (QSplitter, vertical)
+       |           |       +-- TOP: MyScrollArea (big page preview)
+       |           |       +-- BOTTOM: OCR area (QTextEdit + Ocrbar)
+       |           |
+       |           +-- _textframe (annotation/info view)
+       |
+       +-- Page 1: Pagewidget (single-stack view, used for full-screen)
