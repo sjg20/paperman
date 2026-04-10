@@ -367,9 +367,11 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
     // Invalidate this node's children so they get re-scanned
     DirNode *parentNode = nodeFromIndex(par);
     if (parentNode && parentNode->populated) {
+       beginResetModel();
        qDeleteAll(parentNode->children);
        parentNode->children.clear();
        parentNode->populated = false;
+       endResetModel();
     }
 
     QModelIndex i = index (path + QLatin1Char('/') + childName);
