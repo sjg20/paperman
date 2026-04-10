@@ -1543,7 +1543,6 @@ void Desktopwidget::showImports(const QString& path)
    Measure *meas = _view->getMeasure();
 
    QModelIndex sind = _contents->showFilesIn(path, getRootDirectory(), meas);
-   _model->refresh(sind);
 
    QModelIndex ind = sind;
    _modelconv->indexToProxy(ind.model (), ind);
