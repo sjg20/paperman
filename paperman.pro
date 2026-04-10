@@ -17,8 +17,8 @@ OCRINCPATH = /usr/local/include/nuance-omnipage-csdk-15.5
 OCRLIBPATH = /usr/local/lib/nuance-omnipage-csdk-15.5
 
 CONFIG += qt warn_on
-CONFIG -= debug release
-QMAKE_CXXFLAGS += -O2
+CONFIG -= release
+!debug: QMAKE_CXXFLAGS += -O2
 
 #QMAKE_LFLAGS += -static
 
