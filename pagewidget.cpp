@@ -655,6 +655,8 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
       Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
       QModelIndex sindex = _index;
       _modelconv->indexToSource (model, sindex);
+      if (!sindex.isValid ())
+         return;
       _pagemodel->reset (contents, sindex, _start, _count);
 
       // update the textframe
