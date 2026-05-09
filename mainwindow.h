@@ -72,6 +72,7 @@ public slots:
     virtual void statusUpdate(QString str);
     virtual void on_actionScango_triggered(bool);
     virtual void on_actionPscan_triggered(bool);
+    virtual void on_actionReconnectScanner_triggered(bool);
     virtual void on_actionSelectall_triggered(bool);
     virtual void on_actionByPosition_triggered(bool);
     virtual void on_actionByDate_triggered(bool);

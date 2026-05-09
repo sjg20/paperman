@@ -165,6 +165,7 @@
      <addaction name="actionResize_all"/>
     </widget>
     <addaction name="menuArrange"/>
+    <addaction name="actionReconnectScanner"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -382,6 +383,14 @@
    </property>
    <property name="toolTip">
     <string>Change scanning options</string>
+   </property>
+  </action>
+  <action name="actionReconnectScanner">
+   <property name="text">
+    <string>Reconnect Scanner</string>
+   </property>
+   <property name="toolTip">
+    <string>Close and reopen the scanner connection (use after the scanner has slept)</string>
    </property>
   </action>
   <action name="actionScango">

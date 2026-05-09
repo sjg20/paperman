@@ -208,6 +208,10 @@ public slots:
    /** allow the user to change the scanner settings */
    void scannerSettings (void);
 
+   /** close and reopen the scanner connection, then reapply the current
+       preset. Use after the scanner has slept and woken up. */
+   void reconnectScanner (void);
+
    /** ensures there is a current scanner - returns false on failure, true if ok */
    bool ensureScanner (void);
 

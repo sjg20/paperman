@@ -353,6 +353,12 @@ void Mainwindow::on_actionPscan_triggered(bool)
 }
 
 
+void Mainwindow::on_actionReconnectScanner_triggered(bool)
+{
+   _main->reconnectScanner ();
+}
+
+
 
 void Mainwindow::on_actionSelectall_triggered(bool)
 {
