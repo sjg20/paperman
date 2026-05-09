@@ -247,6 +247,7 @@ test {
       test/test_dirmodel.cpp \
       test/test_dirview.cpp \
       test/test_ops.cpp \
+      test/test_pageinfo.cpp \
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
       searchserver.cpp \
@@ -256,6 +257,7 @@ test {
       test/test_dirmodel.h \
       test/test_dirview.h \
       test/test_ops.h \
+      test/test_pageinfo.h \
       test/test_utils.h \
       test/test_searchserver.h \
       test/test_ocrsearch.h \
