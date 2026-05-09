@@ -696,7 +696,7 @@ QPixmap Pageinfo::pixmap (bool &dodgy)
 bool Pageinfo::updatePixmap (void)
    {
    // any need for rescale?
-   if (!_rescale)
+   if (!_rescale || !_model)
       return false;
 
 //    qDebug () << "updatePixmap";
