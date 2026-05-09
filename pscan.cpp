@@ -582,6 +582,14 @@ void Pscan::checkEnabled (bool scanning)
    reset->setEnabled (!scanning);
    }
 
+void Pscan::reapplyCurrentPreset()
+{
+   int item = preset->currentIndex();
+   if (item >= 0 && item < (int)_presets.size())
+      presetSelect(item);
+}
+
+
 void Pscan::presetSelect(int item)
 {
    Preset pre = _presets[item];

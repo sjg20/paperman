@@ -77,6 +77,11 @@ public:
 
     // save presets and geometry to QSettings immediately
     void saveSettings (void);
+
+    // Reapply the currently-selected preset to the scan dialog. Used after
+    // the scanner is reconnected, since the new SANE handle starts with
+    // default options.
+    void reapplyCurrentPreset (void);
    void checkEnabled (bool scanning);
 
    // Tell pscan that a scan is starting
