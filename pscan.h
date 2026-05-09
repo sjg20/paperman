@@ -74,6 +74,9 @@ public:
     virtual void setupBright();
     // called when the window is closing, to save settings
     void closing (void);
+
+    // save presets and geometry to QSettings immediately
+    void saveSettings (void);
    void checkEnabled (bool scanning);
 
    // Tell pscan that a scan is starting

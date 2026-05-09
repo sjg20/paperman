@@ -224,12 +224,10 @@ void Pscan::init()
 }
 
 
-void Pscan::closing()
+void Pscan::saveSettings()
    {
    QMap<QScanner::format_t, QString> formats;
    QSettings qs;
-
-   qs.setValue("pscan/geometry", saveGeometry());
 
    formats[QScanner::mono] = "mono";
    formats[QScanner::dither] = "dither";
@@ -249,6 +247,12 @@ void Pscan::closing()
       qs.setValue("duplex", preset._duplex);
       }
    qs.endArray();
+   }
+
+
+void Pscan::closing()
+   {
+   saveSettings();
    }
 
 void Pscan::scanStarting()
@@ -704,6 +708,7 @@ void Pscan::presetAddUser()
    preset->setCurrentIndex(_presets.size());
 
    _presets.push_back(to_create);
+   saveSettings();
 }
 
 void Pscan::presetDeleteUser()
@@ -727,6 +732,7 @@ void Pscan::presetDeleteUser()
    _presets.erase(_presets.begin() + item);
    preset->removeItem(item);
    presetCheck();
+   saveSettings();
 }
 
 void Pscan::presetShortcut(uint item)
