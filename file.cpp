@@ -827,7 +827,11 @@ err_info *File::processPages (File *fnew, Operation &op, page_func func,
          offsets.append (i);
 
       // each thread creates its own File to read independently
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
       QtConcurrent::blockingMap (&pool, offsets,
+#else
+      QtConcurrent::blockingMap (offsets,
+#endif
          [&results, dir, fname, src_type, dst_type, &func, start,
           use_jpeg, quality]
          (int i)

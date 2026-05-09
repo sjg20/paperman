@@ -478,6 +478,8 @@ void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum)
       return;
 
    int pagenum = _contents->data (_stackindex, Desktopmodel::Role_pagecount).toInt ();
+   if (pagenum >= (int)_pages.size ())
+      return;
    Pageinfo &page = _pages [pagenum];
    bool ok;
 
