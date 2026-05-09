@@ -461,6 +461,23 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
 
 //    qDebug () << "slotScanComplete" << status << msg << err;
 
+   // If the scanner went to sleep and woke up, the SANE handle is in a
+   // broken state. Reconnect it and reapply the active preset so the user
+   // can simply retry.
+   if (status == SANE_STATUS_IO_ERROR && _scanner)
+      {
+      if (_scanner->reconnect ())
+         {
+         if (_pscan)
+            _pscan->reapplyCurrentPreset ();
+         QMessageBox::information (this, "Scanner reconnected",
+            "The scanner connection was lost and has been re-established.\n"
+            "Please try the scan again.");
+         _scanning = false;
+         return;
+         }
+      }
+
    // don't report end of documents if we have managed to scan some
    if (status)
       {
@@ -742,6 +759,30 @@ void Mainwidget::scannerSettings (void)
    if (_scanDialog)
       _scanDialog->show ();
 //   sd.exec ();
+   }
+
+
+void Mainwidget::reconnectScanner (void)
+   {
+   if (!_scanner)
+      {
+      QMessageBox::information (this, "Scanner",
+         "No scanner is open yet. Use Scanner Settings first.");
+      return;
+      }
+
+   if (_scanner->reconnect ())
+      {
+      if (_pscan)
+         _pscan->reapplyCurrentPreset ();
+      QMessageBox::information (this, "Scanner",
+         "Scanner reconnected.");
+      }
+   else
+      {
+      QMessageBox::warning (this, "Scanner",
+         "Could not reconnect to the scanner. Check that it is on and reachable.");
+      }
    }
 
 
