@@ -86,6 +86,15 @@ public:
     * Use saneStatus() to get the exact error.
     */
   bool openDevice();
+
+  /** Close the device handle and reopen it. Useful for recovering when
+    * the scanner returns SANE_STATUS_IO_ERROR after going to sleep and
+    * coming back. Note that all option values are reset to defaults; the
+    * caller must reapply any settings (e.g. via the active preset).
+    *
+    * @returns true if the reopen succeeded
+    */
+  bool reconnect();
   /** Return a QString if option num exists and is of
     * type SANE_TYPE_STRING, otherwise QString() is returned.
     */

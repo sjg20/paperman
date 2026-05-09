@@ -258,6 +258,34 @@ bool QScanner::getDeviceList(bool local_only)
 
 
 /**  */
+bool QScanner::reconnect()
+   {
+   // Close the handle, then fully tear down the SANE backend and bring it
+   // back up. Just sane_close+sane_open is not enough: once a USB scanner
+   // has slept the backend retains stale device state and sane_open
+   // returns SANE_STATUS_INVAL. sane_exit/sane_init re-enumerates and
+   // recovers.
+   if (mOpenOk)
+      {
+      do_sane_close (mDeviceHandle);
+      mDeviceHandle = nullptr;
+      mOpenOk = false;
+      }
+   if (mInitOk)
+      {
+      sane_exit ();
+      mInitOk = false;
+      mpDeviceList = nullptr;
+      }
+   if (!initScanner ())
+      return false;
+   // re-enumerate so the backend is aware of the device again
+   getDeviceList (false);
+
+   return openDevice ();
+   }
+
+
 bool QScanner::openDevice()
    {
    QScanner::msAuthorizationCancelled = false;
