@@ -928,13 +928,12 @@ void Pagewidget::slotBeginningPage (void)
    }
 
 
-void Pagewidget::slotNewScaledImage (const QImage &image, int scaled_linenum)
+void Pagewidget::slotNewScaledImage (const QImage &image, int scaled_linenum,
+                                     int pagenum)
    {
-//    qDebug () << "slotNewScaledImage";
-
    // tell the model that we have a new image
    if (_scanning)
-      _pagemodel->newScaledImage (image, scaled_linenum);
+      _pagemodel->newScaledImage (image, scaled_linenum, pagenum);
    }
 
 
