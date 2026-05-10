@@ -898,7 +898,7 @@ void Desktopmodel::pageStarting (Paperscan &scan, const PPage *page)
    // no scaled image size registered as yet
    _need_scaled_image = false;
    _scaled_image_size = QSize ();
-   _scaled_linenum = 0;
+   _scaled_linenums.clear ();
    emit beginningPage ();
    }
 
@@ -915,13 +915,8 @@ void Desktopmodel::pageProgress (Paperscan &scan, const PPage *page)
       return;
 
    ok = scan.getData (page, data, size);
-//    qDebug () << "pageProgress" << scan.getPagenum (page) << ok << size;
-//    emit dataAddedToPage (page, data, size);
    if (ok && getNewScaledImage (scan, page, data, size, image, scaled_linenum))
-      {
-//       qDebug () << "   newScaledImage";
-      emit newScaledImage (image, scaled_linenum);
-      }
+      emit newScaledImage (image, scaled_linenum, page->pagenum ());
    }
 
 
@@ -939,6 +934,10 @@ bool Desktopmodel::getNewScaledImage (Paperscan &scan, const PPage *page,
    if (_need_scaled_image && scan.getPageDetails (page, width, height, depth, stride) && stride)
       {
       int linenum, lines;
+      /* progress is tracked per page, so front and back can advance
+       * independently during a progressive duplex scan. Default 0 for a
+       * page we haven't seen yet. */
+      int prev_linenum = _scaled_linenums.value (page->pagenum (), 0);
 
       // how many scan lines worth of data do we have?
       lines = nbytes / stride;
@@ -946,21 +945,18 @@ bool Desktopmodel::getNewScaledImage (Paperscan &scan, const PPage *page,
       // what scaled line number are we up to now?
       linenum = lines * _scaled_image_size.height () / height;
 
-      // if no new lines, exit
-//       if (linenum == _scaled_linenum)
-
       /** we must have at least 2 lines to work with to be sure of getting a
           single line result */
-      if (linenum - _scaled_linenum < 2)
+      if (linenum - prev_linenum < 2)
          return false;
 
       // start from the previous scaled line, to give us a a of margin
       // otherwise we might get gaps in the final image
-      int scaled_from = _scaled_linenum;
+      int scaled_from = prev_linenum;
       if (scaled_from > 0)
          scaled_from--;
 
-      /* we now need to generate an image from scaled lines _scaled_linenum
+      /* we now need to generate an image from scaled lines prev_linenum
          to linenum. First work out the input (unscaled) line numbers */
       int from_linenum = scaled_from * height / _scaled_image_size.height ();
       int to_linenum = linenum * height / _scaled_image_size.height ();
@@ -974,13 +970,13 @@ bool Desktopmodel::getNewScaledImage (Paperscan &scan, const PPage *page,
 #else
          image = image.convertToFormat (QImage::Format_RGB32);
 #endif
-         
+
       image = image.scaled (_scaled_image_size, Qt::KeepAspectRatio);
       if (!image.height ())
          return false;
 //       qDebug () << "desktopmodel image" << image.width () << image.height ()<< image.format ();
       scaled_linenum = scaled_from;
-      _scaled_linenum = linenum;
+      _scaled_linenums.insert (page->pagenum (), linenum);
       return true;
       }
    return false;
@@ -996,7 +992,7 @@ void Desktopmodel::registerScaledImageSize (const QSize &size)
       {
       // if the size has changed, start the image again
       _scaled_image_size = size;
-      _scaled_linenum = 0;
+      _scaled_linenums.clear ();
       }
    }
 
