@@ -36,7 +36,7 @@ equals(QT_MAJOR_VERSION, 5) {
 #LIBS += -lkernelapi -Wl,-rpath-link,$$OCRLIBPATH,-rpath,$$OCRLIBPATH
 
 LIBS += -lpodofo
-LIBS += -ltiff -lsane -ljpeg -lz
+LIBS += -ltiff -lsane -ljpeg -lz -ldl
 
 INCLUDEPATH += qi /usr/local/lib
 INCLUDEPATH += $$OCRINCPATH

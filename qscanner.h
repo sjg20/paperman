@@ -449,6 +449,26 @@ is able to choose an option value automatically. */
      \returns true if double-feed is detected, false otherwise */
   bool checkDoubleFeed (void);
 
+  /** Request the backend to use a smaller per-read chunk so the frontend
+      sees the page progressively. No-op if the backend has no
+      "buffer-size" option (only the patched fujitsu backend does today).
+      Must be called before start(); silently clamped to the option's
+      legal range. */
+  void setBufferSize (int bytes);
+
+  /** True if libsane provides sane_read_dup, in which case readDup() will
+      deliver front and back data progressively in a single call. */
+  bool hasReadDup (void);
+
+  /** Read both sides of a duplex scan in one call. Caller passes two
+      output buffers of the same maxlen; *front_len / *back_len are filled
+      with the bytes actually returned for each side. Returns SANE_STATUS_GOOD
+      while either side may still produce data; SANE_STATUS_EOF when both
+      sides are drained. Asserts hasReadDup(). */
+  SANE_Status readDup (SANE_Byte *front_buf, SANE_Byte *back_buf,
+                       SANE_Int max_len,
+                       SANE_Int *front_len, SANE_Int *back_len);
+
 private: // Private attributes
 
   /** locate option numbers for common options */
@@ -472,6 +492,7 @@ private: // Private attributes
   int mOptionButton [BUT_count];
   int mOptionFunction;  // function number selector
   int mOptionDoubleFeed; // double-feed hardware status (for Fujitsu)
+  int mOptionBufferSize; // backend chunk-size knob (patched fujitsu backend)
 
   /** set to true if the call to sane_init was
 successfull */
