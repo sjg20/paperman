@@ -37,6 +37,7 @@ extern "C"
 #include <sane/sane.h>
 }
 #include <sane/saneopts.h>
+#include <dlfcn.h>
 #include <limits.h>
 #include <math.h>
 #include <unistd.h>
@@ -158,6 +159,7 @@ bool QScanner::msAuthorizationCancelled = false;
 QScanner::QScanner() : QObject()
 {
   mOptionNumber = -1;
+  mOptionBufferSize = -1;
   mSaneStatus = SANE_STATUS_GOOD;
   mNonBlockingIo = SANE_FALSE;
   mAppCancel = false;
@@ -1090,6 +1092,67 @@ SANE_Status QScanner::start()
 SANE_Status QScanner::read(SANE_Byte* buf,SANE_Int maxlen,SANE_Int* len)
    {
    return do_sane_read(mDeviceHandle,buf,maxlen,len);
+   }
+
+
+void QScanner::setBufferSize (int bytes)
+   {
+   if (!mOpenOk || mOptionBufferSize == -1)
+      return;
+
+   const SANE_Option_Descriptor *desc =
+      do_sane_get_option_descriptor (mDeviceHandle, mOptionBufferSize);
+   if (!desc || desc->type != SANE_TYPE_INT)
+      return;
+
+   if (desc->constraint_type == SANE_CONSTRAINT_RANGE
+       && desc->constraint.range)
+      {
+      if (bytes < desc->constraint.range->min)
+         bytes = desc->constraint.range->min;
+      if (bytes > desc->constraint.range->max)
+         bytes = desc->constraint.range->max;
+      }
+   SANE_Word v = bytes;
+   SANE_Int info = 0;
+   do_sane_control_option (mDeviceHandle, mOptionBufferSize,
+                           SANE_ACTION_SET_VALUE, &v, &info);
+   }
+
+
+/* Cached pointer to libsane's optional sane_read_dup. dlsym(RTLD_DEFAULT)
+ * returns the symbol exported by the patched libsane.so if loaded; otherwise
+ * we just don't have it and the duplex-progressive path is skipped. */
+typedef SANE_Status (*sane_read_dup_fn) (SANE_Handle, SANE_Byte *, SANE_Byte *,
+                                         SANE_Int, SANE_Int *, SANE_Int *);
+
+static sane_read_dup_fn lookup_read_dup (void)
+   {
+   static sane_read_dup_fn fn = NULL;
+   static bool tried = false;
+   if (!tried)
+      {
+      fn = (sane_read_dup_fn) dlsym (RTLD_DEFAULT, "sane_read_dup");
+      tried = true;
+      }
+   return fn;
+   }
+
+
+bool QScanner::hasReadDup (void)
+   {
+   return lookup_read_dup () != NULL;
+   }
+
+
+SANE_Status QScanner::readDup (SANE_Byte *front_buf, SANE_Byte *back_buf,
+                               SANE_Int max_len,
+                               SANE_Int *front_len, SANE_Int *back_len)
+   {
+   sane_read_dup_fn fn = lookup_read_dup ();
+   if (!fn)
+      return SANE_STATUS_UNSUPPORTED;
+   return fn (mDeviceHandle, front_buf, back_buf, max_len, front_len, back_len);
    }
 
 
@@ -3700,6 +3763,17 @@ void QScanner::findOptions (void)
 
   // double-feed hardware status (for Fujitsu)
   mOptionDoubleFeed = findOption ("double-feed", false);
+
+  // Patched fujitsu backend exposes "buffer-size" as a runtime option.
+  // 4 KB is the largest size that still streams progressively from
+  // the fi-8170 during the physical scan. Larger sizes (8 KB and up
+  // empirically; 32 KB confirmed) push the scanner into a buffer-
+  // then-dump mode where readDup() blocks until the page has fully
+  // transited and the preview stays blank until then. See
+  // SCAN_PREVIEW_INVESTIGATION.md.
+  mOptionBufferSize = findOption ("buffer-size");
+  if (mOptionBufferSize != -1)
+    setBufferSize (4096);
 }
 
 
