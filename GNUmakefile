@@ -17,6 +17,14 @@ all: paperman paperman-server app docs
 paperman:
 	$(MAKE) -f Makefile $@
 
+# SANE chunk-timing diagnostic. See SCAN_PREVIEW_INVESTIGATION.md.
+scan_chunks: scan_chunks.c
+	$(CC) -O2 -Wall $< -o $@ -lsane -ldl
+
+.PHONY: scan_chunks_clean
+scan_chunks_clean:
+	rm -f scan_chunks
+
 dark-icons:
 	python3 scripts/invert_xpm.py
 
