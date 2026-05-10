@@ -102,8 +102,8 @@ public:
    /** member function which handles the JPEG call of the same name */
    void skip_input_data (long num_bytes);
 
-   /** returns the page number of the page (used by the GUI to route
-       per-page progress events during a progressive duplex scan). */
+   /** returns the page number of the page (used by GUI to route per-page
+       progress events during a progressive duplex scan). */
    int pagenum (void) const { return _pagenum; }
 
 private:
@@ -252,11 +252,23 @@ public:
    /** adds more bytes to the current image */
    bool addImageBytes (unsigned char *buf, int size);
 
+   /** Mirror of addImage() for the back side of a duplex scan. The front
+       page must already be active via addImage(); this routes back-side
+       data into a parallel _page_back slot so a progressive duplex loop
+       can fill both pages in lockstep. */
+   int addImageBack (int width, int height, int depth, int stride, bool jpeg);
+
+   /** Mirror of addImageBytes() for the back side. */
+   bool addImageBytesBack (unsigned char *buf, int size);
+
    /** confirm an image - add it to the stack - call this when there is
        no more data
 
       \return pointer to page data, or 0 if the page was blank */
    struct err_info *confirmImage (Filepage *&mp, QMutex &mutex);
+
+   /** Mirror of confirmImage() for the back side. */
+   struct err_info *confirmImageBack (Filepage *&mp, QMutex &mutex);
 
    /** cancel an image - discard it - call this is a problem prevents
        the image being added to the stack */
@@ -286,6 +298,9 @@ public:
    /** returns a string representing the page coverage for the currently active page */
    QString coverageStr ();
 
+   /** Coverage string for the back-side page (progressive duplex). */
+   QString coverageStrBack ();
+
    bool isScanning (void) { return _scanning; }
 
    /** clears the given page, releasing all memory
@@ -303,6 +318,10 @@ public:
       \returns page  current page */
    const PPage *curPage (void);
 
+   /** returns the current back-side page, when a duplex-progressive scan
+       is filling both sides in parallel. NULL otherwise. */
+   const PPage *curPageBack (void);
+
    /** cancel the stack */
    void cancel (void);
 
@@ -310,6 +329,7 @@ public:
 
 private:
    PPage *_page;              //!< current page being read
+   PPage *_page_back;         //!< back page when scanning duplex progressively
    QList<PPage *> _pages;       //!< all pages
    QString _stackName;   //!< name to give to this stack
    QString _pageName;    //!< name to give to this page
