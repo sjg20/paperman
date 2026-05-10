@@ -925,8 +925,10 @@ signals:
        being scanned
 
       \param image            the new part of the image
-      \param scaled_linenum   destination start line number for this image */
-   void newScaledImage (const QImage &image, int scaled_linenum);
+      \param scaled_linenum   destination start line number for this image
+      \param pagenum          which page in the active scan this is (0 =
+                              front; 1 = back during progressive duplex) */
+   void newScaledImage (const QImage &image, int scaled_linenum, int pagenum);
 
    /** request that the scan stack be commited, because we are about to
        operate on it */
@@ -1329,7 +1331,11 @@ private:
        received */
    bool _need_scaled_image;
    QSize _scaled_image_size;  //!< size of scaled image to generate
-   int _scaled_linenum;       //!< the scaled line number we are up to in the scan
+   /* progress tracker per page in the active scan (keyed by
+      PPage::pagenum()) so a progressive duplex scan can advance front
+      and back independently. Reset by pageStarting() / replaced by
+      registerScaledImageSize() whenever the size changes. */
+   QHash<int, int> _scaled_linenums;
    QPixmap _unknown;
    QPixmap _no_access;
    QStringList _persistent_filenames;  //!< list of filename for each persistent model index (used when saving)
