@@ -55,6 +55,9 @@ class Pagemodel;
 
 class Pageinfo
    {
+   friend class Pagemodel;   /* needs direct access to _scan_image so two
+                                pages can be drawn in parallel during a
+                                progressive duplex scan */
 public:
    Pageinfo ();
    ~Pageinfo ();
@@ -132,6 +135,10 @@ public:
 private:
    bool _valid;            //!< true if this page has been set up
    QPixmap _pixmap;        //!< page image
+   QImage _scan_image;     //!< per-page accumulating draw surface used
+                           //!< while this page is being scanned. Lets two
+                           //!< pages fill in concurrently in progressive
+                           //!< duplex mode.
    int _itemnum;           //!< item number (used to construct index)
    const Pagemodel *_model; //!< page model
    int _pagenum;           //!< the page number
@@ -264,8 +271,9 @@ public:
        being scanned. We record it and provide it to the view
 
       \param image            scaled image to display
-      \param scaled_linenum  destination start line for this fragment */
-   void newScaledImage (const QImage &image, int scaled_linenum);
+      \param scaled_linenum  destination start line for this fragment
+      \param pagenum         page index in our _pages list to update */
+   void newScaledImage (const QImage &image, int scaled_linenum, int pagenum);
 
    /** tell the model to disassociate itself with the scanning, since the
        user has clicked on another stack. This will halt previews */
@@ -363,7 +371,8 @@ private:
    QTimer *_updateTimer;   //!< timer for background scaling operations
    int _update_upto;       //!< where we are up to with updating
    bool _rescaling;        //!< true if we are rescaling in the background
-   QImage _scan_image;     //!< the scan image scaled for us by Desktopmodel
+   /* (per-page _scan_image lives in Pageinfo now to support progressive
+    * duplex; see Pageinfo for details) */
    bool _own_scan;         //!< true if we own the scanning operation
    bool _lost_scan;        //!< true if we did own the scanning operation, but lost it
    const Desktopmodel *_lost_contents;    //!< lost stack model

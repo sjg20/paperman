@@ -323,9 +323,11 @@ void Pagemodel::getPixmap (const QModelIndex &ind, QSize &size, QPixmap &pixmap,
    {
    const Pageinfo &pi = _pages [ind.row ()];
 
-   // if this is the image being scanned, use the scan image supplied by Desktopmodel
+   // if this is the image being scanned, use the page's own scan image
+   // (each Pageinfo keeps its own working surface so a progressive duplex
+   // scan can paint front and back in parallel without collision).
    if (pi.scanning ())
-      pixmap = QPixmap::fromImage(_scan_image);
+      pixmap = QPixmap::fromImage (pi._scan_image);
    else if (_stackindex.isValid ())
       _contents->getScaledImage (_stackindex, _start + ind.row (), size, pixmap, blank);
    size = _pagesize;
@@ -424,8 +426,18 @@ void Pagemodel::slotNewScannedPage (const QString &coverageStr,
    // if we own the scan, proceed normally
    if (_own_scan)
       {
-      /* we have just finished scanning a page - so mark it as done */
+      /* During a progressive duplex scan, BOTH pages are in the
+       * scanning state at the time the front-side confirmImage runs.
+       * Confirm pages in start order: pick the lowest-index page that
+       * is still flagged scanning. Falls back to (_count - 1) for the
+       * legacy single-page case. */
       pagenum = _count - 1;
+      for (int i = 0; i < _pages.size (); i++)
+         if (_pages [i].scanning ())
+            {
+            pagenum = i;
+            break;
+            }
       page = &_pages [pagenum];
       }
    else
@@ -465,20 +477,29 @@ void Pagemodel::beginningPage (void)
 
    Pageinfo &page = _pages [pagenum];
    page.setScanning (true, pagenum);
-   _scan_image = QImage ();
+   page._scan_image = QImage ();
    endInsertRows ();
 //    emit dataChanged (index (pagenum, 0, QModelIndex ()),
 //       index (pagenum, 0, QModelIndex ()));
    }
 
 
-void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum)
+void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum,
+                                int pagenum)
    {
    if (!_stackindex.isValid ())
       return;
 
-   int pagenum = _contents->data (_stackindex, Desktopmodel::Role_pagecount).toInt ();
-   if (pagenum >= (int)_pages.size ())
+   /* pagenum is the index of the active scanning page in our _pages
+    * list, supplied by Desktopmodel::pageProgress (PPage::pagenum()).
+    * If it's out of range — e.g. a stale event arriving after the
+    * stack has been replaced — fall back to the legacy behaviour of
+    * routing to the page count, which is correct for the sequential
+    * single-page case. */
+   if (pagenum < 0 || pagenum >= (int)_pages.size ())
+      pagenum = _contents->data (_stackindex,
+                                 Desktopmodel::Role_pagecount).toInt ();
+   if (pagenum < 0 || pagenum >= (int)_pages.size ())
       return;
    Pageinfo &page = _pages [pagenum];
    bool ok;
@@ -487,28 +508,35 @@ void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum)
 //       << "width" << image.width () << "height" << image.height ()
 //       << "scaled_linenum" << scaled_linenum;
 
-   // update our scanned image
+   // update our scanned image. Always use RGB32 so we can paint any
+   // incoming image format on top regardless of bit depth.
    QPainter p;
+   QImage &surface = page._scan_image;
 
-   if (_scan_image.isNull ())
+   if (surface.isNull ())
       {
-//       qDebug () << "pagesize" << _pagesize << image.format ();
-      _scan_image = QImage (_pagesize.width (), _pagesize.height (), image.format ());
-      _scan_image.fill (-1);
-      ok = p.begin (&_scan_image);
-//       qDebug () << "   starting, ok = " << ok << "image" << _scan_image.width () << _scan_image.height ()<< _scan_image.format ();
+      surface = QImage (_pagesize.width (), _pagesize.height (),
+                        QImage::Format_RGB32);
+      surface.fill (Qt::white);
+      ok = p.begin (&surface);
       if (ok)
-         p.fillRect (QRect (QPoint (0, 0), _scan_image.size ()), QBrush (Qt::DiagCrossPattern));
+         p.fillRect (QRect (QPoint (0, 0), surface.size ()),
+                     QBrush (Qt::DiagCrossPattern));
       }
    else
-      ok = p.begin (&_scan_image);
+      ok = p.begin (&surface);
+
+   QImage src = image;
+   if (src.format () != QImage::Format_RGB32
+       && src.format () != QImage::Format_ARGB32)
+      src = src.convertToFormat (QImage::Format_RGB32);
 
    if (ok)
       {
-      p.drawImage (QPoint (0, scaled_linenum), image);
+      p.drawImage (QPoint (0, scaled_linenum), src);
       p.end ();
 
-      page.updateScanImage (_scan_image);
+      page.updateScanImage (surface);
 
       // tell the view that part of an item has changed
       QModelIndex ind = index (pagenum, 0, QModelIndex ());
