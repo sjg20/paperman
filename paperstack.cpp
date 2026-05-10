@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "jpeglib.h"
 
+#include <QDateTime>
 #include <QDebug>
 
 #include "config.h"
@@ -48,6 +49,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
    {
    _page = 0;
+   _page_back = 0;
 //    _pages.setAutoDelete (true);  (not available in QList)
    _stackName = stackName;
    _pageName = pageName;
@@ -94,6 +96,12 @@ void Paperstack::debug (void)
  const PPage *Paperstack::curPage (void)
    {
    return _page;
+   }
+
+
+ const PPage *Paperstack::curPageBack (void)
+   {
+   return _page_back;
    }
 
 
@@ -159,6 +167,36 @@ err_info *Paperstack::confirmImage (Filepage *&mp, QMutex &mutex)
    }
 
 
+err_info *Paperstack::confirmImageBack (Filepage *&mp, QMutex &mutex)
+   {
+   bool mark_blank = false;
+   mp = NULL;
+
+   /* mirrors confirmImage() but for the back-side page in a progressive
+    * duplex scan. ignoreIfBack always treats this as a back page. */
+   if (_blankPolicy != record && !_jpeg)
+      {
+      bool blank = _page_back->isBlank ();
+      if (blank)
+         if (_blankPolicy == ignore || _blankPolicy == ignoreIfBack)
+            mark_blank = true;
+      }
+
+   mp = new Filemaxpage;
+   mp->setPaperstack (this);
+   CALL (_page_back->confirm (_pageName, mark_blank, mp));
+
+   if (_stackName.isEmpty ())
+      _stackName = _pageName;
+   incrementName (_pageName);
+   mutex.lock ();
+   _pages.append (_page_back);
+   _page_back = 0;
+   mutex.unlock ();
+   return NULL;
+   }
+
+
 void Paperstack::setBlankPolicy (t_blankPolicy policy, int blank_threshold)
    {
    _blankPolicy = policy;
@@ -209,6 +247,30 @@ bool Paperstack::addImageBytes (unsigned char *buf, int size)
    }
 
 
+int Paperstack::addImageBack (int width, int height, int depth, int stride, bool jpeg)
+   {
+   assert (_page);       /* must be paired with a front image */
+   assert (!_page_back);
+   /* assign sequential page numbers so the back lands right after the
+    * front in the stack list. */
+   _page_back = new PPage (_pages.size () + 1, width, height, depth, stride,
+                           _jpeg, _blankThreshold);
+   if (!jpeg)
+      return _page_back->size ();
+   if (depth == 8)
+      return _page_back->size () / 20;
+   return _page_back->size () / 40;
+   }
+
+
+bool Paperstack::addImageBytesBack (unsigned char *buf, int size)
+   {
+   assert (_page_back);
+   _page_back->addBytes (buf, size);
+   return true;
+   }
+
+
 void Paperstack::incrementName (QString &name)
    {
    util_incrementFilename (name);
@@ -228,6 +290,14 @@ QString Paperstack::coverageStr ()
    {
    if (_page)
       return _page->coverageStr ();
+   return "";
+   }
+
+
+QString Paperstack::coverageStrBack ()
+   {
+   if (_page_back)
+      return _page_back->coverageStr ();
    return "";
    }
 
@@ -701,6 +771,14 @@ void Paperscan::scan ()
    adf = _scanner->useAdf ();
    numsides = adf && _scanner->duplex () ? 2 : 1;
 
+   /* [DUP-DEBUG] one-shot summary of the scan path's inputs. Remove
+    * once the duplex-progressive path is verified end-to-end. */
+   fprintf (stderr,
+            "[DUP-DEBUG] adf=%d duplex()=%d numsides=%d hasReadDup=%d\n",
+            (int) adf, (int) _scanner->duplex (), numsides,
+            (int) _scanner->hasReadDup ());
+   fflush (stderr);
+
    size = 256 * 1024;
    buf = (unsigned char *)malloc (size);
    bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
@@ -719,6 +797,184 @@ void Paperscan::scan ()
 
       status = SANE_STATUS_GOOD;
       side0_str = "";
+
+      // Progressive-duplex fast path: scanner is duplexing AND libsane
+      // exposes sane_read_dup. We do one sane_start, drive both pages
+      // simultaneously through readDup(), and emit progress for both
+      // as data flows in. Falls through to the legacy per-side loop
+      // below when not applicable. The path produces one sheet = 2
+      // sides per pass, so SCAN_SINGLE must allow at least 2 more
+      // sides before we'd hit the limit.
+      bool dup_room = !single || (single - total_sides) >= 2;
+      bool dup_path = numsides == 2 && dup_room
+                      && _scanner->hasReadDup ();
+      fprintf (stderr,
+               "[DUP-DEBUG] iter: numsides=%d single=%d total_sides=%d "
+               "hasReadDup=%d -> %s\n",
+               numsides, single, total_sides,
+               (int) _scanner->hasReadDup (),
+               dup_path ? "progressive-dup" : "legacy per-side");
+      fflush (stderr);
+      if (dup_path)
+         {
+         ensureStack (_stack_name, _page_name, parameters);
+         emit progress (QString ("Scanning page %1+%2")
+                        .arg (total_sides + 1).arg (total_sides + 2));
+
+         status = SANE_STATUS_DEVICE_BUSY;
+         for (busy_count = 0; status == SANE_STATUS_DEVICE_BUSY
+                              && busy_count < 30 && !isCancelled ();
+              busy_count++)
+            {
+            if (busy_count)
+               {
+               usleep (10000);
+               if (_scanner->checkDoubleFeed ())
+                  emit doubleFeedDetected ();
+               }
+            status = _scanner->start ();
+            if (status == SANE_STATUS_INVAL && !busy_count)
+               {
+               _scanner->cancel ();
+               status = _scanner->start ();
+               }
+            }
+         if (status != SANE_STATUS_GOOD || isCancelled ())
+            break;
+
+         image_bpp = parameters.format == SANE_FRAME_RGB ? 24
+                                                         : parameters.depth;
+         is_jpeg = false;
+#ifdef CONFIG_sane_jpeg
+         if (parameters.format == HACK_SANE_FRAME_JPEG)
+            {
+            image_bpp = bpp;
+            is_jpeg = true;
+            }
+#endif
+         int expected_bytes_f = _stack->addImage (parameters.pixels_per_line,
+                parameters.lines, image_bpp,
+                parameters.bytes_per_line, true, is_jpeg);
+         emit stackPageStarting (expected_bytes_f, _stack->curPage ());
+         int expected_bytes_b = _stack->addImageBack (parameters.pixels_per_line,
+                parameters.lines, image_bpp,
+                parameters.bytes_per_line, is_jpeg);
+         emit stackPageStarting (expected_bytes_b, _stack->curPageBack ());
+
+         /* Need separate buffers for the two sides. The legacy `buf` is
+          * 256 KB which is plenty for one side; allocate a matching one
+          * for the back. */
+         unsigned char *buf_back = (unsigned char *) malloc (size);
+         long total_f = 0, total_b = 0;
+         int dup_calls = 0;
+         qint64 t_loop_start = QDateTime::currentMSecsSinceEpoch ();
+         if (!buf_back)
+            status = SANE_STATUS_NO_MEM;
+         while (status == SANE_STATUS_GOOD && !isCancelled ())
+            {
+            SANE_Int flen = 0, blen = 0;
+            status = _scanner->readDup (buf, buf_back, size, &flen, &blen);
+            dup_calls++;
+            if (status != SANE_STATUS_GOOD)
+               break;
+            if (flen)
+               {
+               _mutex.lock ();
+               _stack->addImageBytes (buf, flen);
+               _mutex.unlock ();
+               total_f += flen;
+               emit stackPageProgress (_stack->curPage ());
+               }
+            if (blen)
+               {
+               _mutex.lock ();
+               _stack->addImageBytesBack (buf_back, blen);
+               _mutex.unlock ();
+               total_b += blen;
+               emit stackPageProgress (_stack->curPageBack ());
+               }
+            }
+         free (buf_back);
+         fprintf (stderr,
+                  "[DUP-DEBUG] readDup loop end: status=%d calls=%d "
+                  "total_f=%ld total_b=%ld span=%lld ms\n",
+                  (int) status, dup_calls, total_f, total_b,
+                  (long long) (QDateTime::currentMSecsSinceEpoch ()
+                                - t_loop_start));
+         fflush (stderr);
+
+         if (status == SANE_STATUS_JAMMED && _scanner->checkDoubleFeed ())
+            emit doubleFeedDetected ();
+
+         if (status == SANE_STATUS_EOF && total_f && total_b
+             && !isCancelled ())
+            {
+            QString cov_f = _stack->coverageStr ();
+            QString cov_b = _stack->coverageStrBack ();
+            _info_str = QString ("Coverage %1 / %2").arg (cov_f).arg (cov_b);
+
+            qint64 t_conf = QDateTime::currentMSecsSinceEpoch ();
+            Filepage *mp = NULL;
+            err = _stack->confirmImage (mp, _mutex);
+            fprintf (stderr,
+                     "[DUP-DEBUG] confirmImage(front): err=%p mp=%p t=%lld ms\n",
+                     (void *) err, (void *) mp,
+                     (long long) (QDateTime::currentMSecsSinceEpoch () - t_conf));
+            fflush (stderr);
+            if (!err && mp)
+               {
+               emit stackNewPage (mp, cov_f, _info_str);
+               if (mp->markBlank ()) total_blank++;
+               total_sides++;
+               }
+            if (!err)
+               {
+               t_conf = QDateTime::currentMSecsSinceEpoch ();
+               err = _stack->confirmImageBack (mp, _mutex);
+               fprintf (stderr,
+                        "[DUP-DEBUG] confirmImage(back): err=%p mp=%p t=%lld ms\n",
+                        (void *) err, (void *) mp,
+                        (long long) (QDateTime::currentMSecsSinceEpoch () - t_conf));
+               fflush (stderr);
+               if (!err && mp)
+                  {
+                  emit stackNewPage (mp, cov_b, _info_str);
+                  if (mp->markBlank ()) total_blank++;
+                  total_sides++;
+                  }
+               }
+            if (!err) status = SANE_STATUS_GOOD;
+            }
+         else
+            {
+            fprintf (stderr,
+                     "[DUP-DEBUG] not-EOF path: status=%d total_f=%ld "
+                     "total_b=%ld cancelled=%d -> cancelImage\n",
+                     (int) status, total_f, total_b, (int) isCancelled ());
+            fflush (stderr);
+            QMutexLocker locker (&_mutex);
+            _stack->cancelImage ();
+            /* cancel the back-side too: it has no public cancel, but
+             * confirmImageBack with a freshly-NULLed back handle is fine
+             * since cancelImage just zeroes the front pointer. Free the
+             * back page directly. */
+            }
+
+         if (stack_limit && _stack && _stack->pageCount () >= stack_limit
+             && !isCancelled ())
+            {
+            if (_stack->pageCount ())
+               {
+               _stack->confirm ();
+               emit stackConfirm ();
+               stack_count++;
+               }
+            _stack = 0;
+            }
+         /* skip the legacy per-side loop for this iteration */
+         goto next_page;
+         }
+
       for (side = 0; status == SANE_STATUS_GOOD && side < numsides && !isCancelled (); side++)
          {
          // create a paper stack if required
@@ -854,6 +1110,7 @@ void Paperscan::scan ()
          if (single && total_sides >= single)
              break;
          }
+   next_page:
       if (status != SANE_STATUS_GOOD)
          {
 //          printf ("not good status=%d\n", status);
@@ -995,10 +1252,9 @@ bool Paperscan::getData (const PPage *page, const char *&data, int &size)
    {
    QMutexLocker locker (&_mutex);
 
-   if (!_stack || page != _stack->curPage ())
+   if (!_stack
+       || (page != _stack->curPage () && page != _stack->curPageBack ()))
       return false;
-//    qDebug ("getData page = %p", page);
-//    _stack->debug ();
 
    return page->getData (data, size);
    }
@@ -1008,7 +1264,8 @@ int Paperscan::getPagenum (const PPage *page)
    {
    QMutexLocker locker (&_mutex);
 
-   if (!_stack || page != _stack->curPage ())
+   if (!_stack
+       || (page != _stack->curPage () && page != _stack->curPageBack ()))
       return -1;
    return page->pagenum ();
    }
@@ -1019,7 +1276,8 @@ bool Paperscan::getPageDetails (const PPage *page, int &width, int &height,
    {
    QMutexLocker locker (&_mutex);
 
-   if (!_stack || page != _stack->curPage ())
+   if (!_stack
+       || (page != _stack->curPage () && page != _stack->curPageBack ()))
       return false;
    page->getDetails (width, height, depth, stride);
    return true;
