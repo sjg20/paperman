@@ -314,8 +314,10 @@ protected slots:
        scanned
 
       \param image           image fragment
-      \param scaled_linenum  destination start line for this fragment */
-   void slotNewScaledImage (const QImage &image, int scaled_linenum);
+      \param scaled_linenum  destination start line for this fragment
+      \param pagenum         which page this fragment belongs to */
+   void slotNewScaledImage (const QImage &image, int scaled_linenum,
+                            int pagenum);
 
    /** called when we are beginning to scan a new page. We display it and
        monitor progress with calls we receive to slotNewScaledImage() */
