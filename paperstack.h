@@ -102,6 +102,10 @@ public:
    /** member function which handles the JPEG call of the same name */
    void skip_input_data (long num_bytes);
 
+   /** returns the page number of the page (used by the GUI to route
+       per-page progress events during a progressive duplex scan). */
+   int pagenum (void) const { return _pagenum; }
+
 private:
    /** constructor for page
 
@@ -175,11 +179,6 @@ private:
       \param data    returns pointer to data
       \param size    returns size of data */
    bool getData (const char *&data, int &size) const;
-
-   /** returns the page number of the page
-
-      \returns page number (from 0) */
-   int pagenum (void) const { return _pagenum; }
 
 private:
    /** return true if the given bytes indicate a blank page */
