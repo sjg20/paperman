@@ -359,8 +359,28 @@ void Mainwidget::scanInto(QModelIndex target)
    status = _scanner->getParameters(&parameters);
    if (status != SANE_STATUS_GOOD)
       {
-      QMessageBox::warning (0, "Scanner Problem", "Could not get parameters");
-      return;
+      // Scanner handle may be stale (e.g. after a previous failed
+      // reconnect). Try one reconnect before giving up.
+      if (_scanner->reconnect ())
+         {
+         if (_scanDialog)
+            {
+            delete _scanDialog;
+            _scanDialog = 0;
+            if (_pscan)
+               _pscan->setScanDialog (_scanDialog);
+            }
+         setupScanDialog ();
+         if (_pscan)
+            _pscan->reapplyCurrentPreset ();
+         status = _scanner->getParameters(&parameters);
+         }
+      if (status != SANE_STATUS_GOOD)
+         {
+         QMessageBox::warning (0, "Scanner Problem",
+            "Could not get parameters - is the scanner connected?");
+         return;
+         }
       }
    _watchButtons = false;
 
@@ -468,6 +488,17 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
       {
       if (_scanner->reconnect ())
          {
+         // QScanDialog's QSaneOption widgets are bound to the old SANE
+         // handle; rebuild against the new handle before reapplying the
+         // preset, otherwise option writes go nowhere.
+         if (_scanDialog)
+            {
+            delete _scanDialog;
+            _scanDialog = 0;
+            if (_pscan)
+               _pscan->setScanDialog (_scanDialog);
+            }
+         setupScanDialog ();
          if (_pscan)
             _pscan->reapplyCurrentPreset ();
          QMessageBox::information (this, "Scanner reconnected",
@@ -773,6 +804,17 @@ void Mainwidget::reconnectScanner (void)
 
    if (_scanner->reconnect ())
       {
+      // QScanDialog's QSaneOption widgets are bound to the old SANE handle;
+      // tear it down and rebuild against the new handle, then push the
+      // active preset so the scanner does not revert to defaults.
+      if (_scanDialog)
+         {
+         delete _scanDialog;
+         _scanDialog = 0;
+         if (_pscan)
+            _pscan->setScanDialog (_scanDialog);
+         }
+      setupScanDialog ();
       if (_pscan)
          _pscan->reapplyCurrentPreset ();
       QMessageBox::information (this, "Scanner",
