@@ -21,6 +21,19 @@ private slots:
    //! After reconnect(), setting DPI through QScanner sticks.
    //! (This is what reapplyCurrentPreset() ultimately relies on.)
    void testReapplyDpiAfterReconnect();
+
+   //! Setting DPI via QScanDialog widgets reaches the scanner.
+   void testScanDialogSetDpi();
+
+   //! After QScanner::reconnect(), a freshly rebuilt QScanDialog can push
+   //! settings to the new SANE handle (the mainwidget rebuild-on-reconnect
+   //! contract).
+   void testScanDialogRebuildAfterReconnect();
+
+   //! Demonstrates the bug: a STALE QScanDialog (i.e. one not rebuilt after
+   //! reconnect) may fail to push values to the new SANE handle. This is
+   //! why mainwidget rebuilds the dialog on reconnect.
+   void testStaleScanDialogAfterReconnect();
 };
 
 #endif // TEST_QSCANNER_H
