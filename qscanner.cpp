@@ -2661,6 +2661,8 @@ SANE_Status QScanner::scanPreview(QString path,QWidget* parent,
 /**  */
 SANE_Status QScanner::getParameters(SANE_Parameters* par)
 {
+   if (!mOpenOk || !mDeviceHandle)
+      return SANE_STATUS_INVAL;
    return do_sane_get_parameters(mDeviceHandle, par);
 }
 /**  */
