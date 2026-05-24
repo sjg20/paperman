@@ -34,6 +34,10 @@ private slots:
    //! reconnect) may fail to push values to the new SANE handle. This is
    //! why mainwidget rebuilds the dialog on reconnect.
    void testStaleScanDialogAfterReconnect();
+
+   //! reconnect() snapshots and restores scanner state so the user's
+   //! settings (DPI, duplex, format, etc) survive the teardown.
+   void testReconnectPreservesSettings();
 };
 
 #endif // TEST_QSCANNER_H
