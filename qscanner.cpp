@@ -260,8 +260,49 @@ bool QScanner::getDeviceList(bool local_only)
 
 
 /**  */
+void QScanner::setFormat (format_t f, bool select_compression)
+   {
+   (void)select_compression;
+   if (mOptionFormat == -1 || f == other)
+      return;
+   QString fred = QString ("Lineart,Halftone,Gray,Color").section (',', f, f);
+   QByteArray ba = fred.toLatin1 ();
+   if (setOption (mOptionFormat, (void *)ba.constData ()) != SANE_STATUS_GOOD)
+      {
+      // Some backends spell Lineart as Binary
+      if (fred == "Lineart")
+         {
+         QByteArray b = QByteArray ("Binary");
+         setOption (mOptionFormat, (void *)b.constData ());
+         }
+      }
+   }
+
+
+/**  */
 bool QScanner::reconnect()
    {
+   // Snapshot current scanner state so we can restore it after the
+   // teardown. Without this the scanner reverts to defaults on every
+   // reconnect, regardless of which (if any) preset is selected in the
+   // UI.
+   int saved_x_dpi = -1, saved_y_dpi = -1;
+   int saved_brightness = INT_MIN, saved_contrast = INT_MIN;
+   int saved_exposure = INT_MIN;
+   bool saved_duplex = false, saved_adf = false;
+   format_t saved_format = other;
+   if (mOpenOk)
+      {
+      saved_x_dpi      = xResolutionDpi ();
+      saved_y_dpi      = yResolutionDpi ();
+      saved_duplex     = duplex ();
+      saved_adf        = useAdf ();
+      saved_format     = format ();
+      saved_brightness = getBrightness ();
+      saved_contrast   = getContrast ();
+      saved_exposure   = getExposure ();
+      }
+
    // Close the handle, then fully tear down the SANE backend and bring it
    // back up. Just sane_close+sane_open is not enough: once a USB scanner
    // has slept the backend retains stale device state and sane_open
@@ -284,7 +325,30 @@ bool QScanner::reconnect()
    // re-enumerate so the backend is aware of the device again
    getDeviceList (false);
 
-   return openDevice ();
+   if (!openDevice ())
+      return false;
+
+   // Restore the snapshot to the fresh handle.
+   if (saved_x_dpi > 0)
+      setDpi (saved_x_dpi);
+   if (saved_y_dpi > 0 && saved_y_dpi != saved_x_dpi && mOptionYRes != -1)
+      {
+      SANE_Word w = saved_y_dpi;
+      setOption (mOptionYRes, &w);
+      }
+   if (saved_adf)
+      setAdf (true);
+   if (saved_duplex)
+      setDuplex (true);
+   setFormat (saved_format);
+   if (saved_brightness != INT_MIN)
+      setBrightness (saved_brightness);
+   if (saved_contrast != INT_MIN)
+      setContrast (saved_contrast);
+   if (saved_exposure != INT_MIN)
+      setExposure (saved_exposure);
+
+   return true;
    }
 
 
