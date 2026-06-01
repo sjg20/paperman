@@ -584,11 +584,11 @@ void Desktopwidget::updateSettings ()
 
    qs.remove ("repository");
    qs.beginWriteArray ("repository");
-   for (int i = 1; i < count; i++)
+   for (int i = 0; i < count; i++)
       {
       QModelIndex index = _model->index (i, 0, QModelIndex ());
 
-      qs.setArrayIndex (i - 1);
+      qs.setArrayIndex (i);
       qs.setValue("path", _model->data (index, Dirmodel::FilePathRole));
       }
    qs.endArray ();
