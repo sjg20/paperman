@@ -35,6 +35,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QStandardPaths>
 #include <QImage>
 #include <QProcess>
 #include <QRegularExpression>
@@ -474,6 +475,31 @@ static err_info *parallel_convert_to_max(File *file, const QString &fname,
    }
 
 
+/** Copy the historical maxview settings file to its new paperman
+ *  location on first run, so existing users don't lose their settings
+ *  when the QSettings org/app name changes.
+ */
+static void migrateSettings (void)
+{
+   QString config_dir = QStandardPaths::writableLocation (
+         QStandardPaths::GenericConfigLocation);
+   QString old_file = config_dir + "/maxview/maxview.conf";
+   QString new_dir = config_dir + "/paperman";
+   QString new_file = new_dir + "/paperman.conf";
+
+   if (!QFile::exists (old_file) || QFile::exists (new_file))
+      return;
+
+   QDir ().mkpath (new_dir);
+   if (QFile::copy (old_file, new_file))
+      qInfo () << "Migrated settings from" << old_file
+               << "to" << new_file;
+   else
+      qWarning () << "Failed to migrate settings from" << old_file
+                  << "to" << new_file;
+}
+
+
 static void usage (void)
    {
    printf ("maxview - An electronic filing cabinet: scan, print, stack, arrange\n\n");
@@ -691,9 +717,10 @@ int main (int argc, char *argv[])
    (void)translator.load("maxview_en");
    app.installTranslator(&translator);
 
-   QCoreApplication::setOrganizationName("maxview");
+   migrateSettings ();
+   QCoreApplication::setOrganizationName("paperman");
    //QCoreApplication::setOrganizationDomain("bluewatersys.com");
-   QCoreApplication::setApplicationName("maxview");
+   QCoreApplication::setApplicationName("paperman");
 
    switch (op_type)
       {
