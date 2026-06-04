@@ -12,7 +12,7 @@ BUILDDIR      = $(DOCDIR)/_build
 
 .DEFAULT_GOAL := all
 
-all: paperman paperman-server app docs
+all: paperman paperman-server paperman-client app docs
 
 paperman:
 	$(MAKE) -f Makefile $@
@@ -40,6 +40,12 @@ paperman-server: Makefile.server builddate.h
 
 Makefile.server: paperman-server.pro
 	qmake paperman-server.pro -o Makefile.server
+
+paperman-client: Makefile.client
+	$(MAKE) -f Makefile.client
+
+Makefile.client: paperman-client.pro
+	qmake paperman-client.pro -o Makefile.client
 
 test-setup: paperman
 	python3 scripts/make_test_files.py
@@ -236,11 +242,12 @@ app-clean:
 clean: app-clean docs-clean
 	-test -f Makefile && $(MAKE) -f Makefile clean
 	-test -f Makefile.server && $(MAKE) -f Makefile.server clean
-	rm -f paperman paperman-server builddate.h Makefile.server *.o moc_*.cpp moc_predefs.h
+	-test -f Makefile.client && $(MAKE) -f Makefile.client clean
+	rm -f paperman paperman-server paperman-client builddate.h Makefile.server Makefile.client *.o moc_*.cpp moc_predefs.h
 
 distclean: app-clean docs-clean
-	rm -f paperman paperman-server builddate.h *.o moc_*.cpp moc_predefs.h
-	rm -f Makefile Makefile.qt6 Makefile.server server.mk .qmake.stash
+	rm -f paperman paperman-server paperman-client builddate.h *.o moc_*.cpp moc_predefs.h
+	rm -f Makefile Makefile.qt6 Makefile.server Makefile.client server.mk .qmake.stash
 	rm -rf .obj .moc .ui
 
 docs-clean:

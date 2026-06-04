@@ -56,6 +56,20 @@ bool RemoteBackend::login(const QString &user, const QString &password)
 }
 
 
+QString RemoteBackend::serverId()
+{
+   if (!_serverId.isEmpty())
+      return _serverId;
+
+   QByteArray body = getRequest("/v1/status");
+   QJsonDocument doc = QJsonDocument::fromJson(body);
+   if (!doc.isObject())
+      return QString();
+   _serverId = doc.object().value("serverId").toString();
+   return _serverId;
+}
+
+
 QList<RepositoryInfo> RemoteBackend::listRepositories()
 {
    QList<RepositoryInfo> out;
