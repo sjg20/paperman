@@ -771,14 +771,6 @@ void Paperscan::scan ()
    adf = _scanner->useAdf ();
    numsides = adf && _scanner->duplex () ? 2 : 1;
 
-   /* [DUP-DEBUG] one-shot summary of the scan path's inputs. Remove
-    * once the duplex-progressive path is verified end-to-end. */
-   fprintf (stderr,
-            "[DUP-DEBUG] adf=%d duplex()=%d numsides=%d hasReadDup=%d\n",
-            (int) adf, (int) _scanner->duplex (), numsides,
-            (int) _scanner->hasReadDup ());
-   fflush (stderr);
-
    size = 256 * 1024;
    buf = (unsigned char *)malloc (size);
    bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
@@ -808,13 +800,6 @@ void Paperscan::scan ()
       bool dup_room = !single || (single - total_sides) >= 2;
       bool dup_path = numsides == 2 && dup_room
                       && _scanner->hasReadDup ();
-      fprintf (stderr,
-               "[DUP-DEBUG] iter: numsides=%d single=%d total_sides=%d "
-               "hasReadDup=%d -> %s\n",
-               numsides, single, total_sides,
-               (int) _scanner->hasReadDup (),
-               dup_path ? "progressive-dup" : "legacy per-side");
-      fflush (stderr);
       if (dup_path)
          {
          ensureStack (_stack_name, _page_name, parameters);
@@ -866,24 +851,37 @@ void Paperscan::scan ()
           * for the back. */
          unsigned char *buf_back = (unsigned char *) malloc (size);
          long total_f = 0, total_b = 0;
-         int dup_calls = 0;
-         qint64 t_loop_start = QDateTime::currentMSecsSinceEpoch ();
+         /* readDup() returns 4 KB chunks at scanner pace (~5 ms each)
+          * for two sides, which is faster than the GUI can absorb a
+          * progress event end-to-end (image.scaled, QPainter,
+          * QPixmap::fromImage, viewport repaint). Without throttling
+          * the queued events back up and the preview keeps painting
+          * for seconds after the scanner has finished. Cap emissions
+          * at ~20 fps per side; data still accumulates each
+          * iteration so the next emit shows a larger combined
+          * strip. */
+         const qint64 emit_interval_ms = 50;
+         qint64 t_last_emit_f = 0, t_last_emit_b = 0;
          if (!buf_back)
             status = SANE_STATUS_NO_MEM;
          while (status == SANE_STATUS_GOOD && !isCancelled ())
             {
             SANE_Int flen = 0, blen = 0;
             status = _scanner->readDup (buf, buf_back, size, &flen, &blen);
-            dup_calls++;
             if (status != SANE_STATUS_GOOD)
                break;
+            qint64 t_now = QDateTime::currentMSecsSinceEpoch ();
             if (flen)
                {
                _mutex.lock ();
                _stack->addImageBytes (buf, flen);
                _mutex.unlock ();
                total_f += flen;
-               emit stackPageProgress (_stack->curPage ());
+               if (t_now - t_last_emit_f >= emit_interval_ms)
+                  {
+                  emit stackPageProgress (_stack->curPage ());
+                  t_last_emit_f = t_now;
+                  }
                }
             if (blen)
                {
@@ -891,17 +889,18 @@ void Paperscan::scan ()
                _stack->addImageBytesBack (buf_back, blen);
                _mutex.unlock ();
                total_b += blen;
-               emit stackPageProgress (_stack->curPageBack ());
+               if (t_now - t_last_emit_b >= emit_interval_ms)
+                  {
+                  emit stackPageProgress (_stack->curPageBack ());
+                  t_last_emit_b = t_now;
+                  }
                }
             }
+         /* drain any final state the throttled loop did not yet
+          * report so the preview shows the complete page. */
+         emit stackPageProgress (_stack->curPage ());
+         emit stackPageProgress (_stack->curPageBack ());
          free (buf_back);
-         fprintf (stderr,
-                  "[DUP-DEBUG] readDup loop end: status=%d calls=%d "
-                  "total_f=%ld total_b=%ld span=%lld ms\n",
-                  (int) status, dup_calls, total_f, total_b,
-                  (long long) (QDateTime::currentMSecsSinceEpoch ()
-                                - t_loop_start));
-         fflush (stderr);
 
          if (status == SANE_STATUS_JAMMED && _scanner->checkDoubleFeed ())
             emit doubleFeedDetected ();
@@ -913,14 +912,8 @@ void Paperscan::scan ()
             QString cov_b = _stack->coverageStrBack ();
             _info_str = QString ("Coverage %1 / %2").arg (cov_f).arg (cov_b);
 
-            qint64 t_conf = QDateTime::currentMSecsSinceEpoch ();
             Filepage *mp = NULL;
             err = _stack->confirmImage (mp, _mutex);
-            fprintf (stderr,
-                     "[DUP-DEBUG] confirmImage(front): err=%p mp=%p t=%lld ms\n",
-                     (void *) err, (void *) mp,
-                     (long long) (QDateTime::currentMSecsSinceEpoch () - t_conf));
-            fflush (stderr);
             if (!err && mp)
                {
                emit stackNewPage (mp, cov_f, _info_str);
@@ -929,13 +922,7 @@ void Paperscan::scan ()
                }
             if (!err)
                {
-               t_conf = QDateTime::currentMSecsSinceEpoch ();
                err = _stack->confirmImageBack (mp, _mutex);
-               fprintf (stderr,
-                        "[DUP-DEBUG] confirmImage(back): err=%p mp=%p t=%lld ms\n",
-                        (void *) err, (void *) mp,
-                        (long long) (QDateTime::currentMSecsSinceEpoch () - t_conf));
-               fflush (stderr);
                if (!err && mp)
                   {
                   emit stackNewPage (mp, cov_b, _info_str);
@@ -947,11 +934,6 @@ void Paperscan::scan ()
             }
          else
             {
-            fprintf (stderr,
-                     "[DUP-DEBUG] not-EOF path: status=%d total_f=%ld "
-                     "total_b=%ld cancelled=%d -> cancelImage\n",
-                     (int) status, total_f, total_b, (int) isCancelled ());
-            fflush (stderr);
             QMutexLocker locker (&_mutex);
             _stack->cancelImage ();
             /* cancel the back-side too: it has no public cancel, but
