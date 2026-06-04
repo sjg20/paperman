@@ -29,6 +29,9 @@ private slots:
    //! Check that selectContextItem() emits clicked()
    void testSelectEmitsClicked();
 
+   //! Refreshing a directory in the view must not lose its subdirectories
+   void testRefreshKeepsSubdirsInView();
+
 private:
    /**
     * @brief  Set up a Dirview with a Dirmodel and Dirproxy

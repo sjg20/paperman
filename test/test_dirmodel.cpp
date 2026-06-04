@@ -104,6 +104,38 @@ void TestDirmodel::testCacheFiles()
             " + one|  + a|  + b|  - ofile|  - ofile2| + two|");
 }
 
+void TestDirmodel::testRefreshKeepsSubdirs()
+{
+   Dirmodel *model = setupModel();
+
+   // Trigger population of main/one
+   QString one_path = _tempDir->path() + "/main/one";
+   QModelIndex one = model->index(one_path);
+   QVERIFY(one.isValid());
+   QCOMPARE(model->rowCount(one), 2);   // "a" and "b" exist on disk
+
+   // Capture child names so we can compare after refresh
+   QStringList before;
+   for (int i = 0; i < model->rowCount(one); i++)
+      before << model->data(model->index(i, 0, one), Qt::DisplayRole).toString();
+   before.sort();
+   QCOMPARE(before, QStringList({"a", "b"}));
+
+   // refresh() must not silently drop the existing subdirectories.
+   // After a refresh the view should still report the same children.
+   model->refresh(one);
+
+   QModelIndex one_after = model->index(one_path);
+   QVERIFY(one_after.isValid());
+   QCOMPARE(model->rowCount(one_after), 2);
+
+   QStringList after;
+   for (int i = 0; i < model->rowCount(one_after); i++)
+      after << model->data(model->index(i, 0, one_after), Qt::DisplayRole).toString();
+   after.sort();
+   QCOMPARE(after, QStringList({"a", "b"}));
+}
+
 void TestDirmodel::testAddFiles()
 {
    Dirmodel *model;

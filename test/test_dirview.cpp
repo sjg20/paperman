@@ -185,3 +185,47 @@ void TestDirview::testSelectEmitsClicked()
    QCOMPARE(spy.count(), 2);
    QCOMPARE(spy.at(1).at(0).toModelIndex(), photos_proxy);
 }
+
+
+void TestDirview::testRefreshKeepsSubdirsInView()
+{
+   Dirmodel *model;
+   Dirproxy *proxy;
+   Dirview *view = setupView(model, proxy);
+
+   view->resize(400, 300);
+   view->show();
+
+   // Expand "main" and then "main/one" so the view has actually rendered
+   // its children. This mirrors the user action where they expand a
+   // directory in the tree before refreshing it.
+   QModelIndex main_src = model->index(0, 0, QModelIndex());
+   QModelIndex main_proxy = proxy->mapFromSource(main_src);
+   view->expand(main_proxy);
+
+   QModelIndex one_proxy = proxy->index(0, 0, main_proxy);
+   view->expand(one_proxy);
+   QCOMPARE(proxy->rowCount(one_proxy), 2);   // "a" and "b"
+
+   // Trigger the refresh path that Desktopwidget::refreshDir() uses.
+   QModelIndex one_src = proxy->mapToSource(one_proxy);
+   model->refresh(one_src);
+
+   // Sanity: the source model must still report the children since the
+   // directories still exist on disk.
+   QModelIndex one_src_after = model->index(_tempDir->path() + "/main/one");
+   QVERIFY(one_src_after.isValid());
+   QCOMPARE(model->rowCount(one_src_after), 2);
+
+   // The proxy must agree.
+   one_proxy = proxy->mapFromSource(one_src_after);
+   QVERIFY(one_proxy.isValid());
+   QCOMPARE(proxy->rowCount(one_proxy), 2);
+
+   QStringList names;
+   for (int i = 0; i < proxy->rowCount(one_proxy); i++)
+      names << proxy->data(proxy->index(i, 0, one_proxy),
+                           Qt::DisplayRole).toString();
+   names.sort();
+   QCOMPARE(names, QStringList({"a", "b"}));
+}
