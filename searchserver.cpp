@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include "searchserver.h"
+#include "localbackend.h"
 #include "serverlog.h"
 #include "config.h"
 
@@ -79,6 +80,8 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
 
     // Also store in the list for compatibility
     _rootPaths.append(_rootPath);
+
+    _backend.reset(new LocalBackend(_rootPaths));
 
     // Load API key from environment variable
     _apiKey = QString::fromUtf8(qgetenv("PAPERMAN_API_KEY"));
@@ -145,6 +148,8 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     // Keep first path for backward compatibility
     if (!_rootPaths.isEmpty())
         _rootPath = _rootPaths.first();
+
+    _backend.reset(new LocalBackend(_rootPaths));
 
     // Load API key from environment variable
     _apiKey = QString::fromUtf8(qgetenv("PAPERMAN_API_KEY"));
@@ -517,8 +522,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                  QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
     }
     else if (path == "/repos") {
-        // List all repositories
-        QString result = listRepositories();
+        QString result = listRepositories(authedUser);
         return buildHttpResponse(200, "OK", "application/json", result);
     }
     else if (path == "/search") {
@@ -913,50 +917,36 @@ QString SearchServer::listFiles(const QString &dirPath)
 #endif
 }
 
-QString SearchServer::listRepositories()
+QString SearchServer::listRepositories(const QString &user)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+    QList<RepositoryInfo> repos = _backend->listRepositories();
+
     QJsonArray jsonArray;
-    foreach (const QString &path, _rootPaths) {
+    int count = 0;
+    for (const RepositoryInfo &r : repos) {
+        /* For bearer-authed callers, hide repos the user can't see.
+         * Missing repos still report exists=false so the client knows
+         * the operator configured them.  Skip those too when filtered:
+         * leaking the existence of an unreachable directory has no
+         * value to a restricted user. */
+        if (!user.isEmpty() && !_users.repoAllowed(user, r.name))
+            continue;
+
         QJsonObject repoObj;
-        repoObj["path"] = path;
-
-        QDir dir(path);
-        if (dir.exists()) {
-            repoObj["exists"] = true;
-            repoObj["name"] = QFileInfo(path).fileName();
-        } else {
-            repoObj["exists"] = false;
-            repoObj["name"] = "";
-        }
-
+        repoObj["path"]   = r.path;
+        repoObj["exists"] = r.exists;
+        repoObj["name"]   = r.name;
         jsonArray.append(repoObj);
+        count++;
     }
 
     QJsonObject responseObj;
-    responseObj["success"] = true;
-    responseObj["count"] = _rootPaths.size();
+    responseObj["success"]      = true;
+    responseObj["count"]        = count;
     responseObj["repositories"] = jsonArray;
 
     QJsonDocument doc(responseObj);
     return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
-#else
-    // Qt 4 fallback
-    QString json = "{\"success\":true,\"count\":" + QString::number(_rootPaths.size())
-                  + ",\"repositories\":[";
-    for (int i = 0; i < _rootPaths.size(); i++) {
-        if (i > 0) json += ",";
-        const QString &path = _rootPaths[i];
-        QDir dir(path);
-        bool exists = dir.exists();
-        QString name = exists ? QFileInfo(path).fileName() : "";
-        json += "{\"path\":\"" + path + "\","
-                "\"exists\":" + QString(exists ? "true" : "false") + ","
-                "\"name\":\"" + name + "\"}";
-    }
-    json += "]}";
-    return json;
-#endif
 }
 
 QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePath,

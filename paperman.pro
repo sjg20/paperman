@@ -252,6 +252,7 @@ test {
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
       searchserver.cpp \
+      localbackend.cpp \
       serverlog.cpp \
       tokenstore.cpp \
       userstore.cpp
@@ -265,6 +266,8 @@ test {
       test/test_utils.h \
       test/test_searchserver.h \
       test/test_ocrsearch.h \
+      backend.h \
+      localbackend.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \
