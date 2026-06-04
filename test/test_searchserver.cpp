@@ -363,6 +363,60 @@ void TestSearchServer::testV1AuthLogin()
    server.stop();
 }
 
+void TestSearchServer::testReposFilteredByUser()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgFile = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server/users.json";
+   QFile::remove(cfgFile);
+
+   /* Two on-disk repos.  alice gets the first only; carol gets both. */
+   QTemporaryDir repoA, repoB;
+   QVERIFY(repoA.isValid() && repoB.isValid());
+   QString nameA = QFileInfo(repoA.path()).fileName();
+   QString nameB = QFileInfo(repoB.path()).fileName();
+
+   {
+      UserStore store;
+      QVERIFY(store.addUser("alice", "pw"));
+      QVERIFY(store.setRepos("alice", {nameA}));
+      QVERIFY(store.addUser("carol", "pw"));
+      /* carol has empty allowlist → all repos. */
+   }
+
+   SearchServer server({repoA.path(), repoB.path()}, PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   auto login = [&](const QString &user) {
+      auto resp = postJson(
+          "/v1/auth/login",
+          QString(R"({"user":"%1","password":"pw"})").arg(user).toUtf8());
+      Q_ASSERT(resp.ok());
+      return QJsonDocument::fromJson(resp.body).object()["token"].toString();
+   };
+
+   /* alice sees only repoA. */
+   auto aliceRepos = getWithBearer("/repos", login("alice"));
+   QVERIFY(aliceRepos.ok());
+   auto aObj = QJsonDocument::fromJson(aliceRepos.body).object();
+   QCOMPARE(aObj["count"].toInt(), 1);
+   QCOMPARE(aObj["repositories"].toArray()[0].toObject()["name"].toString(),
+            nameA);
+
+   /* carol sees both. */
+   auto carolRepos = getWithBearer("/repos", login("carol"));
+   QVERIFY(carolRepos.ok());
+   auto cObj = QJsonDocument::fromJson(carolRepos.body).object();
+   QCOMPARE(cObj["count"].toInt(), 2);
+
+   server.stop();
+}
+
 void TestSearchServer::testSearchEndpoint()
 {
     QTemporaryDir tmpDir;

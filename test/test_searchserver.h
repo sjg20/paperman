@@ -33,6 +33,9 @@ private slots:
    //! POST /v1/auth/login + Authorization: Bearer flow
    void testV1AuthLogin();
 
+   //! /repos hides repos the bearer-authed user is not allowed to see
+   void testReposFilteredByUser();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();

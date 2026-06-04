@@ -28,6 +28,8 @@ LIBS += -lpodofo -ltiff -ljpeg -lz
 INCLUDEPATH += /usr/include/podofo
 
 HEADERS += builddate.h \
+    backend.h \
+    localbackend.h \
     searchserver.h \
     serverlog.h \
     tokenstore.h \
@@ -48,6 +50,7 @@ HEADERS += builddate.h \
     config.h
 
 SOURCES += searchserver.cpp \
+    localbackend.cpp \
     serverlog.cpp \
     tokenstore.cpp \
     userstore.cpp \

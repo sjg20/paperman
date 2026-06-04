@@ -32,8 +32,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __searchserver_h
 #define __searchserver_h
 
+#include "backend.h"
 #include "tokenstore.h"
 #include "userstore.h"
+
+#include <memory>
 
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -232,10 +235,15 @@ private:
     QString browseDirectory(const QString &repoPath, const QString &dirPath);
 
     /**
-     * Get list of all repositories
+     * Get list of all repositories.
+     *
+     * @param user  If non-empty, restrict the list to repositories the
+     *              named user is permitted to see (per the UserStore
+     *              allowlist).  Empty means "no per-user filter", as
+     *              used for API-key callers and pre-auth callers.
      * @return JSON response with repository list
      */
-    QString listRepositories();
+    QString listRepositories(const QString &user = QString());
 
     /**
      * Get file content
@@ -452,6 +460,7 @@ private:
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     UserStore _users;       //!< Per-user account store
     TokenStore _tokens;     //!< In-memory bearer tokens
+    std::unique_ptr<Backend> _backend;  //!< Data-source abstraction
     QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
     QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
     QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path
