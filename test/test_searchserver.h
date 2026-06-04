@@ -36,6 +36,9 @@ private slots:
    //! /repos hides repos the bearer-authed user is not allowed to see
    void testReposFilteredByUser();
 
+   //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
+   void testRemoteBackendEndToEnd();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();

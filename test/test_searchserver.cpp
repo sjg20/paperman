@@ -10,6 +10,7 @@
 #include <QScopeGuard>
 #include <QStandardPaths>
 
+#include "../remotebackend.h"
 #include "../searchserver.h"
 #include "../userstore.h"
 #include "test.h"
@@ -413,6 +414,85 @@ void TestSearchServer::testReposFilteredByUser()
    QVERIFY(carolRepos.ok());
    auto cObj = QJsonDocument::fromJson(carolRepos.body).object();
    QCOMPARE(cObj["count"].toInt(), 2);
+
+   server.stop();
+}
+
+void TestSearchServer::testRemoteBackendEndToEnd()
+{
+   /* Full client→server→client round-trip: spin up a real
+    * SearchServer on a temp repo, then drive it through the same
+    * RemoteBackend code path the GUI will use.  The test sits on both
+    * sides of the socket to confirm the wire format and the
+    * production client class agree. */
+
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgFile = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server/users.json";
+   QFile::remove(cfgFile);
+
+   /* Server-side setup: one user, one repo with a known set of files. */
+   {
+      UserStore store;
+      QVERIFY(store.addUser("dave", "passw0rd"));
+   }
+
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   createTestFiles(tmpDir.path());
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   /* Client side: RemoteBackend pointed at the running server. */
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+   /* Wrong password is rejected without setting a token. */
+   QVERIFY(!client.login("dave", "wrong"));
+   QVERIFY(!client.isAuthenticated());
+
+   /* Correct credentials grant access. */
+   QVERIFY2(client.login("dave", "passw0rd"),
+            client.lastError().toUtf8().constData());
+   QVERIFY(client.isAuthenticated());
+
+   /* listRepositories shows the configured repo. */
+   QList<RepositoryInfo> repos = client.listRepositories();
+   QCOMPARE(repos.size(), 1);
+   QCOMPARE(repos[0].name, QFileInfo(tmpDir.path()).fileName());
+   QVERIFY(repos[0].exists);
+
+   /* browseDirectory on the repo root returns the seeded files +
+    * subdirectory.  createTestFiles() lays down:
+    *   test-document.max, invoice-2024.pdf, photo.jpg, archive/    */
+   DirectoryListing root = client.browseDirectory(repos[0].name, "");
+   QStringList names;
+   for (const DirectoryEntry &e : root.entries)
+      names << (e.isDir ? e.name + "/" : e.name);
+
+   QVERIFY2(names.contains("archive/"), qPrintable(names.join(',')));
+   QVERIFY2(names.contains("test-document.max"), qPrintable(names.join(',')));
+   QVERIFY2(names.contains("invoice-2024.pdf"), qPrintable(names.join(',')));
+   QVERIFY2(names.contains("photo.jpg"), qPrintable(names.join(',')));
+
+   /* Subdirectories come before files. */
+   int firstFile = -1, lastDir = -1;
+   for (int i = 0; i < root.entries.size(); i++) {
+      if (root.entries[i].isDir) lastDir = i;
+      else if (firstFile < 0)    firstFile = i;
+   }
+   QVERIFY(lastDir < firstFile);
+
+   /* Files carry a non-zero size from the cache. */
+   for (const DirectoryEntry &e : root.entries) {
+      if (!e.isDir)
+         QVERIFY2(e.size > 0, qPrintable(e.name));
+   }
 
    server.stop();
 }
