@@ -32,6 +32,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __searchserver_h
 #define __searchserver_h
 
+#include "tokenstore.h"
+#include "userstore.h"
+
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QString>
@@ -194,6 +197,13 @@ private:
     QByteArray handleRequest(const QString &method, const QString &path,
                             const QHash<QString, QString> &params,
                             QTcpSocket *client = nullptr);
+
+    /**
+     * Handle POST /v1/auth/login.  Body is JSON {user, password}.
+     * Returns 200 with {token, expiry, user} on success, 401/400
+     * otherwise.
+     */
+    QByteArray handleAuthLogin(const QHash<QString, QString> &params);
 
     /**
      * Search for files matching a pattern
@@ -440,6 +450,8 @@ private:
     QString _serverId;      //!< Stable per-server UUID, persisted across runs
     QList<QTcpSocket*> _clients;  //!< Connected clients
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
+    UserStore _users;       //!< Per-user account store
+    TokenStore _tokens;     //!< In-memory bearer tokens
     QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
     QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
     QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path

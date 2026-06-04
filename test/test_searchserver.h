@@ -30,6 +30,9 @@ private slots:
    //! /v1/status returns apiVersion + a stable serverId
    void testV1StatusEndpoint();
 
+   //! POST /v1/auth/login + Authorization: Bearer flow
+   void testV1AuthLogin();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();
@@ -46,6 +49,14 @@ private slots:
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
+
+   // HTTP GET with an Authorization: Bearer header
+   Response getWithBearer(const QString &path, const QString &token,
+                          int timeoutMs = 5000);
+
+   // HTTP POST with a JSON body
+   Response postJson(const QString &path, const QByteArray &body,
+                     int timeoutMs = 5000);
 
    // Helper to create test files
    void createTestFiles(const QString& path);

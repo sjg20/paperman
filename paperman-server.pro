@@ -30,6 +30,8 @@ INCLUDEPATH += /usr/include/podofo
 HEADERS += builddate.h \
     searchserver.h \
     serverlog.h \
+    tokenstore.h \
+    userstore.h \
     file.h \
     filemax.h \
     filejpeg.h \
@@ -47,6 +49,8 @@ HEADERS += builddate.h \
 
 SOURCES += searchserver.cpp \
     serverlog.cpp \
+    tokenstore.cpp \
+    userstore.cpp \
     paperman-server.cpp \
     file.cpp \
     filemax.cpp \

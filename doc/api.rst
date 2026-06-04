@@ -69,6 +69,76 @@ Authentication Behavior
 **Security Note**: Always use HTTPS (SSL/TLS) when accessing the server
 over a network to prevent API key interception.
 
+Per-User Accounts (v1)
+~~~~~~~~~~~~~~~~~~~~~~
+
+The server also supports per-user accounts managed via the
+``paperman-server`` CLI.  Once any user is registered, authentication is
+enforced for non-status endpoints even if ``PAPERMAN_API_KEY`` is unset.
+
+Manage users:
+
+.. code:: bash
+
+   paperman-server useradd alice            # prompts for password
+   paperman-server passwd alice             # change password
+   paperman-server userdel alice
+   paperman-server usermod alice --repos work,personal   # 'all' for unrestricted
+   paperman-server userlist
+
+Accounts live in ``~/.config/paperman-server/users.json`` (0600).  The
+CLI subcommands above are the supported way to edit it, but the format
+is plain JSON so it can also be read or restored from a backup:
+
+.. code:: json
+
+   {
+     "alice": {
+       "hash": "pbkdf2-sha256$200000$<salt-b64>$<hash-b64>",
+       "repos": [],
+       "admin": false
+     },
+     "bob": {
+       "hash": "pbkdf2-sha256$200000$<salt-b64>$<hash-b64>",
+       "repos": ["work", "personal"],
+       "admin": false
+     }
+   }
+
+Top-level keys are user names.  Each record has:
+
+-  ``hash`` — ``pbkdf2-sha256$<iters>$<salt-b64>$<hash-b64>``.  The
+   salt is 16 random bytes; the derived key is 32 bytes; both are
+   standard base64.  ``<iters>`` is the PBKDF2 iteration count used
+   when the password was set, so old hashes keep verifying after the
+   default is bumped.
+-  ``repos`` — list of repository names this user may access.  Match
+   is exact against the repository directory's basename.  An empty
+   list means "all repositories".
+-  ``admin`` — reserved for future use; currently ignored.
+
+The server reads the file once at startup, so out-of-band edits require
+a restart to take effect.
+
+To obtain a bearer token, POST to ``/v1/auth/login``:
+
+.. code:: bash
+
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"user":"alice","password":"s3cret"}' \
+        http://localhost:8080/v1/auth/login
+   # {"token":"...","user":"alice","expiry":"2026-07-01T..."}
+
+Then pass the token in subsequent requests:
+
+.. code:: bash
+
+   curl -H "Authorization: Bearer <token>" http://localhost:8080/repos
+
+Tokens are held in memory and invalidated on server restart (default
+TTL: 30 days).  ``X-API-Key`` continues to work in parallel and bypasses
+per-user repo gating.
+
 Common Response Format
 ----------------------
 
@@ -151,6 +221,35 @@ supports.  Auth-free so clients can probe before they have a token.
 .. code:: bash
 
    curl http://localhost:8080/v1/status
+
+--------------
+
+1b. Login (v1)
+~~~~~~~~~~~~~~
+
+Exchange a username and password for a bearer token.  See the
+*Per-User Accounts (v1)* section above for how to manage accounts.
+
+**Endpoint**: ``POST /v1/auth/login``
+
+**Body** (JSON):
+
+.. code:: json
+
+   {"user": "alice", "password": "s3cret"}
+
+**Response** (200):
+
+.. code:: json
+
+   {
+     "token": "<opaque bearer token>",
+     "user": "alice",
+     "expiry": "2026-07-01T12:34:56"
+   }
+
+**Errors**: 400 (missing fields), 401 (bad credentials).  Tokens are
+held in memory and lost on server restart.
 
 --------------
 
