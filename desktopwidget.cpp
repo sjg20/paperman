@@ -95,6 +95,9 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    connect(_toolbar->match, SIGNAL(textChanged(const QString&)),
            this, SLOT(matchChange(const QString &)));
+   // Use palette colours so the filter input stays readable in dark themes.
+   _toolbar->match->setStyleSheet (
+      "QLineEdit { background: palette(base); color: palette(text); }");
 
    QWidget *group = new QWidget(this);
 
