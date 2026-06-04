@@ -330,14 +330,16 @@ void Dirmodel::refresh(const QModelIndex &parent)
    if (!node || !node->populated)
       return;
 
-   int oldCount = node->children.size();
-   if (oldCount) {
-      beginRemoveRows(parent, 0, oldCount - 1);
-      qDeleteAll(node->children);
-      node->children.clear();
-      endRemoveRows();
-   }
+   // beginRemoveRows/endRemoveRows alone is not enough: proxy models
+   // (QSortFilterProxyModel) cache the post-remove state and won't
+   // re-query the source when we lazily re-populate via rowCount(). Use
+   // beginResetModel/endResetModel so the proxy invalidates and the view
+   // re-asks for the up-to-date row list.
+   beginResetModel();
+   qDeleteAll(node->children);
+   node->children.clear();
    node->populated = false;
+   endResetModel();
 }
 
 

@@ -26,6 +26,9 @@ private slots:
    //! Check that the cache has files in it
    void testCacheFiles();
 
+   //! refresh() must not lose the directory's existing subdirectories
+   void testRefreshKeepsSubdirs();
+
 private:
    /**
     * @brief  Set up a new Dirmodel with test data
