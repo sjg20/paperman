@@ -34,7 +34,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDir>
 #include <QFileInfo>
 #include <QDateTime>
+#include <QStandardPaths>
 #include <QUrl>
+#include <QUuid>
 #include <QDebug>
 #include <QProcess>
 #include <QTemporaryDir>
@@ -83,6 +85,8 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
     if (!_apiKey.isEmpty()) {
         qDebug() << "SearchServer: API key authentication enabled";
     }
+
+    _serverId = loadOrCreateServerId();
 
     // Clean old thumbnails from cache
     cleanThumbnailCache();
@@ -147,6 +151,8 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     if (!_apiKey.isEmpty()) {
         qDebug() << "SearchServer: API key authentication enabled";
     }
+
+    _serverId = loadOrCreateServerId();
 
     // Clean old thumbnails from cache
     cleanThumbnailCache();
@@ -424,8 +430,9 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                 QString("Only GET requests are supported"));
     }
 
-    // Check authentication (except for /status endpoint)
-    if (isAuthEnabled() && path != "/status") {
+    // Check authentication (except for status endpoints, which clients
+    // need to probe before they have a token).
+    if (isAuthEnabled() && path != "/status" && path != "/v1/status") {
         QString providedKey = params.value("__api_key__");
         if (!validateApiKey(providedKey)) {
             qWarning() << "SearchServer: Authentication failed for" << path;
@@ -440,6 +447,19 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         QString data = QString("{\"status\":\"running\",\"repository\":\"%1\",\"version\":\"%2\"}")
                       .arg(_rootPath, CONFIG_version_str);
         return buildHttpResponse(200, "OK", "application/json", data);
+    }
+    else if (path == "/v1/status") {
+        QJsonObject obj;
+        obj["status"] = "running";
+        obj["apiVersion"] = PAPERMAN_API_VERSION;
+        obj["serverId"] = _serverId;
+        obj["version"] = CONFIG_version_str;
+        // Empty for now: the features list will be populated as endpoints
+        // ship. Clients should feature-detect rather than version-detect.
+        obj["features"] = QJsonArray();
+        QJsonDocument doc(obj);
+        return buildHttpResponse(200, "OK", "application/json",
+                                 QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
     }
     else if (path == "/repos") {
         // List all repositories
@@ -1105,6 +1125,32 @@ bool SearchServer::validateApiKey(const QString &token)
 bool SearchServer::isAuthEnabled()
 {
     return !_apiKey.isEmpty();
+}
+
+QString SearchServer::loadOrCreateServerId()
+{
+    QString configDir = QStandardPaths::writableLocation(
+                            QStandardPaths::GenericConfigLocation)
+                        + "/paperman-server";
+    QString idFile = configDir + "/server-id";
+
+    QFile f(idFile);
+    if (f.exists() && f.open(QIODevice::ReadOnly)) {
+        QString id = QString::fromUtf8(f.readAll()).trimmed();
+        if (!id.isEmpty())
+            return id;
+    }
+
+    QDir().mkpath(configDir);
+    QString id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        f.write(id.toUtf8());
+        f.write("\n");
+    } else {
+        qWarning() << "SearchServer: failed to persist server-id at"
+                   << idFile;
+    }
+    return id;
 }
 
 QString SearchServer::browseDirectory(const QString &repoPath, const QString &dirPath)

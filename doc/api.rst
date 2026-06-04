@@ -122,6 +122,38 @@ Get the current server status and repository information.
 
 --------------
 
+1a. Server Status (v1)
+~~~~~~~~~~~~~~~~~~~~~~
+
+Versioned status endpoint for the new ``/v1/`` API.  Returns the API
+version, a stable per-server UUID (``serverId``) that clients should use
+to key their local caches, and a list of optional features the server
+supports.  Auth-free so clients can probe before they have a token.
+
+**Endpoint**: ``GET /v1/status``
+
+**Parameters**: None
+
+**Response**:
+
+.. code:: json
+
+   {
+     "status": "running",
+     "apiVersion": "1",
+     "serverId": "f6a8e7c4-2c4b-4d5e-9aab-23a1b9d0e7f0",
+     "version": "<server build version>",
+     "features": []
+   }
+
+**Example**:
+
+.. code:: bash
+
+   curl http://localhost:8080/v1/status
+
+--------------
+
 2. List Repositories
 ~~~~~~~~~~~~~~~~~~~~
 
