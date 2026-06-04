@@ -252,7 +252,9 @@ test {
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
       searchserver.cpp \
-      serverlog.cpp
+      serverlog.cpp \
+      tokenstore.cpp \
+      userstore.cpp
 
    HEADERS += test/suite.h \
       test/test_dirmodel.h \
@@ -264,7 +266,9 @@ test {
       test/test_searchserver.h \
       test/test_ocrsearch.h \
       searchserver.h \
-      serverlog.h
+      serverlog.h \
+      tokenstore.h \
+      userstore.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
     QT += network

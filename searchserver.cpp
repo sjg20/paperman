@@ -401,22 +401,39 @@ void SearchServer::parseRequest(const QString &request, QString &method,
         path = fullPath;
     }
 
-    // Parse headers (look for X-API-Key)
+    // Parse headers (look for X-API-Key and Authorization)
+    int headerEnd = lines.size();
     for (int i = 1; i < lines.size(); i++) {
         QString line = lines[i];
-        if (line.isEmpty())
+        if (line.isEmpty()) {
+            headerEnd = i;
             break;  // End of headers
+        }
 
         int colonPos = line.indexOf(':');
         if (colonPos > 0) {
             QString headerName = line.left(colonPos).trimmed();
             QString headerValue = line.mid(colonPos + 1).trimmed();
 
-            // Store X-API-Key header for authentication
             if (headerName.toLower() == "x-api-key") {
                 params["__api_key__"] = headerValue;
+            } else if (headerName.toLower() == "authorization") {
+                /* Format: "Bearer <token>".  Token is opaque. */
+                if (headerValue.startsWith("Bearer ", Qt::CaseInsensitive)) {
+                    params["__bearer_token__"] =
+                        headerValue.mid(QStringLiteral("Bearer ").size())
+                                   .trimmed();
+                }
             }
         }
+    }
+
+    /* Request body (for POST).  Best-effort: assumes the body arrived in
+     * the same readyRead chunk as the headers, which is true for the
+     * short JSON payloads we accept in v1. */
+    if (headerEnd + 1 < lines.size()) {
+        QStringList bodyLines = lines.mid(headerEnd + 1);
+        params["__body__"] = bodyLines.join("\r\n");
     }
 }
 
@@ -424,21 +441,59 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                       const QHash<QString, QString> &params,
                                       QTcpSocket *client)
 {
-    // Only support GET requests
+    /* POST is only accepted on a small allowlist; everything else is GET. */
+    if (method == "POST") {
+        if (path == "/v1/auth/login")
+            return handleAuthLogin(params);
+        return buildHttpResponse(405, "Method Not Allowed", "text/plain",
+                                QString("POST not supported on this path"));
+    }
     if (method != "GET") {
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("Only GET requests are supported"));
     }
 
-    // Check authentication (except for status endpoints, which clients
-    // need to probe before they have a token).
-    if (isAuthEnabled() && path != "/status" && path != "/v1/status") {
+    /* Identify the caller.  authedUser is non-empty when a bearer token
+     * resolved to a known user; that controls per-user repo gating
+     * below.  API-key auth grants full access but does not impose a
+     * per-user view. */
+    QString authedUser;
+    bool authOk = !isAuthEnabled() || path == "/status"
+                  || path == "/v1/status";
+
+    if (!authOk) {
         QString providedKey = params.value("__api_key__");
-        if (!validateApiKey(providedKey)) {
-            qWarning() << "SearchServer: Authentication failed for" << path;
-            return buildHttpResponse(401, "Unauthorized", "application/json",
-                                   buildJsonResponse(false, "", "Invalid or missing API key. "
-                                       "Please provide X-API-Key header."));
+        if (!providedKey.isEmpty() && validateApiKey(providedKey)) {
+            authOk = true;
+        } else {
+            QString token = params.value("__bearer_token__");
+            if (!token.isEmpty()) {
+                authedUser = _tokens.lookup(token);
+                if (!authedUser.isEmpty())
+                    authOk = true;
+            }
+        }
+    }
+
+    if (!authOk) {
+        qWarning() << "SearchServer: Authentication failed for" << path;
+        return buildHttpResponse(401, "Unauthorized", "application/json",
+                               buildJsonResponse(false, "", "Invalid or missing credentials. "
+                                   "Provide X-API-Key or Authorization: Bearer header."));
+    }
+
+    /* Per-user repo gating: if the caller is bearer-authenticated and a
+     * ?repo= parameter is supplied, enforce the user's allowlist.
+     * Filtering of /repos itself happens once the Backend abstraction
+     * lands. */
+    if (!authedUser.isEmpty()) {
+        QString repoName = params.value("repo", "");
+        if (!repoName.isEmpty()
+            && !_users.repoAllowed(authedUser, repoName)) {
+            return buildHttpResponse(403, "Forbidden", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "User not permitted to access repository: "
+                                         + repoName));
         }
     }
 
@@ -670,6 +725,49 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         return buildHttpResponse(404, "Not Found", "text/plain",
                                 QString("Endpoint not found"));
     }
+}
+
+QByteArray SearchServer::handleAuthLogin(const QHash<QString, QString> &params)
+{
+    QByteArray body = params.value("__body__").toUtf8();
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(body, &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {user, password}"));
+    }
+    QJsonObject obj = doc.object();
+    QString user = obj.value("user").toString();
+    QString password = obj.value("password").toString();
+    if (user.isEmpty() || password.isEmpty()) {
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "user and password are required"));
+    }
+    if (!_users.verify(user, password)) {
+        /* Brief delay to mute trivial timing channels.  The CPU cost of
+         * PBKDF2 already dominates, but make the failure path no
+         * cheaper than the success path. */
+        return buildHttpResponse(401, "Unauthorized", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid credentials"));
+    }
+
+    QString token = _tokens.mint(user);
+
+    QJsonObject out;
+    out["token"] = token;
+    out["user"]  = user;
+    /* TTL is fixed at 30 days in TokenStore::mint default; report it
+     * back so clients can refresh ahead of expiry without a hard-coded
+     * constant on their side. */
+    out["expiry"] = QDateTime::currentDateTime().addDays(30)
+                        .toString(Qt::ISODate);
+    QJsonDocument outDoc(out);
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(outDoc.toJson(
+                                 QJsonDocument::Compact)));
 }
 
 QString SearchServer::searchFiles(const QString &repoPath, const QString &searchPath,
@@ -1124,7 +1222,10 @@ bool SearchServer::validateApiKey(const QString &token)
 
 bool SearchServer::isAuthEnabled()
 {
-    return !_apiKey.isEmpty();
+    /* Auth kicks in if either a shared API key is configured or any
+     * users have been registered.  This lets operators run a
+     * users-only deployment without setting PAPERMAN_API_KEY. */
+    return !_apiKey.isEmpty() || _users.count() > 0;
 }
 
 QString SearchServer::loadOrCreateServerId()

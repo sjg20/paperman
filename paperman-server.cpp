@@ -30,15 +30,25 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "builddate.h"
 #include "config.h"
 #include "searchserver.h"
+#include "userstore.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
+#include <cstdio>
+#include <cstring>
 #include <iostream>
+#include <termios.h>
+#include <unistd.h>
 
 void printUsage(const char *progName)
 {
     std::cout << "Usage: " << progName << " [options] <repository-path>\n"
+              << "       " << progName << " useradd <name>\n"
+              << "       " << progName << " passwd <name>\n"
+              << "       " << progName << " userdel <name>\n"
+              << "       " << progName << " usermod <name> [--repos R1,R2,..|all]\n"
+              << "       " << progName << " userlist\n"
               << "\n"
               << "Options:\n"
               << "  -p, --port <port>    Port to listen on (default: 8080)\n"
@@ -47,7 +57,152 @@ void printUsage(const char *progName)
               << "\n"
               << "Example:\n"
               << "  " << progName << " -p 9000 /home/user/Documents\n"
+              << "  " << progName << " useradd alice\n"
               << std::endl;
+}
+
+
+/* Read a line from stdin with terminal echo disabled (interactive
+ * password entry).  Returns the line without the trailing newline.
+ * Empty on EOF. */
+static QString readPasswordHidden(const QString &prompt)
+{
+    std::cout << prompt.toStdString() << std::flush;
+
+    termios oldt;
+    bool echoToggled = false;
+    if (isatty(fileno(stdin)) && tcgetattr(fileno(stdin), &oldt) == 0) {
+        termios newt = oldt;
+        newt.c_lflag &= ~(tcflag_t)ECHO;
+        if (tcsetattr(fileno(stdin), TCSANOW, &newt) == 0)
+            echoToggled = true;
+    }
+
+    char buf[256];
+    QString line;
+    if (fgets(buf, sizeof(buf), stdin)) {
+        line = QString::fromLocal8Bit(buf);
+        if (line.endsWith('\n'))
+            line.chop(1);
+    }
+
+    if (echoToggled) {
+        tcsetattr(fileno(stdin), TCSANOW, &oldt);
+        std::cout << "\n";
+    }
+    return line;
+}
+
+
+/* Prompt twice and confirm.  Empty input or mismatch aborts. */
+static bool promptNewPassword(QString &out)
+{
+    QString first = readPasswordHidden("New password: ");
+    if (first.isEmpty()) {
+        std::cerr << "Aborted: empty password\n";
+        return false;
+    }
+    QString second = readPasswordHidden("Confirm password: ");
+    if (first != second) {
+        std::cerr << "Aborted: passwords do not match\n";
+        return false;
+    }
+    out = first;
+    return true;
+}
+
+
+static int cmdUserAdd(const QString &name)
+{
+    UserStore store;
+    if (store.hasUser(name)) {
+        std::cerr << "User '" << name.toStdString() << "' already exists\n";
+        return 1;
+    }
+    QString password;
+    if (!promptNewPassword(password))
+        return 1;
+    if (!store.addUser(name, password)) {
+        std::cerr << "Failed to add user\n";
+        return 1;
+    }
+    std::cout << "Added user '" << name.toStdString() << "' to "
+              << store.filePath().toStdString() << "\n";
+    return 0;
+}
+
+
+static int cmdPasswd(const QString &name)
+{
+    UserStore store;
+    if (!store.hasUser(name)) {
+        std::cerr << "User '" << name.toStdString() << "' not found\n";
+        return 1;
+    }
+    QString password;
+    if (!promptNewPassword(password))
+        return 1;
+    if (!store.setPassword(name, password)) {
+        std::cerr << "Failed to set password\n";
+        return 1;
+    }
+    std::cout << "Password updated for '" << name.toStdString() << "'\n";
+    return 0;
+}
+
+
+static int cmdUserDel(const QString &name)
+{
+    UserStore store;
+    if (!store.delUser(name)) {
+        std::cerr << "User '" << name.toStdString() << "' not found\n";
+        return 1;
+    }
+    std::cout << "Removed user '" << name.toStdString() << "'\n";
+    return 0;
+}
+
+
+static int cmdUserList()
+{
+    UserStore store;
+    for (const QString &name : store.userNames()) {
+        const UserStore::User *u = store.lookup(name);
+        QString repos = u->repos.isEmpty()
+                            ? QStringLiteral("(all)")
+                            : u->repos.join(',');
+        std::cout << name.toStdString() << "\trepos="
+                  << repos.toStdString() << "\n";
+    }
+    return 0;
+}
+
+
+static int cmdUserMod(const QString &name, const QStringList &extraArgs)
+{
+    UserStore store;
+    if (!store.hasUser(name)) {
+        std::cerr << "User '" << name.toStdString() << "' not found\n";
+        return 1;
+    }
+    for (int i = 0; i < extraArgs.size(); i++) {
+        if (extraArgs[i] == "--repos" && i + 1 < extraArgs.size()) {
+            QString value = extraArgs[++i];
+            QStringList repos;
+            if (value != "all")
+                repos = value.split(',', Qt::SkipEmptyParts);
+            if (!store.setRepos(name, repos)) {
+                std::cerr << "Failed to update repos\n";
+                return 1;
+            }
+        } else {
+            std::cerr << "Unknown usermod option: "
+                      << extraArgs[i].toStdString() << "\n";
+            return 1;
+        }
+    }
+    std::cout << "Updated user '" << name.toStdString() << "'\n";
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -56,6 +211,28 @@ int main(int argc, char *argv[])
 
     // Parse command line arguments
     QStringList args = app.arguments();
+
+    // User-management subcommands run and exit without starting the
+    // server.  They accept no port/repository options.
+    if (args.size() >= 2) {
+        QString sub = args[1];
+        if (sub == "useradd" || sub == "passwd" || sub == "userdel"
+            || sub == "usermod" || sub == "userlist") {
+            if (sub == "userlist")
+                return cmdUserList();
+            if (args.size() < 3) {
+                std::cerr << "Error: " << sub.toStdString()
+                          << " requires a username\n";
+                return 1;
+            }
+            QString name = args[2];
+            if (sub == "useradd")  return cmdUserAdd(name);
+            if (sub == "passwd")   return cmdPasswd(name);
+            if (sub == "userdel")  return cmdUserDel(name);
+            if (sub == "usermod")  return cmdUserMod(name, args.mid(3));
+        }
+    }
+
     QString repositoryPath;
     quint16 port = 8080;
     bool skipCache = false;

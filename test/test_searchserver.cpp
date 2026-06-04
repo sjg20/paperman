@@ -7,7 +7,11 @@
 #include <QDir>
 #include <QFile>
 
+#include <QScopeGuard>
+#include <QStandardPaths>
+
 #include "../searchserver.h"
+#include "../userstore.h"
 #include "test.h"
 
 #include "test_searchserver.h"
@@ -74,6 +78,69 @@ TestSearchServer::Response TestSearchServer::get(const QString &path,
         resp.body = raw.mid(sep + 4);
     }
     return resp;
+}
+
+/* Send a raw HTTP request string (already includes headers + body)
+ * and split the response into header/body chunks. */
+static TestSearchServer::Response sendRaw(const QByteArray &request,
+                                          int port, int timeoutMs)
+{
+    TestSearchServer::Response resp;
+    QTcpSocket socket;
+    socket.connectToHost("localhost", port);
+    QCoreApplication::processEvents();
+    if (!socket.waitForConnected(2000))
+        return resp;
+
+    socket.write(request);
+    socket.flush();
+    QCoreApplication::processEvents();
+
+    QByteArray raw;
+    int totalWait = 0;
+    while (socket.state() == QAbstractSocket::ConnectedState
+           && totalWait < timeoutMs) {
+        if (socket.waitForReadyRead(200))
+            raw += socket.readAll();
+        totalWait += 200;
+    }
+    raw += socket.readAll();
+    socket.close();
+
+    int sep = raw.indexOf("\r\n\r\n");
+    if (sep >= 0) {
+        resp.header = QString::fromUtf8(raw.left(sep));
+        resp.body = raw.mid(sep + 4);
+    }
+    return resp;
+}
+
+TestSearchServer::Response
+TestSearchServer::getWithBearer(const QString &path, const QString &token,
+                                int timeoutMs)
+{
+    QByteArray req;
+    req += "GET " + path.toUtf8() + " HTTP/1.1\r\n";
+    req += "Host: localhost\r\n";
+    req += "Authorization: Bearer " + token.toUtf8() + "\r\n";
+    req += "Connection: close\r\n";
+    req += "\r\n";
+    return sendRaw(req, PORT, timeoutMs);
+}
+
+TestSearchServer::Response
+TestSearchServer::postJson(const QString &path, const QByteArray &body,
+                           int timeoutMs)
+{
+    QByteArray req;
+    req += "POST " + path.toUtf8() + " HTTP/1.1\r\n";
+    req += "Host: localhost\r\n";
+    req += "Content-Type: application/json\r\n";
+    req += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+    req += "Connection: close\r\n";
+    req += "\r\n";
+    req += body;
+    return sendRaw(req, PORT, timeoutMs);
 }
 
 void TestSearchServer::createTestFiles(const QString& path)
@@ -218,6 +285,82 @@ void TestSearchServer::testV1StatusEndpoint()
       QCOMPARE(doc.object()["serverId"].toString(), firstId);
       server.stop();
    }
+}
+
+void TestSearchServer::testV1AuthLogin()
+{
+   /* Redirect QStandardPaths so the UserStore writes into a per-test
+    * temp tree.  setTestModeEnabled affects the whole process for the
+    * duration of this test. */
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+
+   /* Wipe any stale users.json left from a previous run. */
+   QString cfgFile = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server/users.json";
+   QFile::remove(cfgFile);
+
+   /* Pre-populate the user store before the server reads it. */
+   {
+      UserStore store;
+      QVERIFY(store.addUser("alice", "s3cret"));
+      QVERIFY(store.addUser("bob", "hunter2"));
+      /* Bob is restricted to a repo that doesn't exist. */
+      QVERIFY(store.setRepos("bob", {"nowhere"}));
+   }
+
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   createTestFiles(tmpDir.path());
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   /* /v1/status remains open even with auth enabled. */
+   QVERIFY(get("/v1/status").ok());
+
+   /* Without credentials, /repos returns 401. */
+   auto unauth = get("/repos");
+   QVERIFY(unauth.header.contains("401"));
+
+   /* Bad password rejected. */
+   auto bad = postJson("/v1/auth/login",
+                       R"({"user":"alice","password":"wrong"})");
+   QVERIFY(bad.header.contains("401"));
+
+   /* Successful login mints a token. */
+   auto ok = postJson("/v1/auth/login",
+                      R"({"user":"alice","password":"s3cret"})");
+   QVERIFY2(ok.ok(), ok.header.toUtf8().constData());
+   auto okObj = QJsonDocument::fromJson(ok.body).object();
+   QString token = okObj["token"].toString();
+   QVERIFY(!token.isEmpty());
+   QCOMPARE(okObj["user"].toString(), QString("alice"));
+
+   /* Token grants access to /repos. */
+   auto repos = getWithBearer("/repos", token);
+   QVERIFY2(repos.ok(), repos.header.toUtf8().constData());
+
+   /* Bob's allowlist blocks his own repo. */
+   auto bobLogin = postJson("/v1/auth/login",
+                            R"({"user":"bob","password":"hunter2"})");
+   QVERIFY(bobLogin.ok());
+   QString bobTok = QJsonDocument::fromJson(bobLogin.body)
+                        .object()["token"].toString();
+   QString repoName = QFileInfo(tmpDir.path()).fileName();
+   auto bobSearch = getWithBearer(
+       QString("/search?q=test&repo=%1").arg(repoName), bobTok);
+   QVERIFY(bobSearch.header.contains("403"));
+
+   /* Garbage tokens still 401. */
+   auto garbage = getWithBearer("/repos", "not-a-real-token");
+   QVERIFY(garbage.header.contains("401"));
+
+   server.stop();
 }
 
 void TestSearchServer::testSearchEndpoint()
