@@ -55,7 +55,17 @@ public:
      *  success; on failure, lastError() carries detail. */
     bool login(const QString &user, const QString &password);
 
+    /** Fetch /v1/status and return the server's stable UUID.  Empty
+     *  string on failure (lastError() set).  Result is cached. */
+    QString serverId();
+
     bool isAuthenticated() const { return !_token.isEmpty(); }
+
+    /** Inject a token directly (e.g. one loaded from a config file). */
+    void setBearerToken(const QString &token) { _token = token; }
+
+    /** The bearer token currently in use (empty if not authenticated). */
+    QString bearerToken() const { return _token; }
 
     /** Last network or server-side error, if any. */
     QString lastError() const { return _lastError; }
@@ -76,6 +86,7 @@ private:
 
     QUrl _baseUrl;
     QString _token;
+    QString _serverId;
     QString _lastError;
     QNetworkAccessManager *_nam;
 };
