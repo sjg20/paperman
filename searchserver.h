@@ -82,6 +82,13 @@ struct CachedFile {
 };
 
 /**
+ * Versioned HTTP API: clients should check /v1/status to see what the
+ * server supports before relying on any v1 endpoint. Bump this when the
+ * wire format changes.
+ */
+#define PAPERMAN_API_VERSION "1"
+
+/**
  * Simple HTTP server for searching paper repository
  */
 class SearchServer : public QTcpServer
@@ -419,9 +426,18 @@ public:
     ServerLog _log;         //!< Request log
 
 private:
+    /**
+     * Load the persistent server ID (a UUID) from disk, or create one on
+     * first run. The ID lives in ~/.config/paperman-server/server-id and is
+     * returned to clients via /v1/status so they can key their local caches
+     * on it.
+     */
+    QString loadOrCreateServerId();
+
     QString _rootPath;      //!< Root path of paper repository (deprecated, use _rootPaths)
     QStringList _rootPaths; //!< List of root paths of paper repositories
     quint16 _port;          //!< Port to listen on
+    QString _serverId;      //!< Stable per-server UUID, persisted across runs
     QList<QTcpSocket*> _clients;  //!< Connected clients
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository

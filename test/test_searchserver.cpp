@@ -1,4 +1,7 @@
 #include <QtTest/QtTest>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QDir>
@@ -174,6 +177,47 @@ void TestSearchServer::testStatusEndpoint()
 
     server.stop();
     qDebug() << "testStatusEndpoint PASSED";
+}
+
+void TestSearchServer::testV1StatusEndpoint()
+{
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+
+   QString firstId;
+   {
+      SearchServer server(tmpDir.path(), PORT);
+      QVERIFY(server.start());
+      QTest::qWait(100);
+
+      auto resp = get("/v1/status");
+      QVERIFY(resp.ok());
+      auto doc = QJsonDocument::fromJson(resp.body);
+      QVERIFY(doc.isObject());
+      auto obj = doc.object();
+      QCOMPARE(obj["status"].toString(), QString("running"));
+      QCOMPARE(obj["apiVersion"].toString(), QString(PAPERMAN_API_VERSION));
+      QVERIFY(obj.contains("serverId"));
+      QVERIFY(!obj["serverId"].toString().isEmpty());
+      QVERIFY(obj["features"].isArray());
+
+      firstId = obj["serverId"].toString();
+      server.stop();
+   }
+
+   // A second server in the same config directory must reuse the same
+   // serverId — clients key their local caches on it.
+   {
+      SearchServer server(tmpDir.path(), PORT);
+      QVERIFY(server.start());
+      QTest::qWait(100);
+
+      auto resp = get("/v1/status");
+      QVERIFY(resp.ok());
+      auto doc = QJsonDocument::fromJson(resp.body);
+      QCOMPARE(doc.object()["serverId"].toString(), firstId);
+      server.stop();
+   }
 }
 
 void TestSearchServer::testSearchEndpoint()

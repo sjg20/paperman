@@ -26,6 +26,10 @@ public:
 private slots:
    void testServerStartStop();
    void testStatusEndpoint();
+
+   //! /v1/status returns apiVersion + a stable serverId
+   void testV1StatusEndpoint();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();
