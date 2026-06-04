@@ -1,3 +1,4 @@
+#include <QDate>
 #include <QtTest/QtTest>
 
 #include "../utils.h"
@@ -906,14 +907,41 @@ void TestOps::testRenameDir()
    QCOMPARE(oldDirIndex.isValid(), false);
 }
 
+// Build the "MMmmm" subdirectory name for a given date, matching the
+// convention utilDetectMatches expects (e.g. "06jun").
+static QString monthDirName(const QDate& date)
+{
+   return date.toString("MM") + date.toString("MMM").toLower();
+}
+
+// Returns ("bills/YEAR/MMmmm" for the previous month, suggestion for the
+// current month) using today's date, so the test isn't tied to any specific
+// month of the year.
+static void monthSuggestionPaths(QString& prev_subpath,
+                                 QString& current_suggestion)
+{
+   QDate today = QDate::currentDate();
+   QDate prev = today.addMonths(-1);
+   prev_subpath = QString("bills/%1/%2").arg(prev.year(), 4, 10, QChar('0'))
+                                        .arg(monthDirName(prev));
+   current_suggestion = QString("bills/%1/%2").arg(today.year(), 4, 10,
+                                                   QChar('0'))
+                                              .arg(monthDirName(today));
+}
+
 void TestOps::testFindFoldersSuggestsMonth()
 {
    Mainwindow me;
 
-   // Set up a repo with bills/2026 but no month directories yet
+   QString prev_subpath, expected_suggestion;
+   monthSuggestionPaths(prev_subpath, expected_suggestion);
+
+   // Set up a repo with the previous month's year folder but no month
+   // directories yet.
    auto path = setupRepo();
    QDir dir(path);
-   Q_ASSERT(dir.mkpath("bills/2026"));
+   QString year_subpath = prev_subpath.section('/', 0, 1);  // bills/YYYY
+   Q_ASSERT(dir.mkpath(year_subpath));
 
    Desktopwidget *desktop = me.getDesktop();
    err_info *err = desktop->addDir(path);
@@ -931,13 +959,10 @@ void TestOps::testFindFoldersSuggestsMonth()
                                                nullptr);
    QCOMPARE(missing.size(), 0);
 
-   // Now create month directories through the app, as the user did
-   QString jan = path + "/bills/2026/01jan";
-   QString feb = path + "/bills/2026/02feb";
-   QModelIndex janIndex, febIndex;
-   bool ok = desktop->newDir(jan, janIndex);
-   QCOMPARE(ok, true);
-   ok = desktop->newDir(feb, febIndex);
+   // Create the previous-month directory through the app, as the user did
+   QString prev_full = path + "/" + prev_subpath;
+   QModelIndex prevIndex;
+   bool ok = desktop->newDir(prev_full, prevIndex);
    QCOMPARE(ok, true);
 
    // Re-obtain the root index since newDir modifies the model
@@ -945,22 +970,29 @@ void TestOps::testFindFoldersSuggestsMonth()
    QCOMPARE(root.isValid(), true);
 
    // Search again - the in-memory cache should now include the new
-   // directories and suggest creating the current month
+   // directory and suggest creating the current month
    folders = dirmodel->findFolders("bills", path, root, missing, nullptr);
 
-   QVERIFY2(missing.contains("bills/2026/03mar"),
-            qPrintable(QString("Expected 'bills/2026/03mar' in missing list, "
-                               "got: [%1]").arg(missing.join(", "))));
+   QVERIFY2(missing.contains(expected_suggestion),
+            qPrintable(QString("Expected '%1' in missing list, "
+                               "got: [%2]")
+                       .arg(expected_suggestion).arg(missing.join(", "))));
 }
 
 void TestOps::testFindFoldersSuggestsMonthViaDesktop()
 {
    Mainwindow me;
 
-   // Set up a repo with bills/2026 but no month directories yet
+   QString prev_subpath, expected_suggestion;
+   monthSuggestionPaths(prev_subpath, expected_suggestion);
+   QString year_subpath = prev_subpath.section('/', 0, 1);  // bills/YYYY
+   QString prev_leaf = prev_subpath.section('/', -1);       // MMmmm
+
+   // Set up a repo with the previous month's year folder but no month
+   // directories yet.
    auto path = setupRepo();
    QDir dir(path);
-   Q_ASSERT(dir.mkpath("bills/2026"));
+   Q_ASSERT(dir.mkpath(year_subpath));
 
    Desktopwidget *desktop = me.getDesktop();
    err_info *err = desktop->addDir(path);
@@ -977,26 +1009,21 @@ void TestOps::testFindFoldersSuggestsMonthViaDesktop()
    QCOMPARE(dirPath, path);
    QCOMPARE(missing.size(), 0);
 
-   // Simulate the UI workflow: user navigates to bills/2026 in the
+   // Simulate the UI workflow: user navigates to bills/YYYY in the
    // Dirview tree, then right-clicks to create directories. The UI
    // doNewDir() creates via _model->mkdir() then re-selects the parent.
-   // First, set the Dirview context to bills/2026, as if the user
-   // right-clicked on it.
-   QModelIndex bills2026_src = dirmodel->index(path + "/bills/2026");
-   QVERIFY2(bills2026_src.isValid(),
-            "bills/2026 should exist in the model");
-   QModelIndex bills2026_proxy = desktop->_dir_proxy->mapFromSource(
-                                    bills2026_src);
-   desktop->_dir->selectContextItem(bills2026_proxy);
+   QModelIndex year_src = dirmodel->index(path + "/" + year_subpath);
+   QVERIFY2(year_src.isValid(),
+            qPrintable(year_subpath + " should exist in the model"));
+   QModelIndex year_proxy = desktop->_dir_proxy->mapFromSource(year_src);
+   desktop->_dir->selectContextItem(year_proxy);
 
-   // Create 01jan via doNewDir(), as the UI does from the right-click menu
+   // Create the previous-month directory via doNewDir(), as the UI does
+   // from the right-click menu
    QString newPath;
-   QModelIndex jan_ind = desktop->doNewDir("01jan", newPath);
-   QVERIFY2(jan_ind.isValid(), "doNewDir 01jan should succeed");
-
-   // Create 02feb the same way - doNewDir uses _context as the parent
-   QModelIndex feb_ind = desktop->doNewDir("02feb", newPath);
-   QVERIFY2(feb_ind.isValid(), "doNewDir 02feb should succeed");
+   QModelIndex prev_ind = desktop->doNewDir(prev_leaf, newPath);
+   QVERIFY2(prev_ind.isValid(),
+            qPrintable("doNewDir " + prev_leaf + " should succeed"));
 
    // Check that getRootIndex() still works after doNewDir
    QModelIndex root = desktop->getRootIndex();
@@ -1009,19 +1036,26 @@ void TestOps::testFindFoldersSuggestsMonthViaDesktop()
    // finds folders.
    folders = desktop->findFolders("bills", dirPath, missing);
 
-   QVERIFY2(missing.contains("bills/2026/03mar"),
-            qPrintable(QString("Expected 'bills/2026/03mar' in missing list, "
-                               "got: [%1]").arg(missing.join(", "))));
+   QVERIFY2(missing.contains(expected_suggestion),
+            qPrintable(QString("Expected '%1' in missing list, "
+                               "got: [%2]")
+                       .arg(expected_suggestion).arg(missing.join(", "))));
 }
 
 void TestOps::testFindFoldersSuggestsMonthAfterRefresh()
 {
    Mainwindow me;
 
-   // Set up a repo with bills/2026 but no month directories yet
+   QString prev_subpath, expected_suggestion;
+   monthSuggestionPaths(prev_subpath, expected_suggestion);
+   QString year_subpath = prev_subpath.section('/', 0, 1);  // bills/YYYY
+   QString prev_leaf = prev_subpath.section('/', -1);       // MMmmm
+
+   // Set up a repo with the previous month's year folder but no month
+   // directories yet.
    auto path = setupRepo();
    QDir dir(path);
-   Q_ASSERT(dir.mkpath("bills/2026"));
+   Q_ASSERT(dir.mkpath(year_subpath));
 
    Desktopwidget *desktop = me.getDesktop();
    err_info *err = desktop->addDir(path);
@@ -1037,17 +1071,15 @@ void TestOps::testFindFoldersSuggestsMonthAfterRefresh()
    QCOMPARE(dirPath, path);
    QCOMPARE(missing.size(), 0);
 
-   // Set the Dirview context to bills/2026, as if the user right-clicked
-   QModelIndex bills2026_src = dirmodel->index(path + "/bills/2026");
-   QVERIFY(bills2026_src.isValid());
-   QModelIndex bills2026_proxy = desktop->_dir_proxy->mapFromSource(
-                                    bills2026_src);
-   desktop->_dir->selectContextItem(bills2026_proxy);
+   // Set the Dirview context to bills/YYYY, as if the user right-clicked
+   QModelIndex year_src = dirmodel->index(path + "/" + year_subpath);
+   QVERIFY(year_src.isValid());
+   QModelIndex year_proxy = desktop->_dir_proxy->mapFromSource(year_src);
+   desktop->_dir->selectContextItem(year_proxy);
 
-   // Create directories via doNewDir, as the UI does
+   // Create the previous month directory via doNewDir, as the UI does
    QString newPath;
-   desktop->doNewDir("01jan", newPath);
-   desktop->doNewDir("02feb", newPath);
+   desktop->doNewDir(prev_leaf, newPath);
 
    // User presses "Refresh cache" from the context menu, which also
    // uses _context to determine the refresh point
@@ -1056,8 +1088,8 @@ void TestOps::testFindFoldersSuggestsMonthAfterRefresh()
    // Now search via desktop path
    folders = desktop->findFolders("bills", dirPath, missing);
 
-   QVERIFY2(missing.contains("bills/2026/03mar"),
-            qPrintable(QString("Expected 'bills/2026/03mar' in missing list "
-                               "after cache refresh, got: [%1]")
-                       .arg(missing.join(", "))));
+   QVERIFY2(missing.contains(expected_suggestion),
+            qPrintable(QString("Expected '%1' in missing list "
+                               "after cache refresh, got: [%2]")
+                       .arg(expected_suggestion).arg(missing.join(", "))));
 }
