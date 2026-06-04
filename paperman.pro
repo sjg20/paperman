@@ -253,6 +253,7 @@ test {
       test/test_ocrsearch.cpp \
       searchserver.cpp \
       localbackend.cpp \
+      remotebackend.cpp \
       serverlog.cpp \
       tokenstore.cpp \
       userstore.cpp
@@ -268,6 +269,7 @@ test {
       test/test_ocrsearch.h \
       backend.h \
       localbackend.h \
+      remotebackend.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \
