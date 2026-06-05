@@ -58,6 +58,7 @@ struct file_info;
 
 #include <QAbstractItemModel>
 #include <QDialog>
+#include <QLabel>
 #include <QUrl>
 
 #include "qsplitter.h"
@@ -96,6 +97,25 @@ public:
     *  top-level items.  Returns an empty string on success or a
     *  diagnostic on failure. */
    QString addRemoteServer(const QUrl &baseUrl);
+
+private slots:
+   /** BackendStats::changed handler.  Throttles updates to the
+    *  toolbar label to at most one per second: the first change in
+    *  a quiet window updates immediately and starts a 1-s window,
+    *  later changes within the window set a dirty flag, and the
+    *  trailing-edge timer flushes the final state. */
+   void scheduleNetStatusUpdate();
+   void flushNetStatus();
+
+private:
+   /** Rebuild the network-activity label from the latest
+    *  BackendStats numbers.  Called via scheduleNetStatusUpdate /
+    *  flushNetStatus, never directly from a signal. */
+   void updateNetStatus();
+
+private slots:
+
+public:
 
    /** constructor helper functions */
    QWidget *createToolbar(void);
@@ -537,6 +557,9 @@ private:
 //   QAction *_act_send, *_act_deliver_out;
 
    Toolbar *_toolbar;
+   QLabel *_netStatus = nullptr;  //!< Network activity indicator in the toolbar
+   QTimer *_netStatusTimer = nullptr;  //!< Trailing-edge throttle for label updates
+   bool _netStatusDirty = false;  //!< Changes arrived during the throttle window
    //QWidget *_toolbar;
 
    // more actions (toolbar)

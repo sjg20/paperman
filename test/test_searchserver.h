@@ -48,6 +48,9 @@ private slots:
    //! RemoteBackend::fetchThumbnail round-trips a JPEG from the server
    void testRemoteBackendThumbnail();
 
+   //! BackendStats accumulates bytes across requests
+   void testBackendStatsAccumulates();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();

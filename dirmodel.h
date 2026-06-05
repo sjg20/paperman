@@ -224,6 +224,12 @@ public:
     */
    Backend *backendForRoot(const QString &rootPath) const;
 
+   /** Aggregate network-activity stats shared across every
+    *  RemoteBackend the model owns.  Lazily created on the first
+    *  remote add.  Non-owning pointer; the model owns the
+    *  underlying QObject. */
+   class BackendStats *stats();
+
    /** Remove a repository directory from the list
 
      \param index    model index of directory to remove */
@@ -493,6 +499,7 @@ private:
    QModelIndexList _recent;   //!< list of recent directories
    DirNode *_invisibleRoot;   //!< invisible root of the directory tree
    QHash<quint64, DirNode *> _pendingBrowses;  //!< In-flight async browses
+   class BackendStats *_stats = nullptr;  //!< Lazily created on first remote add
    };
 
 

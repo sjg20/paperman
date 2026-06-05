@@ -9,7 +9,10 @@
 
 #include <QElapsedTimer>
 #include <QScopeGuard>
+#include <QSignalSpy>
 #include <QStandardPaths>
+
+#include "../backendstats.h"
 
 #include "../remotebackend.h"
 #include "../searchserver.h"
@@ -663,6 +666,54 @@ void TestSearchServer::testRemoteBackendThumbnail()
    QTRY_VERIFY(!asyncBytes.isEmpty());
    QCOMPARE(capturedToken, token);
    QVERIFY(asyncBytes.startsWith("\xFF\xD8\xFF"));
+
+   server.stop();
+}
+
+void TestSearchServer::testBackendStatsAccumulates()
+{
+   /* Smoke test for the toolbar indicator: BackendStats should
+    * accumulate bytes across both sync and async RemoteBackend
+    * requests, and emit changed() each time. */
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QVERIFY(copyTestFile("testpdf.pdf", tmpDir.path()) > 0);
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   BackendStats stats;
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+   client.setStats(&stats);
+
+   QSignalSpy spy(&stats, &BackendStats::changed);
+
+   QCOMPARE(stats.bytesSent(),     qint64(0));
+   QCOMPARE(stats.bytesReceived(), qint64(0));
+   QCOMPARE(stats.activeRequests(), 0);
+
+   /* Sync request: should bump both counters. */
+   QList<RepositoryInfo> repos = client.listRepositories();
+   QVERIFY(!repos.isEmpty());
+
+   QVERIFY2(stats.bytesSent() > 0,
+            qPrintable(QString("expected non-zero sent, got %1")
+                           .arg(stats.bytesSent())));
+   QVERIFY2(stats.bytesReceived() > 0,
+            qPrintable(QString("expected non-zero received, got %1")
+                           .arg(stats.bytesReceived())));
+   QCOMPARE(stats.activeRequests(), 0);  // request done
+   QVERIFY(spy.count() > 0);
+
+   qint64 sentAfterFirst = stats.bytesSent();
+   qint64 recvAfterFirst = stats.bytesReceived();
+
+   /* Async request via fetchThumbnailAsync. */
+   QString repoName = QFileInfo(tmpDir.path()).fileName();
+   client.fetchThumbnailAsync(repoName, "testpdf.pdf");
+   QTRY_VERIFY(stats.bytesReceived() > recvAfterFirst);
+   QVERIFY(stats.bytesSent() > sentAfterFirst);
 
    server.stop();
 }
