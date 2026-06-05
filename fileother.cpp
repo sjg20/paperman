@@ -147,6 +147,11 @@ err_info *Fileother::getPreviewInfo (int, QSize &, int &)
 // image related
 QPixmap Fileother::pixmap (bool)
    {
+   /* A backend (e.g. RemoteBackend) may have set _pixmap via
+    * File::setThumbnail() once the server returned a rendered
+    * thumbnail; prefer that over the generic placeholder. */
+   if (!_pixmap.isNull())
+      return _pixmap;
    return unknownPixmap ();
    }
 

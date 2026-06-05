@@ -21,9 +21,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 #include <QContextMenuEvent>
-
+#include <QHash>
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QSet>
 
 
 class QFontMetrics;
@@ -947,7 +948,26 @@ signals:
      */
    void updateRepositoryList (QString &dirpath, bool add_not_delete);
 
+private slots:
+   /** Slot invoked when a previously-issued fetchThumbnailAsync()
+    *  finishes.  Looks up the File via the token map, decodes the
+    *  JPEG into a QPixmap, and emits dataChanged() so the view
+    *  repaints. */
+   void onThumbnailReady(quint64 token, const QByteArray &jpegBytes);
+
 private:
+   /** Issue async thumbnail fetches for every file in @p desk via
+    *  the provided RemoteBackend.  No-op if @p backend is null.
+    *  @p dirInRepo is the file's parent path relative to the repo
+    *  root (no trailing slash; empty for the repo root itself). */
+   void scheduleRemoteThumbnails(Desk *desk, class RemoteBackend *backend,
+                                 const QString &repoName,
+                                 const QString &dirInRepo);
+
+   /** Return the QModelIndex for an arbitrary File*; QModelIndex()
+    *  if the file isn't in any of our desks. */
+   QModelIndex indexForFile(File *file) const;
+
    bool getNewScaledImage (Paperscan &scan, const PPage *page, const char *data,
          int nbytes, QImage &image, int &scaled_linenum);
 
@@ -1332,6 +1352,14 @@ private:
    int _add_start;            //!< first row of added item
    Desktopmodelconv *_modelconv;  //!< model converter
    class Dirmodel *_dirmodel = nullptr;  //!< Source of backend lookups
+
+   /** Pending async-thumbnail requests: token from
+    *  RemoteBackend::fetchThumbnailAsync → File* that wants the
+    *  result.  Cleared in the slot. */
+   QHash<quint64, File *> _pendingThumbnails;
+   /** Set of RemoteBackends we've already connected our slot to,
+    *  so we don't connect twice when revisiting the same desk. */
+   QSet<class RemoteBackend *> _connectedBackends;
    QFontMetrics *_fm;         //!< metrics for the standard font (used for guessing sizes)
 
    /** true if we should generate a scaled image when new scan data is

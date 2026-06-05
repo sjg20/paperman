@@ -276,6 +276,12 @@ public:
    // image related
    virtual QPixmap pixmap (bool recalc = false) = 0;
 
+   /** Inject a precomputed thumbnail.  Used by Desktopmodel when the
+    *  backend renders thumbnails asynchronously (e.g. RemoteBackend
+    *  via /thumbnail) so that subclasses which don't compute their
+    *  own pixmap (Fileother) can display the supplied one. */
+   void setThumbnail(const QPixmap &pix) { _pixmap = pix; }
+
    /** returns the preview image for a particular page.
 
      If 'blank' then the image should be returned blank, either by using
