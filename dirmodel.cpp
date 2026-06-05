@@ -28,6 +28,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMessageBox>
 
 #include "dirmodel.h"
+#include "backend.h"
+#include "localbackend.h"
 #include "qmimedata.h"
 #include "qurl.h"
 
@@ -50,6 +52,12 @@ Diritem::Diritem ()
 
 Diritem::~Diritem ()
    {
+   }
+
+
+void Diritem::setBackend(Backend *backend)
+   {
+   _backend.reset(backend);
    }
 
 #if 0 //p
@@ -214,18 +222,39 @@ void Dirmodel::populateNode(DirNode *node) const
       return;
    node->populated = true;
 
-   QDir dir(node->fullPath);
-   dir.setFilter(QDir::Dirs | QDir::NoDotAndDotDot);
-   dir.setSorting(QDir::Name | QDir::IgnoreCase);
+   /* Subdirectories come from the Backend.  Each Diritem owns a
+    * Backend (set in addDir); top-level DirNodes carry a non-owning
+    * pointer to it and we propagate that to every child as we
+    * populate, so deeper nodes don't need a walk-up. */
+   if (!node->backend)
+      return;
 
-   QFileInfoList entries = dir.entryInfoList();
-   for (int i = 0; i < entries.size(); i++) {
+   /* The path passed to browseDirectory is relative to the repo
+    * root.  Walk up to the root to compute it; the root is the
+    * DirNode whose parent is the invisible root. */
+   DirNode *root = node;
+   while (root->parent && root->parent != _invisibleRoot)
+      root = root->parent;
+   QString relPath = (node == root)
+                         ? QString()
+                         : node->fullPath.mid(root->fullPath.length() + 1);
+
+   DirectoryListing listing =
+       node->backend->browseDirectory(root->repoName, relPath);
+   if (!listing.ok)
+      return;
+
+   for (const DirectoryEntry &entry : listing.entries) {
+      if (!entry.isDir)
+         continue;
       DirNode *child = new DirNode;
-      child->name = entries[i].fileName();
-      child->fullPath = entries[i].absoluteFilePath();
-      child->parent = node;
+      child->name      = entry.name;
+      child->fullPath  = root->fullPath + "/" + entry.path;
+      child->parent    = node;
       child->populated = false;
-      child->row = i;
+      child->row       = node->children.size();
+      child->backend   = node->backend;
+      child->repoName  = root->repoName;
       node->children.append(child);
    }
 }
@@ -467,13 +496,20 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
    bool ok = item->setDir(dir);
    if (ok || ignore_error)
       {
-      // Create a DirNode for this top-level repository
+      /* Each Diritem owns a LocalBackend bound to its single root
+       * path; the repo name (the directory's basename) is the key
+       * we use when calling browseDirectory.  A future addRemoteDir()
+       * would hand the item a RemoteBackend instead. */
+      item->setBackend(new LocalBackend(QStringList{item->dir()}));
+
       DirNode *node = new DirNode;
       node->name = QDir(item->dir()).dirName();
       node->fullPath = item->dir();
       node->parent = _invisibleRoot;
       node->row = _invisibleRoot->children.size();
       node->populated = false;
+      node->backend = item->backend();
+      node->repoName = node->name;
 
       item->setNode(node);
 
