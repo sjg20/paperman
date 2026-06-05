@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QFile>
 
+#include <QElapsedTimer>
 #include <QScopeGuard>
 #include <QStandardPaths>
 
@@ -595,6 +596,31 @@ void TestSearchServer::testRemoteBackendEndToEnd()
    QVERIFY(!evil.ok);
 
    server.stop();
+}
+
+void TestSearchServer::testRemoteBackendTimeout()
+{
+   /* Aim the client at a port nobody's listening on: the OS should
+    * return ECONNREFUSED quickly, but the assertion that matters is
+    * that the call returns *at all* in well under Qt's default
+    * (effectively unlimited) network timeout.  If the
+    * setTransferTimeout() call is removed or the wait loop is wrong,
+    * this test will hang past its overall test budget. */
+   RemoteBackend client(QUrl("http://localhost:1"));  // RFC: reserved
+
+   QElapsedTimer t;
+   t.start();
+   QList<RepositoryInfo> repos = client.listRepositories();
+   qint64 elapsedMs = t.elapsed();
+
+   QVERIFY(repos.isEmpty());
+   QVERIFY2(!client.lastError().isEmpty(),
+            "expected an error from an unreachable server");
+   /* Generous bound: connection-refused on loopback is sub-ms, but a
+    * dropped packet to an off-network host should still fail before
+    * the 5 s configured transferTimeout. */
+   QVERIFY2(elapsedMs < 7000,
+            qPrintable(QString("call took %1 ms").arg(elapsedMs)));
 }
 
 void TestSearchServer::testSearchEndpoint()
