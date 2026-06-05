@@ -220,6 +220,55 @@ FileFetch RemoteBackend::readFile(const QString &repo, const QString &path)
 static const int kRequestTimeoutMs = 5000;
 
 
+/* Build the "/thumbnail?repo=...&path=...&page=N&size=..." path. */
+static QString thumbnailPathFor(const QString &repo, const QString &path,
+                                int page, const QString &size)
+{
+   QUrlQuery q;
+   q.addQueryItem("repo", repo);
+   q.addQueryItem("path", path);
+   q.addQueryItem("page", QString::number(page));
+   q.addQueryItem("size", size);
+   return "/thumbnail?" + q.toString();
+}
+
+
+QByteArray RemoteBackend::fetchThumbnail(const QString &repo,
+                                         const QString &path,
+                                         int page, const QString &size)
+{
+   return getRequest(thumbnailPathFor(repo, path, page, size));
+}
+
+
+quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
+                                           const QString &path,
+                                           int page, const QString &size)
+{
+   quint64 token = _nextAsyncToken++;
+   QNetworkReply *reply = startGet(thumbnailPathFor(repo, path, page, size));
+   QObject::connect(reply, &QNetworkReply::finished, this,
+       [this, reply, token]() {
+          _lastError.clear();
+          QByteArray body = reply->readAll();
+          if (reply->error() != QNetworkReply::NoError) {
+             _lastError = reply->errorString();
+             body.clear();
+          } else {
+             int status = reply->attribute(
+                              QNetworkRequest::HttpStatusCodeAttribute).toInt();
+             if (status >= 400) {
+                _lastError = QString("HTTP %1").arg(status);
+                body.clear();
+             }
+          }
+          reply->deleteLater();
+          emit thumbnailReady(token, body);
+       });
+   return token;
+}
+
+
 QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery)
 {
    QUrl url(_baseUrl);

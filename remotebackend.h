@@ -75,9 +75,26 @@ public:
      *  tokens to its own state (e.g. the DirNode being expanded). */
     quint64 browseDirectoryAsync(const QString &repo, const QString &dir);
 
+    /** Fetch a thumbnail (JPEG bytes) for a single page of a file.
+     *  @p size is "small", "medium", or "large" (matches the server's
+     *  /thumbnail vocabulary).  Sync: blocks until the server
+     *  responds.  Returns empty QByteArray on failure (lastError set). */
+    QByteArray fetchThumbnail(const QString &repo, const QString &path,
+                              int page = 1,
+                              const QString &size = QStringLiteral("medium"));
+
+    /** Async counterpart to fetchThumbnail.  Returns a token; emits
+     *  thumbnailReady(token, bytes) when the reply arrives.  Empty
+     *  bytes mean the request failed. */
+    quint64 fetchThumbnailAsync(const QString &repo, const QString &path,
+                                int page = 1,
+                                const QString &size
+                                    = QStringLiteral("medium"));
+
 signals:
     void browseDirectoryReady(quint64 token,
                               const DirectoryListing &listing);
+    void thumbnailReady(quint64 token, const QByteArray &jpegBytes);
 
 private:
     QByteArray getRequest(const QString &pathAndQuery);

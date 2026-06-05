@@ -623,6 +623,50 @@ void TestSearchServer::testRemoteBackendTimeout()
             qPrintable(QString("call took %1 ms").arg(elapsedMs)));
 }
 
+void TestSearchServer::testRemoteBackendThumbnail()
+{
+   /* Spin up a server with a PDF the test fixtures already create,
+    * then ask RemoteBackend for its thumbnail.  We don't decode the
+    * JPEG — confirming non-empty bytes with the JPEG magic bytes is
+    * enough to prove the wire works end-to-end. */
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QVERIFY(copyTestFile("testpdf.pdf", tmpDir.path()) > 0);
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   QString repoName = QFileInfo(tmpDir.path()).fileName();
+
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+   /* Sync path. */
+   QByteArray jpeg = client.fetchThumbnail(repoName, "testpdf.pdf");
+   QVERIFY2(!jpeg.isEmpty(), client.lastError().toUtf8().constData());
+   QVERIFY2(jpeg.startsWith("\xFF\xD8\xFF"),
+            "expected JPEG magic bytes");
+   QVERIFY(jpeg.size() > 100);
+
+   /* Async path: hook up a one-shot signal capture, fire request,
+    * spin events until it fires. */
+   QByteArray asyncBytes;
+   quint64 capturedToken = 0;
+   QObject::connect(&client, &RemoteBackend::thumbnailReady,
+       [&](quint64 token, const QByteArray &bytes) {
+          capturedToken = token;
+          asyncBytes = bytes;
+       });
+
+   quint64 token = client.fetchThumbnailAsync(repoName, "testpdf.pdf");
+   QVERIFY(token != 0);
+   QTRY_VERIFY(!asyncBytes.isEmpty());
+   QCOMPARE(capturedToken, token);
+   QVERIFY(asyncBytes.startsWith("\xFF\xD8\xFF"));
+
+   server.stop();
+}
+
 void TestSearchServer::testSearchEndpoint()
 {
     QTemporaryDir tmpDir;
