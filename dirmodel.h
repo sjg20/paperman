@@ -58,8 +58,15 @@ struct DirNode
     *  key when calling backend->browseDirectory(). */
    QString repoName;
 
+   /** True if the last populateNode() against this node failed (e.g.
+    *  the backend was unreachable).  Surfaced via the tooltip role
+    *  so the user can see why a folder appears empty.  Cleared by
+    *  Dirmodel::refresh() so re-clicking a failed branch retries. */
+   bool loadFailed;
+   QString loadError;
+
    DirNode() : parent(nullptr), populated(false), row(0),
-               backend(nullptr) {}
+               backend(nullptr), loadFailed(false) {}
    ~DirNode() { qDeleteAll(children); }
    };
 
@@ -439,6 +446,11 @@ private:
 
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
+
+   /** Emitted when a backend call fails while expanding a folder.
+    *  @c path is the absolute path of the folder we tried to expand;
+    *  @c error is the backend's diagnostic. */
+   void backendError(const QString &path, const QString &error);
 
 private:
    QList<Diritem *> _item;   //!< a list of items to display
