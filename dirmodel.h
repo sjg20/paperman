@@ -23,11 +23,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QAbstractItemModel>
+#include <QHash>
 #include <QSortFilterProxyModel>
 
 #include <memory>
 
-class Backend;
+#include "backend.h"
+
 class Operation;
 class TreeItem;
 
@@ -65,8 +67,13 @@ struct DirNode
    bool loadFailed;
    QString loadError;
 
+   /** True while an async backend call is in flight for this node.
+    *  Used by Dirmodel::populateNode() to avoid issuing duplicate
+    *  requests and to display a "Loading…" placeholder child. */
+   bool loading;
+
    DirNode() : parent(nullptr), populated(false), row(0),
-               backend(nullptr), loadFailed(false) {}
+               backend(nullptr), loadFailed(false), loading(false) {}
    ~DirNode() { qDeleteAll(children); }
    };
 
@@ -455,6 +462,18 @@ private:
     */
    DirNode *nodeFromIndex(const QModelIndex &index) const;
 
+   /**
+    * @brief Get a model index for a DirNode
+    * @param node  DirNode (must be in this model's tree)
+    * @return Model index, or QModelIndex() for _invisibleRoot
+    */
+   QModelIndex indexForNode(DirNode *node) const;
+
+private slots:
+   /** Called by RemoteBackend when an async browseDirectory finishes. */
+   void onBrowseAsyncReady(quint64 token,
+                           const DirectoryListing &listing);
+
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
 
@@ -467,6 +486,7 @@ private:
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndexList _recent;   //!< list of recent directories
    DirNode *_invisibleRoot;   //!< invisible root of the directory tree
+   QHash<quint64, DirNode *> _pendingBrowses;  //!< In-flight async browses
    };
 
 

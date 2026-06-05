@@ -219,9 +219,17 @@ DirNode *Dirmodel::nodeFromIndex(const QModelIndex &index) const
 }
 
 
+QModelIndex Dirmodel::indexForNode(DirNode *node) const
+{
+   if (!node || node == _invisibleRoot)
+      return QModelIndex();
+   return createIndex(node->row, 0, node);
+}
+
+
 void Dirmodel::populateNode(DirNode *node) const
 {
-   if (node->populated)
+   if (node->populated || node->loading)
       return;
 
    /* Subdirectories come from the Backend.  Each Diritem owns a
@@ -243,6 +251,37 @@ void Dirmodel::populateNode(DirNode *node) const
                          ? QString()
                          : node->fullPath.mid(root->fullPath.length() + 1);
 
+   /* RemoteBackend goes via the async path: insert a "Loading…"
+    * placeholder child so the disclosure arrow stays visible, and
+    * kick off the request.  onBrowseAsyncReady() will swap the
+    * placeholder for real children when the server responds. */
+   /* Backend is not a QObject, so we can't use qobject_cast; the
+    * Backend hierarchy has RTTI thanks to its virtual functions. */
+   auto *remote = dynamic_cast<RemoteBackend *>(node->backend);
+   if (remote) {
+      Dirmodel *self = const_cast<Dirmodel *>(this);
+
+      /* We're inside the view's rowCount() call, so just append the
+       * placeholder directly — the count we return below includes
+       * it.  beginInsertRows/endInsertRows is reserved for the
+       * later async swap. */
+      DirNode *placeholder = new DirNode;
+      placeholder->name      = QStringLiteral("Loading…");
+      placeholder->parent    = node;
+      placeholder->populated = true;
+      placeholder->row       = 0;
+      node->children.append(placeholder);
+
+      node->loading = true;
+      quint64 token = remote->browseDirectoryAsync(root->repoName, relPath);
+      self->_pendingBrowses.insert(token, node);
+      return;
+   }
+
+   /* Sync path for LocalBackend: populate directly so the rowCount
+    * probe that triggered us sees the right answer.  The view does
+    * not need begin/endInsertRows because it is currently asking
+    * for the row count. */
    DirectoryListing listing =
        node->backend->browseDirectory(root->repoName, relPath);
 
@@ -278,6 +317,74 @@ void Dirmodel::populateNode(DirNode *node) const
       child->repoName  = root->repoName;
       node->children.append(child);
    }
+}
+
+
+void Dirmodel::onBrowseAsyncReady(quint64 token,
+                                  const DirectoryListing &listing)
+{
+   auto it = _pendingBrowses.find(token);
+   if (it == _pendingBrowses.end())
+      return;  // stale (refresh raced, or model was reset)
+   DirNode *node = it.value();
+   _pendingBrowses.erase(it);
+
+   if (!node->loading)
+      return;  // refresh cancelled us
+   node->loading = false;
+
+   QModelIndex idx = indexForNode(node);
+
+   /* Remove the "Loading…" placeholder we inserted in populateNode. */
+   if (!node->children.isEmpty()) {
+      beginRemoveRows(idx, 0, node->children.size() - 1);
+      qDeleteAll(node->children);
+      node->children.clear();
+      endRemoveRows();
+   }
+
+   node->populated = true;
+
+   if (!listing.ok) {
+      node->loadFailed = true;
+      node->loadError  = listing.error.isEmpty()
+                             ? QStringLiteral("backend error")
+                             : listing.error;
+      emit backendError(node->fullPath, node->loadError);
+      return;
+   }
+
+   node->loadFailed = false;
+   node->loadError.clear();
+
+   /* Find the repo root for this branch so child fullPaths carry
+    * the same root prefix populateNode would have built. */
+   DirNode *root = node;
+   while (root->parent && root->parent != _invisibleRoot)
+      root = root->parent;
+
+   int realCount = 0;
+   for (const DirectoryEntry &e : listing.entries)
+      if (e.isDir)
+         realCount++;
+   if (realCount == 0)
+      return;
+
+   beginInsertRows(idx, 0, realCount - 1);
+   for (const DirectoryEntry &entry : listing.entries) {
+      if (!entry.isDir)
+         continue;
+      DirNode *child = new DirNode;
+      child->name      = entry.name;
+      child->fullPath  = root->fullPath + "/" + entry.path;
+      child->parent    = node;
+      child->populated = false;
+      child->row       = node->children.size();
+      child->backend   = node->backend;
+      child->repoName  = root->repoName;
+      node->children.append(child);
+   }
+   endInsertRows();
 }
 
 
@@ -380,8 +487,10 @@ void Dirmodel::refresh(const QModelIndex &parent)
    if (!node)
       return;
    /* A previously-failed populate leaves populated=true with
-    * loadFailed=true, so don't gate the refresh on populated alone. */
-   if (!node->populated && !node->loadFailed)
+    * loadFailed=true, so don't gate the refresh on populated alone.
+    * A node mid-async (loading=true with a placeholder child) also
+    * counts as worth resetting. */
+   if (!node->populated && !node->loadFailed && !node->loading)
       return;
 
    // beginRemoveRows/endRemoveRows alone is not enough: proxy models
@@ -394,6 +503,7 @@ void Dirmodel::refresh(const QModelIndex &parent)
    node->children.clear();
    node->populated  = false;
    node->loadFailed = false;
+   node->loading    = false;
    node->loadError.clear();
    endResetModel();
 }
@@ -601,6 +711,8 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       RemoteBackend *rb = new RemoteBackend(baseUrl);
       if (!token.isEmpty())
          rb->setBearerToken(token);
+      connect(rb, &RemoteBackend::browseDirectoryReady,
+              this, &Dirmodel::onBrowseAsyncReady);
       item->setBackend(rb);
 
       DirNode *node = new DirNode;

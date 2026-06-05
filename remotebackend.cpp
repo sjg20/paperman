@@ -14,17 +14,15 @@ License: GPL-2
 #include <QUrlQuery>
 
 
-RemoteBackend::RemoteBackend(const QUrl &baseUrl)
-   : _baseUrl(baseUrl)
-   , _nam(new QNetworkAccessManager)
+RemoteBackend::RemoteBackend(const QUrl &baseUrl, QObject *parent)
+   : QObject(parent)
+   , _baseUrl(baseUrl)
+   , _nam(new QNetworkAccessManager(this))
 {
 }
 
 
-RemoteBackend::~RemoteBackend()
-{
-   delete _nam;
-}
+RemoteBackend::~RemoteBackend() = default;
 
 
 bool RemoteBackend::login(const QString &user, const QString &password)
@@ -92,19 +90,64 @@ QList<RepositoryInfo> RemoteBackend::listRepositories()
 }
 
 
-DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
-                                                const QString &dir)
+/* Build the "/browse?repo=...&path=..." path-with-query string. */
+static QString browsePathFor(const QString &repo, const QString &dir)
 {
-   DirectoryListing out;
-
-   /* URL-encode parameters via QUrlQuery so repo names with funky
-    * characters don't break the request. */
    QUrlQuery q;
    q.addQueryItem("repo", repo);
    q.addQueryItem("path", dir);
-   QString pq = "/browse?" + q.toString();
+   return "/browse?" + q.toString();
+}
 
-   QByteArray body = getRequest(pq);
+
+DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
+                                                const QString &dir)
+{
+   QNetworkReply *reply = startGet(browsePathFor(repo, dir));
+
+   /* Spin the local event loop until the reply finishes (sync),
+    * then hand the still-live reply to the shared parser before
+    * scheduling its deletion. */
+   QEventLoop loop;
+   QObject::connect(reply, &QNetworkReply::finished,
+                    &loop, &QEventLoop::quit);
+   loop.exec();
+
+   DirectoryListing out = parseBrowseReply(reply);
+   reply->deleteLater();
+   return out;
+}
+
+
+quint64 RemoteBackend::browseDirectoryAsync(const QString &repo,
+                                            const QString &dir)
+{
+   quint64 token = _nextAsyncToken++;
+   QNetworkReply *reply = startGet(browsePathFor(repo, dir));
+   QObject::connect(reply, &QNetworkReply::finished, this,
+       [this, reply, token]() {
+          DirectoryListing listing = parseBrowseReply(reply);
+          reply->deleteLater();
+          emit browseDirectoryReady(token, listing);
+       });
+   return token;
+}
+
+
+DirectoryListing RemoteBackend::parseBrowseReply(QNetworkReply *reply)
+{
+   DirectoryListing out;
+   _lastError.clear();
+
+   QByteArray body = reply->readAll();
+   if (reply->error() != QNetworkReply::NoError) {
+      _lastError = reply->errorString();
+   } else {
+      int status = reply->attribute(
+                       QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      if (status >= 400)
+         _lastError = QString("HTTP %1").arg(status);
+   }
    if (!_lastError.isEmpty()) {
       out.error    = _lastError;
       out.notFound = _lastError.contains("404");
@@ -177,7 +220,7 @@ FileFetch RemoteBackend::readFile(const QString &repo, const QString &path)
 static const int kRequestTimeoutMs = 5000;
 
 
-QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
+QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery)
 {
    QUrl url(_baseUrl);
    int q = pathAndQuery.indexOf('?');
@@ -191,7 +234,13 @@ QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
    req.setTransferTimeout(kRequestTimeoutMs);
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
-   return waitForReply(_nam->get(req));
+   return _nam->get(req);
+}
+
+
+QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
+{
+   return waitForReply(startGet(pathAndQuery));
 }
 
 
