@@ -33,6 +33,9 @@ private slots:
    //! POST /v1/auth/login + Authorization: Bearer flow
    void testV1AuthLogin();
 
+   //! POST body that arrives in a separate TCP segment is still parsed
+   void testPostBodySplitAcrossReads();
+
    //! /repos hides repos the bearer-authed user is not allowed to see
    void testReposFilteredByUser();
 

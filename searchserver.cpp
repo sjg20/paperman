@@ -268,7 +268,43 @@ void SearchServer::onReadyRead()
     QElapsedTimer timer;
     timer.start();
 
-    QString request = QString::fromUtf8(client->readAll());
+    /* Accumulate per-socket because POST bodies can arrive in a
+     * separate TCP segment from the headers — readyRead fires once
+     * per segment, but we can only parse once we have both the full
+     * header block and Content-Length bytes of body. */
+    QByteArray accum = client->property("__buf__").toByteArray();
+    accum += client->readAll();
+
+    int headerEnd = accum.indexOf("\r\n\r\n");
+    if (headerEnd < 0) {
+        client->setProperty("__buf__", accum);
+        return;  // wait for more
+    }
+
+    int contentLength = 0;
+    {
+        QByteArray headerBlock = accum.left(headerEnd);
+        for (const QByteArray &line : headerBlock.split('\n')) {
+            QByteArray t = line.trimmed();
+            if (t.toLower().startsWith("content-length:")) {
+                contentLength = t.mid(QByteArray("content-length:").size())
+                                    .trimmed().toInt();
+                break;
+            }
+        }
+    }
+
+    int bodyHave = accum.size() - (headerEnd + 4);
+    if (bodyHave < contentLength) {
+        client->setProperty("__buf__", accum);
+        return;  // wait for more body
+    }
+
+    /* We have a complete request.  Trim accum to it and clear the
+     * stashed buffer (we don't support pipelined keep-alive). */
+    QByteArray full = accum.left(headerEnd + 4 + contentLength);
+    client->setProperty("__buf__", QByteArray());
+    QString request = QString::fromUtf8(full);
     QString clientAddr = client->peerAddress().toString();
 
     QString method, path;
