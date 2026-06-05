@@ -14,23 +14,6 @@ class QNetworkAccessManager;
 class QNetworkReply;
 
 
-/** A single entry in a directory listing: either a file or a
- *  subdirectory.  Mirrors the JSON shape /browse returns. */
-struct DirectoryEntry
-{
-    QString name;
-    QString path;        //!< Repo-relative path
-    qint64 size = 0;     //!< 0 for directories
-    bool isDir = false;
-    QString modified;    //!< ISO-8601 (files only)
-};
-
-struct DirectoryListing
-{
-    QList<DirectoryEntry> entries;
-};
-
-
 /**
  * Backend that talks to a paperman-server over HTTP.  Symmetric with
  * LocalBackend but the data comes from the network instead of the
@@ -72,12 +55,8 @@ public:
 
     // Backend
     QList<RepositoryInfo> listRepositories() override;
-
-    /** List the contents of `dir` (relative to the named repository).
-     *  Empty `dir` lists the repo root.  Directories come first in the
-     *  returned list. */
     DirectoryListing browseDirectory(const QString &repo,
-                                     const QString &dir);
+                                     const QString &dir) override;
 
 private:
     QByteArray getRequest(const QString &pathAndQuery);

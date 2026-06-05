@@ -33,6 +33,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define __searchserver_h
 
 #include "backend.h"
+#include "cachedfile.h"
+#include "localbackend.h"
 #include "tokenstore.h"
 #include "userstore.h"
 
@@ -77,14 +79,6 @@ struct PendingExtraction {
     QString filePath;           //!< Source document (for logging)
     int page;                   //!< 1-based page number (for logging)
     QList<QTcpSocket *> waiters; //!< Clients waiting
-};
-
-// Simple struct for cached file information
-struct CachedFile {
-    QString path;        // Relative path from repository root
-    QString name;        // Filename only
-    qint64 size;         // File size in bytes
-    QDateTime modified;  // Last modification time
 };
 
 /**
@@ -225,14 +219,6 @@ private:
      * @return JSON response with file list
      */
     QString listFiles(const QString &dirPath);
-
-    /**
-     * Browse directory contents (files and subdirectories)
-     * @param repoPath   Repository root path
-     * @param dirPath    Directory path (relative to repository root)
-     * @return JSON response with files and directories
-     */
-    QString browseDirectory(const QString &repoPath, const QString &dirPath);
 
     /**
      * Get list of all repositories.
@@ -414,32 +400,6 @@ private:
      */
     void cleanThumbnailCache();
 
-private:
-    /**
-     * Scan a directory recursively and build file cache
-     * @param repoPath Repository root path
-     * @param dirPath Current directory being scanned (relative to repo)
-     * @param fileList Returns list of cached files
-     */
-    void scanDirectory(const QString &repoPath, const QString &dirPath,
-                      QList<CachedFile> &fileList);
-
-    /**
-     * Count files recursively in a directory using cached data
-     * @param repoPath Repository root path
-     * @param dirPath Relative directory path within repository
-     * @return Number of files found recursively in cache
-     */
-    int countFilesRecursive(const QString &repoPath, const QString &dirPath);
-
-    /**
-     * Load file cache from .papertree file
-     * @param repoPath Repository root path
-     * @param fileList Returns list of cached files
-     * @return true if successfully loaded from papertree, false otherwise
-     */
-    bool loadFromPapertree(const QString &repoPath, QList<CachedFile> &fileList);
-
 public:
     ServerLog _log;         //!< Request log
 
@@ -460,8 +420,7 @@ private:
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     UserStore _users;       //!< Per-user account store
     TokenStore _tokens;     //!< In-memory bearer tokens
-    std::unique_ptr<Backend> _backend;  //!< Data-source abstraction
-    QHash<QString, QList<CachedFile>> _fileCache;  //!< Cached file list for each repository
+    std::unique_ptr<LocalBackend> _backend;  //!< Data-source (owns the file cache)
     QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
     QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path
 

@@ -105,9 +105,17 @@ DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
    QString pq = "/browse?" + q.toString();
 
    QByteArray body = getRequest(pq);
-   QJsonDocument doc = QJsonDocument::fromJson(body);
-   if (!doc.isObject())
+   if (!_lastError.isEmpty()) {
+      out.error    = _lastError;
+      out.notFound = _lastError.contains("404");
       return out;
+   }
+
+   QJsonDocument doc = QJsonDocument::fromJson(body);
+   if (!doc.isObject()) {
+      out.error = "malformed response";
+      return out;
+   }
    QJsonObject obj = doc.object();
 
    /* Subdirectories first, matching the on-screen ordering the GUI
@@ -118,6 +126,7 @@ DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
       e.name  = d.value("name").toString();
       e.path  = d.value("path").toString();
       e.isDir = true;
+      e.count = d.value("count").toInt();
       out.entries.append(e);
    }
    for (const QJsonValue &v : obj.value("files").toArray()) {
@@ -129,6 +138,7 @@ DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
       e.modified = f.value("modified").toString();
       out.entries.append(e);
    }
+   out.ok = true;
    return out;
 }
 

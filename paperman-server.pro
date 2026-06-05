@@ -29,6 +29,7 @@ INCLUDEPATH += /usr/include/podofo
 
 HEADERS += builddate.h \
     backend.h \
+    cachedfile.h \
     localbackend.h \
     searchserver.h \
     serverlog.h \
