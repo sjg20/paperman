@@ -169,6 +169,14 @@ FileFetch RemoteBackend::readFile(const QString &repo, const QString &path)
 }
 
 
+/* Default transfer timeout for every request.  Qt's own default is
+ * effectively unlimited, which means the GUI would freeze for tens of
+ * seconds if the server went away.  Five seconds is long enough for
+ * any honest LAN round-trip and short enough that a dead server
+ * surfaces quickly. */
+static const int kRequestTimeoutMs = 5000;
+
+
 QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
 {
    QUrl url(_baseUrl);
@@ -180,6 +188,7 @@ QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
       url.setQuery(pathAndQuery.mid(q + 1));
    }
    QNetworkRequest req(url);
+   req.setTransferTimeout(kRequestTimeoutMs);
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
    return waitForReply(_nam->get(req));
@@ -192,6 +201,7 @@ QByteArray RemoteBackend::postRequest(const QString &path,
    QUrl url(_baseUrl);
    url.setPath(path);
    QNetworkRequest req(url);
+   req.setTransferTimeout(kRequestTimeoutMs);
    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());

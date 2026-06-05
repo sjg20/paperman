@@ -42,6 +42,9 @@ private slots:
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
+   //! Dead server surfaces an error within the request timeout
+   void testRemoteBackendTimeout();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();
