@@ -252,6 +252,7 @@ test {
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
       searchserver.cpp \
+      backend.cpp \
       localbackend.cpp \
       remotebackend.cpp \
       serverlog.cpp \

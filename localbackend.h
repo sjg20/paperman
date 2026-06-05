@@ -28,6 +28,8 @@ public:
     QList<RepositoryInfo> listRepositories() override;
     DirectoryListing browseDirectory(const QString &repo,
                                      const QString &dir) override;
+    FileFetch readFile(const QString &repo,
+                       const QString &path) override;
 
     /** Build (or rebuild) the in-memory file cache for one repo from
      *  disk.  Returns the number of files cached.  Prefers loading

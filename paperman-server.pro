@@ -51,6 +51,7 @@ HEADERS += builddate.h \
     config.h
 
 SOURCES += searchserver.cpp \
+    backend.cpp \
     localbackend.cpp \
     serverlog.cpp \
     tokenstore.cpp \

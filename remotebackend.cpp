@@ -143,6 +143,32 @@ DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
 }
 
 
+FileFetch RemoteBackend::readFile(const QString &repo, const QString &path)
+{
+   FileFetch out;
+
+   QUrlQuery q;
+   q.addQueryItem("repo", repo);
+   q.addQueryItem("path", path);
+   QString pq = "/file?" + q.toString();
+
+   QByteArray body = getRequest(pq);
+   if (!_lastError.isEmpty()) {
+      out.error    = _lastError;
+      out.notFound = _lastError.contains("404");
+      return out;
+   }
+
+   /* The server already sent a Content-Type header; we don't surface
+    * headers from getRequest() so derive it the same way the server
+    * did, from the path extension. */
+   out.bytes       = body;
+   out.contentType = Backend::contentTypeForPath(path);
+   out.ok          = true;
+   return out;
+}
+
+
 QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
 {
    QUrl url(_baseUrl);

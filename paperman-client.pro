@@ -12,6 +12,7 @@ HEADERS += backend.h \
     remotebackend.h
 
 SOURCES += paperman-client.cpp \
+    backend.cpp \
     remotebackend.cpp
 
 unix {

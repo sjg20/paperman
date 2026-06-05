@@ -46,6 +46,18 @@ struct DirectoryListing
 };
 
 
+/** Result of a whole-file fetch.  @c contentType is derived from the
+ *  filename extension. */
+struct FileFetch
+{
+    bool ok = false;
+    bool notFound = false;
+    QString error;
+    QString contentType;
+    QByteArray bytes;
+};
+
+
 /**
  * Abstract data source the server reads from.  The local deployment
  * uses LocalBackend (in-process file access); RemoteBackend forwards
@@ -70,6 +82,18 @@ public:
      *  in the entries list. */
     virtual DirectoryListing browseDirectory(const QString &repo,
                                              const QString &dir) = 0;
+
+    /** Fetch the raw bytes of a file from a repository.  @c path is
+     *  relative to the repo root.  Returned bytes are the original
+     *  on-disk file (no PDF page extraction or format conversion —
+     *  those still live on the HTTP layer). */
+    virtual FileFetch readFile(const QString &repo,
+                               const QString &path) = 0;
+
+    /** MIME type for a path, derived from the filename extension.
+     *  Shared so LocalBackend and RemoteBackend agree on the type
+     *  without having to ask the server. */
+    static QString contentTypeForPath(const QString &path);
 };
 
 #endif // BACKEND_H
