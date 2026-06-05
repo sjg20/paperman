@@ -364,6 +364,87 @@ void TestSearchServer::testV1AuthLogin()
    server.stop();
 }
 
+void TestSearchServer::testPostBodySplitAcrossReads()
+{
+   /* Regression test: QNetworkAccessManager (and other clients) often
+    * write a POST in two segments — headers, then body.  An earlier
+    * onReadyRead() parsed only what was available on the first
+    * readyRead and threw the body away, so /v1/auth/login saw an
+    * empty body and replied 400.  This test recreates that wire
+    * behaviour by hand and asserts a 200 with a token. */
+
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgFile = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server/users.json";
+   QFile::remove(cfgFile);
+   {
+      UserStore store;
+      QVERIFY(store.addUser("eve", "open-sesame"));
+   }
+
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   QByteArray body = R"({"user":"eve","password":"open-sesame"})";
+   QByteArray headers;
+   headers += "POST /v1/auth/login HTTP/1.1\r\n";
+   headers += "Host: localhost\r\n";
+   headers += "Content-Type: application/json\r\n";
+   headers += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+   headers += "Connection: close\r\n";
+   headers += "\r\n";
+
+   QTcpSocket sock;
+   sock.connectToHost("localhost", PORT);
+   QVERIFY(sock.waitForConnected(2000));
+
+   /* Send headers, force them to flush, and let the server's
+    * readyRead fire on just the headers. */
+   sock.write(headers);
+   sock.flush();
+   sock.waitForBytesWritten(500);
+   for (int i = 0; i < 5; i++)
+      QCoreApplication::processEvents();
+   QTest::qWait(50);
+
+   /* Now send the body in a second write — under the old code, this
+    * was the chunk that got ignored. */
+   sock.write(body);
+   sock.flush();
+
+   QByteArray raw;
+   int waited = 0;
+   while (waited < 5000) {
+      QCoreApplication::processEvents();
+      if (sock.waitForReadyRead(100))
+         raw += sock.readAll();
+      if (sock.state() != QAbstractSocket::ConnectedState)
+         break;
+      waited += 100;
+   }
+   raw += sock.readAll();
+   sock.close();
+
+   int sep = raw.indexOf("\r\n\r\n");
+   QVERIFY2(sep > 0, raw.constData());
+   QString header = QString::fromUtf8(raw.left(sep));
+   QByteArray respBody = raw.mid(sep + 4);
+
+   QVERIFY2(header.contains("200 OK"), header.toUtf8().constData());
+   QJsonObject obj = QJsonDocument::fromJson(respBody).object();
+   QVERIFY(!obj.value("token").toString().isEmpty());
+   QCOMPARE(obj.value("user").toString(), QString("eve"));
+
+   server.stop();
+}
+
 void TestSearchServer::testReposFilteredByUser()
 {
    QStandardPaths::setTestModeEnabled(true);
