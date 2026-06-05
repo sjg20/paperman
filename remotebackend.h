@@ -51,6 +51,10 @@ public:
 
     bool isAuthenticated() const { return !_token.isEmpty(); }
 
+    /** Attach a BackendStats object for activity reporting.  Optional;
+     *  if unset the backend doesn't report anywhere.  Non-owning. */
+    void setStats(class BackendStats *stats) { _stats = stats; }
+
     /** Inject a token directly (e.g. one loaded from a config file). */
     void setBearerToken(const QString &token) { _token = token; }
 
@@ -116,6 +120,7 @@ private:
     QString _serverId;
     QString _lastError;
     QNetworkAccessManager *_nam;
+    class BackendStats *_stats = nullptr;
     quint64 _nextAsyncToken = 1;
 };
 

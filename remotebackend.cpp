@@ -4,6 +4,8 @@ License: GPL-2
 
 #include "remotebackend.h"
 
+#include "backendstats.h"
+
 #include <QEventLoop>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -283,7 +285,21 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery)
    req.setTransferTimeout(kRequestTimeoutMs);
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
-   return _nam->get(req);
+
+   QNetworkReply *reply = _nam->get(req);
+
+   if (_stats) {
+      /* Approximate the request size by the URL bytes.  Headers
+       * are uncounted; tolerable for a user-facing tally. */
+      _stats->requestStarted();
+      _stats->recordSent(pathAndQuery.toUtf8().size());
+      QObject::connect(reply, &QNetworkReply::finished, _stats,
+          [this, reply]() {
+             _stats->recordReceived(reply->bytesAvailable());
+             _stats->requestFinished();
+          });
+   }
+   return reply;
 }
 
 
@@ -303,7 +319,18 @@ QByteArray RemoteBackend::postRequest(const QString &path,
    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
-   return waitForReply(_nam->post(req, body));
+
+   QNetworkReply *reply = _nam->post(req, body);
+   if (_stats) {
+      _stats->requestStarted();
+      _stats->recordSent(path.toUtf8().size() + body.size());
+      QObject::connect(reply, &QNetworkReply::finished, _stats,
+          [this, reply]() {
+             _stats->recordReceived(reply->bytesAvailable());
+             _stats->requestFinished();
+          });
+   }
+   return waitForReply(reply);
 }
 
 

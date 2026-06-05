@@ -23,9 +23,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <assert.h>
 
+#include "backendstats.h"
+
 #include <QtGui>
 #include <QCheckBox>
 #include <QFileDialog>
+#include <QHBoxLayout>
 #include <QKeyEventTransition>
 #include <QStateMachine>
 #include <QState>
@@ -83,6 +86,33 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    _contents->setDirmodel(_model);
 
    _toolbar = new Toolbar();
+
+   /* Append a network-activity indicator to the toolbar's existing
+    * horizontal row.  The toolbar's top-level layout is a
+    * QVBoxLayout; horizontalLayout_2 is the inner row that holds
+    * the buttons, generated from toolbar.ui.  Give the label its
+    * own size policy + minimum width so the toolbar layout actually
+    * allocates space for it. */
+   _netStatus = new QLabel(_toolbar);
+   _netStatus->setObjectName("netStatus");
+   _netStatus->setVisible(false);
+   _netStatus->setMargin(4);
+   _netStatus->setTextFormat(Qt::RichText);
+   _netStatus->setMinimumWidth(280);
+   _netStatus->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+   _toolbar->horizontalLayout_2->addWidget(_netStatus);
+
+   /* Throttle: BackendStats emits changed() on every request +
+    * every byte boundary, which can be many times per second
+    * during thumbnail bursts.  Repainting a rich-text QLabel on
+    * each one is wasted work.  Cap at one update per second. */
+   _netStatusTimer = new QTimer(this);
+   _netStatusTimer->setSingleShot(true);
+   _netStatusTimer->setInterval(1000);
+   connect(_netStatusTimer, &QTimer::timeout,
+           this, &Desktopwidget::flushNetStatus);
+   connect(_model->stats(), &BackendStats::changed,
+           this, &Desktopwidget::scheduleNetStatusUpdate);
 
    connect(_toolbar->pPrev, SIGNAL(clicked()), this, SLOT(pageLeft()));
    connect(_toolbar->pNext, SIGNAL(clicked()), this, SLOT(pageRight()));
@@ -341,6 +371,70 @@ QString Desktopwidget::addRemoteServer(const QUrl &baseUrl)
    if (_model->addRemoteRepository(baseUrl, &error))
       return QString();
    return error.isEmpty() ? QStringLiteral("unknown error") : error;
+}
+
+
+static QString formatBytes(qint64 n)
+{
+   if (n < 1024)               return QString::number(n) + " B";
+   if (n < 1024 * 1024)        return QString::number(n / 1024.0, 'f', 1) + " KB";
+   if (n < 1024LL * 1024 * 1024)
+                               return QString::number(n / (1024.0 * 1024), 'f', 1)
+                                      + " MB";
+   return QString::number(n / (1024.0 * 1024 * 1024), 'f', 2) + " GB";
+}
+
+
+void Desktopwidget::scheduleNetStatusUpdate()
+{
+   /* Leading edge: first change in a quiet window updates the
+    * label immediately and starts the throttle window.  Subsequent
+    * changes during the window flip a dirty flag; flushNetStatus
+    * picks up the final state when the timer fires. */
+   if (_netStatusTimer && !_netStatusTimer->isActive()) {
+      updateNetStatus();
+      _netStatusTimer->start();
+   } else {
+      _netStatusDirty = true;
+   }
+}
+
+
+void Desktopwidget::flushNetStatus()
+{
+   if (_netStatusDirty) {
+      _netStatusDirty = false;
+      updateNetStatus();
+      _netStatusTimer->start();  // open another throttle window for the next burst
+   }
+}
+
+
+void Desktopwidget::updateNetStatus()
+{
+   if (!_netStatus || !_model)
+      return;
+   BackendStats *s = _model->stats();
+   if (!s || s->url().isEmpty()) {
+      _netStatus->setVisible(false);
+      return;
+   }
+
+   /* ● green when idle, amber when one or more requests are in
+    * flight.  Two text styles share a single label so the layout
+    * doesn't shift width when activity toggles. */
+   bool busy = s->activeRequests() > 0;
+   QString dot = busy
+                     ? QStringLiteral("<span style='color:#cc8800'>●</span>")
+                     : QStringLiteral("<span style='color:#0aaa3a'>●</span>");
+   QString text = QString(
+       "%1 Connected to %2 &nbsp;&nbsp; "
+       "↑ %3 &nbsp;&nbsp; ↓ %4")
+           .arg(dot, s->url().toHtmlEscaped(),
+                formatBytes(s->bytesSent()),
+                formatBytes(s->bytesReceived()));
+   _netStatus->setText(text);
+   _netStatus->setVisible(true);
 }
 
 void Desktopwidget::slotModeChanging (int new_mode, int old_mode)

@@ -253,6 +253,7 @@ test {
       test/test_ocrsearch.cpp \
       searchserver.cpp \
       backend.cpp \
+      backendstats.cpp \
       localbackend.cpp \
       remotebackend.cpp \
       serverlog.cpp \
@@ -269,6 +270,7 @@ test {
       test/test_searchserver.h \
       test/test_ocrsearch.h \
       backend.h \
+      backendstats.h \
       cachedfile.h \
       localbackend.h \
       remotebackend.h \

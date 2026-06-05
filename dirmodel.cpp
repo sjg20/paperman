@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "dirmodel.h"
 #include "backend.h"
+#include "backendstats.h"
 #include "localbackend.h"
 #include "remotebackend.h"
 #include "qmimedata.h"
@@ -684,11 +685,18 @@ static QString loadCachedToken(const QString &serverId)
 
 bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
 {
+   /* Tag the stats object with this server's URL so the toolbar
+    * widget has something to display.  Last writer wins if the
+    * user attaches multiple servers — minor UX wrinkle worth
+    * accepting in exchange for one-line setup. */
+   stats()->setUrl(baseUrl.toString());
+
    /* One probe RemoteBackend, used to discover the server's
     * repository list.  Each repo we add then gets its own
     * RemoteBackend instance (with the same token) so each Diritem
     * keeps the simple unique_ptr ownership invariant. */
    RemoteBackend probe(baseUrl);
+   probe.setStats(stats());
    QString serverId = probe.serverId();
    QString token = loadCachedToken(serverId);
    if (!token.isEmpty())
@@ -713,6 +721,7 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       item->setDir(synthPath);
 
       RemoteBackend *rb = new RemoteBackend(baseUrl);
+      rb->setStats(stats());
       if (!token.isEmpty())
          rb->setBearerToken(token);
       connect(rb, &RemoteBackend::browseDirectoryReady,
@@ -749,6 +758,14 @@ Backend *Dirmodel::backendForRoot(const QString &rootPath) const
          return item->backend();
    }
    return nullptr;
+}
+
+
+BackendStats *Dirmodel::stats()
+{
+   if (!_stats)
+      _stats = new BackendStats(this);
+   return _stats;
 }
 
 
