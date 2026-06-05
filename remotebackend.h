@@ -7,6 +7,7 @@ License: GPL-2
 
 #include "backend.h"
 
+#include <QObject>
 #include <QString>
 #include <QUrl>
 
@@ -19,19 +20,25 @@ class QNetworkReply;
  * LocalBackend but the data comes from the network instead of the
  * local filesystem, so the GUI can transparently use either one.
  *
- * Calls are synchronous: each method spins a nested QEventLoop until
- * the QNetworkReply finishes.  That matches the existing GUI's
- * blocking call style and keeps tests straightforward; an async
- * variant can come later.
+ * Two call styles:
+ *  - The sync methods (listRepositories, browseDirectory, readFile,
+ *    login) spin a nested QEventLoop until the reply arrives; that
+ *    matches the existing GUI's blocking call style and keeps tests
+ *    straightforward.
+ *  - browseDirectoryAsync returns a token and emits
+ *    browseDirectoryReady when the server responds, so the UI
+ *    thread isn't blocked on each folder expansion.  Other endpoints
+ *    will grow async variants as call sites demand them.
  *
  * RemoteBackend manages a bearer token internally: after a successful
  * login() the token is attached as `Authorization: Bearer ...` to all
  * subsequent requests.
  */
-class RemoteBackend : public Backend
+class RemoteBackend : public QObject, public Backend
 {
+    Q_OBJECT
 public:
-    explicit RemoteBackend(const QUrl &baseUrl);
+    explicit RemoteBackend(const QUrl &baseUrl, QObject *parent = nullptr);
     ~RemoteBackend() override;
 
     /** Exchange credentials for a bearer token.  Returns true on
@@ -60,16 +67,39 @@ public:
     FileFetch readFile(const QString &repo,
                        const QString &path) override;
 
+    /** Asynchronous version of browseDirectory.  Returns a
+     *  monotonically-increasing token that identifies the request;
+     *  when the server responds (or the request fails/times out) the
+     *  browseDirectoryReady() signal is emitted with the same token
+     *  and the parsed DirectoryListing.  The caller can correlate
+     *  tokens to its own state (e.g. the DirNode being expanded). */
+    quint64 browseDirectoryAsync(const QString &repo, const QString &dir);
+
+signals:
+    void browseDirectoryReady(quint64 token,
+                              const DirectoryListing &listing);
+
 private:
     QByteArray getRequest(const QString &pathAndQuery);
     QByteArray postRequest(const QString &path, const QByteArray &body);
     QByteArray waitForReply(QNetworkReply *reply);
+
+    /** Construct an async GET against pathAndQuery.  Caller takes
+     *  responsibility for the returned reply's signals; reply will
+     *  call deleteLater on itself once consumed. */
+    QNetworkReply *startGet(const QString &pathAndQuery);
+
+    /** Translate a /browse reply (body bytes + reply error state)
+     *  into a typed DirectoryListing.  Shared by sync and async
+     *  paths. */
+    DirectoryListing parseBrowseReply(QNetworkReply *reply);
 
     QUrl _baseUrl;
     QString _token;
     QString _serverId;
     QString _lastError;
     QNetworkAccessManager *_nam;
+    quint64 _nextAsyncToken = 1;
 };
 
 #endif // REMOTEBACKEND_H

@@ -208,8 +208,15 @@ void TestDirmodel::testRemoteRepository()
    QCOMPARE(model.data(root, Qt::DisplayRole).toString(),
             QString("photos"));
 
-   /* Expanding the root populates from the server. */
-   QCOMPARE(model.rowCount(root), 2);
+   /* First rowCount triggers async populate; the placeholder
+    * "Loading…" child appears immediately. */
+   QCOMPARE(model.rowCount(root), 1);
+   QCOMPARE(model.data(model.index(0, 0, root), Qt::DisplayRole).toString(),
+            QString("Loading…"));
+
+   /* Spin the event loop until the async response arrives and the
+    * placeholder is replaced by the real children. */
+   QTRY_COMPARE(model.rowCount(root), 2);
    QStringList names;
    for (int i = 0; i < model.rowCount(root); i++)
       names << model.data(model.index(i, 0, root),
