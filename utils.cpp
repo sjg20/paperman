@@ -1079,36 +1079,42 @@ TreeItem *utilReadTree(QString fname, QString rootName)
    return root;
 }
 
+/* The chmod and chown only make sense when paperman is configured to
+ * share its scratch directories with a public group (set via the
+ * QSettings key "files/group", consumed by utilInit()).  When no group
+ * is configured, paperman is running for a single user — there is no
+ * one to share with — and the previous unconditional chmod 0666/0777
+ * just produced noise on directories the user didn't own (e.g. files
+ * on an NFS mount).  Skip silently when public_gid is unset. */
+
 bool utilSetDirGroup(const QString& dirname)
 {
+    if (public_gid == -1)
+        return true;
     if (chmod(qPrintable(dirname), 0777) == -1) {
         qInfo() << "Failed to change permissions" << dirname;
         return false;
     }
-    if (public_gid != -1) {
-        if (chown(qPrintable(dirname), -1, public_gid) == -1) {
-            qInfo() << "Failed to change group" << public_gid << dirname;
-            return false;
-        }
+    if (chown(qPrintable(dirname), -1, public_gid) == -1) {
+        qInfo() << "Failed to change group" << public_gid << dirname;
+        return false;
     }
-
     return true;
 }
 
 bool utilSetGroup(const QString& fname)
 {
+    if (public_gid == -1)
+        return true;
     if (chmod(qPrintable(fname), 0666) == -1) {
         qInfo() << "Failed to change permissions" << fname;
         return false;
     }
-   if (public_gid != -1) {
-      if (chown(qPrintable(fname), -1, public_gid) == -1) {
-         qInfo() << "Failed to change group" << public_gid << fname;
-         return false;
-      }
-   }
-
-   return true;
+    if (chown(qPrintable(fname), -1, public_gid) == -1) {
+        qInfo() << "Failed to change group" << public_gid << fname;
+        return false;
+    }
+    return true;
 }
 
 QString utilUserName()

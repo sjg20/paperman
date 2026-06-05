@@ -79,10 +79,14 @@ bool Diritem::setDir(QString &dir)
    // Try to get the canonical path, but if not, use the one supplied
    _dir = qd.canonicalPath ();
    if (_dir.isEmpty()) {
+      /* canonicalPath returns empty for paths that don't resolve on
+       * disk.  That's expected for synthetic IDs (e.g. the
+       * "http://host/repo" form used by addRemoteRepository) and for
+       * QSettings-remembered repos whose mount went away; callers
+       * use the bool return to decide whether to warn. */
       if (dir.endsWith ("/"))
          dir.chop (1);
       _dir = dir;
-      qDebug () << "Diritem invalid";
       return false;
       }
 
