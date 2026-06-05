@@ -25,11 +25,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDate>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QMessageBox>
+#include <QStandardPaths>
 
 #include "dirmodel.h"
 #include "backend.h"
 #include "localbackend.h"
+#include "remotebackend.h"
 #include "qmimedata.h"
 #include "qurl.h"
 
@@ -546,6 +549,81 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
       delete item;
    return ok;
    }
+
+
+/* Load a token previously saved by paperman-client (or any other
+ * tool) so opening the GUI against a known server doesn't require
+ * re-entering credentials.  Empty if no token is cached. */
+static QString loadCachedToken(const QString &serverId)
+{
+   if (serverId.isEmpty())
+      return QString();
+   QString path = QStandardPaths::writableLocation(
+                      QStandardPaths::GenericConfigLocation)
+                  + "/paperman/" + serverId + ".token";
+   QFile f(path);
+   if (!f.open(QIODevice::ReadOnly))
+      return QString();
+   return QString::fromUtf8(f.readAll()).trimmed();
+}
+
+
+bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
+{
+   /* One probe RemoteBackend, used to discover the server's
+    * repository list.  Each repo we add then gets its own
+    * RemoteBackend instance (with the same token) so each Diritem
+    * keeps the simple unique_ptr ownership invariant. */
+   RemoteBackend probe(baseUrl);
+   QString serverId = probe.serverId();
+   QString token = loadCachedToken(serverId);
+   if (!token.isEmpty())
+      probe.setBearerToken(token);
+
+   QList<RepositoryInfo> repos = probe.listRepositories();
+   if (repos.isEmpty()) {
+      if (errorOut)
+         *errorOut = probe.lastError().isEmpty()
+                         ? QStringLiteral("no repositories returned")
+                         : probe.lastError();
+      return false;
+   }
+
+   for (const RepositoryInfo &r : repos) {
+      Diritem *item = new Diritem();
+      /* _dir gets a synthetic identifier (URL + repo name) so the
+       * existing setDir() canonicalisation logic doesn't try to look
+       * it up on disk.  setDir() returns false for non-existent paths
+       * but still records the value, which is exactly what we want. */
+      QString synthPath = baseUrl.toString() + "/" + r.name;
+      item->setDir(synthPath);
+
+      RemoteBackend *rb = new RemoteBackend(baseUrl);
+      if (!token.isEmpty())
+         rb->setBearerToken(token);
+      item->setBackend(rb);
+
+      DirNode *node = new DirNode;
+      node->name      = r.name;
+      /* fullPath for a remote root is just the repo name; child
+       * nodes append "/sub" and populateNode computes relPath by
+       * stripping the root prefix, so the synthetic value works. */
+      node->fullPath  = r.name;
+      node->parent    = _invisibleRoot;
+      node->row       = _invisibleRoot->children.size();
+      node->populated = false;
+      node->backend   = item->backend();
+      node->repoName  = r.name;
+
+      item->setNode(node);
+
+      beginInsertRows(QModelIndex(), _item.size(), _item.size());
+      _invisibleRoot->children.append(node);
+      _item.append(item);
+      endInsertRows();
+   }
+   return true;
+}
 
 
 bool Dirmodel::removeDirFromList (const QModelIndex &index)

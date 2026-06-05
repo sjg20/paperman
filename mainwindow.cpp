@@ -111,7 +111,7 @@ Mainwindow::~Mainwindow()
     // no need to delete child widgets, Qt does it all for us
 }
 
-void Mainwindow::startup(const QStringList& dirs)
+void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
 {
    Desktopwidget *desktop;
 
@@ -121,6 +121,16 @@ void Mainwindow::startup(const QStringList& dirs)
    QList<err_info> err_list;
 
    err_list = desktop->addRepositories(dirs);
+
+   QString serverError;
+   if (!serverUrl.isEmpty()) {
+      QUrl url(serverUrl);
+      if (url.isValid() && !url.scheme().isEmpty()) {
+         serverError = desktop->addRemoteServer(url);
+      } else {
+         serverError = QString("invalid URL: %1").arg(serverUrl);
+      }
+   }
 
    show ();
    QModelIndex ind = QModelIndex();
@@ -136,6 +146,11 @@ void Mainwindow::startup(const QStringList& dirs)
          msg.append (QString ("%1\n").arg (err.errstr));
       QMessageBox::warning (0, "Maxview", msg);
       }
+
+   if (!serverError.isEmpty())
+      QMessageBox::warning(0, "Paperman",
+         QString("Failed to connect to %1: %2")
+             .arg(serverUrl, serverError));
 }
 
 void Mainwindow::shutdown()
@@ -148,7 +163,8 @@ void Mainwindow::shutdown()
       delete xmlConfig;
 }
 
-void Mainwindow::runGui(QApplication& app, QStringList args)
+void Mainwindow::runGui(QApplication& app, QStringList args,
+                        const QString& serverUrl)
     {
     Mainwindow *me;
 
@@ -156,7 +172,7 @@ void Mainwindow::runGui(QApplication& app, QStringList args)
 
     me = new Mainwindow();
 
-    me->startup(args);
+    me->startup(args, serverUrl);
     app.exec();
 
     me->shutdown();

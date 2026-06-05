@@ -4,6 +4,7 @@
 #include "utils.h"
 
 #include "dirmodel.h"
+#include "searchserver.h"
 #include "test_dirmodel.h"
 
 void TestDirmodel::testBase()
@@ -175,6 +176,48 @@ void TestDirmodel::testBackendErrorSurfacing()
    QCOMPARE(spy.count(), 2);
 
    delete model;
+}
+
+void TestDirmodel::testRemoteRepository()
+{
+   /* Spin up a real SearchServer pointing at a freshly seeded
+    * repository, then ask a fresh Dirmodel to consume it remotely.
+    * The model's only knowledge of the data is the HTTP URL. */
+   QTemporaryDir serverDir;
+   QVERIFY(serverDir.isValid());
+   QString repoRoot = serverDir.path() + "/photos";
+   QVERIFY(QDir().mkpath(repoRoot));
+   QVERIFY(QDir().mkpath(repoRoot + "/2025"));
+   QVERIFY(QDir().mkpath(repoRoot + "/2026"));
+
+   const quint16 port = 9877;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Dirmodel model;
+   QString err;
+   QVERIFY2(model.addRemoteRepository(
+                QUrl(QString("http://localhost:%1").arg(port)), &err),
+            qPrintable(err));
+
+   /* The server has one repository — "photos" — and it should now
+    * appear as a top-level node. */
+   QCOMPARE(model.rowCount(QModelIndex()), 1);
+   QModelIndex root = model.index(0, 0, QModelIndex());
+   QCOMPARE(model.data(root, Qt::DisplayRole).toString(),
+            QString("photos"));
+
+   /* Expanding the root populates from the server. */
+   QCOMPARE(model.rowCount(root), 2);
+   QStringList names;
+   for (int i = 0; i < model.rowCount(root); i++)
+      names << model.data(model.index(i, 0, root),
+                          Qt::DisplayRole).toString();
+   names.sort();
+   QCOMPARE(names, QStringList({"2025", "2026"}));
+
+   server.stop();
 }
 
 void TestDirmodel::testAddFiles()

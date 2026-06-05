@@ -200,6 +200,17 @@ public:
     */
    bool addDir(QString& dir, bool ignore_error = false);
 
+   /**
+    * @brief Add every repository served by a remote paperman-server
+    *        as a top-level item.  Each repo becomes its own Diritem
+    *        backed by RemoteBackend.
+    * @param baseUrl   Server base URL, e.g. http://ohau:8081
+    * @param errorOut  If non-null, populated with the failure
+    *                  reason when the call returns false
+    * @return true if at least one repository was added
+    */
+   bool addRemoteRepository(const QUrl &baseUrl, QString *errorOut = nullptr);
+
    /** Remove a repository directory from the list
 
      \param index    model index of directory to remove */
