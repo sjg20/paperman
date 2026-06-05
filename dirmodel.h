@@ -218,6 +218,12 @@ public:
     */
    bool addRemoteRepository(const QUrl &baseUrl, QString *errorOut = nullptr);
 
+   /**
+    * @brief Return the Backend that owns @p rootPath, or nullptr if
+    *        no top-level repository matches.  Non-owning pointer.
+    */
+   Backend *backendForRoot(const QString &rootPath) const;
+
    /** Remove a repository directory from the list
 
      \param index    model index of directory to remove */

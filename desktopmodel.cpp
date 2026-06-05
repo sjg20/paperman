@@ -24,6 +24,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <assert.h>
 
 #include "config.h"
+#include "backend.h"
+#include "dirmodel.h"
 
 #include "qapplication.h"
 #include "qcursor.h"
@@ -1413,6 +1415,21 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
    }
 
    desk->setDebugLevel (_debug_level);
+
+   /* If the repository for this root path has a Backend (e.g. a
+    * remote paperman-server), route the file listing through it
+    * instead of the local filesystem.  The root path Dirmodel
+    * registered as the Diritem identifier has no trailing slash;
+    * trim ours before lookup. */
+   if (_dirmodel) {
+      QString rootKey = _rootPath;
+      if (rootKey.endsWith('/'))
+         rootKey.chop(1);
+      if (Backend *be = _dirmodel->backendForRoot(rootKey)) {
+         QString repoName = QFileInfo(rootKey).fileName();
+         desk->setBackend(be, repoName);
+      }
+   }
 
    // add files that are not in the maxdesk.ini file
    desk->addFiles(dirPath, meas);

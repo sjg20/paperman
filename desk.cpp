@@ -45,6 +45,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qimage.h"
 #include "qstring.h"
 
+#include "backend.h"
 #include "desk.h"
 #include "file.h"
 #include "filemax.h"
@@ -190,6 +191,31 @@ void Desk::updateRowCount (void)
 
 void Desk::addFiles(const QString &dirPath, Measure *meas)
    {
+   if (_backend) {
+      /* Remote (or otherwise backend-backed) desk: route the file
+       * list through the Backend instead of touching the local
+       * filesystem.  dirPath has a trailing "/" and _rootDir is
+       * the repo root.  browseDirectory wants the repo-relative
+       * subpath. */
+      QString rel = dirPath;
+      if (rel.startsWith(_rootDir))
+         rel = rel.mid(_rootDir.length());
+      if (rel.endsWith('/'))
+         rel.chop(1);
+      DirectoryListing listing = _backend->browseDirectory(_repoName, rel);
+      if (!listing.ok) {
+         qInfo() << "Desk::addFiles: backend error:" << listing.error;
+         return;
+      }
+      for (const DirectoryEntry &e : listing.entries) {
+         if (e.isDir)
+            continue;
+         addFile(e.name, dirPath, meas);
+      }
+      updateRowCount();
+      return;
+   }
+
    QDir dir (dirPath);
    dir.setFilter(QDir::Files | QDir::NoSymLinks);
    dir.setSorting(QDir::Name);

@@ -107,6 +107,12 @@ public:
    Desktopmodel(QObject *parent);
    ~Desktopmodel();
 
+   /** Inject the Dirmodel that owns the repository list.  We use it
+    *  to look up the Backend associated with a root path when
+    *  opening a folder, so remote roots can populate their desks
+    *  via Backend::browseDirectory instead of QDir. */
+   void setDirmodel(class Dirmodel *dirmodel) { _dirmodel = dirmodel; }
+
    // debug output
    QDebug debug (void) const;
 
@@ -1325,6 +1331,7 @@ private:
    bool _about_to_add;        //!< true if about to add some items
    int _add_start;            //!< first row of added item
    Desktopmodelconv *_modelconv;  //!< model converter
+   class Dirmodel *_dirmodel = nullptr;  //!< Source of backend lookups
    QFontMetrics *_fm;         //!< metrics for the standard font (used for guessing sizes)
 
    /** true if we should generate a scaled image when new scan data is
