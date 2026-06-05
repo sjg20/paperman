@@ -333,6 +333,15 @@ QList<err_info> Desktopwidget::addRepositories(const QStringList& dirs)
    return err_list;
 }
 
+
+QString Desktopwidget::addRemoteServer(const QUrl &baseUrl)
+{
+   QString error;
+   if (_model->addRemoteRepository(baseUrl, &error))
+      return QString();
+   return error.isEmpty() ? QStringLiteral("unknown error") : error;
+}
+
 void Desktopwidget::slotModeChanging (int new_mode, int old_mode)
    {
 //    qDebug () << "slotModeChanging" << new_mode << old_mode;

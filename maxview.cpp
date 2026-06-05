@@ -571,6 +571,7 @@ int main (int argc, char *argv[])
      {"rebuild-previews", 1, 0, 259},
      {"adjust", 1, 0, 260},
      {"quality", 1, 0, 261},
+     {"server", 1, 0, 262},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -582,6 +583,7 @@ int main (int argc, char *argv[])
    int jobs = 0;                          // 0 = auto
    int quality = 75;                      // JPEG quality (1-100)
    QString adjust_name;
+   QString serverUrl;                     // --server URL
 
    struct rlimit limit;
 
@@ -661,6 +663,10 @@ int main (int argc, char *argv[])
                fprintf (stderr, "--quality must be 1-100\n");
                return 1;
                }
+            break;
+
+         case 262 :    // --server URL
+            serverUrl = QString(optarg);
             break;
 
          case 'h' :
@@ -1064,9 +1070,9 @@ int main (int argc, char *argv[])
 
       case -1 :
          QStringList args;
-         for (int i = 1; i < argc; i++)
+         for (int i = optind; i < argc; i++)
             args << argv[i];
-         Mainwindow::runGui(app, args);
+         Mainwindow::runGui(app, args, serverUrl);
 #if 0
       case 1 :
          Desk maxdesk (QString(), QString());

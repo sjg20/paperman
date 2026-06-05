@@ -32,6 +32,9 @@ private slots:
    //! Backend failure during populate is surfaced and can be retried
    void testBackendErrorSurfacing();
 
+   //! addRemoteRepository wires a Dirmodel to a live paperman-server
+   void testRemoteRepository();
+
 private:
    /**
     * @brief  Set up a new Dirmodel with test data

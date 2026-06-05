@@ -58,6 +58,7 @@ struct file_info;
 
 #include <QAbstractItemModel>
 #include <QDialog>
+#include <QUrl>
 
 #include "qsplitter.h"
 #include "qstring.h"
@@ -90,6 +91,11 @@ public:
 
    //! Add the given list of extra repositories
    QList<err_info> addRepositories(const QStringList& dirs);
+
+   /** Add every repository served by a remote paperman-server as
+    *  top-level items.  Returns an empty string on success or a
+    *  diagnostic on failure. */
+   QString addRemoteServer(const QUrl &baseUrl);
 
    /** constructor helper functions */
    QWidget *createToolbar(void);

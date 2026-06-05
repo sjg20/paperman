@@ -55,14 +55,17 @@ public:
    // Select whether the 'search' menu-option is available
    void setSearchEnabled(bool enable);
 
-   //! Add the given list of extra repositories, reporting any errors
-   void startup(const QStringList& dirs);
+   //! Add the given list of extra repositories, reporting any errors.
+   //! If @p serverUrl is non-empty, also connect to that paperman-server
+   //! and add every repository it serves as top-level items.
+   void startup(const QStringList& dirs, const QString& serverUrl = QString());
 
    //! Shut down, saving settings
    void shutdown();
 
    // Run the GUI with the given arguments
-   static void runGui(QApplication& app, QStringList args);
+   static void runGui(QApplication& app, QStringList args,
+                      const QString& serverUrl = QString());
 
 public slots:
     virtual void on_actionPrint_triggered(bool);
