@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <cerrno>
+#include <cstring>
 #include <grp.h>
 
 #include <QDate>
@@ -1085,18 +1087,28 @@ TreeItem *utilReadTree(QString fname, QString rootName)
  * is configured, paperman is running for a single user — there is no
  * one to share with — and the previous unconditional chmod 0666/0777
  * just produced noise on directories the user didn't own (e.g. files
- * on an NFS mount).  Skip silently when public_gid is unset. */
+ * on an NFS mount).  Skip silently when public_gid is unset.
+ *
+ * Even when a group IS configured, EPERM from chmod/chown is
+ * expected on shared NFS paths owned by other UIDs; treat that as
+ * not-our-problem and silently move on.  Other errors (ENOENT, EIO,
+ * misconfigured group) still warn so genuinely broken setups get
+ * surfaced. */
 
 bool utilSetDirGroup(const QString& dirname)
 {
     if (public_gid == -1)
         return true;
     if (chmod(qPrintable(dirname), 0777) == -1) {
-        qInfo() << "Failed to change permissions" << dirname;
+        if (errno != EPERM)
+            qInfo() << "Failed to change permissions" << dirname
+                    << ":" << strerror(errno);
         return false;
     }
     if (chown(qPrintable(dirname), -1, public_gid) == -1) {
-        qInfo() << "Failed to change group" << public_gid << dirname;
+        if (errno != EPERM)
+            qInfo() << "Failed to change group" << public_gid << dirname
+                    << ":" << strerror(errno);
         return false;
     }
     return true;
@@ -1107,11 +1119,15 @@ bool utilSetGroup(const QString& fname)
     if (public_gid == -1)
         return true;
     if (chmod(qPrintable(fname), 0666) == -1) {
-        qInfo() << "Failed to change permissions" << fname;
+        if (errno != EPERM)
+            qInfo() << "Failed to change permissions" << fname
+                    << ":" << strerror(errno);
         return false;
     }
     if (chown(qPrintable(fname), -1, public_gid) == -1) {
-        qInfo() << "Failed to change group" << public_gid << fname;
+        if (errno != EPERM)
+            qInfo() << "Failed to change group" << public_gid << fname
+                    << ":" << strerror(errno);
         return false;
     }
     return true;

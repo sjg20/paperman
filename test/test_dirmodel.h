@@ -35,6 +35,13 @@ private slots:
    //! addRemoteRepository wires a Dirmodel to a live paperman-server
    void testRemoteRepository();
 
+   //! Expanding a child node (not just the root) fires another /browse
+   void testRemoteRepositoryExpandChild();
+
+   //! Same as testRemoteRepositoryExpandChild but accessed through
+   //! the Dirproxy the GUI uses, to catch any proxy-caching surprises.
+   void testRemoteRepositoryExpandChildThroughProxy();
+
 private:
    /**
     * @brief  Set up a new Dirmodel with test data

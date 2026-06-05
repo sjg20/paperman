@@ -227,6 +227,126 @@ void TestDirmodel::testRemoteRepository()
    server.stop();
 }
 
+
+void TestDirmodel::testRemoteRepositoryExpandChild()
+{
+   /* The reported bug: expanding a top-level remote repo fires
+    * /browse, but expanding a child sub-folder doesn't fire a
+    * second /browse — counters stay flat.  Recreate the scenario
+    * end-to-end: seed nested directories on the server, walk down
+    * one level at a time, and confirm a /browse request fires at
+    * every level. */
+   QTemporaryDir serverDir;
+   QVERIFY(serverDir.isValid());
+   QString repoRoot = serverDir.path() + "/photos";
+   QVERIFY(QDir().mkpath(repoRoot + "/2025/a"));
+   QVERIFY(QDir().mkpath(repoRoot + "/2025/b"));
+   QVERIFY(QDir().mkpath(repoRoot + "/2026"));
+
+   const quint16 port = 9878;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Dirmodel model;
+   QString err;
+   QVERIFY2(model.addRemoteRepository(
+                QUrl(QString("http://localhost:%1").arg(port)), &err),
+            qPrintable(err));
+
+   /* Level 0: repo. */
+   QModelIndex repo = model.index(0, 0, QModelIndex());
+   QVERIFY(repo.isValid());
+
+   /* Level 1: expand the repo.  The first rowCount inserts a
+    * "Loading…" placeholder while the async /browse runs. */
+   QCOMPARE(model.rowCount(repo), 1);
+   QTRY_COMPARE(model.rowCount(repo), 2);  // 2025 + 2026
+
+   /* Find the "2025" child. */
+   QModelIndex y2025;
+   for (int i = 0; i < model.rowCount(repo); i++) {
+      QModelIndex idx = model.index(i, 0, repo);
+      if (model.data(idx, Qt::DisplayRole).toString() == "2025") {
+         y2025 = idx;
+         break;
+      }
+   }
+   QVERIFY(y2025.isValid());
+
+   /* Level 2: expand "2025".  This is the case the user reports
+    * silently producing no traffic.  Same pattern: first rowCount
+    * is the placeholder, then async fills in the real two children
+    * ("a" and "b"). */
+   QCOMPARE(model.rowCount(y2025), 1);   // placeholder
+   QTRY_COMPARE(model.rowCount(y2025), 2);  // a + b
+
+   QStringList names;
+   for (int i = 0; i < model.rowCount(y2025); i++)
+      names << model.data(model.index(i, 0, y2025),
+                          Qt::DisplayRole).toString();
+   names.sort();
+   QCOMPARE(names, QStringList({"a", "b"}));
+
+   server.stop();
+}
+
+
+void TestDirmodel::testRemoteRepositoryExpandChildThroughProxy()
+{
+   /* Same shape as testRemoteRepositoryExpandChild but every model
+    * access goes through a Dirproxy, since that's the path the GUI
+    * uses.  Use folder names that don't trip Dirproxy's year/month
+    * filter (it's on by default) so the test exercises the
+    * expansion mechanics rather than the filtering rules. */
+   QTemporaryDir serverDir;
+   QVERIFY(serverDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks/Bank-Direct"));
+   QVERIFY(QDir().mkpath(repoRoot + "/banks/Bradley"));
+
+   const quint16 port = 9879;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Dirmodel model;
+   QString err;
+   QVERIFY2(model.addRemoteRepository(
+                QUrl(QString("http://localhost:%1").arg(port)), &err),
+            qPrintable(err));
+
+   Dirproxy proxy;
+   proxy.setSourceModel(&model);
+
+   /* Level 0: the proxy sees the single repo. */
+   QCOMPARE(proxy.rowCount(QModelIndex()), 1);
+   QModelIndex repo = proxy.index(0, 0, QModelIndex());
+   QVERIFY(repo.isValid());
+
+   /* Level 1: expand the repo via the proxy.  Wait for the async
+    * to swap the placeholder for the real "banks" child. */
+   QCOMPARE(proxy.rowCount(repo), 1);   // placeholder
+   QTRY_COMPARE(proxy.data(proxy.index(0, 0, repo),
+                           Qt::DisplayRole).toString(),
+                QString("banks"));
+
+   QModelIndex banks = proxy.index(0, 0, repo);
+   QVERIFY(banks.isValid());
+
+   /* Level 2: expand "banks" via the proxy.  If the proxy short-
+    * circuits and doesn't ask the source, this never reaches
+    * populateNode and no /browse fires — the bug.  Wait for the
+    * real children to swap in. */
+   QCOMPARE(proxy.rowCount(banks), 1);   // placeholder
+   QTRY_VERIFY(proxy.data(proxy.index(0, 0, banks),
+                          Qt::DisplayRole).toString() != "Loading…");
+   QCOMPARE(proxy.rowCount(banks), 2);  // Bank-Direct + Bradley
+
+   server.stop();
+}
+
+
 void TestDirmodel::testAddFiles()
 {
    Dirmodel *model;
