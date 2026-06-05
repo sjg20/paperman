@@ -742,6 +742,16 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
 }
 
 
+Backend *Dirmodel::backendForRoot(const QString &rootPath) const
+{
+   for (Diritem *item : _item) {
+      if (item->dir() == rootPath)
+         return item->backend();
+   }
+   return nullptr;
+}
+
+
 bool Dirmodel::removeDirFromList (const QModelIndex &index)
    {
    if (!isRoot (index))

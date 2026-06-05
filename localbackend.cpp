@@ -91,19 +91,23 @@ DirectoryListing LocalBackend::browseDirectory(const QString &repo,
       out.entries.append(e);
    }
 
-   /* Files from the cache (faster than another filesystem scan). */
-   const QList<CachedFile> &cached = _fileCache.value(rootPath);
-   for (const CachedFile &file : cached) {
-      QString fileDir = QFileInfo(file.path).path();
-      bool inDir = (fileDir == "." && dir.isEmpty()) || fileDir == dir;
-      if (!inDir)
-         continue;
-
+   /* Files from a fresh filesystem scan of just this directory.
+    * (The repo-wide _fileCache is built lazily — the server's
+    * search endpoint depends on it, but the GUI doesn't, so we
+    * can't assume it's populated here.  A single-directory scan
+    * is cheap.) */
+   QStringList nameFilters;
+   nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg"
+               << "*.tiff" << "*.tif";
+   QFileInfoList files = d.entryInfoList(nameFilters,
+       QDir::Files | QDir::NoSymLinks | QDir::Readable, QDir::Name);
+   for (const QFileInfo &f : files) {
       DirectoryEntry e;
-      e.name     = file.name;
-      e.path     = file.path;
-      e.size     = file.size;
-      e.modified = file.modified.toString(Qt::ISODate);
+      e.name     = f.fileName();
+      e.path     = dir.isEmpty() ? f.fileName()
+                                 : dir + "/" + f.fileName();
+      e.size     = f.size();
+      e.modified = f.lastModified().toString(Qt::ISODate);
       out.entries.append(e);
    }
 

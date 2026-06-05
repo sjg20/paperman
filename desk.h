@@ -83,6 +83,9 @@ typedef struct filelist_info
 #endif
 
 
+class Backend;
+
+
 class Desk
    {
 public:
@@ -96,6 +99,13 @@ public:
 
    /** set up an empty temporary desk */
    Desk (void);
+
+   /** Attach a Backend to this desk; addFiles() will route through it
+    *  instead of QDir if set.  Non-owning pointer; the backend lives
+    *  on the Diritem in Dirmodel.  @p repoName is the basename the
+    *  backend uses to identify this repository. */
+   void setBackend(Backend *backend, const QString &repoName)
+       { _backend = backend; _repoName = repoName; }
 
    //! destructor
    ~Desk ();
@@ -598,6 +608,8 @@ private:
 //    std::list<file_info *>::iterator _it;
    QString _dir;       //!< directory the files are in
    QString _rootDir;   //!< root directory for this model (where trash is)
+   Backend *_backend = nullptr;  //!< Optional data source; nullptr = local QDir
+   QString _repoName;  //!< Repository name when _backend is set
    QPoint _pos;        //!< next position for a file to appear
    int _rightMargin;   //!< right margin for items
    int _debug_level;     //!< the debug level to use for max debugging
