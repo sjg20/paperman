@@ -35,6 +35,7 @@ static void usage(const char *prog)
       "  status                     Show server status\n"
       "  repos                      List repositories\n"
       "  ls <repo> [path]           List files in a repo directory\n"
+      "  cat <repo> <path> [-o OUT] Fetch a file (stdout, or to OUT)\n"
       "\n"
       "Default server is $PAPERMAN_SERVER, else http://localhost:8080.\n"
       "Tokens are stored per-server-id in "
@@ -151,6 +152,32 @@ static int cmdRepos(RemoteBackend *b)
       std::cout << r.name.toStdString() << "\t"
                 << (r.exists ? "ok" : "missing") << "\t"
                 << r.path.toStdString() << "\n";
+   }
+   return 0;
+}
+
+
+static int cmdCat(RemoteBackend *b, const QString &repo, const QString &path,
+                  const QString &outPath)
+{
+   FileFetch f = b->readFile(repo, path);
+   if (!f.ok) {
+      std::cerr << "Failed: " << f.error.toStdString() << "\n";
+      return 1;
+   }
+   if (outPath.isEmpty()) {
+      std::cout.write(f.bytes.constData(), f.bytes.size());
+   } else {
+      QFile out(outPath);
+      if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+         std::cerr << "Cannot write " << outPath.toStdString()
+                   << ": " << out.errorString().toStdString() << "\n";
+         return 1;
+      }
+      out.write(f.bytes);
+      std::cerr << "Wrote " << f.bytes.size() << " bytes ("
+                << f.contentType.toStdString() << ") to "
+                << outPath.toStdString() << "\n";
    }
    return 0;
 }
@@ -283,6 +310,22 @@ int main(int argc, char *argv[])
       QString path = rest.size() > 2 ? rest[2] : QString();
       RemoteBackend *b = makeBackend(url, /*loadCachedToken=*/true);
       int r = cmdLs(b, repo, path);
+      delete b;
+      return r;
+   }
+   if (cmd == "cat") {
+      if (rest.size() < 3) { usage(argv[0]); return 1; }
+      QString repo = rest[1];
+      QString path = rest[2];
+      QString outPath;
+      for (int i = 3; i < rest.size(); i++) {
+         if ((rest[i] == "-o" || rest[i] == "--out")
+             && i + 1 < rest.size()) {
+            outPath = rest[++i];
+         }
+      }
+      RemoteBackend *b = makeBackend(url, /*loadCachedToken=*/true);
+      int r = cmdCat(b, repo, path, outPath);
       delete b;
       return r;
    }

@@ -57,6 +57,8 @@ public:
     QList<RepositoryInfo> listRepositories() override;
     DirectoryListing browseDirectory(const QString &repo,
                                      const QString &dir) override;
+    FileFetch readFile(const QString &repo,
+                       const QString &path) override;
 
 private:
     QByteArray getRequest(const QString &pathAndQuery);

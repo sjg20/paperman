@@ -112,6 +112,43 @@ DirectoryListing LocalBackend::browseDirectory(const QString &repo,
 }
 
 
+FileFetch LocalBackend::readFile(const QString &repo, const QString &path)
+{
+   FileFetch out;
+
+   if (path.isEmpty() || path.contains("..") || path.startsWith("/")) {
+      out.error = "invalid path";
+      return out;
+   }
+
+   QString rootPath = repo.isEmpty()
+                          ? (_rootPaths.isEmpty() ? QString()
+                                                  : _rootPaths.first())
+                          : rootPathForName(repo);
+   if (rootPath.isEmpty()) {
+      out.error    = "repository not found: " + repo;
+      out.notFound = true;
+      return out;
+   }
+
+   QFile f(rootPath + "/" + path);
+   if (!f.exists()) {
+      out.error    = "file not found";
+      out.notFound = true;
+      return out;
+   }
+   if (!f.open(QIODevice::ReadOnly)) {
+      out.error = "cannot open: " + f.errorString();
+      return out;
+   }
+
+   out.bytes       = f.readAll();
+   out.contentType = Backend::contentTypeForPath(path);
+   out.ok          = true;
+   return out;
+}
+
+
 int LocalBackend::loadCacheForRepo(const QString &rootPath)
 {
    QList<CachedFile> &fileList = _fileCache[rootPath];

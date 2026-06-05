@@ -494,6 +494,25 @@ void TestSearchServer::testRemoteBackendEndToEnd()
          QVERIFY2(e.size > 0, qPrintable(e.name));
    }
 
+   /* readFile round-trips file bytes through the wire.  Verify against
+    * the source-of-truth on disk. */
+   FileFetch f = client.readFile(repos[0].name, "invoice-2024.pdf");
+   QVERIFY2(f.ok, f.error.toUtf8().constData());
+   QCOMPARE(f.contentType, QString("application/pdf"));
+
+   QFile src(tmpDir.path() + "/invoice-2024.pdf");
+   QVERIFY(src.open(QIODevice::ReadOnly));
+   QCOMPARE(f.bytes, src.readAll());
+
+   /* Unknown file is reported as not-found, not crash. */
+   FileFetch missing = client.readFile(repos[0].name, "no-such-file.pdf");
+   QVERIFY(!missing.ok);
+
+   /* Traversal attempt is rejected client-side... actually here the
+    * server rejects it; either way the call must fail. */
+   FileFetch evil = client.readFile(repos[0].name, "../etc/passwd");
+   QVERIFY(!evil.ok);
+
    server.stop();
 }
 
