@@ -220,14 +220,15 @@ void Dirmodel::populateNode(DirNode *node) const
 {
    if (node->populated)
       return;
-   node->populated = true;
 
    /* Subdirectories come from the Backend.  Each Diritem owns a
     * Backend (set in addDir); top-level DirNodes carry a non-owning
     * pointer to it and we propagate that to every child as we
     * populate, so deeper nodes don't need a walk-up. */
-   if (!node->backend)
+   if (!node->backend) {
+      node->populated = true;
       return;
+   }
 
    /* The path passed to browseDirectory is relative to the repo
     * root.  Walk up to the root to compute it; the root is the
@@ -241,8 +242,25 @@ void Dirmodel::populateNode(DirNode *node) const
 
    DirectoryListing listing =
        node->backend->browseDirectory(root->repoName, relPath);
-   if (!listing.ok)
+
+   /* Mark populated unconditionally so a failed call doesn't get
+    * re-issued by every rowCount() probe.  refresh() clears both
+    * populated and loadFailed, so users can retry by triggering a
+    * refresh on the failed branch. */
+   node->populated = true;
+
+   if (!listing.ok) {
+      node->loadFailed = true;
+      node->loadError  = listing.error.isEmpty()
+                             ? QStringLiteral("backend error")
+                             : listing.error;
+      emit const_cast<Dirmodel *>(this)->backendError(node->fullPath,
+                                                      node->loadError);
       return;
+   }
+
+   node->loadFailed = false;
+   node->loadError.clear();
 
    for (const DirectoryEntry &entry : listing.entries) {
       if (!entry.isDir)
@@ -356,7 +374,11 @@ bool Dirmodel::rmdir(const QModelIndex &index)
 void Dirmodel::refresh(const QModelIndex &parent)
 {
    DirNode *node = nodeFromIndex(parent);
-   if (!node || !node->populated)
+   if (!node)
+      return;
+   /* A previously-failed populate leaves populated=true with
+    * loadFailed=true, so don't gate the refresh on populated alone. */
+   if (!node->populated && !node->loadFailed)
       return;
 
    // beginRemoveRows/endRemoveRows alone is not enough: proxy models
@@ -367,7 +389,9 @@ void Dirmodel::refresh(const QModelIndex &parent)
    beginResetModel();
    qDeleteAll(node->children);
    node->children.clear();
-   node->populated = false;
+   node->populated  = false;
+   node->loadFailed = false;
+   node->loadError.clear();
    endResetModel();
 }
 
@@ -585,6 +609,12 @@ QVariant Dirmodel::data(const QModelIndex &index, int role) const
       case Qt::EditRole :
       case FileNameRole :
          return QVariant (node->name);
+
+      case Qt::ToolTipRole :
+         if (node->loadFailed)
+            return QVariant(QString("Could not list contents: %1")
+                                .arg(node->loadError));
+         return QVariant();
       }
 
    return QVariant();

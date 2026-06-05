@@ -136,6 +136,47 @@ void TestDirmodel::testRefreshKeepsSubdirs()
    QCOMPARE(after, QStringList({"a", "b"}));
 }
 
+void TestDirmodel::testBackendErrorSurfacing()
+{
+   /* Point the model at a directory that doesn't exist on disk; the
+    * Backend should reject the populate, Dirmodel should mark the
+    * node as failed (without trapping itself in a populated-with-no-
+    * children state), and emit backendError. */
+   Dirmodel *model = new Dirmodel();
+   QString bogus = _tempDir->path() + "/never-existed";
+   /* addDir returns false for an invalid path even with ignore_error=true,
+    * but the Diritem is still appended.  That's the scenario we want. */
+   model->addDir(bogus, /*ignore_error=*/true);
+   QCOMPARE(model->rowCount(QModelIndex()), 1);
+
+   QSignalSpy spy(model, &Dirmodel::backendError);
+
+   QModelIndex root = model->index(0, 0, QModelIndex());
+   QVERIFY(root.isValid());
+
+   /* rowCount triggers populateNode(); the underlying call fails. */
+   QCOMPARE(model->rowCount(root), 0);
+
+   /* The failure was surfaced as a signal and a tooltip. */
+   QCOMPARE(spy.count(), 1);
+   QString tooltip = model->data(root, Qt::ToolTipRole).toString();
+   QVERIFY2(tooltip.contains("Could not list contents"),
+            qPrintable(tooltip));
+
+   /* A second rowCount() does NOT trigger a retry — the failure
+    * state is sticky until refresh().  Use spy.count() to verify
+    * no additional signal was emitted. */
+   (void)model->rowCount(root);
+   QCOMPARE(spy.count(), 1);
+
+   /* refresh() clears the failure so a subsequent populate retries. */
+   model->refresh(root);
+   QCOMPARE(model->rowCount(root), 0);
+   QCOMPARE(spy.count(), 2);
+
+   delete model;
+}
+
 void TestDirmodel::testAddFiles()
 {
    Dirmodel *model;

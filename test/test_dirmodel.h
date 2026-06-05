@@ -29,6 +29,9 @@ private slots:
    //! refresh() must not lose the directory's existing subdirectories
    void testRefreshKeepsSubdirs();
 
+   //! Backend failure during populate is surfaced and can be retried
+   void testBackendErrorSurfacing();
+
 private:
    /**
     * @brief  Set up a new Dirmodel with test data
