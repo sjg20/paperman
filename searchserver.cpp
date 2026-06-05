@@ -99,24 +99,14 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
     if (skipCache) {
         qDebug() << "SearchServer: Skipping file cache build (--no-cache)";
     } else {
-        // Build file cache for the repository
         QElapsedTimer cacheTimer;
         cacheTimer.start();
         qDebug() << "SearchServer: Building file cache for" << _rootPath;
-        QList<CachedFile> &fileList = _fileCache[_rootPath];
-
-        if (QFile::exists(papertreeFile) && loadFromPapertree(_rootPath, fileList)) {
-            qDebug() << "SearchServer: File cache loaded from papertree with" << fileList.size() << "files";
-        } else {
-            scanDirectory(_rootPath, "", fileList);
-            qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
-        }
-        qint64 totalBytes = 0;
-        for (const CachedFile &f : fileList)
-            totalBytes += f.size;
+        _backend->loadCacheForRepo(_rootPath);
         qDebug().noquote().nospace()
             << "SearchServer: Repository size "
-            << QString::number(totalBytes / 1e9, 'f', 1) << " GB";
+            << QString::number(_backend->cacheBytes(_rootPath) / 1e9, 'f', 1)
+            << " GB";
         qDebug().nospace() << "SearchServer: File cache ready in "
                            << cacheTimer.elapsed() / 1000.0 << "s";
     }
@@ -162,26 +152,15 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     // Clean old thumbnails from cache
     cleanThumbnailCache();
 
-    // Build file cache for each repository
     QElapsedTimer cacheTimer;
     cacheTimer.start();
     foreach (const QString &path, _rootPaths) {
         qDebug() << "SearchServer: Building file cache for" << path;
-        QList<CachedFile> &fileList = _fileCache[path];
-
-        QString papertreeFile = path + "/.papertree";
-        if (QFile::exists(papertreeFile) && loadFromPapertree(path, fileList)) {
-            qDebug() << "SearchServer: File cache loaded from papertree with" << fileList.size() << "files";
-        } else {
-            scanDirectory(path, "", fileList);
-            qDebug() << "SearchServer: File cache built with" << fileList.size() << "files";
-        }
-        qint64 totalBytes = 0;
-        for (const CachedFile &f : fileList)
-            totalBytes += f.size;
+        _backend->loadCacheForRepo(path);
         qDebug().noquote().nospace()
             << "SearchServer: Repository size "
-            << QString::number(totalBytes / 1e9, 'f', 1) << " GB";
+            << QString::number(_backend->cacheBytes(path) / 1e9, 'f', 1)
+            << " GB";
     }
     qDebug().nospace() << "SearchServer: File cache ready in "
                        << cacheTimer.elapsed() / 1000.0 << "s";
@@ -356,12 +335,9 @@ void SearchServer::onDirectoryChanged(const QString &path)
         return;
     }
 
-    // Rebuild cache for this repository
     qDebug() << "SearchServer: Rebuilding file cache for" << repoPath;
-    QList<CachedFile> &fileList = _fileCache[repoPath];
-    fileList.clear();
-    scanDirectory(repoPath, "", fileList);
-    qDebug() << "SearchServer: File cache rebuilt with" << fileList.size() << "files";
+    int count = _backend->loadCacheForRepo(repoPath);
+    qDebug() << "SearchServer: File cache rebuilt with" << count << "files";
 
     // Re-add the papertree file to watcher if it was removed
     // (some editors delete and recreate files when saving)
@@ -562,41 +538,51 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         return buildHttpResponse(200, "OK", "application/json", result);
     }
     else if (path == "/browse") {
-        QString dirPath = params.value("path", "");
+        QString dirPath  = params.value("path", "");
         QString repoName = params.value("repo", "");
+        /* Empty repoName preserves the legacy default-to-primary-repo
+         * behaviour from before the multi-repo era. */
+        if (repoName.isEmpty() && !_rootPaths.isEmpty())
+            repoName = QFileInfo(_rootPaths.first()).fileName();
 
-        // Find repository by name if specified
-        QString repoPath = _rootPath;  // Default to first/primary repo
-        if (!repoName.isEmpty()) {
-            bool found = false;
-            foreach (const QString &path, _rootPaths) {
-                if (QFileInfo(path).fileName() == repoName) {
-                    repoPath = path;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                return buildHttpResponse(404, "Not Found", "application/json",
-                                       buildJsonResponse(false, "", "Repository not found: " + repoName));
+        DirectoryListing listing = _backend->browseDirectory(repoName, dirPath);
+        if (!listing.ok) {
+            int code = listing.notFound ? 404 : 400;
+            const char *label = listing.notFound ? "Not Found" : "Bad Request";
+            return buildHttpResponse(code, label, "application/json",
+                                     buildJsonResponse(false, "",
+                                         listing.error.isEmpty() ? "Invalid path"
+                                                                 : listing.error));
+        }
+
+        QJsonArray dirs, files;
+        for (const DirectoryEntry &e : listing.entries) {
+            if (e.isDir) {
+                QJsonObject d;
+                d["name"]  = e.name;
+                d["path"]  = e.path;
+                d["count"] = e.count;
+                dirs.append(d);
+            } else {
+                QJsonObject f;
+                f["name"]     = e.name;
+                f["size"]     = e.size;
+                f["modified"] = e.modified;
+                f["path"]     = e.path;
+                files.append(f);
             }
         }
 
-        QString result = browseDirectory(repoPath, dirPath);
-
-        // Check for error markers from browseDirectory
-        if (result.isEmpty()) {
-            // Invalid path (400 Bad Request)
-            return buildHttpResponse(400, "Bad Request", "application/json",
-                                   buildJsonResponse(false, "", "Invalid path"));
-        } else if (result == "NOT_FOUND") {
-            // Directory not found (404 Not Found)
-            return buildHttpResponse(404, "Not Found", "application/json",
-                                   buildJsonResponse(false, "", "Directory not found"));
-        }
-
-        // Success
-        return buildHttpResponse(200, "OK", "application/json", result);
+        QJsonObject obj;
+        obj["success"]     = true;
+        obj["path"]        = dirPath;
+        obj["count"]       = dirs.size() + files.size();
+        obj["directories"] = dirs;
+        obj["files"]       = files;
+        QJsonDocument doc(obj);
+        return buildHttpResponse(200, "OK", "application/json",
+                                 QString::fromUtf8(doc.toJson(
+                                     QJsonDocument::Compact)));
     }
     else if (path == "/file") {
         QString filePath = params.value("path", "");
@@ -777,8 +763,7 @@ QByteArray SearchServer::handleAuthLogin(const QHash<QString, QString> &params)
 QString SearchServer::searchFiles(const QString &repoPath, const QString &searchPath,
                                   const QString &pattern, bool recursive)
 {
-    // Get file cache for this repository
-    const QList<CachedFile> &fileList = _fileCache.value(repoPath);
+    const QList<CachedFile> &fileList = _backend->fileCacheFor(repoPath);
     if (fileList.isEmpty()) {
         qWarning() << "SearchServer: No file cache found for" << repoPath;
         return buildJsonResponse(false, "", "Repository not found in cache");
@@ -1244,267 +1229,6 @@ QString SearchServer::loadOrCreateServerId()
     return id;
 }
 
-QString SearchServer::browseDirectory(const QString &repoPath, const QString &dirPath)
-{
-    // Security: Prevent directory traversal
-    if (dirPath.contains("..") || dirPath.startsWith("/")) {
-        // Invalid path - this is a client error (400)
-        // We return an empty string to signal the caller to send a 400 response
-        return "";  // Will be handled by caller with 400 error
-    }
-
-    // Build full path
-    QString fullPath = repoPath;
-    if (!dirPath.isEmpty()) {
-        fullPath += "/" + dirPath;
-    }
-
-    QDir dir(fullPath);
-    if (!dir.exists()) {
-        // Directory not found - return special marker for 404
-        return "NOT_FOUND";  // Will be handled by caller with 404 error
-    }
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
-    QJsonArray filesArray;
-    QJsonArray dirsArray;
-
-    // Get subdirectories (still need filesystem for this)
-    QFileInfoList subdirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-    foreach (const QFileInfo &subdir, subdirs) {
-        // Skip hidden directories
-        if (subdir.fileName().startsWith('.'))
-            continue;
-
-        QJsonObject dirObj;
-        dirObj["name"] = subdir.fileName();
-
-        // Build relative path
-        QString relativePath = dirPath.isEmpty()
-                              ? subdir.fileName()
-                              : dirPath + "/" + subdir.fileName();
-        dirObj["path"] = relativePath;
-
-        // Count files in this directory recursively using cache
-        int fileCount = countFilesRecursive(repoPath, relativePath);
-        dirObj["count"] = fileCount;
-
-        dirsArray.append(dirObj);
-    }
-
-    // Get files from cache (much faster than filesystem scan)
-    const QList<CachedFile> &cachedFiles = _fileCache.value(repoPath);
-    foreach (const CachedFile &file, cachedFiles) {
-        // Check if file is in current directory (not subdirectories)
-        QString fileDir = QFileInfo(file.path).path();
-        if (fileDir == "." && dirPath.isEmpty()) {
-            // File is in root
-        } else if (fileDir == dirPath) {
-            // File is in this directory
-        } else {
-            continue;  // Skip files not in current directory
-        }
-
-        QJsonObject fileObj;
-        fileObj["name"] = file.name;
-        fileObj["size"] = file.size;
-        fileObj["modified"] = file.modified.toString(Qt::ISODate);
-        fileObj["path"] = file.path;
-
-        filesArray.append(fileObj);
-    }
-
-    QJsonObject responseObj;
-    responseObj["success"] = true;
-    responseObj["path"] = dirPath;
-    responseObj["count"] = dirsArray.size() + filesArray.size();
-    responseObj["directories"] = dirsArray;
-    responseObj["files"] = filesArray;
-
-    QJsonDocument doc(responseObj);
-    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
-#else
-    // Qt 4 fallback
-    // Get subdirectories
-    QStringList subdirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-
-    // Filter hidden subdirs
-    QStringList visibleSubdirs;
-    foreach (const QString &subdir, subdirs) {
-        if (!subdir.startsWith('.'))
-            visibleSubdirs.append(subdir);
-    }
-
-    // Count files from cache for this directory
-    const QList<CachedFile> &cachedFiles = _fileCache.value(repoPath);
-    int fileCount = 0;
-    foreach (const CachedFile &file, cachedFiles) {
-        QString fileDir = QFileInfo(file.path).path();
-        if ((fileDir == "." && dirPath.isEmpty()) || fileDir == dirPath) {
-            fileCount++;
-        }
-    }
-
-    QString json = "{\"success\":true,\"path\":\"" + dirPath + "\",";
-    json += "\"count\":" + QString::number(visibleSubdirs.size() + fileCount) + ",";
-
-    json += "\"directories\":[";
-    for (int i = 0; i < visibleSubdirs.size(); i++) {
-        if (i > 0) json += ",";
-        QString relativePath = dirPath.isEmpty() ? visibleSubdirs[i] : dirPath + "/" + visibleSubdirs[i];
-        int fileCount = countFilesRecursive(repoPath, relativePath);
-        json += "{\"name\":\"" + visibleSubdirs[i] + "\",\"path\":\"" + relativePath
-              + "\",\"count\":" + QString::number(fileCount) + "}";
-    }
-    json += "],\"files\":[";
-
-    // Get files from cache
-    const QList<CachedFile> &cachedFiles = _fileCache.value(repoPath);
-    int fileIdx = 0;
-    foreach (const CachedFile &file, cachedFiles) {
-        QString fileDir = QFileInfo(file.path).path();
-        if ((fileDir == "." && dirPath.isEmpty()) || fileDir == dirPath) {
-            if (fileIdx > 0) json += ",";
-            json += "{\"name\":\"" + file.name + "\","
-                    "\"size\":" + QString::number(file.size) + ","
-                    "\"modified\":\"" + file.modified.toString(Qt::ISODate) + "\","
-                    "\"path\":\"" + file.path + "\"}";
-            fileIdx++;
-        }
-    }
-    json += "]}";
-    return json;
-#endif
-}
-
-int SearchServer::countFilesRecursive(const QString &repoPath, const QString &dirPath)
-{
-    // Use cached file list for fast counting
-    const QList<CachedFile> &fileList = _fileCache.value(repoPath);
-
-    int count = 0;
-    QString prefix = dirPath.isEmpty() ? "" : dirPath + "/";
-
-    // Count files that are under this directory path
-    foreach (const CachedFile &file, fileList) {
-        if (dirPath.isEmpty() || file.path.startsWith(prefix)) {
-            count++;
-        }
-    }
-
-    return count;
-}
-
-bool SearchServer::loadFromPapertree(const QString &repoPath, QList<CachedFile> &fileList)
-{
-    QString papertreeFile = repoPath + "/.papertree";
-    QFile file(papertreeFile);
-
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "SearchServer: Failed to open papertree file:" << papertreeFile;
-        return false;
-    }
-
-    QTextStream in(&file);
-    QString currentDir = "";
-    QStringList dirStack;  // Track directory hierarchy
-
-    while (!in.atEnd()) {
-        QString line = in.readLine();
-
-        // Count leading spaces to determine nesting level
-        int level = 0;
-        for (int i = 0; i < line.length(); i++) {
-            if (line[i] == ' ')
-                level++;
-            else
-                break;
-        }
-
-        if (level < 1)
-            continue;  // Skip invalid lines
-
-        QString name = line.mid(level);
-
-        // Adjust directory stack based on level
-        while (dirStack.size() >= level) {
-            dirStack.removeLast();
-        }
-
-        // Build current path
-        QString relativePath = dirStack.join("/");
-        if (!relativePath.isEmpty())
-            relativePath += "/";
-        relativePath += name;
-
-        QString fullPath = repoPath + "/" + relativePath;
-        QFileInfo fileInfo(fullPath);
-
-        if (!fileInfo.exists()) {
-            // File/dir no longer exists, skip it
-            continue;
-        }
-
-        if (fileInfo.isDir()) {
-            // Add to directory stack for building paths of children
-            dirStack.append(name);
-        } else if (fileInfo.isFile()) {
-            // Check if it's a supported file type
-            QString ext = name.section('.', -1).toLower();
-            if (ext == "max" || ext == "pdf" || ext == "jpg" ||
-                ext == "jpeg" || ext == "tiff" || ext == "tif") {
-
-                CachedFile cachedFile;
-                cachedFile.path = relativePath;
-                cachedFile.name = name;
-                cachedFile.size = fileInfo.size();
-                cachedFile.modified = fileInfo.lastModified();
-                fileList.append(cachedFile);
-            }
-        }
-    }
-
-    file.close();
-    return fileList.size() > 0;
-}
-
-void SearchServer::scanDirectory(const QString &repoPath, const QString &dirPath,
-                                 QList<CachedFile> &fileList)
-{
-    QString fullPath = repoPath;
-    if (!dirPath.isEmpty())
-        fullPath += "/" + dirPath;
-
-    // File extensions to cache
-    QStringList nameFilters;
-    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg" << "*.tiff" << "*.tif";
-
-    // Use QDirIterator for efficient recursive scanning
-    QDirIterator it(fullPath, nameFilters,
-                    QDir::Files | QDir::Readable,
-                    QDirIterator::Subdirectories);
-
-    while (it.hasNext()) {
-        QString filePath = it.next();
-        QFileInfo info(filePath);
-
-        // Calculate relative path from repository root
-        QString relativePath = filePath;
-        if (relativePath.startsWith(repoPath + "/"))
-            relativePath = relativePath.mid(repoPath.length() + 1);
-        else if (relativePath.startsWith(repoPath))
-            relativePath = relativePath.mid(repoPath.length());
-
-        // Add to cache
-        CachedFile cached;
-        cached.path = relativePath;
-        cached.name = info.fileName();
-        cached.size = info.size();
-        cached.modified = info.lastModified();
-
-        fileList.append(cached);
-    }
-}
 
 int SearchServer::getThumbnailSize(const QString &size)
 {

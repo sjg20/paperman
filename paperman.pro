@@ -268,6 +268,7 @@ test {
       test/test_searchserver.h \
       test/test_ocrsearch.h \
       backend.h \
+      cachedfile.h \
       localbackend.h \
       remotebackend.h \
       searchserver.h \
