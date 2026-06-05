@@ -107,6 +107,14 @@ public:
    void setBackend(Backend *backend, const QString &repoName)
        { _backend = backend; _repoName = repoName; }
 
+   /** Backend currently attached to this desk (nullptr for local). */
+   Backend *backend() const { return _backend; }
+   QString repoName() const { return _repoName; }
+
+   /** Non-owning view of this desk's files; used by Desktopmodel to
+    *  iterate when scheduling async thumbnail fetches. */
+   const QList<File *> &files() const { return _files; }
+
    //! destructor
    ~Desk ();
 

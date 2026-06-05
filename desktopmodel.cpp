@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 #include "backend.h"
 #include "dirmodel.h"
+#include "remotebackend.h"
 
 #include "qapplication.h"
 #include "qcursor.h"
@@ -1421,12 +1422,13 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
     * instead of the local filesystem.  The root path Dirmodel
     * registered as the Diritem identifier has no trailing slash;
     * trim ours before lookup. */
+   QString repoName;
    if (_dirmodel) {
       QString rootKey = _rootPath;
       if (rootKey.endsWith('/'))
          rootKey.chop(1);
       if (Backend *be = _dirmodel->backendForRoot(rootKey)) {
-         QString repoName = QFileInfo(rootKey).fileName();
+         repoName = QFileInfo(rootKey).fileName();
          desk->setBackend(be, repoName);
       }
    }
@@ -1434,11 +1436,88 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
    // add files that are not in the maxdesk.ini file
    desk->addFiles(dirPath, meas);
 
+   /* For a remote backend, kick off async thumbnail fetches now that
+    * the desk knows its files.  Local backends still rely on each
+    * File subclass to compute its own pixmap from disk data. */
+   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend())) {
+      /* Compute the file's parent path relative to the repo root.
+       * _rootPath/dirPath both have trailing slashes here. */
+      QString dirInRepo = dirPath;
+      if (dirInRepo.startsWith(_rootPath + "/"))
+         dirInRepo = dirInRepo.mid(_rootPath.length() + 1);
+      else if (dirInRepo.startsWith(_rootPath))
+         dirInRepo = dirInRepo.mid(_rootPath.length());
+      if (dirInRepo.endsWith('/'))
+         dirInRepo.chop(1);
+      scheduleRemoteThumbnails(desk, remote, repoName, dirInRepo);
+   }
+
    // no pending list at present
    _pending_scan_list.clear ();
 
    return ind;
    }
+
+
+void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
+                                            RemoteBackend *backend,
+                                            const QString &repoName,
+                                            const QString &dirInRepo)
+{
+   if (!backend)
+      return;
+   /* Connect once per backend instance. */
+   if (!_connectedBackends.contains(backend)) {
+      connect(backend, &RemoteBackend::thumbnailReady,
+              this, &Desktopmodel::onThumbnailReady);
+      _connectedBackends.insert(backend);
+   }
+   for (File *f : desk->files()) {
+      QString path = dirInRepo.isEmpty()
+                         ? f->filename()
+                         : dirInRepo + "/" + f->filename();
+      quint64 t = backend->fetchThumbnailAsync(repoName, path);
+      _pendingThumbnails.insert(t, f);
+   }
+}
+
+
+void Desktopmodel::onThumbnailReady(quint64 token,
+                                    const QByteArray &jpegBytes)
+{
+   auto it = _pendingThumbnails.find(token);
+   if (it == _pendingThumbnails.end())
+      return;
+   File *file = it.value();
+   _pendingThumbnails.erase(it);
+
+   if (jpegBytes.isEmpty())
+      return;
+   QImage img;
+   if (!img.loadFromData(jpegBytes))
+      return;
+   file->setThumbnail(QPixmap::fromImage(img));
+
+   QModelIndex idx = indexForFile(file);
+   if (idx.isValid())
+      emit dataChanged(idx, idx, {Qt::DecorationRole});
+}
+
+
+QModelIndex Desktopmodel::indexForFile(File *file) const
+{
+   for (int d = 0; d < _desks.size(); d++) {
+      Desk *desk = _desks[d];
+      const QList<File *> &files = desk->files();
+      for (int r = 0; r < files.size(); r++) {
+         if (files[r] == file) {
+            QModelIndex deskInd = index(d, 0, QModelIndex());
+            return index(r, 0, deskInd);
+         }
+      }
+   }
+   return QModelIndex();
+}
 
 Desk *Desktopmodel::prepareSearchDesk(QString& dirPath, QString& rootPath,
                                       QModelIndex& ind, bool& add_items)
