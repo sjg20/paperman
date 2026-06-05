@@ -45,6 +45,9 @@ private slots:
    //! Dead server surfaces an error within the request timeout
    void testRemoteBackendTimeout();
 
+   //! RemoteBackend::fetchThumbnail round-trips a JPEG from the server
+   void testRemoteBackendThumbnail();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();
