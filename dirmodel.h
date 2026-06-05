@@ -25,6 +25,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QAbstractItemModel>
 #include <QSortFilterProxyModel>
 
+#include <memory>
+
+class Backend;
 class Operation;
 class TreeItem;
 
@@ -46,7 +49,17 @@ struct DirNode
    bool populated;         //!< true if children have been scanned
    int row;                //!< position among siblings
 
-   DirNode() : parent(nullptr), populated(false), row(0) {}
+   /** Data source used to list this node's children.  Non-owning;
+    *  the Backend lives on the owning Diritem.  Propagated from
+    *  parent to child during populateNode(); the top-level node for
+    *  each Diritem is seeded in addDir(). */
+   Backend *backend;
+   /** Repository name (basename of the Diritem's root) used as the
+    *  key when calling backend->browseDirectory(). */
+   QString repoName;
+
+   DirNode() : parent(nullptr), populated(false), row(0),
+               backend(nullptr) {}
    ~DirNode() { qDeleteAll(children); }
    };
 
@@ -105,6 +118,14 @@ public:
    DirNode *node() const { return _node; }
    void setNode(DirNode *node) { _node = node; }
 
+   /** Transfer ownership of @p backend to this Diritem.  Replaces any
+    *  prior backend.  Called by Dirmodel::addDir() to bind the item
+    *  to a concrete data source. */
+   void setBackend(Backend *backend);
+
+   /** Non-owning pointer to the backend (or nullptr if not set). */
+   Backend *backend() const { return _backend.get(); }
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -117,6 +138,7 @@ private:
    bool _recent;     //!< true if this item displays a 'recent' list
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
    DirNode *_node;   //!< The associated DirNode in the model tree
+   std::unique_ptr<Backend> _backend;  //!< Data source for this repo
    };
 
 
