@@ -729,7 +729,13 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       item->setBackend(rb);
 
       DirNode *node = new DirNode;
-      node->name      = r.name;
+      /* Show the server's authority in the display name so a remote
+       * repo isn't visually indistinguishable from a local one with
+       * the same basename (a common case when the same NFS mount is
+       * served over HTTP as well).  repoName below stays unadorned
+       * since it's used as the wire-protocol key. */
+      node->name      = QString("%1 (%2)")
+                            .arg(r.name, baseUrl.authority());
       /* fullPath for a remote root is just the repo name; child
        * nodes append "/sub" and populateNode computes relPath by
        * stripping the root prefix, so the synthetic value works. */
