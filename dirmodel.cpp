@@ -716,7 +716,13 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       /* _dir gets a synthetic identifier (URL + repo name) so the
        * existing setDir() canonicalisation logic doesn't try to look
        * it up on disk.  setDir() returns false for non-existent paths
-       * but still records the value, which is exactly what we want. */
+       * but still records the value, which is exactly what we want.
+       *
+       * The same string also becomes the root DirNode's fullPath
+       * below — Desktopmodel passes that back through dirSelected /
+       * showDir, and showDir looks the backend up via
+       * backendForRoot(rootKey).  Aligning the two means the lookup
+       * actually succeeds for remote roots. */
       QString synthPath = baseUrl.toString() + "/" + r.name;
       item->setDir(synthPath);
 
@@ -736,10 +742,11 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
        * since it's used as the wire-protocol key. */
       node->name      = QString("%1 (%2)")
                             .arg(r.name, baseUrl.authority());
-      /* fullPath for a remote root is just the repo name; child
-       * nodes append "/sub" and populateNode computes relPath by
-       * stripping the root prefix, so the synthetic value works. */
-      node->fullPath  = r.name;
+      /* fullPath matches Diritem._dir (set via item->setDir(synthPath)
+       * above) so showDir's backendForRoot lookup against
+       * Dirmodel::backendForRoot works.  Child nodes append "/sub" and
+       * populateNode computes relPath by stripping the root prefix. */
+      node->fullPath  = synthPath;
       node->parent    = _invisibleRoot;
       node->row       = _invisibleRoot->children.size();
       node->populated = false;
