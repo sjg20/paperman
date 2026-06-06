@@ -103,9 +103,15 @@ public:
    /** Attach a Backend to this desk; addFiles() will route through it
     *  instead of QDir if set.  Non-owning pointer; the backend lives
     *  on the Diritem in Dirmodel.  @p repoName is the basename the
-    *  backend uses to identify this repository. */
-   void setBackend(Backend *backend, const QString &repoName)
-       { _backend = backend; _repoName = repoName; }
+    *  backend uses to identify this repository.  @p isRemote tells
+    *  us whether file paths handed to addFile are real on the local
+    *  filesystem; when false we force every File entry into the
+    *  Fileother stub (no local open is attempted) and skip the
+    *  .maxdesk write at destruction. */
+   void setBackend(Backend *backend, const QString &repoName,
+                   bool isRemote = false)
+       { _backend = backend; _repoName = repoName; _isRemote = isRemote;
+         if (isRemote) _do_writeDesk = false; }
 
    /** Backend currently attached to this desk (nullptr for local). */
    Backend *backend() const { return _backend; }
@@ -618,6 +624,7 @@ private:
    QString _rootDir;   //!< root directory for this model (where trash is)
    Backend *_backend = nullptr;  //!< Optional data source; nullptr = local QDir
    QString _repoName;  //!< Repository name when _backend is set
+   bool _isRemote = false;  //!< Backend is remote: skip local file ops
    QPoint _pos;        //!< next position for a file to appear
    int _rightMargin;   //!< right margin for items
    int _debug_level;     //!< the debug level to use for max debugging
