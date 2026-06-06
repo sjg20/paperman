@@ -337,20 +337,15 @@ File *Desk::createFile (const QString &dir, const QString fname)
    File::e_type type;
 
    type = File::typeFromName (fname);
-#if 0
-   QFileInfo fi (dir, fname);
-   QString ext = fi.suffix ();
-   File *f;
-   File::e_type type;
 
-   //FIXME: there should be an associate config for doing this
-   if (ext == "max")
-      type = File::Type_max;
-   else if (ext == "pdf")
-      type = File::Type_pdf;
-   else
+   /* Remote-backed desk: the dir/fname combination is a synthetic
+    * URL path that the Filemax/Filepdf/Filejpeg loaders can't open
+    * via QFile.  Use the Fileother stub instead; the Backend's
+    * thumbnail fetch populates the pixmap later via setThumbnail.
+    * Page viewing for remote files needs its own Backend-driven
+    * loader and isn't wired up yet. */
+   if (_isRemote)
       type = File::Type_other;
-#endif
 
    return File::createFile (dir, fname, this, type);
    }

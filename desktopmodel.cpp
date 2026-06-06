@@ -1429,7 +1429,12 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
          rootKey.chop(1);
       if (Backend *be = _dirmodel->backendForRoot(rootKey)) {
          repoName = QFileInfo(rootKey).fileName();
-         desk->setBackend(be, repoName);
+         /* Remote backends produce synthetic paths the local file
+          * loaders (Filemax, Filepdf, Filejpeg) can't open; tell
+          * Desk so it falls back to Fileother + skips writing
+          * .maxdesk.ini. */
+         bool isRemote = dynamic_cast<RemoteBackend *>(be) != nullptr;
+         desk->setBackend(be, repoName, isRemote);
       }
    }
 
