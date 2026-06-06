@@ -51,6 +51,11 @@ private slots:
    //! BackendStats accumulates bytes across requests
    void testBackendStatsAccumulates();
 
+   //! Thumbnail rendered locally via File::getImage matches the JPEG
+   //! the server returns from /thumbnail — pinned so the remote
+   //! display can't silently diverge from the local one.
+   void testThumbnailMatchesLocalRender();
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();

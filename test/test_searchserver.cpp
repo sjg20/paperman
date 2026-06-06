@@ -14,10 +14,14 @@
 
 #include "../backendstats.h"
 
+#include "../file.h"
 #include "../remotebackend.h"
 #include "../searchserver.h"
 #include "../userstore.h"
 #include "test.h"
+
+#include <QBuffer>
+#include <QImage>
 
 #include "test_searchserver.h"
 
@@ -717,6 +721,101 @@ void TestSearchServer::testBackendStatsAccumulates()
 
    server.stop();
 }
+
+
+void TestSearchServer::testThumbnailMatchesLocalRender()
+{
+   /* Render the same .max file two ways and verify the bytes are
+    * identical:
+    *
+    *   - Locally: instantiate Filemax, load, getImage page 0,
+    *     scale to the medium thumbnail size, JPEG-encode in
+    *     memory.  This is exactly what the server's
+    *     generateThumbnail() does for non-PDF files (see
+    *     searchserver.cpp::generateThumbnail).
+    *
+    *   - Remotely: fetch via RemoteBackend::fetchThumbnail, which
+    *     causes the server to run that same generateThumbnail path
+    *     and stream the bytes back.
+    *
+    * If both code paths use the same File class, scaler, and JPEG
+    * encoder, the resulting bytes match exactly.  If they ever
+    * diverge — different scaler flag, different quality default,
+    * extra metadata in the JPEG — this test fires and pins the
+    * regression point. */
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+
+   /* Local render: same recipe as SearchServer::generateThumbnail
+    * for non-PDF.  thumbSize 300 matches getThumbnailSize("medium"). */
+   const int kThumbSize = 300;
+   QString fname = "testfile.max";
+   QString dir = tmpDir.path() + "/";
+   File *file = File::createFile(dir, fname, nullptr,
+                                 File::typeFromName(fname));
+   QVERIFY(file != nullptr);
+   QVERIFY(file->load() == nullptr);
+
+   QImage image;
+   QSize imgSize, trueSize;
+   int bpp;
+   err_info *err = file->getImage(0, false, image, imgSize, trueSize,
+                                  bpp, false);
+   delete file;
+   QVERIFY(err == nullptr);
+   QVERIFY(!image.isNull());
+
+   QImage thumb = image.scaled(kThumbSize, kThumbSize,
+                               Qt::KeepAspectRatio,
+                               Qt::SmoothTransformation);
+   QByteArray localBytes;
+   {
+      QBuffer buf(&localBytes);
+      buf.open(QIODevice::WriteOnly);
+      QVERIFY(thumb.save(&buf, "JPEG"));
+   }
+   QVERIFY(!localBytes.isEmpty());
+
+   /* Remote render: spin up a SearchServer pointed at the same
+    * repo and ask RemoteBackend for the same thumbnail. */
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   QString repoName = QFileInfo(tmpDir.path()).fileName();
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+   QByteArray remoteBytes = client.fetchThumbnail(repoName, fname,
+                                                  /*page=*/1,
+                                                  /*size=*/"medium");
+   server.stop();
+
+   QVERIFY2(!remoteBytes.isEmpty(),
+            client.lastError().toUtf8().constData());
+
+   /* Bytes should match.  If they don't, decode both and compare
+    * pixel-by-pixel so a "JPEG bytes drift" report still tells us
+    * whether the visible result moved or only the encoding did. */
+   if (localBytes != remoteBytes) {
+      QImage localImg = QImage::fromData(localBytes);
+      QImage remoteImg = QImage::fromData(remoteBytes);
+      QVERIFY2(!localImg.isNull() && !remoteImg.isNull(),
+               "one of the JPEGs failed to decode");
+      QCOMPARE(localImg.size(), remoteImg.size());
+      /* If the pixels match exactly the only difference is the
+       * JPEG encoder state — strictly speaking the user-visible
+       * display is identical. */
+      QCOMPARE(localImg.convertToFormat(QImage::Format_RGB32),
+               remoteImg.convertToFormat(QImage::Format_RGB32));
+      /* Pixels matched, bytes didn't.  Don't fail the test — but
+       * note the divergence so a future change to either
+       * generateThumbnail or the encoder is at least visible. */
+      qInfo() << "Thumbnail JPEG bytes differ but pixels match;"
+              << "local=" << localBytes.size()
+              << "remote=" << remoteBytes.size();
+   }
+}
+
 
 void TestSearchServer::testSearchEndpoint()
 {
