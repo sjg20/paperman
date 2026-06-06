@@ -100,8 +100,13 @@ Desk::Desk(const QString &dirPath, const QString &trashPath, bool do_readDesk)
          _dir += "/";
    }
 
-   if (!trashPath.isEmpty ())
+   if (!trashPath.isEmpty () && QDir(trashPath).exists())
       {
+      /* Only manage the trash directory on a real local filesystem
+       * path.  For a remote repo trashPath is a synthetic URL
+       * (e.g. "http://host/repo/") that we obviously can't mkdir;
+       * the eventual remote-trash support will come via a Backend
+       * method, not by poking the local FS. */
       QDir dir;
       _trash_dir = trashPath + ".maxview-trash";
       if (!dir.exists (_trash_dir))

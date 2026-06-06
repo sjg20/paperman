@@ -4,6 +4,7 @@
 #include "utils.h"
 
 #include "dirmodel.h"
+#include "remotebackend.h"
 #include "searchserver.h"
 #include "test_dirmodel.h"
 
@@ -348,6 +349,52 @@ void TestDirmodel::testRemoteRepositoryExpandChildThroughProxy()
    QTRY_VERIFY(proxy.data(proxy.index(0, 0, banks),
                           Qt::DisplayRole).toString() != "Loading…");
    QCOMPARE(proxy.rowCount(banks), 2);  // Bank-Direct + Bradley
+
+   server.stop();
+}
+
+
+void TestDirmodel::testRemoteRootBackendLookup()
+{
+   /* Regression test for "dir not found" on remote folder selection:
+    *
+    * Desktopmodel::showDir uses the rootPath it receives (which
+    * originates as the FilePathRole of the top-level repo index)
+    * to look the backend up via Dirmodel::backendForRoot.  That
+    * lookup matches against Diritem::dir().  If addRemoteRepository
+    * stores the two as different strings, the lookup returns null,
+    * Desk runs without a backend, and falls through to a QDir scan
+    * on a path that doesn't exist locally. */
+   QTemporaryDir serverDir;
+   QVERIFY(serverDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks"));
+
+   const quint16 port = 9880;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Dirmodel model;
+   QString err;
+   QVERIFY2(model.addRemoteRepository(
+                QUrl(QString("http://localhost:%1").arg(port)), &err),
+            qPrintable(err));
+
+   /* The string the model returns for the root index's FilePathRole
+    * is what Desktopmodel will turn around and pass to
+    * backendForRoot.  They have to agree. */
+   QModelIndex root = model.index(0, 0, QModelIndex());
+   QVERIFY(root.isValid());
+   QString rootPath = model.data(root, Dirmodel::FilePathRole)
+                          .toString();
+   QVERIFY2(!rootPath.isEmpty(), "FilePathRole returned empty string");
+
+   Backend *backend = model.backendForRoot(rootPath);
+   QVERIFY2(backend != nullptr,
+            qPrintable(QString("no backend found for rootPath=%1")
+                           .arg(rootPath)));
+   QVERIFY(dynamic_cast<RemoteBackend *>(backend) != nullptr);
 
    server.stop();
 }

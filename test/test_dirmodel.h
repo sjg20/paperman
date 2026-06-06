@@ -42,6 +42,12 @@ private slots:
    //! the Dirproxy the GUI uses, to catch any proxy-caching surprises.
    void testRemoteRepositoryExpandChildThroughProxy();
 
+   //! The FilePathRole exposed for a remote root must match the key
+   //! Dirmodel::backendForRoot uses (i.e. Diritem::dir()).  If they
+   //! diverge, Desktopmodel::showDir can't find the backend and Desk
+   //! falls back to QDir, producing "dir not found" on selection.
+   void testRemoteRootBackendLookup();
+
 private:
    /**
     * @brief  Set up a new Dirmodel with test data
