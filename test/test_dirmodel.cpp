@@ -202,11 +202,17 @@ void TestDirmodel::testRemoteRepository()
             qPrintable(err));
 
    /* The server has one repository — "photos" — and it should now
-    * appear as a top-level node. */
+    * appear as a top-level node.  Remote roots carry the server's
+    * authority in the display name so they're distinguishable from
+    * a same-named local repo (a common case when the same
+    * filesystem is also served over HTTP). */
    QCOMPARE(model.rowCount(QModelIndex()), 1);
    QModelIndex root = model.index(0, 0, QModelIndex());
-   QCOMPARE(model.data(root, Qt::DisplayRole).toString(),
-            QString("photos"));
+   QString display = model.data(root, Qt::DisplayRole).toString();
+   QVERIFY2(display.startsWith("photos ("),
+            qPrintable(display));
+   QVERIFY2(display.contains(QString::number(port)),
+            qPrintable(display));
 
    /* First rowCount triggers async populate; the placeholder
     * "Loading…" child appears immediately. */
