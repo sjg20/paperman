@@ -56,6 +56,7 @@ private slots:
    //! display can't silently diverge from the local one.
    void testThumbnailMatchesLocalRender();
 
+
    void testSearchEndpoint();
    void testListEndpoint();
    void testInvalidEndpoint();

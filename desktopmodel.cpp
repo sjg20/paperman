@@ -1471,7 +1471,6 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
 {
    if (!backend)
       return;
-   /* Connect once per backend instance. */
    if (!_connectedBackends.contains(backend)) {
       connect(backend, &RemoteBackend::thumbnailReady,
               this, &Desktopmodel::onThumbnailReady);
@@ -1481,7 +1480,17 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
       QString path = dirInRepo.isEmpty()
                          ? f->filename()
                          : dirInRepo + "/" + f->filename();
-      quint64 t = backend->fetchThumbnailAsync(repoName, path);
+      /* "small" maps to ~150px on the server.  The local desktop
+       * grid uses Filemax::getPreviewPixmap which returns the
+       * embedded preview (~100-150px); 150 is close enough that
+       * the remote view doesn't show enormous thumbnails relative
+       * to the local one.  A future /preview endpoint that runs
+       * File::getPreviewPixmap on the server side would match
+       * exactly, but it needs QImage plumbing (the server uses
+       * QCoreApplication, no QPixmap support) — deferred. */
+      quint64 t = backend->fetchThumbnailAsync(repoName, path,
+                                               /*page=*/1,
+                                               /*size=*/"small");
       _pendingThumbnails.insert(t, f);
    }
 }
