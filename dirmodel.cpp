@@ -669,6 +669,30 @@ bool Dirmodel::addDir(QString& dir, bool ignore_error)
 /* Load a token previously saved by paperman-client (or any other
  * tool) so opening the GUI against a known server doesn't require
  * re-entering credentials.  Empty if no token is cached. */
+/* Mirror of paperman-client's saveToken: write the bearer token
+ * for `serverId` so subsequent paperman runs (and CLI invocations)
+ * pick it up without re-prompting.  0600 perms so the token file
+ * isn't world-readable. */
+static bool saveCachedToken(const QString &serverId, const QString &token)
+{
+   if (serverId.isEmpty())
+      return false;
+   QString d = QStandardPaths::writableLocation(
+                   QStandardPaths::GenericConfigLocation)
+               + "/paperman";
+   QDir().mkpath(d);
+   QString path = d + "/" + serverId + ".token";
+   QFile f(path);
+   if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+      return false;
+   f.write(token.toUtf8());
+   f.write("\n");
+   f.close();
+   QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner);
+   return true;
+}
+
+
 static QString loadCachedToken(const QString &serverId)
 {
    if (serverId.isEmpty())
@@ -759,6 +783,34 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       _invisibleRoot->children.append(node);
       _item.append(item);
       endInsertRows();
+   }
+   return true;
+}
+
+
+bool Dirmodel::loginToServer(const QUrl &baseUrl, const QString &user,
+                             const QString &password, QString *errorOut)
+{
+   RemoteBackend probe(baseUrl);
+   QString serverId = probe.serverId();
+   if (serverId.isEmpty()) {
+      if (errorOut)
+         *errorOut = probe.lastError().isEmpty()
+                         ? QStringLiteral("could not reach server")
+                         : probe.lastError();
+      return false;
+   }
+   if (!probe.login(user, password)) {
+      if (errorOut)
+         *errorOut = probe.lastError().isEmpty()
+                         ? QStringLiteral("login failed")
+                         : probe.lastError();
+      return false;
+   }
+   if (!saveCachedToken(serverId, probe.bearerToken())) {
+      if (errorOut)
+         *errorOut = QStringLiteral("could not write token file");
+      return false;
    }
    return true;
 }

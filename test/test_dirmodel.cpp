@@ -7,6 +7,10 @@
 #include "remotebackend.h"
 #include "searchserver.h"
 #include "test_dirmodel.h"
+#include "../userstore.h"
+
+#include <QScopeGuard>
+#include <QStandardPaths>
 
 void TestDirmodel::testBase()
 {
@@ -395,6 +399,82 @@ void TestDirmodel::testRemoteRootBackendLookup()
             qPrintable(QString("no backend found for rootPath=%1")
                            .arg(rootPath)));
    QVERIFY(dynamic_cast<RemoteBackend *>(backend) != nullptr);
+
+   server.stop();
+}
+
+
+void TestDirmodel::testLoginToServerCachesToken()
+{
+   /* End-to-end check that the GUI's login-on-401 flow has all the
+    * pieces: an auth-required server rejects an unauthenticated
+    * addRemoteRepository, loginToServer with the right credentials
+    * caches the token, and a follow-up addRemoteRepository
+    * succeeds because the cached token is picked up. */
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgRoot = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation);
+   QFile::remove(cfgRoot + "/paperman-server/users.json");
+   /* Also wipe any token left over from another test run. */
+   QDir(cfgRoot + "/paperman").removeRecursively();
+
+   {
+      UserStore store;
+      QVERIFY(store.addUser("alice", "letmein"));
+   }
+
+   QTemporaryDir serverDir;
+   QVERIFY(serverDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks"));
+
+   const quint16 port = 9881;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   QUrl url(QString("http://localhost:%1").arg(port));
+
+   /* Step 1: unauthenticated addRemoteRepository fails with an
+    * error that the auth-detector recognises. */
+   {
+      Dirmodel m1;
+      QString err;
+      QVERIFY(!m1.addRemoteRepository(url, &err));
+      QVERIFY2(err.contains("401")
+                   || err.contains("authentication", Qt::CaseInsensitive)
+                   || err.contains("credentials", Qt::CaseInsensitive),
+               qPrintable(err));
+   }
+
+   /* Step 2: loginToServer with correct credentials succeeds and
+    * caches the token. */
+   {
+      Dirmodel m2;
+      QString err;
+      QVERIFY2(m2.loginToServer(url, "alice", "letmein", &err),
+               qPrintable(err));
+   }
+
+   /* Step 3: follow-up addRemoteRepository on a fresh Dirmodel
+    * picks up the cached token and succeeds. */
+   {
+      Dirmodel m3;
+      QString err;
+      QVERIFY2(m3.addRemoteRepository(url, &err), qPrintable(err));
+      QCOMPARE(m3.rowCount(QModelIndex()), 1);
+   }
+
+   /* Bad credentials are rejected. */
+   {
+      Dirmodel m4;
+      QString err;
+      QVERIFY(!m4.loginToServer(url, "alice", "wrong", &err));
+      QVERIFY(!err.isEmpty());
+   }
 
    server.stop();
 }

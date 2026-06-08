@@ -224,6 +224,21 @@ public:
     */
    Backend *backendForRoot(const QString &rootPath) const;
 
+   /**
+    * @brief Log in to a paperman-server with credentials and cache
+    *        the resulting bearer token under the server's UUID so
+    *        a subsequent addRemoteRepository call (or another tool)
+    *        picks it up automatically.
+    * @param baseUrl    Server URL
+    * @param user       Username
+    * @param password   Password
+    * @param errorOut   If non-null, set to the failure reason
+    * @return true on success
+    */
+   bool loginToServer(const QUrl &baseUrl, const QString &user,
+                      const QString &password,
+                      QString *errorOut = nullptr);
+
    /** Aggregate network-activity stats shared across every
     *  RemoteBackend the model owns.  Lazily created on the first
     *  remote add.  Non-owning pointer; the model owns the

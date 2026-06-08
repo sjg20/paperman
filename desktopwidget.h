@@ -94,9 +94,17 @@ public:
    QList<err_info> addRepositories(const QStringList& dirs);
 
    /** Add every repository served by a remote paperman-server as
-    *  top-level items.  Returns an empty string on success or a
+    *  top-level items.  If the server requires authentication and
+    *  no valid cached token is found, prompts for credentials and
+    *  retries.  Returns an empty string on success or a
     *  diagnostic on failure. */
    QString addRemoteServer(const QUrl &baseUrl);
+
+   /** Show a modal username/password dialog for @p baseUrl and
+    *  return the entered credentials.  Returns false if the user
+    *  cancels or leaves a field blank. */
+   bool promptForCredentials(const QUrl &baseUrl,
+                             QString &user, QString &password);
 
 private slots:
    /** BackendStats::changed handler.  Throttles updates to the
