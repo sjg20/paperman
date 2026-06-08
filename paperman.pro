@@ -246,6 +246,7 @@ test {
       test/suite.cpp \
       test/test_dirmodel.cpp \
       test/test_dirview.cpp \
+      test/test_file.cpp \
       test/test_ops.cpp \
       test/test_pageinfo.cpp \
       test/test_qscanner.cpp \
@@ -263,6 +264,7 @@ test {
    HEADERS += test/suite.h \
       test/test_dirmodel.h \
       test/test_dirview.h \
+      test/test_file.h \
       test/test_ops.h \
       test/test_pageinfo.h \
       test/test_qscanner.h \
