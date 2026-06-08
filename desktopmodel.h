@@ -795,12 +795,13 @@ protected:
 public:
    // this is public since it is called from outside the undo system
    
-   /** email a set of files as attachments, optionally converting them first. 
-       If more than one file is sent, then they are packed into a zip archive
-       as it seems that Thunderbird can't cope with more than one attachment
-       through its '-compose- interface
-   
-      \param parent  desk containing the files 
+   /** email a set of files as attachments, optionally converting them first.
+       Puts the (single) file on the clipboard as a text/uri-list and opens
+       Gmail's compose URL in the browser; the user pastes the attachment
+       with Ctrl+V.  If more than one file is sent they are packed into a
+       zip archive first.
+
+      \param parent  desk containing the files
       \param slist   list of files to send
       \param type    type to convert to (or Type_other to leave as is)
       \returns error or NULL if ok */

@@ -26,6 +26,7 @@ Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
 - move stacks between directories
 - double click to view full size page image (also on right pane)
 - print stacks and pages, including page annotations
+- email files as PDF via Gmail (Ctrl+Shift+E, paste with Ctrl+V)
 - full undo/redo
 
 
