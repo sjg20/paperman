@@ -27,8 +27,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QtGui>
 #include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFormLayout>
 #include <QHBoxLayout>
+#include <QLineEdit>
 #include <QKeyEventTransition>
 #include <QStateMachine>
 #include <QState>
@@ -365,12 +369,73 @@ QList<err_info> Desktopwidget::addRepositories(const QStringList& dirs)
 }
 
 
+/* A request fails because the server requires authentication and our
+ * cached token (if any) was rejected.  The HTTP layer surfaces this
+ * either as a raw "HTTP 401" string from RemoteBackend::waitForReply
+ * or as the server's "Host requires authentication" / "Invalid or
+ * missing credentials" prose; treat either as login-needed. */
+static bool isAuthError(const QString &message)
+{
+   return message.contains("401")
+       || message.contains("authentication", Qt::CaseInsensitive)
+       || message.contains("credentials", Qt::CaseInsensitive);
+}
+
+
 QString Desktopwidget::addRemoteServer(const QUrl &baseUrl)
 {
    QString error;
    if (_model->addRemoteRepository(baseUrl, &error))
       return QString();
+
+   /* No cached token, or the cached one expired (server restart wipes
+    * the in-memory token store).  Prompt for credentials and retry. */
+   if (isAuthError(error)) {
+      QString user, password;
+      if (!promptForCredentials(baseUrl, user, password))
+         return QStringLiteral("login cancelled");
+
+      QString loginErr;
+      if (!_model->loginToServer(baseUrl, user, password, &loginErr))
+         return QString("login failed: %1").arg(loginErr);
+
+      error.clear();
+      if (_model->addRemoteRepository(baseUrl, &error))
+         return QString();
+   }
    return error.isEmpty() ? QStringLiteral("unknown error") : error;
+}
+
+
+bool Desktopwidget::promptForCredentials(const QUrl &baseUrl,
+                                         QString &user,
+                                         QString &password)
+{
+   QDialog dlg(this);
+   dlg.setWindowTitle(QString("Log in to %1").arg(baseUrl.authority()));
+
+   auto *userEdit = new QLineEdit(&dlg);
+   userEdit->setPlaceholderText("username");
+   auto *passEdit = new QLineEdit(&dlg);
+   passEdit->setEchoMode(QLineEdit::Password);
+   passEdit->setPlaceholderText("password");
+
+   auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok
+                                            | QDialogButtonBox::Cancel,
+                                        &dlg);
+   connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+
+   auto *form = new QFormLayout(&dlg);
+   form->addRow("User:", userEdit);
+   form->addRow("Password:", passEdit);
+   form->addRow(buttons);
+
+   if (dlg.exec() != QDialog::Accepted)
+      return false;
+   user = userEdit->text();
+   password = passEdit->text();
+   return !user.isEmpty() && !password.isEmpty();
 }
 
 

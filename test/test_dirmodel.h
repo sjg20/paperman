@@ -48,6 +48,11 @@ private slots:
    //! falls back to QDir, producing "dir not found" on selection.
    void testRemoteRootBackendLookup();
 
+   //! Dirmodel::loginToServer caches a usable token: a follow-up
+   //! addRemoteRepository against an auth-required server succeeds
+   //! without further credentials.
+   void testLoginToServerCachesToken();
+
 private:
    /**
     * @brief  Set up a new Dirmodel with test data
