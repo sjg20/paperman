@@ -31,8 +31,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    These operations are typically invoked by the undo system in desktopundo
 */
 
+#include <QApplication>
+#include <QClipboard>
+#include <QDesktopServices>
 #include <QFile>
+#include <QMimeData>
 #include <QProcess>
+#include <QUrl>
 
 #include "desktopmodel.h"
 #include "file.h"
@@ -499,15 +504,22 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
    else
       CALL (util_buildZip (fname, fnamelist));
 
-// call thunderbird
-   QStringList args;
-   args << "-compose"
-         << QString ("subject=Files,body=see attachment,attachment='file://%1'").arg (fname);
+   // Put the file on the clipboard as a text/uri-list so Gmail compose
+   // (and any other webmail that accepts file paste) treats Ctrl+V as a
+   // file attach.  mailto: URLs cannot carry attachments per RFC 6068,
+   // so this is the only path that lands a real attachment in Gmail
+   // without a per-user OAuth dance.
+   QMimeData *mime = new QMimeData ();
+   mime->setUrls (QList<QUrl> () << QUrl::fromLocalFile (fname));
+   QApplication::clipboard ()->setMimeData (mime);
 
-   QProcess *myProcess = new QProcess();
-   myProcess->startDetached ("thunderbird", args);
+   // Open Gmail's compose URL with a pre-filled subject and body.  The
+   // attachment cannot ride on the URL, but the user pastes it with
+   // Ctrl+V once the compose window is up.
+   QUrl compose ("https://mail.google.com/mail/?view=cm&fs=1"
+                 "&su=Files&body=see+attachment+(paste+with+Ctrl%2BV)");
+   QDesktopServices::openUrl (compose);
 
-   //FIXME check for error in process
    return NULL;
 }
 
