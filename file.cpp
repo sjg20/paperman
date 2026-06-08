@@ -270,7 +270,7 @@ File::e_type File::typeFromName (const QString &fname)
 static QStringList env_names = QString ("from,to,subject,notes").split (',');
 
 
-File::e_env envFromName (const QString &name)
+File::e_env File::envFromName (const QString &name)
    {
    for (int i = 0; i < File::Env_count; i++)
       if (name == env_names [i])
