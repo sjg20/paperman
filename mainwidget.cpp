@@ -1158,97 +1158,103 @@ void Mainwidget::print (void)
       _opt->putxml ();
       }
    if (result && !_saved)
-      {
-      _pagecount = _opt->countPages ();
-      _new_page = false;
-      Operation op ("Printing", _pagecount, this);
-      QPainter painter;
-      if (!painter.begin (_printer))                // paint on printer
-         {
-         emit newContents ("Printing aborted");
-         return;
-         }
-
-      _watchButtons = false;
-      qApp->processEvents ();
-
-      QPaintDevice *device = painter.device();
-//       int dpiy = metrics.logicalDpiY();
-      int margin = 0;  //(int) ( (0/2.54)*dpiy ); // 2 cm margins
-//       QRect view( body );
-      char msg [300];
-      err_info *e = NULL;
-
-/*   bool sepSheet;
-   bool shrinkFit;*/
-
-      _from_page = _printer->fromPage () - 1;
-      _to_page = _printer->toPage () - 1;
-      _body = QRect ( margin, margin, device->width() - 2*margin,
-                      device->height() - 2*margin );
-      _painter = &painter;
-
-      if (_opt->_shrinkFit)
-         _printable = _body;
-      else
-         {
-#if QT_VERSION >= 0x040400
-         QMarginsF margins = _printer->pageLayout().margins();
-         qreal left = margins.left(), top = margins.top();
-         qreal right = margins.right(), bottom = margins.bottom();
-
-         _printable = QRect (left, top, _body.width () - left - right, _body.height () - top - bottom);
-#else
-         _printable = _printer->pageRect ();
-#endif
-         }
-
-      // set up the font
-      _painter->setFont (_opt->_font);
-
-      _reverse = _printer->pageOrder () == QPrinter::LastPageFirst;
-
-      // iterate through all stacks and pages
-      int seq = _reverse ? _pagecount - 1 : 0;      // page sequence number
-
-      for (int i = _reverse ? list.size () - 1 : 0; _reverse ? i >= 0 : i < list.size ();
-          _reverse ? i-- : i++)
-//       foreach (ind, list)
-         {
-         ind = list [i];
-         int numpages = _contents->data (ind, Desktopmodel::Role_pagecount).toInt ();
-         int blank = _opt->_sepSheet /*&& _printer->doubleSidedPrinting ()*/ && (numpages & 1)
-            ? 1 : 0;    // add a blank page?
-
-         for (int pnum = _reverse ? numpages + blank - 1 : 0;
-             _reverse ? pnum >= 0 : pnum < numpages + blank; _reverse ? pnum-- : pnum++)
-//          for (int pnum = 0; pnum < numpages + blank; pnum++)
-            {
-            if (op.setProgress (seq))
-               CALLB (err_make (ERRFN, ERR_operation_cancelled1, "print"));
-//             printf ("seq %d: row %d, %d of %d\n", seq, ind.row (), pnum, numpages);
-            CALLB (printPage (_reverse ? seq-- : seq++, ind, pnum, numpages));
-            }
-         if (e)
-            break;
-         }
-
-      painter.end ();
-
-//printf ("w,h = %d, %d\n", body.width (), body.height ());
-
-      if (e)
-         {
-         snprintf (msg, sizeof(msg), "Print error: %s", e->errstr);
-         emit newContents (msg);
-         }
-      else
-         emit newContents ("Printing completed");
-      }
+      printPages (list);
    else if (!result)
       emit newContents ("Printing aborted");
    _watchButtons = true;
    delete _opt;
+   }
+
+
+void Mainwidget::printPages (QModelIndexList &list)
+   {
+   QModelIndex ind;
+
+   _pagecount = _opt->countPages ();
+   _new_page = false;
+   Operation op ("Printing", _pagecount, this);
+   QPainter painter;
+   if (!painter.begin (_printer))                // paint on printer
+      {
+      emit newContents ("Printing aborted");
+      return;
+      }
+
+   _watchButtons = false;
+   qApp->processEvents ();
+
+   QPaintDevice *device = painter.device();
+//    int dpiy = metrics.logicalDpiY();
+   int margin = 0;  //(int) ( (0/2.54)*dpiy ); // 2 cm margins
+//    QRect view( body );
+   char msg [300];
+   err_info *e = NULL;
+
+/*   bool sepSheet;
+   bool shrinkFit;*/
+
+   _from_page = _printer->fromPage () - 1;
+   _to_page = _printer->toPage () - 1;
+   _body = QRect ( margin, margin, device->width() - 2*margin,
+                   device->height() - 2*margin );
+   _painter = &painter;
+
+   if (_opt->_shrinkFit)
+      _printable = _body;
+   else
+      {
+#if QT_VERSION >= 0x040400
+      QMarginsF margins = _printer->pageLayout().margins();
+      qreal left = margins.left(), top = margins.top();
+      qreal right = margins.right(), bottom = margins.bottom();
+
+      _printable = QRect (left, top, _body.width () - left - right, _body.height () - top - bottom);
+#else
+      _printable = _printer->pageRect ();
+#endif
+      }
+
+   // set up the font
+   _painter->setFont (_opt->_font);
+
+   _reverse = _printer->pageOrder () == QPrinter::LastPageFirst;
+
+   // iterate through all stacks and pages
+   int seq = _reverse ? _pagecount - 1 : 0;      // page sequence number
+
+   for (int i = _reverse ? list.size () - 1 : 0; _reverse ? i >= 0 : i < list.size ();
+       _reverse ? i-- : i++)
+//    foreach (ind, list)
+      {
+      ind = list [i];
+      int numpages = _contents->data (ind, Desktopmodel::Role_pagecount).toInt ();
+      int blank = _opt->_sepSheet /*&& _printer->doubleSidedPrinting ()*/ && (numpages & 1)
+         ? 1 : 0;    // add a blank page?
+
+      for (int pnum = _reverse ? numpages + blank - 1 : 0;
+          _reverse ? pnum >= 0 : pnum < numpages + blank; _reverse ? pnum-- : pnum++)
+//       for (int pnum = 0; pnum < numpages + blank; pnum++)
+         {
+         if (op.setProgress (seq))
+            CALLB (err_make (ERRFN, ERR_operation_cancelled1, "print"));
+//          printf ("seq %d: row %d, %d of %d\n", seq, ind.row (), pnum, numpages);
+         CALLB (printPage (_reverse ? seq-- : seq++, ind, pnum, numpages));
+         }
+      if (e)
+         break;
+      }
+
+   painter.end ();
+
+//printf ("w,h = %d, %d\n", body.width (), body.height ());
+
+   if (e)
+      {
+      snprintf (msg, sizeof(msg), "Print error: %s", e->errstr);
+      emit newContents (msg);
+      }
+   else
+      emit newContents ("Printing completed");
    }
 
 
