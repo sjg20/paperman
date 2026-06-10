@@ -54,6 +54,7 @@ app-test:
 	cd app && flutter test
 
 test: paperman-server paperman test-setup app-test
+	QT_QPA_PLATFORM=offscreen ./paperman -t
 	scripts/test_page_fetch.sh
 	scripts/test_parallel.sh
 
