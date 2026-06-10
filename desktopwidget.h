@@ -81,6 +81,7 @@ All QModelIndex parameters here refer to the proxy model _dir_proxy
 class Desktopwidget : public QSplitter //QWidget
    {
    Q_OBJECT
+   friend class TestDesktopUi;
    friend class TestOps;
 
 public:
