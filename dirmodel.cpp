@@ -1301,8 +1301,6 @@ void Dirmodel::addFileMatches(QStringList& matches, const uint baseLen,
             matches << dirPath.mid(baseLen) + fname;
       }
    }
-   if (!parent->childCount())
-      matches << dirPath.mid(baseLen);
 }
 
 QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
