@@ -79,6 +79,9 @@ private slots:
    //! Test that the print options count pages correctly
    void testPrintCountPages();
 
+   //! Test printing the selected stacks to a PDF file
+   void testPrintToPdf();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
