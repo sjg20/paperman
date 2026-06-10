@@ -38,6 +38,10 @@ private slots:
    //! reconnect() snapshots and restores scanner state so the user's
    //! settings (DPI, duplex, format, etc) survive the teardown.
    void testReconnectPreservesSettings();
+
+   //! The pscan dialog controls (resolution, ADF, duplex, reset) drive
+   //! the scanner settings.
+   void testPscanControls();
 };
 
 #endif // TEST_QSCANNER_H
