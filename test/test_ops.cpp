@@ -818,9 +818,32 @@ void TestOps::testMoveToDir()
 
 void TestOps::testChangeDir()
 {
-   // This test is skipped because changeDir() has UI dependencies that
-   // cause timeouts in headless mode
-   QSKIP("changeDir() requires UI event loop");
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+   // The repo root shows its two stacks
+   auto path = desktop->getSelectedPath();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   // Change to an empty subdirectory: no stacks should be shown
+   QModelIndex dir_ind = desktop->findDir(path + "/main");
+   QVERIFY(dir_ind.isValid());
+   desktop->selectDir(dir_ind);
+   QCOMPARE(desktop->getSelectedPath(), QString(path + "/main"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
+
+   // Change back to the repo root: the stacks reappear
+   desktop->selectDir(desktop->findDir(path));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
 }
 
 void TestOps::testDeleteDir()
