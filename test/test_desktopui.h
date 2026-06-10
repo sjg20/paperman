@@ -27,6 +27,12 @@ private slots:
    //! Test that ctrl-click adds a second stack to the selection
    void testCtrlClickMultiSelect();
 
+   //! Test that double-clicking a stack opens it in the page view
+   void testDoubleClickOpensStack();
+
+   //! Test the swap-view action returns from page view to the desktop
+   void testSwapViewAction();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

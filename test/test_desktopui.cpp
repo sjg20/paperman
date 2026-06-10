@@ -5,7 +5,9 @@
 #include "desktopmodel.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
+#include "mainwidget.h"
 #include "mainwindow.h"
+#include "pagewidget.h"
 #include "test_desktopui.h"
 
 void TestDesktopUi::setupShown(Mainwindow *me, Desktopmodel *&model,
@@ -102,4 +104,61 @@ void TestDesktopUi::testCtrlClickMultiSelect()
             "testpdf.pdf");
 
    QTest::qWait(350);
+}
+
+void TestDesktopUi::testDoubleClickOpensStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   Mainwidget *main = Mainwidget::singleton();
+   QVERIFY(main);
+
+   // The desktop view should be showing initially
+   QCOMPARE(main->currentWidget(), (QWidget *)desktop);
+
+   // Double-click the first stack: the page view should appear,
+   // showing that stack
+   QModelIndex ind = itemIndex(view, 0);
+   QVERIFY(ind.isValid());
+   QPoint centre = view->visualRect(ind).center();
+   QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     centre);
+   QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                      centre);
+
+   Pagewidget *page = main->getPage();
+   QTRY_COMPARE(main->currentWidget(), (QWidget *)page);
+
+   QModelIndex shown;
+   QVERIFY(page->getCurrentIndex(shown, true));
+   QCOMPARE(model->data(shown, Qt::DisplayRole).toString(), "testfile");
+}
+
+void TestDesktopUi::testSwapViewAction()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   Mainwidget *main = Mainwidget::singleton();
+   QVERIFY(main);
+
+   // With a stack selected, the swap action shows it in the page view
+   clickItem(view, 0);
+   me.actionSwap->trigger();
+   QTRY_COMPARE(main->currentWidget(), (QWidget *)main->getPage());
+
+   // Triggering it again returns to the desktop
+   me.actionSwap->trigger();
+   QTRY_COMPARE(main->currentWidget(), (QWidget *)desktop);
 }
