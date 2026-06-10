@@ -81,6 +81,9 @@ private slots:
    //! Test adding and removing a repository, with undo and redo
    void testRepositoryAddRemoveUndo();
 
+   //! Test renaming a stack by typing into the item editor
+   void testRenameStackViaEditor();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

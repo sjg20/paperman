@@ -5,6 +5,7 @@
 
 #include "test.h"
 
+#include "desktopdelegate.h"
 #include "desktopmodel.h"
 #include "desktopundo.h"
 #include "desktopview.h"
@@ -781,4 +782,41 @@ void TestDesktopUi::testRepositoryAddRemoveUndo()
    // Take it out again so the settings are left unchanged
    me.actionRedo->trigger();
    QCOMPARE(dirmodel->rowCount(QModelIndex()), before);
+}
+
+void TestDesktopUi::testRenameStackViaEditor()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // Open the name editor on the first stack, as the rename menu
+   // entry does
+   view->renameStack(itemIndex(view, 0));
+
+   Desktopeditor *editor = view->findChild<Desktopeditor *>();
+   QVERIFY(editor);
+   QCOMPARE(editor->text(), QString("testfile"));
+
+   // Type a new name and press return
+   editor->selectAll();
+   QTest::keyClicks(editor, "renamed");
+   QTest::keyClick(editor, Qt::Key_Return);
+
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   QCOMPARE(model->data(src_ind, Qt::DisplayRole).toString(), "renamed");
+
+   QString path = desktop->getSelectedPath();
+   QVERIFY(QFile::exists(path + "/renamed.max"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+
+   // The rename can be undone from the Edit menu
+   me.actionUndo->trigger();
+   QCOMPARE(model->data(src_ind, Qt::DisplayRole).toString(), "testfile");
+   QVERIFY(QFile::exists(path + "/testfile.max"));
 }
