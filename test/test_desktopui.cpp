@@ -1,3 +1,4 @@
+#include <QClipboard>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QtTest/QtTest>
@@ -277,10 +278,6 @@ void TestDesktopUi::testStackNavigationWraps()
    QTest::qWait(350);
 }
 
-/* URLs which the email operations would open in a browser are captured
-   here instead, so tests never launch anything */
-static QUrl s_opened_url;
-
 void TestDesktopUi::testSelectAllAction()
 {
    QModelIndex repo_ind;
@@ -505,4 +502,116 @@ void TestDesktopUi::testDirTreeNavigation()
    QTest::mouseClick(dir->viewport(), Qt::LeftButton, Qt::NoModifier,
                      dir->visualRect(root_ind).center());
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+}
+
+/* URLs which the email operations would open in a browser are captured
+   here instead, so tests never launch anything */
+static QUrl s_opened_url;
+
+void TestDesktopUi::testEmailSingleStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopmodel::url_capture = &s_opened_url;
+   s_opened_url = QUrl();
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // Email the max stack as-is
+   clickItem(view, 0);
+   QVERIFY(desktop->_act_email->isEnabled());
+   desktop->_act_email->trigger();
+
+   // The file should be on the clipboard as a URL, ready to paste into
+   // the compose window as an attachment
+   const QMimeData *mime = QApplication::clipboard()->mimeData();
+   QVERIFY(mime);
+   QVERIFY(mime->hasUrls());
+   QCOMPARE(mime->urls().size(), 1);
+
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   QCOMPARE(mime->urls()[0].toLocalFile(),
+            model->data(src_ind, Desktopmodel::Role_pathname).toString());
+
+   // The original file must still exist for the email program to use
+   QVERIFY(QFile::exists(mime->urls()[0].toLocalFile()));
+
+   // A Gmail compose window should have been requested
+   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+
+   QTest::qWait(350);
+}
+
+void TestDesktopUi::testEmailMultipleStacksZips()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopmodel::url_capture = &s_opened_url;
+   s_opened_url = QUrl();
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // Email both stacks: they should be packed into a single zip
+   view->setSelectionRange(0, 2);
+   desktop->_act_email->trigger();
+
+   const QMimeData *mime = QApplication::clipboard()->mimeData();
+   QVERIFY(mime);
+   QVERIFY(mime->hasUrls());
+   QCOMPARE(mime->urls().size(), 1);
+
+   QString zip = mime->urls()[0].toLocalFile();
+   QVERIFY(zip.endsWith(".zip"));
+   QVERIFY(QFile::exists(zip));
+   QVERIFY(QFileInfo(zip).size() > 0);
+
+   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+
+   QFile::remove(zip);
+}
+
+void TestDesktopUi::testEmailAsPdfConverts()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopmodel::url_capture = &s_opened_url;
+   s_opened_url = QUrl();
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // Email the max stack as PDF: a converted temporary file is sent
+   clickItem(view, 0);
+   desktop->_act_email_pdf->trigger();
+
+   const QMimeData *mime = QApplication::clipboard()->mimeData();
+   QVERIFY(mime);
+   QVERIFY(mime->hasUrls());
+   QCOMPARE(mime->urls().size(), 1);
+
+   QString pdf = mime->urls()[0].toLocalFile();
+   QVERIFY(pdf.endsWith(".pdf"));
+   QVERIFY(QFile::exists(pdf));
+
+   // Check it really is a PDF
+   QFile fil(pdf);
+   QVERIFY(fil.open(QIODevice::ReadOnly));
+   QCOMPARE(fil.read(4), QByteArray("%PDF"));
+   fil.close();
+
+   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+
+   QFile::remove(pdf);
+   QTest::qWait(350);
 }

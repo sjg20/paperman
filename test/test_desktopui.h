@@ -60,6 +60,15 @@ private slots:
    //! Test changing directory by clicking a folder in the tree
    void testDirTreeNavigation();
 
+   //! Test emailing a stack puts it on the clipboard and opens Gmail
+   void testEmailSingleStack();
+
+   //! Test emailing several stacks packs them into a zip first
+   void testEmailMultipleStacksZips();
+
+   //! Test emailing a stack as PDF converts it first
+   void testEmailAsPdfConverts();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
