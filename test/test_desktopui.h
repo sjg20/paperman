@@ -57,6 +57,9 @@ private slots:
    //! Test that the Escape key leaves search mode
    void testSearchEscapeReturns();
 
+   //! Test changing directory by clicking a folder in the tree
+   void testDirTreeNavigation();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
