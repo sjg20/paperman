@@ -3,6 +3,7 @@
 
 #include "test.h"
 
+#include "test_desktopui.h"
 #include "test_dirmodel.h"
 #include "test_dirview.h"
 #include "test_file.h"
@@ -17,6 +18,7 @@
 
 static TestUtils TEST_UTILS("utils");
 static TestOps TEST_OPS("ops");
+static TestDesktopUi TEST_DESKTOPUI("desktopui");
 static TestDirmodel TEST_DIRMODEL("dirmodel");
 static TestDirview TEST_DIRVIEW("dirview");
 static TestFile TEST_FILE("file");
