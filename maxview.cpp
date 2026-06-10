@@ -795,8 +795,10 @@ int main (int argc, char *argv[])
          int qt_argc = 1;
          int result = test_run(qt_argc, qt_argv, &app, filter);
 
-         if (result)
+         if (result) {
             qInfo() << "Failed: " << result;
+            return 1;
+         }
          }
 #else
          qInfo() << "Use this to build with tests: qmake CONFIG+=test";
