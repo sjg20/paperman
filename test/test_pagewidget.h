@@ -36,6 +36,12 @@ private slots:
    //! Test the rotate-left/right and 180 display buttons
    void testRotateButtons();
 
+   //! Test editing stack attributes and saving them
+   void testEditAttributesSave();
+
+   //! Test that revert discards unsaved attribute edits
+   void testEditAttributesRevert();
+
 private:
    /** Open the 5-page test stack in the page view of a shown
        Mainwindow
