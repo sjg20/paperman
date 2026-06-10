@@ -8,6 +8,7 @@
 #include "desktopmodel.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
+#include "dirmodel.h"
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -613,5 +614,46 @@ void TestDesktopUi::testEmailAsPdfConverts()
    QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
 
    QFile::remove(pdf);
+   QTest::qWait(350);
+}
+
+void TestDesktopUi::testDragDropToFolder()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   // Pick up the max stack: build the drag data just as the view does
+   clickItem(view, 0);
+   QMimeData *mime =
+      view->model()->mimeData(view->selectionModel()->selectedIndexes());
+   QVERIFY(mime);
+   QVERIFY(mime->hasFormat("application/vnd.text.list"));
+
+   /* Drop it on the 'main' folder in the directory tree. Row and
+      column are -1 for a drop directly onto an item */
+   QModelIndex dir_ind = desktop->findDir(path + "/main");
+   QVERIFY(dir_ind.isValid());
+   QVERIFY(desktop->_dir_proxy->dropMimeData(mime, Qt::MoveAction, -1, -1,
+                                             dir_ind));
+
+   // The file should move on disk and disappear from the view
+   QTRY_VERIFY(QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+
+   // Undo from the Edit menu brings it back
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/main/testfile.max"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   delete mime;
    QTest::qWait(350);
 }
