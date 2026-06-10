@@ -75,6 +75,9 @@ private slots:
    //! Test importing files from a directory and moving one in
    void testImportFlow();
 
+   //! Test scanning into a new stack with the simulated scanner
+   void testScanIntoStack();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
