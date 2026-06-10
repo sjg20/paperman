@@ -1599,35 +1599,28 @@ QModelIndex Desktopmodel::showFilesIn(const QString& inPath,
                                       const QString &rootPath, Measure *meas)
 {
    QString dirPath = inPath + "/", root = rootPath + "/";
-   bool add_items = true;
    Desk *desk;
 
    flushAllDesks ();
 
    QModelIndex ind = index(dirPath, QModelIndex ());
    if (ind.isValid()) {
+      // we are re-using the same desk, so reset to show the new contents
       desk = getDesk(ind);
-      add_items = false;
+      desk->addFromDir(dirPath, meas);
+      beginResetModel();
+      endResetModel();
    } else {
-      beginInsertRows (ind, _desks.size (), _desks.size ());
+      /* populate the desk before inserting its row, so that the model
+         (and any proxy on top of it) sees the files exactly once */
       desk = new Desk(dirPath, rootPath);
+      desk->addFromDir(dirPath, meas);
+      beginInsertRows (QModelIndex (), _desks.size (), _desks.size ());
       _desks << desk;
       endInsertRows ();
       ind = index(_desks.size () - 1, 0, QModelIndex ());
    }
    _otherdir_index = ind;
-
-   desk->addFromDir(dirPath, meas);
-   if (add_items)
-   {
-      /* we are re-using the same subdir desk for the new search. All the
-         items have been cleared, so we need to add the new matches */
-      beginInsertRows(_otherdir_index, 0, desk->fileCount() - 1);
-      endInsertRows();
-   } else {
-      beginResetModel();
-      endResetModel();
-   }
    _subdirs = true;
 
    // no pending list at present
