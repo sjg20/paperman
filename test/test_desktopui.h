@@ -72,6 +72,9 @@ private slots:
    //! Test dragging a stack onto a folder in the tree moves it there
    void testDragDropToFolder();
 
+   //! Test importing files from a directory and moving one in
+   void testImportFlow();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

@@ -657,3 +657,43 @@ void TestDesktopUi::testDragDropToFolder()
    delete mime;
    QTest::qWait(350);
 }
+
+void TestDesktopUi::testImportFlow()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   // Make an import directory containing a PDF, as if downloaded
+   QString imports = path + "/wibble1";
+   QVERIFY(QFile::copy(testSrc + "/testpdf.pdf", imports + "/arrival.pdf"));
+
+   // Show it, as the File->Import menu entries do
+   desktop->showImports(imports);
+
+   // The view shows the file to import, with the move action available
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   view->setSelectionRange(0, 1);
+   QVERIFY(desktop->_act_move->isEnabled());
+
+   // Move it into the repo root, as the move-to-folder dialog does
+   QModelIndexList to_move = view->getSelectedListSource();
+   QString dest = path + "/";
+   QStringList sl;
+   model->moveToDir(to_move, view->rootIndexSource(), dest, sl);
+
+   QTRY_VERIFY(QFile::exists(path + "/arrival.pdf"));
+   QVERIFY(!QFile::exists(imports + "/arrival.pdf"));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 0);
+
+   // Escape returns to the normal folder view, which now has the
+   // imported file as well
+   QTest::keyClick(view, Qt::Key_Escape);
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+}
