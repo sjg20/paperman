@@ -177,3 +177,38 @@ void TestPagewidget::testZoomLevelEdit()
    QTest::keyClick(zoom, Qt::Key_Return);
    QCOMPARE(zoomValue(zoom), 200);
 }
+
+void TestPagewidget::testRotateButtons()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QToolButton *rleft = page->findChild<QToolButton *>("rleft");
+   QToolButton *rright = page->findChild<QToolButton *>("rright");
+   QToolButton *r180 = page->findChild<QToolButton *>("vflip");
+   QVERIFY(rleft && rright && r180);
+
+   QCOMPARE(page->_rotate, 0);
+
+   // Rotate right goes clockwise in 90-degree steps
+   QTest::mouseClick(rright, Qt::LeftButton);
+   QCOMPARE(page->_rotate, 90);
+
+   QTest::mouseClick(rright, Qt::LeftButton);
+   QCOMPARE(page->_rotate, 180);
+
+   // Rotate left goes back
+   QTest::mouseClick(rleft, Qt::LeftButton);
+   QCOMPARE(page->_rotate, 90);
+
+   // The 180 button turns the page upside down from where it is
+   QTest::mouseClick(r180, Qt::LeftButton);
+   QCOMPARE(page->_rotate, 270);
+
+   // A full circle returns to normal
+   QTest::mouseClick(rright, Qt::LeftButton);
+   QCOMPARE(page->_rotate, 0);
+}
