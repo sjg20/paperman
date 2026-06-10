@@ -1,3 +1,5 @@
+#include <QLineEdit>
+#include <QToolButton>
 #include <QtTest/QtTest>
 
 #include "test.h"
@@ -10,6 +12,12 @@
 #include "pageview.h"
 #include "pagewidget.h"
 #include "test_pagewidget.h"
+
+//! Read the zoom level shown to the user, e.g. "100%" gives 100
+static int zoomValue(QLineEdit *zoom)
+{
+   return zoom->text().remove('%').toInt();
+}
 
 void TestPagewidget::openTestStack(Mainwindow *me, Desktopmodel *&model,
                                    Pagewidget *&page)
@@ -111,4 +119,61 @@ void TestPagewidget::testOpenAtCurrentPage()
    Pagewidget *page = main->getPage();
    QTRY_COMPARE(main->currentWidget(), (QWidget *)page);
    QCOMPARE(page->getCurrentPage(), 3);
+}
+
+void TestPagewidget::testZoomButtons()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QLineEdit *zoom = page->findChild<QLineEdit *>("zoomLevel");
+   QToolButton *zoom_in = page->findChild<QToolButton *>("zoomIn");
+   QToolButton *zoom_out = page->findChild<QToolButton *>("zoomOut");
+   QToolButton *zoom_orig = page->findChild<QToolButton *>("zoomOrig");
+   QToolButton *zoom_fit = page->findChild<QToolButton *>("zoomFit");
+   QVERIFY(zoom && zoom_in && zoom_out && zoom_orig && zoom_fit);
+   QVERIFY(zoom->isEnabled());
+
+   // The original-size button shows the page at 1:4 (25%), which
+   // matches a 300dpi scan on a typical screen
+   QTest::mouseClick(zoom_orig, Qt::LeftButton);
+   QCOMPARE(zoomValue(zoom), 25);
+
+   // Zooming in increases the level; zooming out decreases it
+   QTest::mouseClick(zoom_in, Qt::LeftButton);
+   int zoomed = zoomValue(zoom);
+   QVERIFY(zoomed > 25);
+
+   QTest::mouseClick(zoom_out, Qt::LeftButton);
+   QVERIFY(zoomValue(zoom) < zoomed);
+
+   // Fit-to-window picks a sensible scale for the viewport
+   QTest::mouseClick(zoom_fit, Qt::LeftButton);
+   QVERIFY(zoomValue(zoom) > 0);
+}
+
+void TestPagewidget::testZoomLevelEdit()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QLineEdit *zoom = page->findChild<QLineEdit *>("zoomLevel");
+   QVERIFY(zoom);
+
+   // Type a specific zoom level and press return
+   zoom->selectAll();
+   QTest::keyClicks(zoom, "50");
+   QTest::keyClick(zoom, Qt::Key_Return);
+   QCOMPARE(zoomValue(zoom), 50);
+
+   zoom->selectAll();
+   QTest::keyClicks(zoom, "200");
+   QTest::keyClick(zoom, Qt::Key_Return);
+   QCOMPARE(zoomValue(zoom), 200);
 }
