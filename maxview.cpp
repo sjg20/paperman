@@ -38,6 +38,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QStandardPaths>
 #include <QImage>
 #include <QProcess>
+#include <QTemporaryDir>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -539,6 +540,21 @@ static void usage (void)
 
 int main (int argc, char *argv[])
    {
+   /* When running tests, point the settings at a scratch directory so
+      that they cannot read or modify the user's real configuration.
+      This covers both QSettings (via XDG_CONFIG_HOME) and the xml
+      config in ~/.maxview (via HOME). The QTemporaryDir is static so
+      the directory is removed when the process exits */
+   for (int i = 1; i < argc; i++)
+      if (!strcmp (argv [i], "-t"))
+         {
+         static QTemporaryDir test_home;
+         qputenv ("HOME", test_home.path ().toLocal8Bit ());
+         qputenv ("XDG_CONFIG_HOME",
+                  (test_home.path () + "/.config").toLocal8Bit ());
+         break;
+         }
+
    //bool verbose = false, force = false, reloc = false, hack = false;
    //int debug = 0;
    char *dir = 0;
