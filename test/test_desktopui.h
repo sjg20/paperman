@@ -45,6 +45,9 @@ private slots:
    //! Test the Edit->Select-all menu action selects every stack
    void testSelectAllAction();
 
+   //! Test combining stacks with the stack action, then menu undo/redo
+   void testStackAndMenuUndo();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

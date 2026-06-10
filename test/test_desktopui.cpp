@@ -297,3 +297,45 @@ void TestDesktopUi::testSelectAllAction()
    QModelIndexList sel = view->getSelectedListSource();
    QCOMPARE(sel.size(), 2);
 }
+
+void TestDesktopUi::testStackAndMenuUndo()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // Duplicate the max stack using its context-menu action
+   clickItem(view, 0);
+   desktop->_act_duplicate->trigger();
+   QCOMPARE(model->rowCount(repo_ind), 3);
+
+   /* Select the original and the copy and combine them with the
+      stack action. The copy is placed overlapping the original so a
+      mouse click cannot select them reliably; select directly */
+   view->setSelectionRange(0, 1);
+   view->addSelectionRange(2, 1);
+   QVERIFY(desktop->_act_stack->isEnabled());
+   desktop->_act_stack->trigger();
+   QCOMPARE(model->rowCount(repo_ind), 2);
+
+   // The combined stack has the pages of both
+   QModelIndex max_ind = model->index(0, 0, repo_ind);
+   File *max = model->getFile(max_ind);
+   QVERIFY(max);
+   QCOMPARE(max->pagecount(), 10);
+
+   // Undo from the Edit menu splits them apart again
+   me.actionUndo->trigger();
+   QCOMPARE(model->rowCount(repo_ind), 3);
+
+   // Redo from the Edit menu combines them again
+   me.actionRedo->trigger();
+   QCOMPARE(model->rowCount(repo_ind), 2);
+
+   QTest::qWait(350);
+}
