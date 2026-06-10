@@ -278,3 +278,22 @@ void TestDesktopUi::testStackNavigationWraps()
 /* URLs which the email operations would open in a browser are captured
    here instead, so tests never launch anything */
 static QUrl s_opened_url;
+
+void TestDesktopUi::testSelectAllAction()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   QVERIFY(!view->isSelection(Desktopview::SEL_at_least_one));
+
+   me.actionSelectall->trigger();
+
+   QModelIndexList sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 2);
+}

@@ -42,6 +42,9 @@ private slots:
    //! Test stack navigation wraps at either end
    void testStackNavigationWraps();
 
+   //! Test the Edit->Select-all menu action selects every stack
+   void testSelectAllAction();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
