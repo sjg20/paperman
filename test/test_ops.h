@@ -82,6 +82,9 @@ private slots:
    //! Test printing the selected stacks to a PDF file
    void testPrintToPdf();
 
+   //! Test the options dialog loads and saves scan settings
+   void testOptionsDialog();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
