@@ -84,6 +84,9 @@ private slots:
    //! Test renaming a stack by typing into the item editor
    void testRenameStackViaEditor();
 
+   //! Test the year/month directory filter hides other years
+   void testDirFilterHidesOtherYears();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
