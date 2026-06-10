@@ -212,3 +212,73 @@ void TestPagewidget::testRotateButtons()
    QTest::mouseClick(rright, Qt::LeftButton);
    QCOMPARE(page->_rotate, 0);
 }
+
+void TestPagewidget::testEditAttributesSave()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QLineEdit *author = page->findChild<QLineEdit *>("author");
+   QLineEdit *title = page->findChild<QLineEdit *>("title");
+   QLineEdit *keywords = page->findChild<QLineEdit *>("keywords");
+   QToolButton *save = page->findChild<QToolButton *>("save");
+   QVERIFY(author && title && keywords && save);
+
+   // The fields start out empty and nothing needs saving
+   QCOMPARE(author->text(), QString());
+   QVERIFY(!save->isEnabled());
+
+   // Type some attribute text: the save button becomes available
+   QTest::keyClicks(author, "Fred Bloggs");
+   QTest::keyClicks(title, "Annual tax return");
+   QTest::keyClicks(keywords, "tax");
+   QVERIFY(save->isEnabled());
+
+   QTest::mouseClick(save, Qt::LeftButton);
+
+   // The annotations should now be stored in the stack
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   QCOMPARE(model->data(ind, Desktopmodel::Role_author).toString(),
+            "Fred Bloggs");
+   QCOMPARE(model->data(ind, Desktopmodel::Role_title).toString(),
+            "Annual tax return");
+   QCOMPARE(model->data(ind, Desktopmodel::Role_keywords).toString(),
+            "tax");
+
+   // Everything is saved, so the save button is disabled again
+   QVERIFY(!save->isEnabled());
+}
+
+void TestPagewidget::testEditAttributesRevert()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QLineEdit *author = page->findChild<QLineEdit *>("author");
+   QToolButton *save = page->findChild<QToolButton *>("save");
+   QToolButton *revert = page->findChild<QToolButton *>("revert");
+   QVERIFY(author && save && revert);
+
+   // Save an author name
+   QTest::keyClicks(author, "Fred");
+   QTest::mouseClick(save, Qt::LeftButton);
+
+   // Make a further edit, then revert: the saved name comes back
+   QTest::keyClicks(author, " Bloggs");
+   QCOMPARE(author->text(), QString("Fred Bloggs"));
+   QVERIFY(revert->isEnabled());
+   QTest::mouseClick(revert, Qt::LeftButton);
+   QCOMPARE(author->text(), QString("Fred"));
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   QCOMPARE(model->data(ind, Desktopmodel::Role_author).toString(),
+            "Fred");
+}
