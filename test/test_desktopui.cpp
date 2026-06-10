@@ -1,3 +1,4 @@
+#include <QLineEdit>
 #include <QPushButton>
 #include <QtTest/QtTest>
 
@@ -338,4 +339,40 @@ void TestDesktopUi::testStackAndMenuUndo()
    QCOMPARE(model->rowCount(repo_ind), 2);
 
    QTest::qWait(350);
+}
+
+void TestDesktopUi::testFilterStacks()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   QLineEdit *match = desktop->findChild<QLineEdit *>("match");
+   QPushButton *cancel = desktop->findChild<QPushButton *>("cancelFilter");
+   QVERIFY(match);
+   QVERIFY(cancel);
+
+   // Both stacks are visible to start with
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   // Typing a filter string shows only the matching stack
+   QTest::keyClicks(match, "testpdf");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QModelIndex ind = itemIndex(view, 0);
+   QCOMPARE(view->model()->data(ind, Qt::DisplayRole).toString(),
+            "testpdf.pdf");
+
+   // A filter which matches nothing shows no stacks
+   QTest::keyClicks(match, "zzz");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 0);
+
+   // The cancel button clears the filter and shows everything again
+   QTest::mouseClick(cancel, Qt::LeftButton);
+   QCOMPARE(match->text(), QString());
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
 }
