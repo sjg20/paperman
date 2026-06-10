@@ -376,3 +376,78 @@ void TestDesktopUi::testFilterStacks()
    QCOMPARE(match->text(), QString());
    QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
 }
+
+void TestDesktopUi::testSearchAndLocate()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   // Put a stack in a subdirectory so the search has something to find
+   // away from the repo root
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/findme.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   QVERIFY(!err);
+
+   model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+
+   // Search the whole repo for the stack, as the folder-search dialog
+   // does once the user has entered a name
+   desktop->startSearch(path, "findme");
+   desktop->specialView("Showing the results of folder search");
+
+   /* Only the matching stack should be shown. In particular, empty
+      directories must not appear as phantom nameless stacks */
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QModelIndex ind = itemIndex(view, 0);
+   QCOMPARE(view->model()->data(ind, Qt::DisplayRole).toString(),
+            "findme");
+
+   // Select the result and locate its folder: the view should change
+   // to the stack's directory with the stack selected
+   view->setSelectionRange(0, 1);
+   desktop->locateFolder();
+
+   QCOMPARE(desktop->getSelectedPath(),
+            QString(path + "/main/one"));
+   QTRY_COMPARE(view->getSelectedListSource().size(), 1);
+   QModelIndex sel = view->getSelectedListSource()[0];
+   QCOMPARE(model->data(sel, Desktopmodel::Role_filename).toString(),
+            "findme.max");
+}
+
+void TestDesktopUi::testSearchEscapeReturns()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // Search for the max stack only
+   desktop->startSearch(desktop->getSelectedPath(), "testfile");
+   desktop->specialView("Showing the results of folder search");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QVERIFY(desktop->_toolbar->searchEnabled());
+
+   // Pressing Escape in the view returns to the normal directory view
+   QTest::keyClick(view, Qt::Key_Escape);
+   QVERIFY(!desktop->_toolbar->searchEnabled());
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+}
