@@ -69,6 +69,9 @@ private slots:
    //! Test emailing a stack as PDF converts it first
    void testEmailAsPdfConverts();
 
+   //! Test dragging a stack onto a folder in the tree moves it there
+   void testDragDropToFolder();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
