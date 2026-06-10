@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 #include <QContextMenuEvent>
 #include <QHash>
+#include <QUrl>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QSet>
@@ -807,6 +808,11 @@ public:
       \returns error or NULL if ok */
    err_info *opEmailFiles (QModelIndex parent, QModelIndexList &slist,
          File::e_type type);
+
+   /** when non-null, URLs which would be opened in the browser (e.g.
+       the email compose window) are stored here instead. Used by
+       tests to check the URL without launching anything */
+   static QUrl *url_capture;
 
 #if 0 //p
    Desktopitem *itemFind (const QPoint & opos, int &which);

@@ -518,7 +518,10 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
    // Ctrl+V once the compose window is up.
    QUrl compose ("https://mail.google.com/mail/?view=cm&fs=1"
                  "&su=Files&body=see+attachment+(paste+with+Ctrl%2BV)");
-   QDesktopServices::openUrl (compose);
+   if (url_capture)
+      *url_capture = compose;
+   else
+      QDesktopServices::openUrl (compose);
 
    return NULL;
 }

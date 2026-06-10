@@ -58,6 +58,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define DELAY_TIME 0  //1000
 
 
+QUrl *Desktopmodel::url_capture;
+
 Desktopmodel::Desktopmodel(QObject *parent)
       : QAbstractItemModel (parent)
    {
