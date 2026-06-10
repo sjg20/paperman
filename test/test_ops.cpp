@@ -1,4 +1,5 @@
 #include <QDate>
+#include <QPrinter>
 #include <QtTest/QtTest>
 
 #include "../utils.h"
@@ -11,6 +12,7 @@
 #include "dirmodel.h"
 #include "dirview.h"
 #include "mainwindow.h"
+#include "printopt.h"
 #include "test_ops.h"
 
 void TestOps::testStartup()
@@ -433,6 +435,43 @@ void TestOps::testRenamePage()
    stk->undo();
    QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagename).toString(),
             "Page 1");
+}
+
+void TestOps::testPrintCountPages()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   // Select both stacks, as a user would before printing
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   view->setSelectionRange(0, 2);
+
+   QModelIndexList list = view->getSelectedListSource();
+   QCOMPARE(list.size(), 2);
+
+   // Make sure the files are loaded so the page counts are known
+   int expected = 0;
+   foreach (QModelIndex ind, list) {
+      File *f = model->getFile(ind);
+      f->load();
+      expected += f->pagecount();
+   }
+   QCOMPARE(expected, 10);
+
+   // The print options dialog should count the pages of the selection
+   QPrinter printer;
+   Printopt opt(&printer, list);
+   opt.sepSheet->setChecked(false);
+   QCOMPARE(opt.countPages(), 10);
+
+   /* with a separator sheet, stacks with an odd number of pages get
+      a blank page added: both stacks have 5 pages */
+   opt.sepSheet->setChecked(true);
+   QCOMPARE(opt.countPages(), 12);
 }
 
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
