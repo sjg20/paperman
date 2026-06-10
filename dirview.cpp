@@ -85,8 +85,12 @@ void Dirview::selectionChanged (const QItemSelection &selected, const QItemSelec
 
    QTreeView::selectionChanged (selected, deselected);
 
+   /* record the context for the menus, but do not synthesise a click:
+      the selection also changes programmatically (e.g. while undoing a
+      repository operation) and emitting clicked() here would push
+      spurious change-directory commands onto the undo stack */
    if (list.size () == 1)
-      selectContextItem (list [0]);
+      _context = QPersistentModelIndex (list [0]);
    }
 
 
