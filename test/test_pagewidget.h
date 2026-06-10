@@ -27,6 +27,12 @@ private slots:
    //! Test that opening a stack shows the stack's current page
    void testOpenAtCurrentPage();
 
+   //! Test the zoom in/out/original buttons update the zoom level
+   void testZoomButtons();
+
+   //! Test typing a zoom level into the zoom box
+   void testZoomLevelEdit();
+
 private:
    /** Open the 5-page test stack in the page view of a shown
        Mainwindow
