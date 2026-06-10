@@ -7,6 +7,7 @@
 #include "desktopmodel.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
+#include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "pagewidget.h"
@@ -449,5 +450,59 @@ void TestDesktopUi::testSearchEscapeReturns()
    // Pressing Escape in the view returns to the normal directory view
    QTest::keyClick(view, Qt::Key_Escape);
    QVERIFY(!desktop->_toolbar->searchEnabled());
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+}
+
+void TestDesktopUi::testDirTreeNavigation()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   // Put a stack in a subdirectory so there is something to show there
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/deepfile.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   QVERIFY(!err);
+
+   model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+
+   // The repo root shows its two stacks
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   // Click the subdirectory in the folder tree
+   QModelIndex dir_ind = desktop->findDir(path + "/main/one");
+   QVERIFY(dir_ind.isValid());
+   Dirview *dir = desktop->_dir;
+   dir->scrollTo(dir_ind);
+   QRect rect = dir->visualRect(dir_ind);
+   QVERIFY(rect.isValid());
+   QTest::mouseClick(dir->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     rect.center());
+
+   // The desktop should now show the stack in that directory
+   QCOMPARE(desktop->getSelectedPath(), QString(path + "/main/one"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QCOMPARE(view->model()->data(itemIndex(view, 0),
+                                Qt::DisplayRole).toString(), "deepfile");
+
+   // Clicking the repo root shows the original stacks again
+   QModelIndex root_ind = desktop->findDir(path);
+   QVERIFY(root_ind.isValid());
+   dir->scrollTo(root_ind);
+   QTest::mouseClick(dir->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     dir->visualRect(root_ind).center());
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
 }
