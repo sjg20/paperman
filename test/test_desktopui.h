@@ -57,6 +57,9 @@ private slots:
    //! Test that the Escape key leaves search mode
    void testSearchEscapeReturns();
 
+   //! Test that repeated searches show the right results each time
+   void testRepeatedSearch();
+
    //! Test changing directory by clicking a folder in the tree
    void testDirTreeNavigation();
 

@@ -454,6 +454,52 @@ void TestDesktopUi::testSearchEscapeReturns()
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
 }
 
+void TestDesktopUi::testRepeatedSearch()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   // Add a stack in a subdirectory so a search can find it
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/findme.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   QVERIFY(!err);
+
+   model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+
+   /* the first search creates the search desk; later searches re-use
+      it. Each must show exactly the matching stacks, with no phantom
+      or stale rows */
+   desktop->startSearch(path, "testpdf");
+   desktop->specialView("Showing the results of folder search");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+
+   desktop->startSearch(path, "test");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   desktop->startSearch(path, "findme");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QCOMPARE(view->model()->data(itemIndex(view, 0),
+                                Qt::DisplayRole).toString(), "findme");
+
+   // Escape still returns to the normal directory view
+   QTest::keyClick(view, Qt::Key_Escape);
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+}
+
 void TestDesktopUi::testDirTreeNavigation()
 {
    QModelIndex repo_ind;
