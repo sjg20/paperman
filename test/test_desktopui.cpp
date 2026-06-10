@@ -820,3 +820,42 @@ void TestDesktopUi::testRenameStackViaEditor()
    QCOMPARE(model->data(src_ind, Qt::DisplayRole).toString(), "testfile");
    QVERIFY(QFile::exists(path + "/testfile.max"));
 }
+
+void TestDesktopUi::testDirFilterHidesOtherYears()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   // Year-named directories, one current and one old
+   QString this_year = QString::number(QDate::currentDate().year());
+   QString last_year = QString::number(QDate::currentDate().year() - 1);
+
+   auto path = setupRepo();
+   QVERIFY(QDir(path).mkdir(this_year));
+   QVERIFY(QDir(path).mkdir(last_year));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   QVERIFY(!err);
+
+   model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   /* the View->dir-filter action toggles the year/month filter: with
+      it on, only directories for the current year are offered */
+   me.actionDirFilter->setChecked(false);
+   me.actionDirFilter->trigger();   // now on
+   QVERIFY(desktop->findDir(path + "/" + this_year).isValid());
+   QVERIFY(!desktop->findDir(path + "/" + last_year).isValid());
+
+   me.actionDirFilter->trigger();   // off again
+   QVERIFY(desktop->findDir(path + "/" + this_year).isValid());
+   QVERIFY(desktop->findDir(path + "/" + last_year).isValid());
+}
