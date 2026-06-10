@@ -33,6 +33,15 @@ private slots:
    //! Test the swap-view action returns from page view to the desktop
    void testSwapViewAction();
 
+   //! Test moving between stacks with the toolbar prev/next buttons
+   void testToolbarStackNavigation();
+
+   //! Test flipping pages with the toolbar page prev/next buttons
+   void testToolbarPageNavigation();
+
+   //! Test stack navigation wraps at either end
+   void testStackNavigationWraps();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

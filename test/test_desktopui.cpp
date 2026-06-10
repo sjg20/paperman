@@ -1,3 +1,4 @@
+#include <QPushButton>
 #include <QtTest/QtTest>
 
 #include "test.h"
@@ -162,3 +163,118 @@ void TestDesktopUi::testSwapViewAction()
    me.actionSwap->trigger();
    QTRY_COMPARE(main->currentWidget(), (QWidget *)desktop);
 }
+
+void TestDesktopUi::testToolbarStackNavigation()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   QPushButton *prev = desktop->findChild<QPushButton *>("prev");
+   QPushButton *next = desktop->findChild<QPushButton *>("next");
+   QVERIFY(prev);
+   QVERIFY(next);
+
+   clickItem(view, 0);
+
+   // The next button moves the selection to the second stack
+   QTest::mouseClick(next, Qt::LeftButton);
+   QModelIndexList sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 1);
+   QCOMPARE(model->data(sel[0], Qt::DisplayRole).toString(),
+            "testpdf.pdf");
+
+   // The prev button moves it back to the first
+   QTest::mouseClick(prev, Qt::LeftButton);
+   sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 1);
+   QCOMPARE(model->data(sel[0], Qt::DisplayRole).toString(), "testfile");
+
+   QTest::qWait(350);
+}
+
+void TestDesktopUi::testToolbarPageNavigation()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   QPushButton *p_prev = desktop->findChild<QPushButton *>("pPrev");
+   QPushButton *p_next = desktop->findChild<QPushButton *>("pNext");
+   QVERIFY(p_prev);
+   QVERIFY(p_next);
+
+   // Select the 5-page max stack
+   clickItem(view, 0);
+
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 0);
+
+   // The page-next button moves to the next page
+   QTest::mouseClick(p_next, Qt::LeftButton);
+   QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 1);
+
+   QTest::mouseClick(p_next, Qt::LeftButton);
+   QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 2);
+
+   // The page-prev button moves back
+   QTest::mouseClick(p_prev, Qt::LeftButton);
+   QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 1);
+
+   // Going back past the first page stays on the first page
+   QTest::mouseClick(p_prev, Qt::LeftButton);
+   QTest::mouseClick(p_prev, Qt::LeftButton);
+   QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 0);
+
+   // Going forward past the last page stays on the last page
+   for (int i = 0; i < 10; i++)
+      QTest::mouseClick(p_next, Qt::LeftButton);
+   QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 4);
+
+   QTest::qWait(350);
+}
+
+void TestDesktopUi::testStackNavigationWraps()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   QPushButton *prev = desktop->findChild<QPushButton *>("prev");
+   QPushButton *next = desktop->findChild<QPushButton *>("next");
+   QVERIFY(prev && next);
+
+   // From the last stack, next wraps around to the first
+   clickItem(view, 1);
+   QTest::mouseClick(next, Qt::LeftButton);
+   QModelIndexList sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 1);
+   QCOMPARE(sel[0].row(), 0);
+
+   // From the first stack, prev wraps around to the last
+   QTest::mouseClick(prev, Qt::LeftButton);
+   sel = view->getSelectedListSource();
+   QCOMPARE(sel.size(), 1);
+   QCOMPARE(sel[0].row(), 1);
+
+   QTest::qWait(350);
+}
+
+/* URLs which the email operations would open in a browser are captured
+   here instead, so tests never launch anything */
+static QUrl s_opened_url;
