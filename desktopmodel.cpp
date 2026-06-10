@@ -1535,8 +1535,9 @@ QModelIndex Desktopmodel::indexForFile(File *file) const
    return QModelIndex();
 }
 
-Desk *Desktopmodel::prepareSearchDesk(QString& dirPath, QString& rootPath,
-                                      QModelIndex& ind, bool& add_items)
+QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
+                                           const QStringList& matches,
+                                           Measure *meas)
 {
    Desk *desk;
 
@@ -1553,42 +1554,28 @@ Desk *Desktopmodel::prepareSearchDesk(QString& dirPath, QString& rootPath,
     * We only have one desk for subdirectory searches and we reuse it
       each time
    */
-   if (ind.isValid()) {
-      desk = getDesk(ind);
-      add_items = true;
-   } else {
-      beginInsertRows (ind, _desks.size (), _desks.size ());
-      desk = new Desk("" , rootPath, false);
-      _desks << desk;
-      endInsertRows ();
-      ind = index (_desks.size () - 1, 0, QModelIndex ());
-      add_items = false;
-   }
-   desk->setDebugLevel (_debug_level);
+   if (_subdirs_index.isValid()) {
+      desk = getDesk(_subdirs_index);
+      desk->setDebugLevel (_debug_level);
 
-   clearAll (ind);
-   desk->advance ();
-
-   return desk;
-}
-
-QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
-                                           const QStringList& matches,
-                                           Measure *meas)
-{
-   bool add_items;
-   Desk *desk;
-
-   desk = prepareSearchDesk(dirPath, rootPath, _subdirs_index, add_items);
-
-   desk->addMatches(dirPath, matches, meas);
-   if (add_items)
-      {
-      /* we are re-using the same subdir desk for the new search. All the
-         items have been cleared, so we need to add the new matches */
+      // clear out the previous search, then add the new matches
+      clearAll (_subdirs_index);
+      desk->advance ();
+      desk->addMatches(dirPath, matches, meas);
       beginInsertRows (_subdirs_index, 0, desk->fileCount () - 1);
       endInsertRows ();
-      }
+   } else {
+      /* populate the desk before inserting its row, so that the model
+         (and any proxy on top of it) sees the files exactly once */
+      desk = new Desk("" , rootPath, false);
+      desk->setDebugLevel (_debug_level);
+      desk->advance ();
+      desk->addMatches(dirPath, matches, meas);
+      beginInsertRows (QModelIndex (), _desks.size (), _desks.size ());
+      _desks << desk;
+      endInsertRows ();
+      _subdirs_index = index (_desks.size () - 1, 0, QModelIndex ());
+   }
    _subdirs = true;
 
    // no pending list at present
