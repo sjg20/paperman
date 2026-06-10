@@ -78,6 +78,9 @@ private slots:
    //! Test scanning into a new stack with the simulated scanner
    void testScanIntoStack();
 
+   //! Test adding and removing a repository, with undo and redo
+   void testRepositoryAddRemoveUndo();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

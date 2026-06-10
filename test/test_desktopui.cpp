@@ -6,6 +6,7 @@
 #include "test.h"
 
 #include "desktopmodel.h"
+#include "desktopundo.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "dirmodel.h"
@@ -740,4 +741,44 @@ void TestDesktopUi::testScanIntoStack()
    QString pathname =
       model->data(new_ind, Desktopmodel::Role_pathname).toString();
    QVERIFY(QFile::exists(pathname));
+}
+
+void TestDesktopUi::testRepositoryAddRemoveUndo()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Dirmodel *dirmodel = desktop->getDirmodel();
+
+   // Add a second repository, as the directory-tree context menu does
+   QTemporaryDir extra;
+   QVERIFY(extra.isValid());
+   int before = dirmodel->rowCount(QModelIndex());
+   model->addRepository(extra.path());
+   QCOMPARE(dirmodel->rowCount(QModelIndex()), before + 1);
+
+   /* the only undoable command so far should be the repository add;
+      programmatic selection changes must not create undo entries */
+   Desktopundostack *stk = model->getUndoStack();
+   QCOMPARE(stk->count(), 1);
+
+   // Undo removes it again; redo brings it back
+   me.actionUndo->trigger();
+   QCOMPARE(dirmodel->rowCount(QModelIndex()), before);
+   me.actionRedo->trigger();
+   QCOMPARE(dirmodel->rowCount(QModelIndex()), before + 1);
+
+   // Removing the repository is also undoable
+   model->removeRepository(extra.path());
+   QCOMPARE(dirmodel->rowCount(QModelIndex()), before);
+   me.actionUndo->trigger();
+   QCOMPARE(dirmodel->rowCount(QModelIndex()), before + 1);
+
+   // Take it out again so the settings are left unchanged
+   me.actionRedo->trigger();
+   QCOMPARE(dirmodel->rowCount(QModelIndex()), before);
 }
