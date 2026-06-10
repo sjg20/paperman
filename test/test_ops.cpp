@@ -11,6 +11,7 @@
 #include "desktopwidget.h"
 #include "dirmodel.h"
 #include "dirview.h"
+#include "mainwidget.h"
 #include "mainwindow.h"
 #include "printopt.h"
 #include "test_ops.h"
@@ -472,6 +473,59 @@ void TestOps::testPrintCountPages()
       a blank page added: both stacks have 5 pages */
    opt.sepSheet->setChecked(true);
    QCOMPARE(opt.countPages(), 12);
+}
+
+void TestOps::testPrintToPdf()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   view->setSelectionRange(0, 2);
+
+   QModelIndexList list = view->getSelectedListSource();
+   QCOMPARE(list.size(), 2);
+   foreach (QModelIndex ind, list)
+      model->getFile(ind)->load();
+
+   /* run the part of print() which follows the print dialogue, with
+      the printer directed at a PDF file */
+   QString out = QString("%1/print_test.pdf").arg(P_tmpdir);
+   QFile::remove(out);
+
+   Mainwidget *main = Mainwidget::singleton();
+   QVERIFY(main);
+   main->_printer = new QPrinter();
+   main->_printer->setOutputFileName(out);
+   main->_printer->setResolution(150);
+   main->_opt = new Printopt(main->_printer, list);
+   main->_opt->sepSheet->setChecked(false);
+   main->_opt->save();   // copy the widget states into the members
+   main->_printer->setFromTo(1, main->_opt->countPages());
+
+   main->printPages(list);
+
+   delete main->_opt;
+   main->_opt = nullptr;
+   delete main->_printer;
+   main->_printer = nullptr;
+
+   // The PDF should exist and contain every page of both stacks
+   QVERIFY(QFile::exists(out));
+
+   File *printed = File::createFile(QString(P_tmpdir) + "/",
+                                    QString("print_test.pdf"), nullptr,
+                                    File::Type_pdf);
+   QVERIFY(printed);
+   printed->load();
+   QCOMPARE(printed->pagecount(), 10);
+   delete printed;
+
+   QFile::remove(out);
 }
 
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,

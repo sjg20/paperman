@@ -73,6 +73,7 @@ extern "C"
 class Mainwidget : public QStackedWidget
    {
    Q_OBJECT
+   friend class TestOps;
 public:
    Mainwidget (QWidget *parent, const char *name = 0);
    ~Mainwidget();
