@@ -13,7 +13,9 @@
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "options.h"
 #include "printopt.h"
+#include "qxmlconfig.h"
 #include "test_ops.h"
 
 void TestOps::testStartup()
@@ -526,6 +528,32 @@ void TestOps::testPrintToPdf()
    delete printed;
 
    QFile::remove(out);
+}
+
+void TestOps::testOptionsDialog()
+{
+   if (!xmlConfig)
+      new QXmlConfig();
+   bool orig = xmlConfig->boolValue("SCAN_USE_JPEG");
+
+   // The dialog loads the current setting
+   Options opt(nullptr, nullptr);
+   QCOMPARE(opt.jpeg->isChecked(), orig);
+
+   // Toggling it and clicking OK saves the new value
+   opt.jpeg->setChecked(!orig);
+   opt.ok_clicked();
+   QCOMPARE(xmlConfig->boolValue("SCAN_USE_JPEG"), !orig);
+
+   // Changing it back but cancelling leaves the saved value alone
+   Options opt2(nullptr, nullptr);
+   QCOMPARE(opt2.jpeg->isChecked(), !orig);
+   opt2.jpeg->setChecked(orig);
+   opt2.cancel_clicked();
+   QCOMPARE(xmlConfig->boolValue("SCAN_USE_JPEG"), !orig);
+
+   // Restore the user's setting
+   xmlConfig->setBoolValue("SCAN_USE_JPEG", orig);
 }
 
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
