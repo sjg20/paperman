@@ -175,9 +175,9 @@ public:
       \param index       the file index
       \param start       start page (0 for first)
       \param count       number of pages (-1 for all)
-      \param across      how many to show across (normally 1 or 2) */
+      \param curpage     page to display (-1 for the stack's current page) */
    void showPages (const QAbstractItemModel *model, const QModelIndex &index,
-         int start, int count, int across, bool reset = false);
+         int start, int count, int curpage, bool reset = false);
 
    void pageLeft (void);
    void pageRight (void);
