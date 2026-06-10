@@ -244,6 +244,7 @@ test {
    SOURCES += test/test_utils.cpp \
       test/test.cpp \
       test/suite.cpp \
+      test/test_desktopui.cpp \
       test/test_dirmodel.cpp \
       test/test_dirview.cpp \
       test/test_file.cpp \
@@ -262,6 +263,7 @@ test {
       userstore.cpp
 
    HEADERS += test/suite.h \
+      test/test_desktopui.h \
       test/test_dirmodel.h \
       test/test_dirview.h \
       test/test_file.h \
