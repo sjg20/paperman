@@ -13,6 +13,7 @@
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "pagewidget.h"
+#include "qxmlconfig.h"
 #include "test_desktopui.h"
 
 void TestDesktopUi::setupShown(Mainwindow *me, Desktopmodel *&model,
@@ -696,4 +697,47 @@ void TestDesktopUi::testImportFlow()
    // imported file as well
    QTest::keyClick(view, Qt::Key_Escape);
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+}
+
+void TestDesktopUi::testScanIntoStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   /* select the simulated scanner as the last-used device so that
+      ensureScanner() opens it without showing the selection dialog;
+      restore the user's setting afterwards */
+   if (!xmlConfig)
+      new QXmlConfig();
+   QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
+   xmlConfig->setStringValue("LAST_DEVICE", "simulscan");
+
+   Mainwidget *main = Mainwidget::singleton();
+   QVERIFY(main);
+   int before = model->rowCount(repo_ind);
+
+   /* the simulated ADF holds 120 pages, so press the stop button (which
+      finishes the current page and ends the scan) shortly after the
+      scan begins */
+   QTimer::singleShot(1000, main, [main]() { main->stopScan(false); });
+   me.actionScango->trigger();
+
+   xmlConfig->setStringValue("LAST_DEVICE", old_device);
+
+   // A new stack should appear, holding the scanned pages
+   QCOMPARE(model->rowCount(repo_ind), before + 1);
+
+   QModelIndex new_ind = model->index(before, 0, repo_ind);
+   QVERIFY(new_ind.isValid());
+   File *scanned = model->getFile(new_ind);
+   QVERIFY(scanned);
+   QVERIFY(scanned->pagecount() >= 1);
+
+   // The scanned stack exists on disk in the current folder
+   QString pathname =
+      model->data(new_ind, Desktopmodel::Role_pathname).toString();
+   QVERIFY(QFile::exists(pathname));
 }
