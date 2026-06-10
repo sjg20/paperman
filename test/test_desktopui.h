@@ -51,6 +51,12 @@ private slots:
    //! Test typing in the filter box filters stacks, and cancel restores
    void testFilterStacks();
 
+   //! Test searching folders for a stack and locating its folder
+   void testSearchAndLocate();
+
+   //! Test that the Escape key leaves search mode
+   void testSearchEscapeReturns();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
