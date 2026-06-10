@@ -76,6 +76,9 @@ private slots:
    //! Test that findFolders works after a cache refresh
    void testFindFoldersSuggestsMonthAfterRefresh();
 
+   //! Test that the print options count pages correctly
+   void testPrintCountPages();
+
 private:
    //! Setup the test repo and return its model and root index
    void getTestRepo(Mainwindow *me, Desktopmodel*& model,
