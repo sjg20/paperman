@@ -48,6 +48,9 @@ private slots:
    //! Test combining stacks with the stack action, then menu undo/redo
    void testStackAndMenuUndo();
 
+   //! Test typing in the filter box filters stacks, and cancel restores
+   void testFilterStacks();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
