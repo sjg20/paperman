@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 
+#include "pscan.h"
 #include "qscandialog.h"
 #include "qscanner.h"
 #include "qxmlconfig.h"
@@ -116,6 +117,47 @@ void TestQscanner::testStaleScanDialogAfterReconnect()
    // doesn't crash to keep using it (the rebuild is a precaution, not a
    // hard requirement now that QScanner preserves its own state).
    Q_UNUSED (dialog);
+}
+
+
+void TestQscanner::testPscanControls()
+{
+   ensureXmlConfig ();
+   QScanner scanner;
+   scanner.setDeviceName (SIMUL_NAME);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+
+   /* setting a lower resolution must not snap to the maximum; this
+      used to fail because changing a slider's range pushed the clamped
+      slider position to the scanner */
+   dialog.setDpi (200);
+   QCOMPARE (scanner.xResolutionDpi (), 200);
+   QCOMPARE (scanner.yResolutionDpi (), 200);
+
+   Pscan pscan;
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+
+   // The scanner controls should be available
+   QVERIFY (pscan.res->isEnabled ());
+   QVERIFY (pscan.duplex->isEnabled ());
+
+   // Choosing a resolution from the combo reaches the scanner
+   pscan.res_activated (0);
+   QCOMPARE (scanner.xResolutionDpi (), 200);
+   pscan.res_activated (2);
+   QCOMPARE (scanner.xResolutionDpi (), 400);
+   pscan.res_activated (1);
+   QCOMPARE (scanner.xResolutionDpi (), 300);
+
+   // Clicking the duplex checkbox toggles duplex scanning
+   bool was_duplex = scanner.duplex ();
+   QTest::mouseClick (pscan.duplex, Qt::LeftButton);
+   QCOMPARE (scanner.duplex (), !was_duplex);
+   QTest::mouseClick (pscan.duplex, Qt::LeftButton);
+   QCOMPARE (scanner.duplex (), was_duplex);
 }
 
 
