@@ -309,6 +309,11 @@ private:
       \param numpages Number of pages in stack */
    err_info *printPage (int seq, QModelIndex &ind, int pnum, int numpages);
 
+   /** print all pages of the given stacks to _printer using the options
+       in _opt. This is the part of print() which runs after the user
+       accepts the print dialogue */
+   void printPages (QModelIndexList &list);
+
    //! setup the scan dialog and our _preview pointer
    void setupScanDialog (void);
 
