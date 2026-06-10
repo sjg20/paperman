@@ -216,7 +216,7 @@ void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
 #endif
    setCurrentIndex(1);
 //    _page->showPage (index.model (), index, delay_smoothing);
-   _page->showPages (index.model (), index, 0, -1, 2);
+   _page->showPages (index.model (), index, 0, -1, -1);
    }
 
 
