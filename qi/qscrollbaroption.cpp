@@ -82,7 +82,12 @@ void QScrollBarOption::setRange(int min,int max,int quant)
   mQuant = quant;
   mMinVal = min;
   mMaxVal = max;
-//  mpValueSlider->blockSignals(true);
+  /* Block the slider's signals while the range is reconfigured.
+     Changing the range can clamp the slider position, and the resulting
+     valueChanged() signals would push the clamped raw position to the
+     scanner as if the user had moved the slider. The caller follows up
+     with setValue() to restore the correct position */
+  mpValueSlider->blockSignals(true);
 	if(mSaneValueType == SANE_TYPE_FIXED)
   {
     mMinVal = int(SANE_UNFIX(min) * 100.0);
@@ -99,6 +104,7 @@ void QScrollBarOption::setRange(int min,int max,int quant)
     mpValueSlider->setPageStep(10);
     mHasQuant = true;
   }
+  mpValueSlider->blockSignals(false);
   if(mSaneValueType == SANE_TYPE_FIXED)
   {
     switch(mMetricSystem)
