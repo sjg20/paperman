@@ -33,6 +33,9 @@ private slots:
    //! Test typing a zoom level into the zoom box
    void testZoomLevelEdit();
 
+   //! Test the rotate-left/right and 180 display buttons
+   void testRotateButtons();
+
 private:
    /** Open the 5-page test stack in the page view of a shown
        Mainwindow

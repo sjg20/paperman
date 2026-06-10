@@ -131,6 +131,7 @@ private:
 class Pagewidget : public QWidget
    {
    Q_OBJECT
+   friend class TestPagewidget;
 
 public:
    /** which mode the viewer is in */
