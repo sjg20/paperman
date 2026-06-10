@@ -9,6 +9,7 @@
 #include "test_file.h"
 #include "test_ops.h"
 #include "test_pageinfo.h"
+#include "test_pagewidget.h"
 #include "test_qscanner.h"
 #include "test_utils.h"
 #include "test_searchserver.h"
@@ -23,6 +24,7 @@ static TestDirmodel TEST_DIRMODEL("dirmodel");
 static TestDirview TEST_DIRVIEW("dirview");
 static TestFile TEST_FILE("file");
 static TestPageinfo TEST_PAGEINFO("pageinfo");
+static TestPagewidget TEST_PAGEWIDGET("pagewidget");
 static TestQscanner TEST_QSCANNER("qscanner");
 static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
