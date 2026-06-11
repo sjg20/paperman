@@ -70,6 +70,10 @@ private slots:
    //! transformPage rotates and mirrors pages of each file type
    void testTransformPage();
 
+   //! a re-rendered transformed page matches the reference image
+   //! transformed in memory
+   void testTransformMatchesReference();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
