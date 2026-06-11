@@ -3034,13 +3034,18 @@ static int scale_2bpp (byte *image, cpoint *image_size, byte *preview,
          assert (in >= image && in <= image + image_line_bytes * (image_size->y - 1));
          mask = 1;
 
-         // calculate the value for each preview pixel
+         /* calculate the value for each preview pixel. The preview
+            width is padded to a multiple of 4 pixels, so the source
+            position can pass the right edge of the image: treat those
+            pixels as white rather than reading bits from the row
+            padding, which holds uninitialised data */
          for (x = 0; x < preview_size->x; x++)
             {
             sum = 0;
             for (xsub = 0; xsub < PREVIEW_SCALE; xsub++)
                {
-               sum += *in & mask ? 255 : 0;
+               if (x * PREVIEW_SCALE + xsub < image_size->x)
+                  sum += *in & mask ? 255 : 0;
                mask <<= 1;
                if (mask == 0x100)
                   {
