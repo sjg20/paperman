@@ -811,3 +811,30 @@ void TestFile::testTransformMatchesReference()
    checkTransformedRender(max, 0, File::Transform_rotate90, false);
    checkTransformedRender(max, 0, File::Transform_rotate180, false);
 }
+
+void TestFile::testTransformEmptyStack()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   /* create an empty stack, as the app does for a new stack which has
+      not been scanned into yet */
+   Filemax max(dir, "empty.max", nullptr);
+   QVERIFY(max.create() == nullptr);
+   QVERIFY(max.flush() == nullptr);
+   QCOMPARE(max.pagecount(), 0);
+
+   qint64 size_before = QFileInfo(dir + "empty.max").size();
+   QVERIFY(size_before > 0);
+
+   // there is nothing to rotate, so this must fail rather than crash
+   err_info *err = max.transformPage(0, File::Transform_rotate90);
+   QVERIFY(err != nullptr);
+
+   // and the file must be untouched and still loadable
+   QCOMPARE(QFileInfo(dir + "empty.max").size(), size_before);
+   Filemax fresh(dir, "empty.max", nullptr);
+   QVERIFY(fresh.load() == nullptr);
+   QCOMPARE(fresh.pagecount(), 0);
+}
