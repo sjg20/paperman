@@ -260,10 +260,14 @@ int utilDetectMonth(const QString& fname, int& foundPos);
  * @param matches  Returns a sorted list of matches
  * @param missing  Returns a list of directories which could be created to make
  *                 a better match
+ * @param keep_other_dates  Include directories dated with another year or
+ *                 month, ranked after the rest. Without this they are
+ *                 dropped, which suits suggestion lists but not searches
  * @return List of matches in order of quality
  */
 QStringList utilDetectMatches(const QDate& date, QStringList& matches,
-                              QStringList& missing);
+                              QStringList& missing,
+                              bool keep_other_dates = false);
 
 /**
  * @brief Check if a particular drop event is supported by Paperman
