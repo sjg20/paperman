@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QDebug>
+#include <QFile>
 
 #include "podofo/podofo.h"
 
@@ -141,22 +142,33 @@ err_info *Pdfio::create (void)
 
 err_info *Pdfio::close (void)
    {
+   /* PdfMemDocument loads objects on demand, so writing over the file
+      it is still reading from fails with an unexpected end of file.
+      Write to a temporary file and rename it into place */
+   QString tmpname = _pathname + ".tmp";
+
    try
       {
-      _doc->Write (_pathname.toLatin1 ().constData());
+      _doc->Write (tmpname.toLatin1 ().constData());
       }
    catch (const PdfError &eCode)
       {
+      QFile::remove (tmpname);
       return make_error (eCode);
       }
+   if (QFile::exists (_pathname))
+      QFile::remove (_pathname);
+   if (!QFile::rename (tmpname, _pathname))
+      return err_make (ERRFN, ERR_could_not_rename_file2,
+            qPrintable (tmpname), qPrintable (_pathname));
+
+   // reopen both libraries' views of the new file
+   delete _doc;
+   _doc = 0;
 #ifdef CONFIG_use_poppler
-   if (_pop)
-      {
-      _pop.reset();
-      CALL (open ());
-      }
+   _pop.reset();
 #endif
-   return NULL;
+   return open ();
    }
 
 
@@ -473,6 +485,7 @@ err_info *Pdfio::flush (void)
    {
    return close ();
    }
+
 
 
 int Pdfio::numPages (void)
