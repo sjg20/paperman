@@ -511,10 +511,12 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          if (!e)
             emit pageContentChanged (index, pagenum);
          }
+      else if (!f->pagecount ())
+         /* an empty stack has nothing to transform; this also happens
+            for stacks whose pages are not accessible, such as those in
+            a remote repository */
+         e = err_make (ERRFN, ERR_stack_has_no_pages);
       else
-         /* no such page: this happens for files whose pages are not
-            accessible, such as stacks in a remote repository. Report
-            it rather than silently doing nothing */
          e = f->not_impl ();
       }
    return e;
