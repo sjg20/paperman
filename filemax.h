@@ -66,6 +66,7 @@ typedef struct cache_info
 //   int alloced;   //!< amount alloced to cache
 //   int size;      //!< size of cache
    int pos;       //!< file position of data in cache
+   int len;       //!< number of valid bytes in the cache
    } cache_info;
 
 
