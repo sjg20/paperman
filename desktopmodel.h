@@ -100,6 +100,7 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCChangeDir;
    friend class UCRenameStack;
    friend class UCRenamePage;
+   friend class UCTransformPage;
    friend class UCDeletePages;
    friend class UCUpdateAnnot;
    friend class UCAddRepository;
@@ -508,6 +509,14 @@ public:
       \param newname new name for page */
    void renamePage (const QModelIndex &index, QString newname);
 
+   /** transform (rotate or mirror) a page of a stack, with undo
+
+      \param index    source model index of stack
+      \param pagenum  page to transform
+      \param op       transform to apply */
+   void transformPage (const QModelIndex &index, int pagenum,
+         File::e_transform op);
+
    /** add a new repository to the list. Supports undo.
 
      \param dirPath  path to repository */
@@ -719,6 +728,14 @@ protected:
       \param newname the new name to be given
       \returns       error, or NULL if none */
    err_info *opRenamePage (const QModelIndex &index, int pagenum, QString &newname);
+
+   /** transform (rotate or mirror) a page of a stack
+
+      \param index    index of stack
+      \param pagenum  page to transform
+      \param op       transform to apply */
+   err_info *opTransformPage (const QModelIndex &index, int pagenum,
+         File::e_transform op);
 
    /** delete a list of pages from a stack.
 

@@ -319,6 +319,29 @@ private:
    };
 
 
+/** transform (rotate or mirror) a page of a stack */
+
+class UCTransformPage : public Desktopundocmd
+   {
+public:
+   /** create an undo record for transforming a page, and execute it
+
+      \param model    model to work with
+      \param ind      model index of stack
+      \param pagenum  page to transform
+      \param op       transform to apply */
+   UCTransformPage (Desktopmodel *model, const QModelIndex &ind, int pagenum,
+         File::e_transform op);
+   void redo();
+   void undo();
+private:
+   QString _dir;       //!< desk directory
+   QString _fname;     //!< filename of stack
+   int _pagenum;       //!< the page number to transform
+   File::e_transform _op;   //!< the transform to apply
+   };
+
+
 /** update stack annotations. To redo this we write the updatein the
 maxdesk layer. To undo we write the old details */
 

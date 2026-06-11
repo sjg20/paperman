@@ -185,6 +185,15 @@ void Desktopmodel::renameStack (const QModelIndex &index, QString newname)
    }
 
 
+void Desktopmodel::transformPage (const QModelIndex &index, int pagenum,
+      File::e_transform op)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+
+   _undo->push (new UCTransformPage (this, index, pagenum, op));
+   }
+
+
 void Desktopmodel::renamePage (const QModelIndex &index, QString newname)
    {
    _modelconv->assertIsSource (0, &index, 0);
