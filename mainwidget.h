@@ -52,6 +52,7 @@ struct print_info;
 #include <QStackedWidget>
 
 #include "desk.h"
+#include "file.h"
 #include "qwidget.h"
 #include "options.h"
 
@@ -226,6 +227,10 @@ public slots:
    void resizeAll ();
 
    void rotate (int degrees);
+
+   /** transform the current page of the selection (or the page being
+       shown in the page view) */
+   void transformPages (File::e_transform op);
 
    void flip (bool horiz);
 
