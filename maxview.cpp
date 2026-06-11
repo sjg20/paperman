@@ -544,7 +544,13 @@ int main (int argc, char *argv[])
       that they cannot read or modify the user's real configuration.
       This covers both QSettings (via XDG_CONFIG_HOME) and the xml
       config in ~/.maxview (via HOME). The QTemporaryDir is static so
-      the directory is removed when the process exits */
+      the directory is removed when the process exits.
+
+      Also point SANE at the scratch directory: with no dll.conf there,
+      no backends are loaded, so device enumeration returns at once
+      instead of probing the host's scanners (which takes many seconds
+      per sane_init). The tests only use the built-in simulated
+      scanner, which does not need a backend */
    for (int i = 1; i < argc; i++)
       if (!strcmp (argv [i], "-t"))
          {
@@ -552,6 +558,7 @@ int main (int argc, char *argv[])
          qputenv ("HOME", test_home.path ().toLocal8Bit ());
          qputenv ("XDG_CONFIG_HOME",
                   (test_home.path () + "/.config").toLocal8Bit ());
+         qputenv ("SANE_CONFIG_DIR", test_home.path ().toLocal8Bit ());
          break;
          }
 
