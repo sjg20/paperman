@@ -4156,10 +4156,10 @@ err_info *encode_tile (chunk_info &chunk, encode_info &encode, int *sizep,
          break;
       }
 
-   // get size, rounding up to word boundary
-//   *sizep = out - encode->buff;
+   /* round up to a word boundary, zeroing the padding so that no
+      uninitialised bytes are written to the file */
    while (size & 3)
-      size++;
+      out [size++] = '\0';
    *sizep = size;
    return NULL;
    }
@@ -4186,7 +4186,7 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
       size plus headroom */
    encode.size = chunk.tile_size.x * chunk.tile_size.y *
          (bpp == 1 ? 1 : 4) + 1024;
-   encode.buff = (byte *)malloc (encode.size);
+   encode.buff = (byte *)malloc (encode.size + 8);
    if (!encode.buff)
       return ERR (-ENOMEM);
 
