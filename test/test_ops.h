@@ -76,6 +76,9 @@ private slots:
    //! Test that findFolders works after a cache refresh
    void testFindFoldersSuggestsMonthAfterRefresh();
 
+   //! Test that findFolders finds folders for other years by name
+   void testFindFoldersOtherYear();
+
    //! Test that the print options count pages correctly
    void testPrintCountPages();
 

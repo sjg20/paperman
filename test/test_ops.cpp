@@ -440,6 +440,37 @@ void TestOps::testRenamePage()
             "Page 1");
 }
 
+void TestOps::testFindFoldersOtherYear()
+{
+   Mainwindow me;
+
+   /* a folder which carries a year in its name must still be found
+      when the user searches for it by name, even though the year is
+      not the current one */
+   auto path = setupRepo();
+   QDir dir(path);
+   Q_ASSERT(dir.mkpath("digs/palace/landscaping 2024"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   QModelIndex root = dirmodel->index(path);
+   QCOMPARE(root.isValid(), true);
+
+   QStringList missing;
+   QStringList folders = dirmodel->findFolders("landscaping", path, root,
+                                               missing, nullptr);
+   QCOMPARE(folders.size(), 1);
+   QVERIFY(folders[0].contains("digs/palace/landscaping 2024"));
+
+   /* with nothing typed, other-year folders are still left out so that
+      the suggestion list is not flooded with old directories */
+   folders = dirmodel->findFolders("", path, root, missing, nullptr);
+   QVERIFY(!folders.join(",").contains("landscaping"));
+}
+
 void TestOps::testPrintCountPages()
 {
    QModelIndex repo_ind;
