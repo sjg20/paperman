@@ -511,6 +511,11 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          if (!e)
             emit pageContentChanged (index, pagenum);
          }
+      else
+         /* no such page: this happens for files whose pages are not
+            accessible, such as stacks in a remote repository. Report
+            it rather than silently doing nothing */
+         e = f->not_impl ();
       }
    return e;
    }
