@@ -1278,7 +1278,11 @@ QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
 
    QDate date = QDate::currentDate();
 
-   return utilDetectMatches(date, matches, missing);
+   /* when the user has typed something, include directories dated with
+      another year or month: a search for a folder by name must find it
+      even if it is old. With nothing typed the list is a suggestion of
+      current folders, so old dates are left out */
+   return utilDetectMatches(date, matches, missing, !text.isEmpty());
 }
 
 const TreeItem *Dirmodel::findDir(const TreeItem *parent, QString path)

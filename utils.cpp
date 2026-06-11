@@ -739,7 +739,8 @@ int utilDetectMonth(const QString& fname, int& foundPos)
 }
 
 QStringList utilDetectMatches(const QDate& date, QStringList& matches,
-                              QStringList& missing)
+                              QStringList& missing,
+                              bool keep_other_dates)
 {
    QStringList to_sort, suggests;
 
@@ -774,7 +775,12 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches,
          suggests << suggest;
 
       if (skip)
-         ;
+         {
+         /* the directory is dated with another year or month: keep it,
+            after everything else, if the caller asked for that */
+         if (keep_other_dates)
+            to_sort << "4" + item;
+         }
       else if (year && month)
          to_sort << "1" + item;
       else if (year && !month)
