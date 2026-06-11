@@ -16,6 +16,9 @@ public:
     using Suite::Suite;
 
 private slots:
+   //! Test that the user name is found without a controlling terminal
+   void testUserName();
+
    void testDetectYear();
    void testDetectMonth();
    void testDetectMatches();
