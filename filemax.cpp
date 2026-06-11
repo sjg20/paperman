@@ -4545,15 +4545,15 @@ static int add_image_header (chunk_info &chunk, byte *buf)
 
 err_info *Filemax::max_replace_page (page_info &page, Filemaxpage &mp)
    {
-   page_info newpage;
-
-   page_init (page);
-   page.titlestr = mp.name ();
+   /* give the page a fresh chunkid, matching what addPage() does. The
+      page keeps its existing chunk positions: insert_chunk() reuses
+      each one where the new data fits and relocates it where not. The
+      text chunk is untouched, so any OCR text survives */
+   CALL (ensure_open ());
    page.chunkid = _chunkid_next;
-   CALL (max_setup_page (newpage, mp));
-   free_page (page);
-   page = newpage;
-   return flush ();
+   page.titlestr = mp.name ();
+   CALL (max_setup_page (page, mp));
+   return flush ();   // this also closes the file
    }
 
 err_info *Filemaxpage::compress (void)
