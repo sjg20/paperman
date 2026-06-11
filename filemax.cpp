@@ -1511,7 +1511,8 @@ position in the image of the top left of the tile
    \param stride     image stride (line_bytes) value, pass as -1 to use
                             chunk->line_bytes */
 static byte *get_tile_size (chunk_info &chunk, int x, int y, cpoint *tile_size,
-                  int *tilenum, int stride, int tile_stride)
+                  int *tilenum, int stride, int tile_stride,
+                  int *valid_xp = NULL)
    {
    byte *ptr;
 
@@ -1531,6 +1532,13 @@ static byte *get_tile_size (chunk_info &chunk, int x, int y, cpoint *tile_size,
    tile_size->x = chunk.image_size.x - chunk.tile_size.x * x;
    if (tile_size->x > chunk.tile_size.x)
       tile_size->x = chunk.tile_size.x;
+
+   /* the tile width is padded to a multiple of 8 pixels, so it can
+      extend past the right edge of the image. Return the unpadded
+      width so that the encoder does not read pixels which don't
+      exist */
+   if (valid_xp)
+      *valid_xp = tile_size->x;
    tile_size->x = (tile_size->x + 7) & ~7;
    *tilenum = chunk.tile_extent.x * y + x;  // tile sequence number
    return ptr;
@@ -4118,7 +4126,7 @@ static err_info *encode_g4 (byte *out, int tile_line_bytes, byte *end,
 
 err_info *encode_tile (chunk_info &chunk, encode_info &encode, int *sizep,
               byte *ptr, cpoint *tile_size, int stride, int bpp,
-              int tile_line_bytes, int debug_max_steps)
+              int tile_line_bytes, int debug_max_steps, int valid_x)
    {
    byte *out = encode.buff, *end = encode.buff + encode.size;
    int size;
@@ -4142,7 +4150,7 @@ err_info *encode_tile (chunk_info &chunk, encode_info &encode, int *sizep,
       case 32 :
          size = encode.size;
          jpeg_encode (ptr, tile_size, out, &size, bpp, stride,
-              JPEG_QUALITY);
+              JPEG_QUALITY, valid_x);
          break;
       }
 
@@ -4186,10 +4194,11 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
          {
          int tilenum;
          int tile_line_bytes;
+         int valid_x;
 
          // recalculate tile_line_bytes each time
          ptr = get_tile_size (chunk, x, y, &tile_size, &tilenum, stride,
-                  encode.tile_line_bytes);
+                  encode.tile_line_bytes, &valid_x);
 
          calc_tile_bytes (tile_size.x, chunk.image_size.x, bpp,
                     &tile_line_bytes, &temp, false);
@@ -4202,7 +4211,7 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
             debug2 (("encoding tile %d (%d, %d), bpp %d, size %d x %d (0x%x x 0x%d)\n", tilenum, x, y,
                   bpp, tile_size.x, tile_size.y, tile_size.x, tile_size.y));
             e = encode_tile (chunk, encode, &size, ptr, &tile_size, stride,
-                  bpp, tile_line_bytes, debug.max_steps);
+                  bpp, tile_line_bytes, debug.max_steps, valid_x);
             if (e)
                {
                printf ("encode_tile() failed, tile %d\n", tilenum);
