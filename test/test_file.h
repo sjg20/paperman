@@ -74,6 +74,10 @@ private slots:
    //! transformed in memory
    void testTransformMatchesReference();
 
+   //! transforming an empty stack reports an error and leaves the
+   //! file intact
+   void testTransformEmptyStack();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
