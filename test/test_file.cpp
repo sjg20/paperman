@@ -743,3 +743,71 @@ void TestFile::testTransformPage()
             File::Transform_hflip);
 }
 
+/* Compare a page rendered after transformPage() against the original
+   render transformed in memory. The stored page may be wider than the
+   reference because of format padding, so compare the reference-sized
+   region; lossless pages must match exactly, JPEG pages nearly */
+static void checkTransformedRender(Filemax &max, int pagenum,
+                                   File::e_transform op, bool lossless)
+{
+   QImage a, b;
+   QSize size, trueSize;
+   int bpp;
+
+   QVERIFY(!max.getImage(pagenum, false, a, size, trueSize, bpp, false));
+   QVERIFY(!max.transformPage(pagenum, op));
+   QVERIFY(!max.getImage(pagenum, false, b, size, trueSize, bpp, false));
+
+   QImage expected = File::transformImage(a, op);
+   QVERIFY(b.width() >= expected.width());
+   QVERIFY(b.width() < expected.width() + 32);
+   QVERIFY(b.height() >= expected.height());
+   QVERIFY(b.height() < expected.height() + 32);
+
+   QImage got = b.copy(0, 0, expected.width(), expected.height())
+                   .convertToFormat(QImage::Format_Grayscale8);
+   QImage want = expected.convertToFormat(QImage::Format_Grayscale8);
+
+   qint64 total = 0, worst = 0;
+   for (int y = 0; y < want.height(); y++) {
+      const uchar *pg = got.constScanLine(y);
+      const uchar *pw = want.constScanLine(y);
+      for (int x = 0; x < want.width(); x++) {
+         int d = qAbs(int(pg[x]) - int(pw[x]));
+         total += d;
+         if (d > worst)
+            worst = d;
+      }
+   }
+   qint64 mean = total / (qint64(want.width()) * want.height());
+   if (lossless) {
+      QVERIFY2(worst == 0, qPrintable(QString("worst pixel diff %1")
+                                      .arg(worst)));
+   } else {
+      QVERIFY2(mean < 4, qPrintable(QString("mean pixel diff %1")
+                                    .arg(mean)));
+   }
+
+   // put the page back for the next check
+   QVERIFY(!max.transformPage(pagenum, File::transformInverse(op)));
+}
+
+void TestFile::testTransformMatchesReference()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   copyFixture("testfile.max", tmp.path());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   // page 3 is a 1-bit text page, compressed losslessly
+   checkTransformedRender(max, 3, File::Transform_rotate90, true);
+   checkTransformedRender(max, 3, File::Transform_rotate180, true);
+   checkTransformedRender(max, 3, File::Transform_vflip, true);
+
+   // page 0 is a colour page with JPEG tiles, so allow encoding loss
+   checkTransformedRender(max, 0, File::Transform_rotate90, false);
+   checkTransformedRender(max, 0, File::Transform_rotate180, false);
+}
