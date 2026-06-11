@@ -172,6 +172,9 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect (_delegate, SIGNAL (itemDoubleClicked (const QModelIndex &)),
       this, SLOT (openStack (const QModelIndex &)));
 
+   connect (_contents,
+            SIGNAL (pageContentChanged (const QModelIndex &, int)),
+            this, SLOT (slotPageContentChanged (const QModelIndex &, int)));
    connect (_contents, SIGNAL (undoChanged ()),
       this, SIGNAL (undoChanged ()));
    connect (_contents, SIGNAL (dirChanged (QString&, QModelIndex&)),
@@ -1145,6 +1148,18 @@ void Desktopwidget::slotUpdateDone ()
 void Desktopwidget::openStack (const QModelIndex &index)
    {
    emit showPage (index);
+   }
+
+
+/* the image of a page has changed (e.g. it has been rotated):
+   redisplay it if it is in the preview pane */
+void Desktopwidget::slotPageContentChanged (const QModelIndex &index, int)
+   {
+   QModelIndex ind = index;
+
+   _modelconv->indexToProxy (_contents, ind);
+   if (ind.isValid () && ind == _update_index)
+      _page->showPages (ind.model (), ind, 0, -1, -1, true);
    }
 
 

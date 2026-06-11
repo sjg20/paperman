@@ -506,6 +506,8 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          f->setPagenum (pagenum);
          }
       buildItem (index);
+      if (!e)
+         emit pageContentChanged (index, pagenum);
       }
    return e;
    }

@@ -392,6 +392,9 @@ private slots:
 
    void updatePreview (void);
 
+   /** redisplay a page in the preview pane if its image has changed */
+   void slotPageContentChanged (const QModelIndex &index, int pagenum);
+
    //! duplicate the selected items
    void duplicate (void);
 
