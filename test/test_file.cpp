@@ -508,3 +508,51 @@ void TestFile::testStackItemTypeMismatch()
    delete pdf;
    delete jpg;
 }
+
+void TestFile::testCacheBoundaryReads()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QString path = copyFixture("testfile.max", tmp.path());
+   QVERIFY(!path.isEmpty());
+
+   QFile raw(path);
+   QVERIFY(raw.open(QIODevice::ReadOnly));
+   QByteArray bytes = raw.readAll();
+   QVERIFY(bytes.size() > 3 * 4096 + 4200);
+
+   Filemax f(dir, "testfile.max", nullptr);
+   QVERIFY(f.load() == nullptr);
+   QVERIFY(f.ensure_open() == nullptr);
+
+   auto hw_at = [&bytes](int pos) {
+      return int(quint8(bytes[pos]) | quint8(bytes[pos + 1]) << 8);
+   };
+   auto word_at = [&bytes](int pos) {
+      return int(quint32(quint8(bytes[pos]))
+                 | quint32(quint8(bytes[pos + 1])) << 8
+                 | quint32(quint8(bytes[pos + 2])) << 16
+                 | quint32(quint8(bytes[pos + 3])) << 24);
+   };
+
+   /* getword() and gethw() read through a 4KB cache window which has a
+      few bytes of padding on the end. A read which straddles the end
+      of the window's valid data must reload the cache rather than
+      returning padding bytes, which are not file data. Seed the window
+      at a known start, then read across its boundary, checking every
+      value against the raw file bytes */
+   for (int window = 0; window <= 2 * 4096; window += 4096)
+      for (int off = 4090; off <= 4096; off++) {
+         int pos = window + off;
+
+         f.gethw(window);   // make the cache window start at 'window'
+         QCOMPARE(f.getword(pos), word_at(pos));
+
+         f.gethw(window);
+         QCOMPARE(f.gethw(pos), hw_at(pos));
+      }
+
+   // a halfword at the very end of the file can still be read
+   QCOMPARE(f.gethw(bytes.size() - 2), hw_at(bytes.size() - 2));
+}
