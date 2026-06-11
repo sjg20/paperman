@@ -734,9 +734,9 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
    {
    int n;
 
-   // Allocate extra padding so that callers which read a 4-byte word
-   // near the end of the buffer (e.g. decode_compressed_tile) do not
-   // overflow.  Qt zero-fills the extra bytes.
+   /* Allocate extra padding so that callers which read a 4-byte word
+      near the end of the buffer (e.g. decode_compressed_tile) do not
+      overflow */
    cache.buff.resize (size + 4);
 
    // read the data
@@ -751,9 +751,16 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
                _size);
       }
 
+   /* Zero everything fread() did not fill, including the padding. Qt 5
+      zero-filled the bytes added by resize() but Qt 6 leaves them
+      uninitialised, so a caller reading into the padding would see
+      values which change from run to run */
+   memset (cache.buff.data () + n, 0, cache.buff.size () - n);
+
    if (datap)
       *datap = (byte *)cache.buff.data ();
    cache.pos = pos;
+   cache.len = n;
    return NULL;
    }
 
@@ -764,9 +771,14 @@ byte *Filemax::max_check_scache (int pos)
    err_info *err = NULL;
 
 #define CACHE_4K_SIZE  4096
-   // if the cache has the wrong data, load it
-   if (pos < _scache.pos || (pos + 4 > _scache.pos + _scache.buff.size ()))
-      err = max_cache_data (_scache, pos, CACHE_4K_SIZE, 4, NULL);
+   /* Reload the cache unless all 4 bytes lie within the valid data.
+      Checking against the valid length matters: the buffer is padded,
+      and a read which straddles the end of the data would otherwise
+      return padding bytes instead of the real file contents. A minimum
+      of 2 allows a halfword read at the very end of the file, where
+      the padding is zeroed */
+   if (pos < _scache.pos || pos + 4 > _scache.pos + _scache.len)
+      err = max_cache_data (_scache, pos, CACHE_4K_SIZE, 2, NULL);
 
    // return the data
    if (err)
@@ -812,6 +824,7 @@ void Filemax::max_clear_cache (cache_info &cache, int pos, int size)
       {
       cache.buff.clear ();
       cache.pos = 0;
+      cache.len = 0;
       }
    }
 
