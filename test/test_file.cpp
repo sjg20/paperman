@@ -629,6 +629,64 @@ void TestFile::testTransformPage()
       QCOMPARE(max.pagecount(), 5);
    }
 
+   // --- max: a 1-bit text page survives rotation ---
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+
+      QImage orig, image;
+      QSize size, trueSize;
+      int bpp;
+      QVERIFY(!max.getImage(3, false, orig, size, trueSize, bpp, false));
+      qDebug() << "page 3 bpp" << bpp << "format" << orig.format();
+
+      QVERIFY(!max.transformPage(3, File::Transform_rotate90));
+      QVERIFY(!max.getImage(3, false, image, size, trueSize, bpp, false));
+
+      // 1-bit images are stored with the width padded to 32 pixels
+      QVERIFY(image.width() >= orig.height());
+      QVERIFY(image.width() < orig.height() + 32);
+
+      /* the page must not come back blank: it has text, so a fair
+         number of pixels are dark */
+      QImage grey = image.convertToFormat(QImage::Format_Grayscale8);
+      int dark = 0;
+      for (int y = 0; y < grey.height(); y += 4) {
+         const uchar *p = grey.constScanLine(y);
+         for (int x = 0; x < grey.width(); x += 4)
+            if (p[x] < 128)
+               dark++;
+      }
+      qDebug() << "dark pixels" << dark;
+      QVERIFY(dark > 100);
+
+      /* a fresh object reading the file from disk must see the rotated
+         page too, and its preview must not be blank */
+      {
+         Filemax fresh(dir, "testfile.max", nullptr);
+         QVERIFY(fresh.load() == nullptr);
+         QImage fimage;
+         QVERIFY(!fresh.getImage(3, false, fimage, size, trueSize, bpp,
+                                 false));
+         qDebug() << "fresh size" << fimage.size();
+         QVERIFY(nearlySame(fimage, image));
+
+         QPixmap pixmap;
+         QVERIFY(!fresh.getPreviewPixmap(3, pixmap, false));
+         QImage pgrey =
+            pixmap.toImage().convertToFormat(QImage::Format_Grayscale8);
+         int pdark = 0;
+         for (int y = 0; y < pgrey.height(); y++) {
+            const uchar *p = pgrey.constScanLine(y);
+            for (int x = 0; x < pgrey.width(); x++)
+               if (p[x] < 128)
+                  pdark++;
+         }
+         qDebug() << "preview size" << pixmap.size() << "dark" << pdark;
+         QVERIFY(pdark > 20);
+      }
+   }
+
    // --- pdf: rotation works, mirroring is not available ---
    {
       copyFixture("testpdf.pdf", tmp.path());
@@ -684,3 +742,4 @@ void TestFile::testTransformPage()
    QCOMPARE(File::transformInverse(File::Transform_hflip),
             File::Transform_hflip);
 }
+
