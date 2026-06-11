@@ -2,6 +2,7 @@ TEMPLATE = app
 LANGUAGE = C++
 QT += widgets
 QT += printsupport
+QT += network
 QT += testlib
 QT += sql
 QT += concurrent
@@ -136,7 +137,12 @@ HEADERS += desktopwidget.h \
  transfer.h \
     filejpeg.h \
     qlistwidgetitemiterator.h \
-    searchindex.h
+    searchindex.h \
+    backend.h \
+    backendstats.h \
+    cachedfile.h \
+    localbackend.h \
+    remotebackend.h
 
 SOURCES += desktopwidget.cpp \
    folderlist.cpp \
@@ -222,7 +228,11 @@ SOURCES += desktopwidget.cpp \
  transfer.cpp \
     filejpeg.cpp \
     qlistwidgetitemiterator.cpp \
-    searchindex.cpp 
+    searchindex.cpp \
+    backend.cpp \
+    backendstats.cpp \
+    localbackend.cpp \
+    remotebackend.cpp
 
 # add qtcreator debug macros if we are debugging
 #SOURCES += /usr/share/qtcreator/gdbmacros/gdbmacros.cpp
@@ -255,10 +265,6 @@ test {
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
       searchserver.cpp \
-      backend.cpp \
-      backendstats.cpp \
-      localbackend.cpp \
-      remotebackend.cpp \
       serverlog.cpp \
       tokenstore.cpp \
       userstore.cpp
@@ -275,18 +281,12 @@ test {
       test/test_utils.h \
       test/test_searchserver.h \
       test/test_ocrsearch.h \
-      backend.h \
-      backendstats.h \
-      cachedfile.h \
-      localbackend.h \
-      remotebackend.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \
       userstore.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
-    QT += network
     QT += concurrent
 }
 
