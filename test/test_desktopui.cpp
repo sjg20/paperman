@@ -82,9 +82,6 @@ void TestDesktopUi::testClickSelectsStack()
    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
                      space);
    QVERIFY(!view->isSelection(Desktopview::SEL_at_least_one));
-
-   // Let the preview timer fire so it doesn't outlive the window
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testCtrlClickMultiSelect()
@@ -111,7 +108,6 @@ void TestDesktopUi::testCtrlClickMultiSelect()
    QCOMPARE(model->data(sel[0], Qt::DisplayRole).toString(),
             "testpdf.pdf");
 
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testDoubleClickOpensStack()
@@ -202,7 +198,6 @@ void TestDesktopUi::testToolbarStackNavigation()
    QCOMPARE(sel.size(), 1);
    QCOMPARE(model->data(sel[0], Qt::DisplayRole).toString(), "testfile");
 
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testToolbarPageNavigation()
@@ -248,7 +243,6 @@ void TestDesktopUi::testToolbarPageNavigation()
       QTest::mouseClick(p_next, Qt::LeftButton);
    QCOMPARE(model->data(src_ind, Desktopmodel::Role_pagenum).toInt(), 4);
 
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testStackNavigationWraps()
@@ -279,7 +273,6 @@ void TestDesktopUi::testStackNavigationWraps()
    QCOMPARE(sel.size(), 1);
    QCOMPARE(sel[0].row(), 1);
 
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testSelectAllAction()
@@ -340,7 +333,6 @@ void TestDesktopUi::testStackAndMenuUndo()
    me.actionRedo->trigger();
    QCOMPARE(model->rowCount(repo_ind), 2);
 
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testFilterStacks()
@@ -593,7 +585,6 @@ void TestDesktopUi::testEmailSingleStack()
    // A Gmail compose window should have been requested
    QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
 
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testEmailMultipleStacksZips()
@@ -663,7 +654,6 @@ void TestDesktopUi::testEmailAsPdfConverts()
    QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
 
    QFile::remove(pdf);
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testDragDropToFolder()
@@ -704,7 +694,6 @@ void TestDesktopUi::testDragDropToFolder()
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
 
    delete mime;
-   QTest::qWait(350);
 }
 
 void TestDesktopUi::testImportFlow()
@@ -770,7 +759,7 @@ void TestDesktopUi::testScanIntoStack()
    /* the simulated ADF holds 120 pages, so press the stop button (which
       finishes the current page and ends the scan) shortly after the
       scan begins */
-   QTimer::singleShot(1000, main, [main]() { main->stopScan(false); });
+   QTimer::singleShot(400, main, [main]() { main->stopScan(false); });
    me.actionScango->trigger();
 
    xmlConfig->setStringValue("LAST_DEVICE", old_device);
