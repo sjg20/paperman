@@ -1,6 +1,8 @@
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 
+#include <cstring>
+
 #include "err.h"
 #include "file.h"
 #include "filejpeg.h"
@@ -767,23 +769,26 @@ static void checkTransformedRender(Filemax &max, int pagenum,
    QImage got = b.copy(0, 0, expected.width(), expected.height())
                    .convertToFormat(QImage::Format_Grayscale8);
    QImage want = expected.convertToFormat(QImage::Format_Grayscale8);
+   QCOMPARE(got.size(), want.size());
 
-   qint64 total = 0, worst = 0;
-   for (int y = 0; y < want.height(); y++) {
-      const uchar *pg = got.constScanLine(y);
-      const uchar *pw = want.constScanLine(y);
-      for (int x = 0; x < want.width(); x++) {
-         int d = qAbs(int(pg[x]) - int(pw[x]));
-         total += d;
-         if (d > worst)
-            worst = d;
-      }
-   }
-   qint64 mean = total / (qint64(want.width()) * want.height());
    if (lossless) {
-      QVERIFY2(worst == 0, qPrintable(QString("worst pixel diff %1")
-                                      .arg(worst)));
+      /* the two routes must produce identical bytes: compare each row
+         directly (the rows are compared individually because the
+         scanline padding bytes are not meaningful) */
+      for (int y = 0; y < want.height(); y++)
+         QVERIFY2(!memcmp(got.constScanLine(y), want.constScanLine(y),
+                          want.width()),
+                  qPrintable(QString("row %1 differs").arg(y)));
    } else {
+      // JPEG tiles are recompressed, so allow a small mean difference
+      qint64 total = 0;
+      for (int y = 0; y < want.height(); y++) {
+         const uchar *pg = got.constScanLine(y);
+         const uchar *pw = want.constScanLine(y);
+         for (int x = 0; x < want.width(); x++)
+            total += qAbs(int(pg[x]) - int(pw[x]));
+      }
+      qint64 mean = total / (qint64(want.width()) * want.height());
       QVERIFY2(mean < 4, qPrintable(QString("mean pixel diff %1")
                                     .arg(mean)));
    }
