@@ -68,6 +68,7 @@ enum
    ERR_bermuda_chunk_corrupt1,
    ERR_g4_compression_failed,
    ERR_g4_decompression_failed,
+   ERR_jpeg_compression_failed,
    ERR_could_not_create_directory1,
    ERR_could_not_write_image_to_as2,
    ERR_could_not_read_multipage_images1,
