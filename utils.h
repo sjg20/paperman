@@ -154,8 +154,22 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
 
 QString removeExtension (const QString &fname, QString &ext);
 
+/** JPEG-encode an image tile
+
+   \param image       source pixels
+   \param tile_size   tile size in pixels (the width may be padded
+                      beyond the source image)
+   \param outbuff     output buffer
+   \param size        in: buffer size; out: encoded size
+   \param bpp         source depth (8, 24 or 32)
+   \param line_bytes  source bytes per line
+   \param quality     JPEG quality (0-100)
+   \param valid_width number of pixels present in each source row; any
+                      further (padding) columns repeat the last valid
+                      pixel rather than reading beyond the source.
+                      -1 means the full tile width is valid */
 void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
-            int bpp, int line_bytes, int quality);
+            int bpp, int line_bytes, int quality, int valid_width = -1);
 
 void memtest (const char *name);
 

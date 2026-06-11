@@ -321,7 +321,7 @@ static void term_destination (j_compress_ptr cinfo)
 
 
 void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
-            int bpp, int line_bytes, int quality)
+            int bpp, int line_bytes, int quality, int valid_width)
    {
   struct jpeg_compress_struct cinfo;
   jpeg_dest_info dest;
@@ -347,8 +347,17 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
 
 //  printf ("jpeg_encode: bpp=%d\n", bpp);
 
+  /* the tile may be wider than the source image (it is padded to a
+     multiple of 8 pixels), in which case only valid_width pixels exist
+     in each source row and the rest must be synthesised */
+  int out_bpp = bpp == 8 ? 1 : 3;
+  int valid = valid_width;
+  if (valid < 1 || valid > tile_size->x)
+     valid = tile_size->x;
+
   *size = 0;
-  buff = (byte *)malloc (row_stride);
+  bytes = tile_size->x * out_bpp;
+  buff = (byte *)malloc (bytes > row_stride ? bytes : row_stride);
   if (!buff)
      return;   // should report error, but I suppose *size is 0
 
@@ -366,7 +375,6 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
      cinfo.image_height = tile_size->y;
      cinfo.input_components = bpp == 8 ? 1 : 3;    /* # of color components per pixel */
      cinfo.in_color_space = bpp == 8 ? JCS_GRAYSCALE : JCS_RGB;   /* colorspace of input image */
-     bytes = cinfo.image_width * bpp / 8;
      jpeg_set_defaults(&cinfo);
      jpeg_set_quality(&cinfo, quality, true /* limit to baseline-JPEG values */);
 
@@ -386,7 +394,7 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
           u_int32_t *in;
           byte *out;
 
-          for (i = cinfo.image_width, in = (unsigned *)ptr, out = buff; i != 0;
+          for (i = valid, in = (unsigned *)ptr, out = buff; i != 0;
                i--, in++, out += 3)
              {
              out [2] = *in;
@@ -395,7 +403,12 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
              }
           }
        else
-          memcpy (buff, ptr, bytes);
+          memcpy (buff, ptr, valid * out_bpp);
+
+       // fill the padding columns by repeating the last valid pixel
+       for (int x = valid; x < (int)cinfo.image_width; x++)
+          memcpy (buff + x * out_bpp, buff + (valid - 1) * out_bpp,
+                  out_bpp);
        (void) jpeg_write_scanlines(&cinfo, row_pointer, 1);
      }
 
