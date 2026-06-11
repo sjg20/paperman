@@ -147,6 +147,7 @@ typedef struct page_info
 class Filemax : public File
    {
    Q_OBJECT
+   friend class TestFile;
 
 public:
    Filemax (const QString &dir, const QString &filename, Desk *desk);

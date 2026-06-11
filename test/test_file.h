@@ -63,6 +63,10 @@ private slots:
    //! to the per-subclass stackStack
    void testStackItemTypeMismatch();
 
+   //! getword/gethw return real file bytes even when the read straddles
+   //! the end of a cache window
+   void testCacheBoundaryReads();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
