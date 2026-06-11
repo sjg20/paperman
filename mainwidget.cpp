@@ -1292,15 +1292,54 @@ err_info *Mainwidget::operation (Desk::operation_t type, int ival)
    }
 
 
+/* transform the target pages: in the page view this is the page being
+   shown; on the desktop it is the current page of each selected stack */
+void Mainwidget::transformPages (File::e_transform op)
+   {
+   Desktopmodel *model = _desktop->getModel ();
+
+   if (currentWidget () == _page)
+      {
+      QModelIndex ind;
+
+      if (!_page->getCurrentIndex (ind, true))
+         return;
+      model->transformPage (ind, _page->getCurrentPage (), op);
+
+      // show the transformed page
+      _page->showPages (model, ind, 0, -1, _page->getCurrentPage (), true);
+      }
+   else
+      {
+      QModelIndexList list = _view->getSelectedListSource ();
+
+      foreach (QModelIndex ind, list)
+         model->transformPage (ind,
+               model->data (ind, Desktopmodel::Role_pagenum).toInt (), op);
+
+      // update the preview pane with the first transformed stack
+      if (!list.isEmpty ())
+         {
+         QModelIndex ind = list [0];
+
+         _desktop->getModelconv ()->indexToProxy (model, ind);
+         _desktop->slotItemPreview (ind, 0, true);
+         }
+      }
+   }
+
+
 void Mainwidget::rotate (int degrees)
 {
-   complain(operation (Desk::op_rotate, degrees));
+   transformPages (degrees == 90 ? File::Transform_rotate90
+         : degrees == 180 || degrees == -180 ? File::Transform_rotate180
+         : File::Transform_rotate270);
 }
 
 
 void Mainwidget::flip (bool horiz)
 {
-   complain(operation(horiz ? Desk::op_hflip : Desk::op_vflip, 0));
+   transformPages (horiz ? File::Transform_hflip : File::Transform_vflip);
 }
 
 
