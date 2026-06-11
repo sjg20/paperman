@@ -427,6 +427,18 @@ err_info *Filejpeg::getImage (int pagenum, bool,
 
 
 
+err_info *Filejpeg::transformPage (int pagenum, e_transform op)
+   {
+   QImage image;
+
+   CALL (load ());
+   CALL (loadPage (pagenum, image));
+
+   _pages [pagenum]->setImage (transformImage (image, op));
+   return _pages [pagenum]->flush (_dir);
+   }
+
+
 // operations on files
 
 err_info *Filejpeg::addPage (const Filepage *mp, bool do_flush)

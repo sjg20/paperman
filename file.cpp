@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QFile>
 #include <QFileInfo>
 #include <QPainter>
+#include <QTransform>
 #include <QPixmap>
 #include <QTextStream>
 #include <QtConcurrent>
@@ -772,6 +773,39 @@ err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
    return NULL;
    }
 #endif
+
+
+File::e_transform File::transformInverse (e_transform op)
+   {
+   switch (op)
+      {
+      case Transform_rotate90 :
+         return Transform_rotate270;
+      case Transform_rotate270 :
+         return Transform_rotate90;
+      default :
+         return op;   // the others undo themselves
+      }
+   }
+
+
+QImage File::transformImage (const QImage &image, e_transform op)
+   {
+   switch (op)
+      {
+      case Transform_rotate90 :
+         return image.transformed (QTransform ().rotate (90));
+      case Transform_rotate180 :
+         return image.transformed (QTransform ().rotate (180));
+      case Transform_rotate270 :
+         return image.transformed (QTransform ().rotate (270));
+      case Transform_hflip :
+         return image.mirrored (true, false);
+      case Transform_vflip :
+         return image.mirrored (false, true);
+      }
+   return image;
+   }
 
 
 err_info *File::not_impl (void)

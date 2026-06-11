@@ -264,6 +264,30 @@ public:
 
    virtual err_info *renamePage (int pagenum, QString &name) = 0;
 
+   /** transformations which can be applied to a page image */
+   enum e_transform
+      {
+      Transform_rotate90,     //!< rotate 90 degrees clockwise
+      Transform_rotate180,    //!< rotate 180 degrees
+      Transform_rotate270,    //!< rotate 90 degrees anticlockwise
+      Transform_hflip,        //!< mirror left to right
+      Transform_vflip         //!< mirror top to bottom
+      };
+
+   /** returns the transform which undoes the given one */
+   static e_transform transformInverse (e_transform op);
+
+   /** apply a transform to an image */
+   static QImage transformImage (const QImage &image, e_transform op);
+
+   /** transform the image of a page, modifying the file
+
+      \param pagenum  page to transform
+      \param op       transformation to apply
+      
+eturns error, or NULL if ok */
+   virtual err_info *transformPage (int pagenum, e_transform op) = 0;
+
    virtual err_info *getImageInfo (int pagenum, QSize &size,
          QSize &true_size, int &bpp, int &image_size, int &compressed_size,
          QDateTime &timestamp) = 0;

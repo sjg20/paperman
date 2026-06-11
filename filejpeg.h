@@ -99,6 +99,8 @@ public:
 
    // operations on files
 
+   virtual err_info *transformPage (int pagenum, e_transform op);
+
    virtual err_info *addPage (const Filepage *mp, bool flush);
 
    virtual err_info *removePages (QBitArray &pages,

@@ -487,6 +487,28 @@ err_info *Pdfio::flush (void)
    }
 
 
+err_info *Pdfio::rotatePage (int pagenum, int degrees)
+   {
+   if (!_doc)
+      CALL (open ());
+   try
+      {
+      PdfPage *page = _doc->GetPage (pagenum);
+
+      if (!page)
+         return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
+               pagenum + 1);
+      page->SetRotation ((page->GetRotation () + degrees) % 360);
+      }
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+
+   // write the change and reopen the renderer's view of the file
+   return flush ();
+   }
+
 
 int Pdfio::numPages (void)
    {

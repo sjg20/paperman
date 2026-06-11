@@ -184,6 +184,8 @@ public:
 
    virtual err_info *renamePage (int pagenum, QString &name);
 
+   virtual err_info *transformPage (int pagenum, e_transform op);
+
    err_info *getImageInfo (int pagenum, QSize &size,
          QSize &true_size, int &bpp, int &image_size, int &compressed_size,
          QDateTime &timestamp);

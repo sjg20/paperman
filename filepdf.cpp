@@ -158,6 +158,30 @@ err_info *Filepdf::renamePage (int, QString &)
    }
 
 
+err_info *Filepdf::transformPage (int pagenum, e_transform op)
+   {
+   int degrees;
+
+   switch (op)
+      {
+      case Transform_rotate90 :
+         degrees = 90;
+         break;
+      case Transform_rotate180 :
+         degrees = 180;
+         break;
+      case Transform_rotate270 :
+         degrees = 270;
+         break;
+      default :
+         // mirroring cannot be expressed with the page /Rotate key
+         return not_impl ();
+      }
+   CALL (load ());
+   return _pdfio->rotatePage (pagenum, degrees);
+   }
+
+
 err_info *Filepdf::getImageInfo (int pagenum, QSize &size,
       QSize &true_size, int &bpp, int &image_size, int &compressed_size,
       QDateTime &timestamp)

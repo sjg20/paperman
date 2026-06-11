@@ -6033,6 +6033,37 @@ err_info *Filemax::getImage (int pagenum, bool,
    }
 
 
+err_info *Filemax::transformPage (int pagenum, e_transform op)
+   {
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   page_info *info;
+
+   load ();
+   CALL (find_page (pagenum, info));
+   CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
+
+   QImage out = transformImage (image, op);
+
+   // the transform can promote the image, e.g. mono to 8 bit
+   if (out.depth () > bpp)
+      out = utilReduceDepth (out, bpp);
+
+   // keep the page's title and timestamp
+   Filemaxpage page;
+   QByteArray ba = QByteArray::fromRawData ((const char *)out.bits (),
+         out.sizeInBytes ());
+   page.addData (out.width (), out.height (), out.depth (),
+         out.bytesPerLine (), info->titlestr, false, false, pagenum, ba,
+         ba.size ());
+   page._timestamp = info->timestamp;
+   CALL (page.compress ());
+
+   return max_replace_page (*info, page);
+   }
+
+
 err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
    {
    QString title;
