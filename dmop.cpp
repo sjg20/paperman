@@ -500,14 +500,17 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
 
    if (f)
       {
+      /* the file may not have been loaded yet, in which case it reports
+         no pages and the transform would be silently skipped */
+      f->load ();
       if (pagenum >= 0 && pagenum < f->pagecount ()) // which it should be!
          {
          e = f->transformPage (pagenum, op);
          f->setPagenum (pagenum);
+         buildItem (index);
+         if (!e)
+            emit pageContentChanged (index, pagenum);
          }
-      buildItem (index);
-      if (!e)
-         emit pageContentChanged (index, pagenum);
       }
    return e;
    }

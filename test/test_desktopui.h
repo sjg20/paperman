@@ -45,6 +45,9 @@ private slots:
    //! Test the rotate and flip actions transform the current page
    void testRotateActions();
 
+   //! Test rotating a stack which has not been viewed yet
+   void testRotateUnloadedStack();
+
    //! Test the Edit->Select-all menu action selects every stack
    void testSelectAllAction();
 
