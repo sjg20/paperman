@@ -556,3 +556,131 @@ void TestFile::testCacheBoundaryReads()
    // a halfword at the very end of the file can still be read
    QCOMPARE(f.gethw(bytes.size() - 2), hw_at(bytes.size() - 2));
 }
+
+//! Check two images are the same size and nearly identical in content,
+//! allowing for JPEG recompression loss
+static bool nearlySame(const QImage &a, const QImage &b)
+{
+   if (a.size() != b.size())
+      return false;
+
+   QImage ga = a.convertToFormat(QImage::Format_Grayscale8);
+   QImage gb = b.convertToFormat(QImage::Format_Grayscale8);
+   qint64 total = 0;
+   int count = 0;
+
+   for (int y = 0; y < ga.height(); y += 13) {
+      const uchar *pa = ga.constScanLine(y);
+      const uchar *pb = gb.constScanLine(y);
+      for (int x = 0; x < ga.width(); x += 13, count++)
+         total += qAbs(int(pa[x]) - int(pb[x]));
+   }
+   return count && total / count < 8;
+}
+
+void TestFile::testTransformPage()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   // --- max: rotate and mirror are applied and are reversible ---
+   {
+      copyFixture("testfile.max", tmp.path());
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+
+      QImage orig, image;
+      QSize size, trueSize;
+      int bpp;
+      QVERIFY(!max.getImage(0, false, orig, size, trueSize, bpp, false));
+      QString title_before;
+      QVERIFY(!max.getPageTitle(0, title_before));
+
+      // rotating swaps the dimensions
+      QVERIFY(!max.transformPage(0, File::Transform_rotate90));
+      QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(image.width(), orig.height());
+      QCOMPARE(image.height(), orig.width());
+
+      // the page keeps its title
+      QString title;
+      QVERIFY(!max.getPageTitle(0, title));
+      QCOMPARE(title, title_before);
+
+      // rotating back restores the original content
+      QVERIFY(!max.transformPage(0, File::Transform_rotate270));
+      QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+
+      /* rotating back restores the original content. The pages are
+         JPEG compressed so allow for recompression loss */
+      QVERIFY(nearlySame(image, orig));
+
+      /* mirroring changes the image (the page has horizontal colour
+         bars, so flip vertically) and mirroring again restores it */
+      QVERIFY(!max.transformPage(0, File::Transform_vflip));
+      QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+      QVERIFY(!nearlySame(image, orig));
+      QVERIFY(!max.transformPage(0, File::Transform_vflip));
+      QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+      QVERIFY(nearlySame(image, orig));
+
+      // the other pages are untouched
+      QCOMPARE(max.pagecount(), 5);
+   }
+
+   // --- pdf: rotation works, mirroring is not available ---
+   {
+      copyFixture("testpdf.pdf", tmp.path());
+      Filepdf pdf(dir, "testpdf.pdf", nullptr);
+      QVERIFY(pdf.load() == nullptr);
+
+      QImage orig, image;
+      QSize size, trueSize;
+      int bpp;
+      QVERIFY(!pdf.getImage(0, false, orig, size, trueSize, bpp, false));
+
+      QVERIFY(!pdf.transformPage(0, File::Transform_rotate90));
+      QVERIFY(!pdf.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(image.width(), orig.height());
+      QCOMPARE(image.height(), orig.width());
+
+      QVERIFY(!pdf.transformPage(0, File::Transform_rotate270));
+      QVERIFY(!pdf.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(image.size(), orig.size());
+
+      err_info *err = pdf.transformPage(0, File::Transform_hflip);
+      QVERIFY(err && err->errnum == ERR_no_available_for_this_file_type);
+   }
+
+   // --- jpeg: rotation is applied to the page file ---
+   {
+      copyFixture("colour_plasma.jpg", tmp.path());
+      Filejpeg jpg(dir, "colour_plasma.jpg", nullptr);
+      QVERIFY(jpg.load() == nullptr);
+
+      QImage orig, image;
+      QSize size, trueSize;
+      int bpp;
+      QVERIFY(!jpg.getImage(0, false, orig, size, trueSize, bpp, false));
+
+      QVERIFY(!jpg.transformPage(0, File::Transform_rotate90));
+      QVERIFY(!jpg.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(image.width(), orig.height());
+      QCOMPARE(image.height(), orig.width());
+
+      // the change is on disk, not just in memory
+      QImage ondisk(dir + "colour_plasma.jpg");
+      QCOMPARE(ondisk.width(), orig.height());
+   }
+
+   // --- the inverse helper undoes each transform ---
+   QCOMPARE(File::transformInverse(File::Transform_rotate90),
+            File::Transform_rotate270);
+   QCOMPARE(File::transformInverse(File::Transform_rotate270),
+            File::Transform_rotate90);
+   QCOMPARE(File::transformInverse(File::Transform_rotate180),
+            File::Transform_rotate180);
+   QCOMPARE(File::transformInverse(File::Transform_hflip),
+            File::Transform_hflip);
+}
