@@ -1,5 +1,8 @@
 #include <QtTest/QtTest>
 
+#include <pwd.h>
+#include <unistd.h>
+
 #include "../filemax.h"
 #include "../utils.h"
 #include "test.h"
@@ -441,4 +444,15 @@ void TestUtils::testPreviewFromJpeg()
    QVERIFY2(csize > 50, qPrintable(
       QString("compressed preview too small: %1").arg(csize)));
    QCOMPARE(csize, 1412);
+}
+
+void TestUtils::testUserName()
+{
+   /* the user name must be found even with no controlling terminal
+      (tests, cron, IDE launches). If it silently comes back empty the
+      per-user .papertree cache filename loses its suffix and a stale,
+      shared cache file is read instead */
+   struct passwd *pw = getpwuid(getuid());
+   QVERIFY(pw != nullptr);
+   QCOMPARE(utilUserName(), QString(pw->pw_name));
 }
