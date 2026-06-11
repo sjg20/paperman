@@ -11,6 +11,7 @@
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "dirmodel.h"
+#include "filemax.h"
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -593,6 +594,61 @@ void TestDesktopUi::testRotateActions()
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.size(), orig.size());
    me.actionUndo->trigger();
+}
+
+void TestDesktopUi::testRotateUnloadedStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   QString path;
+
+   /* show the repo once so that the desk caches are written, as in a
+      repository which has been used before */
+   {
+      Mainwindow first;
+      Desktopmodel *m;
+      QModelIndex ind;
+
+      path = setupRepo();
+      Desktopwidget *desktop = first.getDesktop();
+      QVERIFY(!desktop->addDir(path));
+      first.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&first));
+      QTest::qWait(50);
+      desktop->closing();
+      Q_UNUSED(m);
+      Q_UNUSED(ind);
+   }
+
+   /* a fresh session reads the caches, so the stack's File is not
+      loaded and reports no pages: rotating must still work */
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   model = desktop->getModel();
+   repo_ind = model->index(0, 0, QModelIndex());
+   Desktopview *view = desktop->getView();
+
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   qDebug() << "pagecount before:"
+            << model->getFile(src_ind)->pagecount();
+
+   view->setSelectionRange(0, 1);
+   me.actionRright->trigger();
+
+   Filemax fresh(path + "/", "testfile.max", nullptr);
+   QVERIFY(fresh.load() == nullptr);
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!fresh.getImage(0, false, image, size, trueSize, bpp, false));
+   QVERIFY(image.width() > image.height());   // it turned on its side
 }
 
 void TestDesktopUi::testEmailSingleStack()
