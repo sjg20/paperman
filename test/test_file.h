@@ -67,6 +67,9 @@ private slots:
    //! the end of a cache window
    void testCacheBoundaryReads();
 
+   //! transformPage rotates and mirrors pages of each file type
+   void testTransformPage();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
