@@ -1159,13 +1159,21 @@ bool utilSetGroup(const QString& fname)
 
 QString utilUserName()
 {
-   QString user;
    char username[80];
 
-   if (getlogin_r(username, sizeof(username)))
-      return "";
+   /* identify the user by uid: getlogin_r() needs a controlling
+      terminal and fails under cron, IDE launches and tests, which
+      would silently drop the per-user suffix from the .papertree
+      cache filename and read a stale, shared cache instead */
+   struct passwd *pw = getpwuid (getuid ());
+   if (pw && pw->pw_name && *pw->pw_name)
+      return pw->pw_name;
 
-   return username;
+   // fall back to the login name on the controlling terminal
+   if (!getlogin_r (username, sizeof (username)))
+      return username;
+
+   return "";
 }
 
 void utilInit(const QString& group)
