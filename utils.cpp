@@ -161,6 +161,7 @@ typedef struct jpeg_dest_info
    byte *data;
    int pos;
    int size;
+   bool overflow;   //!< the output did not fit in the buffer
    } jpeg_dest_info;
 
 
@@ -307,9 +308,17 @@ static void init_destination (j_compress_ptr cinfo)
    }
 
 
+/* called by libjpeg when the output buffer is full. We cannot grow the
+   buffer, so record the overflow and let libjpeg continue writing from
+   the start of the buffer. The output is useless but stays in bounds;
+   jpeg_encode() reports the failure through its size */
 static boolean empty_output_buffer (j_compress_ptr cinfo)
    {
-   cinfo = cinfo;
+   jpeg_dest_info *dest = (jpeg_dest_info *)cinfo->dest;
+
+   dest->overflow = true;
+   dest->pub.next_output_byte = dest->data;
+   dest->pub.free_in_buffer = dest->size;
    return true;
    }
 
@@ -337,6 +346,7 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
 
   dest.data = outbuff;
   dest.size = *size;
+  dest.overflow = false;
 //  dest.pub.next_output_byte = NULL;
 //  dest.pub.free_in_buffer = 0;
   dest.pub.next_output_byte = outbuff;
@@ -415,7 +425,8 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
      /* Step 6: Finish compression */
      jpeg_finish_compress(&cinfo);
 
-      *size = dest.pub.next_output_byte - outbuff;
+      // report an overflowed buffer rather than returning rubbish
+      *size = dest.overflow ? -1 : dest.pub.next_output_byte - outbuff;
       }
    jpeg_destroy_compress(&cinfo);
    free (buff);

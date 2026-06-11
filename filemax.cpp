@@ -4151,6 +4151,8 @@ err_info *encode_tile (chunk_info &chunk, encode_info &encode, int *sizep,
          size = encode.size;
          jpeg_encode (ptr, tile_size, out, &size, bpp, stride,
               JPEG_QUALITY, valid_x);
+         if (size < 0)
+            return err_make (ERRFN, ERR_jpeg_compression_failed);
          break;
       }
 
@@ -4179,8 +4181,11 @@ static int build_tiledata (chunk_info &chunk, int stride, int bpp,
 
    debug2 (("image size %d x %d\n", chunk.image_size.x, chunk.image_size.y));
 
-   // allocate enough memory for encoding each tile
-   encode.size = chunk.tile_size.x * chunk.tile_size.y;  // should be enough
+   /* allocate enough memory for encoding each tile. A JPEG of a noisy
+      tile can be larger than the raw pixels, so allow the full pixel
+      size plus headroom */
+   encode.size = chunk.tile_size.x * chunk.tile_size.y *
+         (bpp == 1 ? 1 : 4) + 1024;
    encode.buff = (byte *)malloc (encode.size);
    if (!encode.buff)
       return ERR (-ENOMEM);

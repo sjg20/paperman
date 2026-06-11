@@ -160,7 +160,8 @@ QString removeExtension (const QString &fname, QString &ext);
    \param tile_size   tile size in pixels (the width may be padded
                       beyond the source image)
    \param outbuff     output buffer
-   \param size        in: buffer size; out: encoded size
+   \param size        in: buffer size; out: encoded size, or -1 if the
+                      output did not fit in the buffer
    \param bpp         source depth (8, 24 or 32)
    \param line_bytes  source bytes per line
    \param quality     JPEG quality (0-100)
