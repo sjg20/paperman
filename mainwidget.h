@@ -249,6 +249,9 @@ public slots:
 private slots:
    void scanDialogClosed (void);
 
+   /** redisplay a page if its image has changed and it is shown */
+   void slotPageContentChanged (const QModelIndex &index, int pagenum);
+
    //! called when pending changes to the ScanDialog are complete (these happen while scanning)
    void slotPendingDone (void);
 

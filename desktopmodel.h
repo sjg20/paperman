@@ -939,6 +939,12 @@ public:
          QBitArray &page, bool allow_undo);
 
 signals:
+   /** emitted when the image of a page has changed (e.g. it has been
+       rotated), so views showing it can redisplay
+
+      \param index    source model index of the stack
+      \param pagenum  page whose image changed */
+   void pageContentChanged (const QModelIndex &index, int pagenum);
    /** indicate that we are about to start scanning into an item
 
       \index   item we are scanning into */

@@ -120,6 +120,9 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
 
    connect (_desktop, SIGNAL (showPage (const QModelIndex &)),
       this, SLOT (showPage (const QModelIndex &)));
+   connect (_desktop->getModel (),
+      SIGNAL (pageContentChanged (const QModelIndex &, int)),
+      this, SLOT (slotPageContentChanged (const QModelIndex &, int)));
 
    connect (_page->_returnToDesktop, SIGNAL (triggered()), this, SLOT (showDesktop ()));
 
@@ -1292,6 +1295,19 @@ err_info *Mainwidget::operation (Desk::operation_t type, int ival)
    }
 
 
+/* redisplay a page if its image has changed (e.g. rotated, including
+   by undo and redo) and it is currently being shown */
+void Mainwidget::slotPageContentChanged (const QModelIndex &index,
+      int pagenum)
+   {
+   QModelIndex ind;
+
+   if (currentWidget () == _page && _page->getCurrentIndex (ind, true)
+       && ind == index && _page->getCurrentPage () == pagenum)
+      _page->showPages (_desktop->getModel (), index, 0, -1, pagenum, true);
+   }
+
+
 /* transform the target pages: in the page view this is the page being
    shown; on the desktop it is the current page of each selected stack */
 void Mainwidget::transformPages (File::e_transform op)
@@ -1304,27 +1320,19 @@ void Mainwidget::transformPages (File::e_transform op)
 
       if (!_page->getCurrentIndex (ind, true))
          return;
-      model->transformPage (ind, _page->getCurrentPage (), op);
 
-      // show the transformed page
-      _page->showPages (model, ind, 0, -1, _page->getCurrentPage (), true);
+      // slotPageContentChanged() redisplays the page
+      model->transformPage (ind, _page->getCurrentPage (), op);
       }
    else
       {
       QModelIndexList list = _view->getSelectedListSource ();
 
+      /* the desktop's preview pane refreshes through the model's
+         pageContentChanged() signal */
       foreach (QModelIndex ind, list)
          model->transformPage (ind,
                model->data (ind, Desktopmodel::Role_pagenum).toInt (), op);
-
-      // update the preview pane with the first transformed stack
-      if (!list.isEmpty ())
-         {
-         QModelIndex ind = list [0];
-
-         _desktop->getModelconv ()->indexToProxy (model, ind);
-         _desktop->slotItemPreview (ind, 0, true);
-         }
       }
    }
 
