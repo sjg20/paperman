@@ -550,6 +550,51 @@ void TestDesktopUi::testDirTreeNavigation()
    here instead, so tests never launch anything */
 static QUrl s_opened_url;
 
+void TestDesktopUi::testRotateActions()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // select the max stack and capture its first page
+   clickItem(view, 0);
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   File *f = model->getFile(src_ind);
+   QVERIFY(f);
+
+   QImage orig, image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(0, false, orig, size, trueSize, bpp, false));
+
+   // the rotate-right toolbar action turns the page on its side
+   me.actionRright->trigger();
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.width(), orig.height());
+   QCOMPARE(image.height(), orig.width());
+
+   // undo from the Edit menu rotates it back
+   me.actionUndo->trigger();
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), orig.size());
+
+   // rotate-left and the flips are wired up too
+   me.actionRleft->trigger();
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.width(), orig.height());
+   me.actionUndo->trigger();
+
+   me.actionVflip->trigger();
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), orig.size());
+   me.actionUndo->trigger();
+}
+
 void TestDesktopUi::testEmailSingleStack()
 {
    QModelIndex repo_ind;

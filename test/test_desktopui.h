@@ -42,6 +42,9 @@ private slots:
    //! Test stack navigation wraps at either end
    void testStackNavigationWraps();
 
+   //! Test the rotate and flip actions transform the current page
+   void testRotateActions();
+
    //! Test the Edit->Select-all menu action selects every stack
    void testSelectAllAction();
 
