@@ -409,6 +409,38 @@ void UCRenameStack::undo (void)
    }
 
 
+UCTransformPage::UCTransformPage (Desktopmodel *model, const QModelIndex &ind,
+      int pagenum, File::e_transform op)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (ind.parent ());
+   _fname = model->data (ind, Desktopmodel::Role_filename).toString ();
+   _pagenum = pagenum;
+   _op = op;
+   setText (QApplication::translate("UCTransformPage",
+      "Transform page"));
+   }
+
+
+void UCTransformPage::redo (void)
+   {
+   QModelIndex parent = _model->deskFromDirname (_dir);
+   QModelIndex ind = _model->index (_fname, parent);
+
+   complain (_model->opTransformPage (ind, _pagenum, _op));
+   }
+
+
+void UCTransformPage::undo (void)
+   {
+   QModelIndex parent = _model->deskFromDirname (_dir);
+   QModelIndex ind = _model->index (_fname, parent);
+
+   complain (_model->opTransformPage (ind, _pagenum,
+         File::transformInverse (_op)));
+   }
+
+
 UCRenamePage::UCRenamePage (Desktopmodel *model, const QModelIndex &ind,
       QString newname)
       : Desktopundocmd (model)

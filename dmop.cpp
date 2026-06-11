@@ -491,6 +491,26 @@ err_info *Desktopmodel::opRenamePage (const QModelIndex &index, int pagenum, QSt
    }
 
 
+err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
+      int pagenum, File::e_transform op)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+   File *f = getFile (index);
+   err_info *e = NULL;
+
+   if (f)
+      {
+      if (pagenum >= 0 && pagenum < f->pagecount ()) // which it should be!
+         {
+         e = f->transformPage (pagenum, op);
+         f->setPagenum (pagenum);
+         }
+      buildItem (index);
+      }
+   return e;
+   }
+
+
 err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool &can_delete)
 {
    can_delete = true;
