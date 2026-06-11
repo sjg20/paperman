@@ -939,3 +939,4 @@ void TestDesktopUi::testDirFilterHidesOtherYears()
    QVERIFY(desktop->findDir(path + "/" + this_year).isValid());
    QVERIFY(desktop->findDir(path + "/" + last_year).isValid());
 }
+

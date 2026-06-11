@@ -36,6 +36,9 @@ private slots:
    //! Test the rotate-left/right and 180 display buttons
    void testRotateButtons();
 
+   //! Test the rotate action updates the displayed page
+   void testRotateActionDisplay();
+
    //! Test editing stack attributes and saving them
    void testEditAttributesSave();
 

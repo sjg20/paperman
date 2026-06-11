@@ -213,6 +213,55 @@ void TestPagewidget::testRotateButtons()
    QCOMPARE(page->_rotate, 0);
 }
 
+//! Count dark pixels in an image, sampling every few pixels
+static int darkPixels(const QImage &img)
+{
+   QImage grey = img.convertToFormat(QImage::Format_Grayscale8);
+   int dark = 0;
+
+   for (int y = 0; y < grey.height(); y += 4) {
+      const uchar *p = grey.constScanLine(y);
+      for (int x = 0; x < grey.width(); x += 4)
+         if (p[x] < 128)
+            dark++;
+   }
+   return dark;
+}
+
+void TestPagewidget::testRotateActionDisplay()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   // the displayed page has content
+   QSize before = page->_image.size();
+   QVERIFY(darkPixels(page->_image) > 50);
+
+   /* rotating in the page view must show the rotated page, not a
+      blank or stale one */
+   me.actionRright->trigger();
+   QCOMPARE(page->_image.size(), QSize(before.height(), before.width()));
+   QVERIFY(darkPixels(page->_image) > 50);
+
+   // rotating a second time works too (back to the original size)
+   me.actionRright->trigger();
+   QCOMPARE(page->_image.size(), before);
+   QVERIFY(darkPixels(page->_image) > 50);
+
+   // a third press reaches 270 degrees
+   me.actionRright->trigger();
+   QCOMPARE(page->_image.size(), QSize(before.height(), before.width()));
+   QVERIFY(darkPixels(page->_image) > 50);
+
+   // undo returns to 180 degrees, shown immediately
+   me.actionUndo->trigger();
+   QCOMPARE(page->_image.size(), before);
+   QVERIFY(darkPixels(page->_image) > 50);
+}
+
 void TestPagewidget::testEditAttributesSave()
 {
    Desktopmodel *model;
