@@ -57,6 +57,7 @@ static const char *err_msg [ERR_count] =
    "G4 compression failed",
    "G4 decompression failed",
    "JPEG compression failed",
+   "The stack has no pages",
    "Could not create directory '%s'",
    "Could not write image to '%s' as %s",
    "Could not read multi-page images from file '%s'",
