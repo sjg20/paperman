@@ -126,6 +126,12 @@ err_info *Fileother::renamePage (int, QString &)
    }
 
 
+err_info *Fileother::transformPage (int, e_transform)
+   {
+   return not_impl ();
+   }
+
+
 
 
 err_info *Fileother::getImageInfo (int, QSize &,

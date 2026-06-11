@@ -93,6 +93,12 @@ public :
 
    err_info *flush (void);
 
+   /** rotate a page by adjusting its /Rotate key (lossless)
+
+      \param pagenum  page to rotate
+      \param degrees  clockwise rotation to add: 90, 180 or 270 */
+   err_info *rotatePage (int pagenum, int degrees);
+
    int numPages (void);
 
    err_info *getImage (QString fname, int pagenum, QImage &image, double xscale,
