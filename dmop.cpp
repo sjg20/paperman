@@ -503,7 +503,21 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
       /* the file may not have been loaded yet, in which case it reports
          no pages and the transform would be silently skipped */
       f->load ();
-      if (pagenum >= 0 && pagenum < f->pagecount ()) // which it should be!
+      if (!f->pagecount ())
+         /* an empty stack has nothing to transform; this also happens
+            for stacks whose pages are not accessible, such as those in
+            a remote repository */
+         e = err_make (ERRFN, ERR_stack_has_no_pages);
+      else if (pagenum == -1)
+         {
+         // transform every page of the stack
+         for (int page = 0; !e && page < f->pagecount (); page++)
+            e = f->transformPage (page, op);
+         buildItem (index);
+         if (!e)
+            emit pageContentChanged (index, f->pagenum ());
+         }
+      else if (pagenum >= 0 && pagenum < f->pagecount ())
          {
          e = f->transformPage (pagenum, op);
          f->setPagenum (pagenum);
@@ -511,11 +525,6 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          if (!e)
             emit pageContentChanged (index, pagenum);
          }
-      else if (!f->pagecount ())
-         /* an empty stack has nothing to transform; this also happens
-            for stacks whose pages are not accessible, such as those in
-            a remote repository */
-         e = err_make (ERRFN, ERR_stack_has_no_pages);
       else
          e = f->not_impl ();
       }

@@ -1328,11 +1328,11 @@ void Mainwidget::transformPages (File::e_transform op)
       {
       QModelIndexList list = _view->getSelectedListSource ();
 
-      /* the desktop's preview pane refreshes through the model's
-         pageContentChanged() signal */
+      /* transform every page of each selected stack. The previews and
+         the desktop's preview pane refresh through buildItem() and the
+         model's pageContentChanged() signal */
       foreach (QModelIndex ind, list)
-         model->transformPage (ind,
-               model->data (ind, Desktopmodel::Role_pagenum).toInt (), op);
+         model->transformPage (ind, -1, op);
       }
    }
 
