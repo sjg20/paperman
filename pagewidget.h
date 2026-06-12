@@ -370,11 +370,14 @@ protected slots:
    /** rotate the current page image right 90 degrees */
    void slotRotateRight (void);
 
-   /** rotate the current page image 180 degrees */
-   void slotRotate180 (void);
-
    /** rotate the current page image left 90 degrees */
    void slotRotateLeft (void);
+
+   /** flip the current page image horizontally */
+   void slotFlipHorizontal (void);
+
+   /** flip the current page image vertically */
+   void slotFlipVertical (void);
 
 public:
    QAction *_returnToDesktop;

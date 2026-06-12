@@ -114,8 +114,9 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
    connect (_tools->revert, SIGNAL (clicked ()), this, SLOT (slotRevert ()));
 
    connect (_tools->rleft, SIGNAL (clicked ()), this, SLOT (slotRotateLeft ()));
-   connect (_tools->vflip, SIGNAL (clicked ()), this, SLOT (slotRotate180 ()));
    connect (_tools->rright, SIGNAL (clicked ()), this, SLOT (slotRotateRight ()));
+   connect (_tools->hflip, SIGNAL (clicked ()), this, SLOT (slotFlipHorizontal ()));
+   connect (_tools->vflip, SIGNAL (clicked ()), this, SLOT (slotFlipVertical ()));
 
    _modified = false;
 
@@ -1192,15 +1193,21 @@ void Pagewidget::slotRotateRight (void)
 }
 
 
-void Pagewidget::slotRotate180 (void)
-{
-   transformPage (File::Transform_rotate180);
-}
-
-
 void Pagewidget::slotRotateLeft (void)
 {
    transformPage (File::Transform_rotate270);
+}
+
+
+void Pagewidget::slotFlipHorizontal (void)
+{
+   transformPage (File::Transform_hflip);
+}
+
+
+void Pagewidget::slotFlipVertical (void)
+{
+   transformPage (File::Transform_vflip);
 }
 
 

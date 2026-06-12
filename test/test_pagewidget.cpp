@@ -178,6 +178,22 @@ void TestPagewidget::testZoomLevelEdit()
    QCOMPARE(zoomValue(zoom), 200);
 }
 
+//! Mean per-pixel difference between two same-sized images
+static int meanDiff(const QImage &a, const QImage &b)
+{
+   QImage ga = a.convertToFormat(QImage::Format_Grayscale8);
+   QImage gb = b.convertToFormat(QImage::Format_Grayscale8);
+   qint64 total = 0;
+
+   for (int y = 0; y < ga.height(); y++) {
+      const uchar *pa = ga.constScanLine(y);
+      const uchar *pb = gb.constScanLine(y);
+      for (int x = 0; x < ga.width(); x++)
+         total += qAbs(int(pa[x]) - int(pb[x]));
+   }
+   return total / (qint64(ga.width()) * ga.height());
+}
+
 void TestPagewidget::testRotateButtons()
 {
    Desktopmodel *model;
@@ -188,8 +204,9 @@ void TestPagewidget::testRotateButtons()
 
    QToolButton *rleft = page->findChild<QToolButton *>("rleft");
    QToolButton *rright = page->findChild<QToolButton *>("rright");
-   QToolButton *r180 = page->findChild<QToolButton *>("vflip");
-   QVERIFY(rleft && rright && r180);
+   QToolButton *hflip = page->findChild<QToolButton *>("hflip");
+   QToolButton *vflip = page->findChild<QToolButton *>("vflip");
+   QVERIFY(rleft && rright && hflip && vflip);
 
    QModelIndex ind;
    QVERIFY(page->getCurrentIndex(ind, true));
@@ -217,10 +234,22 @@ void TestPagewidget::testRotateButtons()
    QCOMPARE(image.size(), first.size());
    QCOMPARE(page->_image.size(), first.size());
 
-   // the 180-degree button keeps the size and is undoable
-   QTest::mouseClick(r180, Qt::LeftButton);
+   /* the flips match the reference transform (a small difference is
+      allowed for JPEG recompression) and are undoable */
+   QTest::mouseClick(vflip, Qt::LeftButton);
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.size(), first.size());
+   QVERIFY(meanDiff(image,
+                    File::transformImage(first, File::Transform_vflip)) < 4);
+   me.actionUndo->trigger();
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QVERIFY(meanDiff(image, first) < 4);
+
+   QTest::mouseClick(hflip, Qt::LeftButton);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), first.size());
+   QVERIFY(meanDiff(image,
+                    File::transformImage(first, File::Transform_hflip)) < 4);
    me.actionUndo->trigger();
    QCOMPARE(page->_image.size(), first.size());
 }
