@@ -195,7 +195,7 @@
      <item>
       <widget class="QToolButton" name="rleft">
        <property name="toolTip">
-        <string>Zoom the image to fit within the window</string>
+        <string>Rotate the page left</string>
        </property>
        <property name="text">
         <string>...</string>
@@ -215,7 +215,7 @@
      <item>
       <widget class="QToolButton" name="vflip">
        <property name="toolTip">
-        <string>Zoom the image to fit within the window</string>
+        <string>Rotate the page 180 degrees</string>
        </property>
        <property name="text">
         <string>r</string>
@@ -235,7 +235,7 @@
      <item>
       <widget class="QToolButton" name="rright">
        <property name="toolTip">
-        <string>Zoom the image to fit within the window</string>
+        <string>Rotate the page right</string>
        </property>
        <property name="text">
         <string>...</string>

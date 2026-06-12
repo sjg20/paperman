@@ -53,6 +53,7 @@ struct file_info;
 
 #include "qgraphicsview.h"
 #include "desk.h"
+#include "file.h"
 
 struct err_info;
 
@@ -203,6 +204,9 @@ public:
       };
 
    struct err_info *operation (Desk::operation_t type, int ival);
+
+   /** transform the page being shown, with undo */
+   void transformPage (File::e_transform op);
 
    /** redisplay the current page - can be used if the smoothing setting
        has been changed, for example */
@@ -355,11 +359,6 @@ protected slots:
 
    /** copy the ocr test to the clipboard */
    void ocrCopy (void);
-
-   /** add an amount to the rotation of the current page
-
-      \param add  amount to add (-90, 90, 180) */
-   void addRotate (int add);
 
    /** rotate the current page image right 90 degrees */
    void slotRotateRight (void);

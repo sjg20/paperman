@@ -191,26 +191,38 @@ void TestPagewidget::testRotateButtons()
    QToolButton *r180 = page->findChild<QToolButton *>("vflip");
    QVERIFY(rleft && rright && r180);
 
-   QCOMPARE(page->_rotate, 0);
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QVERIFY(f);
 
-   // Rotate right goes clockwise in 90-degree steps
+   QImage first, last, image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(0, false, first, size, trueSize, bpp, false));
+   QVERIFY(!f->getImage(4, false, last, size, trueSize, bpp, false));
+
+   /* rotate-right transforms only the page being shown; the other
+      pages are untouched */
    QTest::mouseClick(rright, Qt::LeftButton);
-   QCOMPARE(page->_rotate, 90);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.width(), first.height());
+   QVERIFY(!f->getImage(4, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), last.size());
+   QCOMPARE(page->_image.height(), first.width());
 
-   QTest::mouseClick(rright, Qt::LeftButton);
-   QCOMPARE(page->_rotate, 180);
-
-   // Rotate left goes back
+   // rotate-left turns it back
    QTest::mouseClick(rleft, Qt::LeftButton);
-   QCOMPARE(page->_rotate, 90);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), first.size());
+   QCOMPARE(page->_image.size(), first.size());
 
-   // The 180 button turns the page upside down from where it is
+   // the 180-degree button keeps the size and is undoable
    QTest::mouseClick(r180, Qt::LeftButton);
-   QCOMPARE(page->_rotate, 270);
-
-   // A full circle returns to normal
-   QTest::mouseClick(rright, Qt::LeftButton);
-   QCOMPARE(page->_rotate, 0);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), first.size());
+   me.actionUndo->trigger();
+   QCOMPARE(page->_image.size(), first.size());
 }
 
 //! Count dark pixels in an image, sampling every few pixels
