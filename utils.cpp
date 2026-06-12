@@ -285,7 +285,16 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
             mem_check ();
             }
          else
-            memcpy (dest, buffer[0], tile_bytes);
+            {
+            int bytes = tile_bytes;
+
+            /* the tile may be padded beyond the image width, so avoid
+               writing past the end of each destination row */
+            if (max_width != -1 &&
+                bytes > max_width * (int)cinfo.output_components)
+               bytes = max_width * cinfo.output_components;
+            memcpy (dest, buffer[0], bytes);
+            }
          dest += line_bytes;
          }
 //       debug1 (("width = %d, tile_bytes = %d, line_bytes = %d, decoded %d lines\n",
