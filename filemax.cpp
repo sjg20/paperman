@@ -6044,6 +6044,12 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
    CALL (find_page (pagenum, info));
    CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
 
+   /* mono images are decoded with the width padded to a multiple of 32,
+      so crop back to the real page size to avoid the padding columns
+      growing the page with each transform */
+   if (image.size () != size)
+      image = image.copy (QRect (QPoint (0, 0), size));
+
    QImage out = transformImage (image, op);
 
    // the transform can promote the image, e.g. mono to 8 bit

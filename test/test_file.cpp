@@ -757,6 +757,12 @@ static void checkTransformedRender(Filemax &max, int pagenum,
    int bpp;
 
    QVERIFY(!max.getImage(pagenum, false, a, size, trueSize, bpp, false));
+
+   /* crop the decode padding so the reference matches what
+      transformPage() stores */
+   if (a.size() != size)
+      a = a.copy(QRect(QPoint(0, 0), size));
+
    QVERIFY(!max.transformPage(pagenum, op));
    QVERIFY(!max.getImage(pagenum, false, b, size, trueSize, bpp, false));
 
