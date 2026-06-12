@@ -513,7 +513,13 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          // transform every page of the stack
          for (int page = 0; !e && page < f->pagecount (); page++)
             e = f->transformPage (page, op);
+
+         /* the page view refreshes through pageContentChanged(), so
+            mark the item update as minor to avoid it also doing a full
+            rebuild, which loses the page selection */
+         _minor_change = true;
          buildItem (index);
+         _minor_change = false;
          if (!e)
             emit pageContentChanged (index, -1);
          }
@@ -521,7 +527,9 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          {
          e = f->transformPage (pagenum, op);
          f->setPagenum (pagenum);
+         _minor_change = true;
          buildItem (index);
+         _minor_change = false;
          if (!e)
             emit pageContentChanged (index, pagenum);
          }

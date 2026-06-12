@@ -45,6 +45,9 @@ private slots:
    //! Test the rotate and flip actions transform the current page
    void testRotateActions();
 
+   //! Test rotating one page in the preview pane keeps the selection
+   void testRotatePageKeepsSelection();
+
    //! Test rotating a stack which has not been viewed yet
    void testRotateUnloadedStack();
 

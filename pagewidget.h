@@ -132,6 +132,7 @@ private:
 class Pagewidget : public QWidget
    {
    Q_OBJECT
+   friend class TestDesktopUi;
    friend class TestPagewidget;
 
 public:
