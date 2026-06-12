@@ -512,7 +512,7 @@ public:
    /** transform (rotate or mirror) a page of a stack, with undo
 
       \param index    source model index of stack
-      \param pagenum  page to transform
+      \param pagenum  page to transform, or -1 for every page
       \param op       transform to apply */
    void transformPage (const QModelIndex &index, int pagenum,
          File::e_transform op);
@@ -732,7 +732,7 @@ protected:
    /** transform (rotate or mirror) a page of a stack
 
       \param index    index of stack
-      \param pagenum  page to transform
+      \param pagenum  page to transform, or -1 for every page
       \param op       transform to apply */
    err_info *opTransformPage (const QModelIndex &index, int pagenum,
          File::e_transform op);

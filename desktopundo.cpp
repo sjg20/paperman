@@ -418,7 +418,7 @@ UCTransformPage::UCTransformPage (Desktopmodel *model, const QModelIndex &ind,
    _pagenum = pagenum;
    _op = op;
    setText (QApplication::translate("UCTransformPage",
-      "Transform page"));
+      pagenum == -1 ? "Transform stack" : "Transform page"));
    }
 
 
