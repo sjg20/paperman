@@ -170,6 +170,11 @@ public:
    void reset (const Desktopmodel *model, const QModelIndex &index,
       int start, int count);
 
+   /** mark a single page as changed so its thumbnail is recreated
+
+      \param pagenum  page which has changed */
+   void updatePage (int pagenum);
+
    enum e_role
       {
 /* roles available in this model:

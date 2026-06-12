@@ -1169,13 +1169,19 @@ void Desktopwidget::openStack (const QModelIndex &index)
 
 /* the image of a page has changed (e.g. it has been rotated):
    redisplay it if it is in the preview pane */
-void Desktopwidget::slotPageContentChanged (const QModelIndex &index, int)
+void Desktopwidget::slotPageContentChanged (const QModelIndex &index,
+      int pagenum)
    {
    QModelIndex ind = index;
 
    _modelconv->indexToProxy (_contents, ind);
-   if (ind.isValid () && ind == _update_index)
+   if (!ind.isValid () || ind != _update_index)
+      return;
+
+   if (pagenum == -1)   // every page changed, so rebuild the whole view
       _page->showPages (ind.model (), ind, 0, -1, -1, true);
+   else
+      _page->refreshPage (pagenum);
    }
 
 

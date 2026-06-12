@@ -515,7 +515,7 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
             e = f->transformPage (page, op);
          buildItem (index);
          if (!e)
-            emit pageContentChanged (index, f->pagenum ());
+            emit pageContentChanged (index, -1);
          }
       else if (pagenum >= 0 && pagenum < f->pagecount ())
          {

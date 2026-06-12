@@ -1302,9 +1302,14 @@ void Mainwidget::slotPageContentChanged (const QModelIndex &index,
    {
    QModelIndex ind;
 
-   if (currentWidget () == _page && _page->getCurrentIndex (ind, true)
-       && ind == index && _page->getCurrentPage () == pagenum)
-      _page->showPages (_desktop->getModel (), index, 0, -1, pagenum, true);
+   if (currentWidget () != _page || !_page->getCurrentIndex (ind, true)
+       || ind != index)
+      return;
+
+   if (pagenum == -1)   // every page changed, so rebuild the whole view
+      _page->showPages (_desktop->getModel (), index, 0, -1, -1, true);
+   else
+      _page->refreshPage (pagenum);
    }
 
 
