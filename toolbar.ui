@@ -169,6 +169,98 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="rleft">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Rotate each page in the stack left</string>
+       </property>
+       <property name="icon">
+        <iconset resource="maxview.qrc">
+         <normaloff>:/images/images/rleft.xpm</normaloff>:/images/images/rleft.xpm</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="rright">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Rotate each page in the stack right</string>
+       </property>
+       <property name="icon">
+        <iconset resource="maxview.qrc">
+         <normaloff>:/images/images/rright.xpm</normaloff>:/images/images/rright.xpm</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="hflip">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Flip each page in the stack horizontally</string>
+       </property>
+       <property name="icon">
+        <iconset resource="maxview.qrc">
+         <normaloff>:/images/images/hflip.xpm</normaloff>:/images/images/hflip.xpm</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="vflip">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Flip each page in the stack vertically</string>
+       </property>
+       <property name="icon">
+        <iconset resource="maxview.qrc">
+         <normaloff>:/images/images/vflip.xpm</normaloff>:/images/images/vflip.xpm</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>

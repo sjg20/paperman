@@ -562,34 +562,46 @@ void TestDesktopUi::testRotateActions()
    Desktopwidget *desktop = me.getDesktop();
    Desktopview *view = desktop->getView();
 
-   // select the max stack and capture its first page
+   // select the max stack and capture its first and last pages
    clickItem(view, 0);
    QModelIndex src_ind = model->index(0, 0, repo_ind);
    File *f = model->getFile(src_ind);
    QVERIFY(f);
 
-   QImage orig, image;
+   QImage orig, lastOrig, image;
    QSize size, trueSize;
    int bpp;
    QVERIFY(!f->getImage(0, false, orig, size, trueSize, bpp, false));
+   QVERIFY(!f->getImage(4, false, lastOrig, size, trueSize, bpp, false));
 
-   // the rotate-right toolbar action turns the page on its side
-   me.actionRright->trigger();
+   // the desktop toolbar's rotate-right button turns every page on
+   // its side
+   QPushButton *rright = desktop->findChild<QPushButton *>("rright");
+   QVERIFY(rright);
+   QTest::mouseClick(rright, Qt::LeftButton);
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.width(), orig.height());
    QCOMPARE(image.height(), orig.width());
+   QVERIFY(!f->getImage(4, false, image, size, trueSize, bpp, false));
+   QVERIFY(image.width() >= lastOrig.height());
+   QVERIFY(image.height() <= lastOrig.width());
 
-   // undo from the Edit menu rotates it back
+   // undo from the Edit menu rotates them all back
    me.actionUndo->trigger();
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.size(), orig.size());
+   QVERIFY(!f->getImage(4, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.height(), lastOrig.height());
 
-   // rotate-left and the flips are wired up too
-   me.actionRleft->trigger();
+   // the rotate-left button is wired up too
+   QPushButton *rleft = desktop->findChild<QPushButton *>("rleft");
+   QVERIFY(rleft);
+   QTest::mouseClick(rleft, Qt::LeftButton);
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.width(), orig.height());
    me.actionUndo->trigger();
 
+   // the flip menu action shares the same path
    me.actionVflip->trigger();
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.size(), orig.size());
