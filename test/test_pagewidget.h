@@ -33,7 +33,7 @@ private slots:
    //! Test typing a zoom level into the zoom box
    void testZoomLevelEdit();
 
-   //! Test the rotate buttons transform the displayed page
+   //! Test the rotate and flip buttons transform the displayed page
    void testRotateButtons();
 
    //! Test the rotate action updates the displayed page
