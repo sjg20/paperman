@@ -1,6 +1,7 @@
 #include <QClipboard>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QToolButton>
 #include <QtTest/QtTest>
 
 #include "test.h"
@@ -15,6 +16,8 @@
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "pagemodel.h"
+#include "pageview.h"
 #include "pagewidget.h"
 #include "qxmlconfig.h"
 #include "test_desktopui.h"
@@ -606,6 +609,65 @@ void TestDesktopUi::testRotateActions()
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(image.size(), orig.size());
    me.actionUndo->trigger();
+}
+
+void TestDesktopUi::testRotatePageKeepsSelection()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // select the max stack and wait for the preview pane to show it
+   clickItem(view, 0);
+   Pagewidget *pagew = desktop->_page;
+   QTRY_VERIFY(pagew->_pagemodel->rowCount(QModelIndex()) > 1);
+
+   // click the second page's thumbnail in the preview pane
+   QModelIndex page_ind = pagew->_pagemodel->index(1, 0, QModelIndex());
+   pagew->_pageview->scrollTo(page_ind);
+   QRect rect = pagew->_pageview->visualRect(page_ind);
+   QVERIFY(rect.isValid());
+   QTest::mouseClick(pagew->_pageview->viewport(), Qt::LeftButton,
+                     Qt::NoModifier, rect.center());
+   QCOMPARE(pagew->getCurrentPage(), 1);
+
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   File *f = model->getFile(src_ind);
+   QVERIFY(f);
+
+   QImage orig, other, image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(1, false, orig, size, trueSize, bpp, false));
+   QVERIFY(!f->getImage(0, false, other, size, trueSize, bpp, false));
+
+   /* rotating the page must not rebuild the whole page model (which
+      reloads every thumbnail) and must keep the same page selected */
+   QSignalSpy resetSpy(pagew->_pagemodel, SIGNAL(modelReset()));
+
+   QToolButton *rright = pagew->findChild<QToolButton *>("rright");
+   QVERIFY(rright);
+   QTest::mouseClick(rright, Qt::LeftButton);
+
+   // only the second page is transformed
+   QVERIFY(!f->getImage(1, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.width(), orig.height());
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), other.size());
+
+   // the selection stays on page two and the view is not rebuilt
+   QCOMPARE(pagew->getCurrentPage(), 1);
+   QCOMPARE(resetSpy.count(), 0);
+
+   me.actionUndo->trigger();
+   QVERIFY(!f->getImage(1, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.size(), orig.size());
+   QCOMPARE(pagew->getCurrentPage(), 1);
 }
 
 void TestDesktopUi::testRotateUnloadedStack()
