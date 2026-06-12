@@ -106,6 +106,19 @@ void Pagemodel::reset (const Desktopmodel *model, const QModelIndex &index,
    }
 
 
+void Pagemodel::updatePage (int pagenum)
+   {
+   int row = pagenum - _start;
+
+   if (row < 0 || row >= _row_count)
+      return;
+   _pages [row].invalidate ();
+
+   QModelIndex ind = index (row, 0, QModelIndex ());
+   emit dataChanged (ind, ind);
+   }
+
+
 void Pagemodel::keepAllPages (void)
    {
    for (int i = 0; i < _count; i++)

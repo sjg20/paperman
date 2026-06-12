@@ -943,7 +943,7 @@ signals:
        rotated), so views showing it can redisplay
 
       \param index    source model index of the stack
-      \param pagenum  page whose image changed */
+      \param pagenum  page whose image changed, or -1 for every page */
    void pageContentChanged (const QModelIndex &index, int pagenum);
    /** indicate that we are about to start scanning into an item
 

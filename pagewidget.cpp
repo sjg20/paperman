@@ -1171,6 +1171,21 @@ void Pagewidget::transformPage (File::e_transform op)
 }
 
 
+void Pagewidget::refreshPage (int pagenum)
+   {
+   _pagemodel->updatePage (pagenum);
+
+   // if this is the page being shown, redisplay it
+   if (pagenum == _pagenum)
+      {
+      QModelIndex ind = _pagemodel->index (pagenum - _start, 0,
+                                           QModelIndex ());
+      if (ind.isValid ())
+         slotPreviewPage (ind);
+      }
+   }
+
+
 void Pagewidget::slotRotateRight (void)
 {
    transformPage (File::Transform_rotate90);

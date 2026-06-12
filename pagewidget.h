@@ -208,6 +208,12 @@ public:
    /** transform the page being shown, with undo */
    void transformPage (File::e_transform op);
 
+   /** refresh a single page whose content has changed: reload its
+       thumbnail and, if it is the page being shown, the main image
+
+      \param pagenum  page which has changed */
+   void refreshPage (int pagenum);
+
    /** redisplay the current page - can be used if the smoothing setting
        has been changed, for example */
    void redisplay (void);
