@@ -66,6 +66,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "folderlist.h"
 #include "op.h"
 #include "desk.h"
+#include "mainwidget.h"
 #include "mainwindow.h"
 #include "maxview.h"
 #include "pagewidget.h"
@@ -123,6 +124,17 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    connect(_toolbar->prev, SIGNAL(clicked()), this, SLOT(stackLeft()));
    connect(_toolbar->next, SIGNAL(clicked()), this, SLOT(stackRight()));
 
+   // transform the selected stacks (the rotate/flip menu shortcuts
+   // share these handlers in Mainwidget)
+   connect(_toolbar->rleft, &QPushButton::clicked,
+           this, [this]() { _main->rotate(-90); });
+   connect(_toolbar->rright, &QPushButton::clicked,
+           this, [this]() { _main->rotate(90); });
+   connect(_toolbar->hflip, &QPushButton::clicked,
+           this, [this]() { _main->flip(true); });
+   connect(_toolbar->vflip, &QPushButton::clicked,
+           this, [this]() { _main->flip(false); });
+
    connect(_toolbar->pressed_esc, SIGNAL(triggered()),
            this, SLOT(resetFilter()));
    connect(_toolbar->cancelFilter, SIGNAL(clicked()),
@@ -140,6 +152,10 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    QVBoxLayout *lay = new QVBoxLayout (group);
    lay->setContentsMargins (0, 0, 0, 0);
    lay->setSpacing (2);
+   /* don't let the toolbar's many buttons set a minimum width for the
+      desktop pane, since that would squeeze the folder tree out of the
+      splitter; the toolbar just clips if space is really short */
+   _toolbar->setSizePolicy (QSizePolicy::Ignored, QSizePolicy::Fixed);
    lay->addWidget (_toolbar);
    lay->addWidget (_view);
 
