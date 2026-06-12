@@ -1157,28 +1157,35 @@ void Pagewidget::ocrCopy (void)
    }
 
 
-void Pagewidget::addRotate (int add)
+/* transform the page being shown, with undo. The display refreshes
+   through the model's pageContentChanged() signal */
+void Pagewidget::transformPage (File::e_transform op)
 {
-   _rotate = (_rotate + 360 + add) % 360;
-   updateWindow ();
+   QModelIndex ind;
+
+   if (!getCurrentIndex (ind, true))
+      return;
+
+   Desktopmodel *model = _modelconv->getDesktopmodel (_model);
+   model->transformPage (ind, _pagenum, op);
 }
 
 
 void Pagewidget::slotRotateRight (void)
 {
-   addRotate (90);
+   transformPage (File::Transform_rotate90);
 }
 
 
 void Pagewidget::slotRotate180 (void)
 {
-   addRotate (180);
+   transformPage (File::Transform_rotate180);
 }
 
 
 void Pagewidget::slotRotateLeft (void)
 {
-   addRotate (-90);
+   transformPage (File::Transform_rotate270);
 }
 
 
