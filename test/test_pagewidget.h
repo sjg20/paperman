@@ -36,6 +36,9 @@ private slots:
    //! Test the rotate and flip buttons transform the displayed page
    void testRotateButtons();
 
+   //! Test a rotated page's thumbnail is ready at once, not blanked
+   void testRotateThumbnailReady();
+
    //! Test the rotate action updates the displayed page
    void testRotateActionDisplay();
 

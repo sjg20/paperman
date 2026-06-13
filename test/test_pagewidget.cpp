@@ -9,6 +9,7 @@
 #include "desktopwidget.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "pagemodel.h"
 #include "pageview.h"
 #include "pagewidget.h"
 #include "test_pagewidget.h"
@@ -252,6 +253,40 @@ void TestPagewidget::testRotateButtons()
                     File::transformImage(first, File::Transform_hflip)) < 4);
    me.actionUndo->trigger();
    QCOMPARE(page->_image.size(), first.size());
+}
+
+void TestPagewidget::testRotateThumbnailReady()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QToolButton *rright = page->findChild<QToolButton *>("rright");
+   QVERIFY(rright);
+
+   Pagemodel *pm = page->_pagemodel;
+
+   /* mimic the displayed state: the shown page's thumbnail has already
+      been generated and is ready (the background rescale runs on a
+      timer, so force it here rather than waiting) */
+   pm->ensurePage(0);
+   pm->_pages[0]._rescale = true;
+   pm->_pages[0].updatePixmap();
+   QVERIFY(!pm->_pages[0]._pixmap.isNull());
+
+   // rotate the shown page
+   QTest::mouseClick(rright, Qt::LeftButton);
+
+   /* the thumbnail must be ready in its rotated form straight away: it
+      must not be invalidated (which would blank it until the next
+      background rescale) and pixmap() must return a ready image */
+   QVERIFY(pm->_pages[0]._valid);
+   bool dodgy = true;
+   QPixmap thumb = pm->_pages[0].pixmap(dodgy);
+   QVERIFY(!thumb.isNull());
+   QVERIFY(!dodgy);
 }
 
 //! Count dark pixels in an image, sampling every few pixels

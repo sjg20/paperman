@@ -670,6 +670,45 @@ void TestDesktopUi::testRotatePageKeepsSelection()
    QCOMPARE(pagew->getCurrentPage(), 1);
 }
 
+void TestDesktopUi::testRotatePreviewThumbnailReady()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // select the max stack; the preview pane on the right shows its pages
+   clickItem(view, 0);
+   Pagewidget *pagew = desktop->_page;
+   QTRY_VERIFY(pagew->_pagemodel->rowCount(QModelIndex()) > 1);
+   Pagemodel *pm = pagew->_pagemodel;
+
+   /* mimic the displayed state: the shown page's thumbnail has been
+      generated and is ready (the background rescale runs on a timer, so
+      force it here rather than waiting) */
+   pm->ensurePage(0);
+   pm->_pages[0]._rescale = true;
+   pm->_pages[0].updatePixmap();
+   QVERIFY(!pm->_pages[0]._pixmap.isNull());
+
+   // rotate the shown page using the preview pane's rotate button
+   QToolButton *rright = pagew->findChild<QToolButton *>("rright");
+   QVERIFY(rright);
+   QTest::mouseClick(rright, Qt::LeftButton);
+
+   /* the preview pane's thumbnail must show its rotated form straight
+      away, rather than blanking until the next background rescale */
+   QVERIFY(pm->_pages[0]._valid);
+   bool dodgy = true;
+   QPixmap thumb = pm->_pages[0].pixmap(dodgy);
+   QVERIFY(!thumb.isNull());
+   QVERIFY(!dodgy);
+}
+
 void TestDesktopUi::testRotateUnloadedStack()
 {
    QModelIndex repo_ind;
