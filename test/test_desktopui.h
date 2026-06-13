@@ -81,6 +81,9 @@ private slots:
    //! Test emailing a stack as PDF converts it first
    void testEmailAsPdfConverts();
 
+   //! Test copying a stack puts a PDF on the clipboard without a browser
+   void testCopyAsPdf();
+
    //! Test dragging a stack onto a folder in the tree moves it there
    void testDragDropToFolder();
 
