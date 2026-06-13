@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <memory>
 
+#include <QImage>
 #include <QString>
 
 #include "config.h"
@@ -194,6 +195,17 @@ protected:
       \param bpp     returns bits per pixel (1, 8 or 24) */
    void get_image_details (const PoDoFo::PdfDictionary *dict, int &width, int &height,
          int &bpp) const;
+
+   /** apply a page's /Rotate attribute to an extracted image
+
+      PoDoFo's image extraction returns the raw embedded scan, which
+      does not reflect the page's /Rotate attribute. This rotates the
+      image to match what a PDF viewer would display.
+
+      \param pagenum  page whose rotation to apply
+      \param image    image to rotate
+      \returns the rotated image */
+   QImage apply_rotation (int pagenum, const QImage &image) const;
 
    err_info *make_error (const PoDoFo::PdfError &eCode);
 

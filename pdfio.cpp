@@ -372,6 +372,13 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
 
          get_image_details (dict, width, height, bpp);
          size = QSize (width, height);
+
+         /* a 90 or 270 degree /Rotate swaps the displayed dimensions,
+            to match the rotated image apply_rotation() produces */
+         int rot = ((_doc->GetPage (pagenum)->GetRotation () % 360) + 360)
+               % 360;
+         if (rot == 90 || rot == 270)
+            size.transpose ();
          return NULL;
          }
       }
@@ -403,6 +410,28 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
 #endif
       }
    return NULL;
+   }
+
+
+QImage Pdfio::apply_rotation (int pagenum, const QImage &image) const
+   {
+   if (!_doc)
+      return image;
+
+   /* /Rotate is the clockwise rotation a viewer applies to the page,
+      so map it to the matching image transform */
+   int rotation = ((_doc->GetPage (pagenum)->GetRotation () % 360) + 360)
+         % 360;
+   switch (rotation)
+      {
+      case 90 :
+         return File::transformImage (image, File::Transform_rotate90);
+      case 180 :
+         return File::transformImage (image, File::Transform_rotate180);
+      case 270 :
+         return File::transformImage (image, File::Transform_rotate270);
+      }
+   return image;
    }
 
 
@@ -464,6 +493,12 @@ err_info *Pdfio::getImage (QString fname, int pagenum, QImage &image, double xsc
                qPrintable (fname), pagenum + 1, stride * height, len);
          Filepage::getImageFromLines (buff, width, height, bpp, stride,
                image, true, false, bpp == 1);
+
+         /* podofo extracts the raw embedded scan, which does not
+            reflect the page's /Rotate attribute; apply it so the
+            rendered image matches what a PDF viewer (and the poppler
+            fallback) shows */
+         image = apply_rotation (pagenum, image);
          return NULL;
          }
       }
