@@ -745,6 +745,52 @@ void TestFile::testTransformPage()
             File::Transform_hflip);
 }
 
+/* Check that rendering a PDF page falls back to poppler when PoDoFo
+   cannot decode the page image. PoDoFo 0.9.8 refuses to decode the
+   streams of images with under 8 bits per pixel, such as the 1-bit
+   pages which paperman's own PDF conversion writes, because its
+   predictor checks misread the image's BitsPerComponent as predictor
+   parameters */
+void TestFile::testPdfMonoRender()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+
+   copyFixture("testfile.max", tmp.path());
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   File *pdf = File::createFile(dir, "converted.pdf", nullptr,
+                                File::Type_pdf);
+   QVERIFY(pdf);
+   QVERIFY(pdf->create() == nullptr);
+   Operation op("Convert file", 0, 0);
+   QVERIFY(max.copyTo(pdf, 3, op, false) == nullptr);
+   QCOMPARE(pdf->pagecount(), max.pagecount());
+
+   // every page must render, including the 1-bit one
+   for (int page = 0; page < pdf->pagecount(); page++) {
+      QImage image;
+      QSize size, trueSize;
+      int bpp;
+      err_info *e = pdf->getImage(page, false, image, size, trueSize, bpp,
+                                  false);
+      QVERIFY2(!e, qPrintable(QString("page %1: %2").arg(page)
+                              .arg(e ? e->errstr : "")));
+      QVERIFY(!image.isNull());
+   }
+
+   /* rotating the 1-bit page and re-rendering follows the same path as
+      the page view's refresh after a rotation */
+   QVERIFY(!pdf->transformPage(3, File::Transform_rotate90));
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!pdf->getImage(3, false, image, size, trueSize, bpp, false));
+   QVERIFY(!image.isNull());
+   delete pdf;
+}
+
 /* Compare a page rendered after transformPage() against the original
    render transformed in memory. The stored page may be wider than the
    reference because of format padding, so compare the reference-sized
