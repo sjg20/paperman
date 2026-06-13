@@ -58,6 +58,8 @@ class Pageinfo
    friend class Pagemodel;   /* needs direct access to _scan_image so two
                                 pages can be drawn in parallel during a
                                 progressive duplex scan */
+   friend class TestPagewidget;
+   friend class TestDesktopUi;
 public:
    Pageinfo ();
    ~Pageinfo ();
@@ -159,6 +161,8 @@ Q_DECLARE_METATYPE(Pageinfo *)
 class Pagemodel : public QAbstractItemModel
    {
    Q_OBJECT
+   friend class TestPagewidget;
+   friend class TestDesktopUi;
 public:
    Pagemodel (QObject *parent);
    ~Pagemodel ();

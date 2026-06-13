@@ -112,7 +112,14 @@ void Pagemodel::updatePage (int pagenum)
 
    if (row < 0 || row >= _row_count)
       return;
-   _pages [row].invalidate ();
+
+   /* regenerate the thumbnail straight away so the changed page (e.g.
+      after a rotation) is shown in its new form at once.  Going through
+      invalidate() would null the pixmap and defer the rescale to the
+      background timer, so the page would blank briefly first */
+   _pages [row]._rescale = true;
+   if (!_pages [row].updatePixmap ())
+      _pages [row].invalidate ();   // not set up yet: rebuild lazily
 
    QModelIndex ind = index (row, 0, QModelIndex ());
    emit dataChanged (ind, ind);
