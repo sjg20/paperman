@@ -474,6 +474,8 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
    _hdr_updated = false;
    _version_a = false;
    _all_chunks_loaded = false;
+   _xform_page = -1;
+   _xform_bpp = 0;
    }
 
 
@@ -5261,6 +5263,11 @@ err_info *Filemax::flush_pages (void)
 
 err_info *Filemax::flush (void)
    {
+   /* any write to the file may change page content or ordering, so the
+      transformPage() image cache is no longer guaranteed valid */
+   _xform_page = -1;
+   _xform_image = QImage ();
+
    CALL(ensure_open());
    ensure_all_chunks ();
 
@@ -6007,6 +6014,18 @@ err_info *Filemax::getImage (int pagenum, bool,
    QDateTime timestamp;
 
    load ();
+
+   /* if transformPage() just produced this page, reuse its decoded
+      image instead of decoding the file again. This saves a full JPEG
+      decode for each of the views that refresh after a rotation */
+   if (!blank && pagenum == _xform_page && !_xform_image.isNull ())
+      {
+      image = _xform_image;
+      Size = trueSize = image.size ();
+      bpp = _xform_bpp;
+      return NULL;
+      }
+
    CALL (getImageInfo (pagenum, Size, trueSize, bpp, num_bytes, compressed_size, timestamp));
    Filepage::getImageFromLines (0, trueSize.width (), trueSize.height (),
          bpp == 24 ? 32 : bpp, 0, image, false, blank);
@@ -6066,7 +6085,19 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
    page._timestamp = info->timestamp;
    CALL (page.compress ());
 
-   return max_replace_page (*info, page);
+   CALL (max_replace_page (*info, page));
+
+   /* cache the rotated image (which max_replace_page() invalidated via
+      flush()) so the display refresh can reuse it.  Skip mono pages:
+      they are stored with the width padded, so 'out' would not match
+      what getImage() returns, and they decode quickly anyway */
+   if (bpp > 1)
+      {
+      _xform_image = out;
+      _xform_page = pagenum;
+      _xform_bpp = bpp;
+      }
+   return NULL;
    }
 
 

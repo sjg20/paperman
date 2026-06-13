@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QDateTime>
+#include <QImage>
 
 #include "file.h"
 #include "utils.h"
@@ -638,6 +639,14 @@ private:
    bool _version_a;  //!< true if this is an old version A file
 //   err_info *_err;    //!< the last error that occurred
    bool _all_chunks_loaded;  //!< true if all chunk data has been loaded
+
+   /* cache of a page image just produced by transformPage(), so the
+      display refresh that follows can reuse it instead of decoding the
+      page from the file again.  Invalidated by flush(), so any other
+      write to the file clears it */
+   QImage _xform_image;     //!< the cached decoded image (null if none)
+   int _xform_page;         //!< page it is for, or -1 if none
+   int _xform_bpp;          //!< stored bits per pixel of the cached page
    };
 
 
