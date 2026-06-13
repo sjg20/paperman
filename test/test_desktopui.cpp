@@ -670,6 +670,46 @@ void TestDesktopUi::testRotatePageKeepsSelection()
    QCOMPARE(pagew->getCurrentPage(), 1);
 }
 
+void TestDesktopUi::testRotatePageViewKeepsPreviewPage()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // select the stack: the desktop preview pane shows it on page one
+   clickItem(view, 0);
+   Pagewidget *preview = desktop->_page;
+   QTRY_VERIFY(preview->_pagemodel->rowCount(QModelIndex()) > 1);
+   QCOMPARE(preview->getCurrentPage(), 0);
+
+   // open the same stack in the page view and select its second page
+   me.actionSwap->trigger();
+   Pagewidget *page = Mainwidget::singleton()->getPage();
+   QTRY_COMPARE(Mainwidget::singleton()->currentWidget(), (QWidget *)page);
+   QTRY_VERIFY(page->_pagemodel->rowCount(QModelIndex()) > 1);
+
+   QModelIndex p2 = page->_pagemodel->index(1, 0, QModelIndex());
+   page->_pageview->scrollTo(p2);
+   QTest::mouseClick(page->_pageview->viewport(), Qt::LeftButton,
+                     Qt::NoModifier, page->_pageview->visualRect(p2).center());
+   QCOMPARE(page->getCurrentPage(), 1);
+
+   // rotate the second page in the page view
+   QToolButton *rright = page->findChild<QToolButton *>("rright");
+   QVERIFY(rright);
+   QTest::mouseClick(rright, Qt::LeftButton);
+
+   /* the desktop preview pane is showing a different page, so it must
+      stay on its own page rather than jumping to the rotated one */
+   QCOMPARE(preview->getCurrentPage(), 0);
+   QCOMPARE(page->getCurrentPage(), 1);
+}
+
 void TestDesktopUi::testRotatePreviewThumbnailReady()
 {
    QModelIndex repo_ind;

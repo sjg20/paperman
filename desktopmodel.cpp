@@ -77,6 +77,7 @@ Desktopmodel::Desktopmodel(QObject *parent)
    _scan_file = 0;
    _model_invalid = false;
    _minor_change = false;
+   _pagenum_change = false;
    _need_scaled_image = false;
    _cloned = false;
 
@@ -285,6 +286,7 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
 bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int role)
    {
    bool changed = false;
+   bool pagenum_change = false;
 
    if (!index.isValid() || !IS_FILE (index))
       return false;
@@ -337,6 +339,7 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
             {
             f->setPagenum (newpage);
             changed = true;
+            pagenum_change = true;
             }
          break;
          }
@@ -349,7 +352,9 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
       f->pixmap (true);
       //FIXME: better to emit our own signal which tells Desktopdelegate to just update the pixmap
       _minor_change = true;
+      _pagenum_change = pagenum_change;
       emit dataChanged (index, index);
+      _pagenum_change = false;
       _minor_change = false;
       }
    return true;

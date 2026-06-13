@@ -48,6 +48,9 @@ private slots:
    //! Test rotating one page in the preview pane keeps the selection
    void testRotatePageKeepsSelection();
 
+   //! Test rotating in the page view does not move the preview pane's page
+   void testRotatePageViewKeepsPreviewPage();
+
    //! Test a rotated page's preview thumbnail is ready at once
    void testRotatePreviewThumbnailReady();
 

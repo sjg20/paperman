@@ -1059,7 +1059,14 @@ void Pagewidget::slotStackChanged (const QModelIndex &from, const QModelIndex &t
       Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
       bool minor = contents->isMinorChange ();
 
-      showPages (_model, _index, 0, -1, minor ? -1 : 0, !minor);
+      /* For a content change such as a rotation, keep showing the page
+         we are on rather than jumping to the stack's current page (-1
+         resolves to that), which may have been moved by an edit in
+         another view.  Only follow the current page when it changed
+         deliberately, i.e. page navigation. */
+      int curpage = !minor ? 0
+            : contents->isPagenumChange () ? -1 : _pagenum;
+      showPages (_model, _index, 0, -1, curpage, !minor);
       }
    }
 
