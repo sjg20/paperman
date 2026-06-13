@@ -909,3 +909,46 @@ void TestFile::testTransformEmptyStack()
    QVERIFY(fresh.load() == nullptr);
    QCOMPARE(fresh.pagecount(), 0);
 }
+
+void TestFile::testTransformImageCache()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   QImage before, cached, ondisk, again;
+   QSize size, trueSize;
+   int bpp;
+
+   // page 0 is colour, so its rotated image is cached for reuse
+   QVERIFY(!max.getImage(0, false, before, size, trueSize, bpp, false));
+   QVERIFY(bpp > 1);
+
+   // after rotating, page 0's image is cached and the next read returns
+   // the rotated page
+   QVERIFY(!max.transformPage(0, File::Transform_rotate90));
+   QCOMPARE(max._xform_page, 0);
+   QVERIFY(!max.getImage(0, false, cached, size, trueSize, bpp, false));
+   QCOMPARE(cached.width(), before.height());
+   QCOMPARE(cached.height(), before.width());
+
+   // the cached image agrees with a fresh decode from the file, so the
+   // file was written correctly and the cache is not stale
+   {
+      Filemax fresh(dir, "testfile.max", nullptr);
+      QVERIFY(fresh.load() == nullptr);
+      QVERIFY(!fresh.getImage(0, false, ondisk, size, trueSize, bpp, false));
+   }
+   QCOMPARE(cached.size(), ondisk.size());
+   QVERIFY(nearlySame(cached, ondisk));
+
+   // any flush (e.g. from another edit) invalidates the cache, so a
+   // later read cannot return a stale image
+   QVERIFY(max.flush() == nullptr);
+   QCOMPARE(max._xform_page, -1);
+   QVERIFY(!max.getImage(0, false, again, size, trueSize, bpp, false));
+   QVERIFY(nearlySame(again, ondisk));
+}

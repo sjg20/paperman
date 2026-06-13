@@ -81,6 +81,10 @@ private slots:
    //! file intact
    void testTransformEmptyStack();
 
+   //! a rotated page is cached for display and stays consistent with
+   //! the file
+   void testTransformImageCache();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
