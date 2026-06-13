@@ -745,12 +745,12 @@ void TestFile::testTransformPage()
             File::Transform_hflip);
 }
 
-/* Check that rendering a PDF page falls back to poppler when PoDoFo
-   cannot decode the page image. PoDoFo 0.9.8 refuses to decode the
-   streams of images with under 8 bits per pixel, such as the 1-bit
-   pages which paperman's own PDF conversion writes, because its
-   predictor checks misread the image's BitsPerComponent as predictor
-   parameters */
+/* Check that PDF pages render correctly after rotation. A 1-bit page
+   falls back to poppler because PoDoFo 0.9.8 refuses to decode the
+   streams of images with under 8 bits per pixel (its predictor checks
+   misread the image's BitsPerComponent as predictor parameters). A
+   colour page goes through PoDoFo's image extraction, which returns
+   the raw scan, so the render must apply the page's /Rotate itself */
 void TestFile::testPdfMonoRender()
 {
    QTemporaryDir tmp;
@@ -788,6 +788,20 @@ void TestFile::testPdfMonoRender()
    int bpp;
    QVERIFY(!pdf->getImage(3, false, image, size, trueSize, bpp, false));
    QVERIFY(!image.isNull());
+
+   /* the colour page 0 goes through PoDoFo's image extraction, which
+      returns the raw scan; the render must still reflect the page's
+      rotation, so a rotated page renders rotated rather than upright */
+   QImage colour;
+   QVERIFY(!pdf->getImage(0, false, colour, size, trueSize, bpp, false));
+   QVERIFY(colour.width() != colour.height());
+
+   QVERIFY(!pdf->transformPage(0, File::Transform_rotate90));
+   QVERIFY(!pdf->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(image.width(), colour.height());
+   QCOMPARE(image.height(), colour.width());
+   QImage want = File::transformImage(colour, File::Transform_rotate90);
+   QVERIFY(nearlySame(image, want));
    delete pdf;
 }
 
