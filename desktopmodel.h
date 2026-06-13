@@ -826,6 +826,21 @@ public:
    err_info *opEmailFiles (QModelIndex parent, QModelIndexList &slist,
          File::e_type type);
 
+   /** copy files to the clipboard, ready to paste elsewhere
+
+       The selected files are converted to the requested type (if any)
+       and put on the clipboard as a text/uri-list, so they can be
+       pasted into another application, such as a Gmail compose window,
+       as an attachment.  If more than one file is copied they are
+       packed into a zip archive first.
+
+      \param parent  desk containing the files
+      \param slist   list of files to copy
+      \param type    type to convert to (or Type_other to leave as is)
+      \returns error or NULL if ok */
+   err_info *opCopyFiles (QModelIndex parent, QModelIndexList &slist,
+         File::e_type type);
+
    /** when non-null, URLs which would be opened in the browser (e.g.
        the email compose window) are stored here instead. Used by
        tests to check the URL without launching anything */
@@ -1331,10 +1346,38 @@ protected:
       \param fname   filename to use for zip file (if required). The extension 
                      of this is ignored and replaced with .zip
       \param fnameList list of filenames to send (each a full path)
-      \param can_delete returns true if the original files can be deleted, 
+      \param can_delete returns true if the original files can be deleted,
                      false if the email program wants them to stay around
       \returns error or NULL if ok */
    err_info *emailFiles (QString &fname, QStringList &fnamelist, bool &can_delete);
+
+   /** convert the selected files ready for email or copy
+
+       Each file is converted to the requested type into a temporary
+       file, or its own path is used when type is Type_other.
+
+      \param slist      list of files to package
+      \param type       type to convert to (or Type_other to leave as is)
+      \param op         operation to update with progress
+      \param fname      returns a name to use for the zip, if needed
+      \param fname_list returns the list of files to put on the clipboard
+      \param tmp_list   returns the temporary files which may be deleted
+      \returns error or NULL if ok */
+   err_info *packageFiles (QModelIndexList &slist, File::e_type type,
+         Operation &op, QString &fname, QStringList &fname_list,
+         QStringList &tmp_list);
+
+   /** put files on the clipboard as a text/uri-list
+
+       If more than one file is given they are packed into a zip first.
+
+      \param fname     filename to use for the zip file, if needed
+      \param fnamelist list of files to put on the clipboard (full paths)
+      \param can_delete returns true if the original files can be deleted,
+                     false if they must stay around for the paste
+      \returns error or NULL if ok */
+   err_info *copyFilesToClipboard (QString &fname, QStringList &fnamelist,
+         bool &can_delete);
 
 private:
    QList<Desk *> _desks;  //!< the model directories

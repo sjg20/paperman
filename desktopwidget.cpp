@@ -336,6 +336,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
    addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
    addAction (_act_email_max, "as &Max", SLOT (emailMax ()), "Ctrl+Alt+E");
+   addAction (_act_copy, "&Copy as PDF", SLOT (copy ()), "Ctrl+C");
    addAction (_act_move, "&Move to folder",  SLOT(moveToFolder ()), "Ctrl+M");
 //   addAction (_act_send, "&Send stacks", SLOT (send ()), "Ctrl+S");
 //   addAction (_act_deliver_out, "&Delivery outgoing", SLOT (deliverOut ()), "");
@@ -1221,6 +1222,7 @@ void Desktopwidget::updateActions()
    _act_email->setEnabled (at_least_one);
    _act_email_max->setEnabled (at_least_one);
    _act_email_pdf->setEnabled (at_least_one);
+   _act_copy->setEnabled (at_least_one);
 
 }
 
@@ -1262,6 +1264,8 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    submenu->addAction (_act_email);
    submenu->addAction (_act_email_max);
    submenu->addAction (_act_email_pdf);
+   submenu->addSeparator ();
+   submenu->addAction (_act_copy);
 /* to be implemented
    submenu = context_menu->addMenu (tr ("&Send..."));
    submenu->addAction (_act_send);
@@ -1516,8 +1520,31 @@ void Desktopwidget::emailPdf (void)
 {
    QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
-   
+
    _main->complain(_contents->opEmailFiles(parent, slist, File::Type_pdf));
+}
+
+
+void Desktopwidget::copy (void)
+{
+   QModelIndex parent = _view->rootIndexSource ();
+   QModelIndexList slist = _view->getSelectedListSource ();
+
+   if (slist.isEmpty ())
+      return;
+
+   // tell the user what landed on the clipboard and how to use it
+   if (!_main->complain (_contents->opCopyFiles (parent, slist,
+         File::Type_pdf)))
+      {
+      QString msg = slist.size () == 1
+         ? tr ("Copied as a PDF document - press Ctrl+V to paste it into "
+               "an email, a file manager or another app")
+         : tr ("Copied %1 documents as a zip - press Ctrl+V to paste it "
+               "into an email, a file manager or another app")
+                  .arg (slist.size ());
+      emit newContents (msg);
+      }
 }
 
 

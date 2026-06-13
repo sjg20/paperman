@@ -47,3 +47,13 @@ generally.
 
 If more than one file is selected they are packed into a single zip
 first, since most compose paste handlers only take one file.
+
+Copying files
+-------------
+
+The Copy command (Ctrl+C) converts the selected files to PDF and puts
+the result on the clipboard as a ``text/uri-list``, the same way the
+Email menu does, but without opening a browser.  Paste it wherever a
+file is wanted: a Gmail compose window (Ctrl+V attaches it), a file
+manager, or a chat window.  As with email, more than one file is packed
+into a single zip first.

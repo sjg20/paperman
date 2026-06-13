@@ -27,6 +27,7 @@ Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
 - double click to view full size page image (also on right pane)
 - print stacks and pages, including page annotations
 - email files as PDF via Gmail (Ctrl+Shift+E, paste with Ctrl+V)
+- copy files as PDF to the clipboard (Ctrl+C, paste anywhere)
 - full undo/redo
 
 
