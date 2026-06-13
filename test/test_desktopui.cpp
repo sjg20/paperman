@@ -831,6 +831,62 @@ void TestDesktopUi::testEmailAsPdfConverts()
    QFile::remove(pdf);
 }
 
+void TestDesktopUi::testCopyAsPdf()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopmodel::url_capture = &s_opened_url;
+   s_opened_url = QUrl();
+
+   // start with an empty clipboard so we can be sure copy fills it
+   QApplication::clipboard()->clear();
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // copy the max stack: a converted PDF lands on the clipboard
+   clickItem(view, 0);
+   QVERIFY(desktop->_act_copy->isEnabled());
+   QSignalSpy statusSpy(desktop, SIGNAL(newContents(QString)));
+   desktop->_act_copy->trigger();
+
+   // the status bar is told what was copied and how to paste it
+   QCOMPARE(statusSpy.count(), 1);
+   QString status = statusSpy.takeFirst().at(0).toString();
+   QVERIFY(status.contains("PDF"));
+   QVERIFY(status.contains("Ctrl+V"));
+
+   const QMimeData *mime = QApplication::clipboard()->mimeData();
+   QVERIFY(mime);
+   QVERIFY(mime->hasUrls());
+   QCOMPARE(mime->urls().size(), 1);
+
+   QString pdf = mime->urls()[0].toLocalFile();
+   QVERIFY(pdf.endsWith(".pdf"));
+   QVERIFY(QFile::exists(pdf));
+
+   // it really is a PDF, ready to paste into a compose window
+   QFile fil(pdf);
+   QVERIFY(fil.open(QIODevice::ReadOnly));
+   QCOMPARE(fil.read(4), QByteArray("%PDF"));
+   fil.close();
+
+   // the GNOME copy marker is present so file managers paste the file
+   // rather than ignoring a bare uri-list
+   QVERIFY(mime->hasFormat("x-special/gnome-copied-files"));
+   QByteArray gnome = mime->data("x-special/gnome-copied-files");
+   QVERIFY(gnome.startsWith("copy\n"));
+   QVERIFY(gnome.contains(QUrl::fromLocalFile(pdf).toEncoded()));
+
+   // copying does not open a browser window, unlike emailing
+   QVERIFY(s_opened_url.isEmpty());
+
+   QFile::remove(pdf);
+}
+
 void TestDesktopUi::testDragDropToFolder()
 {
    QModelIndex repo_ind;
