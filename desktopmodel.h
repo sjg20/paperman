@@ -342,6 +342,11 @@ public:
 
    bool isMinorChange (void) const { return _minor_change; }
 
+   /** \returns true if the last dataChanged() was a deliberate change of
+       the stack's current page (navigation), as opposed to a change of
+       the page content such as a rotation */
+   bool isPagenumChange (void) const { return _pagenum_change; }
+
    /* a list of filenames has been added to a directory. If the directory
       has been loaded into a desk, this desk needs to be notified. This
       function handle that. It simply adds the files to the desk
@@ -1444,6 +1449,7 @@ private:
    bool _model_invalid;  //!< model is temporarily invalid and cannot be accessed
 
    bool _minor_change;   //!< true if a dataChanged() signal is only for a minor change (no image data)
+   bool _pagenum_change; //!< true if a dataChanged() signal is for a change of the current page (navigation)
 
    QTimer *_flushTimer;    //!< time to indicate when we need to flush the desks
    QModelIndex _subdirs_index;      //!< model index for our subdirectory search desk
