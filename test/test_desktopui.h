@@ -48,6 +48,9 @@ private slots:
    //! Test rotating one page in the preview pane keeps the selection
    void testRotatePageKeepsSelection();
 
+   //! Test a rotated page's preview thumbnail is ready at once
+   void testRotatePreviewThumbnailReady();
+
    //! Test rotating a stack which has not been viewed yet
    void testRotateUnloadedStack();
 
