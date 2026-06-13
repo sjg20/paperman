@@ -70,6 +70,9 @@ private slots:
    //! transformPage rotates and mirrors pages of each file type
    void testTransformPage();
 
+   //! rendering a PDF page PoDoFo cannot decode falls back to poppler
+   void testPdfMonoRender();
+
    //! a re-rendered transformed page matches the reference image
    //! transformed in memory
    void testTransformMatchesReference();

@@ -376,9 +376,12 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
          }
       }
 #ifdef EXCEPTIONS
-   catch (const PdfError &eCode)
+   catch (const PdfError &)
       {
-      return make_error (eCode);
+      /* if PoDoFo cannot handle the page, fall back to poppler below.
+         For example PoDoFo 0.9.8 refuses to decode the streams of
+         images with under 8 bits per pixel, since its predictor checks
+         misread the image's BitsPerComponent as predictor parameters */
       }
 #endif
    if (preview)
@@ -464,9 +467,13 @@ err_info *Pdfio::getImage (QString fname, int pagenum, QImage &image, double xsc
          return NULL;
          }
       }
-   catch (const PdfError &eCode)
+   catch (const PdfError &)
       {
-      return make_error (eCode);
+      /* if PoDoFo cannot decode the page image, fall back to rendering
+         with poppler below. For example PoDoFo 0.9.8 refuses to decode
+         the streams of images with under 8 bits per pixel, since its
+         predictor checks misread the image's BitsPerComponent as
+         predictor parameters */
       }
 
 #ifdef CONFIG_use_poppler
