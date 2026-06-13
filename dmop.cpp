@@ -540,7 +540,8 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
    }
 
 
-err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool &can_delete)
+err_info *Desktopmodel::copyFilesToClipboard (QString &fname,
+      QStringList &fnamelist, bool &can_delete)
 {
    can_delete = true;
 
@@ -548,10 +549,12 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
    if (fnamelist.size () == 1)
       {
       fname = fnamelist [0];
-      can_delete = false;   // we need to keep the file for the email program
+      can_delete = false;   // we need to keep the file on the clipboard
       }
    else
       CALL (util_buildZip (fname, fnamelist));
+
+   QUrl url = QUrl::fromLocalFile (fname);
 
    // Put the file on the clipboard as a text/uri-list so Gmail compose
    // (and any other webmail that accepts file paste) treats Ctrl+V as a
@@ -559,8 +562,25 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
    // so this is the only path that lands a real attachment in Gmail
    // without a per-user OAuth dance.
    QMimeData *mime = new QMimeData ();
-   mime->setUrls (QList<QUrl> () << QUrl::fromLocalFile (fname));
+   mime->setUrls (QList<QUrl> () << url);
+
+   /* A bare text/uri-list is enough for a browser, but file managers
+      need a copy/cut marker to paste the file.  Provide both the GNOME
+      and KDE flavours so Files, Nautilus, Dolphin and the like treat
+      Ctrl+V as a file copy. */
+   mime->setData ("x-special/gnome-copied-files",
+         QByteArray ("copy\n") + url.toEncoded ());
+   mime->setData ("application/x-kde-cutselection", QByteArray ("0"));
+
    QApplication::clipboard ()->setMimeData (mime);
+
+   return NULL;
+}
+
+
+err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool &can_delete)
+{
+   CALL (copyFilesToClipboard (fname, fnamelist, can_delete));
 
    // Open Gmail's compose URL with a pre-filled subject and body.  The
    // attachment cannot ride on the URL, but the user pastes it with
@@ -576,21 +596,17 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
 }
 
 
-err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist,
-      File::e_type type)
+err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
+      File::e_type type, Operation &op, QString &fname,
+      QStringList &fname_list, QStringList &tmp_list)
 {
    int upto = 0;
-   QStringList fname_list, tmp_list;
-
-   UNUSED (parent);
-   Operation op ("Packaging", slist.size (), 0);
 
    // name of first file will be used for the zip name
-   QString fname = getFile (slist [0])->filename ();
+   fname = getFile (slist [0])->filename ();
    QString dir = QString ("%1/").arg (P_tmpdir);
 
    // put the path on front of each file
-   err_info *e = NULL;
    foreach (QModelIndex ind, slist)
    {
       File *f = getFile (ind);
@@ -607,17 +623,57 @@ err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist
 
          QString ext = File::typeExt (type);
          uniq = util_findNextFilename (f->leaf (), dir, ext);
-         CALLB (f->duplicateToDesk (0, type, uniq, 3, op, fnew));
+         CALL (f->duplicateToDesk (0, type, uniq, 3, op, fnew));
          fname_list << uniq;
          tmp_list << uniq;
       }
       op.setProgress (upto++);
    }
+   return NULL;
+}
+
+
+err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist,
+      File::e_type type)
+{
+   QString fname;
+   QStringList fname_list, tmp_list;
+
+   UNUSED (parent);
+   Operation op ("Packaging", slist.size (), 0);
+
+   err_info *e = packageFiles (slist, type, op, fname, fname_list, tmp_list);
    bool can_delete = true;
    if (!e)
       e = emailFiles (fname, fname_list, can_delete);
 
    // delete the files if we are allowed
+   if (can_delete) {
+      foreach (QString fname, tmp_list)
+         {
+         QFile f (fname);
+         f.remove ();
+         }
+   }
+   return e;
+}
+
+
+err_info *Desktopmodel::opCopyFiles (QModelIndex parent, QModelIndexList &slist,
+      File::e_type type)
+{
+   QString fname;
+   QStringList fname_list, tmp_list;
+
+   UNUSED (parent);
+   Operation op ("Packaging", slist.size (), 0);
+
+   err_info *e = packageFiles (slist, type, op, fname, fname_list, tmp_list);
+   bool can_delete = true;
+   if (!e)
+      e = copyFilesToClipboard (fname, fname_list, can_delete);
+
+   // delete the converted files if they are not the one on the clipboard
    if (can_delete) {
       foreach (QString fname, tmp_list)
          {
