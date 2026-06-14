@@ -309,6 +309,39 @@ QByteArray RemoteBackend::getRequest(const QString &pathAndQuery)
 }
 
 
+bool RemoteBackend::transformPage(const QString &repo, const QString &path,
+                                  int page, const QString &op)
+{
+   _lastError.clear();
+
+   /* Build the (decoded) endpoint path; postRequest() percent-encodes
+      special characters via QUrl::setPath while keeping the slashes as
+      path separators, which the server splits on. */
+   QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + "/transform";
+
+   QJsonObject body;
+   body["page"] = page;
+   body["op"]   = op;
+   QByteArray data = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+   QByteArray resp = postRequest(endpoint, data);
+   if (resp.isEmpty()) {
+      if (_lastError.isEmpty())
+         _lastError = "empty response from transform";
+      return false;
+   }
+
+   QJsonDocument doc = QJsonDocument::fromJson(resp);
+   if (doc.isObject() && doc.object().value("success").toBool(false))
+      return true;
+
+   _lastError = doc.isObject()
+                    ? doc.object().value("error").toString("transform failed")
+                    : QStringLiteral("invalid transform response");
+   return false;
+}
+
+
 QByteArray RemoteBackend::postRequest(const QString &path,
                                       const QByteArray &body)
 {

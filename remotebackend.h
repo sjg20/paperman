@@ -95,6 +95,15 @@ public:
                                 const QString &size
                                     = QStringLiteral("medium"));
 
+    /** Rotate or flip a page of a stack on the server.  @p page is
+     *  1-based; a value below 1 transforms every page.  @p op is the
+     *  wire name of the transform: one of "rotate90", "rotate180",
+     *  "rotate270", "hflip", "vflip".  Sync: blocks until the server
+     *  responds.  Returns true on success; on failure lastError() is
+     *  set. */
+    bool transformPage(const QString &repo, const QString &path,
+                       int page, const QString &op);
+
 signals:
     void browseDirectoryReady(quint64 token,
                               const DirectoryListing &listing);
