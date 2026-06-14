@@ -804,19 +804,6 @@ QByteArray SearchServer::handleAuthLogin(const QHash<QString, QString> &params)
 }
 
 
-/* Map a wire op string to the transform enum.  Returns true if the
-   string is recognised. */
-static bool transformFromString(const QString &s, File::e_transform &op)
-{
-    if (s == "rotate90")  { op = File::Transform_rotate90;  return true; }
-    if (s == "rotate180") { op = File::Transform_rotate180; return true; }
-    if (s == "rotate270") { op = File::Transform_rotate270; return true; }
-    if (s == "hflip")     { op = File::Transform_hflip;     return true; }
-    if (s == "vflip")     { op = File::Transform_vflip;     return true; }
-    return false;
-}
-
-
 QByteArray SearchServer::handleTransform(const QString &path,
                                          const QHash<QString, QString> &params,
                                          const QString &authedUser)
@@ -877,7 +864,7 @@ QByteArray SearchServer::handleTransform(const QString &path,
                                      "Body must be JSON {page, op}"));
     QJsonObject obj = doc.object();
     File::e_transform op;
-    if (!transformFromString(obj.value("op").toString(), op))
+    if (!File::transformFromName(obj.value("op").toString(), op))
         return buildHttpResponse(400, "Bad Request", "application/json",
                                  buildJsonResponse(false, "",
                                      "Unknown transform op"));

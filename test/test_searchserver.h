@@ -72,6 +72,7 @@ private slots:
    void testTransformEndpoint();
    void testTransformEndpointErrors();
    void testRemoteBackendTransform();
+   void testDesktopRemoteTransform();
 
 private:
    // HTTP GET returning split header and body

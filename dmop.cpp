@@ -40,8 +40,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QUrl>
 
 #include "desktopmodel.h"
+#include "desk.h"
 #include "file.h"
 #include "op.h"
+#include "remotebackend.h"
 #include "utils.h"
 
 
@@ -498,6 +500,16 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
    File *f = getFile (index);
    err_info *e = NULL;
 
+   /* A remote stack opens as a stub whose pages aren't reachable here,
+      so ask the server that holds it to do the transform instead. */
+   Desk *desk = f ? f->desk () : NULL;
+   if (desk)
+      {
+      RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
+      if (remote)
+         return opTransformPageRemote (index, f, desk, remote, pagenum, op);
+      }
+
    if (f)
       {
       /* the file may not have been loaded yet, in which case it reports
@@ -537,6 +549,59 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          e = f->not_impl ();
       }
    return e;
+   }
+
+
+QString Desktopmodel::remoteStackPath (Desk *desk, File *file) const
+   {
+   /* desk->dir() and desk->rootDir() are absolute and both end in '/';
+      the stack's path within the repository is the directory below the
+      root plus the filename. */
+   QString dirInRepo = desk->dir ();
+   QString root = desk->rootDir ();
+   if (dirInRepo.startsWith (root))
+      dirInRepo = dirInRepo.mid (root.length ());
+   if (dirInRepo.endsWith ('/'))
+      dirInRepo.chop (1);
+   return dirInRepo.isEmpty () ? file->filename ()
+                               : dirInRepo + "/" + file->filename ();
+   }
+
+
+void Desktopmodel::refreshRemoteThumbnail (Desk *desk, RemoteBackend *backend,
+      File *file)
+   {
+   if (!_connectedBackends.contains (backend))
+      {
+      connect (backend, &RemoteBackend::thumbnailReady,
+               this, &Desktopmodel::onThumbnailReady);
+      _connectedBackends.insert (backend);
+      }
+   quint64 token = backend->fetchThumbnailAsync (desk->repoName (),
+         remoteStackPath (desk, file), /*page=*/1, /*size=*/"small");
+   _pendingThumbnails.insert (token, file);
+   }
+
+
+err_info *Desktopmodel::opTransformPageRemote (const QModelIndex &index,
+      File *file, Desk *desk, RemoteBackend *backend, int pagenum,
+      File::e_transform op)
+   {
+   /* The wire page number is 1-based; a value below 1 means every page,
+      which is how the all-pages case (pagenum == -1) is expressed. */
+   int wirePage = pagenum < 0 ? 0 : pagenum + 1;
+
+   if (!backend->transformPage (desk->repoName (),
+                                remoteStackPath (desk, file), wirePage,
+                                File::transformName (op)))
+      return err_make (ERRFN, ERR_remote_transform_failed1,
+                       qPrintable (backend->lastError ()));
+
+   /* refresh the grid thumbnail from the server, and let any open page
+      view know the content changed */
+   refreshRemoteThumbnail (desk, backend, file);
+   emit pageContentChanged (index, pagenum);
+   return NULL;
    }
 
 
