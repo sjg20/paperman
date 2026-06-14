@@ -789,6 +789,31 @@ File::e_transform File::transformInverse (e_transform op)
    }
 
 
+QString File::transformName (e_transform op)
+   {
+   switch (op)
+      {
+      case Transform_rotate90 :  return "rotate90";
+      case Transform_rotate180 : return "rotate180";
+      case Transform_rotate270 : return "rotate270";
+      case Transform_hflip :     return "hflip";
+      case Transform_vflip :     return "vflip";
+      }
+   return "";
+   }
+
+
+bool File::transformFromName (const QString &name, e_transform &op)
+   {
+   if (name == "rotate90")  { op = Transform_rotate90;  return true; }
+   if (name == "rotate180") { op = Transform_rotate180; return true; }
+   if (name == "rotate270") { op = Transform_rotate270; return true; }
+   if (name == "hflip")     { op = Transform_hflip;     return true; }
+   if (name == "vflip")     { op = Transform_vflip;     return true; }
+   return false;
+   }
+
+
 QImage File::transformImage (const QImage &image, e_transform op)
    {
    switch (op)

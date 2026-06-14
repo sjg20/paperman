@@ -14,13 +14,19 @@
 
 #include "../backendstats.h"
 
+#include "../desktopmodel.h"
+#include "../dirmodel.h"
+#include "../desktopundo.h"
 #include "../file.h"
+#include "../measure.h"
 #include "../remotebackend.h"
 #include "../searchserver.h"
 #include "../userstore.h"
 #include "test.h"
 
+#include <QApplication>
 #include <QBuffer>
+#include <QFont>
 #include <QImage>
 
 #include "test_searchserver.h"
@@ -1340,6 +1346,58 @@ void TestSearchServer::testRemoteBackendTransform()
     // an unknown op fails and reports an error rather than asserting
     QVERIFY(!client.transformPage(repo, "testfile.max", 1, "sideways"));
     QVERIFY(!client.lastError().isEmpty());
+
+    server.stop();
+}
+
+void TestSearchServer::testDesktopRemoteTransform()
+{
+    /* Full path: a remote stack shown in the desktop is rotated through
+       Desktopmodel::transformPage, which must detect the remote backend
+       and ask the server to do the work. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    QSize before = serverTestPageSize(dir, "testfile.max", 0);
+    QVERIFY(!before.isEmpty());
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    // point a Dirmodel at the server and a Desktopmodel at the Dirmodel
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err), err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);   // identity converter (no proxy here)
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    // show the remote repo's root directory; its files load as stubs
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    // rotate the first page; the desktop must route this to the server
+    model.transformPage(stack, 0, File::Transform_rotate90);
+
+    QSize after = serverTestPageSize(dir, "testfile.max", 0);
+    QCOMPARE(after.width(), before.height());
+    QCOMPARE(after.height(), before.width());
+
+    // undo rotates it back, again via the server
+    model.getUndoStack()->undo();
+    QSize restored = serverTestPageSize(dir, "testfile.max", 0);
+    QCOMPARE(restored, before);
 
     server.stop();
 }

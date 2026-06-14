@@ -1018,6 +1018,22 @@ private:
     *  if the file isn't in any of our desks. */
    QModelIndex indexForFile(File *file) const;
 
+   /** The path of a stack relative to its repository root, with no
+    *  leading slash (e.g. "sub/dir/stack.max"), used as the {path} in
+    *  the server's per-stack URLs. */
+   QString remoteStackPath(Desk *desk, File *file) const;
+
+   /** Re-fetch a single stack's thumbnail from the server after its
+    *  content changed (e.g. a rotation) and refresh the view. */
+   void refreshRemoteThumbnail(Desk *desk, class RemoteBackend *backend,
+                               File *file);
+
+   /** Transform a page of a remote stack by asking the server to do
+    *  it, then refresh the thumbnail.  See opTransformPage(). */
+   err_info *opTransformPageRemote(const QModelIndex &index, File *file,
+                                   Desk *desk, class RemoteBackend *backend,
+                                   int pagenum, File::e_transform op);
+
    bool getNewScaledImage (Paperscan &scan, const PPage *page, const char *data,
          int nbytes, QImage &image, int &scaled_linenum);
 

@@ -277,6 +277,17 @@ public:
    /** returns the transform which undoes the given one */
    static e_transform transformInverse (e_transform op);
 
+   /** the wire name of a transform, e.g. "rotate90", used by the
+       client/server transform API */
+   static QString transformName (e_transform op);
+
+   /** parse a wire transform name back to an enum
+
+      \param name  one of rotate90/rotate180/rotate270/hflip/vflip
+      \param op    returns the transform on success
+      \returns true if the name is recognised */
+   static bool transformFromName (const QString &name, e_transform &op);
+
    /** apply a transform to an image */
    static QImage transformImage (const QImage &image, e_transform op);
 
