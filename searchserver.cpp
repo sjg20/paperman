@@ -458,16 +458,14 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                       const QHash<QString, QString> &params,
                                       QTcpSocket *client)
 {
-    /* POST is only accepted on a small allowlist; everything else is GET. */
-    if (method == "POST") {
-        if (path == "/v1/auth/login")
-            return handleAuthLogin(params);
+    /* Logging in must work without a token, so handle it before the auth
+       check below.  Other POST routes fall through and are dispatched
+       after authentication. */
+    if (method == "POST" && path == "/v1/auth/login")
+        return handleAuthLogin(params);
+    if (method != "GET" && method != "POST") {
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
-                                QString("POST not supported on this path"));
-    }
-    if (method != "GET") {
-        return buildHttpResponse(405, "Method Not Allowed", "text/plain",
-                                QString("Only GET requests are supported"));
+                                QString("Only GET and POST requests are supported"));
     }
 
     /* Identify the caller.  authedUser is non-empty when a bearer token
@@ -512,6 +510,15 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                          "User not permitted to access repository: "
                                          + repoName));
         }
+    }
+
+    /* POST mutation routes (authenticated above).  These come before the
+       GET routing chain, which assumes a GET. */
+    if (method == "POST") {
+        if (path.startsWith("/v1/repos/") && path.endsWith("/transform"))
+            return handleTransform(path, params, authedUser);
+        return buildHttpResponse(405, "Method Not Allowed", "text/plain",
+                                QString("POST not supported on this path"));
     }
 
     // Route requests
@@ -794,6 +801,147 @@ QByteArray SearchServer::handleAuthLogin(const QHash<QString, QString> &params)
     return buildHttpResponse(200, "OK", "application/json",
                              QString::fromUtf8(outDoc.toJson(
                                  QJsonDocument::Compact)));
+}
+
+
+/* Map a wire op string to the transform enum.  Returns true if the
+   string is recognised. */
+static bool transformFromString(const QString &s, File::e_transform &op)
+{
+    if (s == "rotate90")  { op = File::Transform_rotate90;  return true; }
+    if (s == "rotate180") { op = File::Transform_rotate180; return true; }
+    if (s == "rotate270") { op = File::Transform_rotate270; return true; }
+    if (s == "hflip")     { op = File::Transform_hflip;     return true; }
+    if (s == "vflip")     { op = File::Transform_vflip;     return true; }
+    return false;
+}
+
+
+QByteArray SearchServer::handleTransform(const QString &path,
+                                         const QHash<QString, QString> &params,
+                                         const QString &authedUser)
+{
+    /* Path shape: /v1/repos/{repo}/stacks/{stackPath}/transform, where
+       {stackPath} may itself contain '/' for subdirectories and is
+       percent-encoded. */
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/transform").size());
+    int sep = rest.indexOf("/stacks/");
+    if (sep < 0)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed transform path"));
+    QString repoName = urlDecode(rest.left(sep));
+    QString filePath = urlDecode(rest.mid(sep
+                                          + QStringLiteral("/stacks/").size()));
+
+    // Security: prevent directory traversal
+    if (filePath.isEmpty() || filePath.contains("..")
+        || filePath.startsWith("/"))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "", "Invalid path"));
+
+    /* Per-user repo gating.  The GET path checks a ?repo= query
+       parameter; here the repo is in the URL so check it directly. */
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    // Resolve the repository to a path on disk
+    QString repoPath = _rootPath;
+    if (!repoName.isEmpty()) {
+        bool found = false;
+        foreach (const QString &p, _rootPaths) {
+            if (QFileInfo(p).fileName() == repoName) {
+                repoPath = p;
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            return buildHttpResponse(404, "Not Found", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Repository not found: " + repoName));
+    }
+
+    // Parse the body: { "page": N, "op": "rotate90" }
+    QByteArray body = params.value("__body__").toUtf8();
+    QJsonParseError jerr;
+    QJsonDocument doc = QJsonDocument::fromJson(body, &jerr);
+    if (jerr.error != QJsonParseError::NoError || !doc.isObject())
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {page, op}"));
+    QJsonObject obj = doc.object();
+    File::e_transform op;
+    if (!transformFromString(obj.value("op").toString(), op))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Unknown transform op"));
+    /* 'page' is 1-based; a value below 1 (or absent) means transform
+       every page of the stack. */
+    int page = obj.value("page").toInt(-1);
+
+    QString fullPath = repoPath + "/" + filePath;
+    QFileInfo fi(fullPath);
+    if (!fi.exists())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "File not found: " + filePath));
+
+    File::e_type type = File::typeFromName(fi.fileName());
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, type);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot open file"));
+    err_info *err = file->load();
+    if (err) {
+        QString msg = err->errstr;
+        delete file;
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", msg));
+    }
+
+    int pagecount = file->pagecount();
+    if (pagecount <= 0) {
+        delete file;
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Stack has no pages"));
+    }
+    if (page >= 1 && page > pagecount) {
+        delete file;
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Page out of range"));
+    }
+
+    if (page >= 1)
+        err = file->transformPage(page - 1, op);
+    else
+        for (int i = 0; !err && i < pagecount; i++)
+            err = file->transformPage(i, op);
+    if (err) {
+        QString msg = err->errstr;
+        delete file;
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", msg));
+    }
+    delete file;
+
+    /* The file's mtime has changed, so cached thumbnails and pages
+       (whose cache keys include the mtime) will miss and be re-rendered
+       on the next request; no explicit cache invalidation is needed. */
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
 }
 
 QString SearchServer::searchFiles(const QString &repoPath, const QString &searchPath,

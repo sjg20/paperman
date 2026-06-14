@@ -1248,3 +1248,98 @@ void TestSearchServer::testMaxPageJpegCompression()
     QVERIFY(slog.end());
     server.stop();
 }
+
+/* Return the rendered size of one page of a stack on disk. */
+static QSize serverTestPageSize(const QString &dir, const QString &fname,
+                                int pagenum)
+{
+    File *f = File::createFile(dir, fname, nullptr,
+                               File::typeFromName(fname));
+    if (!f || f->load())
+        return QSize();
+    QImage img;
+    QSize sz, tsz;
+    int bpp;
+    err_info *err = f->getImage(pagenum, false, img, sz, tsz, bpp, false);
+    QSize result = err ? QSize() : img.size();
+    delete f;
+    return result;
+}
+
+void TestSearchServer::testTransformEndpoint()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QString dir = tmpDir.path() + "/";
+
+    // record the sizes of two pages before the transform
+    QSize before0 = serverTestPageSize(dir, "testfile.max", 0);
+    QSize before4 = serverTestPageSize(dir, "testfile.max", 4);
+    QVERIFY(!before0.isEmpty());
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // rotate the first page (1-based) 90 degrees
+    auto resp = postJson(
+        QString("/v1/repos/%1/stacks/testfile.max/transform").arg(repo),
+        R"({"page":1,"op":"rotate90"})");
+    QVERIFY2(resp.ok(), resp.header.toUtf8().constData());
+    QVERIFY(QJsonDocument::fromJson(resp.body).object()["success"].toBool());
+
+    // page one on disk is now turned on its side; the other pages are
+    // untouched
+    QSize after0 = serverTestPageSize(dir, "testfile.max", 0);
+    QCOMPARE(after0.width(), before0.height());
+    QCOMPARE(after0.height(), before0.width());
+    QCOMPARE(serverTestPageSize(dir, "testfile.max", 4), before4);
+
+    /* omitting the page rotates every page of the stack, so page five
+       (untouched above) is now turned on its side too.  It is a 1-bit
+       page, whose width is stored padded to a multiple of 32, so check
+       the orientation flipped rather than exact dimensions */
+    QVERIFY(before4.height() > before4.width());   // started portrait
+    auto all = postJson(
+        QString("/v1/repos/%1/stacks/testfile.max/transform").arg(repo),
+        R"({"op":"rotate90"})");
+    QVERIFY2(all.ok(), all.header.toUtf8().constData());
+    QSize again4 = serverTestPageSize(dir, "testfile.max", 4);
+    QVERIFY(again4.width() > again4.height());      // now landscape
+
+    server.stop();
+}
+
+void TestSearchServer::testTransformEndpointErrors()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // an unknown op is rejected
+    auto badOp = postJson(
+        QString("/v1/repos/%1/stacks/testfile.max/transform").arg(repo),
+        R"({"page":1,"op":"sideways"})");
+    QVERIFY(badOp.header.contains("400"));
+
+    // a missing file is a 404
+    auto missing = postJson(
+        QString("/v1/repos/%1/stacks/nope.max/transform").arg(repo),
+        R"({"page":1,"op":"rotate90"})");
+    QVERIFY(missing.header.contains("404"));
+
+    // a path-traversal attempt (encoded slashes) is rejected
+    QString traversePath = "/v1/repos/" + repo
+        + "/stacks/..%2F..%2Fetc%2Fpasswd/transform";
+    auto traverse = postJson(traversePath, R"({"page":1,"op":"rotate90"})");
+    QVERIFY(traverse.header.contains("400"));
+
+    server.stop();
+}

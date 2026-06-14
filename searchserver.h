@@ -203,6 +203,23 @@ private:
     QByteArray handleAuthLogin(const QHash<QString, QString> &params);
 
     /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/transform
+     *
+     * Rotates or flips a page (or every page) of a stack on disk by
+     * calling File::transformPage().  The body is JSON {page, op} where
+     * page is 1-based (a value below 1 means every page) and op is one
+     * of rotate90/rotate180/rotate270/hflip/vflip.
+     *
+     * @param path        The full request path (carries repo and stack)
+     * @param params      Parsed request parameters (incl. __body__)
+     * @param authedUser  The authenticated user, or empty for API-key auth
+     * @return HTTP response, 200 with {success:true} on success
+     */
+    QByteArray handleTransform(const QString &path,
+                               const QHash<QString, QString> &params,
+                               const QString &authedUser);
+
+    /**
      * Search for files matching a pattern
      * @param repoPath    Repository root path
      * @param searchPath  Directory to search in (relative to root)
