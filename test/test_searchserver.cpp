@@ -1312,6 +1312,38 @@ void TestSearchServer::testTransformEndpoint()
     server.stop();
 }
 
+void TestSearchServer::testRemoteBackendTransform()
+{
+    /* Round-trip: rotate a page through RemoteBackend and confirm the
+       file the server holds on disk really turned. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QString dir = tmpDir.path() + "/";
+
+    QSize before = serverTestPageSize(dir, "testfile.max", 0);
+    QVERIFY(!before.isEmpty());
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QVERIFY2(client.transformPage(repo, "testfile.max", 1, "rotate90"),
+             client.lastError().toUtf8().constData());
+
+    QSize after = serverTestPageSize(dir, "testfile.max", 0);
+    QCOMPARE(after.width(), before.height());
+    QCOMPARE(after.height(), before.width());
+
+    // an unknown op fails and reports an error rather than asserting
+    QVERIFY(!client.transformPage(repo, "testfile.max", 1, "sideways"));
+    QVERIFY(!client.lastError().isEmpty());
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;

@@ -71,6 +71,7 @@ private slots:
    void testMaxPageJpegCompression();
    void testTransformEndpoint();
    void testTransformEndpointErrors();
+   void testRemoteBackendTransform();
 
 private:
    // HTTP GET returning split header and body
