@@ -69,6 +69,8 @@ private slots:
    void testLargePdfProgressive();
    void testLargeMaxProgressive();
    void testMaxPageJpegCompression();
+   void testTransformEndpoint();
+   void testTransformEndpointErrors();
 
 private:
    // HTTP GET returning split header and body
