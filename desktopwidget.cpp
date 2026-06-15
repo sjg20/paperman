@@ -332,6 +332,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_duplicate_odd, "&odd pages only", SLOT (duplicateOdd ()), "");
    addAction (_act_duplicate_even, "&even pages only", SLOT (duplicateEven ()), "");
    addAction (_act_duplicate_jpeg, "as &JPEG", SLOT (duplicateJpeg ()), "Ctrl+Shift+J");
+   addAction (_act_unfold_booklet, "Unfold &booklet", SLOT (unfoldBooklet ()), "");
 
    addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
    addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
@@ -1219,6 +1220,7 @@ void Desktopwidget::updateActions()
    _act_duplicate_even->setEnabled (at_least_one);
    _act_duplicate_odd->setEnabled (at_least_one);
    _act_duplicate_jpeg->setEnabled (at_least_one);
+   _act_unfold_booklet->setEnabled (at_least_one);
    _act_email->setEnabled (at_least_one);
    _act_email_max->setEnabled (at_least_one);
    _act_email_pdf->setEnabled (at_least_one);
@@ -1257,6 +1259,8 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    submenu->addAction (_act_duplicate_even);
    submenu->addAction (_act_duplicate_odd);
    submenu->addAction (_act_duplicate_jpeg);
+   submenu->addSeparator ();
+   submenu->addAction (_act_unfold_booklet);
 
 //  submenu->insertItem( "as &Tiff", this, SLOT(duplicateTiff()), Qt::CTRL+Qt::Key_T );
    
@@ -1440,6 +1444,16 @@ void Desktopwidget::duplicateOdd (void)
    QModelIndexList slist = _view->getSelectedListSource ();
 
    _contents->duplicateMax (slist, parent, 1);
+   complete (parent, NULL);
+   }
+
+
+void Desktopwidget::unfoldBooklet (void)
+   {
+   QModelIndex parent = _view->rootIndexSource ();
+   QModelIndexList slist = _view->getSelectedListSource ();
+
+   _contents->unfoldBooklet (slist, parent);
    complete (parent, NULL);
    }
 

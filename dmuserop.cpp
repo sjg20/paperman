@@ -90,6 +90,14 @@ void Desktopmodel::duplicateJpeg (QModelIndexList &list, QModelIndex parent)
    }
 
 
+void Desktopmodel::unfoldBooklet (QModelIndexList &list, QModelIndex parent)
+   {
+   _modelconv->assertIsSource (0, &parent, &list);
+   if (checkScanStack (list, parent))
+      _undo->push (new UCUnfoldBooklet (this, list, parent));
+   }
+
+
 void Desktopmodel::trashStacks (QModelIndexList &list, QModelIndex parent)
    {
    _modelconv->assertIsSource (0, &parent, &list);

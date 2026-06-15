@@ -46,11 +46,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QObject>
 
 #include "imageadjust.h"
+#include <QPair>
 #include <QPoint>
 #include <QPixmap>
 #include <QRect>
 #include <QSize>
 #include <QStringList>
+#include <QVector>
 
 
 #include "err.h"
@@ -156,6 +158,43 @@ public:
 
    err_info *copyTo (File *fnew, int odd_even, Operation &op, bool verbose = false,
                      int first_page = 0, int last_page = -1);
+
+   /** add a single image to a destination file as a new page, using JPEG
+       encoding when the target supports it and a raw page otherwise
+
+      \param fnew          destination file
+      \param image         image to add (may be modified in place to reduce
+                           its depth)
+      \param bpp           bits per pixel of the source image
+      \param out_page_num  zero-based page number, used to name the page
+      \returns error, or NULL if none */
+   err_info *addImageAsPage (File *fnew, QImage &image, int bpp,
+                             int out_page_num);
+
+   /** work out the reading order for unfolding a saddle-stitched booklet
+
+      Each scanned page holds two booklet pages side by side, so a booklet
+      of 'numImages' scanned pages unfolds to 2 * numImages pages. The
+      outermost scanned page carries the last and first pages, the next the
+      second and second-to-last, and so on, alternating which half is the
+      lower page number as the scan moves from the outer to the inner sheets.
+
+      \param numImages  number of scanned pages (sheet sides)
+      \returns a vector of 2 * numImages entries in final reading order; each
+               entry gives the source scanned-page index and whether to take
+               its left half (true) or right half (false) */
+   static QVector<QPair<int, bool> > bookletOrder (int numImages);
+
+   /** unfold a saddle-stitched booklet into sequential pages
+
+      The pages of this file are taken as the sides of a booklet, each holding
+      two pages side by side. They are split down the middle and reordered into
+      normal reading order in a new stack on the desk.
+
+      \param op    operation for progress tracking
+      \param fnew  returns the new file
+      \returns error, or NULL if none */
+   err_info *unfoldBooklet (Operation &op, File *&fnew);
 
 #ifndef QT_NO_WIDGETS
    /** copy pages to a new file, applying an image adjustment to each page

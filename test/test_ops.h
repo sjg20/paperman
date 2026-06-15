@@ -37,6 +37,12 @@ private slots:
    //! Test duplication of odd and even pages
    void testDuplicateEvenOdd();
 
+   //! Test the booklet reading-order calculation
+   void testBookletOrder();
+
+   //! Test unfolding a booklet stack into sequential pages, with undo
+   void testUnfoldBooklet();
+
    //! Test deleting of one or more stacks
    void testDeleteStacks();
 

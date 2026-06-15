@@ -138,6 +138,25 @@ private:
    };
 
 
+/** unfold a group of saddle-stitched booklet stacks into new stacks with the
+pages split and put into reading order. We record the original filenames and
+the new filenames. To redo we create the unfolded stacks; to undo we remove
+them. This mirrors UCDuplicate */
+
+class UCUnfoldBooklet : public Desktopundocmd
+   {
+public:
+   UCUnfoldBooklet (Desktopmodel *model, QModelIndexList &list,
+      QModelIndex &parent);
+   void redo();
+   void undo();
+private:
+   QString _dir;           //!< desk directory
+   QStringList _filenames; //!< the list of booklet filenames to unfold
+   QStringList _newnames;  //!< the list of unfolded filenames
+   };
+
+
 /** this unstacks a group of stacks completely, so that each stack becomes
 a set of single page stacks.
 
