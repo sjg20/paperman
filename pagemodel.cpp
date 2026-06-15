@@ -437,7 +437,7 @@ void Pagemodel::disownScanning (void)
 
 
 
-void Pagemodel::slotNewScannedPage (const QString &coverageStr,
+int Pagemodel::slotNewScannedPage (const QString &coverageStr,
       bool mark_blank)
    {
    Pageinfo *page;
@@ -472,6 +472,8 @@ void Pagemodel::slotNewScannedPage (const QString &coverageStr,
    if (_own_scan)
       emit dataChanged (index (pagenum, 0, QModelIndex ()),
          index (pagenum, 0, QModelIndex ()));
+
+   return _own_scan ? pagenum : -1;
    }
 
 

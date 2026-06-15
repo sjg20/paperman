@@ -908,24 +908,26 @@ void Pagewidget::slotNewScannedPage (const QString &coverageStr, bool blank)
          }
       }
 
-   _pagemodel->slotNewScannedPage (coverageStr, blank);
-//    _pageview->scrollToEnd (true);
-//    _pageview->scrollTo (_pagemodel->index (_pagemodel->rowCount (QModelIndex ()) - 1, 0, QModelIndex ()));
+   int pagenum = _pagemodel->slotNewScannedPage (coverageStr, blank);
+
+   /* Follow the scan by the pages that actually have data: scroll to
+      the page that just finished.  This keeps the most recently
+      scanned pages on screen, rather than jumping to the next page the
+      moment it starts (slotBeginningPage) and showing a blank.  It
+      matters now that scanners deliver a whole page in one burst, so
+      the old progressive fill is never seen. */
+   if (_scanning)
+      _pageview->scrollToRow (pagenum, true);
    }
 
 
 void Pagewidget::slotBeginningPage (void)
    {
    if (_scanning)
-      {
-   //    qDebug () << "slotBeginningPage";
-
-      // tell the model that we have a new page
+      // add the new (blank) page to the model, but don't scroll to it;
+      // the view follows the scan by completed pages, in
+      // slotNewScannedPage(), so it keeps showing pages that have data
       _pagemodel->beginningPage ();
-
-      // show it
-      _pageview->scrollToEnd (true);
-      }
    }
 
 

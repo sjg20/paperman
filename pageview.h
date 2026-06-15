@@ -81,6 +81,14 @@ public:
                         end by the user */
    void scrollToEnd (bool ifAtEnd = false);
 
+   /** scroll so a particular row is shown at the bottom of the view,
+       used to follow a scan by its completed pages
+
+      \param row        the row to bring into view
+      \param ifAtEnd    if true, do nothing when the user has scrolled
+                        away from the end */
+   void scrollToRow (int row, bool ifAtEnd = false);
+
 public slots:
    void slotPagePartChanged (const QModelIndex &index, const QImage &image, int scaled_linenum);
 
