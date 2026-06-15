@@ -1641,6 +1641,24 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
 
          ptr = get_tile_size (chunk, x, y, &tile_size, &my_tilenum, -1, -1);
 
+         /* A page that is still being written by a scan, or one left
+            corrupt by a scanner double-feed, can present tile geometry
+            that no longer matches the allocated image buffer.  Bound
+            each tile to the rows actually allocated (size holds
+            line_bytes * image height) so the decode can never write
+            past the buffer.  For a valid file every tile already fits,
+            so this is a no-op. */
+         int buffer_rows = chunk.line_bytes ? size / chunk.line_bytes : 0;
+         int starty = chunk.tile_size.y * y;
+         if (starty < 0 || starty >= buffer_rows
+             || tile_size.x <= 0 || tile_size.y <= 0)
+            {
+            pos += chunk.tile [my_tilenum].size - 4;
+            continue;
+            }
+         if (tile_size.y > buffer_rows - starty)
+            tile_size.y = buffer_rows - starty;
+
          if (tilenum != my_tilenum)
             ;
          else if (tilenum >= debug->start_tile
