@@ -143,6 +143,19 @@ void Pageview::scrollToEnd (bool ifAtEnd)
    }
 
 
+void Pageview::scrollToRow (int row, bool ifAtEnd)
+   {
+   if (row < 0)
+      return;
+   if (!ifAtEnd || _autoscroll)
+      {
+      _ignore_scroll = true;
+      scrollTo (model ()->index (row, 0, QModelIndex ()), PositionAtBottom);
+      _ignore_scroll = false;
+      }
+   }
+
+
 void Pageview::scrollContentsBy (int dx, int dy)
    {
    /* if we caused the scroll, then don't worry. Otherwise the user is trying

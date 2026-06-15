@@ -295,8 +295,9 @@ public slots:
    /** handle new pages being scanned into our 'scanning' stack
 
       \param coverageStr   coverage string
-      \param mark_blank    true if page should be marked blank */
-   void slotNewScannedPage (const QString &coverageStr, bool mark_blank);
+      \param mark_blank    true if page should be marked blank
+      \returns the row of the page that was just completed, or -1 */
+   int slotNewScannedPage (const QString &coverageStr, bool mark_blank);
 
 signals:
    /* indicate that part of a page has changed
