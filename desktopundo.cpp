@@ -178,6 +178,37 @@ void UCDuplicate::undo (void)
    }
 
 
+UCUnfoldBooklet::UCUnfoldBooklet (Desktopmodel *model, QModelIndexList &list,
+      QModelIndex &parent)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (parent);
+   _filenames = model->listToFilenames (list);
+   setText (QApplication::translate ("UCUnfoldBooklet",
+      "Unfold booklet (%1)").arg (list.size ()));
+   }
+
+
+void UCUnfoldBooklet::redo (void)
+   {
+   QModelIndex parent = _model->deskFromDirname (_dir);
+   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
+
+   _newnames.clear ();
+   aboutToAdd (parent);
+   complain (_model->opUnfoldBooklets (list, parent, _newnames));
+   }
+
+
+void UCUnfoldBooklet::undo (void)
+   {
+   QModelIndex parent = _model->deskFromDirname (_dir);
+   QModelIndexList list = _model->listFromFilenames (_newnames, parent);
+
+   complain (_model->opDeleteStacks (list, parent));
+   }
+
+
 UCUnstackStacks::UCUnstackStacks (Desktopmodel *model, QModelIndexList &list,
       QModelIndex &parent)
       : Desktopundocmd (model)

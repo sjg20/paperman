@@ -1191,7 +1191,6 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
       QImage image;
       QSize size, trueSize;
       int bpp;
-      Filepage *fp = createPage (fnew->type ());
 
       CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
 
@@ -1199,57 +1198,166 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
       if (image.isNull ())
          continue;
 
-      // use JPEG encoding when the target supports it
-      if (fnew->supportsJpeg () && bpp > 1)
-         {
-         bool colour = utilImageDepth (image) > 8;
-         QByteArray jpeg;
-         if (colour)
-            {
-            QBuffer buf (&jpeg);
-            buf.open (QIODevice::WriteOnly);
-            image.save (&buf, "JPEG", 75);
-            }
-         else
-            jpeg = encodeGreyJpeg (image, 75);
-         CALL (fnew->addPageJpeg (jpeg, image.width (), image.height (),
-                                   colour));
-         }
-      else
-         {
-         // auto-detect optimal depth for this page
-         int target_depth = utilImageDepth(image);
-         if (target_depth < bpp) {
-            image = utilReduceDepth(image, target_depth);
-            bpp = image.depth();
-         }
-
-         int image_size;
-#if QT_VERSION >= 0x050a00
-         image_size = image.sizeInBytes();
-#else
-         image_size = image.byteCount();
-#endif
-         QByteArray ba = QByteArray::fromRawData ((const char *)image.bits (),
-                                                  image_size);
-
-//          int stride = (trueSize.width () * bpp + 7) / 8;
-         int stride = image.bytesPerLine ();
-//         mp->stride = (true_size.x * (bpp == 24 ? 32 : bpp) + 7) / 8;
-         // changed from above line, since duplicating a normal colour max file created an error
-
-         QString name = QString (tr ("Page %1")).arg (out_page_count + 1);
-         fp->addData (image.width (), image.height (), image.depth (), stride,
-               name, false, false, out_page_count, ba, ba.size ());
-
-         fp->compress ();
-         CALL (fnew->addPage (fp, false));
-         }
+      CALL (addImageAsPage (fnew, image, bpp, out_page_count));
       out_page_count++;
       op.incProgress (1);
       }
    fnew->flush ();
    fnew->load ();
+   return NULL;
+   }
+
+
+err_info *File::addImageAsPage (File *fnew, QImage &image, int bpp,
+                                int out_page_num)
+   {
+   // use JPEG encoding when the target supports it
+   if (fnew->supportsJpeg () && bpp > 1)
+      {
+      bool colour = utilImageDepth (image) > 8;
+      QByteArray jpeg;
+      if (colour)
+         {
+         QBuffer buf (&jpeg);
+         buf.open (QIODevice::WriteOnly);
+         image.save (&buf, "JPEG", 75);
+         }
+      else
+         jpeg = encodeGreyJpeg (image, 75);
+      CALL (fnew->addPageJpeg (jpeg, image.width (), image.height (), colour));
+      }
+   else
+      {
+      Filepage *fp = createPage (fnew->type ());
+
+      // auto-detect optimal depth for this page
+      int target_depth = utilImageDepth (image);
+      if (target_depth < bpp)
+         {
+         image = utilReduceDepth (image, target_depth);
+         bpp = image.depth ();
+         }
+
+      int image_size;
+#if QT_VERSION >= 0x050a00
+      image_size = image.sizeInBytes ();
+#else
+      image_size = image.byteCount ();
+#endif
+      QByteArray ba = QByteArray::fromRawData ((const char *)image.bits (),
+                                               image_size);
+
+//          int stride = (trueSize.width () * bpp + 7) / 8;
+      int stride = image.bytesPerLine ();
+//         mp->stride = (true_size.x * (bpp == 24 ? 32 : bpp) + 7) / 8;
+      // changed from above line, since duplicating a normal colour max file created an error
+
+      QString name = QString (tr ("Page %1")).arg (out_page_num + 1);
+      fp->addData (image.width (), image.height (), image.depth (), stride,
+            name, false, false, out_page_num, ba, ba.size ());
+
+      fp->compress ();
+      CALL (fnew->addPage (fp, false));
+      }
+   return NULL;
+   }
+
+
+QVector<QPair<int, bool> > File::bookletOrder (int numImages)
+   {
+   int pages = 2 * numImages;
+   QVector<QPair<int, bool> > order (pages);
+
+   /* Each scanned page 's' carries two pages. Counting s from the outer sheet
+      inwards, the outer side (s even) holds the highest remaining page on its
+      left and the lowest on its right; the inner side (s odd) is reversed. The
+      page numbers worked out here are 1-based, matching how a reader numbers a
+      booklet. */
+   for (int s = 0; s < numImages; s++)
+      {
+      int left_page, right_page;
+
+      if (s % 2 == 0)
+         {
+         left_page = pages - s;
+         right_page = s + 1;
+         }
+      else
+         {
+         left_page = s + 1;
+         right_page = pages - s;
+         }
+      order[left_page - 1] = QPair<int, bool> (s, true);
+      order[right_page - 1] = QPair<int, bool> (s, false);
+      }
+   return order;
+   }
+
+
+err_info *File::unfoldBooklet (Operation &op, File *&fnew)
+   {
+   Desk *desk = _desk;
+   e_type type = Type_max;
+   QString ext = typeExt (type);
+   QString uniq = desk->findNextFilename (_leaf + "_unfold", QString (), ext);
+   QString dir = desk->dir ();
+
+   CALL (load ());
+   int numImages = pagecount ();
+
+   fnew = createFile (dir, uniq + ext, desk, type);
+   if (!fnew)
+      return not_impl ();
+   CALL (fnew->create ());
+
+   /* Split each scanned page down the middle and write the halves in reading
+      order. The order alternates which source page is needed, so each page is
+      decoded as its halves come up rather than holding them all in memory. */
+   QVector<QPair<int, bool> > order = bookletOrder (numImages);
+   err_info *err = NULL;
+   int written = 0;
+
+   for (int out = 0; out < order.size (); out++)
+      {
+      int srcpage = order[out].first;
+      bool isLeft = order[out].second;
+
+      QImage image;
+      QSize size, trueSize;
+      int bpp;
+
+      err = getImage (srcpage, false, image, size, trueSize, bpp, false);
+      if (err)
+         break;
+      if (image.isNull ())
+         continue;
+
+      int w = image.width ();
+      int half = w / 2;
+      QImage page = isLeft
+         ? image.copy (0, 0, half, image.height ())
+         : image.copy (half, 0, w - half, image.height ());
+
+      err = addImageAsPage (fnew, page, bpp, written++);
+      if (err)
+         break;
+      op.incProgress (1);
+      }
+
+   // if we got no pages, delete the file
+   if (err || !fnew->valid () || !fnew->pagecount ())
+      {
+      fnew->remove ();
+      delete fnew;
+      fnew = 0;
+      if (!err)
+         return err_make (ERRFN, ERR_cannot_find_any_pages_in_source_document1,
+                          qPrintable (_pathname));
+      return err;
+      }
+   fnew->flush ();
+   fnew->load ();
+   desk->newFile (fnew, this, 1);
    return NULL;
    }
 #endif

@@ -360,6 +360,33 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
    }
 
 
+err_info *Desktopmodel::opUnfoldBooklets (QModelIndexList &list,
+      QModelIndex parent, QStringList &namelist)
+   {
+   QList<File *> flist;
+   err_info *err = NULL;
+   QModelIndex ind;
+   File *fnew, *f;
+
+   // each booklet page splits into two, so the work is twice the page count
+   Operation op (tr ("Unfold booklet"), 2 * listPagecount (list), 0);
+   foreach (ind, list)
+      {
+      f = getFile (ind);
+      CALL (f->load ());
+      err = f->unfoldBooklet (op, fnew);
+      if (err)
+         break;
+      flist << fnew;
+      namelist << fnew->filename ();
+      }
+
+   // insert the files
+   insertRows (flist, parent);
+   return err;
+   }
+
+
 err_info *Desktopmodel::opDeleteStack (QModelIndex &index)
    {
    QModelIndexList list;   // list of indexes to delete

@@ -10,6 +10,7 @@
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "dirmodel.h"
+#include "file.h"
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -269,6 +270,90 @@ void TestOps::testDuplicateEvenOdd()
    Q_ASSERT(max2);
    QCOMPARE(max2->typeName(), "Max");
    QCOMPARE(max2->pagecount(), 2);
+}
+
+void TestOps::testBookletOrder()
+{
+   // A four-sheet booklet unfolds to eight pages. Counting sheets from the
+   // outside in, the reading order is [8|1] [2|7] [6|3] [4|5]
+   QVector<QPair<int, bool> > order = File::bookletOrder(4);
+   QCOMPARE(order.size(), 8);
+
+   // page 1 is the right half of the outer side (scan 0)
+   QCOMPARE(order[0], qMakePair(0, false));
+   // page 2 is the left half of the next side (scan 1)
+   QCOMPARE(order[1], qMakePair(1, true));
+   // page 3 is the right half of scan 2
+   QCOMPARE(order[2], qMakePair(2, false));
+   // page 4 is the left half of scan 3 (innermost)
+   QCOMPARE(order[3], qMakePair(3, true));
+   // page 5 is the right half of scan 3
+   QCOMPARE(order[4], qMakePair(3, false));
+   // page 6 is the left half of scan 2
+   QCOMPARE(order[5], qMakePair(2, true));
+   // page 7 is the right half of scan 1
+   QCOMPARE(order[6], qMakePair(1, false));
+   // page 8 is the left half of the outer side (scan 0)
+   QCOMPARE(order[7], qMakePair(0, true));
+
+   // Every source page is used for exactly one left and one right half
+   QVector<int> lefts(4, 0), rights(4, 0);
+   for (auto &slot : order)
+      (slot.second ? lefts : rights)[slot.first]++;
+   for (int i = 0; i < 4; i++)
+      {
+      QCOMPARE(lefts[i], 1);
+      QCOMPARE(rights[i], 1);
+      }
+}
+
+void TestOps::testUnfoldBooklet()
+{
+   Mainwindow me;
+
+   QModelIndex max_ind;
+   QModelIndex repo_ind;
+   prepareDuplicate(&me, repo_ind, max_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopmodel *model = desktop->getModel();
+
+   // The test booklet has four scanned pages
+   File *booklet = model->getFile(max_ind);
+   Q_ASSERT(booklet);
+   int pages = booklet->pagecount();
+   QCOMPARE(pages, 4);
+
+   // Unfold the booklet (only the max file is selected)
+   Desktopview *view = desktop->getView();
+   view->setSelectionRange(0, 0);
+   desktop->unfoldBooklet();
+
+   int files = model->rowCount(repo_ind);
+   QCOMPARE(files, 3);
+
+   // The new stack is selected, named after the source and holds twice the
+   // number of pages
+   QModelIndex ind;
+   bool has_current = desktop->getCurrentFile(ind);
+   QCOMPARE(has_current, true);
+   Q_ASSERT(ind.isValid());
+   Desktopmodelconv *modelconv = desktop->getModelconv();
+   modelconv->indexToSource(desktop->_contents_proxy, ind);
+
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(), "testfile_unfold");
+
+   File *unfolded = model->getFile(ind);
+   Q_ASSERT(unfolded);
+   QCOMPARE(unfolded->typeName(), "Max");
+   QCOMPARE(unfolded->pagecount(), 2 * pages);
+
+   // Undo removes the new stack
+   Desktopundostack *stk = model->getUndoStack();
+   Q_ASSERT(stk->canUndo());
+   stk->undo();
+   files = model->rowCount(repo_ind);
+   QCOMPARE(files, 2);
 }
 
 void TestOps::testDeleteStacks()

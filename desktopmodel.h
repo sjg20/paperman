@@ -94,6 +94,7 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCTrashStacks;
    friend class UCMove;
    friend class UCDuplicate;
+   friend class UCUnfoldBooklet;
    friend class UCUnstackStacks;
    friend class UCUnstackPage;
    friend class UCStackStacks;
@@ -403,6 +404,15 @@ public:
       \param odd_even   which pages to duplicate: 1 = even, 2 = odd, 3 = both */
    void duplicateMax (QModelIndexList &list, QModelIndex parent, int odd_even = 3);
 
+   /** unfold a list of saddle-stitched booklet stacks into sequential pages.
+       Each selected stack is taken as a booklet whose scanned pages each hold
+       two pages side by side; a new stack is created with the pages split and
+       put into reading order. Supports undo
+
+      \param list    list of booklet stacks to unfold
+      \param parent  parent stack */
+   void unfoldBooklet (QModelIndexList &list, QModelIndex parent);
+
    /** delete a list of stacks by moving them to the trash. The list may
        contain null model indexes, which are ignored. Supports undo
 
@@ -624,6 +634,15 @@ protected:
       \returns      error, or NULL if none */
    err_info *opDuplicateStacks (QModelIndexList &list, QModelIndex parent, QStringList &namelist,
          File::e_type type, int odd_even = 3);
+
+   /** unfold a list of booklet stacks into new sequential-page stacks
+
+      \param list       list of booklet stacks to unfold
+      \param parent     parent stack
+      \param namelist   returns the filenames of the new stacks
+      \returns      error, or NULL if none */
+   err_info *opUnfoldBooklets (QModelIndexList &list, QModelIndex parent,
+         QStringList &namelist);
 
    /** delete a single stack without moving it to the trash
 
