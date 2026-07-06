@@ -85,6 +85,10 @@ private slots:
    //! the file
    void testTransformImageCache();
 
+   //! removePages then restorePages round-trips the page count without
+   //! crashing (restorePages must open the file before reading chunks)
+   void testRemoveRestorePages();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);

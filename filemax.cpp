@@ -797,6 +797,11 @@ err_info *Filemax::max_read_data (int pos, byte *buf, int size)
    {
    int count;
 
+   // guard against a read while the file is closed, rather than crashing in
+   // fseek() with a NULL stream
+   if (!_fin)
+      return merr_make (ERRFN, ERR_failed_to_read_bytes1, size);
+
    // read the data
    fseek (_fin, pos, SEEK_SET);
    count = fread (buf, 1, size, _fin);
@@ -807,6 +812,10 @@ err_info *Filemax::max_read_data (int pos, byte *buf, int size)
 err_info *Filemax::max_write_data (int pos, byte *data, int size)
    {
    int count;
+
+   // guard against a write while the file is closed (see max_read_data)
+   if (!_fin)
+      return merr_make (ERRFN, ERR_failed_to_write_bytes1, size);
 
    // write the data
    fseek (_fin, pos, SEEK_SET);
@@ -5797,8 +5806,13 @@ err_info *Filemax::restorePages (QBitArray &pages,
          memcpy ((void *)&page, del_info.constData () + upto++ * sizeof (page_info),
             sizeof (page_info));
          assert (page.titlestr.isNull ());
-         CALL (restore_page (page));
-         printf ("page %d: titlestr = %p\n", i, page.titlestr.toLatin1 ().constData());
+
+         // restore_page() reads the page's chunk data back from disc, so the
+         // file must be open, just as removePages() opens it around free_page()
+         CALL (ensure_open ());
+         err_info *err = restore_page (page);
+         ensure_closed ();
+         CALL (err);
          dest_pages << page;
          }
       else

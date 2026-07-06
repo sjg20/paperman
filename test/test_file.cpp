@@ -952,3 +952,40 @@ void TestFile::testTransformImageCache()
    QVERIFY(!max.getImage(0, false, again, size, trueSize, bpp, false));
    QVERIFY(nearlySame(again, ondisk));
 }
+
+void TestFile::testRemoveRestorePages()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+   int orig = max.pagecount();
+   QVERIFY(orig > 1);
+
+   // capture the first page so we can check it survives the round-trip
+   QImage before, restored;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!max.getImage(0, false, before, size, trueSize, bpp, false));
+
+   // mark the first page for deletion
+   QBitArray pages(orig);
+   pages.setBit(0);
+   QByteArray del_info;
+   int count = 1;
+
+   QVERIFY(max.removePages(pages, del_info, count) == nullptr);
+   QCOMPARE(max.pagecount(), orig - 1);
+
+   // undo the delete: this reads the deleted page's chunks back from disc,
+   // which used to crash because the file was left closed
+   QVERIFY(max.restorePages(pages, del_info, count) == nullptr);
+   QCOMPARE(max.pagecount(), orig);
+
+   // the restored page still decodes to the same image
+   QVERIFY(!max.getImage(0, false, restored, size, trueSize, bpp, false));
+   QCOMPARE(restored.size(), before.size());
+}
