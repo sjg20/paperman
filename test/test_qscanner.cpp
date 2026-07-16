@@ -6,6 +6,9 @@
 #include "qxmlconfig.h"
 #include "test_qscanner.h"
 
+#include "qi/previewwidget.h"
+#include "qi/scanarea.h"
+
 #define SIMUL_NAME "simulscan"
 
 
@@ -158,6 +161,49 @@ void TestQscanner::testPscanControls()
    QCOMPARE (scanner.duplex (), !was_duplex);
    QTest::mouseClick (pscan.duplex, Qt::LeftButton);
    QCOMPARE (scanner.duplex (), was_duplex);
+}
+
+
+void TestQscanner::testPscanPaperToggle()
+{
+   ensureXmlConfig ();
+   QScanner scanner;
+   scanner.setDeviceName (SIMUL_NAME);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+
+   Pscan pscan;
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   PreviewWidget *pv = dialog.getPreview ();
+   if (pv->getPreDefLetter () == -1 || pv->getPreDefLegal () == -1)
+      QSKIP ("scanner does not offer both Letter and Legal sizes");
+
+   // Capture the size actually pushed to the scanner each time a predefined
+   // size is applied
+   QString applied;
+   QObject::connect (pv, &PreviewWidget::signalPredefinedSize, pv,
+      [&applied] (ScanArea *sca) { applied = sca ? sca->getName () : QString (); });
+
+   /* Toggling repeatedly must keep the size sent to the scanner in step with
+      the size shown in the combo. This used to drift after the first toggle:
+      applying a size rebuilt the preview's size list, the cached indices went
+      stale, and a later toggle sent the wrong size while the combo showed the
+      right one. */
+   for (int i = 0; i < 4; i++)
+   {
+      applied.clear ();
+      pscan.toggleLetter ();
+      QCOMPARE (applied, pscan.pageSize->currentText ());
+   }
+
+   // And the toggle really does alternate between two sizes
+   QString before = pscan.pageSize->currentText ();
+   pscan.toggleLetter ();
+   QVERIFY (pscan.pageSize->currentText () != before);
 }
 
 
