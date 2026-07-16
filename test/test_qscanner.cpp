@@ -182,28 +182,39 @@ void TestQscanner::testPscanPaperToggle()
    if (pv->getPreDefLetter () == -1 || pv->getPreDefLegal () == -1)
       QSKIP ("scanner does not offer both Letter and Legal sizes");
 
-   // Capture the size actually pushed to the scanner each time a predefined
-   // size is applied
-   QString applied;
-   QObject::connect (pv, &PreviewWidget::signalPredefinedSize, pv,
-      [&applied] (ScanArea *sca) { applied = sca ? sca->getName () : QString (); });
+   QString legalName = pv->getSizeName (pv->getPreDefLegal ());
+   QString letterName = pv->getSizeName (pv->getPreDefLetter ());
 
-   /* Toggling repeatedly must keep the size sent to the scanner in step with
-      the size shown in the combo. This used to drift after the first toggle:
-      applying a size rebuilt the preview's size list, the cached indices went
-      stale, and a later toggle sent the wrong size while the combo showed the
-      right one. */
-   for (int i = 0; i < 4; i++)
+   /* Toggle repeatedly and check the scan area the scanner actually ends up
+      with. This used to get stuck on the first size chosen: the combo changed
+      but the scanner's bottom-right y stayed put, so a Letter scan came out
+      Legal-length (or vice versa). */
+   QMap<QString, double> bryForName;
+   QString prev;
+   for (int i = 0; i < 6; i++)
    {
-      applied.clear ();
       pscan.toggleLetter ();
-      QCOMPARE (applied, pscan.pageSize->currentText ());
+      QString name = pscan.pageSize->currentText ();
+      double bry = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ()));
+
+      // each toggle must actually switch the shown size
+      QVERIFY (name != prev);
+      prev = name;
+
+      // the same paper size must always give the same scan height
+      if (bryForName.contains (name))
+         QVERIFY2 (qAbs (bryForName[name] - bry) < 1.0,
+            "scan height changed for an unchanged paper size");
+      else
+         bryForName[name] = bry;
    }
 
-   // And the toggle really does alternate between two sizes
-   QString before = pscan.pageSize->currentText ();
-   pscan.toggleLetter ();
-   QVERIFY (pscan.pageSize->currentText () != before);
+   // We should have seen exactly the two sizes, and Legal (356mm) must scan
+   // clearly taller than Letter (279mm) - before the fix both stayed equal
+   QCOMPARE (bryForName.size (), 2);
+   QVERIFY (bryForName.contains (legalName));
+   QVERIFY (bryForName.contains (letterName));
+   QVERIFY (bryForName[legalName] > bryForName[letterName] + 50.0);
 }
 
 

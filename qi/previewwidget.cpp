@@ -537,10 +537,6 @@ void PreviewWidget::slotRangeChange()
         tlx = tly = 0.0;
         brx = mPreDefs[a].width/(mMaxRangeX -mMinRangeX);
         bry = mPreDefs[a].height/(mMaxRangeY -mMinRangeY);
-        if (sca->getName () == "A4")
-         printf ("%s: %1.15lf, %1.15lf   %1.15lf   %1.15lf\n",
-                 sca->getName ().toLatin1 ().constData(), brx, bry,
-            mMinRangeX, mMaxRangeX);
       }
       sca = mSizeArray [mSizeArray.size() - 1];
       sca->setRange (tlx,tly,brx,bry,mPreDefs[a].width, mPreDefs[a].height);
