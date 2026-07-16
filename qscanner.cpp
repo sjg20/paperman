@@ -2860,7 +2860,6 @@ int QScanner::xResolutionOption()
 		   	return i;
 			}
 	}
-	printf ("Warning - no xres\n");
 	return 0;
 }
 /**  */
@@ -2879,7 +2878,6 @@ int QScanner::yResolutionOption()
 		  	return i;
 			}
 	}
-    printf ("Warning - no yres\n");
     return 0;
 }
 /**  */
@@ -3932,8 +3930,8 @@ SANE_Status QScanner::do_sane_open (SANE_String_Const name, SANE_Handle *handle)
       _simul_params.pixels_per_line = 2400;
       _simul_params.lines = 3507;
       _simul_params.depth = 1;
-      _max_x = 1200 * 8.5;
-      _max_y = 1200 * 12;
+      _max_x = 1200 * 8.6;   // a little over 8.5in so Letter/Legal (216mm) fit
+      _max_y = 1200 * 14.5;  // over 14in so the ADF can represent Legal paper
       _min_x = 0;
       _min_y = 0;
       _max_x_fb = _max_x;

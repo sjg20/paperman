@@ -1692,6 +1692,14 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
 {
   double tlx,tly,brx,bry;
 
+  // Changing the page size below reloads the scanner options and rebuilds the
+  // preview, which can re-enter this slot with a stale size and undo the scan
+  // area we are about to set. Ignore such re-entrant calls
+  static bool in_here = false;
+  if (in_here)
+     return;
+  in_here = true;
+
   // set page size if required
   if (mpWidthOption
      && mpScanner->isOptionActive(mpWidthOption->saneOptionNumber()))
@@ -1715,6 +1723,7 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
     if (!sca)
     {
       printf ("Warning: size lost\n");
+      in_here = false;
       return;
     }
   }
@@ -1724,8 +1733,6 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
   tly = sca->tly();
   brx = sca->brx();
   bry = sca->bry();
-   printf ("%1.2lf %1.2lf %1.2lf %1.2lf, valid=%d\n",
-      sca->tlx(),sca->tly(),sca->brx(),sca->bry(), sca->isValid ());
 //change scrollbar options
   mpTlxOption->slotSetPercentValue(tlx);
   mpTlyOption->slotSetPercentValue(tly);
@@ -1734,6 +1741,28 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
 //set tlx/tly option again (to be sure)
   mpTlxOption->slotSetPercentValue(tlx);
   mpTlyOption->slotSetPercentValue(tly);
+
+  /* The percent-based widget updates above do not always reach the scanner.
+     When the page size shrinks, reloading the options leaves the slider pinned
+     at its (now smaller) maximum, so setting the same percentage produces no
+     valueChanged() and the old, larger scan area stays on the scanner. Push
+     the scan area to the scanner explicitly so it always matches the selected
+     size. */
+  struct { QScrollBarOption *opt; double pct; } area[] = {
+     { mpTlxOption, tlx }, { mpTlyOption, tly },
+     { mpBrxOption, brx }, { mpBryOption, bry }
+  };
+  for (unsigned a = 0; a < sizeof (area) / sizeof (area[0]); a++)
+  {
+     int num = area[a].opt->saneOptionNumber ();
+     if (area[a].pct < 0.0 || !mpScanner->isOptionActive (num)
+        || mpScanner->getOptionType (num) != SANE_TYPE_FIXED)
+        continue;
+     SANE_Fixed val = SANE_FIX (area[a].pct
+        * SANE_UNFIX (mpScanner->getRangeMax (num)));
+     mpScanner->setOption (num, &val);
+  }
+  in_here = false;
 }
 
 /**  */
