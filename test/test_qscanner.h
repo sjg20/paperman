@@ -42,6 +42,10 @@ private slots:
    //! The pscan dialog controls (resolution, ADF, duplex, reset) drive
    //! the scanner settings.
    void testPscanControls();
+
+   //! The Alt-L paper-size toggle keeps the size sent to the scanner in
+   //! step with the size shown in the combo, across repeated toggles.
+   void testPscanPaperToggle();
 };
 
 #endif // TEST_QSCANNER_H

@@ -779,22 +779,45 @@ void Pscan::presetShortcut5()
    presetShortcut(5);
 }
 
+void Pscan::selectPreviewSize(int previewId)
+{
+   if (!_preview || previewId == -1)
+      return;
+
+   // Capture the name before setSize(), which may rebuild the preview's
+   // size list and shift the indices out from under us
+   QString name = _preview->getSizeName(previewId);
+   _preview->setSize(previewId);
+
+   // Mirror the choice in our own combo by name, since its index does not
+   // line up with the preview's rebuilt list
+   int row = pageSize->findText(name);
+   if (row != -1)
+      pageSize->setCurrentIndex(row);
+}
+
 void Pscan::selectA4()
 {
-   pageSize->setCurrentIndex(_papersize_a4);
-   _preview->setSize(_papersize_a4);
+   selectPreviewSize(_preview ? _preview->getPreDefA4() : -1);
 }
 
 void Pscan::toggleLetter()
 {
-   int id;
+   if (!_preview)
+      return;
 
-   if (pageSize->currentIndex() ==_papersize_letter)
-      id = _papersize_legal;
-   else
-      id = _papersize_letter;
-   pageSize->setCurrentIndex(id);
-   _preview->setSize(id);
+   // Fetch the current indices rather than the values cached when the
+   // dialog was built: applying a size rebuilds the preview's size list, so
+   // the cached indices go stale after the first toggle and a later toggle
+   // would otherwise send the wrong size to the scanner
+   int letter = _preview->getPreDefLetter();
+   int legal = _preview->getPreDefLegal();
+   if (letter == -1 || legal == -1)
+      return;
+
+   // Decide the target from what the user currently sees, comparing by name
+   bool on_legal = pageSize->currentText() == _preview->getSizeName(legal);
+   selectPreviewSize(on_legal ? letter : legal);
 }
 
 Presetadd::Presetadd(QWidget* parent, Qt::WindowFlags fl)

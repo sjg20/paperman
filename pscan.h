@@ -187,6 +187,17 @@ private:
     /** Select a preset using a shortcut; item is numbered from 1 */
     void presetShortcut(uint item);
 
+    /** Select a predefined paper size in the preview and mirror it in our
+        own page-size combo.
+
+        The index is looked up fresh from the preview widget each time,
+        since the preview rebuilds its size list (and shifts the indices)
+        whenever the page size changes.
+
+       \param previewId   index into the preview's current size list, or -1
+                          to do nothing */
+    void selectPreviewSize(int previewId);
+
     /** Move the focus to the folder 'find' field */
     void focusFind();
 };
