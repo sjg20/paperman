@@ -2284,6 +2284,13 @@ err_info *Filemax::ensure_all_chunks (void)
 
    if (_all_chunks_loaded)
       return NULL;
+
+   /* reading the chunks (and the titles below) needs the file open;
+      a caller fresh from load() has it closed */
+   bool wasOpen = _fin != NULL;
+   if (!wasOpen)
+      CALL (ensure_open ());
+
    for (i = 0, pos = _chunk0_start; i < _chunks.size ();
         i++)
       {
@@ -2309,6 +2316,8 @@ err_info *Filemax::ensure_all_chunks (void)
    for (int i = 0; i < _pages.size (); i++)
       ensure_titlestr (i, _pages [i]);
 
+   if (!wasOpen)
+      ensure_closed ();
    return NULL;
    }
 
@@ -5810,9 +5819,12 @@ err_info *Filemax::restorePages (QBitArray &pages,
 
    CALL (ensure_all_chunks ());
 
-   // create new page_info structure
+   /* Create the new page list.  Reserve only: the loop below appends,
+      so sizing the vector here would leave newcount default-built
+      pages in front and double the stack. */
    newcount = _pages.size () + count;
-   QVector<page_info> dest_pages (newcount);
+   QVector<page_info> dest_pages;
+   dest_pages.reserve (newcount);
 
    // count how many pages are to be deleted
    int srcnum;
