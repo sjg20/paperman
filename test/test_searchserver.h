@@ -95,6 +95,9 @@ private slots:
    //! Page delete/unstack/duplicate of remote stacks, with undo
    void testDesktopRemoteStructuralOps();
 
+   //! Scanning into a remote desk uploads the stack on confirm
+   void testDesktopRemoteScan();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);

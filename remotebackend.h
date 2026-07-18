@@ -161,6 +161,15 @@ public:
     bool duplicateStack(const QString &repo, const QString &path,
                         QString *newName);
 
+    /** Upload a whole file's bytes to the server at @p path (e.g. a
+     *  stack scanned into a remote desk).  The server never
+     *  overwrites: on a name clash @p finalName differs from the
+     *  requested one.  @p etag returns the stored file's validator,
+     *  ready for the cache sidecar. */
+    bool uploadFile(const QString &repo, const QString &path,
+                    const QByteArray &bytes, QString *finalName,
+                    QString *etag);
+
     /** Name of the shared per-repo trash directory on the server. */
     static QString trashDirName() { return QStringLiteral(".maxview-trash"); }
 
@@ -200,7 +209,9 @@ signals:
 
 private:
     QByteArray getRequest(const QString &pathAndQuery);
-    QByteArray postRequest(const QString &path, const QByteArray &body);
+    QByteArray postRequest(const QString &path, const QByteArray &body,
+                           const QString &contentType
+                               = QStringLiteral("application/json"));
     QByteArray waitForReply(QNetworkReply *reply);
 
     /** waitForReply() variant that also surfaces the HTTP status code

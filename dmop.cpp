@@ -1021,6 +1021,45 @@ void Desktopmodel::refreshRemoteThumbnail (Desk *desk, RemoteBackend *backend,
    }
 
 
+err_info *Desktopmodel::uploadScanStack (File *f)
+   {
+   Desk *desk = f->desk ();
+   RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
+
+   QFile in (f->pathname ());
+   if (!in.open (QIODevice::ReadOnly))
+      return err_make (ERRFN, ERR_cannot_open_file1,
+                       qPrintable (f->pathname ()));
+   QByteArray bytes = in.readAll ();
+   in.close ();
+
+   QString finalName, etag;
+   if (!remote->uploadFile (desk->repoName (), remoteStackPath (desk, f),
+                            bytes, &finalName, &etag))
+      return err_make (ERRFN, ERR_remote_op_failed2, "upload",
+                       qPrintable (remote->lastError ()));
+
+   if (!finalName.isEmpty () && finalName != f->filename ())
+      {
+      QString oldCache = f->pathname ();
+
+      f->updateFilename (finalName);
+      QFile::rename (oldCache, f->pathname ());
+      }
+
+   /* record the server's validator so the next open costs a 304 */
+   if (!etag.isEmpty ())
+      {
+      QFile ef (f->pathname () + ".etag");
+
+      if (ef.open (QIODevice::WriteOnly))
+         ef.write (etag.toUtf8 ());
+      }
+   f->setRemoteChecked (true);
+   return NULL;
+   }
+
+
 err_info *Desktopmodel::ensureContent (const QModelIndex &ind)
    {
    File *f = getFile (ind);
