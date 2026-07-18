@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDateTime>
 #include <QDebug>
+#include <QFile>
 #include <QFileInfo>
 #include <QIcon>
 #include <QKeyEvent>
@@ -730,6 +731,19 @@ void Desktopmodel::buildItem (QModelIndex index)
    {
 //    qDebug () << "buildItem" << index;
    File *f = getFile (index);
+
+   /* A remote stack that hasn't been fetched yet has nothing local to
+      load.  Mark it valid so the pixmap-update queue doesn't retry it
+      endlessly; its page count stays zero, which is how
+      ensureContent() knows a download is still needed.  The
+      server-rendered thumbnail stands in for the preview. */
+   Desk *fdesk = f->desk ();
+   if (fdesk && fdesk->isRemote () && !QFile::exists (f->pathname ()))
+      {
+      f->setValid (true);
+      emit dataChanged (index, index);
+      return;
+      }
 
    // if we can't load it, still mark it as valid otherwise we will keep loading it
    if (f->load ())
@@ -1785,6 +1799,9 @@ err_info *Desktopmodel::getImage (const QModelIndex &ind, int pnum, bool do_scal
    _modelconv->assertIsSource (0, &ind, 0);
    File *f = getFile (ind);
 
+   // a remote stack may not have been fetched yet
+   CALL (const_cast<Desktopmodel *> (this)->ensureContent (ind));
+
    if (!f->valid())
       return err_make(ERRFN, ERR_file_not_loaded_yet1,
                       qPrintable(f->filename()));
@@ -1879,6 +1896,9 @@ err_info *Desktopmodel::getImagePreviewSizes (const QModelIndex &ind, int pagenu
    int bpp, csize, num_bytes;
    QDateTime dt;
 
+   // a remote stack may not have been fetched yet
+   CALL (const_cast<Desktopmodel *> (this)->ensureContent (ind));
+
    if (!f->valid())
       return err_make(ERRFN, ERR_file_not_loaded_yet1,
                       qPrintable(f->filename()));
@@ -1944,8 +1964,12 @@ err_info *Desktopmodel::getImagePreview (const QModelIndex &ind, int pagenum,
    File *f = getFile (ind);
    err_info *err;
 
-   err = f->getPreviewPixmap (pagenum == -1 ? f->pagenum () : pagenum,
-      pixmap, blank);
+   // a remote stack may not have been fetched yet
+   err = const_cast<Desktopmodel *> (this)->ensureContent (ind);
+
+   if (!err)
+      err = f->getPreviewPixmap (pagenum == -1 ? f->pagenum () : pagenum,
+         pixmap, blank);
    if (err)
       pixmap = err->errnum == ERR_cannot_open_file1 ? _no_access : _unknown;
    return err;
@@ -1956,6 +1980,9 @@ err_info *Desktopmodel::getPageText (const QModelIndex &ind, int pagenum, QStrin
    {
    File *f = getFile (ind);
    err_info *err;
+
+   // a remote stack may not have been fetched yet
+   CALL (ensureContent (ind));
 
    if (!f->valid())
       return err_make(ERRFN, ERR_file_not_loaded_yet1,

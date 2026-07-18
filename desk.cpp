@@ -48,6 +48,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "backend.h"
 #include "desk.h"
 #include "file.h"
+#include "remotebackend.h"
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
@@ -340,14 +341,41 @@ File *Desk::createFile (const QString &dir, const QString fname)
 
    /* Remote-backed desk: the dir/fname combination is a synthetic
     * URL path that the Filemax/Filepdf/Filejpeg loaders can't open
-    * via QFile.  Use the Fileother stub instead; the Backend's
-    * thumbnail fetch populates the pixmap later via setThumbnail.
-    * Page viewing for remote files needs its own Backend-driven
-    * loader and isn't wired up yet. */
+    * via QFile.  Point the file at this desk's slot in the backend's
+    * disk cache instead, so the real file classes can parse the
+    * bytes once Desktopmodel::ensureContent() has fetched them.  The
+    * Backend's thumbnail fetch still populates the grid pixmap via
+    * setThumbnail without any download.  If the cache location is
+    * unknown (no server id), fall back to the Fileother stub. */
    if (_isRemote)
-      type = File::Type_other;
+      {
+      QString cacheDir = remoteCacheDir ();
+      if (cacheDir.isEmpty ())
+         return File::createFile (dir, fname, this, File::Type_other);
+      QDir ().mkpath (cacheDir);
+      return File::createFile (cacheDir + "/", fname, this, type);
+      }
 
    return File::createFile (dir, fname, this, type);
+   }
+
+
+QString Desk::remoteCacheDir (void)
+   {
+   RemoteBackend *remote = dynamic_cast<RemoteBackend *> (_backend);
+
+   if (!remote)
+      return QString ();
+
+   /* _dir is the synthetic desk path and _rootDir the repo root, both
+    * with a trailing slash; the part below the root locates this desk
+    * inside the repository */
+   QString rel = _dir;
+   if (rel.startsWith (_rootDir))
+      rel = rel.mid (_rootDir.length ());
+   if (rel.endsWith ('/'))
+      rel.chop (1);
+   return remote->cacheDirFor (_repoName, rel);
    }
 
 
