@@ -6,13 +6,18 @@ License: GPL-2
 
 #include "backendstats.h"
 
+#include <QDebug>
+#include <QDir>
 #include <QEventLoop>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <QUrlQuery>
 
 
@@ -271,7 +276,8 @@ quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
 }
 
 
-QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery)
+QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
+                                       const QString &ifNoneMatch)
 {
    QUrl url(_baseUrl);
    int q = pathAndQuery.indexOf('?');
@@ -285,6 +291,8 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery)
    req.setTransferTimeout(kRequestTimeoutMs);
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
+   if (!ifNoneMatch.isEmpty())
+      req.setRawHeader("If-None-Match", ifNoneMatch.toUtf8());
 
    QNetworkReply *reply = _nam->get(req);
 
@@ -342,6 +350,125 @@ bool RemoteBackend::transformPage(const QString &repo, const QString &path,
 }
 
 
+QString RemoteBackend::cacheRoot()
+{
+   QString id = serverId();
+   if (id.isEmpty())
+      return QString();
+   return QStandardPaths::writableLocation(
+              QStandardPaths::GenericCacheLocation)
+          + "/paperman/" + id;
+}
+
+
+QString RemoteBackend::cacheDirFor(const QString &repo,
+                                   const QString &dirInRepo)
+{
+   QString root = cacheRoot();
+   if (root.isEmpty())
+      return QString();
+   QString dir = root + "/" + repo;
+   if (!dirInRepo.isEmpty())
+      dir += "/" + dirInRepo;
+   return dir;
+}
+
+
+QString RemoteBackend::cachePathFor(const QString &repo,
+                                    const QString &relPath)
+{
+   QString root = cacheRoot();
+   if (root.isEmpty())
+      return QString();
+   return root + "/" + repo + "/" + relPath;
+}
+
+
+/* Build the "/file?repo=...&path=..." path-with-query string. */
+static QString wholeFilePathFor(const QString &repo, const QString &path)
+{
+   QUrlQuery q;
+   q.addQueryItem("repo", repo);
+   q.addQueryItem("path", path);
+   return "/file?" + q.toString();
+}
+
+
+QString RemoteBackend::ensureCachedFile(const QString &repo,
+                                        const QString &relPath)
+{
+   QString cachePath = cachePathFor(repo, relPath);
+   if (cachePath.isEmpty()) {
+      _lastError = "cannot determine the server's cache directory";
+      return QString();
+   }
+
+   QString etagPath = cachePath + ".etag";
+   QString etag;
+   bool haveCopy = QFile::exists(cachePath);
+   if (haveCopy) {
+      QFile ef(etagPath);
+      if (ef.open(QIODevice::ReadOnly))
+         etag = QString::fromUtf8(ef.readAll()).trimmed();
+   }
+
+   int status = 0;
+   QString newEtag;
+   QByteArray body = waitForReplyFull(
+       startGet(wholeFilePathFor(repo, relPath),
+                haveCopy ? etag : QString()),
+       &status, &newEtag);
+
+   if (status == 304)
+      return cachePath;          // cached copy is current
+
+   if (status != 200) {
+      /* Server unreachable or unhappy: fall back to the cached copy
+         if there is one, so already-fetched stacks stay viewable. */
+      if (haveCopy) {
+         qInfo() << "RemoteBackend: using cached copy of" << relPath
+                 << "after fetch error:" << _lastError;
+         return cachePath;
+      }
+      if (_lastError.isEmpty())
+         _lastError = QString("HTTP %1").arg(status);
+      return QString();
+   }
+
+   QDir().mkpath(QFileInfo(cachePath).path());
+   QSaveFile out(cachePath);
+   if (!out.open(QIODevice::WriteOnly)) {
+      _lastError = "cannot write cache file " + cachePath;
+      return QString();
+   }
+   out.write(body);
+   if (!out.commit()) {
+      _lastError = "cannot commit cache file " + cachePath;
+      return QString();
+   }
+
+   if (newEtag.isEmpty()) {
+      QFile::remove(etagPath);
+   } else {
+      QFile ef(etagPath);
+      if (ef.open(QIODevice::WriteOnly))
+         ef.write(newEtag.toUtf8());
+   }
+   return cachePath;
+}
+
+
+void RemoteBackend::invalidateCachedFile(const QString &repo,
+                                         const QString &relPath)
+{
+   QString cachePath = cachePathFor(repo, relPath);
+   if (cachePath.isEmpty())
+      return;
+   QFile::remove(cachePath);
+   QFile::remove(cachePath + ".etag");
+}
+
+
 QByteArray RemoteBackend::postRequest(const QString &path,
                                       const QByteArray &body)
 {
@@ -385,6 +512,29 @@ QByteArray RemoteBackend::waitForReply(QNetworkReply *reply)
       if (status >= 400)
          _lastError = QString("HTTP %1").arg(status);
    }
+   reply->deleteLater();
+   return data;
+}
+
+
+QByteArray RemoteBackend::waitForReplyFull(QNetworkReply *reply, int *status,
+                                           QString *etag)
+{
+   _lastError.clear();
+
+   QEventLoop loop;
+   QObject::connect(reply, &QNetworkReply::finished,
+                    &loop, &QEventLoop::quit);
+   loop.exec();
+
+   QByteArray data = reply->readAll();
+   *status = reply->attribute(
+                 QNetworkRequest::HttpStatusCodeAttribute).toInt();
+   *etag = QString::fromUtf8(reply->rawHeader("ETag"));
+   if (reply->error() != QNetworkReply::NoError && *status != 304)
+      _lastError = reply->errorString();
+   else if (*status >= 400)
+      _lastError = QString("HTTP %1").arg(*status);
    reply->deleteLater();
    return data;
 }
