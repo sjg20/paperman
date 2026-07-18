@@ -45,6 +45,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTcpSocket>
 #include <QString>
 #include <QStringList>
+#include <QBitArray>
 #include <QHash>
 #include <QMap>
 #include <QDateTime>
@@ -303,6 +304,63 @@ private:
                                  const QHash<QString, QString> &params,
                                  const QString &authedUser);
 
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/pages/delete
+     *
+     * Body {pages:[n,...]} with 1-based page numbers.  Removes the
+     * pages from the stack and stores the recovery data server-side,
+     * returning {undoId} as an opaque token for pages/undelete.
+     */
+    QByteArray handleDeletePages(const QString &path,
+                                 const QHash<QString, QString> &params,
+                                 const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/pages/undelete
+     *
+     * Body {undoId}.  Restores the pages removed by the matching
+     * pages/delete call.  An unknown or already-redeemed id is 410
+     * Gone; the recovery data does not survive a server restart.
+     */
+    QByteArray handleUndeletePages(const QString &path,
+                                   const QHash<QString, QString> &params,
+                                   const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/unstack
+     *
+     * Body {pagenum, pagecount, remove, newName}.  Copies @c pagecount
+     * pages starting at 1-based @c pagenum into a new stack in the
+     * same directory (named newName, made unique), removing them from
+     * the source when @c remove is set.  Returns {name}.
+     */
+    QByteArray handleUnstack(const QString &path,
+                             const QHash<QString, QString> &params,
+                             const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/stack
+     *
+     * Body {sources:[path,...], insertPage}.  Appends the pages of
+     * each source stack into the target at 1-based insertPage (or the
+     * end), deleting the source files.  All stacks must be the same
+     * type.
+     */
+    QByteArray handleStack(const QString &path,
+                           const QHash<QString, QString> &params,
+                           const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/duplicate
+     *
+     * Body {}.  Copies the stack's file within its directory under a
+     * fresh name and returns {name}.  Format conversion is not
+     * supported here yet.
+     */
+    QByteArray handleDuplicate(const QString &path,
+                               const QHash<QString, QString> &params,
+                               const QString &authedUser);
+
     /** Name of the shared trash directory within a repository. */
     static const char *trashDirName() { return ".maxview-trash"; }
 
@@ -549,6 +607,16 @@ private:
         int totalPages;   //!< Total pages in the source file
     };
     QHash<QString, ConvertProgress> _convertProgress;  //!< Keyed by source path
+
+    /** Recovery data held for a pages/delete call until its undoId is
+     *  redeemed (or the server restarts) */
+    struct PageUndo {
+        QString fullPath;   //!< Absolute path of the mutated file
+        QBitArray pages;    //!< Which pages were removed
+        QByteArray delInfo; //!< Opaque recovery blob from removePages()
+        int count;          //!< Number of removed pages
+    };
+    QHash<QString, PageUndo> _pageUndos;  //!< Keyed by undoId
 };
 
 #endif // __searchserver_h
