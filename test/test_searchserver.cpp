@@ -1097,6 +1097,66 @@ void TestSearchServer::testFileEtag()
     server.stop();
 }
 
+void TestSearchServer::testRemoteFileCache()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    QFile src(tmpDir.path() + "/cached.max");
+    QVERIFY(src.open(QIODevice::WriteOnly));
+    src.write("cache me");
+    src.close();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    RemoteBackend backend(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+    // first fetch downloads the bytes and records the validator
+    QString cachePath = backend.ensureCachedFile(repo, "cached.max");
+    QVERIFY2(!cachePath.isEmpty(),
+             qPrintable(backend.lastError()));
+    QFile cached(cachePath);
+    QVERIFY(cached.open(QIODevice::ReadOnly));
+    QCOMPARE(cached.readAll(), QByteArray("cache me"));
+    cached.close();
+    QVERIFY(QFile::exists(cachePath + ".etag"));
+
+    /* a revalidation must not rewrite the cached copy: plant a
+       sentinel and check the 304 leaves it alone */
+    QVERIFY(cached.open(QIODevice::WriteOnly));
+    cached.write("sentinel");
+    cached.close();
+    QCOMPARE(backend.ensureCachedFile(repo, "cached.max"), cachePath);
+    QVERIFY(cached.open(QIODevice::ReadOnly));
+    QCOMPARE(cached.readAll(), QByteArray("sentinel"));
+    cached.close();
+
+    // a changed server file misses the validator and is downloaded
+    QVERIFY(src.open(QIODevice::WriteOnly));
+    src.write("new server bytes");
+    src.close();
+    QCOMPARE(backend.ensureCachedFile(repo, "cached.max"), cachePath);
+    QVERIFY(cached.open(QIODevice::ReadOnly));
+    QCOMPARE(cached.readAll(), QByteArray("new server bytes"));
+    cached.close();
+
+    // invalidation drops the copy and the validator
+    backend.invalidateCachedFile(repo, "cached.max");
+    QVERIFY(!QFile::exists(cachePath));
+    QVERIFY(!QFile::exists(cachePath + ".etag"));
+
+    // with the server stopped, a cached copy still serves
+    QCOMPARE(backend.ensureCachedFile(repo, "cached.max"), cachePath);
+    server.stop();
+    QCOMPARE(backend.ensureCachedFile(repo, "cached.max"), cachePath);
+    QVERIFY(cached.open(QIODevice::ReadOnly));
+    QCOMPARE(cached.readAll(), QByteArray("new server bytes"));
+    cached.close();
+}
+
 void TestSearchServer::testFilePageCount()
 {
     QTemporaryDir tmpDir;
