@@ -512,9 +512,11 @@ bool RemoteBackend::duplicateStack(const QString &repo, const QString &path,
 
 bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
                                const QByteArray &bytes, QString *finalName,
-                               QString *etag)
+                               QString *etag, bool overwrite)
 {
    QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + "/upload";
+   if (overwrite)
+      endpoint += "?overwrite=true";
 
    QByteArray resp = postRequest(endpoint, bytes,
                                  "application/octet-stream");
@@ -720,7 +722,13 @@ QByteArray RemoteBackend::postRequest(const QString &path,
                                       const QString &contentType)
 {
    QUrl url(_baseUrl);
-   url.setPath(path);
+   int q = path.indexOf('?');
+   if (q < 0) {
+      url.setPath(path);
+   } else {
+      url.setPath(path.left(q));
+      url.setQuery(path.mid(q + 1));
+   }
    QNetworkRequest req(url);
    req.setTransferTimeout(kRequestTimeoutMs);
    req.setRawHeader("X-Client-Id", _clientId.toUtf8());

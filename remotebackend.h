@@ -164,12 +164,13 @@ public:
 
     /** Upload a whole file's bytes to the server at @p path (e.g. a
      *  stack scanned into a remote desk).  The server never
-     *  overwrites: on a name clash @p finalName differs from the
+     *  overwrites unless @p overwrite is set (used for the shared
+     *  desk file): on a name clash @p finalName differs from the
      *  requested one.  @p etag returns the stored file's validator,
      *  ready for the cache sidecar. */
     bool uploadFile(const QString &repo, const QString &path,
                     const QByteArray &bytes, QString *finalName,
-                    QString *etag);
+                    QString *etag, bool overwrite = false);
 
     /** Open (and keep open) the server's event stream for @p repo.
      *  Each change made by another client is emitted as stackEvent();
