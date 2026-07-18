@@ -2698,6 +2698,12 @@ err_info *Filemax::putAnnot (QHash<int, QString> &updates)
    {
    int type;
 
+   /* The file may not be open and its chunk list may be partial when
+      this is the first operation after load() (as on the server).
+      load_annot() reads from the file and create_annot() needs the
+      full chunk list to update the annot chunk in place. */
+   CALL (ensure_open ());
+   CALL (ensure_all_chunks ());
    if (!_annot_loaded)
       CALL (load_annot ());
 
@@ -2705,6 +2711,7 @@ err_info *Filemax::putAnnot (QHash<int, QString> &updates)
       if (updates.contains (type))
          _annot_data [type] = updates [type];
    create_annot ();
+   ensure_closed ();
    return NULL;
    }
 
