@@ -21,6 +21,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include "ocr.h"
 #include "searchserver.h"
 #include "localbackend.h"
 #include "serverlog.h"
@@ -535,6 +536,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         if (path.startsWith("/v1/repos/")) {
             if (path.endsWith("/transform"))
                 return handleTransform(path, params, authedUser);
+            if (path.endsWith("/ocr") && path.contains("/pages/"))
+                return handleOcrPage(path, params, authedUser);
             /* the page-rename check must come before the stack rename
                (both end in /rename); likewise pages/delete before the
                stack delete */
@@ -1272,6 +1275,113 @@ QByteArray SearchServer::handleRenamePage(const QString &path,
                              buildJsonResponse(true, "", ""));
 }
 
+/* Open the target's file via the File classes and load it; returns
+   nullptr with *errMsg set on failure. */
+static File *openTargetFile(const QString &fullPath, QString *errMsg)
+{
+    QFileInfo fi(fullPath);
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, File::typeFromName(fi.fileName()));
+    err_info *err = file ? file->load() : nullptr;
+    if (!file || err) {
+        *errMsg = err ? err->errstr : QStringLiteral("Cannot open file");
+        delete file;
+        return nullptr;
+    }
+    return file;
+}
+
+QByteArray SearchServer::handleOcrPage(const QString &path,
+                                       const QHash<QString, QString> &params,
+                                       const QString &authedUser)
+{
+    /* Path shape: .../stacks/{path}/pages/{n}/ocr */
+    QString rest = path;
+    rest.chop(QStringLiteral("/ocr").size());
+    int sep = rest.lastIndexOf("/pages/");
+    if (sep < 0)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed ocr path"));
+    bool numOk = false;
+    int page = rest.mid(sep + QStringLiteral("/pages/").size())
+                   .toInt(&numOk);
+    if (!numOk || page < 1)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid page number"));
+
+    QString repoName, filePath;
+    if (!splitStackUrl(rest.left(sep), "", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed ocr path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    err_info *err;
+    Ocr *ocr = Ocr::getOcr(err);
+    if (!ocr)
+        return buildHttpResponse(501, "Not Implemented", "application/json",
+                                 buildJsonResponse(false, "",
+                                     err ? err->errstr
+                                         : "No OCR engine available"));
+
+    QString openFail;
+    File *file = openTargetFile(target.fullPath, &openFail);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+    if (page > file->pagecount()) {
+        delete file;
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Page out of range"));
+    }
+
+    QImage image;
+    QSize size, trueSize;
+    int bpp;
+    err = file->getImage(page - 1, false, image, size, trueSize, bpp,
+                         false);
+
+    QString text;
+    if (!err)
+        err = ocr->imageToText(image, text);
+
+    /* store the text the way the GUI does, in the stack's ocr
+       annotation, so search and the annotations pane see it */
+    if (!err) {
+        QHash<int, QString> updates;
+        updates[File::Annot_ocr] = text;
+        err = file->putAnnot(updates);
+    }
+    if (!err)
+        err = file->flush();
+    if (err) {
+        QString msg = err->errstr;
+        delete file;
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", msg));
+    }
+    delete file;
+
+    _log.log(ServerLog::ServeFile, target.filePath + " ocr");
+    notifyStackEvent(target.repoName, "annotations", target.filePath, "",
+                     params.value("__client_id__"));
+    QJsonObject out;
+    out["success"] = true;
+    out["text"] = text;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
 QByteArray SearchServer::handleUpdateAnnot(const QString &path,
                                            const QHash<QString, QString> &params,
                                            const QString &authedUser)
@@ -1332,22 +1442,6 @@ QByteArray SearchServer::handleUpdateAnnot(const QString &path,
                      params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
-}
-
-/* Open the target's file via the File classes and load it; returns
-   nullptr with *errMsg set on failure. */
-static File *openTargetFile(const QString &fullPath, QString *errMsg)
-{
-    QFileInfo fi(fullPath);
-    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
-                                  nullptr, File::typeFromName(fi.fileName()));
-    err_info *err = file ? file->load() : nullptr;
-    if (!file || err) {
-        *errMsg = err ? err->errstr : QStringLiteral("Cannot open file");
-        delete file;
-        return nullptr;
-    }
-    return file;
 }
 
 QByteArray SearchServer::handleDeletePages(const QString &path,
