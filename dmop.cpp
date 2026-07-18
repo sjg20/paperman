@@ -638,6 +638,11 @@ void Desktopmodel::opMoveStacks (QModelIndexList &list, QModelIndex parent,
       emit dataChanged (ind, ind);
       }
    desk->dirty ();
+
+   /* positions on a remote desk are shared through the server's desk
+      file; push them at once so other clients see the new layout */
+   if (desk->isRemote ())
+      desk->flush ();
    }
 
 

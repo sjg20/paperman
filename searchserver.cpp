@@ -1682,10 +1682,13 @@ QByteArray SearchServer::handleUpload(const QString &path,
                                  buildJsonResponse(false, "",
                                      "Directory not found"));
 
-    /* never overwrite: a name clash (e.g. two clients scanning at
-       once) gets a fresh name, reported back to the caller */
+    /* Never overwrite by default: a name clash (e.g. two clients
+       scanning at once) gets a fresh name, reported back to the
+       caller.  ?overwrite=true replaces in place, for files like the
+       shared desk file whose identity is its name. */
+    bool overwrite = params.value("overwrite") == "true";
     QString name = fi.fileName();
-    if (QFileInfo::exists(target.fullPath)) {
+    if (!overwrite && QFileInfo::exists(target.fullPath)) {
         name = uniqueNameIn(fi.absolutePath(), fi.completeBaseName(),
                             "." + fi.suffix());
         if (name.isEmpty())

@@ -101,6 +101,9 @@ private slots:
    //! Another client's change arrives on the event stream
    void testRemoteEvents();
 
+   //! Stack positions are shared through the server's desk file
+   void testDesktopRemoteSharedPositions();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
