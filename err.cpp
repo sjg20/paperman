@@ -109,6 +109,8 @@ static const char *err_msg [ERR_count] =
    "Could not open file '%s' for reading",
    "Remote transform failed: %s",
    "Could not fetch remote file: %s",
+   "Remote %s failed: %s",
+   "Cannot move stacks between repositories",
    };
 
 
