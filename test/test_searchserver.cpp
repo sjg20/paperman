@@ -29,6 +29,7 @@
 #include <QBuffer>
 #include <QFont>
 #include <QImage>
+#include <QPainter>
 #include <QRegularExpression>
 
 #include "test_searchserver.h"
@@ -2180,6 +2181,71 @@ void TestSearchServer::testDesktopRemoteSharedPositions()
     QVERIFY(stack2.isValid());
     QCOMPARE(model2.data(stack2, Desktopmodel::Role_position).toPoint(),
              target);
+
+    server.stop();
+}
+
+
+void TestSearchServer::testRemoteOcr()
+{
+    /* OCR of a remote stack runs on the server, which stores the text
+       in the stack's ocr annotation and returns it. */
+    if (!QFile::exists("/usr/bin/tesseract"))
+        QSKIP("tesseract is not installed");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    /* a page with large, clean text for the engine to find */
+    {
+        QImage page(500, 140, QImage::Format_RGB32);
+        page.fill(Qt::white);
+        QPainter paint(&page);
+        paint.setPen(Qt::black);
+        QFont font;
+        font.setPointSize(40);
+        paint.setFont(font);
+        paint.drawText(page.rect(), Qt::AlignCenter, "HELLO WORLD");
+        paint.end();
+        QVERIFY(page.save(dir + "readme.jpg", "JPG"));
+    }
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("readme.jpg", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(!model.ensureContent(stack));
+
+    QString text;
+    err_info *e = model.ocrPage(stack, 0, text);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QVERIFY2(text.contains("HELLO"), qPrintable(text));
+
+    // the text is stored in the stack's annotation on the server
+    QVERIFY(serverAnnot(dir, "readme.jpg",
+                        File::Annot_ocr).contains("HELLO"));
+
+    // and mirrored onto the cached copy
+    QVERIFY(model.getAnnot(stack, File::Annot_ocr).contains("HELLO"));
 
     server.stop();
 }

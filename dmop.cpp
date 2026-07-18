@@ -45,6 +45,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopmodel.h"
 #include "desk.h"
 #include "file.h"
+#include "ocr.h"
 #include "op.h"
 #include "remotebackend.h"
 #include "utils.h"
@@ -1023,6 +1024,53 @@ void Desktopmodel::refreshRemoteThumbnail (Desk *desk, RemoteBackend *backend,
    quint64 token = backend->fetchThumbnailAsync (desk->repoName (),
          remoteStackPath (desk, file), /*page=*/1, /*size=*/"small");
    _pendingThumbnails.insert (token, file);
+   }
+
+
+err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
+      QString &text)
+   {
+   File *f = getFile (ind);
+
+   if (!f)
+      return NULL;
+
+   RemoteBackend *remote = remoteForFile (f);
+   if (remote)
+      {
+      Desk *desk = f->desk ();
+
+      if (!remote->ocrPage (desk->repoName (), remoteStackPath (desk, f),
+                            pagenum + 1, &text))
+         return err_make (ERRFN, ERR_remote_op_failed2, "ocr",
+                          qPrintable (remote->lastError ()));
+
+      /* the server stored the text in the stack's ocr annotation;
+         mirror it onto the parsed cached copy */
+      if (f->remoteChecked ())
+         {
+         QHash<int, QString> updates;
+
+         updates [File::Annot_ocr] = text;
+         f->putAnnot (updates);
+         f->flush ();
+         }
+      return NULL;
+      }
+
+   CALL (ensureContent (ind));
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   CALL (getImage (ind, pagenum, false, image, size, trueSize, bpp));
+
+   err_info *err;
+   Ocr *ocr = Ocr::getOcr (err);
+
+   if (!ocr)
+      return err;
+   return ocr->imageToText (image, text);
    }
 
 

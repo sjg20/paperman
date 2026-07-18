@@ -172,6 +172,12 @@ public:
                     const QByteArray &bytes, QString *finalName,
                     QString *etag, bool overwrite = false);
 
+    /** Run the server's OCR engine over 1-based page @p page of a
+     *  stack.  The server stores the text in the stack's ocr
+     *  annotation and returns it in @p text. */
+    bool ocrPage(const QString &repo, const QString &path, int page,
+                 QString *text);
+
     /** Open (and keep open) the server's event stream for @p repo.
      *  Each change made by another client is emitted as stackEvent();
      *  our own changes are filtered out by client id.  The stream
