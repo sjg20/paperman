@@ -18,12 +18,17 @@ License: GPL-2
 #include <QNetworkRequest>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrlQuery>
+#include <QUuid>
+
+#include <memory>
 
 
 RemoteBackend::RemoteBackend(const QUrl &baseUrl, QObject *parent)
    : QObject(parent)
    , _baseUrl(baseUrl)
+   , _clientId(QUuid::createUuid().toString(QUuid::WithoutBraces))
    , _nam(new QNetworkAccessManager(this))
 {
 }
@@ -289,6 +294,7 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
    }
    QNetworkRequest req(url);
    req.setTransferTimeout(kRequestTimeoutMs);
+   req.setRawHeader("X-Client-Id", _clientId.toUtf8());
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
    if (!ifNoneMatch.isEmpty())
@@ -528,6 +534,62 @@ bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
 }
 
 
+void RemoteBackend::subscribeEvents(const QString &repo)
+{
+   if (_eventRepos.contains(repo))
+      return;
+   _eventRepos.insert(repo);
+   startEventStream(repo);
+}
+
+
+void RemoteBackend::startEventStream(const QString &repo)
+{
+   QUrl url(_baseUrl);
+   url.setPath("/v1/repos/" + repo + "/events");
+   QNetworkRequest req(url);
+   /* no transfer timeout: the stream stays open indefinitely */
+   req.setRawHeader("X-Client-Id", _clientId.toUtf8());
+   if (!_token.isEmpty())
+      req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
+
+   QNetworkReply *reply = _nam->get(req);
+   auto buf = std::make_shared<QByteArray>();
+   QObject::connect(reply, &QNetworkReply::readyRead, this,
+       [this, reply, buf, repo]() {
+          *buf += reply->readAll();
+          int pos;
+          while ((pos = buf->indexOf("\n\n")) >= 0) {
+             QByteArray frame = buf->left(pos);
+             buf->remove(0, pos + 2);
+             int d = frame.indexOf("data: ");
+             if (d < 0)
+                continue;      // comment / keep-alive frame
+             QJsonDocument doc = QJsonDocument::fromJson(frame.mid(d + 6));
+             if (!doc.isObject())
+                continue;
+             QJsonObject o = doc.object();
+             if (o.value("origin").toString() == _clientId)
+                continue;      // our own change, already applied
+             emit stackEvent(o.value("repo").toString(repo),
+                             o.value("op").toString(),
+                             o.value("path").toString(),
+                             o.value("name").toString());
+          }
+       });
+   QObject::connect(reply, &QNetworkReply::finished, this,
+       [this, reply, repo]() {
+          reply->deleteLater();
+          /* reconnect unless the subscription was dropped */
+          if (_eventRepos.contains(repo))
+             QTimer::singleShot(3000, this, [this, repo]() {
+                if (_eventRepos.contains(repo))
+                   startEventStream(repo);
+             });
+       });
+}
+
+
 QString RemoteBackend::cacheRoot()
 {
    QString id = serverId();
@@ -661,6 +723,7 @@ QByteArray RemoteBackend::postRequest(const QString &path,
    url.setPath(path);
    QNetworkRequest req(url);
    req.setTransferTimeout(kRequestTimeoutMs);
+   req.setRawHeader("X-Client-Id", _clientId.toUtf8());
    req.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());

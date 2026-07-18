@@ -98,6 +98,9 @@ private slots:
    //! Scanning into a remote desk uploads the stack on confirm
    void testDesktopRemoteScan();
 
+   //! Another client's change arrives on the event stream
+   void testRemoteEvents();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
