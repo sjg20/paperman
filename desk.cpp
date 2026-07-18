@@ -124,7 +124,10 @@ Desk::Desk(const QString &dirPath, const QString &trashPath, bool do_readDesk)
 
 Desk::~Desk ()
    {
-   if (_dir != QString() && _do_writeDesk && !writeDesk ())
+   /* a remote desk uploads on write, so only bother when something
+      actually changed (flushes cover the normal case anyway) */
+   if (_dir != QString() && _do_writeDesk && (!_isRemote || _dirty)
+       && !writeDesk ())
       printf ("couldn't write maxdesk.ini\n");
    while (!_files.isEmpty ())
       delete _files.takeFirst ();
@@ -213,6 +216,19 @@ void Desk::addFiles(const QString &dirPath, Measure *meas)
          qInfo() << "Desk::addFiles: backend error:" << listing.error;
          return;
       }
+
+      if (_isRemote) {
+         /* the server's desk file carries the shared layout; read it
+          * first (validated against the listing) so files take their
+          * shared positions, then add anything it doesn't mention */
+         fetchRemoteDeskFile();
+         QSet<QString> names;
+         for (const DirectoryEntry &e : listing.entries)
+            if (!e.isDir)
+               names.insert(e.name);
+         readDesk(true, &names);
+      }
+
       for (const DirectoryEntry &e : listing.entries) {
          if (e.isDir)
             continue;
@@ -360,6 +376,31 @@ File *Desk::createFile (const QString &dir, const QString fname)
    }
 
 
+void Desk::setBackend (Backend *backend, const QString &repoName,
+                       bool isRemote)
+   {
+   _backend = backend;
+   _repoName = repoName;
+   _isRemote = isRemote;
+   _remote = dynamic_cast<RemoteBackend *> (backend);
+   }
+
+
+QString Desk::remoteRelDir (void) const
+   {
+   /* _dir is the synthetic desk path and _rootDir the repo root, both
+    * with a trailing slash; the part below the root locates this desk
+    * inside the repository */
+   QString rel = _dir;
+
+   if (rel.startsWith (_rootDir))
+      rel = rel.mid (_rootDir.length ());
+   if (rel.endsWith ('/'))
+      rel.chop (1);
+   return rel;
+   }
+
+
 QString Desk::remoteCacheDir (void)
    {
    RemoteBackend *remote = dynamic_cast<RemoteBackend *> (_backend);
@@ -367,15 +408,57 @@ QString Desk::remoteCacheDir (void)
    if (!remote)
       return QString ();
 
-   /* _dir is the synthetic desk path and _rootDir the repo root, both
-    * with a trailing slash; the part below the root locates this desk
-    * inside the repository */
-   QString rel = _dir;
-   if (rel.startsWith (_rootDir))
-      rel = rel.mid (_rootDir.length ());
-   if (rel.endsWith ('/'))
-      rel.chop (1);
-   return remote->cacheDirFor (_repoName, rel);
+   return remote->cacheDirFor (_repoName, remoteRelDir ());
+   }
+
+
+void Desk::fetchRemoteDeskFile (void)
+   {
+   if (!_remote)
+      return;
+
+   QString rel = remoteRelDir ();
+   QString path = rel.isEmpty () ? QString (DESK_FNAME)
+                                 : rel + "/" + DESK_FNAME;
+
+   /* a failure just means the server has no desk file yet (or is
+      unreachable, in which case any cached copy is used) */
+   _remote->ensureCachedFile (_repoName, path);
+   }
+
+
+bool Desk::uploadDeskFile (void)
+   {
+   if (!_remote)
+      return false;
+
+   QFile in (remoteCacheDir () + "/" + DESK_FNAME);
+   if (!in.open (QIODevice::ReadOnly))
+      return false;
+   QByteArray bytes = in.readAll ();
+   in.close ();
+
+   QString rel = remoteRelDir ();
+   QString path = rel.isEmpty () ? QString (DESK_FNAME)
+                                 : rel + "/" + DESK_FNAME;
+   QString etag;
+   if (!_remote->uploadFile (_repoName, path, bytes, nullptr, &etag,
+                             /*overwrite=*/true))
+      {
+      qInfo () << "Desk: could not upload desk file:"
+               << _remote->lastError ();
+      return false;
+      }
+
+   /* record the validator so the next fetch costs a 304 */
+   if (!etag.isEmpty ())
+      {
+      QFile ef (in.fileName () + ".etag");
+
+      if (ef.open (QIODevice::WriteOnly))
+         ef.write (etag.toUtf8 ());
+      }
+   return true;
    }
 
 
@@ -398,27 +481,42 @@ bool Desk::addToExistingFile (QString &fname)
    return false;
 }
 
-void Desk::readDesk (bool read_sizes)
+void Desk::readDesk (bool read_sizes, const QSet<QString> *allowed)
    {
    QFile oldfile;
-   QFile file (_dir + DESK_FNAME);
    QString fname;
 
-   // if there is a maxdesk.ini file, rename it to the official name
-   fname = _dir + "/maxdesk.ini";
-   oldfile.setFileName (fname);
-   if (!oldfile.exists ())
+   /* a remote desk's file lives in the backend's cache (fetched from
+      the server); the legacy maxdesk.ini renaming only applies to a
+      real local directory */
+   QString deskDir = _dir;
+   if (_isRemote)
       {
-      fname = _dir + "/MaxDesk.ini";
-      oldfile.setFileName (fname);
+      deskDir = remoteCacheDir ();
+      if (deskDir.isEmpty ())
+         return;
+      deskDir += "/";
       }
-   if (oldfile.exists ())
+   QFile file (deskDir + DESK_FNAME);
+
+   if (!_isRemote)
       {
-      // if we have the official file, just remove this one
-      if (file.exists ())
-         oldfile.remove ();
-      else
-         oldfile.rename (_dir + DESK_FNAME);
+      // if there is a maxdesk.ini file, rename it to the official name
+      fname = _dir + "/maxdesk.ini";
+      oldfile.setFileName (fname);
+      if (!oldfile.exists ())
+         {
+         fname = _dir + "/MaxDesk.ini";
+         oldfile.setFileName (fname);
+         }
+      if (oldfile.exists ())
+         {
+         // if we have the official file, just remove this one
+         if (file.exists ())
+            oldfile.remove ();
+         else
+            oldfile.rename (_dir + DESK_FNAME);
+         }
       }
 
    QTextStream stream (&file);
@@ -444,8 +542,21 @@ void Desk::readDesk (bool read_sizes)
          {
          QString fname = line.left (pos);
 
-         QFile test (_dir + fname);
-         if (!test.exists ())
+         /* only accept entries which really exist: on disk for a
+            local desk, in the caller's listing for a remote one */
+         if (allowed)
+            {
+            if (!allowed->contains (fname))
+               continue;
+            }
+         else
+            {
+            QFile test (_dir + fname);
+            if (!test.exists ())
+               continue;
+            }
+
+         if (findFile (fname))
             continue;
 
          if (!addToExistingFile (fname))
@@ -468,16 +579,31 @@ bool Desk::writeDesk (void)
    QFile file;
    QString fname;
 
-   // remove any old file
-   fname = _dir + "/maxdesk.ini";
-   file.setFileName (fname);
-   if (file.exists ())
-      file.remove ();
-   fname = _dir + "/MaxDesk.ini";
-   file.setFileName (fname);
-   if (file.exists ())
-      file.remove ();
-   file.setFileName (_dir + DESK_FNAME);
+   /* a remote desk's file is written to the cache and pushed to the
+      server below */
+   QString deskDir = _dir;
+   if (_isRemote)
+      {
+      deskDir = remoteCacheDir ();
+      if (deskDir.isEmpty ())
+         return false;
+      deskDir += "/";
+      QDir ().mkpath (deskDir);
+      }
+
+   if (!_isRemote)
+      {
+      // remove any old file
+      fname = _dir + "/maxdesk.ini";
+      file.setFileName (fname);
+      if (file.exists ())
+         file.remove ();
+      fname = _dir + "/MaxDesk.ini";
+      file.setFileName (fname);
+      if (file.exists ())
+         file.remove ();
+      }
+   file.setFileName (deskDir + DESK_FNAME);
    if (file.exists ())
       file.remove ();
 
@@ -504,6 +630,13 @@ bool Desk::writeDesk (void)
    utilSetGroup(file.fileName());
 
    _dirty = false; // we are clean again
+
+   /* push the layout to the server so every client shares it */
+   if (_isRemote)
+      {
+      file.close ();
+      return uploadDeskFile ();
+      }
    return true;
    }
 

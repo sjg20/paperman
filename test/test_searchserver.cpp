@@ -2119,6 +2119,71 @@ void TestSearchServer::testRemoteEvents()
     server.stop();
 }
 
+
+void TestSearchServer::testDesktopRemoteSharedPositions()
+{
+    /* Stack positions on a remote desk live in the server's
+       .paperdesk file, so every client sees the same layout. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    // move the stack; the layout must land on the server at once
+    QPoint target(432, 210);
+    QModelIndexList list;
+    QList<QPoint> newpos;
+    list << stack;
+    newpos << target;
+    model.opMoveStacks(list, parent, newpos);
+    QVERIFY(QFile::exists(dir + ".paperdesk"));
+    {
+        QFile pd(dir + ".paperdesk");
+        QVERIFY(pd.open(QIODevice::ReadOnly));
+        QVERIFY(pd.readAll().contains("testfile.max"));
+    }
+
+    // the desk file must not show up as a stack
+    QVERIFY(!model.index(".paperdesk", parent).isValid());
+
+    // a second client sees the same position
+    Desktopmodel model2(nullptr);
+    Desktopmodelconv conv2(&model2);
+    model2.setModelConv(&conv2);
+    model2.setDirmodel(&dirmodel);
+    QModelIndex parent2 = model2.showDir(root, root, &meas);
+    QVERIFY(parent2.isValid());
+    QModelIndex stack2 = model2.index("testfile.max", parent2);
+    QVERIFY(stack2.isValid());
+    QCOMPARE(model2.data(stack2, Desktopmodel::Role_position).toPoint(),
+             target);
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;

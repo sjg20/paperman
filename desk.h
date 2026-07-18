@@ -33,6 +33,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qsize.h"
 #include "qstring.h"
 #include <QPixmap>
+#include <QPointer>
+#include <QSet>
 
 #include "err.h"
 
@@ -105,13 +107,11 @@ public:
     *  on the Diritem in Dirmodel.  @p repoName is the basename the
     *  backend uses to identify this repository.  @p isRemote tells
     *  us whether file paths handed to addFile are real on the local
-    *  filesystem; when false we force every File entry into the
-    *  Fileother stub (no local open is attempted) and skip the
-    *  .maxdesk write at destruction. */
+    *  filesystem; when false, files live in the backend's disk cache
+    *  and the desk file is fetched from and written back to the
+    *  server. */
    void setBackend(Backend *backend, const QString &repoName,
-                   bool isRemote = false)
-       { _backend = backend; _repoName = repoName; _isRemote = isRemote;
-         if (isRemote) _do_writeDesk = false; }
+                   bool isRemote = false);
 
    /** Backend currently attached to this desk (nullptr for local). */
    Backend *backend() const { return _backend; }
@@ -144,14 +144,22 @@ public:
    void addMatches(const QString &dirPath, const QStringList& matche,
                    Measure *meas);
 
-   /** read the maxdesk.ini file which contains positional and size
+   /** read the .paperdesk file which contains positional and size
       information for each stack in the directory
 
       \param read_sizes    read the size information (otherwise it is
-                           ignored and will be recalculated */
-   void readDesk (bool read_sizes = true);
+                           ignored and will be recalculated
+      \param allowed       if non-null, only create entries whose
+                           filename is in this set (used for remote
+                           desks, where the server listing is the
+                           truth and a local existence check is
+                           meaningless) */
+   void readDesk (bool read_sizes = true,
+                  const QSet<QString> *allowed = nullptr);
 
-   /** write the maxdesk.ini file */
+   /** write the .paperdesk file; for a remote desk this writes the
+       cached copy and uploads it to the server so every client sees
+       the same layout */
    bool writeDesk (void);
 
    // allocate and zero a new file structure
@@ -176,6 +184,18 @@ public:
    /** Local cache directory for this desk's files when the backend is
     *  remote (no trailing slash), or empty when there is none */
    QString remoteCacheDir (void);
+
+   /** The desk's directory relative to the repository root, with no
+    *  surrounding slashes ("" for the root itself) */
+   QString remoteRelDir (void) const;
+
+   /** Fetch the server's copy of the desk file into the cache; a
+    *  missing file just means a fresh directory */
+   void fetchRemoteDeskFile (void);
+
+   /** Upload the cached desk file to the server so other clients see
+    *  this layout */
+   bool uploadDeskFile (void);
 
    /** given a filename, try to make it unique by adding numbers, etc.
 
@@ -633,6 +653,10 @@ private:
    Backend *_backend = nullptr;  //!< Optional data source; nullptr = local QDir
    QString _repoName;  //!< Repository name when _backend is set
    bool _isRemote = false;  //!< Backend is remote: skip local file ops
+
+   /** The backend as a RemoteBackend, guarded so a desk destroyed
+    *  after the backend does not touch a dangling pointer */
+   QPointer<class RemoteBackend> _remote;
    QPoint _pos;        //!< next position for a file to appear
    int _rightMargin;   //!< right margin for items
    int _debug_level;     //!< the debug level to use for max debugging
