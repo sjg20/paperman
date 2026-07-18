@@ -520,18 +520,29 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         if (path.startsWith("/v1/repos/")) {
             if (path.endsWith("/transform"))
                 return handleTransform(path, params, authedUser);
-            /* the page-rename check must come before the stack rename:
-               both end in /rename */
+            /* the page-rename check must come before the stack rename
+               (both end in /rename); likewise pages/delete before the
+               stack delete */
             if (path.endsWith("/rename") && path.contains("/pages/"))
                 return handleRenamePage(path, params, authedUser);
             if (path.endsWith("/rename"))
                 return handleRename(path, params, authedUser);
             if (path.endsWith("/move"))
                 return handleMove(path, params, authedUser);
+            if (path.endsWith("/pages/delete"))
+                return handleDeletePages(path, params, authedUser);
+            if (path.endsWith("/pages/undelete"))
+                return handleUndeletePages(path, params, authedUser);
             if (path.endsWith("/delete"))
                 return handleDelete(path, params, authedUser);
             if (path.endsWith("/annotations"))
                 return handleUpdateAnnot(path, params, authedUser);
+            if (path.endsWith("/unstack"))
+                return handleUnstack(path, params, authedUser);
+            if (path.endsWith("/stack"))
+                return handleStack(path, params, authedUser);
+            if (path.endsWith("/duplicate"))
+                return handleDuplicate(path, params, authedUser);
         }
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("POST not supported on this path"));
@@ -1288,6 +1299,356 @@ QByteArray SearchServer::handleUpdateAnnot(const QString &path,
     _log.log(ServerLog::ServeFile, target.filePath + " annotations");
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
+}
+
+/* Open the target's file via the File classes and load it; returns
+   nullptr with *errMsg set on failure. */
+static File *openTargetFile(const QString &fullPath, QString *errMsg)
+{
+    QFileInfo fi(fullPath);
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, File::typeFromName(fi.fileName()));
+    err_info *err = file ? file->load() : nullptr;
+    if (!file || err) {
+        *errMsg = err ? err->errstr : QStringLiteral("Cannot open file");
+        delete file;
+        return nullptr;
+    }
+    return file;
+}
+
+QByteArray SearchServer::handleDeletePages(const QString &path,
+                                           const QHash<QString, QString> &params,
+                                           const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/pages/delete", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed pages-delete path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj) || !obj.value("pages").isArray())
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {pages:[...]}"));
+
+    QString openFail;
+    File *file = openTargetFile(target.fullPath, &openFail);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+
+    int pagecount = file->pagecount();
+    QBitArray pages(pagecount);
+    int count = 0;
+    for (const QJsonValue &v : obj.value("pages").toArray()) {
+        int n = v.toInt();
+        if (n < 1 || n > pagecount) {
+            delete file;
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Page out of range"));
+        }
+        if (!pages.testBit(n - 1)) {
+            pages.setBit(n - 1);
+            count++;
+        }
+    }
+    if (!count || count >= pagecount) {
+        delete file;
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Must leave at least one page"));
+    }
+
+    QByteArray delInfo;
+    err_info *err = file->removePages(pages, delInfo, count);
+    delete file;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+
+    PageUndo undo;
+    undo.fullPath = target.fullPath;
+    undo.pages = pages;
+    undo.delInfo = delInfo;
+    undo.count = count;
+    QString undoId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    _pageUndos[undoId] = undo;
+
+    _log.log(ServerLog::ServeFile, target.filePath + " pages deleted");
+    QJsonObject out;
+    out["success"] = true;
+    out["undoId"] = undoId;
+    out["count"] = count;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+QByteArray SearchServer::handleUndeletePages(const QString &path,
+                                             const QHash<QString, QString> &params,
+                                             const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/pages/undelete", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed pages-undelete path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    QString undoId;
+    if (parseJsonBody(params, &obj))
+        undoId = obj.value("undoId").toString();
+    auto it = _pageUndos.find(undoId);
+    if (undoId.isEmpty() || it == _pageUndos.end()
+        || it->fullPath != target.fullPath)
+        return buildHttpResponse(410, "Gone", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Unknown or expired undoId"));
+
+    QString openFail;
+    File *file = openTargetFile(target.fullPath, &openFail);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+
+    err_info *err = file->restorePages(it->pages, it->delInfo, it->count);
+    delete file;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+    _pageUndos.erase(it);
+
+    _log.log(ServerLog::ServeFile, target.filePath + " pages restored");
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
+}
+
+QByteArray SearchServer::handleUnstack(const QString &path,
+                                       const QHash<QString, QString> &params,
+                                       const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/unstack", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed unstack path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON"));
+    int pagenum = obj.value("pagenum").toInt();
+    int pagecount = obj.value("pagecount").toInt(1);
+    bool removePages = obj.value("remove").toBool(false);
+    QString newName = obj.value("newName").toString();
+
+    QString openFail;
+    File *file = openTargetFile(target.fullPath, &openFail);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+
+    int srcCount = file->pagecount();
+    if (pagenum < 1 || pagecount < 1 || pagenum - 1 + pagecount > srcCount
+        || (removePages && pagecount >= srcCount)) {
+        delete file;
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Page range invalid"));
+    }
+
+    /* pick the destination name: the caller's suggestion, or the page
+       title, or a name built from the source, made unique on disk */
+    QFileInfo fi(target.fullPath);
+    QString ext = "." + fi.suffix();
+    QString base;
+    if (!newName.isEmpty() && !newName.contains('/')
+        && !newName.contains(".."))
+        base = QFileInfo(newName).completeBaseName();
+    if (base.isEmpty())
+        base = file->pageTitle(pagenum - 1);
+    if (base.isEmpty())
+        base = pagecount == 1
+            ? QString("%1_page_%2").arg(fi.completeBaseName())
+                  .arg(pagenum)
+            : QString("%1_pages_%2_to_%3").arg(fi.completeBaseName())
+                  .arg(pagenum).arg(pagenum + pagecount - 1);
+    QString uniq = uniqueNameIn(fi.absolutePath(), base, ext);
+    if (uniq.isEmpty()) {
+        delete file;
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "No unique name available"));
+    }
+
+    File *dest = File::createFile(fi.absolutePath() + "/", uniq, nullptr,
+                                  File::typeFromName(fi.fileName()));
+    err_info *err = dest ? dest->create() : nullptr;
+    if (!err)
+        err = file->unstackPages(pagenum - 1, pagecount, removePages, dest);
+    if (!err)
+        err = dest->flush();
+    if (!err)
+        err = file->flush();
+    delete dest;
+    delete file;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+
+    _log.log(ServerLog::ServeFile, target.filePath + " unstacked");
+    QJsonObject out;
+    out["success"] = true;
+    out["name"] = uniq;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+QByteArray SearchServer::handleStack(const QString &path,
+                                     const QHash<QString, QString> &params,
+                                     const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/stack", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed stack path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj) || !obj.value("sources").isArray())
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {sources:[...]}"));
+
+    /* resolve every source first so a bad one aborts before anything
+       is modified */
+    QList<StackTarget> sources;
+    for (const QJsonValue &v : obj.value("sources").toArray()) {
+        StackTarget src;
+        QByteArray bad = resolveStackTarget(repoName, v.toString(),
+                                            authedUser, src);
+        if (!bad.isEmpty())
+            return bad;
+        if (File::typeFromName(src.fullPath)
+            != File::typeFromName(target.fullPath))
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Source type differs: "
+                                         + src.filePath));
+        sources << src;
+    }
+    if (sources.isEmpty())
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "No sources given"));
+
+    QString openFail;
+    File *dest = openTargetFile(target.fullPath, &openFail);
+    if (!dest)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+
+    /* insertPage is 1-based; absent or past the end means append */
+    int insertPage = obj.value("insertPage").toInt(dest->pagecount() + 1);
+    dest->setPagenum(qBound(0, insertPage - 1, dest->pagecount()));
+
+    err_info *err = nullptr;
+    foreach (const StackTarget &src, sources) {
+        File *fsrc = openTargetFile(src.fullPath, &openFail);
+        if (!fsrc) {
+            err = err_make(ERRFN, ERR_could_not_open_file_for_reading1,
+                           qPrintable(src.filePath));
+            break;
+        }
+        int nextInsert = dest->pagenum() + fsrc->pagecount();
+        err = dest->stackStack(fsrc);
+        delete fsrc;
+        if (err)
+            break;
+        QFile::remove(src.fullPath);
+        dest->setPagenum(qMin(nextInsert, dest->pagecount()));
+    }
+    if (!err)
+        err = dest->flush();
+    delete dest;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+
+    _log.log(ServerLog::ServeFile, target.filePath + " stacked");
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
+}
+
+QByteArray SearchServer::handleDuplicate(const QString &path,
+                                         const QHash<QString, QString> &params,
+                                         const QString &authedUser)
+{
+    UNUSED(params);
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/duplicate", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed duplicate path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QFileInfo fi(target.fullPath);
+    QString uniq = uniqueNameIn(fi.absolutePath(), fi.completeBaseName(),
+                                "." + fi.suffix());
+    if (uniq.isEmpty())
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "No unique name available"));
+    if (!QFile::copy(target.fullPath, fi.absolutePath() + "/" + uniq))
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Copy failed"));
+
+    _log.log(ServerLog::ServeFile, target.filePath + " -> " + uniq);
+    QJsonObject out;
+    out["success"] = true;
+    out["name"] = uniq;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
 }
 
 QString SearchServer::searchFiles(const QString &repoPath, const QString &searchPath,
