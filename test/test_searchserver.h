@@ -92,6 +92,9 @@ private slots:
    //! Annotation updates on a remote stack reach the server, with undo
    void testDesktopRemoteAnnotations();
 
+   //! Page delete/unstack/duplicate of remote stacks, with undo
+   void testDesktopRemoteStructuralOps();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
