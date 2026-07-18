@@ -777,8 +777,15 @@ repository allowlist is enforced.  Every response carries
 
 ``/upload``
    The raw request body is the whole file's bytes (e.g. a stack
-   scanned on a client).  Never overwrites: a name clash gets a fresh
-   name.  Returns ``{"name", "etag"}``.
+   scanned on a client).  Never overwrites unless ``?overwrite=true``
+   is given (used for the shared ``.paperdesk`` desk file): a name
+   clash gets a fresh name.  Returns ``{"name", "etag"}``.
+
+``/pages/{n}/ocr``
+   Renders 1-based page ``n``, runs the server's OCR engine
+   (tesseract) over it, stores the text in the stack's ``ocr``
+   annotation and returns ``{"text"}``.  ``501`` when no engine is
+   installed on the server.
 
 Whole-file downloads via ``/file`` carry an ``ETag`` header (size and
 mtime).  A request with ``If-None-Match`` returns ``304 Not Modified``
