@@ -350,6 +350,79 @@ bool RemoteBackend::transformPage(const QString &repo, const QString &path,
 }
 
 
+/* POST a JSON body to a per-stack endpoint and parse the reply.
+   Returns the reply object via *out (may be empty on transport
+   error); the return value is the "success" flag. */
+bool RemoteBackend::postStackOp(const QString &repo, const QString &path,
+                                const QString &verb, const QJsonObject &body,
+                                QJsonObject *out)
+{
+   QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + verb;
+   QByteArray data = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+   QByteArray resp = postRequest(endpoint, data);
+   QJsonDocument doc = QJsonDocument::fromJson(resp);
+   if (!doc.isObject()) {
+      if (_lastError.isEmpty())
+         _lastError = "invalid response from " + verb;
+      if (out)
+         *out = QJsonObject();
+      return false;
+   }
+   if (out)
+      *out = doc.object();
+   if (doc.object().value("success").toBool(false))
+      return true;
+   _lastError = doc.object().value("error").toString(verb + " failed");
+   return false;
+}
+
+
+bool RemoteBackend::renameStack(const QString &repo, const QString &path,
+                                QString &newName, bool autoRename)
+{
+   QJsonObject body, reply;
+   body["newName"]    = newName;
+   body["autoRename"] = autoRename;
+   if (!postStackOp(repo, path, "/rename", body, &reply))
+      return false;
+   newName = reply.value("name").toString(newName);
+   return true;
+}
+
+
+bool RemoteBackend::renamePage(const QString &repo, const QString &path,
+                               int page, const QString &newName)
+{
+   QJsonObject body;
+   body["newName"] = newName;
+   return postStackOp(repo,
+                      path + "/pages/" + QString::number(page),
+                      "/rename", body, nullptr);
+}
+
+
+bool RemoteBackend::moveStack(const QString &repo, const QString &path,
+                              const QString &destDir, bool copy,
+                              QString *finalName)
+{
+   QJsonObject body, reply;
+   body["destDir"] = destDir;
+   body["copy"]    = copy;
+   if (!postStackOp(repo, path, "/move", body, &reply))
+      return false;
+   if (finalName)
+      *finalName = reply.value("name").toString();
+   return true;
+}
+
+
+bool RemoteBackend::deleteStack(const QString &repo, const QString &path)
+{
+   return postStackOp(repo, path, "/delete", QJsonObject(), nullptr);
+}
+
+
 QString RemoteBackend::cacheRoot()
 {
    QString id = serverId();
