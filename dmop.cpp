@@ -243,7 +243,24 @@ err_info *Desktopmodel::opDeleteStacks (QModelIndexList &list, QModelIndex paren
 //    _model_invalid = true;
    foreach (ind, list) if (getFile (ind))
       {
-      CALLB (getFile (ind)->remove ());
+      File *f = getFile (ind);
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         Desk *fdesk = f->desk ();
+         QString stackPath = remoteStackPath (fdesk, f);
+
+         if (!remote->deleteStack (fdesk->repoName (), stackPath))
+            {
+            e = err_make (ERRFN, ERR_remote_op_failed2, "delete",
+                          qPrintable (remote->lastError ()));
+            break;
+            }
+         remote->invalidateCachedFile (fdesk->repoName (), stackPath);
+         }
+      else
+         CALLB (f->remove ());
       del_list << ind;
       }
 
@@ -268,6 +285,51 @@ err_info *Desktopmodel::opTrashStacks (QModelIndexList &list, QModelIndex parent
 
 //    savePersistentIndexes ();
 //    emit layoutAboutToBeChanged();
+
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (remote)
+      {
+      /* Trash and move-to-dir both become a server-side move; the
+         shared trash is a directory at the repository root.  The undo
+         record keeps the synthetic absolute path so the round-trip
+         through opUntrashStacks() can find it again. */
+      if (dest.isEmpty ())
+         dest = desk->rootDir () + RemoteBackend::trashDirName ();
+      if (!dest.startsWith (desk->rootDir ()))
+         return err_make (ERRFN, ERR_cannot_move_between_repositories);
+      QString destRel = remoteRelDir (desk, dest);
+
+      foreach (ind, list)
+         {
+         if (!ind.isValid ())
+            continue;
+         File *f = getFile (ind);
+         QString stackPath = remoteStackPath (desk, f);
+         QString finalName;
+
+         if (!remote->moveStack (desk->repoName (), stackPath, destRel,
+                                 copy, &finalName))
+            {
+            e = err_make (ERRFN, ERR_remote_op_failed2, "move",
+                          qPrintable (remote->lastError ()));
+            break;
+            }
+         if (!copy)
+            remote->invalidateCachedFile (desk->repoName (), stackPath);
+         del_list << ind;
+         trashlist << finalName;
+         }
+      if (!copy)
+         {
+         sortForDelete (del_list);
+         foreach (ind, del_list)
+            removeRows (ind.row (), 1, parent);
+         }
+      addFilesToDesk (dest, trashlist);
+      return e;
+      }
 
    if (dest.isEmpty ())
       dest = desk->trashdir ();
@@ -326,6 +388,65 @@ err_info *Desktopmodel::opUntrashStacks (QStringList &trashlist, QModelIndex par
    err_info *e = NULL;
    QList<File *> flist;
    int i;
+
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (remote)
+      {
+      /* Reverse of the remote branch in opTrashStacks(): move each
+         file back from the source directory (the trash, unless this
+         was a move-to-dir) into this desk, or for a copy just delete
+         the copy again. */
+      QString srcRel = src.isEmpty ()
+            ? QString (RemoteBackend::trashDirName ())
+            : remoteRelDir (desk, src);
+      QString destRel = remoteRelDir (desk, desk->dir ());
+
+      for (i = 0; i < trashlist.size (); i++)
+         {
+         QString srcPath = srcRel.isEmpty ()
+               ? trashlist [i] : srcRel + "/" + trashlist [i];
+
+         if (copy)
+            {
+            if (!remote->deleteStack (desk->repoName (), srcPath))
+               {
+               e = err_make (ERRFN, ERR_remote_op_failed2, "delete",
+                             qPrintable (remote->lastError ()));
+               break;
+               }
+            remote->invalidateCachedFile (desk->repoName (), srcPath);
+            continue;
+            }
+
+         QString finalName;
+         if (!remote->moveStack (desk->repoName (), srcPath, destRel,
+                                 false, &finalName))
+            {
+            e = err_make (ERRFN, ERR_remote_op_failed2, "move",
+                          qPrintable (remote->lastError ()));
+            break;
+            }
+         remote->invalidateCachedFile (desk->repoName (), srcPath);
+
+         fnew = desk->createFile (desk->dir (), finalName);
+         desk->newFile (fnew);
+         if (pagepos)
+            {
+            fnew->setPos ((*pagepos) [i].pos);
+            fnew->setPagenum ((*pagepos) [i].pagenum);
+            }
+         filenames [i] = finalName;
+         flist << fnew;
+         refreshRemoteThumbnail (desk, remote, fnew);
+         }
+
+      if (!copy)
+         insertRows (flist, parent);
+      removeFilesFromDesk (src, trashlist);
+      return e;
+      }
 
    /* first, move all the trashed files back into the current directory,
       creating a list of the new File * records thus created. If
@@ -467,6 +588,27 @@ err_info *Desktopmodel::opRenameStack (const QModelIndex &index, QString &newnam
 
    if (f)
       {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         Desk *desk = f->desk ();
+         QString oldCache = f->pathname ();
+
+         if (!remote->renameStack (desk->repoName (),
+                                   remoteStackPath (desk, f), newname))
+            return err_make (ERRFN, ERR_remote_op_failed2, "rename",
+                             qPrintable (remote->lastError ()));
+
+         /* carry the cached copy (and its validator) over to the new
+            name, then update the file object to match the server */
+         f->updateFilename (newname);
+         QFile::rename (oldCache, f->pathname ());
+         QFile::rename (oldCache + ".etag", f->pathname () + ".etag");
+         buildItem (index);
+         return NULL;
+         }
+
       e = f->rename (newname, true);
       buildItem (index);
       getDesk (index.parent ())->dirty ();
@@ -483,6 +625,29 @@ err_info *Desktopmodel::opRenamePage (const QModelIndex &index, int pagenum, QSt
 
    if (f)
       {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         Desk *desk = f->desk ();
+
+         if (!remote->renamePage (desk->repoName (),
+                                  remoteStackPath (desk, f), pagenum + 1,
+                                  newname))
+            return err_make (ERRFN, ERR_remote_op_failed2, "page rename",
+                             qPrintable (remote->lastError ()));
+
+         /* mirror the change onto the cached copy so the page view
+            stays in step without a refetch */
+         if (pagenum >= 0 && pagenum < f->pagecount ())
+            {
+            f->renamePage (pagenum, newname);
+            f->setPagenum (pagenum);
+            }
+         buildItem (index);
+         return NULL;
+         }
+
       if (pagenum >= 0 && pagenum < f->pagecount ()) // which it should be!
          {
          e = f->renamePage (pagenum, newname);
@@ -550,6 +715,28 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
          e = f->not_impl ();
       }
    return e;
+   }
+
+
+RemoteBackend *Desktopmodel::remoteForFile (File *file) const
+   {
+   Desk *desk = file ? file->desk () : NULL;
+
+   return desk ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+   }
+
+
+QString Desktopmodel::remoteRelDir (Desk *desk, QString dir) const
+   {
+   QString root = desk->rootDir ();
+
+   if (dir.startsWith (root))
+      dir = dir.mid (root.length ());
+   while (dir.endsWith ('/'))
+      dir.chop (1);
+   if (dir.startsWith ('/'))
+      dir = dir.mid (1);
+   return dir;
    }
 
 
