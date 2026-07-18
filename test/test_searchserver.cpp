@@ -116,6 +116,9 @@ static TestSearchServer::Response sendRaw(const QByteArray &request,
     int totalWait = 0;
     while (socket.state() == QAbstractSocket::ConnectedState
            && totalWait < timeoutMs) {
+        /* the server runs in this same process, so its sockets only
+           make progress when the main event loop spins */
+        QCoreApplication::processEvents();
         if (socket.waitForReadyRead(200))
             raw += socket.readAll();
         totalWait += 200;
@@ -1625,6 +1628,91 @@ void TestSearchServer::testDesktopRemoteOpenStack()
     int tbpp;
     QVERIFY(!model3.getImage(stack3, 0, false, turned, tsz1, tsz2, tbpp));
     QCOMPARE(turned.size(), QSize(before.height(), before.width()));
+
+    server.stop();
+}
+
+
+void TestSearchServer::testMutationEndpoints()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    auto makeFile = [&](const QString &name, const QByteArray &content) {
+        QFile f(tmpDir.path() + "/" + name);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(content);
+    };
+    makeFile("one.max", "contents one");
+    makeFile("two.max", "contents two");
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    QString base = QString("/v1/repos/%1/stacks/").arg(repo);
+
+    // plain rename
+    auto r = postJson(base + "one.max/rename",
+                      R"({"newName":"first.max"})");
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header));
+    QVERIFY(!QFile::exists(tmpDir.path() + "/one.max"));
+    QVERIFY(QFile::exists(tmpDir.path() + "/first.max"));
+
+    // a collision with autoRename picks a fresh name
+    r = postJson(base + "two.max/rename",
+                 R"({"newName":"first.max","autoRename":true})");
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header));
+    QJsonObject obj = QJsonDocument::fromJson(r.body).object();
+    QCOMPARE(obj.value("name").toString(), QString("first_1.max"));
+    QVERIFY(QFile::exists(tmpDir.path() + "/first_1.max"));
+
+    // a collision without autoRename is refused
+    r = postJson(base + "first_1.max/rename",
+                 R"({"newName":"first.max","autoRename":false})");
+    QVERIFY2(r.header.contains("409"), qPrintable(r.header));
+
+    // move to the trash creates it on demand
+    r = postJson(base + "first.max/move",
+                 R"({"destDir":".maxview-trash"})");
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header));
+    QVERIFY(QFile::exists(tmpDir.path()
+                          + "/.maxview-trash/first.max"));
+
+    // moving back out of the trash
+    r = postJson(base + ".maxview-trash/first.max/move",
+                 R"({"destDir":""})");
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header));
+    QVERIFY(QFile::exists(tmpDir.path() + "/first.max"));
+
+    // a move to a missing directory is refused
+    r = postJson(base + "first.max/move",
+                 R"({"destDir":"nosuchdir"})");
+    QVERIFY2(r.header.contains("404"), qPrintable(r.header));
+
+    // delete removes the file outright
+    r = postJson(base + "first_1.max/delete", "{}");
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header));
+    QVERIFY(!QFile::exists(tmpDir.path() + "/first_1.max"));
+
+    // traversal is rejected
+    r = postJson(base + "..%2Fescape.max/rename",
+                 R"({"newName":"x.max"})");
+    QVERIFY2(r.header.contains("400"), qPrintable(r.header));
+
+    // a page rename lands in the stack itself
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    r = postJson(base + "testfile.max/pages/1/rename",
+                 R"({"newName":"my page"})");
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header));
+    {
+        File *f = File::createFile(tmpDir.path() + "/", "testfile.max",
+                                   nullptr, File::Type_max);
+        QVERIFY(f && !f->load());
+        QCOMPARE(f->pageTitle(0), QString("my page"));
+        delete f;
+    }
 
     server.stop();
 }

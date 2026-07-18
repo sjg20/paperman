@@ -517,8 +517,20 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     /* POST mutation routes (authenticated above).  These come before the
        GET routing chain, which assumes a GET. */
     if (method == "POST") {
-        if (path.startsWith("/v1/repos/") && path.endsWith("/transform"))
-            return handleTransform(path, params, authedUser);
+        if (path.startsWith("/v1/repos/")) {
+            if (path.endsWith("/transform"))
+                return handleTransform(path, params, authedUser);
+            /* the page-rename check must come before the stack rename:
+               both end in /rename */
+            if (path.endsWith("/rename") && path.contains("/pages/"))
+                return handleRenamePage(path, params, authedUser);
+            if (path.endsWith("/rename"))
+                return handleRename(path, params, authedUser);
+            if (path.endsWith("/move"))
+                return handleMove(path, params, authedUser);
+            if (path.endsWith("/delete"))
+                return handleDelete(path, params, authedUser);
+        }
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("POST not supported on this path"));
     }
@@ -806,25 +818,29 @@ QByteArray SearchServer::handleAuthLogin(const QHash<QString, QString> &params)
 }
 
 
-QByteArray SearchServer::handleTransform(const QString &path,
-                                         const QHash<QString, QString> &params,
-                                         const QString &authedUser)
+bool SearchServer::splitStackUrl(const QString &path, const QString &verb,
+                                 QString *repoName, QString *filePath)
 {
-    /* Path shape: /v1/repos/{repo}/stacks/{stackPath}/transform, where
+    /* Path shape: /v1/repos/{repo}/stacks/{stackPath}{verb}, where
        {stackPath} may itself contain '/' for subdirectories and is
        percent-encoded. */
     QString rest = path;
     rest.remove(0, QStringLiteral("/v1/repos/").size());
-    rest.chop(QStringLiteral("/transform").size());
+    rest.chop(verb.size());
     int sep = rest.indexOf("/stacks/");
     if (sep < 0)
-        return buildHttpResponse(400, "Bad Request", "application/json",
-                                 buildJsonResponse(false, "",
-                                     "Malformed transform path"));
-    QString repoName = urlDecode(rest.left(sep));
-    QString filePath = urlDecode(rest.mid(sep
-                                          + QStringLiteral("/stacks/").size()));
+        return false;
+    *repoName = QUrl::fromPercentEncoding(rest.left(sep).toUtf8());
+    *filePath = QUrl::fromPercentEncoding(
+        rest.mid(sep + QStringLiteral("/stacks/").size()).toUtf8());
+    return true;
+}
 
+QByteArray SearchServer::resolveStackTarget(const QString &repoName,
+                                            const QString &filePath,
+                                            const QString &authedUser,
+                                            StackTarget &out, bool mustExist)
+{
     // Security: prevent directory traversal
     if (filePath.isEmpty() || filePath.contains("..")
         || filePath.startsWith("/"))
@@ -856,6 +872,33 @@ QByteArray SearchServer::handleTransform(const QString &path,
                                          "Repository not found: " + repoName));
     }
 
+    out.repoName = repoName;
+    out.filePath = filePath;
+    out.repoPath = repoPath;
+    out.fullPath = repoPath + "/" + filePath;
+
+    if (mustExist && !QFileInfo::exists(out.fullPath))
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "File not found: " + filePath));
+    return QByteArray();
+}
+
+QByteArray SearchServer::handleTransform(const QString &path,
+                                         const QHash<QString, QString> &params,
+                                         const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/transform", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed transform path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
     // Parse the body: { "page": N, "op": "rotate90" }
     QByteArray body = params.value("__body__").toUtf8();
     QJsonParseError jerr;
@@ -874,13 +917,7 @@ QByteArray SearchServer::handleTransform(const QString &path,
        every page of the stack. */
     int page = obj.value("page").toInt(-1);
 
-    QString fullPath = repoPath + "/" + filePath;
-    QFileInfo fi(fullPath);
-    if (!fi.exists())
-        return buildHttpResponse(404, "Not Found", "application/json",
-                                 buildJsonResponse(false, "",
-                                     "File not found: " + filePath));
-
+    QFileInfo fi(target.fullPath);
     File::e_type type = File::typeFromName(fi.fileName());
     File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
                                   nullptr, type);
@@ -929,6 +966,264 @@ QByteArray SearchServer::handleTransform(const QString &path,
     /* The file's mtime has changed, so cached thumbnails and pages
        (whose cache keys include the mtime) will miss and be re-rendered
        on the next request; no explicit cache invalidation is needed. */
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
+}
+
+QString SearchServer::uniqueNameIn(const QString &dir, const QString &base,
+                                   const QString &ext)
+{
+    if (!QFileInfo::exists(dir + "/" + base + ext))
+        return base + ext;
+    for (int i = 1; i < 10000; i++) {
+        QString name = base + "_" + QString::number(i) + ext;
+        if (!QFileInfo::exists(dir + "/" + name))
+            return name;
+    }
+    return QString();
+}
+
+/* Parse a JSON object request body; returns false and fills *resp with
+   a 400 response when it is not one. */
+static bool parseJsonBody(const QHash<QString, QString> &params,
+                          QJsonObject *obj)
+{
+    QJsonParseError jerr;
+    QJsonDocument doc = QJsonDocument::fromJson(
+        params.value("__body__").toUtf8(), &jerr);
+    if (jerr.error != QJsonParseError::NoError || !doc.isObject())
+        return false;
+    *obj = doc.object();
+    return true;
+}
+
+QByteArray SearchServer::handleRename(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/rename", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed rename path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {newName}"));
+    QString newName = obj.value("newName").toString();
+    bool autoRename = obj.value("autoRename").toBool(true);
+    if (newName.isEmpty() || newName.contains('/')
+        || newName.contains(".."))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid new name"));
+
+    QFileInfo fi(target.fullPath);
+    QString dir = fi.absolutePath();
+    if (newName == fi.fileName())
+        ;   // nothing to do
+    else if (QFileInfo::exists(dir + "/" + newName)) {
+        if (!autoRename)
+            return buildHttpResponse(409, "Conflict", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Name already exists: " + newName));
+        QFileInfo ni(newName);
+        newName = uniqueNameIn(dir, ni.completeBaseName(),
+                               "." + ni.suffix());
+        if (newName.isEmpty())
+            return buildHttpResponse(409, "Conflict", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "No unique name available"));
+    }
+    if (newName != fi.fileName()
+        && !QFile::rename(target.fullPath, dir + "/" + newName))
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Rename failed"));
+
+    _log.log(ServerLog::ServeFile, target.filePath + " -> " + newName);
+    QJsonObject out;
+    out["success"] = true;
+    out["name"] = newName;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+QByteArray SearchServer::handleMove(const QString &path,
+                                    const QHash<QString, QString> &params,
+                                    const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/move", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed move path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {destDir}"));
+    QString destDir = obj.value("destDir").toString();
+    bool copy = obj.value("copy").toBool(false);
+    if (destDir.contains("..") || destDir.startsWith("/"))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid destination"));
+
+    QString destPath = target.repoPath;
+    if (!destDir.isEmpty())
+        destPath += "/" + destDir;
+
+    /* the shared trash is created on demand; anything else must
+       already exist */
+    if (!QDir(destPath).exists()) {
+        if (destDir == trashDirName())
+            QDir().mkpath(destPath);
+        else
+            return buildHttpResponse(404, "Not Found", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Destination not found: "
+                                         + destDir));
+    }
+
+    QFileInfo fi(target.fullPath);
+    QString name = fi.fileName();
+    if (QFileInfo::exists(destPath + "/" + name)) {
+        name = uniqueNameIn(destPath, fi.completeBaseName() + "_move",
+                            "." + fi.suffix());
+        if (name.isEmpty())
+            return buildHttpResponse(409, "Conflict", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "No unique name available"));
+    }
+
+    bool ok = copy ? QFile::copy(target.fullPath, destPath + "/" + name)
+                   : QFile::rename(target.fullPath, destPath + "/" + name);
+    if (!ok)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     copy ? "Copy failed" : "Move failed"));
+
+    _log.log(ServerLog::ServeFile, target.filePath + " -> " + destDir
+             + "/" + name);
+    QJsonObject out;
+    out["success"] = true;
+    out["name"] = name;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+QByteArray SearchServer::handleDelete(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser)
+{
+    UNUSED(params);
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/delete", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed delete path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    if (!QFile::remove(target.fullPath))
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Delete failed"));
+
+    _log.log(ServerLog::ServeFile, "delete " + target.filePath);
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
+}
+
+QByteArray SearchServer::handleRenamePage(const QString &path,
+                                          const QHash<QString, QString> &params,
+                                          const QString &authedUser)
+{
+    /* Path shape: .../stacks/{path}/pages/{n}/rename */
+    QString rest = path;
+    rest.chop(QStringLiteral("/rename").size());
+    int sep = rest.lastIndexOf("/pages/");
+    if (sep < 0)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed page-rename path"));
+    bool numOk = false;
+    int page = rest.mid(sep + QStringLiteral("/pages/").size())
+                   .toInt(&numOk);
+    if (!numOk || page < 1)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid page number"));
+
+    QString repoName, filePath;
+    if (!splitStackUrl(rest.left(sep), "", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed page-rename path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {newName}"));
+    QString newName = obj.value("newName").toString();
+
+    QFileInfo fi(target.fullPath);
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, File::typeFromName(fi.fileName()));
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot open file"));
+    err_info *err = file->load();
+    if (!err && page > file->pagecount()) {
+        delete file;
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Page out of range"));
+    }
+    if (!err)
+        err = file->renamePage(page - 1, newName);
+    if (!err)
+        err = file->flush();
+    if (err) {
+        QString msg = err->errstr;
+        delete file;
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", msg));
+    }
+    delete file;
+
+    _log.log(ServerLog::ServeFile, target.filePath + " page renamed");
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
