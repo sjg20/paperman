@@ -40,6 +40,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <memory>
 
+#include <QFileInfo>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QString>
@@ -256,12 +257,20 @@ private:
      * @param page           Extract single page (0 = return whole file)
      * @param wantPageCount  Return page count as JSON instead of file data
      * @param client         Client socket (needed for async PDF extraction)
+     * @param ifNoneMatch    Client's If-None-Match header; when it matches
+     *                       the file's current ETag a whole-file request
+     *                       returns 304 with no body
      * @return HTTP response, or empty QByteArray if the response is deferred
      */
     QByteArray getFile(const QString &repoPath, const QString &filePath,
                        const QString &type = "original", int page = 0,
                        bool wantPageCount = false,
-                       QTcpSocket *client = nullptr);
+                       QTcpSocket *client = nullptr,
+                       const QString &ifNoneMatch = QString());
+
+    /** ETag for a file: its size and mtime, quoted.  Any change the
+     *  server can observe changes the tag. */
+    static QString fileEtag(const QFileInfo &info);
 
     /**
      * Convert a non-PDF file to PDF, caching the result
@@ -360,10 +369,12 @@ private:
      * @param filePath    Path to the file to send
      * @param contentType MIME type for the Content-Type header
      * @param client      Client socket to write to
+     * @param etag        ETag header value to send (omitted if empty)
      */
     void streamFile(const QString &filePath,
                     const QString &contentType,
-                    QTcpSocket *client);
+                    QTcpSocket *client,
+                    const QString &etag = QString());
 
     /**
      * URL decode a string
