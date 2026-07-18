@@ -1142,7 +1142,26 @@ void Pagewidget::ocrPage (void)
       return;
       }
 
-   // pass the page to our OCR engine
+   /* if the page belongs to a stack in the model, go through it: a
+      remote stack is OCRed by the server, which also has the engine
+      installed centrally */
+   if (_model && _index.isValid ())
+      {
+      Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+      QModelIndex sindex = _index;
+
+      _modelconv->indexToSource (_model, sindex);
+      if (contents && sindex.isValid ())
+         {
+         err_info *err = contents->ocrPage (sindex, _pagenum, str);
+
+         if (!Mainwidget::singleton()->complain(err))
+            _ocr_edit->setText (str);
+         return;
+         }
+      }
+
+   // no stack (e.g. mid-scan): pass the page to our OCR engine
    err_info *err;
    Ocr *ocr = Ocr::getOcr (err);
 

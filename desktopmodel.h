@@ -1131,6 +1131,16 @@ public:
    err_info *getImage (const QModelIndex &ind, int pnum, bool do_scale,
                   QImage &imagep, QSize &Size, QSize &trueSize, int &bpp, bool blank = false) const;
 
+   /** OCR one page of a stack and return the text.  A remote stack
+       is OCRed by the server (which stores the text in the stack's
+       ocr annotation); a local one uses the local OCR engine.
+
+      \param ind      model index of stack
+      \param pagenum  0-based page number
+      \param text     returns the recognised text
+      \returns error, or NULL if ok */
+   err_info *ocrPage (const QModelIndex &ind, int pagenum, QString &text);
+
    /** Make sure a stack's page content is available locally.  For a
        local desk this is a no-op (buildItem() already loads files as
        they are shown).  For a remote desk it downloads the stack's

@@ -536,6 +536,20 @@ bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
 }
 
 
+bool RemoteBackend::ocrPage(const QString &repo, const QString &path,
+                            int page, QString *text)
+{
+   QJsonObject reply;
+
+   if (!postStackOp(repo, path + "/pages/" + QString::number(page),
+                    "/ocr", QJsonObject(), &reply))
+      return false;
+   if (text)
+      *text = reply.value("text").toString();
+   return true;
+}
+
+
 void RemoteBackend::subscribeEvents(const QString &repo)
 {
    if (_eventRepos.contains(repo))

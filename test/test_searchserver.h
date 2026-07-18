@@ -104,6 +104,9 @@ private slots:
    //! Stack positions are shared through the server's desk file
    void testDesktopRemoteSharedPositions();
 
+   //! OCR of a remote stack runs on the server and stores the text
+   void testRemoteOcr();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
