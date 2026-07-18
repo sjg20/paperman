@@ -351,6 +351,18 @@ private:
                            const QString &authedUser);
 
     /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/upload
+     *
+     * The raw request body is the whole file's bytes (e.g. a stack
+     * scanned on a client).  Writes it at {path}; a name clash gets a
+     * fresh name.  Returns {name, etag} so the caller can label its
+     * cached copy as current.
+     */
+    QByteArray handleUpload(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser);
+
+    /**
      * Handle POST /v1/repos/{repo}/stacks/{path}/duplicate
      *
      * Body {}.  Copies the stack's file within its directory under a

@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDateTime>
 #include <QStandardPaths>
 #include <QUrl>
+#include <QSaveFile>
 #include <QUuid>
 #include <QDebug>
 #include <QProcess>
@@ -312,6 +313,13 @@ void SearchServer::onReadyRead()
 
     parseRequest(request, method, path, params);
 
+    /* parseRequest() hands the body around as a QString, which
+       mangles binary data; stash the raw bytes for handlers that
+       need them (e.g. file upload) */
+    if (contentLength > 0)
+        params["__body_b64__"] = QString::fromLatin1(
+            full.mid(headerEnd + 4, contentLength).toBase64());
+
     // Reconstruct the request URI for logging
     QString requestUri = path;
     QStringList queryParts;
@@ -543,6 +551,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 return handleStack(path, params, authedUser);
             if (path.endsWith("/duplicate"))
                 return handleDuplicate(path, params, authedUser);
+            if (path.endsWith("/upload"))
+                return handleUpload(path, params, authedUser);
         }
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("POST not supported on this path"));
@@ -1611,6 +1621,71 @@ QByteArray SearchServer::handleStack(const QString &path,
     _log.log(ServerLog::ServeFile, target.filePath + " stacked");
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
+}
+
+QByteArray SearchServer::handleUpload(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/upload", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed upload path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target, /*mustExist=*/false);
+    if (!fail.isEmpty())
+        return fail;
+
+    QByteArray bytes = QByteArray::fromBase64(
+        params.value("__body_b64__").toLatin1());
+    if (bytes.isEmpty())
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Empty upload body"));
+
+    QFileInfo fi(target.fullPath);
+    if (!QDir(fi.absolutePath()).exists())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Directory not found"));
+
+    /* never overwrite: a name clash (e.g. two clients scanning at
+       once) gets a fresh name, reported back to the caller */
+    QString name = fi.fileName();
+    if (QFileInfo::exists(target.fullPath)) {
+        name = uniqueNameIn(fi.absolutePath(), fi.completeBaseName(),
+                            "." + fi.suffix());
+        if (name.isEmpty())
+            return buildHttpResponse(409, "Conflict", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "No unique name available"));
+    }
+
+    QString outPath = fi.absolutePath() + "/" + name;
+    QSaveFile out(outPath);
+    if (!out.open(QIODevice::WriteOnly)) {
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot write file"));
+    }
+    out.write(bytes);
+    if (!out.commit())
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot commit file"));
+
+    _log.log(ServerLog::ServeFile, "upload " + target.filePath);
+    QJsonObject outObj;
+    outObj["success"] = true;
+    outObj["name"] = name;
+    outObj["etag"] = fileEtag(QFileInfo(outPath));
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(outObj).toJson(
+                                 QJsonDocument::Compact)));
 }
 
 QByteArray SearchServer::handleDuplicate(const QString &path,
