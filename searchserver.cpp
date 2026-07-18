@@ -530,6 +530,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 return handleMove(path, params, authedUser);
             if (path.endsWith("/delete"))
                 return handleDelete(path, params, authedUser);
+            if (path.endsWith("/annotations"))
+                return handleUpdateAnnot(path, params, authedUser);
         }
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("POST not supported on this path"));
@@ -1224,6 +1226,66 @@ QByteArray SearchServer::handleRenamePage(const QString &path,
     delete file;
 
     _log.log(ServerLog::ServeFile, target.filePath + " page renamed");
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
+}
+
+QByteArray SearchServer::handleUpdateAnnot(const QString &path,
+                                           const QHash<QString, QString> &params,
+                                           const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/annotations", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed annotations path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be a JSON object"));
+
+    /* accept any subset of the known annotation fields; unknown keys
+       are an error so typos don't silently discard an update */
+    QHash<int, QString> updates;
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+        File::e_annot type;
+        if (!File::annotFromWireName(it.key(), type))
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Unknown annotation: " + it.key()));
+        updates[type] = it.value().toString();
+    }
+
+    QFileInfo fi(target.fullPath);
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, File::typeFromName(fi.fileName()));
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot open file"));
+    err_info *err = file->load();
+    if (!err)
+        err = file->putAnnot(updates);
+    if (!err)
+        err = file->flush();
+    if (err) {
+        QString msg = err->errstr;
+        delete file;
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", msg));
+    }
+    delete file;
+
+    _log.log(ServerLog::ServeFile, target.filePath + " annotations");
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }

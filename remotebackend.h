@@ -124,6 +124,12 @@ public:
     /** Delete a stack outright (no trash). */
     bool deleteStack(const QString &repo, const QString &path);
 
+    /** Write annotation fields into a stack on the server.  The
+     *  object's keys are wire annotation names (author/title/
+     *  keywords/notes/ocr) and the values the new text. */
+    bool updateAnnotations(const QString &repo, const QString &path,
+                           const class QJsonObject &updates);
+
     /** Name of the shared per-repo trash directory on the server. */
     static QString trashDirName() { return QStringLiteral(".maxview-trash"); }
 

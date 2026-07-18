@@ -814,6 +814,32 @@ bool File::transformFromName (const QString &name, e_transform &op)
    }
 
 
+QString File::annotWireName (e_annot type)
+   {
+   switch (type)
+      {
+      case Annot_author :   return "author";
+      case Annot_title :    return "title";
+      case Annot_keywords : return "keywords";
+      case Annot_notes :    return "notes";
+      case Annot_ocr :      return "ocr";
+      default :             break;
+      }
+   return "";
+   }
+
+
+bool File::annotFromWireName (const QString &name, e_annot &type)
+   {
+   if (name == "author")   { type = Annot_author;   return true; }
+   if (name == "title")    { type = Annot_title;    return true; }
+   if (name == "keywords") { type = Annot_keywords; return true; }
+   if (name == "notes")    { type = Annot_notes;    return true; }
+   if (name == "ocr")      { type = Annot_ocr;      return true; }
+   return false;
+   }
+
+
 QImage File::transformImage (const QImage &image, e_transform op)
    {
    switch (op)
