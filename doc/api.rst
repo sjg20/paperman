@@ -710,6 +710,102 @@ cURL
 
 --------------
 
+6. Mutation API (v1)
+~~~~~~~~~~~~~~~~~~~~
+
+The ``/v1/`` namespace adds write operations, used by the desktop
+client when a repository is remote.  All are ``POST`` requests with a
+JSON body (unless noted) to paths of the form::
+
+   /v1/repos/{repo}/stacks/{path}{verb}
+
+where ``{path}`` is the stack's percent-encoded repo-relative path.
+Authentication follows the same rules as the read API; the per-user
+repository allowlist is enforced.  Every response carries
+``{"success": true|false}`` plus the fields shown.
+
+``/rename``
+   Body ``{"newName": ..., "autoRename": true}``.  Renames the stack
+   within its directory; with ``autoRename`` a colliding name gets
+   ``_1``, ``_2``... appended.  Returns ``{"name"}`` with the final
+   name.
+
+``/pages/{n}/rename``
+   Body ``{"newName": ...}``.  Renames 1-based page ``n``.
+
+``/move``
+   Body ``{"destDir": ..., "copy": false}``.  Moves (or copies) the
+   stack to another directory in the same repository; ``destDir`` is
+   repo-relative and ``""`` means the root.  The shared trash
+   directory ``.maxview-trash`` is created on demand; any other
+   destination must exist.  Returns ``{"name"}``.
+
+``/delete``
+   Removes the file outright (no trash).
+
+``/annotations``
+   Body with any subset of ``author``/``title``/``keywords``/
+   ``notes``/``ocr``.  Writes the fields into the stack's annotation
+   block.
+
+``/pages/delete``
+   Body ``{"pages": [n, ...]}`` (1-based).  Removes the pages and
+   keeps the recovery data server-side.  Returns ``{"undoId"}``, an
+   opaque token for ``/pages/undelete``.  Tokens do not survive a
+   server restart, so treat the undo as best-effort.
+
+``/pages/undelete``
+   Body ``{"undoId": ...}``.  Restores the pages removed by the
+   matching ``/pages/delete``.  An unknown or already-redeemed token
+   is ``410 Gone``.
+
+``/unstack``
+   Body ``{"pagenum": n, "pagecount": k, "remove": true,
+   "newName": ...}``.  Splits ``k`` pages starting at 1-based ``n``
+   into a new stack in the same directory, removing them from the
+   source when ``remove`` is set.  Returns ``{"name"}``.
+
+``/stack``
+   Body ``{"sources": [path, ...], "insertPage": n}``.  Appends the
+   pages of each source stack into the target at 1-based
+   ``insertPage`` (absent means the end) and deletes the source
+   files.  All stacks must be the same type.
+
+``/duplicate``
+   Copies the stack's file within its directory under a fresh name.
+   Returns ``{"name"}``.
+
+``/upload``
+   The raw request body is the whole file's bytes (e.g. a stack
+   scanned on a client).  Never overwrites: a name clash gets a fresh
+   name.  Returns ``{"name", "etag"}``.
+
+Whole-file downloads via ``/file`` carry an ``ETag`` header (size and
+mtime).  A request with ``If-None-Match`` returns ``304 Not Modified``
+when the tag still matches, so clients can revalidate cached copies
+cheaply.
+
+7. Change Events (v1)
+~~~~~~~~~~~~~~~~~~~~~
+
+**Endpoint**: ``GET /v1/repos/{repo}/events``
+
+A long-lived ``text/event-stream`` response.  Every successful
+mutation in the repository sends a frame::
+
+   event: stackChanged
+   data: {"repo": ..., "op": ..., "path": ..., "name": ..., "origin": ...}
+
+``op`` is the operation (``rename``, ``move``, ``delete``,
+``transform``, ``annotations``, ``pagesDeleted``, ``pagesRestored``,
+``unstack``, ``stack``, ``duplicate``, ``upload``), ``name`` the
+resulting name where one exists, and ``origin`` echoes the
+``X-Client-Id`` header of the originating request so a client can
+ignore its own changes.  Behind nginx the events path needs
+``proxy_buffering off`` and a long ``proxy_read_timeout``.
+
+--------------
+
 Security Considerations
 -----------------------
 
@@ -733,7 +829,8 @@ File Access
 
 -  Server runs with limited user permissions
 -  Only configured repository paths are accessible
--  No write operations are supported (read-only API)
+-  Write operations exist only under ``/v1/`` and require
+   authentication when it is enabled
 
 --------------
 
