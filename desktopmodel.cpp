@@ -1512,8 +1512,17 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
    if (!_connectedBackends.contains(backend)) {
       connect(backend, &RemoteBackend::thumbnailReady,
               this, &Desktopmodel::onThumbnailReady);
+      /* queued so a change arriving inside a nested event loop (e.g.
+         while a sync request waits) is handled on a clean turn */
+      connect(backend, &RemoteBackend::stackEvent,
+              this, &Desktopmodel::onRemoteStackEvent,
+              Qt::QueuedConnection);
       _connectedBackends.insert(backend);
    }
+
+   /* follow other clients' changes to this repository */
+   backend->subscribeEvents(repoName);
+
    for (File *f : desk->files()) {
       QString path = dirInRepo.isEmpty()
                          ? f->filename()
@@ -1530,6 +1539,42 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
                                                /*page=*/1,
                                                /*size=*/"small");
       _pendingThumbnails.insert(t, f);
+   }
+}
+
+
+void Desktopmodel::onRemoteStackEvent(const QString &repo,
+                                      const QString &op,
+                                      const QString &path,
+                                      const QString &name)
+{
+   UNUSED (op);
+   UNUSED (name);
+   RemoteBackend *remote = qobject_cast<RemoteBackend *>(sender());
+   if (!remote)
+      return;
+
+   /* whatever happened, the cached copy of the stack is suspect */
+   remote->invalidateCachedFile(repo, path);
+
+   /* refresh any shown desk for the affected directory so adds,
+      removes and renames appear; content-only changes come back via
+      the re-fetched thumbnails and revalidation on next open */
+   int slash = path.lastIndexOf('/');
+   QString dirInRepo = slash > 0 ? path.left(slash) : "";
+   for (Desk *desk : _desks) {
+      if (desk->backend() != remote || desk->repoName() != repo)
+         continue;
+      if (remoteRelDir(desk, desk->dir()) != dirInRepo)
+         continue;
+      if (desk == _scan_desk)
+         continue;         // never yank a desk we are scanning into
+
+      QString dir = desk->dir();
+      if (dir.endsWith('/'))
+         dir.chop(1);
+      refresh(dir);
+      scheduleRemoteThumbnails(desk, remote, repo, dirInRepo);
    }
 }
 
