@@ -1008,6 +1008,12 @@ private slots:
     *  repaints. */
    void onThumbnailReady(quint64 token, const QByteArray &jpegBytes);
 
+   /** Another client changed a stack in a remote repository: drop
+    *  the suspect cached copy and refresh any desk showing the
+    *  affected directory. */
+   void onRemoteStackEvent(const QString &repo, const QString &op,
+                           const QString &path, const QString &name);
+
 private:
    /** Issue async thumbnail fetches for every file in @p desk via
     *  the provided RemoteBackend.  No-op if @p backend is null.

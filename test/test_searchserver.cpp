@@ -2046,6 +2046,79 @@ void TestSearchServer::testDesktopRemoteScan()
     server.stop();
 }
 
+
+void TestSearchServer::testRemoteEvents()
+{
+    /* One client's mutation reaches another client's event stream;
+       the originator does not hear its own echo.  A desktop showing
+       the directory picks the change up and refreshes. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    RemoteBackend listener(url);
+    QSignalSpy spy(&listener, &RemoteBackend::stackEvent);
+    listener.subscribeEvents(repo);
+    QTest::qWait(200);   // let the stream connect
+
+    // a change made by a different client arrives as an event
+    RemoteBackend actor(url);
+    QString newName = "moved.max";
+    QVERIFY2(actor.renameStack(repo, "testfile.max", newName),
+             qPrintable(actor.lastError()));
+    /* the event may already have arrived while the sync rename was
+       spinning the event loop */
+    if (spy.isEmpty())
+        QVERIFY(spy.wait(3000));
+    QCOMPARE(spy.count(), 1);
+    QList<QVariant> args = spy.takeFirst();
+    QCOMPARE(args[0].toString(), repo);
+    QCOMPARE(args[1].toString(), QString("rename"));
+    QCOMPARE(args[2].toString(), QString("testfile.max"));
+    QCOMPARE(args[3].toString(), QString("moved.max"));
+
+    // the listener's own change does not echo back to it
+    QString backName = "testfile.max";
+    QVERIFY(listener.renameStack(repo, "moved.max", backName));
+    QTest::qWait(500);
+    QCOMPARE(spy.count(), 0);
+
+    /* a desktop showing the directory refreshes on another client's
+       change */
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QVERIFY(model.index("testfile.max", parent).isValid());
+
+    QVERIFY(actor.renameStack(repo, "testfile.max", newName));
+    /* wait for the event to arrive and the queued refresh to run */
+    bool renamed = false;
+    for (int i = 0; i < 50 && !renamed; i++) {
+        QTest::qWait(100);
+        parent = model.index(root + "/", QModelIndex());
+        renamed = parent.isValid()
+            && model.index("moved.max", parent).isValid();
+    }
+    QVERIFY(renamed);
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;

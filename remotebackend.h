@@ -8,6 +8,7 @@ License: GPL-2
 #include "backend.h"
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QUrl>
 
@@ -170,6 +171,16 @@ public:
                     const QByteArray &bytes, QString *finalName,
                     QString *etag);
 
+    /** Open (and keep open) the server's event stream for @p repo.
+     *  Each change made by another client is emitted as stackEvent();
+     *  our own changes are filtered out by client id.  The stream
+     *  reconnects automatically if it drops.  Idempotent. */
+    void subscribeEvents(const QString &repo);
+
+    /** Random id identifying this backend instance; sent with every
+     *  request so the server can mark events with their origin. */
+    QString clientId() const { return _clientId; }
+
     /** Name of the shared per-repo trash directory on the server. */
     static QString trashDirName() { return QStringLiteral(".maxview-trash"); }
 
@@ -207,6 +218,10 @@ signals:
                               const DirectoryListing &listing);
     void thumbnailReady(quint64 token, const QByteArray &jpegBytes);
 
+    /** A change made by another client arrived on the event stream */
+    void stackEvent(const QString &repo, const QString &op,
+                    const QString &path, const QString &name);
+
 private:
     QByteArray getRequest(const QString &pathAndQuery);
     QByteArray postRequest(const QString &path, const QByteArray &body,
@@ -239,13 +254,18 @@ private:
      *  paths. */
     DirectoryListing parseBrowseReply(QNetworkReply *reply);
 
+    /** (Re)connect the event stream for one repo. */
+    void startEventStream(const QString &repo);
+
     QUrl _baseUrl;
     QString _token;
     QString _serverId;
+    QString _clientId;
     QString _lastError;
     QNetworkAccessManager *_nam;
     class BackendStats *_stats = nullptr;
     quint64 _nextAsyncToken = 1;
+    QSet<QString> _eventRepos;  //!< repos with an event subscription
 };
 
 #endif // REMOTEBACKEND_H
