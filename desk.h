@@ -117,6 +117,10 @@ public:
    Backend *backend() const { return _backend; }
    QString repoName() const { return _repoName; }
 
+   /** True when the attached backend is remote, so files here are
+    *  cached copies (or not yet fetched) rather than originals. */
+   bool isRemote() const { return _isRemote; }
+
    /** Non-owning view of this desk's files; used by Desktopmodel to
     *  iterate when scheduling async thumbnail fetches. */
    const QList<File *> &files() const { return _files; }
@@ -168,6 +172,10 @@ public:
       \param dir     directory
       \param fname   file name (the file extension determines the type) */
    File *createFile (const QString &dir, const QString fname);
+
+   /** Local cache directory for this desk's files when the backend is
+    *  remote (no trailing slash), or empty when there is none */
+   QString remoteCacheDir (void);
 
    /** given a filename, try to make it unique by adding numbers, etc.
 

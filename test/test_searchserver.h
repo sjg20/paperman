@@ -80,6 +80,9 @@ private slots:
    void testRemoteBackendTransform();
    void testDesktopRemoteTransform();
 
+   //! Opening a remote stack fetches the file and renders real pages
+   void testDesktopRemoteOpenStack();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);

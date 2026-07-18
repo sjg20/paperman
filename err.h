@@ -120,6 +120,7 @@ enum
    ERR_index_not_open,
    ERR_could_not_open_file_for_reading1,
    ERR_remote_transform_failed1,
+   ERR_remote_fetch_failed1,
 
    ERR_count
    };

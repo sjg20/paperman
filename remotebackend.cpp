@@ -395,8 +395,12 @@ static QString wholeFilePathFor(const QString &repo, const QString &path)
 
 
 QString RemoteBackend::ensureCachedFile(const QString &repo,
-                                        const QString &relPath)
+                                        const QString &relPath,
+                                        bool *refreshed)
 {
+   if (refreshed)
+      *refreshed = false;
+
    QString cachePath = cachePathFor(repo, relPath);
    if (cachePath.isEmpty()) {
       _lastError = "cannot determine the server's cache directory";
@@ -454,6 +458,8 @@ QString RemoteBackend::ensureCachedFile(const QString &repo,
       if (ef.open(QIODevice::WriteOnly))
          ef.write(newEtag.toUtf8());
    }
+   if (refreshed)
+      *refreshed = true;
    return cachePath;
 }
 

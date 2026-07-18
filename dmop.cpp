@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QApplication>
 #include <QClipboard>
+#include <QDebug>
 #include <QDesktopServices>
 #include <QFile>
 #include <QMimeData>
@@ -583,6 +584,52 @@ void Desktopmodel::refreshRemoteThumbnail (Desk *desk, RemoteBackend *backend,
    }
 
 
+err_info *Desktopmodel::ensureContent (const QModelIndex &ind)
+   {
+   File *f = getFile (ind);
+
+   if (!f)
+      return NULL;
+   Desk *desk = f->desk ();
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+   if (!remote)
+      return NULL;   // local desk: buildItem() has already loaded it
+
+   // checked once already this session; the parsed state is current
+   if (f->remoteChecked ())
+      return NULL;
+
+   bool refreshed = false;
+
+   if (remote->ensureCachedFile (desk->repoName (),
+                                 remoteStackPath (desk, f),
+                                 &refreshed).isEmpty ())
+      return err_make (ERRFN, ERR_remote_fetch_failed1,
+                       qPrintable (remote->lastError ()));
+
+   /* Parse the cached bytes.  A stack shown before ever being fetched
+      is a valid-but-empty shell (see buildItem()), and one cached by
+      an earlier session may have been parsed before this revalidation
+      replaced the bytes: reload() covers both, discarding any stale
+      state.  If the copy was already current and parsed, it's a
+      no-op-ish re-read of an unchanged local file. */
+   if (refreshed || !f->pagecount ())
+      {
+      CALL (f->reload ());
+      f->setValid (true);
+
+      /* the grid item now knows its page count and can render its
+         own preview; refresh it without disturbing any selection */
+      _minor_change = true;
+      buildItem (ind);
+      _minor_change = false;
+      }
+   f->setRemoteChecked (true);
+   return NULL;
+   }
+
+
 err_info *Desktopmodel::opTransformPageRemote (const QModelIndex &index,
       File *file, Desk *desk, RemoteBackend *backend, int pagenum,
       File::e_transform op)
@@ -591,11 +638,41 @@ err_info *Desktopmodel::opTransformPageRemote (const QModelIndex &index,
       which is how the all-pages case (pagenum == -1) is expressed. */
    int wirePage = pagenum < 0 ? 0 : pagenum + 1;
 
-   if (!backend->transformPage (desk->repoName (),
-                                remoteStackPath (desk, file), wirePage,
+   QString stackPath = remoteStackPath (desk, file);
+
+   if (!backend->transformPage (desk->repoName (), stackPath, wirePage,
                                 File::transformName (op)))
       return err_make (ERRFN, ERR_remote_transform_failed1,
                        qPrintable (backend->lastError ()));
+
+   /* Keep the cached copy in step with the server so an open page
+      view shows the turn at once: apply the same transform to the
+      already-parsed local bytes.  If the stack hasn't been fetched
+      (or the local apply fails), drop any cached copy instead; the
+      next ensureContent() downloads the transformed file. */
+   if (file->valid () && file->pagecount ())
+      {
+      err_info *e = NULL;
+
+      if (pagenum == -1)
+         {
+         for (int page = 0; !e && page < file->pagecount (); page++)
+            e = file->transformPage (page, op);
+         }
+      else
+         e = file->transformPage (pagenum, op);
+      if (e)
+         {
+         qInfo () << "local cache transform failed:" << e->errstr;
+         backend->invalidateCachedFile (desk->repoName (), stackPath);
+         file->setRemoteChecked (false);
+         }
+      }
+   else
+      {
+      backend->invalidateCachedFile (desk->repoName (), stackPath);
+      file->setRemoteChecked (false);
+      }
 
    /* refresh the grid thumbnail from the server, and let any open page
       view know the content changed */
