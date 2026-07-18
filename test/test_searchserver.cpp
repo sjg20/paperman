@@ -18,6 +18,7 @@
 #include "../dirmodel.h"
 #include "../desktopundo.h"
 #include "../file.h"
+#include "../filemax.h"
 #include "../measure.h"
 #include "../remotebackend.h"
 #include "../searchserver.h"
@@ -1968,6 +1969,79 @@ void TestSearchServer::testDesktopRemoteStructuralOps()
     QVERIFY(QFile::exists(dir + names[0]));
     QCOMPARE(serverPagecount(dir, names[0]), pagecount);
     QCOMPARE(model.rowCount(parent), rowsBefore + 1);
+
+    server.stop();
+}
+
+
+void TestSearchServer::testDesktopRemoteScan()
+{
+    /* Scanning into a remote desk builds the stack in the local cache
+       and uploads the finished file on confirm; a cancelled scan
+       leaves no trace on either side. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    int rowsBefore = model.rowCount(parent);
+
+    /* a fake scanned page: 64x48 grey */
+    auto makePage = [](Filemaxpage &mp, const QString &title) {
+        int w = 64, h = 48;
+        QByteArray data(w * h, '\x80');
+        QString name = title;
+        mp.addData(w, h, 8, w, name, false, false, 1, data, w * h);
+        QVERIFY(!mp.compress());
+    };
+
+    // scan a one-page stack and confirm it
+    QVERIFY(!model.beginScan(parent, "scanned"));
+    Filemaxpage page;
+    makePage(page, "page 1");
+    QVERIFY(!model.addPageToScan(&page, ""));
+    QString fname;
+    QVERIFY(!model.confirmScan(&fname));
+
+    QVERIFY(QFile::exists(dir + fname));
+    QCOMPARE(serverPagecount(dir, fname), 1);
+    QCOMPARE(model.rowCount(parent), rowsBefore + 1);
+
+    // the uploaded copy's validator lets a fresh session revalidate
+    QModelIndex ind = model.index(fname, parent);
+    QVERIFY(ind.isValid());
+    File *f = model.getFile(ind);
+    QVERIFY(f);
+    QVERIFY(QFile::exists(f->pathname() + ".etag"));
+
+    // a cancelled scan leaves nothing behind
+    QVERIFY(!model.beginScan(parent, "aborted"));
+    Filemaxpage page2;
+    makePage(page2, "page 1");
+    QVERIFY(!model.addPageToScan(&page2, ""));
+    QVERIFY(!model.cancelScan());
+    QCOMPARE(model.rowCount(parent), rowsBefore + 1);
+    QVERIFY(!QFile::exists(dir + "aborted.max"));
 
     server.stop();
 }
