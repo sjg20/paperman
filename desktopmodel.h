@@ -1106,6 +1106,17 @@ public:
    err_info *getImage (const QModelIndex &ind, int pnum, bool do_scale,
                   QImage &imagep, QSize &Size, QSize &trueSize, int &bpp, bool blank = false) const;
 
+   /** Make sure a stack's page content is available locally.  For a
+       local desk this is a no-op (buildItem() already loads files as
+       they are shown).  For a remote desk it downloads the stack's
+       file into the backend's disk cache (revalidating a cached copy
+       cheaply) and parses it, so pagecount(), getImage() and friends
+       work just as they do locally.  Call before reading pages.
+
+      \param ind    model index of stack
+      \returns error, or NULL if the content is ready */
+   err_info *ensureContent (const QModelIndex &ind);
+
    /** gets an image of a page scaled to the exact requested size, using
        either the preview or full image. Returns a pixmap which is first freed
        if non-null.

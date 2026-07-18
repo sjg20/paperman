@@ -1521,6 +1521,114 @@ void TestSearchServer::testDesktopRemoteTransform()
     server.stop();
 }
 
+
+void TestSearchServer::testDesktopRemoteOpenStack()
+{
+    /* Opening a remote stack must fetch the whole file into the disk
+       cache and parse it with the real file class, so its pages render
+       exactly as a local open of the same file does. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    // before the fetch the stack is a shell with no pages known
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 0);
+
+    // fetch and parse the file
+    err_info *e = model.ensureContent(stack);
+    QVERIFY2(!e, e ? e->errstr : "");
+
+    // page count and page images now match a local open of the source
+    File *local = File::createFile(dir, "testfile.max", nullptr,
+                                   File::Type_max);
+    QVERIFY(local);
+    QVERIFY(!local->load());
+    QVERIFY(local->pagecount() > 0);
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
+             local->pagecount());
+
+    for (int page = 0; page < local->pagecount(); page++) {
+        QImage rimg, limg;
+        QSize rsz, rtsz, lsz, ltsz;
+        int rbpp, lbpp;
+
+        err_info *re = model.getImage(stack, page, false, rimg, rsz,
+                                      rtsz, rbpp);
+        QVERIFY2(!re, re ? re->errstr : "");
+        QVERIFY(!local->getImage(page, false, limg, lsz, ltsz, lbpp,
+                                 false));
+        QCOMPARE(rimg, limg);
+        QCOMPARE(rbpp, lbpp);
+    }
+    delete local;
+
+    /* a fresh session (new model) reuses the cached copy: the open
+       costs a revalidation, not a download */
+    Desktopmodel model2(nullptr);
+    Desktopmodelconv conv2(&model2);
+    model2.setModelConv(&conv2);
+    model2.setDirmodel(&dirmodel);
+    QModelIndex parent2 = model2.showDir(root, root, &meas);
+    QVERIFY(parent2.isValid());
+    QModelIndex stack2 = model2.index("testfile.max", parent2);
+    QVERIFY(stack2.isValid());
+    err_info *e2 = model2.ensureContent(stack2);
+    QVERIFY2(!e2, e2 ? e2->errstr : "");
+    QVERIFY(model2.data(stack2, Desktopmodel::Role_pagecount).toInt() > 0);
+
+    /* rotate the file on the server behind our back; yet another
+       session must spot the stale cache on revalidation and re-read
+       the changed bytes */
+    QSize before = serverTestPageSize(dir, "testfile.max", 0);
+    auto xf = postJson(
+        QString("/v1/repos/%1/stacks/testfile.max/transform").arg(repo),
+        R"({"page":1,"op":"rotate90"})");
+    QVERIFY2(xf.header.contains("200"), qPrintable(xf.header));
+
+    Desktopmodel model3(nullptr);
+    Desktopmodelconv conv3(&model3);
+    model3.setModelConv(&conv3);
+    model3.setDirmodel(&dirmodel);
+    QModelIndex parent3 = model3.showDir(root, root, &meas);
+    QVERIFY(parent3.isValid());
+    QModelIndex stack3 = model3.index("testfile.max", parent3);
+    QVERIFY(stack3.isValid());
+    err_info *e3 = model3.ensureContent(stack3);
+    QVERIFY2(!e3, e3 ? e3->errstr : "");
+
+    QImage turned;
+    QSize tsz1, tsz2;
+    int tbpp;
+    QVERIFY(!model3.getImage(stack3, 0, false, turned, tsz1, tsz2, tbpp));
+    QCOMPARE(turned.size(), QSize(before.height(), before.width()));
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;

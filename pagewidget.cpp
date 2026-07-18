@@ -612,6 +612,19 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
 //    qDebug () << "showPages" << model << index;
    _start = start;
    _count = count;
+
+   /* a remote stack may not have been fetched yet; get its content
+      now so the page count below is the real one */
+   if (index.isValid ())
+      {
+      Desktopmodel *contents = _modelconv->getDesktopmodel (model);
+      QModelIndex sindex = index;
+
+      _modelconv->indexToSource (model, sindex);
+      if (contents && sindex.isValid ())
+         contents->ensureContent (sindex);
+      }
+
    int pagecount = model->data (index, Desktopmodel::Role_pagecount).toInt ();
    if (_count == -1)
       _count = pagecount;

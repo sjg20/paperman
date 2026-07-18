@@ -122,8 +122,12 @@ public:
      *  costs no transfer) or download the bytes.  If the server cannot
      *  be reached but a cached copy exists, that copy is returned so
      *  already-fetched stacks stay viewable.  Returns the cache
-     *  pathname, or an empty string on failure (lastError() set). */
-    QString ensureCachedFile(const QString &repo, const QString &relPath);
+     *  pathname, or an empty string on failure (lastError() set).
+     *  @p refreshed, if non-null, is set true when new bytes were
+     *  written (so any parsed state is stale) and false when the
+     *  existing copy was already current. */
+    QString ensureCachedFile(const QString &repo, const QString &relPath,
+                             bool *refreshed = nullptr);
 
     /** Forget any cached copy of @p relPath (bytes and validator), so
      *  the next ensureCachedFile() downloads afresh. */
