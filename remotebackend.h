@@ -130,6 +130,37 @@ public:
     bool updateAnnotations(const QString &repo, const QString &path,
                            const class QJsonObject &updates);
 
+    /** Delete pages (1-based) from a stack on the server.  On success
+     *  @p undoId holds an opaque token which undeletePages() can
+     *  redeem to restore them; the server may forget it after a
+     *  while, so treat the undo as best-effort. */
+    bool deletePages(const QString &repo, const QString &path,
+                     const QList<int> &pages, QString *undoId);
+
+    /** Restore the pages removed by the deletePages() call that
+     *  returned @p undoId. */
+    bool undeletePages(const QString &repo, const QString &path,
+                       const QString &undoId);
+
+    /** Split @p pagecount pages starting at 1-based @p pagenum out of
+     *  a stack into a new stack in the same directory, removing them
+     *  from the source when @p remove is set.  @p suggestedName may
+     *  be empty; @p newName returns the name the server chose. */
+    bool unstackStack(const QString &repo, const QString &path,
+                      int pagenum, int pagecount, bool remove,
+                      const QString &suggestedName, QString *newName);
+
+    /** Append the pages of each source stack (repo-relative paths)
+     *  into @p destPath at 1-based @p insertPage (0 or past the end
+     *  appends), deleting the sources. */
+    bool stackStacks(const QString &repo, const QString &destPath,
+                     const QStringList &sources, int insertPage);
+
+    /** Copy a stack's file within its directory under a fresh name,
+     *  returned in @p newName. */
+    bool duplicateStack(const QString &repo, const QString &path,
+                        QString *newName);
+
     /** Name of the shared per-repo trash directory on the server. */
     static QString trashDirName() { return QStringLiteral(".maxview-trash"); }
 

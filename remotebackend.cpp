@@ -431,6 +431,79 @@ bool RemoteBackend::updateAnnotations(const QString &repo,
 }
 
 
+bool RemoteBackend::deletePages(const QString &repo, const QString &path,
+                                const QList<int> &pages, QString *undoId)
+{
+   QJsonObject body, reply;
+   QJsonArray arr;
+
+   for (int page : pages)
+      arr.append(page);
+   body["pages"] = arr;
+   if (!postStackOp(repo, path + "/pages", "/delete", body, &reply))
+      return false;
+   if (undoId)
+      *undoId = reply.value("undoId").toString();
+   return true;
+}
+
+
+bool RemoteBackend::undeletePages(const QString &repo, const QString &path,
+                                  const QString &undoId)
+{
+   QJsonObject body;
+   body["undoId"] = undoId;
+   return postStackOp(repo, path + "/pages", "/undelete", body, nullptr);
+}
+
+
+bool RemoteBackend::unstackStack(const QString &repo, const QString &path,
+                                 int pagenum, int pagecount, bool remove,
+                                 const QString &suggestedName,
+                                 QString *newName)
+{
+   QJsonObject body, reply;
+   body["pagenum"]   = pagenum;
+   body["pagecount"] = pagecount;
+   body["remove"]    = remove;
+   if (!suggestedName.isEmpty())
+      body["newName"] = suggestedName;
+   if (!postStackOp(repo, path, "/unstack", body, &reply))
+      return false;
+   if (newName)
+      *newName = reply.value("name").toString();
+   return true;
+}
+
+
+bool RemoteBackend::stackStacks(const QString &repo, const QString &destPath,
+                                const QStringList &sources, int insertPage)
+{
+   QJsonObject body;
+   QJsonArray arr;
+
+   for (const QString &src : sources)
+      arr.append(src);
+   body["sources"] = arr;
+   if (insertPage > 0)
+      body["insertPage"] = insertPage;
+   return postStackOp(repo, destPath, "/stack", body, nullptr);
+}
+
+
+bool RemoteBackend::duplicateStack(const QString &repo, const QString &path,
+                                   QString *newName)
+{
+   QJsonObject reply;
+
+   if (!postStackOp(repo, path, "/duplicate", QJsonObject(), &reply))
+      return false;
+   if (newName)
+      *newName = reply.value("name").toString();
+   return true;
+}
+
+
 QString RemoteBackend::cacheRoot()
 {
    QString id = serverId();
