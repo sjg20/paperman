@@ -89,6 +89,9 @@ private slots:
    //! Desktop rename/trash/delete of remote stacks, with undo
    void testDesktopRemoteSimpleOps();
 
+   //! Annotation updates on a remote stack reach the server, with undo
+   void testDesktopRemoteAnnotations();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);

@@ -295,6 +295,17 @@ public:
       \returns true if the name is recognised */
    static bool transformFromName (const QString &name, e_transform &op);
 
+   /** the wire name of an annotation type, used in the server's
+       annotations API: author/title/keywords/notes/ocr */
+   static QString annotWireName (e_annot type);
+
+   /** parse a wire annotation name back to an enum
+
+      \param name  one of author/title/keywords/notes/ocr
+      \param type  returns the type on success
+      \returns true if the name is recognised */
+   static bool annotFromWireName (const QString &name, e_annot &type);
+
    /** apply a transform to an image */
    static QImage transformImage (const QImage &image, e_transform op);
 

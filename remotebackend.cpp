@@ -423,6 +423,14 @@ bool RemoteBackend::deleteStack(const QString &repo, const QString &path)
 }
 
 
+bool RemoteBackend::updateAnnotations(const QString &repo,
+                                      const QString &path,
+                                      const QJsonObject &updates)
+{
+   return postStackOp(repo, path, "/annotations", updates, nullptr);
+}
+
+
 QString RemoteBackend::cacheRoot()
 {
    QString id = serverId();
