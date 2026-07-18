@@ -28,6 +28,7 @@
 #include <QBuffer>
 #include <QFont>
 #include <QImage>
+#include <QRegularExpression>
 
 #include "test_searchserver.h"
 
@@ -1034,6 +1035,64 @@ void TestSearchServer::testFileEndpoint()
     // Test absolute path prevention
     resp = get("/file?path=/etc/passwd");
     QVERIFY(resp.header.contains("400") || resp.body.contains("Invalid file path"));
+
+    server.stop();
+}
+
+/* GET with an If-None-Match header, for the ETag revalidation test */
+static TestSearchServer::Response getConditional(const QString &path,
+                                                 const QString &etag,
+                                                 int port)
+{
+    QByteArray req;
+    req += "GET " + path.toUtf8() + " HTTP/1.1\r\n";
+    req += "Host: localhost\r\n";
+    if (!etag.isEmpty())
+        req += "If-None-Match: " + etag.toUtf8() + "\r\n";
+    req += "Connection: close\r\n";
+    req += "\r\n";
+    return sendRaw(req, port, 5000);
+}
+
+void TestSearchServer::testFileEtag()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    QFile testFile(tmpDir.path() + "/tagged.max");
+    QVERIFY(testFile.open(QIODevice::WriteOnly));
+    testFile.write("original bytes");
+    testFile.close();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+
+    // a whole-file download carries an ETag
+    auto resp = get("/file?path=tagged.max");
+    QVERIFY(resp.ok());
+    QRegularExpression re("ETag: (\"[^\"]+\")");
+    auto m = re.match(resp.header);
+    QVERIFY2(m.hasMatch(), qPrintable(resp.header));
+    QString etag = m.captured(1);
+
+    // revalidating with the same tag returns 304 and no body
+    auto cond = getConditional("/file?path=tagged.max", etag, PORT);
+    QVERIFY2(cond.header.contains("304"), qPrintable(cond.header));
+    QVERIFY(cond.body.isEmpty());
+
+    // a stale tag still gets the full file
+    auto stale = getConditional("/file?path=tagged.max", "\"0-0\"", PORT);
+    QVERIFY(stale.ok());
+    QCOMPARE(stale.body, QByteArray("original bytes"));
+
+    /* changing the file changes the tag, so the old tag misses; the
+       mtime may not tick over within the test, but the size does */
+    QVERIFY(testFile.open(QIODevice::WriteOnly));
+    testFile.write("changed bytes, now longer");
+    testFile.close();
+    auto changed = getConditional("/file?path=tagged.max", etag, PORT);
+    QVERIFY(changed.ok());
+    QCOMPARE(changed.body, QByteArray("changed bytes, now longer"));
 
     server.stop();
 }

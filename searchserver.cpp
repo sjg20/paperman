@@ -441,6 +441,8 @@ void SearchServer::parseRequest(const QString &request, QString &method,
                         headerValue.mid(QStringLiteral("Bearer ").size())
                                    .trimmed();
                 }
+            } else if (headerName.toLower() == "if-none-match") {
+                params["__if_none_match__"] = headerValue;
             }
         }
     }
@@ -678,7 +680,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         }
 
         return getFile(repoPath, filePath, type, page, wantPageCount,
-                       client);
+                       client, params.value("__if_none_match__"));
     }
     else if (path == "/thumbnail") {
         QString filePath = params.value("path", "");
@@ -1107,7 +1109,8 @@ QString SearchServer::listRepositories(const QString &user)
 
 QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePath,
                                  const QString &type, int page,
-                                 bool wantPageCount, QTcpSocket *client)
+                                 bool wantPageCount, QTcpSocket *client,
+                                 const QString &ifNoneMatch)
 {
     // Security: Prevent directory traversal
     if (filePath.contains("..") || filePath.startsWith("/")) {
@@ -1237,9 +1240,30 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         contentType = "application/octet-stream";
     }
 
+    /* A whole-file download carries an ETag so a client holding a
+     * cached copy can revalidate it with If-None-Match and skip the
+     * transfer when nothing changed.  Size plus mtime is enough to
+     * spot any change the server itself could see. */
+    QString etag = fileEtag(fileInfo);
+    if (!ifNoneMatch.isEmpty() && ifNoneMatch == etag) {
+        QByteArray response;
+        response += "HTTP/1.1 304 Not Modified\r\n";
+        response += "ETag: " + etag.toUtf8() + "\r\n";
+        response += "Connection: close\r\n";
+        response += "\r\n";
+        return response;
+    }
+
     _log.log(ServerLog::ServeFile, filePath);
-    streamFile(fullPath, contentType, client);
+    streamFile(fullPath, contentType, client, etag);
     return QByteArray();
+}
+
+QString SearchServer::fileEtag(const QFileInfo &info)
+{
+    return QString("\"%1-%2\"")
+        .arg(info.size())
+        .arg(info.lastModified().toMSecsSinceEpoch());
 }
 
 QString SearchServer::buildJsonResponse(bool success, const QString &data,
@@ -1297,7 +1321,8 @@ QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &status
 
 void SearchServer::streamFile(const QString &filePath,
                               const QString &contentType,
-                              QTcpSocket *client)
+                              QTcpSocket *client,
+                              const QString &etag)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -1317,6 +1342,8 @@ void SearchServer::streamFile(const QString &filePath,
     headers += "HTTP/1.1 200 OK\r\n";
     headers += "Content-Type: " + contentType.toUtf8() + "\r\n";
     headers += "Content-Length: " + QByteArray::number(size) + "\r\n";
+    if (!etag.isEmpty())
+        headers += "ETag: " + etag.toUtf8() + "\r\n";
     headers += "Access-Control-Allow-Origin: *\r\n";
     headers += "Connection: close\r\n";
     headers += "\r\n";
