@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QApplication>
 #include <QClipboard>
+#include <QDataStream>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QFile>
@@ -97,6 +98,47 @@ err_info *Desktopmodel::opUnstackStacks (QModelIndexList &list, QModelIndex pare
       QList<File *> flist;
       QStringList stack_names;
 
+      RemoteBackend *remote = remoteForFile (f);
+      if (remote)
+         {
+         /* Unstack on the server page by page, mirroring each step
+            onto the cached copy under the server's chosen name.  Both
+            sides always remove the current first page, so the page
+            numbering stays aligned. */
+         Desk *desk = f->desk ();
+
+         CALL (ensureContent (ind));
+         while (!err && f->pagecount () > 1)
+            {
+            QString serverName;
+            if (!remote->unstackStack (desk->repoName (),
+                                       remoteStackPath (desk, f), 1, 1,
+                                       true, "", &serverName))
+               {
+               err = err_make (ERRFN, ERR_remote_op_failed2, "unstack",
+                               qPrintable (remote->lastError ()));
+               break;
+               }
+            fnew = desk->createFile (desk->dir (), serverName);
+            desk->newFile (fnew, f, pagenum++);
+            err = fnew->create ();
+            if (!err)
+               err = f->unstackPages (0, 1, true, fnew);
+            fnew->setRemoteChecked (true);
+            stack_names << serverName;
+            flist << fnew;
+            }
+         if (flist.size ())
+            {
+            buildItem (ind);
+            insertRows (flist, parent);
+            }
+         _newnames << stack_names;
+         if (err)
+            break;
+         continue;
+         }
+
       CALL(f->load());
       // remove every page from the stack except the first
       while (f->pagecount () > 1)
@@ -144,6 +186,65 @@ err_info *Desktopmodel::opRestackStacks (QModelIndexList &list, QModelIndex pare
    int upto = 0;
    QModelIndex pind;
    int out_destpage = in_destpage; // destination page for first stack
+
+   Desk *rdesk = getDesk (parent);
+   RemoteBackend *remote = rdesk
+         ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;
+
+   if (remote)
+      {
+      /* Stack on the server; it deletes the source files itself.  The
+         destination is refetched afterwards rather than mirrored,
+         since the sources may not all be in the local cache. */
+      foreach (ind, list)
+         {
+         File *f = getFile (ind);
+         int destpage = in_destpage == -1 ? f->pagenum () : in_destpage;
+
+         if (out_destpage == -1)
+            out_destpage = destpage;
+
+         QStringList sources;
+         foreach (pind, pages_list [upto])
+            if (pind != QModelIndex ())
+               {
+               File *pdel = getFile (pind);
+
+               sources << remoteStackPath (rdesk, pdel);
+               delete_list << pind;
+               }
+         upto++;
+         if (sources.isEmpty ())
+            continue;
+
+         QString destPath = remoteStackPath (rdesk, f);
+         if (!remote->stackStacks (rdesk->repoName (), destPath, sources,
+                                   destpage + 1))
+            {
+            e = err_make (ERRFN, ERR_remote_op_failed2, "stack",
+                          qPrintable (remote->lastError ()));
+            break;
+            }
+
+         remote->invalidateCachedFile (rdesk->repoName (), destPath);
+         f->setRemoteChecked (false);
+         err_info *e2 = ensureContent (ind);
+         if (!e)
+            e = e2;
+         }
+      in_destpage = out_destpage;
+
+      /* the server has already deleted the source files; drop their
+         cached copies and rows */
+      foreach (pind, delete_list)
+         remote->invalidateCachedFile (rdesk->repoName (),
+                                       remoteStackPath (rdesk,
+                                                        getFile (pind)));
+      sortForDelete (delete_list);
+      foreach (pind, delete_list)
+         removeRow (pind.row (), pind.parent ());
+      return e;
+      }
 
    // work through each stack in the list
    foreach (ind, list)
@@ -201,6 +302,40 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
    err_info *err = NULL;
    File *fnew, *f;
    int count;
+
+   Desk *rdesk = getDesk (parent);
+   RemoteBackend *remote = rdesk
+         ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;
+
+   if (remote)
+      {
+      /* only a plain copy is available remotely; conversions need
+         the pages, which live on the server */
+      if (type != File::Type_other)
+         return err_make (ERRFN, ERR_remote_op_failed2, "convert",
+                          "not supported for a remote stack");
+
+      foreach (ind, list)
+         {
+         f = getFile (ind);
+         QString name;
+
+         if (!remote->duplicateStack (rdesk->repoName (),
+                                      remoteStackPath (rdesk, f), &name))
+            {
+            err = err_make (ERRFN, ERR_remote_op_failed2, "duplicate",
+                            qPrintable (remote->lastError ()));
+            break;
+            }
+         fnew = rdesk->createFile (rdesk->dir (), name);
+         rdesk->newFile (fnew, f);
+         refreshRemoteThumbnail (rdesk, remote, fnew);
+         flist << fnew;
+         namelist << name;
+         }
+      insertRows (flist, parent);
+      return err;
+      }
 
    // duplicate each stack, creating a list of new files
    QString opname = type == File::Type_other ? tr ("Copy files") :
@@ -515,6 +650,40 @@ err_info *Desktopmodel::opUnstackPage (QModelIndex &ind, int &pagenum,
 
    if (pagenum == -1)
       pagenum = f->pagenum ();
+
+   RemoteBackend *remote = remoteForFile (f);
+   if (remote)
+      {
+      Desk *desk = f->desk ();
+
+      CALL (ensureContent (ind));
+      if (remove && f->pagecount () <= 1)
+         return NULL;
+
+      /* the server picks the new stack's name; mirror the unstack
+         onto the cached copy under that name so both stay in step */
+      QString serverName;
+      if (!remote->unstackStack (desk->repoName (),
+                                 remoteStackPath (desk, f), pagenum + 1, 1,
+                                 remove, "", &serverName))
+         return err_make (ERRFN, ERR_remote_op_failed2, "unstack",
+                          qPrintable (remote->lastError ()));
+
+      fnew = desk->createFile (desk->dir (), serverName);
+      row = desk->newFile (fnew, f, 1);
+      e = fnew->create ();
+      if (!e)
+         e = f->unstackPages (pagenum, 1, remove, fnew);
+      fnew->setRemoteChecked (true);
+
+      newname = serverName;
+      if (remove)
+         buildItem (ind);
+      QModelIndexList list;
+      newItem (row, ind.parent (), list);
+      return e;
+      }
+
    if ((!remove || f->pagecount () > 1)
       && (e = f->unstackItems (pagenum, 1, remove, "", fnew, row, 1), !e))
       {
@@ -578,6 +747,39 @@ err_info *Desktopmodel::opDeletePages (QModelIndex &ind, QBitArray &pages,
 
    if (f)
       {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         Desk *desk = f->desk ();
+
+         CALL (ensureContent (ind));
+
+         QList<int> pageList;
+         for (int i = 0; i < pages.size (); i++)
+            if (pages.testBit (i))
+               pageList << i + 1;
+
+         QString undoId;
+         if (!remote->deletePages (desk->repoName (),
+                                   remoteStackPath (desk, f), pageList,
+                                   &undoId))
+            return err_make (ERRFN, ERR_remote_op_failed2, "page delete",
+                             qPrintable (remote->lastError ()));
+
+         /* Mirror the removal onto the cached copy so the view stays
+            in step without a refetch.  The undo record's blob carries
+            the server's token alongside the local recovery data, so
+            opUndeletePages() can restore both sides. */
+         QByteArray localInfo;
+         e = f->removePages (pages, localInfo, count);
+         del_info.clear ();
+         QDataStream ds (&del_info, QIODevice::WriteOnly);
+         ds << undoId << localInfo;
+         buildItem (ind);
+         return e;
+         }
+
       e = f->removePages (pages, del_info, count);
       buildItem (ind);
       getDesk (ind.parent ())->dirty ();
@@ -594,6 +796,27 @@ err_info *Desktopmodel::opUndeletePages (QModelIndex &ind, QBitArray &pages,
 
    if (f)
       {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         Desk *desk = f->desk ();
+         QString undoId;
+         QByteArray localInfo;
+         QDataStream ds (&del_info, QIODevice::ReadOnly);
+
+         ds >> undoId >> localInfo;
+         if (!remote->undeletePages (desk->repoName (),
+                                     remoteStackPath (desk, f), undoId))
+            return err_make (ERRFN, ERR_remote_op_failed2,
+                             "page undelete",
+                             qPrintable (remote->lastError ()));
+
+         e = f->restorePages (pages, localInfo, count);
+         buildItem (ind);
+         return e;
+         }
+
       e = f->restorePages (pages, del_info, count);
       buildItem (ind);
       }

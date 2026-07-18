@@ -1871,6 +1871,107 @@ void TestSearchServer::testDesktopRemoteAnnotations()
     server.stop();
 }
 
+
+/* page count of the server's file on disk */
+static int serverPagecount(const QString &dir, const QString &fname)
+{
+    File *f = File::createFile(dir, fname, nullptr,
+                               File::typeFromName(fname));
+    int count = -1;
+    if (f && !f->load())
+        count = f->pagecount();
+    delete f;
+    return count;
+}
+
+void TestSearchServer::testDesktopRemoteStructuralOps()
+{
+    /* Page deletion, unstacking and duplication of remote stacks
+       driven through the desktop, with their undo round-trips. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(!model.ensureContent(stack));
+
+    int pagecount = model.data(stack,
+                               Desktopmodel::Role_pagecount).toInt();
+    QVERIFY(pagecount >= 2);
+    int rowsBefore = model.rowCount(parent);
+
+    // delete the last page through the desktop
+    QBitArray pages(pagecount);
+    pages.setBit(pagecount - 1);
+    model.deletePages(stack, pages);
+    QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount - 1);
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
+             pagecount - 1);
+
+    // undo redeems the server-side undoId and restores the page
+    model.getUndoStack()->undo();
+    QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount);
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
+             pagecount);
+
+    // unstack the first page into a new stack
+    model.unstackPage(stack, 0, true);
+    QCOMPARE(model.rowCount(parent), rowsBefore + 1);
+    QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount - 1);
+    QModelIndex unstacked;
+    for (int row = 0; row < model.rowCount(parent); row++) {
+        QModelIndex ind = model.index(row, 0, parent);
+        if (ind != stack)
+            unstacked = ind;
+    }
+    QVERIFY(unstacked.isValid());
+    QString newName = model.data(unstacked,
+                                 Desktopmodel::Role_filename).toString();
+    QCOMPARE(serverPagecount(dir, newName), 1);
+
+    // undo stacks the page back and removes the new stack
+    model.getUndoStack()->undo();
+    QCOMPARE(model.rowCount(parent), rowsBefore);
+    QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount);
+    QVERIFY(!QFile::exists(dir + newName));
+
+    // duplicate (copy) the stack
+    QModelIndexList list;
+    QStringList names;
+    stack = model.index("testfile.max", parent);
+    list << stack;
+    QVERIFY(!model.opDuplicateStacks(list, parent, names,
+                                     File::Type_other, 3));
+    QCOMPARE(names.size(), 1);
+    QVERIFY(QFile::exists(dir + names[0]));
+    QCOMPARE(serverPagecount(dir, names[0]), pagecount);
+    QCOMPARE(model.rowCount(parent), rowsBefore + 1);
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;
