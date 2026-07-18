@@ -67,6 +67,9 @@ private slots:
 
    //! Whole-file downloads carry an ETag; If-None-Match revalidates
    void testFileEtag();
+
+   //! RemoteBackend caches whole files on disk and revalidates them
+   void testRemoteFileCache();
    void testFilePageCount();
    void testFilePageExtract();
    void testLargePdfProgressive();

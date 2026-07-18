@@ -104,6 +104,31 @@ public:
     bool transformPage(const QString &repo, const QString &path,
                        int page, const QString &op);
 
+    /** Root of this server's on-disk file cache:
+     *  <cache>/paperman/<serverId>.  Empty if the server id cannot be
+     *  fetched (e.g. server unreachable and never seen before). */
+    QString cacheRoot();
+
+    /** Directory caching files under @p dirInRepo of @p repo, without
+     *  a trailing slash.  Empty when cacheRoot() is empty.  The
+     *  directory is not created. */
+    QString cacheDirFor(const QString &repo, const QString &dirInRepo);
+
+    /** Cache pathname for a single repo file. */
+    QString cachePathFor(const QString &repo, const QString &relPath);
+
+    /** Make sure the cache holds a current copy of @p relPath in
+     *  @p repo: revalidate an existing copy with If-None-Match (a 304
+     *  costs no transfer) or download the bytes.  If the server cannot
+     *  be reached but a cached copy exists, that copy is returned so
+     *  already-fetched stacks stay viewable.  Returns the cache
+     *  pathname, or an empty string on failure (lastError() set). */
+    QString ensureCachedFile(const QString &repo, const QString &relPath);
+
+    /** Forget any cached copy of @p relPath (bytes and validator), so
+     *  the next ensureCachedFile() downloads afresh. */
+    void invalidateCachedFile(const QString &repo, const QString &relPath);
+
 signals:
     void browseDirectoryReady(quint64 token,
                               const DirectoryListing &listing);
@@ -114,10 +139,18 @@ private:
     QByteArray postRequest(const QString &path, const QByteArray &body);
     QByteArray waitForReply(QNetworkReply *reply);
 
+    /** waitForReply() variant that also surfaces the HTTP status code
+     *  and the response's ETag header (empty when absent).  A 304 is
+     *  not an error. */
+    QByteArray waitForReplyFull(QNetworkReply *reply, int *status,
+                                QString *etag);
+
     /** Construct an async GET against pathAndQuery.  Caller takes
      *  responsibility for the returned reply's signals; reply will
-     *  call deleteLater on itself once consumed. */
-    QNetworkReply *startGet(const QString &pathAndQuery);
+     *  call deleteLater on itself once consumed.  @p ifNoneMatch, when
+     *  non-empty, is sent as an If-None-Match header. */
+    QNetworkReply *startGet(const QString &pathAndQuery,
+                            const QString &ifNoneMatch = QString());
 
     /** Translate a /browse reply (body bytes + reply error state)
      *  into a typed DirectoryListing.  Shared by sync and async
