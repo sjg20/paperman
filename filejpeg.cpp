@@ -64,6 +64,25 @@ err_info *Filejpeg::load (void)
    }
 
 
+err_info *Filejpeg::reload (void)
+   {
+   /* never parsed (or a valid-but-empty remote shell): a plain load
+      builds the page list */
+   if (_pages.isEmpty ())
+      {
+      _valid = false;
+      return load ();
+      }
+
+   /* re-read each page image from disk; the page list itself is
+      unchanged since it mirrors the filenames */
+   foreach (Filejpegpage *page, _pages)
+      if (page)
+         CALL (page->load (_dir));
+   return NULL;
+   }
+
+
   // was desk->ensureMax
 
 /** create the file (on the filesystem). It doesn't need to be written to
