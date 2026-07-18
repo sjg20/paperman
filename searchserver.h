@@ -220,6 +220,86 @@ private:
                                const QHash<QString, QString> &params,
                                const QString &authedUser);
 
+    /** Target of a per-stack mutation URL. */
+    struct StackTarget {
+        QString repoName;   //!< repository basename
+        QString filePath;   //!< path relative to the repository root
+        QString repoPath;   //!< absolute repository root
+        QString fullPath;   //!< absolute path of the stack's file
+    };
+
+    /**
+     * Split a /v1/repos/{repo}/stacks/{path}{verb} URL into repo and
+     * stack path.  @p verb is the trailing part including its leading
+     * slash (e.g. "/rename").  Returns false if the URL is malformed.
+     */
+    static bool splitStackUrl(const QString &path, const QString &verb,
+                              QString *repoName, QString *filePath);
+
+    /**
+     * Validate a stack target: path traversal, the per-user repo
+     * allowlist and repository existence; when @p mustExist is true
+     * the file itself must exist too.
+     *
+     * @return empty QByteArray on success (out filled in), or the
+     * HTTP error response to send
+     */
+    QByteArray resolveStackTarget(const QString &repoName,
+                                  const QString &filePath,
+                                  const QString &authedUser,
+                                  StackTarget &out, bool mustExist = true);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/rename
+     *
+     * Body {newName, autoRename}.  Renames the file within its
+     * directory; with autoRename a colliding name gets _1, _2...
+     * appended.  Returns {success, name} with the final name.
+     */
+    QByteArray handleRename(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/move
+     *
+     * Body {destDir, copy}.  Moves (or copies) the file to another
+     * directory in the same repository; destDir is repo-relative and
+     * "" means the root.  The trash directory is created on demand;
+     * any other destination must exist.  A name collision appends
+     * _move_1 etc.  Returns {success, name} with the final name.
+     */
+    QByteArray handleMove(const QString &path,
+                          const QHash<QString, QString> &params,
+                          const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/delete
+     *
+     * Removes the file outright (no trash).
+     */
+    QByteArray handleDelete(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser);
+
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/pages/{n}/rename
+     *
+     * Body {newName}.  Renames a page within the stack via the File
+     * classes; n is 1-based.
+     */
+    QByteArray handleRenamePage(const QString &path,
+                                const QHash<QString, QString> &params,
+                                const QString &authedUser);
+
+    /** Name of the shared trash directory within a repository. */
+    static const char *trashDirName() { return ".maxview-trash"; }
+
+    /** Find a filename not present in @p dir by appending _1, _2...
+     *  to @p base.  Returns base+ext unchanged if that is free. */
+    static QString uniqueNameIn(const QString &dir, const QString &base,
+                                const QString &ext);
+
     /**
      * Search for files matching a pattern
      * @param repoPath    Repository root path

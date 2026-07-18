@@ -83,6 +83,9 @@ private slots:
    //! Opening a remote stack fetches the file and renders real pages
    void testDesktopRemoteOpenStack();
 
+   //! Rename/move/delete/page-rename endpoints mutate server files
+   void testMutationEndpoints();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
