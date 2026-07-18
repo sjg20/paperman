@@ -147,7 +147,8 @@ static const char *tags [File::Annot_count] =
    "Artist",
    "ImageDescription",
    "Keywords",
-   "Notes"
+   "Notes",
+   "UserComment"   // OCR text; can be multi-line so read with -b
    };
 
 
@@ -226,6 +227,12 @@ err_info *Filejpeg::load_annot (void)
    CALL (run_exiftool (process, "load notes", args));
    _annot_loaded = true;
    _annot_data [Annot_notes] = utilRemoveQuotes (process.readAllStandardOutput ());
+
+   // The OCR text can be multi-line, so read it in binary form too
+   args.clear ();
+   args << "-b" << "-UserComment" << _pathname;
+   CALL (run_exiftool (process, "load ocr text", args));
+   _annot_data [Annot_ocr] = utilRemoveQuotes (process.readAllStandardOutput ());
 
    return NULL;
    }
