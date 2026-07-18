@@ -64,6 +64,9 @@ private slots:
    void testReposEndpoint();
    void testSearchWithRepo();
    void testFileEndpoint();
+
+   //! Whole-file downloads carry an ETag; If-None-Match revalidates
+   void testFileEtag();
    void testFilePageCount();
    void testFilePageExtract();
    void testLargePdfProgressive();
