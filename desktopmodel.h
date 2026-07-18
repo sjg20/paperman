@@ -106,6 +106,9 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCAddRepository;
    friend class UCRemoveRepository;
 
+   // the remote-operation tests drive opXxx directly
+   friend class TestSearchServer;
+
 public:
    Desktopmodel(QObject *parent);
    ~Desktopmodel();
@@ -1022,6 +1025,16 @@ private:
     *  leading slash (e.g. "sub/dir/stack.max"), used as the {path} in
     *  the server's per-stack URLs. */
    QString remoteStackPath(Desk *desk, File *file) const;
+
+   /** The RemoteBackend behind a file's desk, or nullptr when the
+    *  file is local (or detached).  Ops use this to decide whether to
+    *  route a mutation to the server. */
+   class RemoteBackend *remoteForFile(File *file) const;
+
+   /** A directory path relative to a remote desk's repository root:
+    *  desk->rootDir() and any surrounding slashes are stripped, so
+    *  the repo root itself comes back as "". */
+   QString remoteRelDir(Desk *desk, QString dir) const;
 
    /** Re-fetch a single stack's thumbnail from the server after its
     *  content changed (e.g. a rotation) and refresh the view. */

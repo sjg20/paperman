@@ -121,6 +121,8 @@ enum
    ERR_could_not_open_file_for_reading1,
    ERR_remote_transform_failed1,
    ERR_remote_fetch_failed1,
+   ERR_remote_op_failed2,
+   ERR_cannot_move_between_repositories,
 
    ERR_count
    };

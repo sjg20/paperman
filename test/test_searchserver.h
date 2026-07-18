@@ -86,6 +86,9 @@ private slots:
    //! Rename/move/delete/page-rename endpoints mutate server files
    void testMutationEndpoints();
 
+   //! Desktop rename/trash/delete of remote stacks, with undo
+   void testDesktopRemoteSimpleOps();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);

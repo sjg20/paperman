@@ -1717,6 +1717,89 @@ void TestSearchServer::testMutationEndpoints()
     server.stop();
 }
 
+
+void TestSearchServer::testDesktopRemoteSimpleOps()
+{
+    /* Rename, trash and delete of remote stacks driven through the
+       desktop, including the undo round-trips. */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    // rename through the desktop; the server's file follows
+    model.renameStack(stack, "renamed");
+    QVERIFY(QFile::exists(dir + "renamed.max"));
+    QVERIFY(!QFile::exists(dir + "testfile.max"));
+    QVERIFY(model.index("renamed.max", parent).isValid());
+
+    // and undo brings the old name back
+    model.getUndoStack()->undo();
+    QVERIFY(QFile::exists(dir + "testfile.max"));
+    QVERIFY(!QFile::exists(dir + "renamed.max"));
+
+    // rename a page on the server via the desktop
+    stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(!model.ensureContent(stack));
+    QString pageName = "remote page";
+    QVERIFY(!model.opRenamePage(stack, 0, pageName));
+    {
+        File *f = File::createFile(dir, "testfile.max", nullptr,
+                                   File::Type_max);
+        QVERIFY(f && !f->load());
+        QCOMPARE(f->pageTitle(0), QString("remote page"));
+        delete f;
+    }
+
+    // trash through the desktop: the server file moves into the trash
+    QModelIndexList list;
+    list << stack;
+    int rowsBefore = model.rowCount(parent);
+    model.trashStacks(list, parent);
+    QVERIFY(!QFile::exists(dir + "testfile.max"));
+    QVERIFY(QFile::exists(dir + ".maxview-trash/testfile.max"));
+    QCOMPARE(model.rowCount(parent), rowsBefore - 1);
+
+    // undo the trashing: the file comes back
+    model.getUndoStack()->undo();
+    QVERIFY(QFile::exists(dir + "testfile.max"));
+    QVERIFY(!QFile::exists(dir + ".maxview-trash/testfile.max"));
+    QCOMPARE(model.rowCount(parent), rowsBefore);
+
+    // delete outright
+    stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(!model.opDeleteStack(stack));
+    QVERIFY(!QFile::exists(dir + "testfile.max"));
+    QCOMPARE(model.rowCount(parent), rowsBefore - 1);
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;
