@@ -1036,6 +1036,12 @@ private:
     *  the repo root itself comes back as "". */
    QString remoteRelDir(Desk *desk, QString dir) const;
 
+   /** Push a freshly-scanned stack's cached file to the server.  On a
+    *  name clash the server picks a new name and the file object is
+    *  renamed to match.  The server's validator is recorded so the
+    *  next open revalidates instead of downloading. */
+   err_info *uploadScanStack(File *f);
+
    /** Re-fetch a single stack's thumbnail from the server after its
     *  content changed (e.g. a rotation) and refresh the view. */
    void refreshRemoteThumbnail(Desk *desk, class RemoteBackend *backend,

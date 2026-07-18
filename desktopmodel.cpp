@@ -855,6 +855,17 @@ err_info *Desktopmodel::cancelScan (void)
    _scan_desk = 0;
    _scan_file = 0;
 
+   /* a cancelled scan into a remote desk was never uploaded, so
+      remove only the cached copy and the row - the server has
+      nothing to delete */
+   if (ind.isValid () && getFile (ind) && remoteForFile (getFile (ind)))
+      {
+      err_info *e = getFile (ind)->remove ();
+
+      removeRow (ind.row (), ind.parent ());
+      return e;
+      }
+
    // remove the stack in the maxdesk if it is there
    return opDeleteStack (ind);
    }
@@ -865,12 +876,18 @@ err_info *Desktopmodel::confirmScan (QString *fname)
 //    qDebug () << "Desktopmodel::confirmScan";
    Q_ASSERT (_scan_desk && _scan_file);
 
+   // flush the item
+   CALL (_scan_file->flush ());
+
+   /* a stack scanned into a remote desk exists only in the local
+      cache so far; push the finished file to the server (which may
+      rename it on a clash, updating the file object) */
+   if (remoteForFile (_scan_file))
+      CALL (uploadScanStack (_scan_file));
+
    if (fname)
       *fname = _scan_file->filename ();
    QModelIndex ind = index (_scan_file->filename (), _scan_parent);
-
-   // flush the item
-   CALL (_scan_file->flush ());
 
 // this comment might not be relevant since Desktopmodel was enhanced to have multiple maxdesks:
    /* at this point, although we have just flushed the item, it is possible

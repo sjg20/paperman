@@ -504,6 +504,30 @@ bool RemoteBackend::duplicateStack(const QString &repo, const QString &path,
 }
 
 
+bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
+                               const QByteArray &bytes, QString *finalName,
+                               QString *etag)
+{
+   QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + "/upload";
+
+   QByteArray resp = postRequest(endpoint, bytes,
+                                 "application/octet-stream");
+   QJsonDocument doc = QJsonDocument::fromJson(resp);
+   if (!doc.isObject() || !doc.object().value("success").toBool(false)) {
+      if (_lastError.isEmpty())
+         _lastError = doc.isObject()
+                          ? doc.object().value("error").toString("upload failed")
+                          : QStringLiteral("invalid upload response");
+      return false;
+   }
+   if (finalName)
+      *finalName = doc.object().value("name").toString();
+   if (etag)
+      *etag = doc.object().value("etag").toString();
+   return true;
+}
+
+
 QString RemoteBackend::cacheRoot()
 {
    QString id = serverId();
@@ -630,13 +654,14 @@ void RemoteBackend::invalidateCachedFile(const QString &repo,
 
 
 QByteArray RemoteBackend::postRequest(const QString &path,
-                                      const QByteArray &body)
+                                      const QByteArray &body,
+                                      const QString &contentType)
 {
    QUrl url(_baseUrl);
    url.setPath(path);
    QNetworkRequest req(url);
    req.setTransferTimeout(kRequestTimeoutMs);
-   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+   req.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
 
