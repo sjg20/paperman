@@ -160,6 +160,8 @@ public:
 
    virtual err_info *load (void);  // was desk->ensureMax
 
+   virtual err_info *reload (void);
+
    virtual err_info *create (void);
 
    virtual err_info *flush (void);

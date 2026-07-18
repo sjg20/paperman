@@ -60,6 +60,18 @@ err_info *Filepdf::load (void)
    }
 
 
+err_info *Filepdf::reload (void)
+   {
+   if (_pdfio)
+      {
+      delete _pdfio;
+      _pdfio = NULL;
+      }
+   _valid = false;
+   return load ();
+   }
+
+
   // was desk->ensureMax
 
 /** create the file (on the filesystem). It doesn't need to be written to
