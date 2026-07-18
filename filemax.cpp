@@ -5554,6 +5554,20 @@ err_info *Filemax::load ()  // was desk->ensureMax
    }
 
 
+err_info *Filemax::reload (void)
+   {
+   /* free the parsed chunk and page state; chunk_resize() and
+      page_resize() insist on starting from empty lists */
+   max_free ();
+   _fin = NULL;
+   _chunks.clear ();
+   _pages.clear ();
+   _annot_loaded = false;
+   _valid = false;
+   return load ();
+   }
+
+
 err_info *Filemax::getAnnot (e_annot type, QString &text)
    {
    if (!_valid)

@@ -219,6 +219,13 @@ public:
    // load / save / create
    virtual err_info *load (void) = 0;  // was desk->ensureMax
 
+   /** Discard any parsed state and read the file from disk again.
+       Used when the underlying bytes have changed under us, e.g. a
+       remote file's cached copy was refreshed from the server.  The
+       default is a plain load(), for types which keep no parsed
+       state. */
+   virtual err_info *reload (void) { return load (); }
+
    /** create the file (on the filesystem). It doesn't need to be written to
        as we will call flush() later for that */
    virtual err_info *create (void) = 0;
@@ -316,6 +323,12 @@ eturns error, or NULL if ok */
     *  via /thumbnail) so that subclasses which don't compute their
     *  own pixmap (Fileother) can display the supplied one. */
    void setThumbnail(const QPixmap &pix) { _pixmap = pix; }
+
+   /** True once this session has fetched or revalidated the remote
+    *  content behind this file and parsed it.  Meaningless for a
+    *  local desk.  See Desktopmodel::ensureContent(). */
+   bool remoteChecked () const { return _remoteChecked; }
+   void setRemoteChecked (bool checked) { _remoteChecked = checked; }
 
    /** returns the preview image for a particular page.
 
@@ -563,6 +576,7 @@ protected:
    err_info _serr;  //!< place to put error
    err_info *_err;  //!< last error which occured with this item
    bool _valid;      //!< true if we have scanned this file and know what it contains
+   bool _remoteChecked = false;  //!< remote content fetched/revalidated this session
 
    // annotation data
    bool _annot_loaded;               // true if data has been loaded
