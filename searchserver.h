@@ -292,6 +292,17 @@ private:
                                 const QHash<QString, QString> &params,
                                 const QString &authedUser);
 
+    /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/annotations
+     *
+     * Body is a JSON object with any subset of author/title/keywords/
+     * notes/ocr; the named fields are written into the stack's
+     * annotation block via the File classes.
+     */
+    QByteArray handleUpdateAnnot(const QString &path,
+                                 const QHash<QString, QString> &params,
+                                 const QString &authedUser);
+
     /** Name of the shared trash directory within a repository. */
     static const char *trashDirName() { return ".maxview-trash"; }
 

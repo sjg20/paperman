@@ -1800,6 +1800,77 @@ void TestSearchServer::testDesktopRemoteSimpleOps()
     server.stop();
 }
 
+
+/* read one annotation straight from the server's file on disk */
+static QString serverAnnot(const QString &dir, const QString &fname,
+                           File::e_annot type)
+{
+    File *f = File::createFile(dir, fname, nullptr,
+                               File::typeFromName(fname));
+    QString text;
+    if (f && !f->load())
+        f->getAnnot(type, text);
+    delete f;
+    return text;
+}
+
+void TestSearchServer::testDesktopRemoteAnnotations()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(!model.ensureContent(stack));
+
+    QString oldAuthor = serverAnnot(dir, "testfile.max",
+                                    File::Annot_author);
+
+    // update through the desktop; the server's file follows
+    QHash<int, QString> updates;
+    updates[File::Annot_author] = "A. Writer";
+    updates[File::Annot_title] = "Remote title";
+    model.updateAnnot(stack, updates);
+
+    QCOMPARE(serverAnnot(dir, "testfile.max", File::Annot_author),
+             QString("A. Writer"));
+    QCOMPARE(serverAnnot(dir, "testfile.max", File::Annot_title),
+             QString("Remote title"));
+
+    // the cached copy shows the new values without a refetch
+    QCOMPARE(model.getAnnot(stack, File::Annot_author),
+             QString("A. Writer"));
+
+    // undo restores the previous value on the server
+    model.getUndoStack()->undo();
+    QCOMPARE(serverAnnot(dir, "testfile.max", File::Annot_author),
+             oldAuthor);
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpointErrors()
 {
     QTemporaryDir tmpDir;

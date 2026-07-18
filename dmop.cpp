@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QDesktopServices>
 #include <QFile>
+#include <QJsonObject>
 #include <QMimeData>
 #include <QProcess>
 #include <QUrl>
@@ -535,6 +536,32 @@ err_info *Desktopmodel::opUpdateAnnot (QModelIndex &ind, QHash<int, QString> &up
 
    if (f)
       {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         Desk *desk = f->desk ();
+         QJsonObject wire;
+
+         for (auto it = updates.constBegin (); it != updates.constEnd ();
+              ++it)
+            wire [File::annotWireName ((File::e_annot)it.key ())]
+                  = it.value ();
+         if (!remote->updateAnnotations (desk->repoName (),
+                                         remoteStackPath (desk, f), wire))
+            return err_make (ERRFN, ERR_remote_op_failed2, "annotation",
+                             qPrintable (remote->lastError ()));
+
+         /* mirror onto the parsed cached copy so the annotations pane
+            shows the new values without a refetch */
+         if (f->remoteChecked ())
+            {
+            f->putAnnot (updates);
+            f->flush ();
+            }
+         return NULL;
+         }
+
       f->putAnnot (updates);
       f->flush ();
       }
