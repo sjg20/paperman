@@ -45,6 +45,8 @@ HEADERS += builddate.h \
     err.h \
     mem.h \
     epeglite.h \
+    ocr.h \
+    ocrtess.h \
     zip.h \
     zip_p.h \
     zipentry_p.h \
@@ -67,6 +69,8 @@ SOURCES += searchserver.cpp \
     err.cpp \
     mem.cpp \
     epeglite.cpp \
+    ocr.cpp \
+    ocrtess.cpp \
     zip.cpp
 
 unix {
