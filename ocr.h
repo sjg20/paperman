@@ -38,6 +38,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 class QImage;
 class QString;
 
+struct err_info;
+
 
 class Ocr
    {

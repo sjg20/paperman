@@ -294,6 +294,17 @@ private:
                                 const QString &authedUser);
 
     /**
+     * Handle POST /v1/repos/{repo}/stacks/{path}/pages/{n}/ocr
+     *
+     * Renders 1-based page n, runs the OCR engine over it, stores the
+     * text in the stack's ocr annotation and returns {text}.  501 if
+     * no OCR engine is available on the server.
+     */
+    QByteArray handleOcrPage(const QString &path,
+                             const QHash<QString, QString> &params,
+                             const QString &authedUser);
+
+    /**
      * Handle POST /v1/repos/{repo}/stacks/{path}/annotations
      *
      * Body is a JSON object with any subset of author/title/keywords/
