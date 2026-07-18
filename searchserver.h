@@ -620,6 +620,39 @@ private:
     };
     QHash<QString, ConvertProgress> _convertProgress;  //!< Keyed by source path
 
+    /**
+     * Handle GET /v1/repos/{repo}/events
+     *
+     * Registers the client for server-sent events and writes the SSE
+     * response header; the socket then stays open and receives a
+     * `stackChanged` frame for every successful mutation in the
+     * repository.  Returns an empty QByteArray (async response).
+     */
+    QByteArray handleEvents(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser, QTcpSocket *client);
+
+    /**
+     * Send a stackChanged event to every subscriber of @p repoName.
+     *
+     * @param repoName  Repository the change happened in
+     * @param op        Operation name (rename, move, delete, ...)
+     * @param path      Repo-relative path of the affected stack
+     * @param name      New name, for ops that produce one (else empty)
+     * @param clientId  X-Client-Id of the originating request, echoed
+     *                  so that client can ignore its own change
+     */
+    void notifyStackEvent(const QString &repoName, const QString &op,
+                          const QString &path, const QString &name,
+                          const QString &clientId);
+
+    /** One SSE subscriber */
+    struct EventClient {
+        QTcpSocket *socket;
+        QString repoName;
+    };
+    QList<EventClient> _eventClients;
+
     /** Recovery data held for a pages/delete call until its undoId is
      *  redeemed (or the server restarts) */
     struct PageUndo {

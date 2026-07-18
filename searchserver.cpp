@@ -257,6 +257,11 @@ void SearchServer::onClientDisconnected()
          it != _pendingExtractions.end(); ++it)
         it->waiters.removeAll(client);
 
+    // Drop any event subscription this socket held
+    for (int i = _eventClients.size() - 1; i >= 0; i--)
+        if (_eventClients[i].socket == client)
+            _eventClients.removeAt(i);
+
     client->deleteLater();
 }
 
@@ -451,6 +456,8 @@ void SearchServer::parseRequest(const QString &request, QString &method,
                 }
             } else if (headerName.toLower() == "if-none-match") {
                 params["__if_none_match__"] = headerValue;
+            } else if (headerName.toLower() == "x-client-id") {
+                params["__client_id__"] = headerValue;
             }
         }
     }
@@ -791,6 +798,9 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
 
         return response;
     }
+    else if (path.startsWith("/v1/repos/") && path.endsWith("/events")) {
+        return handleEvents(path, params, authedUser, client);
+    }
     else {
         return buildHttpResponse(404, "Not Found", "text/plain",
                                 QString("Endpoint not found"));
@@ -989,6 +999,8 @@ QByteArray SearchServer::handleTransform(const QString &path,
     /* The file's mtime has changed, so cached thumbnails and pages
        (whose cache keys include the mtime) will miss and be re-rendered
        on the next request; no explicit cache invalidation is needed. */
+    notifyStackEvent(target.repoName, "transform", target.filePath, "",
+                     params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1073,6 +1085,8 @@ QByteArray SearchServer::handleRename(const QString &path,
                                      "Rename failed"));
 
     _log.log(ServerLog::ServeFile, target.filePath + " -> " + newName);
+    notifyStackEvent(target.repoName, "rename", target.filePath, newName,
+                     params.value("__client_id__"));
     QJsonObject out;
     out["success"] = true;
     out["name"] = newName;
@@ -1145,6 +1159,9 @@ QByteArray SearchServer::handleMove(const QString &path,
 
     _log.log(ServerLog::ServeFile, target.filePath + " -> " + destDir
              + "/" + name);
+    notifyStackEvent(target.repoName, "move", target.filePath,
+                     destDir.isEmpty() ? name : destDir + "/" + name,
+                     params.value("__client_id__"));
     QJsonObject out;
     out["success"] = true;
     out["name"] = name;
@@ -1176,6 +1193,8 @@ QByteArray SearchServer::handleDelete(const QString &path,
                                      "Delete failed"));
 
     _log.log(ServerLog::ServeFile, "delete " + target.filePath);
+    notifyStackEvent(target.repoName, "delete", target.filePath, "",
+                     params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1247,6 +1266,8 @@ QByteArray SearchServer::handleRenamePage(const QString &path,
     delete file;
 
     _log.log(ServerLog::ServeFile, target.filePath + " page renamed");
+    notifyStackEvent(target.repoName, "renamePage", target.filePath, "",
+                     params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1307,6 +1328,8 @@ QByteArray SearchServer::handleUpdateAnnot(const QString &path,
     delete file;
 
     _log.log(ServerLog::ServeFile, target.filePath + " annotations");
+    notifyStackEvent(target.repoName, "annotations", target.filePath, "",
+                     params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1395,6 +1418,8 @@ QByteArray SearchServer::handleDeletePages(const QString &path,
     _pageUndos[undoId] = undo;
 
     _log.log(ServerLog::ServeFile, target.filePath + " pages deleted");
+    notifyStackEvent(target.repoName, "pagesDeleted", target.filePath, "",
+                     params.value("__client_id__"));
     QJsonObject out;
     out["success"] = true;
     out["undoId"] = undoId;
@@ -1446,6 +1471,8 @@ QByteArray SearchServer::handleUndeletePages(const QString &path,
     _pageUndos.erase(it);
 
     _log.log(ServerLog::ServeFile, target.filePath + " pages restored");
+    notifyStackEvent(target.repoName, "pagesRestored", target.filePath, "",
+                     params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1532,6 +1559,8 @@ QByteArray SearchServer::handleUnstack(const QString &path,
                                  buildJsonResponse(false, "", err->errstr));
 
     _log.log(ServerLog::ServeFile, target.filePath + " unstacked");
+    notifyStackEvent(target.repoName, "unstack", target.filePath, uniq,
+                     params.value("__client_id__"));
     QJsonObject out;
     out["success"] = true;
     out["name"] = uniq;
@@ -1619,6 +1648,8 @@ QByteArray SearchServer::handleStack(const QString &path,
                                  buildJsonResponse(false, "", err->errstr));
 
     _log.log(ServerLog::ServeFile, target.filePath + " stacked");
+    notifyStackEvent(target.repoName, "stack", target.filePath, "",
+                     params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1679,6 +1710,8 @@ QByteArray SearchServer::handleUpload(const QString &path,
                                      "Cannot commit file"));
 
     _log.log(ServerLog::ServeFile, "upload " + target.filePath);
+    notifyStackEvent(target.repoName, "upload", target.filePath, name,
+                     params.value("__client_id__"));
     QJsonObject outObj;
     outObj["success"] = true;
     outObj["name"] = name;
@@ -1686,6 +1719,81 @@ QByteArray SearchServer::handleUpload(const QString &path,
     return buildHttpResponse(200, "OK", "application/json",
                              QString::fromUtf8(QJsonDocument(outObj).toJson(
                                  QJsonDocument::Compact)));
+}
+
+QByteArray SearchServer::handleEvents(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser,
+                                      QTcpSocket *client)
+{
+    UNUSED(params);
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/events").size());
+    QString repoName = QUrl::fromPercentEncoding(rest.toUtf8());
+
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    /* the response never completes: send the SSE header now and keep
+       the socket registered for event frames */
+    /* No Content-Length and Connection: close makes the body
+       close-delimited, so the client keeps reading frames until the
+       stream really ends. */
+    QByteArray headers;
+    headers += "HTTP/1.1 200 OK\r\n";
+    headers += "Content-Type: text/event-stream\r\n";
+    headers += "Cache-Control: no-cache\r\n";
+    headers += "Access-Control-Allow-Origin: *\r\n";
+    headers += "Connection: close\r\n";
+    headers += "\r\n";
+    headers += ": connected\n\n";
+    client->write(headers);
+    client->flush();
+
+    EventClient ec;
+    ec.socket = client;
+    ec.repoName = repoName;
+    _eventClients << ec;
+    qDebug().noquote() << "SearchServer: event subscriber for" << repoName;
+    return QByteArray();
+}
+
+void SearchServer::notifyStackEvent(const QString &repoName,
+                                    const QString &op, const QString &path,
+                                    const QString &name,
+                                    const QString &clientId)
+{
+    if (_eventClients.isEmpty())
+        return;
+
+    QJsonObject data;
+    data["repo"] = repoName;
+    data["op"] = op;
+    data["path"] = path;
+    if (!name.isEmpty())
+        data["name"] = name;
+    if (!clientId.isEmpty())
+        data["origin"] = clientId;
+    QByteArray frame = "event: stackChanged\ndata: "
+        + QJsonDocument(data).toJson(QJsonDocument::Compact) + "\n\n";
+
+    for (int i = _eventClients.size() - 1; i >= 0; i--) {
+        EventClient &ec = _eventClients[i];
+
+        if (!ec.socket
+            || ec.socket->state() != QAbstractSocket::ConnectedState) {
+            _eventClients.removeAt(i);
+            continue;
+        }
+        if (ec.repoName == repoName) {
+            ec.socket->write(frame);
+            ec.socket->flush();
+        }
+    }
 }
 
 QByteArray SearchServer::handleDuplicate(const QString &path,
@@ -1718,6 +1826,8 @@ QByteArray SearchServer::handleDuplicate(const QString &path,
                                      "Copy failed"));
 
     _log.log(ServerLog::ServeFile, target.filePath + " -> " + uniq);
+    notifyStackEvent(target.repoName, "duplicate", target.filePath, uniq,
+                     params.value("__client_id__"));
     QJsonObject out;
     out["success"] = true;
     out["name"] = uniq;
