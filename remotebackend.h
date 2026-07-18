@@ -104,6 +104,29 @@ public:
     bool transformPage(const QString &repo, const QString &path,
                        int page, const QString &op);
 
+    /** Rename a stack on the server.  On success @p newName holds the
+     *  final name the server chose (with autoRename it may differ
+     *  from the requested one).  Sync. */
+    bool renameStack(const QString &repo, const QString &path,
+                     QString &newName, bool autoRename = true);
+
+    /** Rename a page of a stack on the server.  @p page is 1-based. */
+    bool renamePage(const QString &repo, const QString &path,
+                    int page, const QString &newName);
+
+    /** Move (or copy) a stack to another directory in the same repo.
+     *  @p destDir is repo-relative; "" means the root.  On success
+     *  @p finalName holds the name in the destination, which differs
+     *  from the original on a collision. */
+    bool moveStack(const QString &repo, const QString &path,
+                   const QString &destDir, bool copy, QString *finalName);
+
+    /** Delete a stack outright (no trash). */
+    bool deleteStack(const QString &repo, const QString &path);
+
+    /** Name of the shared per-repo trash directory on the server. */
+    static QString trashDirName() { return QStringLiteral(".maxview-trash"); }
+
     /** Root of this server's on-disk file cache:
      *  <cache>/paperman/<serverId>.  Empty if the server id cannot be
      *  fetched (e.g. server unreachable and never seen before). */
@@ -148,6 +171,13 @@ private:
      *  not an error. */
     QByteArray waitForReplyFull(QNetworkReply *reply, int *status,
                                 QString *etag);
+
+    /** POST a JSON body to /v1/repos/{repo}/stacks/{path}{verb} and
+     *  parse the JSON reply into *out (optional).  Returns the reply's
+     *  success flag; on failure lastError() is set. */
+    bool postStackOp(const QString &repo, const QString &path,
+                     const QString &verb, const class QJsonObject &body,
+                     class QJsonObject *out);
 
     /** Construct an async GET against pathAndQuery.  Caller takes
      *  responsibility for the returned reply's signals; reply will
