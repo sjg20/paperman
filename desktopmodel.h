@@ -108,6 +108,7 @@ class Desktopmodel : public QAbstractItemModel
 
    // the remote-operation tests drive opXxx directly
    friend class TestSearchServer;
+   friend class TestDesktopUi;
 
 public:
    Desktopmodel(QObject *parent);

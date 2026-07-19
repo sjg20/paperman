@@ -93,6 +93,9 @@ private slots:
    //! Test dragging a stack onto a folder in the tree moves it there
    void testDragDropToFolder();
 
+   //! Repositioning a stack on the desk moves it, persists and undoes
+   void testMoveStackOnDesk();
+
    //! Test importing files from a directory and moving one in
    void testImportFlow();
 
