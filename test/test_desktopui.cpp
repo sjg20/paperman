@@ -1006,6 +1006,64 @@ void TestDesktopUi::testDragDropToFolder()
    delete mime;
 }
 
+void TestDesktopUi::testMoveStackOnDesk()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   // pick the stack up with a click, as a user starting a drag would
+   clickItem(view, 0);
+   QModelIndexList selected = view->selectionModel()->selectedIndexes();
+   QCOMPARE(selected.size(), 1);
+   QModelIndex vind = selected[0];
+
+   QModelIndex ind = model->index("testfile.max", repo_ind);
+   QVERIFY(ind.isValid());
+   QPoint oldpos = model->data(ind, Desktopmodel::Role_position).toPoint();
+   QPoint newpos = oldpos + QPoint(150, 80);
+
+   /* complete the gesture the way Desktopview::dropEvent does when a
+      drag ends over empty desk space: hand the model the selection's
+      old and new positions */
+   QModelIndexList list;
+   QList<QPoint> oldlist, plist;
+   list << ind;
+   oldlist << oldpos;
+   plist << newpos;
+   model->move(list, repo_ind, oldlist, plist);
+
+   // the model and the view both show the stack at its new place
+   QCOMPARE(model->data(ind, Desktopmodel::Role_position).toPoint(),
+            newpos);
+   QTRY_COMPARE(view->visualRect(vind).topLeft(), newpos);
+
+   // the new position reaches the desk file on disk when it flushes
+   model->flushAllDesks();
+   QFile pd(path + "/.paperdesk");
+   QVERIFY(pd.open(QIODevice::ReadOnly));
+   QString expect = QString("testfile.max=%1,%2,")
+                        .arg(newpos.x()).arg(newpos.y());
+   QVERIFY2(pd.readAll().contains(expect.toUtf8()),
+            qPrintable(expect));
+
+   // undo from the menu puts it back; redo moves it again
+   me.actionUndo->trigger();
+   QCOMPARE(model->data(ind, Desktopmodel::Role_position).toPoint(),
+            oldpos);
+   QTRY_COMPARE(view->visualRect(vind).topLeft(), oldpos);
+   me.actionRedo->trigger();
+   QCOMPARE(model->data(ind, Desktopmodel::Role_position).toPoint(),
+            newpos);
+}
+
+
 void TestDesktopUi::testImportFlow()
 {
    QModelIndex repo_ind;
