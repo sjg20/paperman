@@ -100,6 +100,10 @@ private slots:
    //! one undo brings the whole group back
    void testDragDropGroupToFolder();
 
+   //! The same group drop against a remote repository moves the
+   //! files on the server, with undo
+   void testRemoteGroupMoveViaUi();
+
    //! Test importing files from a directory and moving one in
    void testImportFlow();
 
