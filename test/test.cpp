@@ -13,6 +13,7 @@
 #include "test_qscanner.h"
 #include "test_utils.h"
 #include "test_searchserver.h"
+#include "test_localbackend.h"
 #include "test_ocrsearch.h"
 
 //QTEST_MAIN(TestPaperman)
@@ -28,6 +29,7 @@ static TestPagewidget TEST_PAGEWIDGET("pagewidget");
 static TestQscanner TEST_QSCANNER("qscanner");
 static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
+static TestLocalBackend TEST_LOCALBACKEND("localbackend");
 
 int test_run(int, char **in_argv, QApplication *,
              const char *filter)

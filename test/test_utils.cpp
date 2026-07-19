@@ -1,10 +1,20 @@
 #include <QtTest/QtTest>
+#include <QBuffer>
+#include <QPainter>
+
+#include "../config.h"
 
 #include <pwd.h>
 #include <unistd.h>
 
 #include "../filemax.h"
+#include "../imageadjust.h"
 #include "../utils.h"
+
+extern "C" {
+   #define HAVE_STDINT_H 1
+   #include "../md5.h"
+   };
 #include "test.h"
 
 #include "test_utils.h"
@@ -455,4 +465,93 @@ void TestUtils::testUserName()
    struct passwd *pw = getpwuid(getuid());
    QVERIFY(pw != nullptr);
    QCOMPARE(utilUserName(), QString(pw->pw_name));
+}
+
+
+void TestUtils::testMd5()
+{
+   unsigned char digest[16];
+
+   // RFC 1321 appendix test vectors
+   md5_buffer("", 0, digest);
+   QCOMPARE(QByteArray((const char *)digest, 16).toHex(),
+            QByteArray("d41d8cd98f00b204e9800998ecf8427e"));
+
+   md5_buffer("abc", 3, digest);
+   QCOMPARE(QByteArray((const char *)digest, 16).toHex(),
+            QByteArray("900150983cd24fb0d6963f7d28e17f72"));
+
+   // long enough to exercise the block loop (> 64 bytes)
+   QByteArray many(1000, 'a');
+   md5_buffer(many.constData(), many.size(), digest);
+   QCOMPARE(QByteArray((const char *)digest, 16).toHex(),
+            QByteArray("cabe45dcc9ae5b66ba86600cca6b8ba8"));
+}
+
+
+void TestUtils::testJpegThumbnail()
+{
+   /* a picture large enough that /CONFIG_preview_scale is still a
+      few pixels across */
+   QImage img(480, 240, QImage::Format_RGB32);
+   img.fill(Qt::white);
+   QPainter paint(&img);
+   paint.fillRect(0, 0, 240, 240, Qt::black);
+   paint.end();
+
+   QByteArray jpeg;
+   QBuffer buf(&jpeg);
+   QVERIFY(buf.open(QIODevice::WriteOnly));
+   QVERIFY(img.save(&buf, "JPG"));
+
+   byte *dest = nullptr;
+   int destSize = 0;
+   cpoint size;
+   int valid = jpeg_thumbnail((byte *)jpeg.data(), jpeg.size(), &dest,
+                              &destSize, &size);
+   QVERIFY(valid != 0);
+   QVERIFY(dest != nullptr);
+   QCOMPARE(size.x, 480 / CONFIG_preview_scale);
+   QCOMPARE(size.y, 240 / CONFIG_preview_scale);
+   QVERIFY(destSize > 0);
+   free(dest);
+
+   // garbage input is rejected rather than crashing
+   QByteArray junk(200, 'x');
+   dest = nullptr;
+   QCOMPARE(jpeg_thumbnail((byte *)junk.data(), junk.size(), &dest,
+                           &destSize, &size), 0);
+}
+
+
+void TestUtils::testImageAdjustWhiten()
+{
+   /* a "scan" with a dingy grey background and dark text strokes */
+   QImage img(200, 100, QImage::Format_RGB32);
+   img.fill(QColor(200, 198, 190));
+   QPainter paint(&img);
+   paint.setPen(QPen(QColor(25, 25, 25), 2));
+   for (int i = 0; i < 8; i++)
+      paint.drawLine(10, 12 + i * 10, 190, 12 + i * 10);
+   paint.end();
+
+   ImageAdjust::apply(img, ImageAdjust::Adjust_whiten);
+
+   // the background is stretched to (near) white...
+   QVERIFY(qGray(img.pixel(5, 5)) > 240);
+   QVERIFY(qGray(img.pixel(195, 95)) > 240);
+   // ...while the text stays dark
+   QVERIFY(qGray(img.pixel(100, 12)) < 100);
+
+   QCOMPARE(ImageAdjust::name(ImageAdjust::Adjust_whiten),
+            QString("Whiten background"));
+   QCOMPARE(ImageAdjust::suffix(ImageAdjust::Adjust_whiten),
+            QString("_white"));
+
+   // formats with nothing to do are left alone
+   QImage mono(50, 50, QImage::Format_Mono);
+   mono.fill(1);
+   QImage before = mono;
+   ImageAdjust::apply(mono, ImageAdjust::Adjust_whiten);
+   QCOMPARE(mono, before);
 }

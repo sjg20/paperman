@@ -32,6 +32,15 @@ private slots:
 
    //! Test preview encode/decode against the greyscale test image
    void testPreviewFromJpeg();
+
+   //! md5_buffer() produces the RFC 1321 test-vector digests
+   void testMd5();
+
+   //! jpeg_thumbnail() scales a JPEG down through the epeg decoder
+   void testJpegThumbnail();
+
+   //! whitenBackground() cleans a dingy scan without losing the text
+   void testImageAdjustWhiten();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);
