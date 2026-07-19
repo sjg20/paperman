@@ -1,3 +1,4 @@
+#include <QPainter>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 
@@ -988,4 +989,91 @@ void TestFile::testRemoveRestorePages()
    // the restored page still decodes to the same image
    QVERIFY(!max.getImage(0, false, restored, size, trueSize, bpp, false));
    QCOMPARE(restored.size(), before.size());
+}
+
+
+void TestFile::testJpegAnnotations()
+{
+   if (!QFile::exists("/usr/bin/exiftool"))
+      QSKIP("exiftool is not installed");
+
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   QImage img(80, 60, QImage::Format_RGB32);
+   img.fill(Qt::white);
+   QVERIFY(img.save(dir + "photo.jpg", "JPG"));
+
+   {
+      Filejpeg jf(dir, "photo.jpg", nullptr);
+      QVERIFY(jf.load() == nullptr);
+
+      QHash<int, QString> updates;
+      updates[File::Annot_author] = "An Author";
+      updates[File::Annot_title] = "A Title";
+      updates[File::Annot_ocr] = "line one\nline two";
+      QVERIFY(jf.putAnnot(updates) == nullptr);
+   }
+
+   // a fresh object reads the values back from the file itself
+   Filejpeg again(dir, "photo.jpg", nullptr);
+   QVERIFY(again.load() == nullptr);
+
+   QString text;
+   QVERIFY(again.getAnnot(File::Annot_author, text) == nullptr);
+   QCOMPARE(text, QString("An Author"));
+   QVERIFY(again.getAnnot(File::Annot_title, text) == nullptr);
+   QCOMPARE(text, QString("A Title"));
+
+   /* the ocr text spans lines; it used to be dropped entirely
+      because it had no exif tag to go to */
+   QVERIFY(again.getAnnot(File::Annot_ocr, text) == nullptr);
+   QVERIFY2(text.contains("line one"), qPrintable(text));
+   QVERIFY2(text.contains("line two"), qPrintable(text));
+}
+
+
+void TestFile::testJpegTransform()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   /* left half black, right half white so a flip is visible */
+   QImage img(60, 40, QImage::Format_RGB32);
+   img.fill(Qt::white);
+   {
+      QPainter paint(&img);
+      paint.fillRect(0, 0, 30, 40, Qt::black);
+   }
+   QVERIFY(img.save(dir + "photo.jpg", "JPG"));
+
+   {
+      Filejpeg jf(dir, "photo.jpg", nullptr);
+      QVERIFY(jf.load() == nullptr);
+      QVERIFY(jf.transformPage(0, File::Transform_rotate90) == nullptr);
+   }
+
+   // the rotation lands on disk with swapped dimensions
+   QImage turned(dir + "photo.jpg");
+   QCOMPARE(turned.size(), QSize(40, 60));
+
+   {
+      Filejpeg jf(dir, "photo.jpg", nullptr);
+      QVERIFY(jf.load() == nullptr);
+      QVERIFY(jf.transformPage(0, File::Transform_rotate270) == nullptr);
+   }
+   QImage back(dir + "photo.jpg");
+   QCOMPARE(back.size(), QSize(60, 40));
+
+   // a horizontal flip swaps the dark and light halves
+   {
+      Filejpeg jf(dir, "photo.jpg", nullptr);
+      QVERIFY(jf.load() == nullptr);
+      QVERIFY(jf.transformPage(0, File::Transform_hflip) == nullptr);
+   }
+   QImage flipped(dir + "photo.jpg");
+   QVERIFY(qGray(flipped.pixel(5, 20)) > 128);    // now light on the left
+   QVERIFY(qGray(flipped.pixel(55, 20)) < 128);   // and dark on the right
 }

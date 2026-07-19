@@ -85,6 +85,13 @@ private slots:
    //! the file
    void testTransformImageCache();
 
+   //! jpeg annotations round-trip through exiftool, including the
+   //! multi-line ocr text
+   void testJpegAnnotations();
+
+   //! transformPage() on a jpeg rewrites the image on disk
+   void testJpegTransform();
+
    //! removePages then restorePages round-trips the page count without
    //! crashing (restorePages must open the file before reading chunks)
    void testRemoveRestorePages();
