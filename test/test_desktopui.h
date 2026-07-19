@@ -96,6 +96,10 @@ private slots:
    //! Repositioning a stack on the desk moves it, persists and undoes
    void testMoveStackOnDesk();
 
+   //! A multi-selected group dropped on a folder moves together and
+   //! one undo brings the whole group back
+   void testDragDropGroupToFolder();
+
    //! Test importing files from a directory and moving one in
    void testImportFlow();
 
