@@ -166,7 +166,8 @@ public slots:
    //! ensure that the last item is visible
    void scrollToLast (void);
 
-   void dataChanged (const QModelIndex & topLeft, const QModelIndex & bottomRight);
+   void dataChanged (const QModelIndex & topLeft, const QModelIndex & bottomRight,
+                     const QVector<int> &roles = QVector<int> ()) override;
 
    void rowsInserted (const QModelIndex & parent, int start, int end);
 
