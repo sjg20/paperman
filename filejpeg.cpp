@@ -193,7 +193,7 @@ err_info *Filejpeg::load_annot (void)
    QProcess process;
    QStringList args;
 
-   args << "-t" << "-s" << "-Author" << "-ImageDescription" << "-Keywords"
+   args << "-t" << "-s" << "-Artist" << "-ImageDescription" << "-Keywords"
            << _pathname;
    CALL (run_exiftool (process, "load annotations", args));
    _annot_loaded = true;
