@@ -13,13 +13,21 @@ INSTALLS += target
 
 message ("Type 'make' to build paperman")
 # To build with testing: qmake CONFIG+=test
+# To measure test coverage: scripts/coverage.sh (uses CONFIG+=coverage)
+
+coverage {
+    message("Building with gcov coverage instrumentation")
+    QMAKE_CXXFLAGS += --coverage -O0
+    QMAKE_CFLAGS += --coverage -O0
+    QMAKE_LFLAGS += --coverage
+}
 
 OCRINCPATH = /usr/local/include/nuance-omnipage-csdk-15.5
 OCRLIBPATH = /usr/local/lib/nuance-omnipage-csdk-15.5
 
 CONFIG += qt warn_on
 CONFIG -= release
-!debug: QMAKE_CXXFLAGS += -O2
+!debug:!coverage: QMAKE_CXXFLAGS += -O2
 
 #QMAKE_LFLAGS += -static
 

@@ -59,6 +59,32 @@ so the files are created automatically before running tests.
 The search-server tests copy them into temporary directories for each run so
 the originals are never modified.
 
+Code Coverage
+-------------
+
+To see how much of the C++ code the tests exercise, run:
+
+.. code:: bash
+
+   make coverage
+
+This builds the test binary with gcov instrumentation in
+``build-coverage/`` (a shadow build, so the normal build directories are
+untouched), runs the whole suite headless and writes an annotated
+per-file report to ``build-coverage/coverage.html`` plus a plain-text
+summary to ``build-coverage/coverage.txt``.  The report covers the
+application code only: the tests themselves, generated moc/qrc/ui files
+and the bundled QuiteInsane scanner code under ``qi/`` are excluded.
+
+The report needs `gcovr <https://gcovr.com/>`_ (``apt install gcovr``).
+``scripts/coverage.sh`` accepts ``QMAKE``, ``JOBS`` and ``SUITE``
+environment variables; set ``SUITE`` to a suite name (as accepted by
+``paperman -t``) to measure the coverage of a single suite:
+
+.. code:: bash
+
+   SUITE=TestSearchServer scripts/coverage.sh
+
 Flutter Widget Tests
 --------------------
 
