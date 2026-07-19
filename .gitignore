@@ -43,3 +43,4 @@ doc/_build/
 install-*
 /server.mk
 .stamp
+build-coverage/

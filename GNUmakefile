@@ -64,6 +64,12 @@ test-progressive: paperman-server
 test-parallel: paperman
 	scripts/test_parallel.sh
 
+# Build with gcov instrumentation, run the C++ suite and report
+coverage: test-setup
+	scripts/coverage.sh
+
+.PHONY: coverage
+
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 
@@ -222,6 +228,7 @@ help:
 	@echo "  test-setup       Generate test files in test/files/"
 	@echo "  test-progressive Run progressive-loading tests"
 	@echo "  test-parallel    Run parallel tests"
+	@echo "  coverage         Measure C++ test coverage (build-coverage/)"
 	@echo "  app-test         Run Flutter widget tests"
 	@echo ""
 	@echo "Release targets:"
