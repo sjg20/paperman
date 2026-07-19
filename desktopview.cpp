@@ -177,13 +177,12 @@ QSize Desktopview::setPositions ()
    }
 
 
-void Desktopview::dataChanged (const QModelIndex &topLeft, const QModelIndex &bottomRight)
+void Desktopview::dataChanged (const QModelIndex &topLeft, const QModelIndex &bottomRight,
+                               const QVector<int> &roles)
    {
-//    printf ("dataChanged\n");
-
-//    setPositions ();
-
-//    return;
+   /* Note: this must match the base-class signature exactly (with the
+      roles argument) or it never gets called, and item positions go
+      stale when the model changes them, e.g. on undoing a move */
 
    // here we update the position of the item
    QModelIndex parent = topLeft.parent ();
@@ -197,7 +196,7 @@ void Desktopview::dataChanged (const QModelIndex &topLeft, const QModelIndex &bo
       }
 
    // this is needed for stackItems()
-   QListView::dataChanged (topLeft, bottomRight);
+   QListView::dataChanged (topLeft, bottomRight, roles);
    }
 
 
