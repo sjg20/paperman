@@ -272,6 +272,7 @@ test {
       test/test_qscanner.cpp \
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
+      test/test_localbackend.cpp \
       searchserver.cpp \
       serverlog.cpp \
       tokenstore.cpp \
@@ -289,6 +290,7 @@ test {
       test/test_utils.h \
       test/test_searchserver.h \
       test/test_ocrsearch.h \
+      test/test_localbackend.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \
