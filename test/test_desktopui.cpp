@@ -1006,6 +1006,89 @@ void TestDesktopUi::testDragDropToFolder()
    delete mime;
 }
 
+void TestDesktopUi::testDragDropGroupToFolder()
+{
+   Mainwindow me;
+
+   // a third stack so the group spans all three file types
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg",
+                       path + "/colour_plasma.jpg"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+
+   /* select the whole group: click the first, then extend through the
+      selection model - item geometry can overlap, which makes
+      ctrl-clicks unreliable */
+   clickItem(view, 0);
+   for (int row = 1; row <= 2; row++)
+      view->selectionModel()->select(itemIndex(view, row),
+                                     QItemSelectionModel::Select);
+   QCOMPARE(view->selectionModel()->selectedIndexes().size(), 3);
+
+   // remember where one member sits, to check undo restores layout
+   QModelIndex maxind = model->index("testfile.max", repo_ind);
+   QVERIFY(maxind.isValid());
+   QPoint oldpos =
+      model->data(maxind, Desktopmodel::Role_position).toPoint();
+
+   // build the drag data from the multi-selection, as the view would
+   QMimeData *mime =
+      view->model()->mimeData(view->selectionModel()->selectedIndexes());
+   QVERIFY(mime);
+
+   // drop the group on the 'main' folder in the directory tree
+   QModelIndex dir_ind = desktop->findDir(path + "/main");
+   QVERIFY(dir_ind.isValid());
+   QVERIFY(desktop->_dir_proxy->dropMimeData(mime, Qt::MoveAction, -1, -1,
+                                             dir_ind));
+
+   // every member has moved on disk and left the view
+   QTRY_VERIFY(QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(QFile::exists(path + "/main/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/main/colour_plasma.jpg"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(!QFile::exists(path + "/colour_plasma.jpg"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
+
+   // a single undo brings the whole group back...
+   me.actionUndo->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+   QVERIFY(QFile::exists(path + "/testfile.max"));
+   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/colour_plasma.jpg"));
+   QVERIFY(!QFile::exists(path + "/main/testfile.max"));
+
+   // ...with the remembered stack at its old spot on the desk
+   maxind = model->index("testfile.max", repo_ind);
+   QVERIFY(maxind.isValid());
+   QCOMPARE(model->data(maxind, Desktopmodel::Role_position).toPoint(),
+            oldpos);
+
+   // and one redo moves the group out again
+   me.actionRedo->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
+   QVERIFY(QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(QFile::exists(path + "/main/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/main/colour_plasma.jpg"));
+
+   delete mime;
+}
+
+
 void TestDesktopUi::testMoveStackOnDesk()
 {
    QModelIndex repo_ind;
