@@ -19,6 +19,7 @@
 #include "pagemodel.h"
 #include "pageview.h"
 #include "pagewidget.h"
+#include "searchserver.h"
 #include "qxmlconfig.h"
 #include "test_desktopui.h"
 
@@ -1086,6 +1087,90 @@ void TestDesktopUi::testDragDropGroupToFolder()
    QVERIFY(QFile::exists(path + "/main/colour_plasma.jpg"));
 
    delete mime;
+}
+
+
+void TestDesktopUi::testRemoteGroupMoveViaUi()
+{
+   Mainwindow me;
+
+   /* serve the repo over HTTP; the same directory doubles as the
+      server's disk so the moves can be checked there */
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg",
+                       path + "/colour_plasma.jpg"));
+
+   SearchServer server(path, 9877);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+   QUrl url("http://localhost:9877");
+   QString repo = QFileInfo(path).fileName();
+   QString root = url.toString() + "/" + repo;
+
+   Desktopwidget *desktop = me.getDesktop();
+   QString err = desktop->addRemoteServer(url);
+   QVERIFY2(err.isEmpty(), qPrintable(err));
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   // click the remote repository in the folder tree to show its desk
+   QModelIndex repo_dir = desktop->findDir(root);
+   QVERIFY(repo_dir.isValid());
+   Dirview *dir = desktop->_dir;
+   dir->scrollTo(repo_dir);
+   QRect rect = dir->visualRect(repo_dir);
+   QVERIFY(rect.isValid());
+   QTest::mouseClick(dir->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     rect.center());
+   QTRY_COMPARE(desktop->getSelectedPath(), root);
+
+   Desktopview *view = desktop->getView();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+   QTest::qWait(50);   // let the item layout settle before clicking
+
+   // the remote folder tree fills in asynchronously; expand the repo
+   // so its 'main' subdirectory arrives
+   dir->expand(repo_dir);
+   QTRY_VERIFY(desktop->findDir(root + "/main").isValid());
+
+   /* select the whole group through the selection model: the async
+      thumbnail fetches resize items as they arrive, so a mouse click
+      can land on a neighbour mid-layout */
+   view->selectionModel()->clear();
+   for (int row = 0; row <= 2; row++)
+      view->selectionModel()->select(itemIndex(view, row),
+                                     QItemSelectionModel::Select);
+   QCOMPARE(view->selectionModel()->selectedIndexes().size(), 3);
+
+   QMimeData *mime =
+      view->model()->mimeData(view->selectionModel()->selectedIndexes());
+   QVERIFY(mime);
+
+   // drop the group on the remote 'main' folder
+   QModelIndex dir_ind = desktop->findDir(root + "/main");
+   QVERIFY(desktop->_dir_proxy->dropMimeData(mime, Qt::MoveAction, -1, -1,
+                                             dir_ind));
+
+   // the server's files have moved
+   QTRY_VERIFY(QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(QFile::exists(path + "/main/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/main/colour_plasma.jpg"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
+
+   // one undo moves the whole group back on the server
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/colour_plasma.jpg"));
+   QVERIFY(!QFile::exists(path + "/main/testfile.max"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+
+   delete mime;
+   server.stop();
 }
 
 
