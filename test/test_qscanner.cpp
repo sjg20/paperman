@@ -1,5 +1,7 @@
 #include <QtTest/QtTest>
 
+#include <sane/saneopts.h>
+
 #include "pscan.h"
 #include "qscandialog.h"
 #include "qscanner.h"
@@ -227,10 +229,55 @@ void TestQscanner::testReconnectPreservesSettings()
    // Set non-default values directly via QScanner.
    scanner.setDpi (400);
    QCOMPARE (scanner.xResolutionDpi (), 400);
+   scanner.setBrightness (17);
+   scanner.setContrast (-9);
+
+   /* the geometry options too: a Legal-length page and scan window,
+      plus a small top margin, must survive the reconnect */
+   int pageHeight = scanner.findOption ("page-height");
+   int bry = scanner.getBryOption ();
+   int tly = scanner.findOption (SANE_NAME_SCAN_TL_Y);
+   QVERIFY (pageHeight != -1);
+   QVERIFY (bry != -1);
+   QVERIFY (tly != -1);
+   SANE_Word legal = SANE_FIX (355.6);
+   SANE_Word margin = SANE_FIX (5.0);
+   scanner.setOption (pageHeight, &legal);
+   scanner.setOption (bry, &legal);
+   scanner.setOption (tly, &margin);
+
+   /* the backend stores millimetres in scanner units, so read-backs
+      can be a fraction of a millimetre off */
+   auto nearMm = [&](int opt, SANE_Word want) {
+      return qAbs (SANE_UNFIX (scanner.saneWordValue (opt))
+                   - SANE_UNFIX (want)) < 0.1;
+   };
+   QVERIFY (nearMm (pageHeight, legal));
+
+   /* a string option stands in for things like the Fujitsu's buffer
+      mode, which no hand-picked restore list would ever cover */
+   int compress = scanner.findOption ("compression");
+   QVERIFY (compress != -1);
+   char jpegName[] = "JPEG";
+   scanner.setOption (compress, jpegName);
+   QCOMPARE (scanner.saneStringValue (compress), QString ("JPEG"));
 
    // After reconnect the settings should still be there, without any
    // explicit reapply by the caller.
    QVERIFY (scanner.reconnect ());
    QCOMPARE (scanner.xResolutionDpi (), 400);
    QCOMPARE (scanner.yResolutionDpi (), 400);
+   QCOMPARE (scanner.getBrightness (), 17);
+   QCOMPARE (scanner.getContrast (), -9);
+
+   /* option numbers may have moved on the fresh handle; look the
+      geometry up again by name */
+   pageHeight = scanner.findOption ("page-height");
+   bry = scanner.getBryOption ();
+   tly = scanner.findOption (SANE_NAME_SCAN_TL_Y);
+   QVERIFY (nearMm (pageHeight, legal));
+   QVERIFY (nearMm (bry, legal));
+   QVERIFY (nearMm (tly, margin));
+   compress = scanner.findOption ("compression");
+   QCOMPARE (scanner.saneStringValue (compress), QString ("JPEG"));
 }
