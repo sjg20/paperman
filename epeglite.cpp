@@ -178,8 +178,13 @@ _emit_message (j_common_ptr cinfo, int msg_level)
       (*err->pub.output_message) (cinfo);
     /* Always count warnings in num_warnings. */
     err->pub.num_warnings++;
-    err->last_valid_row = decomp->output_scanline * decomp->scale_denom / decomp->scale_num;
-printf ("valid row = %d\n", err->last_valid_row);
+    /* Record how far the decode got, so a short data stream can shrink
+       the preview.  Warnings can also arrive while the header is still
+       being parsed, before the scale is set up; the scanline count
+       means nothing then (and the scale would divide by zero). */
+    if (err->decode_started && decomp->scale_num)
+      err->last_valid_row = decomp->output_scanline * decomp->scale_denom
+                            / decomp->scale_num;
   } else {
     /* It's a trace message.  Show it if trace_level >= msg_level. */
     if (err->pub.trace_level >= msg_level)
@@ -191,6 +196,9 @@ static Epeg_Image *
 _epeg_open_header(Epeg_Image *im)
 {
 	struct jpeg_source_mgr *src_mgr = NULL;
+
+	im->jerr.decode_started = 0;
+	im->jerr.last_valid_row = -1;
 
 	im->in.jinfo.err = jpeg_std_error(&(im->jerr.pub));
 	im->jerr.pub.error_exit = _epeg_fatal_error_handler;
@@ -455,14 +463,26 @@ int epeg_raw(Epeg_Image *im, int stride)
 int epeg_copy(Epeg_Image *im, int width, int height, int stride)
 {
     char *p, *s, *d, *end;
-    int y, nc, in_stride;
+    int y, nc, in_stride, line;
+
+    /* nothing decoded, or no output buffer allocated (epeg_raw()
+       failed): there is nothing to copy and nowhere to put it */
+    if (!im->pixels || !im->out.mem.data || !*im->out.mem.data)
+        return 1;
+
+    /* the output buffer holds out.h lines; never copy more */
+    if (height > im->out.h)
+        height = im->out.h;
 
     nc = im->in.jinfo.output_components;
 
     p = (char *)*im->out.mem.data;
     in_stride = im->in.jinfo.output_width * nc;
 
-//    printf ("epeg_copy size = %d\n", height *
+    /* the decoded lines hold in_stride bytes; the output lines are
+       padded to a word boundary, so copy the shorter of the two and
+       whiten the padding */
+    line = stride < in_stride ? stride : in_stride;
 
     // copy each line, reversing red and blue, and inverting
     for (y = 0; y < height; y++)
@@ -473,7 +493,11 @@ int epeg_copy(Epeg_Image *im, int width, int height, int stride)
         d [2] = s [0];
         }
        else
-           memcpy (p + stride * y, (char *)im->pixels + in_stride * (height - 1 - y), stride);
+        {
+        memcpy (p + stride * y, (char *)im->pixels + in_stride * (height - 1 - y), line);
+        if (line < stride)
+            memset (p + stride * y + line, 0xff, stride - line);
+        }
    return 0;
 }
 
@@ -757,6 +781,7 @@ static int _epeg_decode(Epeg_Image *im)
 	jpeg_start_decompress(&(im->in.jinfo));
 
     im->jerr.last_valid_row = -1;
+    im->jerr.decode_started = 1;
 	for (y = 0; y < (int)im->in.jinfo.output_height; y++)
 		im->lines[y] = im->pixels + (y * im->in.jinfo.output_components * im->in.jinfo.output_width);
 	while (im->in.jinfo.output_scanline < im->in.jinfo.output_height)

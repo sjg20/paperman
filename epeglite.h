@@ -57,6 +57,7 @@ struct _epeg_error_mgr
 	struct     jpeg_error_mgr pub;
 	jmp_buf    setjmp_buffer;
     int        last_valid_row;
+    int        decode_started;  /* scanline count is meaningful */
 };
 
 typedef struct _Epeg_Image

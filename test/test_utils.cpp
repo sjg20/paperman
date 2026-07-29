@@ -5,6 +5,9 @@
 
 #include "../filemax.h"
 #include "../utils.h"
+
+#include <QBuffer>
+#include <QPainter>
 #include "test.h"
 
 #include "test_utils.h"
@@ -455,4 +458,80 @@ void TestUtils::testUserName()
    struct passwd *pw = getpwuid(getuid());
    QVERIFY(pw != nullptr);
    QCOMPARE(utilUserName(), QString(pw->pw_name));
+}
+
+
+/* a colour JPEG with enough rows that /24 previews are a few pixels */
+static QByteArray makeTestJpeg(int width, int height, bool grey)
+{
+   QImage img(width, height,
+              grey ? QImage::Format_Grayscale8 : QImage::Format_RGB32);
+   img.fill(Qt::white);
+   QPainter paint(&img);
+   paint.fillRect(0, 0, width / 2, height, Qt::black);
+   paint.end();
+
+   QByteArray jpeg;
+   QBuffer buf(&jpeg);
+   buf.open(QIODevice::WriteOnly);
+   img.save(&buf, "JPG");
+   return jpeg;
+}
+
+void TestUtils::testJpegThumbnailCorrupt()
+{
+   /* A scanner can deliver short or misframed JPEG data (e.g. when the
+      scan window does not match the paper); the thumbnailer must cope
+      rather than writing through an unallocated buffer. */
+   QByteArray good = makeTestJpeg(480, 720, false);
+   byte *dest;
+   int destSize;
+   cpoint size;
+
+   // sanity: the intact picture thumbnails fine
+   dest = nullptr;
+   destSize = 0;
+   QVERIFY(jpeg_thumbnail((byte *)good.data(), good.size(), &dest,
+                          &destSize, &size) != 0);
+   QVERIFY(dest != nullptr);
+   free(dest);
+
+   /* truncated mid-stream: decode stops early and the preview shrinks,
+      but whatever comes back must be consistent */
+   QByteArray cut = good.left(good.size() / 2);
+   dest = nullptr;
+   destSize = 0;
+   jpeg_thumbnail((byte *)cut.data(), cut.size(), &dest, &destSize, &size);
+   if (dest)
+      free(dest);
+
+   /* A stray start-of-image marker in the stream: libjpeg warns while
+      the header is still being parsed, which used to divide by zero in
+      the warning handler (the decode scale is not set up yet).  The
+      decode either fails cleanly with no output buffer, or recovers
+      and produces a thumbnail; either way it must not crash. */
+   QByteArray twoSoi = good;
+   int insert = twoSoi.indexOf((char)0xda);   // just before scan data
+   if (insert < 0)
+      insert = twoSoi.size() / 4;
+   twoSoi.insert(insert + 100, "\xff\xd8", 2);
+   dest = nullptr;
+   destSize = 0;
+   int rc = jpeg_thumbnail((byte *)twoSoi.data(), twoSoi.size(), &dest,
+                           &destSize, &size);
+   if (rc == 0)
+      QVERIFY(dest == nullptr);
+   if (dest)
+      free(dest);
+
+   /* the same again for a greyscale picture, whose copy-out path pads
+      each row and must not read past the decoded data */
+   QByteArray greyCut = makeTestJpeg(444, 720, true);
+   greyCut.truncate(greyCut.size() / 2);
+   dest = nullptr;
+   destSize = 0;
+   jpeg_thumbnail((byte *)greyCut.data(), greyCut.size(), &dest,
+                  &destSize, &size);
+   if (dest)
+      free(dest);
 }

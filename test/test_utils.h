@@ -32,6 +32,9 @@ private slots:
 
    //! Test preview encode/decode against the greyscale test image
    void testPreviewFromJpeg();
+
+   //! jpeg_thumbnail() survives truncated and corrupt JPEG data
+   void testJpegThumbnailCorrupt();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);

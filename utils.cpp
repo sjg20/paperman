@@ -125,16 +125,22 @@ int jpeg_thumbnail (byte *data, int insize, byte **destp, int *dest_sizep, cpoin
 //   epeg_encode                    (im);
    stride = (sizep->x * im->in.jinfo.num_components + 3) & ~3;
 
-   epeg_raw                    (im, stride);
-#if 1 // don't do this for now */
+   if (epeg_raw (im, stride))
+      {
+      /* the data was too corrupt to decode at all; there is no
+         thumbnail and, crucially, no output buffer was allocated, so
+         copying would write through a wild pointer */
+      *dest_sizep = 0;
+      epeg_close (im);
+      return 0;
+      }
    valid = im->last_valid_row;
-   if (valid != -1 && valid < im->in.h)
+   if (valid != -1 && valid / CONFIG_preview_scale < sizep->y)
       {
       printf ("data short - shrink preview from %d to %d\n", sizep->y, valid / CONFIG_preview_scale);
       sizep->y = valid / CONFIG_preview_scale;    // shrink preview
       *dest_sizep = stride * sizep->y;
       }
-#endif
    epeg_copy (im, sizep->x, sizep->y, stride);
    epeg_close                     (im);
    return valid;
