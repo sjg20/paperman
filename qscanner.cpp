@@ -282,25 +282,43 @@ void QScanner::setFormat (format_t f, bool select_compression)
 /**  */
 bool QScanner::reconnect()
    {
-   // Snapshot current scanner state so we can restore it after the
-   // teardown. Without this the scanner reverts to defaults on every
-   // reconnect, regardless of which (if any) preset is selected in the
-   // UI.
-   int saved_x_dpi = -1, saved_y_dpi = -1;
-   int saved_brightness = INT_MIN, saved_contrast = INT_MIN;
-   int saved_exposure = INT_MIN;
-   bool saved_duplex = false, saved_adf = false;
-   format_t saved_format = other;
+   /* Snapshot the value of every settable option so it can be restored
+      after the teardown.  Without this the scanner reverts to defaults
+      on every reconnect, and anything not on some hand-picked list -
+      page size, scan area, compression, the Fujitsu's buffer mode and
+      friends - silently goes back to its default.  Options are keyed
+      by name, since their numbers can move on the fresh handle. */
+   struct SavedOption
+      {
+      QByteArray name;
+      QByteArray value;
+      SANE_Value_Type type;
+      };
+   QList<SavedOption> saved;
+
    if (mOpenOk)
       {
-      saved_x_dpi      = xResolutionDpi ();
-      saved_y_dpi      = yResolutionDpi ();
-      saved_duplex     = duplex ();
-      saved_adf        = useAdf ();
-      saved_format     = format ();
-      saved_brightness = getBrightness ();
-      saved_contrast   = getContrast ();
-      saved_exposure   = getExposure ();
+      int count = optionCount ();
+
+      for (int i = 1; i < count; i++)
+         {
+         const SANE_Option_Descriptor *desc
+               = do_sane_get_option_descriptor (mDeviceHandle, i);
+
+         if (!desc || !desc->name || !desc->name[0])
+            continue;
+         if (desc->type == SANE_TYPE_GROUP || desc->type == SANE_TYPE_BUTTON)
+            continue;
+         if (!SANE_OPTION_IS_ACTIVE (desc->cap)
+            || !SANE_OPTION_IS_SETTABLE (desc->cap))
+            continue;
+         QByteArray value ((int)desc->size, '\0');
+         if (do_sane_control_option (mDeviceHandle, i,
+               SANE_ACTION_GET_VALUE, value.data (), 0)
+               != SANE_STATUS_GOOD)
+            continue;
+         saved << SavedOption { desc->name, value, desc->type };
+         }
       }
 
    // Close the handle, then fully tear down the SANE backend and bring it
@@ -328,25 +346,35 @@ bool QScanner::reconnect()
    if (!openDevice ())
       return false;
 
-   // Restore the snapshot to the fresh handle.
-   if (saved_x_dpi > 0)
-      setDpi (saved_x_dpi);
-   if (saved_y_dpi > 0 && saved_y_dpi != saved_x_dpi && mOptionYRes != -1)
-      {
-      SANE_Word w = saved_y_dpi;
-      setOption (mOptionYRes, &w);
-      }
-   if (saved_adf)
-      setAdf (true);
-   if (saved_duplex)
-      setDuplex (true);
-   setFormat (saved_format);
-   if (saved_brightness != INT_MIN)
-      setBrightness (saved_brightness);
-   if (saved_contrast != INT_MIN)
-      setContrast (saved_contrast);
-   if (saved_exposure != INT_MIN)
-      setExposure (saved_exposure);
+   /* Restore the snapshot to the fresh handle.  Options are applied in
+      their original order, which puts source and mode (early options)
+      before the geometry that depends on them.  Setting one option can
+      change which others are active or what ranges they allow, so a
+      second pass picks up any that could not be applied the first time
+      or were clamped by a constraint that has since relaxed. */
+   for (int pass = 0; pass < 2; pass++)
+      foreach (const SavedOption &so, saved)
+         {
+         int num = findOption (so.name.constData ());
+
+         if (num < 0 || !isOptionActive (num))
+            continue;
+         const SANE_Option_Descriptor *desc
+               = do_sane_get_option_descriptor (mDeviceHandle, num);
+         if (!desc || desc->type != so.type
+            || (int)desc->size != so.value.size ())
+            continue;
+
+         // skip options which already have the right value
+         QByteArray current ((int)desc->size, '\0');
+         if (do_sane_control_option (mDeviceHandle, num,
+               SANE_ACTION_GET_VALUE, current.data (), 0)
+               == SANE_STATUS_GOOD && current == so.value)
+            continue;
+
+         QByteArray value = so.value;   // the backend may modify it
+         setOption (num, value.data ());
+         }
 
    return true;
    }
