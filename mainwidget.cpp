@@ -183,7 +183,12 @@ void Mainwidget::saveSettings (void)
 bool Mainwidget::complain(err_info *err)
 {
    if (err)
-      QMessageBox::warning (0, "Maxview", err->errstr);
+      {
+      if (utilTestMode())
+         qWarning() << "Error:" << err->errstr;
+      else
+         QMessageBox::warning (0, "Maxview", err->errstr);
+      }
 
    return err != nullptr;
 }

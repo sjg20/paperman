@@ -337,6 +337,12 @@ bool utilSetDirGroup(const QString& dirname);
  */
 QString utilUserName();
 
+/** record that the program is running its test suite: error reports go
+    to the console instead of a modal dialog, which would hang a headless
+    test run */
+void utilSetTestMode(bool testing);
+bool utilTestMode();
+
 /**
  * @brief Set up the utils file
  * @param group  Name of the public group to use for utilSetGroup()

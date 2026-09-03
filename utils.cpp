@@ -1217,6 +1217,18 @@ QString utilUserName()
 #endif
 }
 
+static bool test_mode;
+
+void utilSetTestMode(bool testing)
+{
+   test_mode = testing;
+}
+
+bool utilTestMode()
+{
+   return test_mode;
+}
+
 void utilInit(const QString& group)
 {
 #ifdef Q_OS_WIN
