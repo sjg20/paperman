@@ -38,8 +38,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#define isatty _isatty
+#else
 #include <termios.h>
 #include <unistd.h>
+#endif
 
 void printUsage(const char *progName)
 {
@@ -69,14 +75,23 @@ static QString readPasswordHidden(const QString &prompt)
 {
     std::cout << prompt.toStdString() << std::flush;
 
-    termios oldt;
     bool echoToggled = false;
+#ifdef Q_OS_WIN
+    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD oldMode = 0;
+    if (isatty(fileno(stdin)) && GetConsoleMode(hin, &oldMode)) {
+        if (SetConsoleMode(hin, oldMode & ~ENABLE_ECHO_INPUT))
+            echoToggled = true;
+    }
+#else
+    termios oldt;
     if (isatty(fileno(stdin)) && tcgetattr(fileno(stdin), &oldt) == 0) {
         termios newt = oldt;
         newt.c_lflag &= ~(tcflag_t)ECHO;
         if (tcsetattr(fileno(stdin), TCSANOW, &newt) == 0)
             echoToggled = true;
     }
+#endif
 
     char buf[256];
     QString line;
@@ -87,7 +102,11 @@ static QString readPasswordHidden(const QString &prompt)
     }
 
     if (echoToggled) {
+#ifdef Q_OS_WIN
+        SetConsoleMode(hin, oldMode);
+#else
         tcsetattr(fileno(stdin), TCSANOW, &oldt);
+#endif
         std::cout << "\n";
     }
     return line;

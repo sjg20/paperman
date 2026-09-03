@@ -45,7 +45,17 @@ equals(QT_MAJOR_VERSION, 5) {
 #LIBS += -lkernelapi -Wl,-rpath-link,$$OCRLIBPATH,-rpath,$$OCRLIBPATH
 
 LIBS += -lpodofo
-LIBS += -ltiff -lsane -ljpeg -lz -ldl
+LIBS += -ltiff -ljpeg -lz
+
+# There is no libsane on Windows: build against the bundled headers and a
+# stub library, leaving only the simulated scanner. dlsym() is only used to
+# look up the optional sane_read_dup() extension, so it goes too
+win32 {
+    INCLUDEPATH += win32
+    SOURCES += win32/sanestub.cpp
+} else {
+    LIBS += -lsane -ldl
+}
 
 INCLUDEPATH += qi /usr/local/lib
 INCLUDEPATH += $$OCRINCPATH
@@ -307,10 +317,24 @@ test {
 #release
 
 
-unix {
-    UI_DIR = .ui
-    MOC_DIR = .moc
-    OBJECTS_DIR = .obj
+# Keep the generated files out of the source directory. This must apply on
+# every platform: the server build shares the directory and would otherwise
+# pick up these objects, compiled with widgets, instead of its own
+UI_DIR = .ui
+MOC_DIR = .moc
+OBJECTS_DIR = .obj
+
+win32 {
+    # MSYS2 lays the headers out under the toolchain prefix; qmake does not
+    # know about them, so ask pkg-config for poppler and podofo
+    CONFIG += link_pkgconfig
+    PKGCONFIG += libpodofo
+    equals(QT_MAJOR_VERSION, 6): PKGCONFIG += poppler-qt6
+    equals(QT_MAJOR_VERSION, 5): PKGCONFIG += poppler-qt5
+    # the tests run with the source directory as the working directory, so
+    # keep the executable next to the sources rather than in debug/release
+    CONFIG -= debug_and_release
+    DESTDIR = .
 }
 
 QT += xml

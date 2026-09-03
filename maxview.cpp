@@ -28,7 +28,9 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 
 #include <unistd.h>
 #include <getopt.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 
 #include <QDebug>
 #include <QDir>
@@ -608,6 +610,7 @@ int main (int argc, char *argv[])
    QString adjust_name;
    QString serverUrl;                     // --server URL
 
+#ifndef Q_OS_WIN
    struct rlimit limit;
 
    if (!getrlimit(RLIMIT_NOFILE, &limit) && limit.rlim_cur < 20000) {
@@ -618,6 +621,7 @@ int main (int argc, char *argv[])
       if (setrlimit(RLIMIT_NOFILE, &limit))
          qDebug() << "Setting nofile limit failed";
    }
+#endif
 
    while (c = getopt_long (argc, argv, "hj:m:o:p:q:s:t",
                            long_options, NULL), c != -1)
@@ -725,7 +729,7 @@ int main (int argc, char *argv[])
       {
       useGUI = false;
       // Force offscreen platform for console mode
-      setenv("QT_QPA_PLATFORM", "offscreen", 1);
+      qputenv("QT_QPA_PLATFORM", "offscreen");
       }
 
    if (!need_gui && op_type == -1 && !useGUI)
@@ -1107,6 +1111,11 @@ int main (int argc, char *argv[])
          maxdesk.buildIndex (index, fname);
 #endif
       }
+
+   /* the command-line operations fall through to here; without an explicit
+      return GCC treats the end of the function as unreachable and MinGW
+      builds die with an illegal instruction */
+   return 0;
    }
 
 

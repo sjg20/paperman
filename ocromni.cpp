@@ -27,7 +27,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef CONFIG_use_omnipage
 #include <dlfcn.h>
+#endif
 
 #include <QDataStream>
 #include <QDebug>

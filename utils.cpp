@@ -23,7 +23,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <cerrno>
 #include <cstring>
+#ifndef _WIN32
 #include <grp.h>
+#endif
 
 #include <QDate>
 #include <QDebug>
@@ -52,9 +54,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <sys/types.h>
 
 #include <limits.h>
-#include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <lmcons.h>
+#else
+#include <pwd.h>
+#endif
 
 #include "epeglite.h"
 
@@ -68,7 +76,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "utils.h"
 #include "zip.h"
 
+#ifndef Q_OS_WIN
 static int public_gid = -1;
+#endif
 
 bool getSettingsSizes (QString base, QList<int> &size)
    {
@@ -277,7 +287,7 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
          if (cinfo.output_components == 3 && bpp == 32)
             {
             byte *in;
-            u_int32_t *out;
+            uint32_t *out;
             int i;
 
             mem_check ();
@@ -285,7 +295,7 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
             i = cinfo.output_width;
             if (max_width != -1 && i > max_width)
                 i = max_width;
-            for (out = (u_int32_t *)dest; i != 0;
+            for (out = (uint32_t *)dest; i != 0;
                  i--, in += 3)
                *out++ = in [2] | (in [1] << 8) | (in [0] << 16);
             mem_check ();
@@ -416,7 +426,7 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
        if (bpp == 32)
           {
           int i;
-          u_int32_t *in;
+          uint32_t *in;
           byte *out;
 
           for (i = valid, in = (unsigned *)ptr, out = buff; i != 0;
@@ -472,7 +482,7 @@ void memtest (const char *name)
    int *test = new int [5];
 
    fprintf (stderr, "test %s: %p\n", name, test);
-   Q_ASSERT ((unsigned long)test < 0xb0000000);
+   Q_ASSERT ((uintptr_t)test < 0xb0000000);
    }
 
 
@@ -655,26 +665,15 @@ void util_incrementFilename (QString &name, bool useNum)
 err_info *util_getUsername (QString &userName)
    {
    userName = "whoami";
-#if defined(Q_WS_WIN)
-   // in Windows land...
-#if defined(UNICODE)
-   if ( qWinVersion() & Qt::WV_NT_based )
-      {
-      TCHAR winUserName[UNLEN + 1]; // UNLEN is defined in LMCONS.H
-      DWORD winUserNameSize = sizeof(winUserName);
-      GetUserName( winUserName, &winUserNameSize );
-      userName = qt_winQString( winUserName );
-      } 
-   else
-#endif
-      {
-      char winUserName[UNLEN + 1]; // UNLEN is defined in LMCONS.H
-      DWORD winUserNameSize = sizeof(winUserName);
-      GetUserNameA( winUserName, &winUserNameSize );
-      userName = QString::fromLocal8Bit( winUserName );
-      }
+#ifdef Q_OS_WIN
+   char winUserName[UNLEN + 1];
+   DWORD winUserNameSize = sizeof(winUserName);
+
+   if (!GetUserNameA (winUserName, &winUserNameSize))
+      return err_make (ERRFN, ERR_failed_to_read_username1,
+                       "GetUserName() failed");
+   userName = QString::fromLocal8Bit (winUserName);
 #else
-   // in the real world
    char name [200];
    struct passwd pwd, *user;
 
@@ -1142,6 +1141,10 @@ TreeItem *utilReadTree(QString fname, QString rootName)
 
 bool utilSetDirGroup(const QString& dirname)
 {
+#ifdef Q_OS_WIN
+    Q_UNUSED(dirname);
+    return true;
+#else
     if (public_gid == -1)
         return true;
     if (chmod(qPrintable(dirname), 0777) == -1) {
@@ -1157,10 +1160,15 @@ bool utilSetDirGroup(const QString& dirname)
         return false;
     }
     return true;
+#endif
 }
 
 bool utilSetGroup(const QString& fname)
 {
+#ifdef Q_OS_WIN
+    Q_UNUSED(fname);
+    return true;
+#else
     if (public_gid == -1)
         return true;
     if (chmod(qPrintable(fname), 0666) == -1) {
@@ -1176,10 +1184,18 @@ bool utilSetGroup(const QString& fname)
         return false;
     }
     return true;
+#endif
 }
 
 QString utilUserName()
 {
+#ifdef Q_OS_WIN
+   QString name;
+
+   if (!util_getUsername (name))
+      return name;
+   return "";
+#else
    char username[80];
 
    /* identify the user by uid: getlogin_r() needs a controlling
@@ -1195,10 +1211,16 @@ QString utilUserName()
       return username;
 
    return "";
+#endif
 }
 
 void utilInit(const QString& group)
 {
+#ifdef Q_OS_WIN
+   // there are no Unix groups to share scratch directories with
+   if (!group.isEmpty())
+      qDebug() << "Ignoring group" << group << "on Windows";
+#else
    struct group *grp;
 
    if (!group.isEmpty()) {
@@ -1209,6 +1231,7 @@ void utilInit(const QString& group)
       }
       public_gid = grp->gr_gid;
    }
+#endif
 }
 
 

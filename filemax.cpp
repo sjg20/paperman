@@ -3459,7 +3459,7 @@ static void TIFFFlushData1 (TIFF *tiff)
 
 #define  is2DEncoding(sp) \
    (sp->b.groupoptions & GROUP3OPT_2DENCODING)
-#define  isAligned(p,t) ((((u_long)(p)) & (sizeof (t)-1)) == 0)
+#define  isAligned(p,t) ((((uintptr_t)(p)) & (sizeof (t)-1)) == 0)
 #define  TIFFroundup(x, y) (TIFFhowmany(x,y)*((uint32_t)(y)))
 #define  TIFFhowmany(x, y) ((((uint32_t)(x))+(((uint32_t)(y))-1))/((uint32_t)(y)))
 
@@ -4574,7 +4574,7 @@ static int add_image_header (chunk_info &chunk, byte *buf)
    ptr [12] = chunk.parts.size ();
 
    iptr = (unsigned *)(buf + POS_part0);
-   assert (!((long int)iptr & 3));
+   assert (!((uintptr_t)iptr & 3));
    for (i = 0; i < chunk.parts.size (); i++, iptr += 2)
       {
       part_info &part = chunk.parts [i];

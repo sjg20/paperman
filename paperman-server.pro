@@ -79,5 +79,14 @@ unix {
     INSTALLS += target
 }
 
+win32 {
+    CONFIG += link_pkgconfig
+    PKGCONFIG += libpodofo
+    equals(QT_MAJOR_VERSION, 6): PKGCONFIG += poppler-qt6
+    equals(QT_MAJOR_VERSION, 5): PKGCONFIG += poppler-qt5
+    CONFIG -= debug_and_release
+    DESTDIR = .
+}
+
 message("Building Paperman Search Server")
 message("Run 'qmake && make' to build")

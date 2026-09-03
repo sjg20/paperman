@@ -90,7 +90,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#ifndef Q_OS_WIN
 #include <sys/wait.h>
+#endif
 
 extern "C"
 {
