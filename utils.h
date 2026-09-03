@@ -343,6 +343,27 @@ QString utilUserName();
 void utilSetTestMode(bool testing);
 bool utilTestMode();
 
+/** rename a file, retrying briefly if it fails
+
+    On Windows a file which has just been written is often still held
+    open for a moment by the search indexer or virus scanner, so a rename
+    can fail transiently; Windows also refuses to rename a file another
+    process has open
+
+    \param from   existing path
+    \param to     new path, which must not exist
+    \param error  returns the error string on failure
+    \returns true on success */
+bool utilRenameFile(const QString &from, const QString &to, QString *error);
+
+/** replace a file with another, retrying briefly as for utilRenameFile()
+
+    \param from   existing path
+    \param to     path to replace; any existing file is removed first
+    \param error  returns the error string on failure
+    \returns true on success */
+bool utilReplaceFile(const QString &from, const QString &to, QString *error);
+
 /**
  * @brief Set up the utils file
  * @param group  Name of the public group to use for utilSetGroup()

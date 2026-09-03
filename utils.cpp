@@ -66,6 +66,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDir>
 #include <QTemporaryFile>
+#include <QThread>
 
 #include "epeglite.h"
 
@@ -1218,6 +1219,39 @@ QString utilUserName()
 }
 
 static bool test_mode;
+
+// how long to keep retrying a rename in total, in 50ms steps
+static const int RENAME_RETRIES = 20;
+
+bool utilRenameFile(const QString &from, const QString &to, QString *error)
+{
+   QFile file(from);
+
+   for (int i = 0; i < RENAME_RETRIES; i++) {
+      if (file.rename(to))
+         return true;
+      if (i == RENAME_RETRIES - 1 || !file.exists() || QFile::exists(to))
+         break;
+      QThread::msleep(50);
+   }
+   if (error)
+      *error = file.errorString();
+   return false;
+}
+
+bool utilReplaceFile(const QString &from, const QString &to, QString *error)
+{
+   QFile old(to);
+
+   for (int i = 0; i < RENAME_RETRIES; i++) {
+      if (!old.exists() || old.remove())
+         return utilRenameFile(from, to, error);
+      QThread::msleep(50);
+   }
+   if (error)
+      *error = QString("cannot remove %1: %2").arg(to, old.errorString());
+   return false;
+}
 
 void utilSetTestMode(bool testing)
 {

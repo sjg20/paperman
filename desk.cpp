@@ -1127,9 +1127,10 @@ err_info *Desk::moveFromDir (QString &fromDir, QString &trashname, QString &file
    QDir dir;
    QString from = fromDir + "/" + trashname;
    QString to = _dir + filename;
-   if (!dir.rename (from, to))
+   QString error;
+   if (!utilRenameFile (from, to, &error))
       return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (from),
-            qPrintable (to));
+            qPrintable (to + ": " + error));
    fnew = createFile (_dir, filename);
    newFile (fnew);
    return NULL;
