@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 #include "file.h"
 #include "pdfio.h"
+#include "utils.h"
 
 
 #define EXCEPTIONS
@@ -191,11 +192,10 @@ err_info *Pdfio::close (void)
 #ifdef CONFIG_use_poppler
    _pop.reset();
 #endif
-   if (QFile::exists (_pathname))
-      QFile::remove (_pathname);
-   if (!QFile::rename (tmpname, _pathname))
+   QString error;
+   if (!utilReplaceFile (tmpname, _pathname, &error))
       return err_make (ERRFN, ERR_could_not_rename_file2,
-            qPrintable (tmpname), qPrintable (_pathname));
+            qPrintable (tmpname), qPrintable (_pathname + ": " + error));
 
    // reopen both libraries' views of the new file
    return open ();

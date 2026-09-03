@@ -714,9 +714,10 @@ err_info *File::move (QString &newDir, QString &newName, bool copy)
          ERR_could_not_copy_file2, qPrintable (oldPath),
                   qPrintable (newPath));
    CALL (release ());
-   if (!dir.rename (oldPath, newPath))
+   QString error;
+   if (!utilRenameFile (oldPath, newPath, &error))
       return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (oldPath),
-                  qPrintable (newPath));
+                  qPrintable (newPath + ": " + error));
    utilSetGroup(newPath);
 
    return NULL;
