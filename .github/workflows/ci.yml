@@ -86,6 +86,54 @@ jobs:
       - name: Run parallel conversion test
         run: scripts/test_parallel.sh
 
+  windows:
+    name: Windows (MSYS2 MinGW64, Qt6) desktop app + server + C++ tests
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-scxml
+            mingw-w64-x86_64-poppler-qt6
+            mingw-w64-x86_64-podofo
+            mingw-w64-x86_64-libtiff
+            mingw-w64-x86_64-libjpeg-turbo
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-poppler
+            mingw-w64-x86_64-ghostscript
+            mingw-w64-x86_64-tesseract-ocr
+            mingw-w64-x86_64-tesseract-data-eng
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-python-reportlab
+            mingw-w64-x86_64-python-pillow
+            mingw-w64-x86_64-python-numpy
+
+      - name: Build desktop app
+        run: qmake6 paperman.pro -o Makefile.win && make -k -f Makefile.win -j$(nproc)
+
+      - name: Build server
+        run: |
+          qmake6 paperman-server.pro -o server.mk
+          echo '#define SERVER_BUILD_DATE "CI"' > builddate.h
+          make -k -f server.mk -j$(nproc)
+
+      - name: Generate test data
+        run: python3 scripts/make_test_files.py
+
+      - name: Run Qt unit tests
+        run: QT_QPA_PLATFORM=offscreen ./paperman.exe -t
+
   flutter:
     name: Flutter app + widget tests
     runs-on: ubuntu-24.04
