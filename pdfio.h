@@ -207,6 +207,9 @@ protected:
       \returns the rotated image */
    QImage apply_rotation (int pagenum, const QImage &image) const;
 
+   /** returns the /Rotate value of a page, normalised to 0-359 */
+   int page_rotation (int pagenum) const;
+
    err_info *make_error (const PoDoFo::PdfError &eCode);
 
 private:

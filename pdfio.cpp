@@ -46,6 +46,17 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 using namespace PoDoFo;
 
 
+/* PoDoFo 1.x reworked its API: pages live in a PdfPageCollection,
+   images are created by the document and described by PdfImageInfo,
+   the content tokenizer became PdfContentStreamReader and most accessors
+   return references rather than pointers. Debian and Ubuntu still ship
+   0.9.8 while MSYS2 (used for the Windows build) has 1.x, so support
+   both */
+#if PODOFO_VERSION_MAJOR >= 1
+#define PODOFO_1X
+#endif
+
+
 Pdfio::Pdfio (const QString &fname)
    {
    _doc = 0;
@@ -53,7 +64,9 @@ Pdfio::Pdfio (const QString &fname)
    _pop = nullptr;
 #endif
    _pathname = fname;
+#ifndef PODOFO_1X
    PoDoFo::PdfError::EnableDebug(false);
+#endif
    }
 
 
@@ -126,11 +139,21 @@ err_info *Pdfio::create (void)
 //       qDebug () << _pathname;
       _doc = new PdfMemDocument ();
       //FIXME: put proper fields in here
+#ifdef PODOFO_1X
+      PdfMetadata &meta = _doc->GetMetadata ();
+
+      meta.SetCreator (PdfString ("Maxview - manage your paper"));
+      meta.SetAuthor (PdfString ("Simon Glass"));
+      meta.SetTitle (PdfString (""));
+      meta.SetSubject (PdfString (""));
+      meta.SetKeywords (std::vector<std::string> {"sep", "sep"});
+#else
       _doc->GetInfo()->SetCreator ( PdfString("Maxview - manage your paper") );
       _doc->GetInfo()->SetAuthor  ( PdfString("Simon Glass") );
       _doc->GetInfo()->SetTitle   ( PdfString("") );
       _doc->GetInfo()->SetSubject ( PdfString("") );
       _doc->GetInfo()->SetKeywords( PdfString("sep;sep;") );
+#endif
       }
    catch (const PdfError &eCode)
       {
@@ -149,7 +172,11 @@ err_info *Pdfio::close (void)
 
    try
       {
+#ifdef PODOFO_1X
+      _doc->Save (tmpname.toLatin1 ().constData());
+#else
       _doc->Write (tmpname.toLatin1 ().constData());
+#endif
       }
    catch (const PdfError &eCode)
       {
@@ -172,11 +199,73 @@ err_info *Pdfio::close (void)
    }
 
 
+#ifdef PODOFO_1X
+
+/* PoDoFo 1.x helpers */
+
+/* scale an image to fill the page, keeping its aspect ratio, and draw it
+   at the bottom left */
+static void draw_scaled (PdfPage &page, const PdfImage &image)
+   {
+   PdfPainter painter;
+   Rect rect = page.GetRect ();
+   double xscale = rect.Width / image.GetWidth ();
+   double yscale = rect.Height / image.GetHeight ();
+   double scale = qMin (xscale, yscale);
+
+   painter.SetCanvas (page);
+   painter.DrawImage (image, rect.X, rect.Y, scale, scale);
+   painter.FinishDrawing ();
+   }
+
+
+/* store uncompressed pixel data in an image, flate-compressing it. Uses
+   the raw path so 1-bit images are supported */
+static void set_image_pixels (PdfImage &image, const QByteArray &ba,
+                              int width, int height, int depth)
+   {
+   PdfImageInfo info;
+
+   info.Width = width;
+   info.Height = height;
+   info.BitsPerComponent = depth == 1 ? 1 : 8;
+   info.ColorSpace = depth <= 8 ? PdfColorSpaceType::DeviceGray
+         : PdfColorSpaceType::DeviceRGB;
+   image.SetDataRaw (bufferview (ba.constData (), ba.size ()), info);
+
+   /* SetDataRaw() stores the bytes as they are, so compress them now */
+   SpanStreamDevice stream (bufferview (ba.constData (), ba.size ()));
+   image.GetObject ().GetOrCreateStream ().SetData (stream,
+         PdfFilterList {PdfFilterType::FlateDecode}, false);
+   }
+
+#endif
+
+
 err_info *Pdfio::addPage (const Filepage *mp)
    {
    mytry
       {
       Q_ASSERT (_doc);
+#ifdef PODOFO_1X
+      PdfPage &page = _doc->GetPages ().CreatePage (PdfPageSize::A4);
+
+      QImage imthumb;
+      QByteArray ba = mp->getThumbnailRaw (false, imthumb, false);
+      std::unique_ptr<PdfImage> thumb = _doc->CreateImage ();
+
+      set_image_pixels (*thumb, ba, imthumb.width (), imthumb.height (),
+                        imthumb.depth ());
+      page.GetDictionary ().AddKey (PdfName ("Thumb"),
+            PdfObject (thumb->GetObject ().GetIndirectReference ()));
+
+      // now the main image
+      std::unique_ptr<PdfImage> image = _doc->CreateImage ();
+
+      ba = mp->copyData (mp->_depth == 1, true);
+      set_image_pixels (*image, ba, mp->_width, mp->_height, mp->_depth);
+      draw_scaled (page, *image);
+#else
 //       _doc = new PdfMemDocument (_fname.latin1 ());
       PdfPage *page;
       PdfPainter painter;
@@ -243,6 +332,7 @@ err_info *Pdfio::addPage (const Filepage *mp)
          scale = yscale;
       painter.DrawImage (rect.GetLeft (), rect.GetBottom (), image, scale, scale);
       painter.FinishPage();
+#endif
       }
 #ifdef EXCEPTIONS
    catch (const PdfError &eCode)
@@ -260,6 +350,22 @@ err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
    mytry
       {
       Q_ASSERT (_doc);
+#ifdef PODOFO_1X
+      PdfPage &page = _doc->GetPages ().CreatePage (PdfPageSize::A4);
+      std::unique_ptr<PdfImage> image = _doc->CreateImage ();
+      PdfImageInfo info;
+
+      /* Write the pre-compressed JPEG stream with DCTDecode filter */
+      info.Width = width;
+      info.Height = height;
+      info.BitsPerComponent = 8;
+      info.Filters = PdfFilterList {PdfFilterType::DCTDecode};
+      info.ColorSpace = colour ? PdfColorSpaceType::DeviceRGB
+            : PdfColorSpaceType::DeviceGray;
+      image->SetDataRaw (bufferview (jpegData.constData (), jpegData.size ()),
+                         info);
+      draw_scaled (page, *image);
+#else
       PdfPage *page;
       PdfPainter painter;
 
@@ -287,6 +393,7 @@ err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
       painter.DrawImage (rect.GetLeft (), rect.GetBottom (), image,
                          scale, scale);
       painter.FinishPage();
+#endif
       }
 #ifdef EXCEPTIONS
    catch (const PdfError &eCode)
@@ -300,6 +407,12 @@ err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
 
 err_info *Pdfio::make_error (const PdfError &eCode)
    {
+#ifdef PODOFO_1X
+   eCode.PrintErrorMsg ();
+   for (const PdfErrorInfo &info : eCode.GetCallStack ())
+      qDebug () << info.GetInformation ().c_str ();
+   return err_make (ERRFN, ERR_pdf_creation_error1, eCode.what ());
+#else
    TDequeErrorInfo info = eCode.GetCallstack ();
    TCIDequeErrorInfo it = info.begin ();
 
@@ -310,6 +423,18 @@ err_info *Pdfio::make_error (const PdfError &eCode)
       it++;
       }
    return err_make (ERRFN, ERR_pdf_creation_error1, eCode.ErrorMessage (eCode.GetError()));
+#endif
+   }
+
+
+/* returns the /Rotate value of a page, normalised to 0-359 */
+int Pdfio::page_rotation (int pagenum) const
+   {
+#ifdef PODOFO_1X
+   return (int)_doc->GetPages ().GetPageAt (pagenum).GetRotation () % 360;
+#else
+   return ((_doc->GetPage (pagenum)->GetRotation () % 360) + 360) % 360;
+#endif
    }
 
 
@@ -375,8 +500,7 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
 
          /* a 90 or 270 degree /Rotate swaps the displayed dimensions,
             to match the rotated image apply_rotation() produces */
-         int rot = ((_doc->GetPage (pagenum)->GetRotation () % 360) + 360)
-               % 360;
+         int rot = page_rotation (pagenum);
          if (rot == 90 || rot == 270)
             size.transpose ();
          return NULL;
@@ -420,8 +544,7 @@ QImage Pdfio::apply_rotation (int pagenum, const QImage &image) const
 
    /* /Rotate is the clockwise rotation a viewer applies to the page,
       so map it to the matching image transform */
-   int rotation = ((_doc->GetPage (pagenum)->GetRotation () % 360) + 360)
-         % 360;
+   int rotation = page_rotation (pagenum);
    switch (rotation)
       {
       case 90 :
@@ -451,12 +574,15 @@ void Pdfio::get_image_details (const PdfDictionary *dict, int &width, int &heigh
    width = pwidth->GetNumber();
    height = pheight->GetNumber();
    int bpc = pbits->GetNumber();
+#ifdef PODOFO_1X
+   QString cs = pcolor && pcolor->IsName ()
+         ? QString::fromStdString (std::string (pcolor->GetName ().GetString ()))
+         : QString ();
+#else
    QString cs = pcolor->GetName().GetName ().c_str ();
-   EPdfColorSpace space = cs == "DeviceRGB" ? ePdfColorSpace_DeviceRGB
-         : cs == "DeviceGray" ? ePdfColorSpace_DeviceGray
-         : ePdfColorSpace_DeviceGray;
+#endif
    bpp = bpc;
-   if (space == ePdfColorSpace_DeviceRGB)
+   if (cs == "DeviceRGB")
       bpp *= 3;
    }
 
@@ -481,9 +607,18 @@ err_info *Pdfio::getImage (QString fname, int pagenum, QImage &image, double xsc
 
          get_image_details (dict, width, height, bpp);
          // qDebug () << "image" << width << height << bpp;
+#ifdef PODOFO_1X
+         /* GetCopy() decodes the stream and throws for filters it cannot
+            handle, such as DCTDecode, which drops us into the poppler
+            fallback below */
+         charbuff copy = obj->MustGetStream ().GetCopy ();
+         char *buff = copy.data ();
+         long len = copy.size ();
+#else
          char *buff;
          pdf_long len;
          obj->GetStream()->GetFilteredCopy (&buff, &len);
+#endif
 //          qDebug () << buff << len;
          int stride = (width * bpp + 7) / 8;
 //         qDebug () << "width" << width << "bpp" << bpp << "stride" << stride
@@ -535,12 +670,22 @@ err_info *Pdfio::rotatePage (int pagenum, int degrees)
       CALL (open ());
    try
       {
+#ifdef PODOFO_1X
+      PdfPageCollection &pages = _doc->GetPages ();
+
+      if (pagenum < 0 || (unsigned)pagenum >= pages.GetCount ())
+         return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
+               pagenum + 1);
+      PdfPage &page = pages.GetPageAt (pagenum);
+      page.SetRotation ((page.GetRotation () + degrees) % 360);
+#else
       PdfPage *page = _doc->GetPage (pagenum);
 
       if (!page)
          return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
                pagenum + 1);
       page->SetRotation ((page->GetRotation () + degrees) % 360);
+#endif
       }
    catch (const PdfError &eCode)
       {
@@ -567,10 +712,74 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
    {
    if (!_doc)
       return 0;
+   bool image_only = true;
+   QString image_name;
+   PdfReference ref;
+
+   dict = 0;
+#ifdef PODOFO_1X
+   /* walk the content stream: the page is a plain image if it only
+      uses the transform, state and Do operators */
+   PdfPage &page = _doc->GetPages ().GetPageAt (pagenum);
+   PdfContentReaderArgs args;
+
+   // report Do as a plain operator rather than resolving the XObject
+   args.Flags = (PdfContentReaderFlags)
+         ((int)PdfContentReaderFlags::SkipFollowFormXObjects
+          | (int)PdfContentReaderFlags::SkipHandleNonFormXObjects);
+   PdfContentStreamReader reader (page, args);
+   PdfContent content;
+
+   while (image_only && reader.TryReadNext (content))
+      {
+      switch (content.GetType ())
+         {
+         case PdfContentType::Operator :
+            {
+            PdfOperator op = content.GetOperator ();
+            const PdfVariantStack &stack = content.GetStack ();
+
+            if (op != PdfOperator::q && op != PdfOperator::Q
+                && op != PdfOperator::cm && op != PdfOperator::Do)
+               image_only = false;
+            if (op == PdfOperator::Do && stack.GetSize () == 1
+                && stack [0].IsName () && image_name.isEmpty ())
+               image_name = QString::fromStdString (
+                     std::string (stack [0].GetName ().GetString ()));
+            break;
+            }
+
+         case PdfContentType::UnexpectedKeyword :
+            image_only = false;
+            break;
+
+         default :
+            break;
+         }
+      }
+   if (!image_only)
+      return 0;
+
+   /* find the XObject the page draws: the one named by Do if we saw it,
+      otherwise the last one in the resources */
+   const PdfResources &res = page.GetResources ();
+   const PdfObject *xobjects = res.GetDictionary ().FindKey ("XObject");
+   if (xobjects && xobjects->IsDictionary ())
+      {
+      for (auto &pair : xobjects->GetDictionary ())
+         {
+         if (!pair.second.IsReference ())
+            continue;
+         ref = pair.second.GetReference ();
+         if (QString::fromStdString (std::string (pair.first.GetString ()))
+             == image_name)
+            break;
+         }
+      }
+#else
    PdfPage *page = _doc->GetPage (pagenum);
    const PdfObject *obj = page->GetContents ();
 
-   dict = 0;
 //    qDebug () << "has stream" << _pathname << obj->HasStream ();
    PdfContentsTokenizer token (page); //stream->Get(), stream->GetLength());
    EPdfContentsType t;
@@ -578,9 +787,8 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
    char str [10], *s;
    const char *p;
    PdfVariant var;
-   bool ok, image_only = true;
+   bool ok;
    QList <PdfVariant> stack;
-   QString image_name;
 
 //    qDebug () << "decoding file" << _pathname;
    QString allowed = ",cm,q,Q,Do,";
@@ -615,7 +823,6 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
    if (!image_only)
       return 0;
    obj = page->GetResources ();
-   PdfReference ref;
    QString refstr;
 
    if (obj->IsDictionary ())
@@ -643,6 +850,7 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
             }
          }
       }
+#endif
 
 //    qDebug () << "ref" << ref.ToString ().c_str ();
    return get_xobject_image (ref, dict);
@@ -662,8 +870,12 @@ const PdfObject *Pdfio::get_thumbnail_obj (int pagenum, const PdfDictionary *&di
    {
    if (!_doc)
       return 0;
+#ifdef PODOFO_1X
+   const PdfObject *obj = &_doc->GetPages ().GetPageAt (pagenum).GetObject ();
+#else
    const PdfPage *page = _doc->GetPage (pagenum);
    const PdfObject *obj = page->GetObject ();
+#endif
    const PdfObject *thumb;
 
    thumb = obj->GetDictionary().GetKey ("Thumb");
@@ -684,11 +896,17 @@ const PdfObject *Pdfio::get_xobject_image (const PdfReference &ref, const PdfDic
       return 0;
    dict = &obj->GetDictionary();
 
-   const PdfObject* pObjType = dict->GetKey( PdfName::KeyType );
-   const PdfObject* pObjSubType = dict->GetKey( PdfName::KeySubtype );
+   const PdfObject* pObjType = dict->GetKey( "Type" );
+   const PdfObject* pObjSubType = dict->GetKey( "Subtype" );
+#ifdef PODOFO_1X
+   if( ( pObjType && pObjType->IsName() && ( pObjType->GetName().GetString() == "XObject" ) ) ||
+      ( pObjSubType && pObjSubType->IsName() && ( pObjSubType->GetName().GetString() == "Image" ) ) )
+      return obj;
+#else
    if( ( pObjType && pObjType->IsName() && ( pObjType->GetName().GetName() == "XObject" ) ) ||
       ( pObjSubType && pObjSubType->IsName() && ( pObjSubType->GetName().GetName() == "Image" ) ) )
       return obj;
+#endif
    return 0;
    }
 
@@ -697,7 +915,11 @@ err_info *Pdfio::appendFrom (Pdfio *from)
 {
    mytry
       {
+#ifdef PODOFO_1X
+      _doc->GetPages ().AppendDocumentPages (*from->_doc);
+#else
       _doc->Append (*from->_doc);
+#endif
       }
 #ifdef EXCEPTIONS
    catch (const PdfError &eCode)
@@ -714,7 +936,11 @@ err_info *Pdfio::appendPages (Pdfio *from)
 {
    mytry
       {
+#ifdef PODOFO_1X
+      _doc->GetPages ().AppendDocumentPages (*from->_doc);
+#else
       _doc->Append (*from->_doc);
+#endif
       }
 #ifdef EXCEPTIONS
    catch (const PdfError &eCode)
@@ -730,7 +956,11 @@ err_info *Pdfio::insertPages (Pdfio *from, int start, int count)
 {
    mytry
       {
+#ifdef PODOFO_1X
+      _doc->GetPages ().AppendDocumentPages (*from->_doc, start, count);
+#else
       _doc->InsertPages (*from->_doc, start, count);
+#endif
       }
 #ifdef EXCEPTIONS
    catch (const PdfError &eCode)
@@ -747,7 +977,12 @@ err_info *Pdfio::deletePages (int start, int count)
 {
    mytry
       {
+#ifdef PODOFO_1X
+      for (int i = 0; i < count; i++)
+         _doc->GetPages ().RemovePageAt (start);
+#else
       _doc->DeletePages (start, count);
+#endif
       }
 #ifdef EXCEPTIONS
    catch (const PdfError &eCode)
