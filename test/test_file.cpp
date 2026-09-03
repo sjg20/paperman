@@ -1,6 +1,7 @@
 #include <QPainter>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
+#include <QStandardPaths>
 
 #include <cstring>
 
@@ -994,7 +995,7 @@ void TestFile::testRemoveRestorePages()
 
 void TestFile::testJpegAnnotations()
 {
-   if (!QFile::exists("/usr/bin/exiftool"))
+   if (QStandardPaths::findExecutable("exiftool").isEmpty())
       QSKIP("exiftool is not installed");
 
    QTemporaryDir tmp;

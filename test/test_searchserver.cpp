@@ -2190,8 +2190,10 @@ void TestSearchServer::testRemoteOcr()
 {
     /* OCR of a remote stack runs on the server, which stores the text
        in the stack's ocr annotation and returns it. */
-    if (!QFile::exists("/usr/bin/tesseract"))
+    if (QStandardPaths::findExecutable("tesseract").isEmpty())
         QSKIP("tesseract is not installed");
+    if (QStandardPaths::findExecutable("exiftool").isEmpty())
+        QSKIP("exiftool is not installed");
 
     QTemporaryDir tmpDir;
     QVERIFY(tmpDir.isValid());

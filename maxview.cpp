@@ -65,6 +65,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "maxview.h"
 #include "ocr.h"
 #include "op.h"
+#include "utils.h"
 #include "searchindex.h"
 #include "test/test.h"
 
@@ -818,6 +819,15 @@ int main (int argc, char *argv[])
 #ifdef ENABLE_TEST
          {
          const char *filter = (optind < argc) ? argv[optind] : nullptr;
+
+         /* keep the results visible if a test hangs and is killed, and
+            report errors to the console rather than in a dialog */
+         setvbuf (stdout, NULL, _IONBF, 0);
+         utilSetTestMode (true);
+
+         /* on Windows Qt sends test results and log messages to the
+            debugger unless told to use stderr */
+         qputenv ("QT_FORCE_STDERR_LOGGING", "1");
          char *qt_argv[] = { argv[0], nullptr };
          int qt_argc = 1;
          int result = test_run(qt_argc, qt_argv, &app, filter);
