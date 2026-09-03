@@ -308,6 +308,9 @@ test {
 
     QMAKE_CXXFLAGS += -DENABLE_TEST
     QT += concurrent
+    # a GUI-subsystem executable has no stdout on Windows, so the test
+    # results would be lost
+    win32: CONFIG += console
 }
 
 # tif_fax3sm.c   - causes tifflib to break
