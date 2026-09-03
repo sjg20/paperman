@@ -101,6 +101,13 @@ err_info *Pdfio::find_page (int pagenum, std::unique_ptr<Poppler::Page> &page)
 
 err_info *Pdfio::open (void)
    {
+   /* a document from an earlier open() or create() would otherwise leak,
+      keeping the file open, which stops it being renamed on Windows */
+   if (_doc)
+      {
+      delete _doc;
+      _doc = 0;
+      }
 #ifdef CONFIG_use_poppler
 #if QT_VERSION >= 0x060000
    _pop = Poppler::Document::load (_pathname);
