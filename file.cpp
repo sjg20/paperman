@@ -657,6 +657,7 @@ err_info *File::rename (QString &fname, bool auto_rename)
 
    if (file.exists ())
       return err_make (ERRFN, ERR_file_already_exists1,qPrintable (name));
+   CALL (release ());
    err = ::rename (qPrintable (oldname), qPrintable (newname));
    if (err)
       return err_make (ERRFN, ERR_could_not_execute1, "rename");
@@ -712,6 +713,7 @@ err_info *File::move (QString &newDir, QString &newName, bool copy)
       return err_subsume (ERRFN, copyFile (oldPath, newPath),
          ERR_could_not_copy_file2, qPrintable (oldPath),
                   qPrintable (newPath));
+   CALL (release ());
    if (!dir.rename (oldPath, newPath))
       return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (oldPath),
                   qPrintable (newPath));

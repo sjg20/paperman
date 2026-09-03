@@ -614,6 +614,11 @@ err_info *Desktopmodel::opUntrashStacks (QStringList &trashlist, QModelIndex par
       return e;
       }
 
+   /* the source desk, if loaded, still has the files open: let go of
+      them so they can be renamed */
+   if (!copy && !src.isEmpty ())
+      releaseFilesInDesk (src, trashlist);
+
    /* first, move all the trashed files back into the current directory,
       creating a list of the new File * records thus created. If
       an error occurs, stop where we got up to (with the one that caused

@@ -365,6 +365,13 @@ public:
       function handle that. It simply removes the files from the desk */
    void removeFilesFromDesk (QString dir, QStringList &fnamelist);
 
+   /** release any open handles on files in a desk, if it is loaded, so
+       that they can be renamed (see File::release())
+
+      \param dir        directory of the desk
+      \param fnamelist  files to release */
+   void releaseFilesInDesk (QString dir, QStringList &fnamelist);
+
    /** clear all files in a desk */
    void clearAll (QModelIndex &parent);
 

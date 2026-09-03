@@ -2102,6 +2102,20 @@ void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
    }
 
 
+void Desktopmodel::releaseFilesInDesk (QString dir, QStringList &fnamelist)
+   {
+   QModelIndex parent = index (dir, QModelIndex ());
+
+   if (!parent.isValid ())
+      return;
+
+   QModelIndexList list = listFromFilenames (fnamelist, parent);
+   foreach (QModelIndex ind, list)
+      if (ind.isValid ())
+         getFile (ind)->release ();
+   }
+
+
 void Desktopmodel::removeFilesFromDesk (QString dir, QStringList &fnamelist)
    {
    QModelIndex parent = index (dir, QModelIndex ());
