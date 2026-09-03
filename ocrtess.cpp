@@ -22,16 +22,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
 #include <QDataStream>
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QProcess>
+#include <QStandardPaths>
+#include <QTemporaryFile>
 
 #include "err.h"
 
@@ -51,63 +49,62 @@ Ocrtess::~Ocrtess ()
    }
 
 
+/* tesseract is found on the PATH, so this works with a distribution
+   package on Linux and an MSYS2 or installer package on Windows */
+static QString tesseractPath (void)
+   {
+   return QStandardPaths::findExecutable ("tesseract");
+   }
+
+
 err_info *Ocrtess::init (void)
    {
-   QFile file ("/usr/bin/tesseract");
-
-   if (!file.exists ())
+   if (tesseractPath ().isEmpty ())
       return err_make (ERRFN, ERR_ocr_engine_not_present_or_broken2,
-         "tesseract", "/usr/bin/tesseract does not exist");
+         "tesseract", "tesseract is not on the PATH");
    return NULL;
    }
 
 
 err_info *Ocrtess::imageToText (QImage &image, QString &text)
    {
-   char base [200], tmp [200], tmp2 [200], out [200];
-   char cmd [430];
-   int fd;
-
    // this function should really use tesseract as a library
 
-   /* sadly:
+   QString exe = tesseractPath ();
+   if (exe.isEmpty ())
+      return err_make (ERRFN, ERR_ocr_engine_not_present_or_broken2,
+         "tesseract", "tesseract is not on the PATH");
 
-     1. tesseract only accepts 1bpp uncompressed tiff
-     2. QT only writes 8bpp tiff
-
-     so we:
-
-     1. Write png
-     2. Convert to tif with 'convert' */
-   sprintf (base, "%s/maxviewXXXXXX", P_tmpdir);
-   fd = mkstemp (base);
-   if (fd < 0)
+   /* tesseract reads PNG directly and writes <base>.txt, so give it a
+      unique base name in the temporary directory */
+   QTemporaryFile base (QDir::tempPath () + "/maxviewXXXXXX");
+   if (!base.open ())
       return err_make (ERRFN, ERR_could_not_make_temporary_file);
-   close (fd);
-   strncpy (tmp, base, sizeof(tmp));
-   strncat (tmp, ".png", sizeof(tmp) - strlen(tmp) - 1);
-   qDebug () << image.depth ();
-   image.save (tmp, "PNG");
+   QString tmp = base.fileName () + ".png";
+   QString out = base.fileName () + ".txt";
+   if (!image.save (tmp, "PNG"))
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (tmp));
 
-   strncpy (tmp2, base, sizeof(tmp2));
-   strncat (tmp2, ".tif", sizeof(tmp2) - strlen(tmp2) - 1);
-   int errnum = err_systemf ("convert %s %s", tmp, tmp2);
-   if (errnum)
-      return err_make (ERRFN, ERR_could_not_execute1, "convert");
+   QProcess proc;
+   proc.start (exe, QStringList () << tmp << base.fileName ());
+   bool ok = proc.waitForFinished (-1) && proc.exitStatus () == QProcess::NormalExit
+             && proc.exitCode () == 0;
+   QFile::remove (tmp);
+   if (!ok)
+      {
+      QFile::remove (out);
+      return err_make (ERRFN, ERR_tesseract_not_present2, qPrintable (exe),
+                       proc.readAllStandardError ().constData ());
+      }
 
-   strncpy (out, base, sizeof(tmp));
-   snprintf (cmd, sizeof(cmd), "/usr/bin/tesseract %s %s", tmp2, out);
-   errnum = err_systemf (cmd);
-   if (errnum)
-      return err_make (ERRFN, ERR_tesseract_not_present2, cmd, strerror (errno));
-
-   strncat (out, ".txt", sizeof(out) - strlen(out) - 1);
    QFile file (out);
    if (!file.open (QIODevice::ReadOnly))
-      return err_make (ERRFN, ERR_cannot_open_file1, out);
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (out));
 
    QByteArray ba = file.readAll ();
-   text = ba.constData ();
+   file.close ();
+   QFile::remove (out);
+   text = QString::fromUtf8 (ba);
    return NULL;
    }
 
