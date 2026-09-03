@@ -1,6 +1,7 @@
 #include <QDate>
 #include <QPrinter>
 #include <QtTest/QtTest>
+#include <QDir>
 
 #include "../utils.h"
 #include "test.h"
@@ -615,7 +616,7 @@ void TestOps::testPrintToPdf()
 
    /* run the part of print() which follows the print dialogue, with
       the printer directed at a PDF file */
-   QString out = QString("%1/print_test.pdf").arg(P_tmpdir);
+   QString out = QDir::tempPath() + "/print_test.pdf";
    QFile::remove(out);
 
    Mainwidget *main = Mainwidget::singleton();
@@ -638,7 +639,7 @@ void TestOps::testPrintToPdf()
    // The PDF should exist and contain every page of both stacks
    QVERIFY(QFile::exists(out));
 
-   File *printed = File::createFile(QString(P_tmpdir) + "/",
+   File *printed = File::createFile(QDir::tempPath() + "/",
                                     QString("print_test.pdf"), nullptr,
                                     File::Type_pdf);
    QVERIFY(printed);

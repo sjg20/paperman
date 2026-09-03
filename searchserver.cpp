@@ -57,6 +57,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QJsonArray>
 #endif
 
+/* The server keeps its page, thumbnail and conversion caches in the
+ * platform temporary directory */
+static QString cacheDirPath(const QString &name)
+{
+    return QDir::tempPath() + "/paperman-" + name;
+}
+
 static QString formatSize(qint64 bytes)
 {
     if (bytes < 1024)
@@ -2171,7 +2178,7 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
             }
         } else {
             // For native PDFs, extract the page using Ghostscript
-            QString cacheDir = "/tmp/paperman-pages";
+            QString cacheDir = cacheDirPath("pages");
             QDir().mkpath(cacheDir);
 
             QString cacheKeyData = filePath + "_page"
@@ -2485,7 +2492,7 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
                                        int page, const QString &size)
 {
     // 1. Create thumbnail cache directory
-    QString cacheDir = "/tmp/paperman-thumbnails";
+    QString cacheDir = cacheDirPath("thumbnails");
     QDir().mkpath(cacheDir);
     
     // 2. Build full file path
@@ -2581,7 +2588,7 @@ QString SearchServer::convertToPdf(const QString &fullPath,
         return QString();
 
     // Build cache key from path + mtime
-    QString cacheDir = "/tmp/paperman-converted";
+    QString cacheDir = cacheDirPath("converted");
     QDir().mkpath(cacheDir);
 
     QString cacheKeyData = fullPath + "_"
@@ -2804,7 +2811,7 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
                                           const QFileInfo &fileInfo)
 {
     // Build cache key from path + page + mtime
-    QString cacheDir = "/tmp/paperman-pages";
+    QString cacheDir = cacheDirPath("pages");
     QDir().mkpath(cacheDir);
 
     QString cacheKeyData = fullPath + "_page" + QString::number(page)
@@ -3092,8 +3099,8 @@ void SearchServer::onExtractionFinished(int exitCode,
 void SearchServer::cleanThumbnailCache()
 {
     QStringList cacheDirs;
-    cacheDirs << "/tmp/paperman-thumbnails" << "/tmp/paperman-pages"
-              << "/tmp/paperman-converted";
+    cacheDirs << cacheDirPath("thumbnails") << cacheDirPath("pages")
+              << cacheDirPath("converted");
 
     foreach (const QString &cacheDir, cacheDirs) {
         QDir dir(cacheDir);
