@@ -17,6 +17,8 @@ from reportlab.pdfgen import canvas
 # All generated files go here
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'test', 'files')
 PAPERMAN = os.path.join(os.path.dirname(__file__), '..', 'paperman')
+if os.name == 'nt':
+    PAPERMAN += '.exe'
 
 
 def _plasma_layer(rng, xgrid, ygrid, channels):
