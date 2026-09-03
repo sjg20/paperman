@@ -183,6 +183,14 @@ err_info *Pdfio::close (void)
       QFile::remove (tmpname);
       return make_error (eCode);
       }
+
+   /* drop both libraries' views of the old file first: Windows will not
+      remove or rename a file which is still open */
+   delete _doc;
+   _doc = 0;
+#ifdef CONFIG_use_poppler
+   _pop.reset();
+#endif
    if (QFile::exists (_pathname))
       QFile::remove (_pathname);
    if (!QFile::rename (tmpname, _pathname))
@@ -190,11 +198,6 @@ err_info *Pdfio::close (void)
             qPrintable (tmpname), qPrintable (_pathname));
 
    // reopen both libraries' views of the new file
-   delete _doc;
-   _doc = 0;
-#ifdef CONFIG_use_poppler
-   _pop.reset();
-#endif
    return open ();
    }
 

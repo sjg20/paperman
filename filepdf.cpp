@@ -38,6 +38,7 @@ Filepdf::Filepdf (const QString &dir, const QString &filename, Desk *desk)
    : File (dir, filename, desk, Type_pdf)
    {
    _pdfio = 0;
+   _released_pages = 1;
    }
 
 
@@ -90,6 +91,21 @@ err_info *Filepdf::flush (void)
    }
 
 
+err_info *Filepdf::release (void)
+   {
+   /* both PoDoFo and poppler keep the file open, so drop them; load()
+      creates a fresh Pdfio from the (possibly new) pathname */
+   if (_pdfio)
+      {
+      _released_pages = _pdfio->numPages ();
+      delete _pdfio;
+      _pdfio = nullptr;
+      }
+   _valid = false;
+   return NULL;
+   }
+
+
 
 
 err_info *Filepdf::remove (void)
@@ -110,7 +126,7 @@ int Filepdf::pagecount (void)
    {
    if (_pdfio)
       return _pdfio->numPages ();
-   return 1;
+   return _released_pages;
    }
 
 

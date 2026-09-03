@@ -65,6 +65,8 @@ public:
 
    virtual err_info *flush (void);
 
+   virtual err_info *release (void);
+
    virtual err_info *remove (void);
 
 
@@ -133,4 +135,5 @@ public:
 
 private:
    Pdfio *_pdfio;
+   int _released_pages;  //!< page count remembered across release()
    };

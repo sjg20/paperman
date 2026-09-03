@@ -271,6 +271,11 @@ public:
 
    virtual err_info *flush (void) = 0;
 
+   /** drop any handles held open on the file, so that it can be renamed
+       or replaced. Windows refuses to rename a file which is open. The
+       next access reopens the file, so the object stays usable */
+   virtual err_info *release (void) { return NULL; }
+
    virtual err_info *remove (void) = 0;
 
    /**
