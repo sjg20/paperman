@@ -81,7 +81,11 @@ err_info *Filepdf::create (void)
    {
    if (!_pdfio)
       _pdfio = new Pdfio (_pathname);
-   return _pdfio->create ();
+   CALL (_pdfio->create ());
+
+   // the document is in memory, so there is nothing for load() to open
+   _valid = true;
+   return NULL;
    }
 
 
