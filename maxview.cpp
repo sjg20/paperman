@@ -829,6 +829,7 @@ int main (int argc, char *argv[])
          }
 #else
          qInfo() << "Use this to build with tests: qmake CONFIG+=test";
+         return 1;
 #endif
          break;
          }

@@ -21,12 +21,12 @@ jobs:
             qt5-qmake qtbase5-dev qtbase5-dev-tools libqt5sql5-sqlite \
             libpoppler-qt5-dev libpodofo-dev \
             libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
-            imagemagick tesseract-ocr tesseract-ocr-eng \
+            imagemagick tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl \
             python3-reportlab python3-pil python3-numpy \
             poppler-utils
 
       - name: Build desktop app
-        run: qmake paperman.pro && make -f Makefile -j$(nproc)
+        run: qmake paperman.pro CONFIG+=test && make -f Makefile -j$(nproc)
 
       - name: Build server
         run: |
@@ -61,12 +61,12 @@ jobs:
             libpoppler-qt6-dev libpodofo-dev \
             qt6-scxml-dev libqt6statemachine6 \
             libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
-            imagemagick tesseract-ocr tesseract-ocr-eng \
+            imagemagick tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl \
             python3-reportlab python3-pil python3-numpy \
             poppler-utils
 
       - name: Build desktop app
-        run: qmake6 paperman.pro -o Makefile.qt6 && make -f Makefile.qt6 -j$(nproc)
+        run: qmake6 paperman.pro CONFIG+=test -o Makefile.qt6 && make -f Makefile.qt6 -j$(nproc)
 
       - name: Build server
         run: |
@@ -120,7 +120,7 @@ jobs:
             mingw-w64-x86_64-python-numpy
 
       - name: Build desktop app
-        run: qmake6 paperman.pro -o Makefile.win && make -k -f Makefile.win -j$(nproc)
+        run: qmake6 paperman.pro CONFIG+=test -o Makefile.win && make -k -f Makefile.win -j$(nproc)
 
       - name: Build server
         run: |
@@ -132,7 +132,8 @@ jobs:
         run: python3 scripts/make_test_files.py
 
       - name: Run Qt unit tests
-        run: QT_QPA_PLATFORM=offscreen ./paperman.exe -t
+        # fail a hung test quickly rather than after QtTest's five minutes
+        run: QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=60000 ./paperman.exe -t
 
   flutter:
     name: Flutter app + widget tests
