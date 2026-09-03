@@ -622,9 +622,7 @@ void QScannerSetupDlg::initConfig()
   inst_dir = "/usr/local";
 #endif
   if(inst_dir.right(1) != "/") inst_dir += "/";
-  temp_dir = getenv("TEMP");
-  if(temp_dir.isEmpty())
-    temp_dir = "/tmp/";
+  temp_dir = QDir::tempPath() + "/";
 /*
   xmlConfig->setVersion(VERSION);
   xmlConfig->setFilePath(QDir::homePath()+
@@ -634,7 +632,7 @@ void QScannerSetupDlg::initConfig()
   xmlConfig->setStringValue("CURVE_SAVE_PATH", QDir::homePath());
   xmlConfig->setStringValue("CURVE_OPEN_PATH", QDir::homePath());
   //main settings
-  xmlConfig->setStringValue("TEMP_PATH","/tmp/");
+  xmlConfig->setStringValue("TEMP_PATH",QDir::tempPath() + "/");
   xmlConfig->setIntValue("SCAN_MODE",0);
   xmlConfig->setIntValue("METRIC_SYSTEM",int(QIN::Millimetre));
   xmlConfig->setBoolValue("IO_MODE",true);

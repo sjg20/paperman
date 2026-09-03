@@ -508,7 +508,7 @@ void QExtensionWidget::initWidget()
   QLabel* templabel = new QLabel(tr("Temporary directory:"),opage);
   QHBoxLayout* temphb = new QHBoxLayout(opage);
   mpEditTempPath = new QLineEdit(temphb);
-  mpEditTempPath->setText(xmlConfig->stringValue("TEMP_PATH","/tmp"));
+  mpEditTempPath->setText(xmlConfig->stringValue("TEMP_PATH",QDir::tempPath()));
   mpButtonTempPath = new QToolButton(temphb);
   mpButtonTempPath->setPixmap(*pixmap);
   connect(mpButtonTempPath,SIGNAL(clicked()),this,
@@ -656,7 +656,7 @@ void QExtensionWidget::slotChangeDocPath()
 void QExtensionWidget::slotChangeTempPath()
 {
 #if 0 //s
-  QString old_temp = xmlConfig->stringValue("TEMP_PATH","/tmp");
+  QString old_temp = xmlConfig->stringValue("TEMP_PATH",QDir::tempPath());
   QFileDialogExt fd(old_temp,QString(),this,"",true);
   fd.setMode(Q3FileDialog::DirectoryOnly);
   fd.setWindowTitle(tr("Select a directory"));
@@ -710,7 +710,7 @@ void QExtensionWidget::accept()
   if(checkTempPath(mpEditTempPath->text()))
     xmlConfig->setStringValue("TEMP_PATH",mpEditTempPath->text());
   else
-    xmlConfig->setStringValue("TEMP_PATH","/tmp/");
+    xmlConfig->setStringValue("TEMP_PATH",QDir::tempPath() + "/");
   xmlConfig->setIntValue("VIEWER_UNDO_STEPS",mpUndoSpin->value());
   xmlConfig->setIntValue("FILTER_PREVIEW_SIZE",mpFilterSizeSpin->value());
   xmlConfig->setIntValue("DISPLAY_SUBSYSTEM",mpDisplaySubsystemCombo->currentIndex());

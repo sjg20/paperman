@@ -46,6 +46,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desk.h"
 #include "file.h"
 #include "ocr.h"
+#include <QDir>
+
 #include "op.h"
 #include "remotebackend.h"
 #include "utils.h"
@@ -1302,7 +1304,7 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
 
    // name of first file will be used for the zip name
    fname = getFile (slist [0])->filename ();
-   QString dir = QString ("%1/").arg (P_tmpdir);
+   QString dir = QDir::tempPath () + "/";
 
    // put the path on front of each file
    foreach (QModelIndex ind, slist)

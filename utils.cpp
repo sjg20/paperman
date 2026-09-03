@@ -64,6 +64,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <pwd.h>
 #endif
 
+#include <QDir>
+#include <QTemporaryFile>
+
 #include "epeglite.h"
 
 
@@ -528,14 +531,14 @@ QImage util_smooth_scale_image (QImage &image, QSize size)
 
 err_info *util_get_tmp (char *tmp)
    {
-   int fd;
+   QTemporaryFile file (QDir::tempPath () + "/maxviewXXXXXX");
 
-   sprintf (tmp, "%s/maxviewXXXXXX", P_tmpdir);
-   fd = mkstemp (tmp);
-   if (fd < 0)
+   if (!file.open ())
       return err_make (ERRFN, ERR_could_not_make_temporary_file);
-   close (fd);
-   unlink (tmp);
+   QByteArray name = QFile::encodeName (file.fileName ());
+   if (name.size () >= PATH_MAX)
+      return err_make (ERRFN, ERR_could_not_make_temporary_file);
+   strcpy (tmp, name.constData ());
    return NULL;
    }
 
@@ -559,7 +562,7 @@ err_info *util_buildZip (QString &zip, const QStringList &fnamelist)
    Zip::ErrorCode ec;
    Zip uz;
 
-   zip = util_getUnique (zip, P_tmpdir, ".zip");
+   zip = util_getUnique (zip, QDir::tempPath (), ".zip");
 //    zip = util_findNextFilename (zip, P_tmpdir, ".zip");
 //    zip = QString ("%1/%2.zip").arg (P_tmpdir).arg (zip);
    ec = uz.createArchive (zip);

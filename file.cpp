@@ -1056,7 +1056,7 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
    // and directory (the same one as this file, or the temp dir)
    QString dir = _dir;
    if (!desk)
-      dir = QString ("%1/").arg (P_tmpdir);
+      dir = QDir::tempPath () + "/";
 
    // do a plain file copy if allowed to
    if (type == Type_other)
