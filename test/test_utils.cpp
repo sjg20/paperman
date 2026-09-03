@@ -2,8 +2,10 @@
 
 #include "../config.h"
 
+#ifndef Q_OS_WIN
 #include <pwd.h>
 #include <unistd.h>
+#endif
 
 #include "../filemax.h"
 #include "../imageadjust.h"
@@ -463,9 +465,13 @@ void TestUtils::testUserName()
       (tests, cron, IDE launches). If it silently comes back empty the
       per-user .papertree cache filename loses its suffix and a stale,
       shared cache file is read instead */
+#ifdef Q_OS_WIN
+   QCOMPARE(utilUserName(), QString::fromLocal8Bit(qgetenv("USERNAME")));
+#else
    struct passwd *pw = getpwuid(getuid());
    QVERIFY(pw != nullptr);
    QCOMPARE(utilUserName(), QString(pw->pw_name));
+#endif
 }
 
 

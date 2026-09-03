@@ -37,7 +37,9 @@ extern "C"
 #include <sane/sane.h>
 }
 #include <sane/saneopts.h>
+#ifndef Q_OS_WIN
 #include <dlfcn.h>
+#endif
 #include <limits.h>
 #include <math.h>
 #include <unistd.h>
@@ -1224,7 +1226,9 @@ static sane_read_dup_fn lookup_read_dup (void)
    static bool tried = false;
    if (!tried)
       {
+#ifndef Q_OS_WIN
       fn = (sane_read_dup_fn) dlsym (RTLD_DEFAULT, "sane_read_dup");
+#endif
       tried = true;
       }
    return fn;

@@ -31,7 +31,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <jerror.h>
 
+/* MinGW has no fmemopen(), so fall back to a temporary file there */
+#ifndef _WIN32
 #define HAVE_FMEMOPEN
+#endif
 #define NOWARNINGS
 
 // predeclarations
