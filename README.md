@@ -210,6 +210,37 @@ If no directory is specified, searches the current directory.
 Note: You must run --ocr on a directory first to create the search index.
 
 
+## Windows
+
+Paperman builds on Windows with the MSYS2 MinGW64 toolchain, which is
+also what the CI job uses. In a MINGW64 shell:
+
+```
+pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
+    mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
+    mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
+    mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
+    mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
+qmake6 paperman.pro
+make
+```
+
+Scanners are driven through TWAIN rather than SANE: every TWAIN data
+source installed on the machine (for the Ricoh fi-series that is the
+PaperStream IP TWAIN driver) appears in the device list, along with the
+built-in simulated scanner. The TWAIN back end lives in win32/twainsane.cpp
+and presents the same options as SANE's fujitsu backend.
+
+When bringing up a new scanner, run paperman from a shell with
+`PAPERMAN_TWAIN_DEBUG=1` set: it logs every TWAIN operation and the
+capabilities the driver reports to stderr. If colours come out with red and
+blue swapped, set `PAPERMAN_TWAIN_RGB=1`. `PAPERMAN_TWAIN_DUMP=<file>` writes
+the first scanned image as a PBM/PGM/PPM, exactly as the back end hands it to
+paperman, which separates driver problems from filing problems. Only the TWAIN 2 data source
+manager (TWAINDSM.dll, installed with any current driver) is used; set
+`PAPERMAN_TWAIN_LEGACY=1` to fall back to the twain_32.dll shipped with
+Windows.
+
 ## Testing
 
 Paperman includes a comprehensive test suite to verify functionality. Tests are built
