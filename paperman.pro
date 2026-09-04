@@ -47,12 +47,13 @@ equals(QT_MAJOR_VERSION, 5) {
 LIBS += -lpodofo
 LIBS += -ltiff -ljpeg -lz
 
-# There is no libsane on Windows: build against the bundled headers and a
-# stub library, leaving only the simulated scanner. dlsym() is only used to
-# look up the optional sane_read_dup() extension, so it goes too
+# There is no libsane on Windows: build against the bundled SANE headers
+# and a SANE front end for TWAIN scanners. dlsym() is only used to look up
+# the optional sane_read_dup() extension, so it goes too
 win32 {
     INCLUDEPATH += win32
-    SOURCES += win32/sanestub.cpp
+    SOURCES += win32/twainsane.cpp
+    LIBS += -luser32 -lole32
 } else {
     LIBS += -lsane -ldl
 }
