@@ -109,6 +109,7 @@ private slots:
 
    //! Test scanning into a new stack with the simulated scanner
    void testScanIntoStack();
+   void testScanCommandLine();
 
    //! Test adding and removing a repository, with undo and redo
    void testRepositoryAddRemoveUndo();

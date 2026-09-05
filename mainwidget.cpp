@@ -111,6 +111,9 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _pscan = 0;
    _options = 0;
    _scanning = false;
+   _scan_ok = false;
+   _scan_pages = 0;
+   _console = false;
 //    _stack = 0;
 
    addWidget (_desktop);
@@ -183,14 +186,27 @@ void Mainwidget::saveSettings (void)
 bool Mainwidget::complain(err_info *err)
 {
    if (err)
-      {
-      if (utilTestMode())
-         qWarning() << "Error:" << err->errstr;
-      else
-         QMessageBox::warning (0, "Maxview", err->errstr);
-      }
+      warn ("Maxview", err->errstr);
 
    return err != nullptr;
+}
+
+
+void Mainwidget::warn (const QString &title, const QString &msg)
+{
+   if (utilHeadless ())
+      qWarning () << qPrintable (title) << ":" << qPrintable (msg);
+   else
+      QMessageBox::warning (0, title, msg);
+}
+
+
+void Mainwidget::inform (const QString &title, const QString &msg)
+{
+   if (utilHeadless ())
+      qInfo () << qPrintable (title) << ":" << qPrintable (msg);
+   else
+      QMessageBox::information (this, title, msg);
 }
 
 void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
@@ -283,6 +299,12 @@ bool Mainwidget::ensureScanner (void)
       ok = ssd.setupLast ();
       if (ok)
          _scanner = ssd.scanner ();
+      else if (utilHeadless ())
+         {
+         // there is no one to choose from a dialog
+         warn ("Scanner Problem", "No scanner selected: use --device");
+         return false;
+         }
       else
          {
          ssd.show ();
@@ -305,7 +327,7 @@ bool Mainwidget::ensureScanner (void)
          }
       else
          {
-         QMessageBox::warning (0, "Scanner Problem", "Scanner not selected");
+         warn ("Scanner Problem", "Scanner not selected");
          return false;
          }
       }
@@ -362,6 +384,7 @@ void Mainwidget::scanInto(QModelIndex target)
 
    if (!ensureScanner ())
       return;
+   applyScanOptions ();
 
    // check resolution, etc.
    status = _scanner->getParameters(&parameters);
@@ -385,8 +408,8 @@ void Mainwidget::scanInto(QModelIndex target)
          }
       if (status != SANE_STATUS_GOOD)
          {
-         QMessageBox::warning (0, "Scanner Problem",
-            "Could not get parameters - is the scanner connected?");
+         warn ("Scanner Problem",
+               "Could not get parameters - is the scanner connected?");
          return;
          }
       }
@@ -436,6 +459,9 @@ void Mainwidget::scanInto(QModelIndex target)
    _scan = &scan;
    _scanning = true;
    _scan_cancelling = false;
+   _scan_ok = false;
+   _scan_pages = 0;
+   _scan_summary.clear ();
    updatePscan ();
 
    while (_scanning)
@@ -453,6 +479,34 @@ void Mainwidget::scan(void)
 {
    scanInto(QModelIndex());
 }
+
+
+void Mainwidget::applyScanOptions (void)
+   {
+   QMap<QString, QString> rest;
+
+   for (auto it = _scan_options.constBegin (); it != _scan_options.constEnd ();
+        ++it)
+      {
+      int num = _scanner->findOption (qPrintable (it.key ()));
+
+      if (num < 0)
+         {
+         warn ("Scanner", QString ("No option '%1'").arg (it.key ()));
+         continue;
+         }
+      /* QScanner sets fixed-point options from their raw value, so
+         convert from the user's units here */
+      if (_scanner->getOptionType (num) == SANE_TYPE_FIXED)
+         {
+         SANE_Word word = SANE_FIX (it.value ().toDouble ());
+         _scanner->setOption (num, &word);
+         }
+      else
+         rest [it.key ()] = it.value ();
+      }
+   _scanner->setOptionsByName (rest);
+   }
 
 void Mainwidget::slotStackNew (const QString &stack_name)
    {
@@ -509,7 +563,7 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
          setupScanDialog ();
          if (_pscan)
             _pscan->reapplyCurrentPreset ();
-         QMessageBox::information (this, "Scanner reconnected",
+         inform ("Scanner reconnected",
             "The scanner connection was lost and has been re-established.\n"
             "Please try the scan again.");
          _scanning = false;
@@ -520,16 +574,23 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
    // don't report end of documents if we have managed to scan some
    if (status)
       {
-      QSaneStatusMessage fred (status, this);
+      if (utilHeadless ())
+         qWarning () << "Scan status:" << sane_strstatus (status);
+      else
+         {
+         QSaneStatusMessage fred (status, this);
 
-      printf ("status = %d\n", status);
-      fred.exec ();
+         printf ("status = %d\n", status);
+         fred.exec ();
+         }
       }
 
    progress (msg);
 
    if (err && err->errnum != ERR_scan_cancelled)
-      QMessageBox::warning (0, "Error", err->errstr);
+      warn ("Error", err->errstr);
+   _scan_ok = status == SANE_STATUS_GOOD && !err;
+   _scan_summary = msg;
    _scanning = false;
    }
 
@@ -544,6 +605,9 @@ void Mainwidget::slotStackNewPage (const Filepage *mp, const QString &coverageSt
    //    qDebug () << "slotStackNewPage";
       if (!infostr.isEmpty ())
          info (infostr);
+      _scan_pages++;
+      if (_console)
+         printf ("Page %d: %s\n", _scan_pages, qPrintable (coverageStr));
       err = _contents->addPageToScan (mp, coverageStr);
       _scan->pageAdded (mp);
       progressSize (_contents->getScanSize ());
@@ -585,6 +649,8 @@ void Mainwidget::slotStackCancel (void)
 void Mainwidget::progress (const QString &str)
    {
 //    qDebug () << "progress" << str;
+   if (_console && !str.isEmpty ())
+      printf ("%s\n", qPrintable (str));
    if (_pscan)
       _pscan->progress (str.toLatin1 ().constData());
    else
