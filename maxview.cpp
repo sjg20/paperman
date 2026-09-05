@@ -534,6 +534,12 @@ static void usage (void)
    printf ("   --rebuild-previews FILE|DIR  regenerate missing greyscale previews\n");
    printf ("   --adjust TYPE FILE  apply image adjustment (e.g. whiten) to a stack\n");
    printf ("   --quality N         JPEG quality 1-100 for PDF output (default 75)\n");
+   printf ("   --scan              scan into a repository without the GUI, with:\n");
+   printf ("     --repo DIR          repository (default: the first configured)\n");
+   printf ("     --dir SUBDIR        directory within the repository (default: top)\n");
+   printf ("     --device NAME       scanner (default: the last one used)\n");
+   printf ("     --pages N           stop after N sides (default: until empty)\n");
+   printf ("     --set NAME=VALUE    set a scanner option, e.g. mode=Color\n");
 /*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
@@ -598,6 +604,12 @@ int main (int argc, char *argv[])
      {"adjust", 1, 0, 260},
      {"quality", 1, 0, 261},
      {"server", 1, 0, 262},
+     {"scan", 0, 0, 263},
+     {"repo", 1, 0, 264},
+     {"dir", 1, 0, 265},
+     {"device", 1, 0, 266},
+     {"pages", 1, 0, 267},
+     {"set", 1, 0, 268},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -610,6 +622,9 @@ int main (int argc, char *argv[])
    int quality = 75;                      // JPEG quality (1-100)
    QString adjust_name;
    QString serverUrl;                     // --server URL
+   QString scanRepo, scanDir, scanDevice; // --scan options
+   QStringList scanSettings;
+   int scanPages = 0;
 
 #ifndef Q_OS_WIN
    struct rlimit limit;
@@ -693,6 +708,30 @@ int main (int argc, char *argv[])
                }
             break;
 
+         case 263 :    // --scan
+            op_type = 263;
+            break;
+
+         case 264 :    // --repo
+            scanRepo = optarg;
+            break;
+
+         case 265 :    // --dir
+            scanDir = optarg;
+            break;
+
+         case 266 :    // --device
+            scanDevice = optarg;
+            break;
+
+         case 267 :    // --pages
+            scanPages = atoi (optarg);
+            break;
+
+         case 268 :    // --set NAME=VALUE
+            scanSettings << optarg;
+            break;
+
          case 262 :    // --server URL
             serverUrl = QString(optarg);
             break;
@@ -713,7 +752,7 @@ int main (int argc, char *argv[])
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
        op_type != 'j' && op_type != 'o' && op_type != 'q' &&
-       op_type != 259 && op_type != 260)
+       op_type != 259 && op_type != 260 && op_type != 263)
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -723,6 +762,13 @@ int main (int argc, char *argv[])
 #endif
    if (op_type == 't')
       useGUI = true;
+
+   // the command-line scan uses the desktop machinery without a display
+   if (op_type == 263)
+      {
+      useGUI = true;
+      qputenv("QT_QPA_PLATFORM", "offscreen");
+      }
 
    // OCR batch mode, search, and rebuild-previews don't need GUI
    if (op_type == 'o' || op_type == 'q' || op_type == 259 ||
@@ -823,7 +869,7 @@ int main (int argc, char *argv[])
          /* keep the results visible if a test hangs and is killed, and
             report errors to the console rather than in a dialog */
          setvbuf (stdout, NULL, _IONBF, 0);
-         utilSetTestMode (true);
+         utilSetHeadless (true);
 
          /* on Windows Qt sends test results and log messages to the
             debugger unless told to use stderr */
@@ -943,6 +989,10 @@ int main (int argc, char *argv[])
          break;
          }
 #endif
+      case 263 :
+         return Mainwindow::runScan (scanRepo, scanDir, scanDevice,
+                                     scanPages, scanSettings);
+
       case 259 :
          {
          QFileInfo info(fname);

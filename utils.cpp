@@ -1218,7 +1218,7 @@ QString utilUserName()
 #endif
 }
 
-static bool test_mode;
+static bool headless_mode;
 
 // how long to keep retrying a rename in total, in 50ms steps
 static const int RENAME_RETRIES = 20;
@@ -1253,14 +1253,14 @@ bool utilReplaceFile(const QString &from, const QString &to, QString *error)
    return false;
 }
 
-void utilSetTestMode(bool testing)
+void utilSetHeadless(bool headless)
 {
-   test_mode = testing;
+   headless_mode = headless;
 }
 
-bool utilTestMode()
+bool utilHeadless()
 {
-   return test_mode;
+   return headless_mode;
 }
 
 void utilInit(const QString& group)

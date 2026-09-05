@@ -153,6 +153,23 @@ For example:
     27 Property taxes  pd 2020.max 2 1093872 78572475 16422b9a c900d2a7 61ce49d6
     27 Property taxes  pd 2020.max 3 1093872 96562c4e cebfc3b3 5c863b22 d80abde6
 
+### --scan [--repo DIR] [--dir SUBDIR] [--device NAME] [--pages N]
+
+Scans into a repository without showing the GUI, using the saved scanner
+settings. The stack goes into the top-level directory of the first
+configured repository unless `--repo` and `--dir` say otherwise, and the
+scanner is the last one used unless `--device` names another (the
+built-in simulated scanner is `simulscan`). `--pages` stops after that
+many sides; otherwise scanning continues until the feeder is empty.
+`--set NAME=VALUE` sets a scanner option by its SANE name before the scan
+(for example `mode=Color`, `resolution=200`, `source="ADF Duplex"` or
+`page-height=355.6`, with fixed-point values in their units) and can be
+repeated. Progress is printed on stdout and the exit code is 0 if at
+least one page was scanned. For example, to scan two pages in colour
+into the 'inbox' directory of the repository in ~/paper:
+
+    paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
+
 ### -o <directory> | --ocr <directory>
 
 Recursively process all .max files in a directory, performing OCR (Optical Character
