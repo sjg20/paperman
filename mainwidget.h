@@ -79,6 +79,36 @@ public:
    Mainwidget (QWidget *parent, const char *name = 0);
    ~Mainwidget();
    Desktopwidget *getDesktop (void) { return _desktop; }
+
+   /** report scan progress and results on stdout, for the command line */
+   void setConsole (bool console) { _console = console; }
+
+   /** scanner options to apply before each scan, by SANE option name:
+       fixed-point values are given in their units (mm, dpi) */
+   void setScanOptions (const QMap<QString, QString> &options)
+      { _scan_options = options; }
+
+   /** \returns true if the last scan completed without error */
+   bool scanOk (void) { return _scan_ok; }
+
+   /** \returns the number of pages received in the last scan */
+   int scanPages (void) { return _scan_pages; }
+
+   /** \returns the result message from the last scan */
+   QString scanSummary (void) { return _scan_summary; }
+
+   /** \returns the directory the last scan went into */
+   QString scanPath (void) { return _scan_path; }
+
+   /** report a problem: a warning dialog, or a console message when
+       running headless */
+   void warn (const QString &title, const QString &msg);
+
+   /** apply the options from setScanOptions() to the open scanner */
+   void applyScanOptions (void);
+
+   /** as for warn(), but for information */
+   void inform (const QString &title, const QString &msg);
    Pagewidget *getPage (void) { return _page; }
    Mainwindow *getMainwindow() { return _mainwindow; }
 
@@ -426,6 +456,11 @@ private:
    //! information about a scanning job in progress
    bool _scanning;         //!< true if scanning
    bool _scan_cancelling;  //!< true if cancelling the scan
+   bool _scan_ok;          //!< true if the last scan completed without error
+   int _scan_pages;        //!< pages received in the current scan
+   QString _scan_summary;  //!< result message from the last scan
+   bool _console;          //!< report scan progress on stdout
+   QMap<QString, QString> _scan_options;  //!< options to apply before scanning
 //   Paperstack *_stack;     //!< paper stack to scan into
    Paperscan *_scan;       //!< the current scan in progress
 

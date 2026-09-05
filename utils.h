@@ -337,11 +337,11 @@ bool utilSetDirGroup(const QString& dirname);
  */
 QString utilUserName();
 
-/** record that the program is running its test suite: error reports go
-    to the console instead of a modal dialog, which would hang a headless
-    test run */
-void utilSetTestMode(bool testing);
-bool utilTestMode();
+/** record that the program is running without a user at the screen (the
+    test suite or the command-line scan mode): error reports go to the
+    console instead of a modal dialog, which would otherwise wait forever */
+void utilSetHeadless(bool headless);
+bool utilHeadless();
 
 /** rename a file, retrying briefly if it fails
 
