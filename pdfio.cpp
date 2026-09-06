@@ -47,14 +47,74 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 using namespace PoDoFo;
 
 
-/* PoDoFo 1.x reworked its API: pages live in a PdfPageCollection,
+/* PoDoFo 0.10 reworked its API, which 1.x then kept: pages live in a PdfPageCollection,
    images are created by the document and described by PdfImageInfo,
    the content tokenizer became PdfContentStreamReader and most accessors
    return references rather than pointers. Debian and Ubuntu still ship
    0.9.8 while MSYS2 (used for the Windows build) has 1.x, so support
    both */
-#if PODOFO_VERSION_MAJOR >= 1
+#if PODOFO_VERSION_MAJOR > 0 || PODOFO_VERSION_MINOR >= 10
 #define PODOFO_1X
+#endif
+
+#ifdef PODOFO_1X
+
+/* the few places where 0.10 and 1.x differ */
+#if PODOFO_VERSION_MAJOR >= 1
+typedef PdfColorSpaceType PdfColourSpace;
+
+static inline PdfPage &create_a4_page (PdfMemDocument &doc)
+   {
+   return doc.GetPages ().CreatePage (PdfPageSize::A4);
+   }
+
+static inline int get_page_rotation (const PdfPage &page)
+   {
+   return (int)page.GetRotation ();
+   }
+
+static inline void set_page_rotation (PdfPage &page, int degrees)
+   {
+   page.SetRotation (degrees);
+   }
+
+static inline const PdfResources *page_resources (const PdfPage &page)
+   {
+   return &page.GetResources ();
+   }
+
+// report Do as a plain operator rather than resolving the XObject
+static const PdfContentReaderFlags READER_FLAGS = (PdfContentReaderFlags)
+      ((int)PdfContentReaderFlags::SkipFollowFormXObjects
+       | (int)PdfContentReaderFlags::SkipHandleNonFormXObjects);
+#else
+typedef PdfColorSpace PdfColourSpace;
+
+static inline PdfPage &create_a4_page (PdfMemDocument &doc)
+   {
+   return doc.GetPages ().CreatePage (
+         PdfPage::CreateStandardPageSize (PdfPageSize::A4));
+   }
+
+static inline int get_page_rotation (const PdfPage &page)
+   {
+   return page.GetRotationRaw ();
+   }
+
+static inline void set_page_rotation (PdfPage &page, int degrees)
+   {
+   page.SetRotationRaw (degrees);
+   }
+
+static inline const PdfResources *page_resources (const PdfPage &page)
+   {
+   return page.GetResources ();
+   }
+
+static const PdfContentReaderFlags READER_FLAGS =
+      PdfContentReaderFlags::DontFollowXObjectForms;
+#endif
+
 #endif
 
 
@@ -239,8 +299,8 @@ static void set_image_pixels (PdfImage &image, const QByteArray &ba,
    info.Width = width;
    info.Height = height;
    info.BitsPerComponent = depth == 1 ? 1 : 8;
-   info.ColorSpace = depth <= 8 ? PdfColorSpaceType::DeviceGray
-         : PdfColorSpaceType::DeviceRGB;
+   info.ColorSpace = depth <= 8 ? PdfColourSpace::DeviceGray
+         : PdfColourSpace::DeviceRGB;
    image.SetDataRaw (bufferview (ba.constData (), ba.size ()), info);
 
    /* SetDataRaw() stores the bytes as they are, so compress them now */
@@ -258,7 +318,7 @@ err_info *Pdfio::addPage (const Filepage *mp)
       {
       Q_ASSERT (_doc);
 #ifdef PODOFO_1X
-      PdfPage &page = _doc->GetPages ().CreatePage (PdfPageSize::A4);
+      PdfPage &page = create_a4_page (*_doc);
 
       QImage imthumb;
       QByteArray ba = mp->getThumbnailRaw (false, imthumb, false);
@@ -361,7 +421,7 @@ err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
       {
       Q_ASSERT (_doc);
 #ifdef PODOFO_1X
-      PdfPage &page = _doc->GetPages ().CreatePage (PdfPageSize::A4);
+      PdfPage &page = create_a4_page (*_doc);
       std::unique_ptr<PdfImage> image = _doc->CreateImage ();
       PdfImageInfo info;
 
@@ -370,8 +430,8 @@ err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
       info.Height = height;
       info.BitsPerComponent = 8;
       info.Filters = PdfFilterList {PdfFilterType::DCTDecode};
-      info.ColorSpace = colour ? PdfColorSpaceType::DeviceRGB
-            : PdfColorSpaceType::DeviceGray;
+      info.ColorSpace = colour ? PdfColourSpace::DeviceRGB
+            : PdfColourSpace::DeviceGray;
       image->SetDataRaw (bufferview (jpegData.constData (), jpegData.size ()),
                          info);
       draw_scaled (page, *image);
@@ -441,7 +501,8 @@ err_info *Pdfio::make_error (const PdfError &eCode)
 int Pdfio::page_rotation (int pagenum) const
    {
 #ifdef PODOFO_1X
-   return (int)_doc->GetPages ().GetPageAt (pagenum).GetRotation () % 360;
+   return ((get_page_rotation (_doc->GetPages ().GetPageAt (pagenum)) % 360)
+           + 360) % 360;
 #else
    return ((_doc->GetPage (pagenum)->GetRotation () % 360) + 360) % 360;
 #endif
@@ -687,7 +748,7 @@ err_info *Pdfio::rotatePage (int pagenum, int degrees)
          return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
                pagenum + 1);
       PdfPage &page = pages.GetPageAt (pagenum);
-      page.SetRotation ((page.GetRotation () + degrees) % 360);
+      set_page_rotation (page, (get_page_rotation (page) + degrees) % 360);
 #else
       PdfPage *page = _doc->GetPage (pagenum);
 
@@ -733,22 +794,26 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
    PdfPage &page = _doc->GetPages ().GetPageAt (pagenum);
    PdfContentReaderArgs args;
 
-   // report Do as a plain operator rather than resolving the XObject
-   args.Flags = (PdfContentReaderFlags)
-         ((int)PdfContentReaderFlags::SkipFollowFormXObjects
-          | (int)PdfContentReaderFlags::SkipHandleNonFormXObjects);
+   args.Flags = READER_FLAGS;
    PdfContentStreamReader reader (page, args);
    PdfContent content;
 
    while (image_only && reader.TryReadNext (content))
       {
-      switch (content.GetType ())
+#if PODOFO_VERSION_MAJOR >= 1
+      PdfContentType type = content.GetType ();
+      PdfOperator op = content.GetOperator ();
+      const PdfVariantStack &stack = content.GetStack ();
+      const PdfName *name = NULL;
+#else
+      PdfContentType type = content.Type;
+      PdfOperator op = content.Operator;
+      const PdfVariantStack &stack = content.Stack;
+      const PdfName *name = content.Name;
+#endif
+      switch (type)
          {
          case PdfContentType::Operator :
-            {
-            PdfOperator op = content.GetOperator ();
-            const PdfVariantStack &stack = content.GetStack ();
-
             if (op != PdfOperator::q && op != PdfOperator::Q
                 && op != PdfOperator::cm && op != PdfOperator::Do)
                image_only = false;
@@ -757,7 +822,13 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
                image_name = QString::fromStdString (
                      std::string (stack [0].GetName ().GetString ()));
             break;
-            }
+
+         /* 0.10 resolves the Do itself and reports the XObject's name */
+         case PdfContentType::DoXObject :
+            if (name && image_name.isEmpty ())
+               image_name = QString::fromStdString (
+                     std::string (name->GetString ()));
+            break;
 
          case PdfContentType::UnexpectedKeyword :
             image_only = false;
@@ -772,8 +843,9 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
 
    /* find the XObject the page draws: the one named by Do if we saw it,
       otherwise the last one in the resources */
-   const PdfResources &res = page.GetResources ();
-   const PdfObject *xobjects = res.GetDictionary ().FindKey ("XObject");
+   const PdfResources *res = page_resources (page);
+   const PdfObject *xobjects = res
+         ? res->GetDictionary ().FindKey ("XObject") : nullptr;
    if (xobjects && xobjects->IsDictionary ())
       {
       for (auto &pair : xobjects->GetDictionary ())
