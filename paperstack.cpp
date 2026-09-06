@@ -827,6 +827,11 @@ void Paperscan::scan ()
          if (status != SANE_STATUS_GOOD || isCancelled ())
             break;
 
+         /* the parameters are only final once the scan has started: a
+            back end may adjust the size to what the scanner delivers */
+         if (_scanner->getParameters (&parameters) == SANE_STATUS_GOOD)
+            bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
+
          image_bpp = parameters.format == SANE_FRAME_RGB ? 24
                                                          : parameters.depth;
          is_jpeg = false;
@@ -993,6 +998,8 @@ void Paperscan::scan ()
          if (status != SANE_STATUS_GOOD || isCancelled ())
             break;
          total = 0;
+         if (_scanner->getParameters (&parameters) == SANE_STATUS_GOOD)
+            bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
          image_bpp = parameters.format == SANE_FRAME_RGB ? 24
                     : parameters.depth;
          is_jpeg = false;
