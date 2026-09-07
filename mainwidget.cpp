@@ -468,6 +468,9 @@ void Mainwidget::scanInto(QModelIndex target)
       /* note this will not allow the scanning thread to get events, but
          at the moment it doesn't have an event loop anyway */
       qApp->processEvents ();
+   /* scanComplete() is emitted from the thread just before it finishes,
+      so it may still be running: destroying it now would abort */
+   scan.wait ();
    _scan = 0;
 //    qDebug () << "scan complete";
    _watchButtons = true;
