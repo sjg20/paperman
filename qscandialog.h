@@ -103,6 +103,15 @@ public:
   /** set duplex */
   bool setDuplex (bool duplex);
 
+  /** True if the scanner offers automatic paper-size detection */
+  bool hasAutoSize (void);
+
+  /** The current state of the automatic-size option */
+  bool autoSize (void);
+
+  /** Turn automatic paper-size detection on or off */
+  bool setAutoSize (bool on);
+
   /** set DPI */
   void setDpi (int dpi);
 

@@ -41,6 +41,7 @@
 #include "qscannersetupdlg.h"
 #include "qscrollbaroption.h"
 #include "qscandialog.h"
+#include "qi/qbooloption.h"
 #include "qsanestatusmessage.h"
 #include "qstringoption.h"
 #include "qwordarrayoption.h"
@@ -2696,6 +2697,36 @@ bool QScanDialog::setAdf (bool adf)
    if (option != -1)
       setOption (mOptionSource, name [option]);
    return option != -1;
+}
+
+
+bool QScanDialog::hasAutoSize (void)
+{
+   return findOption ("auto-size", (int)SANE_TYPE_BOOL) != 0;
+}
+
+
+bool QScanDialog::autoSize (void)
+{
+   QSaneOption *opt = findOption ("auto-size", (int)SANE_TYPE_BOOL);
+
+   if (!opt)
+      return false;
+   return mpScanner->saneWordValue (opt->saneOptionNumber ()) != 0;
+}
+
+
+bool QScanDialog::setAutoSize (bool on)
+{
+   QSaneOption *opt = findOption ("auto-size", (int)SANE_TYPE_BOOL);
+
+   if (!opt || !opt->inherits ("QBoolOption"))
+      return false;
+   ((QBoolOption *)opt)->setState (on ? SANE_TRUE : SANE_FALSE);
+   slotOptionChanged (opt->optionNumber ());
+   /* the scanner marks the scan-area options inactive, so refresh them */
+   slotReloadOptions ();
+   return true;
 }
 
 

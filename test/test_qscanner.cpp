@@ -35,6 +35,46 @@ void TestQscanner::testOpenSimul()
 }
 
 
+/* Auto-size, when the backend offers it, must round-trip through the
+   scan dialog and disable the manual scan-area options. Runs only when
+   PAPERMAN_TEST_DEVICE names a scanner that supports it */
+void TestQscanner::testAutoSize()
+{
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+   if (!dev)
+      QSKIP ("set PAPERMAN_TEST_DEVICE to a scanner with auto-size");
+   ensureXmlConfig ();
+   QScanner *scanner = new QScanner;
+   scanner->setDeviceName (dev);
+   QVERIFY (scanner->openDevice ());
+   QScanDialog dlg (scanner, 0);
+   if (!dlg.hasAutoSize ())
+      QSKIP ("scanner has no auto-size option");
+   QVERIFY (!dlg.autoSize ());
+   QVERIFY (dlg.setAutoSize (true));
+   QVERIFY (dlg.autoSize ());
+   if (getenv ("DUMP_PNG"))
+      {
+      dlg.show ();
+      QTest::qWait (200);
+      dlg.grab ().save (getenv ("DUMP_PNG"));
+      }
+   /* the scan-area options should now be inactive */
+   int tlx = -1;
+   for (int i = 1; i < scanner->optionCount (); i++)
+      {
+      SANE_String_Const nm = scanner->getOptionName (i);
+      if (nm && !strcmp (nm, SANE_NAME_SCAN_TL_X))
+         tlx = i;
+      }
+   QVERIFY (tlx > 0);
+   QVERIFY (!scanner->isOptionActive (tlx));
+   QVERIFY (dlg.setAutoSize (false));
+   QVERIFY (!dlg.autoSize ());
+   QVERIFY (scanner->isOptionActive (tlx));
+}
+
+
 /* The scan dialog's option list must lay out its groups: the scroll
    view once left them at zero height for some back ends */
 void TestQscanner::testOptionDialogLayout()

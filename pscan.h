@@ -89,6 +89,9 @@ public:
 
 public slots:
     virtual void scannerChanged( QScanner * scanner );
+
+    /** Show and set the Auto-size box to match the scanner's option */
+    void updateAutoSize (void);
     virtual void setMainwidget( Mainwidget * main );
     virtual void source_clicked();
     virtual void settings_clicked();
@@ -96,6 +99,7 @@ public slots:
     virtual void pendingDone();
     virtual void adf_clicked();
     virtual void duplex_clicked();
+    virtual void autosize_clicked();
     virtual void res_activated( int id );
     virtual void brightChanged( int bright );
     virtual void contrastChanged( int contrast );

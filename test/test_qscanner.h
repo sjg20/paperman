@@ -15,6 +15,7 @@ private slots:
    //! Opening the simulated scanner succeeds and is queryable.
    void testOpenSimul();
    void testOptionDialogLayout();
+   void testAutoSize();
 
    //! reconnect() leaves the scanner in an open, usable state.
    void testReconnectKeepsOpen();
