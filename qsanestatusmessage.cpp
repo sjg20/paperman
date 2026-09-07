@@ -20,12 +20,15 @@
 #include <qlayout.h>
 #include <qpushbutton.h>
 
-QSaneStatusMessage::QSaneStatusMessage(SANE_Status status, QWidget*parent)
+QSaneStatusMessage::QSaneStatusMessage(SANE_Status status, QWidget*parent,
+                                       const QString &detail)
                    :QMessageBox(parent)
 {
   mSaneStatus = status;
   setWindowTitle(tr("SANE Message"));
   setMessage();
+  if (!detail.isEmpty())
+    setInformativeText(detail);
 }
 
 QSaneStatusMessage::~QSaneStatusMessage()

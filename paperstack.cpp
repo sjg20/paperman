@@ -759,10 +759,11 @@ void Paperscan::scan ()
       return;
 
    // check resolution, etc.
+   _op = "sane_get_parameters";
    status = _scanner->getParameters (&parameters);
    if (status != SANE_STATUS_GOOD)
       {
-      _progress_str = "";
+      _progress_str = failStr (status, 0);
       emit scanComplete (status, _progress_str, 0);
       return;
       }
@@ -817,10 +818,12 @@ void Paperscan::scan ()
                if (_scanner->checkDoubleFeed ())
                   emit doubleFeedDetected ();
                }
+            _op = "sane_start";
             status = _scanner->start ();
             if (status == SANE_STATUS_INVAL && !busy_count)
                {
                _scanner->cancel ();
+               _op = "sane_start";
                status = _scanner->start ();
                }
             }
@@ -872,6 +875,7 @@ void Paperscan::scan ()
          while (status == SANE_STATUS_GOOD && !isCancelled ())
             {
             SANE_Int flen = 0, blen = 0;
+            _op = "sane_read_dup";
             status = _scanner->readDup (buf, buf_back, size, &flen, &blen);
             if (status == SANE_STATUS_UNSUPPORTED && !total_f && !total_b)
                {
@@ -881,6 +885,7 @@ void Paperscan::scan ()
                   false */
                status = readSide (buf, size, false, total_f);
                if (status == SANE_STATUS_EOF)
+                  _op = "sane_start";
                   status = _scanner->start ();
                if (status == SANE_STATUS_GOOD)
                   status = readSide (buf_back, size, true, total_b);
@@ -999,11 +1004,13 @@ void Paperscan::scan ()
                if (_scanner->checkDoubleFeed ())
                   emit doubleFeedDetected ();
                }
+            _op = "sane_start";
             status = _scanner->start ();
             if (status == SANE_STATUS_INVAL && !busy_count)
                {
                // did we forget to cancel last time?
                _scanner->cancel ();
+               _op = "sane_start";
                status = _scanner->start ();
                }
 //            printf ("status = %d\n", status);
@@ -1033,6 +1040,7 @@ void Paperscan::scan ()
          for (i = 0; status == SANE_STATUS_GOOD && !isCancelled (); i++)
             {
             todo = size;
+            _op = "sane_read";
             status = _scanner->read (buf, todo, &len);
 //             printf ("status = %d, len = %d, total = %d\n", status, len, total + len);
             if (status != 0)
@@ -1156,6 +1164,9 @@ void Paperscan::scan ()
    if (status == SANE_STATUS_NO_DOCS && numsides > 0)
       status = SANE_STATUS_GOOD;
 
+   if (status != SANE_STATUS_GOOD && !isCancelled ())
+      str += "\n" + failStr (status, total_sides + 1);
+
    if (isCancelled ())
       err = &_cancel_err;
 
@@ -1197,6 +1208,17 @@ void Paperscan::setup (QScanner *scanner, QString stack_name, QString page_name)
 
 
 /* this is our main thread */
+QString Paperscan::failStr (SANE_Status status, int page)
+   {
+   QString str = tr ("%1() on device '%2' returned '%3'").arg (_op)
+      .arg (_scanner->name ()).arg (sane_strstatus (status));
+
+   if (page)
+      str += tr (" while scanning page %1").arg (page);
+   return str;
+   }
+
+
 SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
                                  long &total)
    {
@@ -1205,6 +1227,7 @@ SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
 
    while (status == SANE_STATUS_GOOD && !isCancelled ())
       {
+      _op = "sane_read";
       status = _scanner->read (buf, size, &len);
       if (status != SANE_STATUS_GOOD)
          break;
