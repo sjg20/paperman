@@ -34,7 +34,6 @@ public:
   void addWidget(QWidget* qw,int stretch=0);
 protected:
   /**  */
-  virtual void resizeEvent(QResizeEvent* qre);
 //s  virtual void viewportResizeEvent(QResizeEvent* qre);
 private: // Private attributes
   /** */

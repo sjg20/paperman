@@ -9,6 +9,9 @@
 #include "test_qscanner.h"
 
 #include "qi/previewwidget.h"
+#include "qi/qsaneoption.h"
+#include <QScrollArea>
+#include <QGroupBox>
 #include "qi/scanarea.h"
 
 #define SIMUL_NAME "simulscan"
@@ -29,6 +32,38 @@ void TestQscanner::testOpenSimul()
    QVERIFY (scanner.isOpen ());
    QCOMPARE (scanner.xResolutionDpi (), 300);
    QCOMPARE (scanner.yResolutionDpi (), 300);
+}
+
+
+/* The scan dialog's option list must lay out its groups: the scroll
+   view once left them at zero height for some back ends */
+void TestQscanner::testOptionDialogLayout()
+{
+   ensureXmlConfig ();
+   QScanner *scanner = new QScanner;
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+   scanner->setDeviceName (dev ? dev : SIMUL_NAME);
+   QVERIFY (scanner->openDevice ());
+   QVERIFY (scanner->getGroupCount () > 0);
+   QScanDialog dlg (scanner, 0);
+   dlg.show ();
+   QTest::qWait (200);
+   if (getenv ("DUMP_PNG"))
+      dlg.grab ().save (getenv ("DUMP_PNG"));
+   QList<QGroupBox *> boxes = dlg.findChildren<QGroupBox *> ();
+   QCOMPARE (boxes.size (), scanner->getGroupCount ());
+   foreach (QGroupBox *gb, boxes)
+      {
+      QVERIFY2 (gb->height () > 0, qPrintable (gb->title ()));
+      QVERIFY (gb->findChildren<QSaneOption *> ().size () > 0);
+      }
+   QScrollArea *sa = dlg.findChild<QScrollArea *> ();
+   QVERIFY (sa && sa->widget ());
+   QVERIFY (sa->widget ()->height () > sa->viewport ()->height ());
+   QVERIFY2 (sa->widget ()->width () <= sa->viewport ()->width (),
+             qPrintable (QString ("content %1 wide, viewport %2")
+                         .arg (sa->widget ()->width ())
+                         .arg (sa->viewport ()->width ())));
 }
 
 
