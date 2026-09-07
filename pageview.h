@@ -34,6 +34,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QListView>
+#include <QTimer>
 
 class Pageview : public QListView
    {
@@ -106,7 +107,15 @@ signals:
 
    void showInfo (const QModelIndex &index);
 
+public:
+   void setModel (QAbstractItemModel *model) override;
+
+private slots:
+   /** re-lay-out after page pixmaps load, so cells fit their pages */
+   void slotRelayout ();
+
 private:
+   QTimer _relayoutTimer;  //!< coalesces re-layouts after pixmap updates
    int _scale_down;     //!< scale factor to use (1/n)
    bool _autoscroll;    //!< true if the user has not manually adjusted the scrollbar
    bool _ignore_scroll; //!< true to ignore any scrolls (they are machine-generated)

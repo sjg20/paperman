@@ -156,11 +156,17 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
       leftmost = measure.coverageRect.left ();
       }
 
-   measure.size = _pagesize;
-   measure.size.setHeight (_pagesize.height () + lines * fmb.height ());
-
    QPixmap pm = pi->pixmap (measure.dodgy);
    measure.pixmap = pm;
+   /* size the cell to the page's own shape, so a landscape page does not
+      sit in a portrait-tall box. The pixmap (the scan image while
+      scanning, the scaled page once loaded) carries the real aspect;
+      before it is ready fall back to the full box and re-measure when it
+      arrives (see Pageview's relayout on dataChanged) */
+   int pageHeight = pm.height () > 0 ? pm.height () : _pagesize.height ();
+
+   measure.size = _pagesize;
+   measure.size.setHeight (pageHeight + lines * fmb.height ());
    measure.pixmapRect = QRect ((_pagesize.width () - pm.width ()) / 2, 0,
          pm.width (), pm.height ());
 
@@ -171,11 +177,11 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
    measure.pagenameRect = QRect (measure.pagenumRect.width () + 5, 0,
       leftmost - 5, fmb.height ());
 
-   measure.pagenumRect.translate (0, _pagesize.height () + 3);
-   measure.pagenameRect.translate (0, _pagesize.height () + 3);
-   measure.coverageRect.translate (0, _pagesize.height () + 3);
-   measure.blankRect.translate (0, _pagesize.height ());
-   measure.removeRect.translate (0, _pagesize.height ());
+   measure.pagenumRect.translate (0, pageHeight + 3);
+   measure.pagenameRect.translate (0, pageHeight + 3);
+   measure.coverageRect.translate (0, pageHeight + 3);
+   measure.blankRect.translate (0, pageHeight);
+   measure.removeRect.translate (0, pageHeight);
 
    if (offset)
       {

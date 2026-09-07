@@ -8,6 +8,8 @@
 #include "mainwindow.h"
 #include "desktopwidget.h"
 #include "desktopmodel.h"
+#include "pagewidget.h"
+#include <QListView>
 #include <QElapsedTimer>
 #include <QTemporaryDir>
 #include "qscanner.h"
@@ -100,6 +102,11 @@ void TestQscanner::testScanGuiTiming()
    timer.start ();
    main->scanInto (repo_ind);          // returns when the batch is done
 
+   if (getenv ("DUMP_PNG"))
+      {
+      QTest::qWait (300);
+      me.grab ().save (getenv ("DUMP_PNG"));
+      }
    QVERIFY2 (stamps.size () >= 2, qPrintable (QString ("only %1 pages")
                                               .arg (stamps.size ())));
    QList<qint64> gaps;
