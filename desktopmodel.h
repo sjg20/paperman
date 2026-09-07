@@ -26,6 +26,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QSet>
+#include <QMutex>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QRecursiveMutex>
+#endif
+#include <QImage>
 
 
 class QFontMetrics;
@@ -1254,6 +1259,26 @@ public:
       \returns error, or NULL if none */
    err_info *getImagePreview (const QModelIndex &ind, int pagenum,
          QPixmap &pixmap, bool blank = false) const;
+
+   /** True if showing a page at the given size needs a full decode
+       rather than the small stored preview (i.e. it is worth doing on
+       the render thread) */
+   bool imageNeedsDecode (const QModelIndex &ind, int pagenum,
+         const QSize &size) const;
+
+   /** Decode and scale a page to a QImage, for the background render
+       thread (which cannot make a QPixmap). Serialised with all other
+       file access. */
+   err_info *getScaledImageData (const QModelIndex &ind, int pagenum,
+         const QSize &size, bool blank, QImage &image) const;
+
+   /** Serialises access to the .max files, which are not thread-safe, so
+       the render thread and the GUI thread never decode at once */
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+   mutable QRecursiveMutex _imageMutex;
+#else
+   mutable QMutex _imageMutex {QMutex::Recursive};
+#endif
 
    /** deletes a pixmap if non-null, and not one of our internal ones. Sets
        *pixmapp to 0

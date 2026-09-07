@@ -43,12 +43,65 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QPixmap>
 #include <QSize>
 #include <QVector>
+#include <QThread>
+#include <QMutex>
+#include <QWaitCondition>
+#include <QPersistentModelIndex>
 
 
 class QPixmap;
 class QTimer;
 
 class Desktopmodel;
+/** Decodes page images on a single background thread so the GUI thread
+    is not blocked while a large page is decoded and scaled. The .max
+    files are not thread-safe, so one worker (not a pool) is used and
+    Desktopmodel serialises file access. QPixmap cannot be made off the
+    GUI thread, so the worker produces a QImage and the model converts
+    it. */
+class PageRenderer : public QThread
+   {
+   Q_OBJECT
+public:
+   PageRenderer (QObject *parent = 0) : QThread (parent) {}
+   ~PageRenderer () { shutdown (); }
+
+   //! the stack model to decode from (set when the displayed stack changes)
+   void setContents (const Desktopmodel *contents) { _contents = contents; }
+
+   /** ask for a page to be rendered; replaces any request not yet started
+       (the newest wins) */
+   void render (int itemnum, const QPersistentModelIndex &stack, int pagenum,
+                const QSize &size, bool blank, quint64 gen);
+
+   //! wait for any in-progress render to finish (before the model changes)
+   void flush (void);
+
+   //! stop the thread and wait for it to exit
+   void shutdown (void);
+
+signals:
+   void rendered (int itemnum, QImage image, quint64 gen);
+
+protected:
+   void run (void) override;
+
+private:
+   const Desktopmodel *_contents = 0;
+   QMutex _mutex;
+   QWaitCondition _cond;
+   bool _stop = false;
+   bool _have = false;      //!< a request is waiting
+   bool _busy = false;      //!< a render is in progress
+   int _itemnum = 0;
+   int _pagenum = 0;
+   QPersistentModelIndex _stack;
+   QSize _size;
+   bool _blank = false;
+   quint64 _gen = 0;
+   };
+
+
 class Pagemodel;
 
 
@@ -92,6 +145,15 @@ public:
 
       \returns true if an update was necessary, false if not */
    bool updatePixmap (void);
+
+   //! true if this page is waiting for its pixmap to be regenerated
+   bool wantsRescale (void) const { return _rescale; }
+
+   //! mark that a background render has been dispatched for this page
+   void markRendering (void) { _rescale = false; }
+
+   //! store a pixmap produced by the background render thread
+   void setPixmap (const QPixmap &pm) { _pixmap = pm; _rescale = false; }
 
    /** returns the string with information on page coverage
 
@@ -171,6 +233,14 @@ public:
    void clear (void);
 
    /** reset the model to point to the given stack */
+   /** Stop the background render thread for good
+
+       It decodes from the Desktopmodel, which it holds only as a
+       pointer, so it has to be stopped before that model is destroyed.
+       Qt destroys children in its own order, so waiting for this
+       model's own destructor is too late */
+   void stopRendering (void);
+
    void reset (const Desktopmodel *model, const QModelIndex &index,
       int start, int count);
 
@@ -366,6 +436,9 @@ protected:
 protected slots:
    void nextUpdate (void);    //!< do the next rescale update
 
+   //! receive a page image from the background render thread
+   void slotRendered (int itemnum, QImage image, quint64 gen);
+
 private:
    const Desktopmodel *_contents;    //!< stack model
    QPersistentModelIndex _stackindex;  //!< index of stack in _model that we are displaying
@@ -381,6 +454,9 @@ private:
    QTimer *_updateTimer;   //!< timer for background scaling operations
    int _update_upto;       //!< where we are up to with updating
    bool _rescaling;        //!< true if we are rescaling in the background
+   PageRenderer *_renderer;   //!< background image decoder
+   quint64 _generation;       //!< bumped when the page set changes, to
+                              //!< drop render results that are now stale
    /* (per-page _scan_image lives in Pageinfo now to support progressive
     * duplex; see Pageinfo for details) */
    bool _own_scan;         //!< true if we own the scanning operation

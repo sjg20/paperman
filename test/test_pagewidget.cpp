@@ -289,6 +289,40 @@ void TestPagewidget::testRotateThumbnailReady()
    QVERIFY(!dodgy);
 }
 
+/* Large page views are decoded on the background render thread; check
+   that thumbnails still all become ready (the worker delivers them via a
+   queued signal) and that nothing deadlocks. */
+void TestPagewidget::testBackgroundRender()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+   Pagemodel *pm = page->_pagemodel;
+
+   // ask for a large view so the images are decoded off the GUI thread
+   page->setPagesize(QSize(1600, 2200));
+   // confirm this size really takes the background (full-decode) path
+   QModelIndex stack;
+   QVERIFY(page->getCurrentIndex(stack, true));
+   QVERIFY2(model->imageNeedsDecode(stack, 0, QSize(1600, 2200)),
+            "test size did not trigger the background render path");
+   for (int i = 0; i < pm->_pages.size(); i++)
+      pm->_pages[i]._rescale = true;
+   pm->scheduleRescale();
+
+   int n = pm->rowCount(QModelIndex());
+   bool ready = QTest::qWaitFor([&] {
+      for (int i = 0; i < n; i++)
+         if (pm->_pages[i]._pixmap.isNull())
+            return false;
+      return true;
+   }, 10000);
+   QVERIFY2(ready, "background render did not produce all thumbnails");
+}
+
+
 //! Count dark pixels in an image, sampling every few pixels
 static int darkPixels(const QImage &img)
 {

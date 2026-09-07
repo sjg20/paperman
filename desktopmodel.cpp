@@ -53,6 +53,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "file.h"
 #include "paperstack.h"
 #include "utils.h"
+#include <QMutex>
 
 
 // time to delay between scanning each stack, should be 0 unless testing
@@ -1858,6 +1859,7 @@ QMimeData *Desktopmodel::mimeData (const QModelIndexList &list) const
 err_info *Desktopmodel::getImage (const QModelIndex &ind, int pnum, bool do_scale,
                QImage &imagep, QSize &Size, QSize &trueSize, int &bpp, bool blank) const
    {
+   QMutexLocker locker (&_imageMutex);
    _modelconv->assertIsSource (0, &ind, 0);
    File *f = getFile (ind);
 
@@ -1952,6 +1954,7 @@ QString Desktopmodel::imageTimestamp (const QModelIndex &ind, int pagenum)
 err_info *Desktopmodel::getImagePreviewSizes (const QModelIndex &ind, int pagenum,
       QSize &preview_size, QSize &image_size) const
    {
+   QMutexLocker locker (&_imageMutex);
    _modelconv->assertIsSource (0, &ind, 0);
    File *f = getFile (ind);
    QSize dsize;
@@ -1972,6 +1975,7 @@ err_info *Desktopmodel::getImagePreviewSizes (const QModelIndex &ind, int pagenu
 void Desktopmodel::getScaledImage (const QModelIndex &ind, int pagenum,
       QSize &size, QPixmap &pixmap, bool blank) const
    {
+   QMutexLocker locker (&_imageMutex);
    QSize preview_size, image_size;
    err_info *err;
 
@@ -2020,9 +2024,37 @@ void Desktopmodel::getScaledImage (const QModelIndex &ind, int pagenum,
    }
 
 
+bool Desktopmodel::imageNeedsDecode (const QModelIndex &ind, int pagenum,
+      const QSize &size) const
+   {
+   QMutexLocker locker (&_imageMutex);
+   QSize preview_size, image_size;
+
+   if (getImagePreviewSizes (ind, pagenum, preview_size, image_size))
+      return false;   // on error let the synchronous path deal with it
+   return size.width () > preview_size.width () + 20
+       || size.height () > preview_size.height () + 20;
+   }
+
+
+err_info *Desktopmodel::getScaledImageData (const QModelIndex &ind, int pagenum,
+      const QSize &size, bool blank, QImage &image) const
+   {
+   QMutexLocker locker (&_imageMutex);
+   QSize isize, tsize;
+   int bpp;
+
+   CALL (getImage (ind, pagenum, false, image, isize, tsize, bpp, blank));
+   if (image.width () != size.width () && image.height () != size.height ())
+      image = util_smooth_scale_image (image, size);
+   return NULL;
+   }
+
+
 err_info *Desktopmodel::getImagePreview (const QModelIndex &ind, int pagenum,
          QPixmap &pixmap, bool blank) const
    {
+   QMutexLocker locker (&_imageMutex);
    File *f = getFile (ind);
    err_info *err;
 

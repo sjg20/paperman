@@ -35,6 +35,91 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Q_DECLARE_METATYPE(QPixmap *)
 
 
+void PageRenderer::render (int itemnum, const QPersistentModelIndex &stack,
+                          int pagenum, const QSize &size, bool blank,
+                          quint64 gen)
+   {
+   QMutexLocker locker (&_mutex);
+
+   _itemnum = itemnum;
+   _stack = stack;
+   _pagenum = pagenum;
+   _size = size;
+   _blank = blank;
+   _gen = gen;
+   _have = true;
+   if (!isRunning ())
+      start ();
+   _cond.wakeAll ();
+   }
+
+
+void PageRenderer::flush (void)
+   {
+   QMutexLocker locker (&_mutex);
+
+   /* drop a not-yet-started request and wait for any in-progress one */
+   _have = false;
+   while (_busy)
+      _cond.wait (&_mutex);
+   }
+
+
+void PageRenderer::shutdown (void)
+   {
+      {
+      QMutexLocker locker (&_mutex);
+      _stop = true;
+      _cond.wakeAll ();
+      }
+   wait ();
+   }
+
+
+void PageRenderer::run (void)
+   {
+   for (;;)
+      {
+      int itemnum, pagenum;
+      QPersistentModelIndex stack;
+      QSize size;
+      bool blank;
+      quint64 gen;
+
+         {
+         QMutexLocker locker (&_mutex);
+
+         while (!_have && !_stop)
+            _cond.wait (&_mutex);
+         if (_stop)
+            return;
+         itemnum = _itemnum;
+         stack = _stack;
+         pagenum = _pagenum;
+         size = _size;
+         blank = _blank;
+         gen = _gen;
+         _have = false;
+         _busy = true;
+         }
+
+      QImage image;
+
+      if (_contents && stack.isValid ())
+         _contents->getScaledImageData (stack, pagenum, size, blank, image);
+
+      {
+      QMutexLocker locker (&_mutex);
+
+      _busy = false;
+      _cond.wakeAll ();        // let flush() proceed
+      }
+
+      emit rendered (itemnum, image, gen);
+      }
+   }
+
+
 Pagemodel::Pagemodel (QObject *parent)
       : QAbstractItemModel (parent)
    {
@@ -52,11 +137,23 @@ Pagemodel::Pagemodel (QObject *parent)
    _updateTimer = new QTimer (this);
    _updateTimer->setSingleShot(true);
    connect (_updateTimer, SIGNAL (timeout()), this, SLOT (nextUpdate ()));
+
+   _generation = 0;
+   _renderer = new PageRenderer (this);
+   connect (_renderer, SIGNAL (rendered (int, QImage, quint64)),
+            this, SLOT (slotRendered (int, QImage, quint64)));
    }
 
 
 Pagemodel::~Pagemodel ()
    {
+   delete _renderer;   // stops and joins the render thread
+   }
+
+
+void Pagemodel::stopRendering (void)
+   {
+   _renderer->shutdown ();
    }
 
 
@@ -78,6 +175,9 @@ void Pagemodel::clear (void)
 void Pagemodel::reset (const Desktopmodel *model, const QModelIndex &index,
       int start, int count)
    {
+   _renderer->flush ();
+   _generation++;
+   _renderer->setContents (model);
     QAbstractItemModel::beginResetModel ();
    _contents = model;
    _stackindex = index;
@@ -311,6 +411,11 @@ QMimeData *Pagemodel::mimeData (const QModelIndexList &list) const
 
 void Pagemodel::setPagesize (QSize size)
    {
+   if (_pagesize != size)
+      {
+      _renderer->flush ();
+      _generation++;
+      }
    _pagesize = size;
    }
 
@@ -320,6 +425,8 @@ void Pagemodel::setScale (int scale_down)
    if (_scale_down != scale_down)
       {
       _scale_down = scale_down;
+      _renderer->flush ();
+      _generation++;
 
       // stop scaling all pages, since no point in any previous rescaling continuing
       for (int i = 0; i < _count; i++)
@@ -382,15 +489,32 @@ void Pagemodel::nextUpdate (void)
    // keep going until we find a page that needs updating, or get back to where we started
    for (; _update_upto < _count;)
       {
-      pi = &_pages [_update_upto];
+      int row = _update_upto;
+      pi = &_pages [row];
       if (++_update_upto == _count)
          _update_upto = 0;
-      if (pi->updatePixmap ())
+      if (pi->wantsRescale ())
          {
-         QModelIndex ind = index (pi->itemnum (), 0, QModelIndex ());
-         emit dataChanged (ind, ind);
-         _updateTimer->start (0);
-         break;
+         int pagenum = _start + row;
+
+         /* a big page is slow to decode, so hand it to the render thread
+            and carry on when it comes back; the scan image and small
+            previews are cheap, so do those here */
+         if (_stackindex.isValid () && !pi->scanning () && _contents
+             && _contents->imageNeedsDecode (_stackindex, pagenum, _pagesize))
+            {
+            pi->markRendering ();
+            _renderer->render (row, _stackindex, pagenum, _pagesize,
+                               pi->isBlank (), _generation);
+            return;
+            }
+         if (pi->updatePixmap ())
+            {
+            QModelIndex ind = index (row, 0, QModelIndex ());
+            emit dataChanged (ind, ind);
+            _updateTimer->start (0);
+            break;
+            }
          }
       if (_update_upto == start)
          {
@@ -400,6 +524,22 @@ void Pagemodel::nextUpdate (void)
          break;
          }
       }
+   }
+
+
+void Pagemodel::slotRendered (int itemnum, QImage image, quint64 gen)
+   {
+   /* drop results from before the last reset/scale change, and empty
+      images from a failed decode */
+   if (gen == _generation && itemnum >= 0 && itemnum < _count
+       && !image.isNull ())
+      {
+      _pages [itemnum].setPixmap (QPixmap::fromImage (image));
+      QModelIndex ind = index (itemnum, 0, QModelIndex ());
+      emit dataChanged (ind, ind);
+      }
+   if (_rescaling)
+      _updateTimer->start (0);   // on to the next page
    }
 
 

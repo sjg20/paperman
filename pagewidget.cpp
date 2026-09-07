@@ -901,6 +901,13 @@ void Pagewidget::revertMode (void)
    }
 
 
+void Pagewidget::stopRendering (void)
+   {
+   if (_pagemodel)
+      _pagemodel->stopRendering ();
+   }
+
+
 void Pagewidget::scanComplete (void)
    {
    _scanning = false;

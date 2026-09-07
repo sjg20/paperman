@@ -158,6 +158,10 @@ public:
    /** init the widget - must be called immediately after creation */
    void init (void);
 
+   /** stop the background render thread, before the stack model it
+       decodes from is destroyed */
+   void stopRendering (void);
+
    /** convert a mode to a tool button */
    QToolButton *modeToTool (e_mode mode);
 
