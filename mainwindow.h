@@ -67,6 +67,19 @@ public:
    static void runGui(QApplication& app, QStringList args,
                       const QString& serverUrl = QString());
 
+   /** Scan from the command line, without showing the GUI
+
+      \param repo     repository to scan into (empty for the first one
+                      configured)
+      \param subdir   directory within the repository (empty for its top)
+      \param device   scanner to use (empty for the last one used)
+      \param pages    maximum number of sides to scan (0 for no limit)
+      \param settings scanner options to set, as name=value
+      \returns exit code: 0 on success */
+   static int runScan(const QString& repo, const QString& subdir,
+                      const QString& device, int pages,
+                      const QStringList& settings = QStringList());
+
 public slots:
     virtual void on_actionPrint_triggered(bool);
     virtual void on_actionExit_triggered(bool);

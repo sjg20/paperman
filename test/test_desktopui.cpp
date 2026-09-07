@@ -13,6 +13,7 @@
 #include "desktopwidget.h"
 #include "dirmodel.h"
 #include "filemax.h"
+#include "utils.h"
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -1313,6 +1314,38 @@ void TestDesktopUi::testScanIntoStack()
    QString pathname =
       model->data(new_ind, Desktopmodel::Role_pathname).toString();
    QVERIFY(QFile::exists(pathname));
+}
+
+void TestDesktopUi::testScanCommandLine()
+{
+   /* the command-line scan uses the desktop machinery headless: it must
+      leave a new stack in the requested directory, and must not disturb
+      the saved scanner settings */
+   QString path = setupRepo();
+   QVERIFY(QDir().mkpath(path + "/inbox"));
+
+   if (!xmlConfig)
+      new QXmlConfig();
+   QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
+   int old_single = xmlConfig->intValue("SCAN_SINGLE");
+
+   QCOMPARE(Mainwindow::runScan(path, "inbox", "simulscan", 2,
+                                QStringList() << "mode=Color"), 0);
+
+   QCOMPARE(xmlConfig->stringValue("LAST_DEVICE", QString()), old_device);
+   QCOMPARE(xmlConfig->intValue("SCAN_SINGLE"), old_single);
+
+   QStringList stacks = QDir(path + "/inbox").entryList(
+         QStringList() << "*.max", QDir::Files);
+   QCOMPARE(stacks.size(), 1);
+   Filemax max(path + "/inbox/", stacks[0], nullptr);
+   QVERIFY(!max.load());
+   QCOMPARE(max.pagecount(), 2);
+
+   // a missing directory is an error rather than a scan
+   QCOMPARE(Mainwindow::runScan(path, "nosuch", "simulscan", 1), 1);
+
+   utilSetHeadless(false);
 }
 
 void TestDesktopUi::testRepositoryAddRemoveUndo()

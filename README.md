@@ -153,6 +153,23 @@ For example:
     27 Property taxes  pd 2020.max 2 1093872 78572475 16422b9a c900d2a7 61ce49d6
     27 Property taxes  pd 2020.max 3 1093872 96562c4e cebfc3b3 5c863b22 d80abde6
 
+### --scan [--repo DIR] [--dir SUBDIR] [--device NAME] [--pages N]
+
+Scans into a repository without showing the GUI, using the saved scanner
+settings. The stack goes into the top-level directory of the first
+configured repository unless `--repo` and `--dir` say otherwise, and the
+scanner is the last one used unless `--device` names another (the
+built-in simulated scanner is `simulscan`). `--pages` stops after that
+many sides; otherwise scanning continues until the feeder is empty.
+`--set NAME=VALUE` sets a scanner option by its SANE name before the scan
+(for example `mode=Color`, `resolution=200`, `source="ADF Duplex"` or
+`page-height=355.6`, with fixed-point values in their units) and can be
+repeated. Progress is printed on stdout and the exit code is 0 if at
+least one page was scanned. For example, to scan two pages in colour
+into the 'inbox' directory of the repository in ~/paper:
+
+    paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
+
 ### -o <directory> | --ocr <directory>
 
 Recursively process all .max files in a directory, performing OCR (Optical Character
@@ -209,6 +226,37 @@ If no directory is specified, searches the current directory.
 
 Note: You must run --ocr on a directory first to create the search index.
 
+
+## Windows
+
+Paperman builds on Windows with the MSYS2 MinGW64 toolchain, which is
+also what the CI job uses. In a MINGW64 shell:
+
+```
+pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
+    mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
+    mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
+    mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
+    mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
+qmake6 paperman.pro
+make
+```
+
+Scanners are driven through TWAIN rather than SANE: every TWAIN data
+source installed on the machine (for the Ricoh fi-series that is the
+PaperStream IP TWAIN driver) appears in the device list, along with the
+built-in simulated scanner. The TWAIN back end lives in win32/twainsane.cpp
+and presents the same options as SANE's fujitsu backend.
+
+When bringing up a new scanner, run paperman from a shell with
+`PAPERMAN_TWAIN_DEBUG=1` set: it logs every TWAIN operation and the
+capabilities the driver reports to stderr. If colours come out with red and
+blue swapped, set `PAPERMAN_TWAIN_RGB=1`. `PAPERMAN_TWAIN_DUMP=<file>` writes
+the first scanned image as a PBM/PGM/PPM, exactly as the back end hands it to
+paperman, which separates driver problems from filing problems. Only the TWAIN 2 data source
+manager (TWAINDSM.dll, installed with any current driver) is used; set
+`PAPERMAN_TWAIN_LEGACY=1` to fall back to the twain_32.dll shipped with
+Windows.
 
 ## Testing
 

@@ -33,7 +33,10 @@ class QSaneStatusMessage : public QMessageBox
 {
 Q_OBJECT
 public:
-	QSaneStatusMessage(SANE_Status status, QWidget* parent);
+	/** \param detail  what was being done when the status came back, shown
+	                  under the message (may be empty) */
+	QSaneStatusMessage(SANE_Status status, QWidget* parent,
+	                   const QString &detail = QString ());
 	~QSaneStatusMessage();
 private:
   SANE_Status mSaneStatus;

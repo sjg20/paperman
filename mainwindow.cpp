@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QtGui>
+#include <QDir>
 #include <QMessageBox>
 #include <QSettings>
 #include <qvariant.h>
@@ -53,6 +54,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopmodel.h"
 #include "desktopundo.h"
 #include "desktopwidget.h"
+#include "dirmodel.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "pagewidget.h"
@@ -162,6 +164,100 @@ void Mainwindow::shutdown()
    if (xmlConfig)
       delete xmlConfig;
 }
+
+int Mainwindow::runScan(const QString& repo, const QString& subdir,
+                        const QString& device, int pages,
+                        const QStringList& settings)
+{
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop();
+   Mainwidget *main = me._main;
+   Dirmodel *dirs = desktop->getDirmodel();
+
+   utilSetHeadless(true);
+   main->setConsole(true);
+
+   QMap<QString, QString> options;
+   foreach (const QString &setting, settings) {
+      int eq = setting.indexOf('=');
+      if (eq <= 0) {
+         fprintf(stderr, "Expected NAME=VALUE for --set, not '%s'\n",
+                 qPrintable(setting));
+         return 1;
+      }
+      options[setting.left(eq)] = setting.mid(eq + 1);
+   }
+   main->setScanOptions(options);
+
+   // the configured repositories, then the one asked for if it is new
+   QList<err_info> err_list = desktop->addRepositories(QStringList());
+   foreach (const err_info &err, err_list)
+      fprintf(stderr, "Warning: %s\n", err.errstr);
+
+   QString repoPath;
+   if (!repo.isEmpty()) {
+      repoPath = QDir(repo).canonicalPath();
+      if (repoPath.isEmpty()) {
+         fprintf(stderr, "Repository '%s' not found\n", qPrintable(repo));
+         return 1;
+      }
+      if (!dirs->index(repoPath + "/", 0).isValid()) {
+         err_info *err = desktop->addDir(repoPath);
+         if (err) {
+            fprintf(stderr, "Cannot use repository '%s': %s\n",
+                    qPrintable(repo), err->errstr);
+            return 1;
+         }
+      }
+   } else {
+      if (!dirs->rowCount(QModelIndex())) {
+         fprintf(stderr, "No repository is configured: use --repo\n");
+         return 1;
+      }
+      repoPath = dirs->data(dirs->index(0, 0, QModelIndex()),
+                            Dirmodel::FilePathRole).toString();
+      if (repoPath.endsWith("/"))
+         repoPath.chop(1);
+   }
+
+   QString path = repoPath;
+   if (!subdir.isEmpty())
+      path += "/" + subdir;
+   if (!QDir(path).exists()) {
+      fprintf(stderr, "Directory '%s' does not exist\n", qPrintable(path));
+      return 1;
+   }
+   QModelIndex target = desktop->getDirIndex(path + "/");
+   if (!target.isValid()) {
+      fprintf(stderr, "Directory '%s' is not within a repository\n",
+              qPrintable(path));
+      return 1;
+   }
+
+   /* the scanner and page limit are taken from the saved scanner
+      settings; override them for this run only */
+   if (!xmlConfig)
+      new QXmlConfig();
+   QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
+   int old_single = xmlConfig->intValue("SCAN_SINGLE");
+   if (!device.isEmpty())
+      xmlConfig->setStringValue("LAST_DEVICE", device);
+   if (pages)
+      xmlConfig->setIntValue("SCAN_SINGLE", pages);
+
+   printf("Scanning into %s\n", qPrintable(path));
+   main->scanInto(target);
+
+   xmlConfig->setStringValue("LAST_DEVICE", old_device);
+   xmlConfig->setIntValue("SCAN_SINGLE", old_single);
+
+   if (!main->scanOk() || !main->scanPages()) {
+      fprintf(stderr, "Scan failed: %s\n", qPrintable(main->scanSummary()));
+      return 1;
+   }
+   return 0;
+}
+
 
 void Mainwindow::runGui(QApplication& app, QStringList args,
                         const QString& serverUrl)

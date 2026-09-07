@@ -166,6 +166,7 @@ QScanner::QScanner() : QObject()
   mNonBlockingIo = SANE_FALSE;
   mAppCancel = false;
   mCancelled = false;
+  mNoReadDup = false;
   mOpenOk = false;
   mInitOk = false;
   mDeviceCnt = 0;
@@ -1237,7 +1238,7 @@ static sane_read_dup_fn lookup_read_dup (void)
 
 bool QScanner::hasReadDup (void)
    {
-   return lookup_read_dup () != NULL;
+   return !mNoReadDup && lookup_read_dup () != NULL;
    }
 
 
@@ -1246,9 +1247,17 @@ SANE_Status QScanner::readDup (SANE_Byte *front_buf, SANE_Byte *back_buf,
                                SANE_Int *front_len, SANE_Int *back_len)
    {
    sane_read_dup_fn fn = lookup_read_dup ();
+   SANE_Status status;
+
    if (!fn)
       return SANE_STATUS_UNSUPPORTED;
-   return fn (mDeviceHandle, front_buf, back_buf, max_len, front_len, back_len);
+   status = fn (mDeviceHandle, front_buf, back_buf, max_len, front_len,
+                back_len);
+   /* libsane's dispatcher answers for back ends that lack the entry point,
+      so the scan must carry on through sane_read() */
+   if (status == SANE_STATUS_UNSUPPORTED)
+      mNoReadDup = true;
+   return status;
    }
 
 
