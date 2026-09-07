@@ -889,8 +889,10 @@ void Paperscan::scan ()
                   false */
                status = readSide (buf, size, false, total_f);
                if (status == SANE_STATUS_EOF)
+                  {
                   _op = "sane_start";
                   status = _scanner->start ();
+                  }
                if (status == SANE_STATUS_GOOD)
                   status = readSide (buf_back, size, true, total_b);
                break;
