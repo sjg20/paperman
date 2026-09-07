@@ -801,13 +801,8 @@ void QScanDialog::slotReloadOptions()
     in_here = false;
     return;
   }
-  //We also don't resize, if the preview widget is a part of the
-  //main dialog (== isn't a toplevel widget).
-  if(mLayout == QIN::ScrollLayout)
-  {
-    QWidget *w = mpOptionScrollView->widget ();
-    w->setMinimumSize(w->layout ()->minimumSize ());
-  }
+  //The scroll view sizes its content itself, so only the tab layout
+  //needs a hand here
   if(mLayout == QIN::TabLayout)
   {
     //stupid, but works (?)

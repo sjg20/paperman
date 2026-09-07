@@ -38,9 +38,15 @@ QOptionScrollView::QOptionScrollView(QWidget * parent, const char * name,Qt::Win
 #endif
   mpMainWidget = new QWidget(/*viewport()*/);
   mpMainLayout = new QBoxLayout(QBoxLayout::TopToBottom, mpMainWidget);
-//   QLabel *label = new QLabel ("hello there");
-//   mpMainLayout->addWidget (label);
-//  addChild(mpMainWidget);
+  /* let the scroll area size the content from the layout's minimum hint
+     as widgets are added, rather than relying on the layout to push a
+     minimum size onto the widget, which does not always happen */
+  setWidgetResizable (true);
+  /* the content follows the viewport's width, so the options squeeze
+     rather than scroll sideways: the layout must not impose its minimum
+     width on the widget, and the width is ignored in the size hint */
+  mpMainLayout->setSizeConstraint (QLayout::SetNoConstraint);
+  mpMainWidget->setSizePolicy (QSizePolicy::Ignored, QSizePolicy::Preferred);
   setWidget (mpMainWidget);
 //   mpMainWidget->setLayout (mpMainLayout);
 //   setLayout (mpMainLayout);
@@ -64,14 +70,6 @@ void QOptionScrollView::viewportResizeEvent(QResizeEvent* qre)
 }
 #endif
 
-
-/**  */
-void QOptionScrollView::resizeEvent(QResizeEvent* qre)
-{
-   // resize the scrollview to take full advantage of the width available
-  QScrollArea::resizeEvent(qre);
-  mpMainWidget->resize (geometry ().width (), mpMainWidget->geometry ().height ());
-}
 
 void QOptionScrollView::addWidget(QWidget* qw,int stretch)
 {
