@@ -45,9 +45,12 @@ Pageview::Pageview (QWidget *parent)
    setMovement (Free);
    setResizeMode (Adjust);
    setLayoutMode (SinglePass);
-   /* pages may differ in shape (auto-size crops each to its own size),
-      so size each cell to its page rather than to the first one */
-   setUniformItemSizes (false);
+   /* uniform item sizes keep icon-view layout O(1) per change; without
+      this, adding hundreds of pages during a scan is O(n^2) and the UI
+      falls a long way behind. The cells still get the right shape because
+      the delegate sizes them to the page and a relayout re-measures once
+      the first pixmap is ready (see slotRelayout). */
+   setUniformItemSizes (true);
    setSelectionRectVisible (true);
    setHorizontalScrollMode (QAbstractItemView::ScrollPerPixel);
    setVerticalScrollMode (QAbstractItemView::ScrollPerPixel);
@@ -78,6 +81,20 @@ void Pageview::setModel (QAbstractItemModel *model)
 
 void Pageview::slotRelayout ()
    {
+   /* uniform item sizes cache the size measured from the first item, and
+      that first measurement happens before its pixmap is ready, so it is
+      the tall fallback. Once pixmaps have arrived, set the grid cell from
+      the first item's real size hint: this fixes the cell height (no gap
+      under a landscape page) and keeps layout O(1). */
+   if (model () && model ()->rowCount () > 0)
+      {
+      QSize hint = itemDelegate ()->sizeHint (getViewOptions (),
+                                              model ()->index (0, 0));
+      /* with a grid the view's spacing no longer applies, so include it
+         in the cell, or the pages sit edge to edge */
+      if (hint.isValid ())
+         setGridSize (hint + QSize (spacing (), spacing ()));
+      }
    scheduleDelayedItemsLayout ();
    }
 
