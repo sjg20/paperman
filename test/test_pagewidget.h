@@ -38,6 +38,7 @@ private slots:
 
    //! Test a rotated page's thumbnail is ready at once, not blanked
    void testRotateThumbnailReady();
+   void testBackgroundRender();
 
    //! Test the rotate action updates the displayed page
    void testRotateActionDisplay();

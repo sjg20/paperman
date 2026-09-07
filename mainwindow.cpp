@@ -110,6 +110,14 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
  */
 Mainwindow::~Mainwindow()
 {
+   /* The page view decodes thumbnails on a background thread, reading
+      from the desktop model through a bare pointer. Qt destroys child
+      widgets in its own order, so that model can go while the thread is
+      still in a decode, which crashes. This destructor body runs before
+      any of the children, so it is the one place the thread can be
+      stopped while everything it touches is still there */
+   if (_main && _main->getPage ())
+      _main->getPage ()->stopRendering ();
     // no need to delete child widgets, Qt does it all for us
 }
 
