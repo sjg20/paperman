@@ -548,8 +548,11 @@ void PPage::finishJpeg (void)
    }
 
 
-#define RGB_THRESHOLD 240
-#define GREY_THRESHOLD 251
+/* A pixel counts towards coverage when it is dark enough that the
+   lineart conversion would make it black, so a page reports a similar
+   coverage whether scanned in colour, grey or mono. This matches the
+   default lineart threshold (mid-grey). */
+#define COVERAGE_THRESHOLD 128
 
 
 bool PPage::checkBlank (const unsigned char *buf, int size)
@@ -573,15 +576,16 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
 
       case 8 :
          for (; buf < end; buf++)
-            if (*buf < GREY_THRESHOLD)
+            if (*buf < COVERAGE_THRESHOLD)
                count++;
          break;
 
       case 24 :
+         /* use luminance, as the greyscale/lineart conversion does, so
+            the three modes agree */
          for (; buf < end; buf += 3)
-            if (buf [0] < RGB_THRESHOLD
-               || buf [1] < RGB_THRESHOLD
-               || buf [2] < RGB_THRESHOLD)
+            if ((buf [0] * 77 + buf [1] * 150 + buf [2] * 29) >> 8
+                < COVERAGE_THRESHOLD)
                count++;
          break;
       }
