@@ -16,6 +16,7 @@ private slots:
    void testOpenSimul();
    void testOptionDialogLayout();
    void testAutoSize();
+   void testAutoSizePanel();
 
    //! reconnect() leaves the scanner in an open, usable state.
    void testReconnectKeepsOpen();
