@@ -12,6 +12,7 @@
 #include "qi/qsaneoption.h"
 #include <QScrollArea>
 #include <QGroupBox>
+#include <QCheckBox>
 #include "qi/scanarea.h"
 
 #define SIMUL_NAME "simulscan"
@@ -32,6 +33,30 @@ void TestQscanner::testOpenSimul()
    QVERIFY (scanner.isOpen ());
    QCOMPARE (scanner.xResolutionDpi (), 300);
    QCOMPARE (scanner.yResolutionDpi (), 300);
+}
+
+
+/* The scan panel's Auto-size box must appear for a scanner that offers
+   auto-size. Device-gated */
+void TestQscanner::testAutoSizePanel()
+{
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+   if (!dev)
+      QSKIP ("set PAPERMAN_TEST_DEVICE to a scanner with auto-size");
+   ensureXmlConfig ();
+   QScanner *scanner = new QScanner;
+   scanner->setDeviceName (dev);
+   QVERIFY (scanner->openDevice ());
+   QScanDialog *dlg = new QScanDialog (scanner, 0);
+   if (!dlg->hasAutoSize ())
+      QSKIP ("scanner has no auto-size option");
+   Pscan panel (0);
+   QCheckBox *box = panel.findChild<QCheckBox *> ("autosize");
+   QVERIFY (box);
+   QVERIFY (box->isHidden ());          // hidden until a scanner is known
+   panel.setScanDialog (dlg);
+   panel.scannerChanged (scanner);
+   QVERIFY2 (!box->isHidden (), "auto-size box stayed hidden");
 }
 
 
