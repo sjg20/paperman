@@ -414,6 +414,17 @@ public:
          int &depth, int &stride);
 
 protected:
+   /** Read one side of the current sheet with sane_read(), for a scanner
+       which turns out not to support sane_read_dup()
+
+      \param buf     buffer to read into
+      \param size    size of buffer
+      \param back    true to feed the back-side image, false the front
+      \param total   updated with the number of bytes read
+      \returns SANE_STATUS_EOF when the side is complete, else an error */
+   SANE_Status readSide (unsigned char *buf, int size, bool back,
+                         long &total);
+
    /** our run loop */
    void run (void);
 

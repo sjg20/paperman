@@ -873,6 +873,19 @@ void Paperscan::scan ()
             {
             SANE_Int flen = 0, blen = 0;
             status = _scanner->readDup (buf, buf_back, size, &flen, &blen);
+            if (status == SANE_STATUS_UNSUPPORTED && !total_f && !total_b)
+               {
+               /* the back end has no sane_read_dup(): the sheet is already
+                  started, so read it a side at a time instead. The next
+                  sheet takes the per-side loop, since hasReadDup() is now
+                  false */
+               status = readSide (buf, size, false, total_f);
+               if (status == SANE_STATUS_EOF)
+                  status = _scanner->start ();
+               if (status == SANE_STATUS_GOOD)
+                  status = readSide (buf_back, size, true, total_b);
+               break;
+               }
             if (status != SANE_STATUS_GOOD)
                break;
             qint64 t_now = QDateTime::currentMSecsSinceEpoch ();
@@ -1184,6 +1197,31 @@ void Paperscan::setup (QScanner *scanner, QString stack_name, QString page_name)
 
 
 /* this is our main thread */
+SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
+                                 long &total)
+   {
+   SANE_Status status = SANE_STATUS_GOOD;
+   SANE_Int len;
+
+   while (status == SANE_STATUS_GOOD && !isCancelled ())
+      {
+      status = _scanner->read (buf, size, &len);
+      if (status != SANE_STATUS_GOOD)
+         break;
+      _mutex.lock ();
+      if (back)
+         _stack->addImageBytesBack (buf, len);
+      else
+         _stack->addImageBytes (buf, len);
+      _mutex.unlock ();
+      total += len;
+      emit stackPageProgress (back ? _stack->curPageBack ()
+                                   : _stack->curPage ());
+      }
+   return status;
+   }
+
+
 void Paperscan::run (void)
    {
 //    qDebug () << "run";
