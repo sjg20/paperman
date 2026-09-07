@@ -44,7 +44,9 @@ Pageview::Pageview (QWidget *parent)
    setMovement (Free);
    setResizeMode (Adjust);
    setLayoutMode (SinglePass);
-   setUniformItemSizes (true);
+   /* pages may differ in shape (auto-size crops each to its own size),
+      so size each cell to its page rather than to the first one */
+   setUniformItemSizes (false);
    setSelectionRectVisible (true);
    setHorizontalScrollMode (QAbstractItemView::ScrollPerPixel);
    setVerticalScrollMode (QAbstractItemView::ScrollPerPixel);
@@ -54,6 +56,28 @@ Pageview::Pageview (QWidget *parent)
 
    _autoscroll = true;  // the user has not scrolled yet
    _ignore_scroll = false;
+
+   _relayoutTimer.setSingleShot (true);
+   connect (&_relayoutTimer, SIGNAL (timeout ()), this, SLOT (slotRelayout ()));
+   }
+
+
+void Pageview::setModel (QAbstractItemModel *model)
+   {
+   QListView::setModel (model);
+   if (model)
+      /* a page's pixmap is not ready when it is first laid out, so its
+         cell starts at the fallback height; re-measure once pixmaps
+         arrive. The timer coalesces the burst of updates into one pass */
+      connect (model, &QAbstractItemModel::dataChanged, this,
+               [this] (const QModelIndex &, const QModelIndex &,
+                       const QVector<int> &) { _relayoutTimer.start (150); });
+   }
+
+
+void Pageview::slotRelayout ()
+   {
+   scheduleDelayedItemsLayout ();
    }
 
 

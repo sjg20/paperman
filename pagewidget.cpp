@@ -720,9 +720,11 @@ void Pagewidget::setPagesize (QSize size)
    _pagemodel->setPagesize (size);
    _pagedelegate->setPagesize (size);
 
+   /* keep a fixed column WIDTH so the columns line up, but let each row
+      take the height of its own page rather than the full portrait box */
    const QStyleOptionViewItem option = _pageview->getViewOptions ();
-   size += _pagedelegate->getSpacing (option);
-   _pageview->setGridSize (size);
+   QSize cell = size + _pagedelegate->getSpacing (option);
+   _pageview->setGridSize (QSize ());  // let sizeHint drive the layout
    }
 
 
