@@ -72,6 +72,8 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     connect(pageSize, SIGNAL(activated(int)), this, SLOT(size_activated(int)));
     connect(res, SIGNAL(activated(int)), this, SLOT(res_activated(int)));
     connect(duplex, SIGNAL(clicked()), this, SLOT(duplex_clicked()));
+    connect(autosize, SIGNAL(clicked()), this, SLOT(autosize_clicked()));
+    autosize->hide ();
     connect(adf, SIGNAL(clicked()), this, SLOT(adf_clicked()));
     connect(scan, SIGNAL(clicked()), this, SLOT(scan_clicked()));
     connect(settings, SIGNAL(clicked()), this, SLOT(settings_clicked()));
@@ -298,6 +300,7 @@ void Pscan::scannerChanged (QScanner *scanner)
     if (b)
         b->setChecked(true);
     setupBright ();
+    updateAutoSize ();
     if (_do_preset_check)
        presetCheck();
     _folders->checkFolders();
@@ -349,6 +352,30 @@ void Pscan::adf_clicked()
 void Pscan::duplex_clicked()
 {
    _scanDialog->setDuplex (duplex->isChecked ());
+}
+
+
+void Pscan::autosize_clicked()
+{
+   if (_scanDialog)
+      _scanDialog->setAutoSize (autosize->isChecked ());
+   /* the scan area no longer applies while the scanner is cropping */
+   pageSize->setDisabled (autosize->isChecked ());
+}
+
+
+void Pscan::updateAutoSize (void)
+{
+   bool has = _scanDialog && _scanDialog->hasAutoSize ();
+
+   autosize->setVisible (has);
+   if (has)
+      {
+      autosize->setChecked (_scanDialog->autoSize ());
+      pageSize->setDisabled (autosize->isChecked ());
+      }
+   else
+      pageSize->setEnabled (true);
 }
 
 
@@ -506,6 +533,7 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
 void Pscan::setScanDialog( QScanDialog *dialog )
 {
    _scanDialog = dialog;
+   updateAutoSize ();
 }
 
 

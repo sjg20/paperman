@@ -479,6 +479,16 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QCheckBox" name="autosize">
+           <property name="toolTip">
+            <string>Let the scanner detect each sheet's size and crop to it</string>
+           </property>
+           <property name="text">
+            <string>Auto size</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
        <item>
