@@ -36,6 +36,7 @@ Pageview::Pageview (QWidget *parent)
       : QListView (parent)
    {
    setViewMode (IconMode);
+   setSpacing (4);   // a little gap so page previews do not run together
 
    setWrapping (true);
    setFlow (LeftToRight);
