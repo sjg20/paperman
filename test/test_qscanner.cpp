@@ -4,6 +4,12 @@
 
 #include "pscan.h"
 #include "qscandialog.h"
+#include "utils.h"
+#include "mainwindow.h"
+#include "desktopwidget.h"
+#include "desktopmodel.h"
+#include <QElapsedTimer>
+#include <QTemporaryDir>
 #include "qscanner.h"
 #include "qxmlconfig.h"
 #include "test_qscanner.h"
@@ -36,8 +42,84 @@ void TestQscanner::testOpenSimul()
 }
 
 
-/* The scan panel's Auto-size box must appear for a scanner that offers
-   auto-size. Device-gated */
+/* Drive a real GUI scan (shown window, live preview and thumbnails) and
+   time how fast pages arrive, to compare the GUI path with headless.
+   Device-gated; PAPERMAN_TEST_PAGES sets the count, PAPERMAN_TEST_AUTOSIZE
+   turns auto-size on */
+void TestQscanner::testScanGuiTiming()
+{
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+   if (!dev)
+      QSKIP ("set PAPERMAN_TEST_DEVICE");
+   ensureXmlConfig ();
+   int pages = getenv ("PAPERMAN_TEST_PAGES")
+      ? atoi (getenv ("PAPERMAN_TEST_PAGES")) : 20;
+   const char *asenv = getenv ("PAPERMAN_TEST_AUTOSIZE");
+   bool autosize = asenv && asenv[0];
+
+   /* open the scanner from config without a chooser dialog, but keep the
+      window shown so the preview and thumbnails still render */
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   QVERIFY (!desktop->addDir (repo.path ()));
+   Desktopmodel *model = desktop->getModel ();
+   me.resize (1024, 768);
+   me.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&me));
+   QString path = repo.path ();
+   if (path.endsWith ("/"))
+      path.chop (1);
+   QModelIndex repo_ind = desktop->getDirIndex (path + "/");
+   QVERIFY (repo_ind.isValid ());
+
+   Mainwidget *main = Mainwidget::singleton ();
+   QVERIFY (main);
+   /* the widget loaded the real config file, so set the device now */
+   QString old_dev = xmlConfig->stringValue ("LAST_DEVICE", QString ());
+   int old_single = xmlConfig->intValue ("SCAN_SINGLE");
+   xmlConfig->setStringValue ("LAST_DEVICE", dev);
+   xmlConfig->setIntValue ("SCAN_SINGLE", pages);
+   QMap<QString, QString> opt;
+   opt["resolution"] = "300";
+   opt["mode"] = "Color";
+   opt["source"] = "ADF Duplex";
+   if (autosize)
+      opt["auto-size"] = "yes";
+   main->setScanOptions (opt);
+
+   QElapsedTimer timer;
+   QList<qint64> stamps;
+   connect (model, &Desktopmodel::newScannedPage, this,
+            [&] (const QString &, bool) { stamps << timer.elapsed (); });
+
+   timer.start ();
+   main->scanInto (repo_ind);          // returns when the batch is done
+
+   QVERIFY2 (stamps.size () >= 2, qPrintable (QString ("only %1 pages")
+                                              .arg (stamps.size ())));
+   QList<qint64> gaps;
+   for (int i = 1; i < stamps.size (); i++)
+      gaps << stamps[i] - stamps[i - 1];
+   std::sort (gaps.begin (), gaps.end ());
+   qint64 total = stamps.last () - stamps.first ();
+   qDebug ("GUI scan %s: %d pages, %lld ms total, %lld ms/page mean, "
+           "min %lld median %lld max %lld",
+           autosize ? "auto-size" : "fixed", (int) stamps.size (),
+           (long long) total, (long long) (total / (stamps.size () - 1)),
+           (long long) gaps.first (),
+           (long long) gaps[gaps.size () / 2], (long long) gaps.last ());
+
+   utilSetHeadless (false);
+   xmlConfig->setStringValue ("LAST_DEVICE", old_dev);
+   xmlConfig->setIntValue ("SCAN_SINGLE", old_single);
+}
+
+
 void TestQscanner::testAutoSizePanel()
 {
    const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
