@@ -575,12 +575,11 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
    if (status)
       {
       if (utilHeadless ())
-         qWarning () << "Scan status:" << sane_strstatus (status);
+         qWarning () << "Scan status:" << sane_strstatus (status) << msg;
       else
          {
-         QSaneStatusMessage fred (status, this);
+         QSaneStatusMessage fred (status, this, msg);
 
-         printf ("status = %d\n", status);
          fred.exec ();
          }
       }

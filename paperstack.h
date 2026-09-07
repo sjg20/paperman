@@ -425,6 +425,13 @@ protected:
    SANE_Status readSide (unsigned char *buf, int size, bool back,
                          long &total);
 
+   /** Describe a failed SANE call, for the user
+
+      \param status  the status it returned
+      \param page    page being scanned at the time, or 0 if none
+      \returns a message naming the call, the device and the status */
+   QString failStr (SANE_Status status, int page);
+
    /** our run loop */
    void run (void);
 
@@ -504,6 +511,7 @@ private:
    QString _stack_name;       //!< suggested stack name
    QString _page_name;        //!< suggested page name
    QString _progress_str;     //!< place to put progress information
+   QString _op;               //!< the SANE call in progress, for errors
    QString _info_str;         //!< place to put information string
    Paperstack *_stack;        //!< current stack we are scanning into
    QMutex _mutex;             //!< mutex to protect our variables
