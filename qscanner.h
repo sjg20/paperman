@@ -456,15 +456,18 @@ is able to choose an option value automatically. */
       legal range. */
   void setBufferSize (int bytes);
 
-  /** True if libsane provides sane_read_dup, in which case readDup() will
-      deliver front and back data progressively in a single call. */
+  /** True if libsane provides sane_read_dup and the back end has not
+      refused it, in which case readDup() will deliver front and back data
+      progressively in a single call. */
   bool hasReadDup (void);
 
   /** Read both sides of a duplex scan in one call. Caller passes two
       output buffers of the same maxlen; *front_len / *back_len are filled
       with the bytes actually returned for each side. Returns SANE_STATUS_GOOD
       while either side may still produce data; SANE_STATUS_EOF when both
-      sides are drained. Asserts hasReadDup(). */
+      sides are drained. Asserts hasReadDup(). A back end without the
+      extension returns SANE_STATUS_UNSUPPORTED, after which hasReadDup()
+      is false for this scanner. */
   SANE_Status readDup (SANE_Byte *front_buf, SANE_Byte *back_buf,
                        SANE_Int max_len,
                        SANE_Int *front_len, SANE_Int *back_len);
@@ -524,6 +527,7 @@ successfull */
   SANE_Status mSaneStatus;
   /**  */
   bool mCancelled;
+  bool mNoReadDup;         //!< the back end refused sane_read_dup()
   /**  */
   QProgressDialog* mpProgress;
 
