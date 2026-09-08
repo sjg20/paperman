@@ -449,6 +449,15 @@ is able to choose an option value automatically. */
      \returns true if double-feed is detected, false otherwise */
   bool checkDoubleFeed (void);
 
+  /** Ask the backend to stop the feeder but keep delivering the pages it
+      has already scanned, so that a batch stopped early loses nothing.
+      Only backends with a "stop-feed" button offer this (finet today).
+      Must be called from the scanning thread, between pages.
+
+     \returns true if the feeder is now stopped and the remaining pages
+              will follow, false if the backend cannot do this */
+  bool stopFeed (void);
+
   /** Request the backend to use a smaller per-read chunk so the frontend
       sees the page progressively. No-op if the backend has no
       "buffer-size" option (only the patched fujitsu backend does today).

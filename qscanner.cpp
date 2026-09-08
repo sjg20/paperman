@@ -3933,6 +3933,22 @@ bool QScanner::checkDoubleFeed (void)
    return val > 0;
 }
 
+
+bool QScanner::stopFeed (void)
+{
+   int num = findOption ("stop-feed");
+
+   if (num == -1 || getOptionType (num) != SANE_TYPE_BUTTON)
+      return false;
+
+   SANE_Int info;
+   SANE_Status status = do_sane_control_option (mDeviceHandle, num,
+                                                SANE_ACTION_SET_VALUE, 0L,
+                                                &info);
+
+   return status == SANE_STATUS_GOOD;
+}
+
 #if 0
   s->opt[SIMUL_NUM_OPTS].name = SANE_NAME_NUM_OPTIONS;
   s->opt[SIMUL_NUM_OPTS].title = SANE_TITLE_NUM_OPTIONS;

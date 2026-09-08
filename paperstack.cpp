@@ -784,6 +784,7 @@ void Paperscan::scan ()
    emit progress (_progress_str);
 
    _end = false;
+   _draining = false;
 
    stack_limit = xmlConfig->intValue ("SCAN_STACK_COUNT");
    err = NULL;
@@ -1140,7 +1141,13 @@ void Paperscan::scan ()
       // work out whether to scan more sheets
       done = !adf || (single && total_sides >= single);
 
-      } while (!done && !_end && !err && !isCancelled ());
+      /* Stop means finish the batch, not abandon it. A feeder that runs
+         ahead of us has sheets scanned that we have not read yet: if the
+         backend can stop the feeder while keeping those, carry on until
+         it runs dry. Otherwise stop here as before */
+      if (_end && !_draining && !done && !err && !isCancelled ())
+         _draining = _scanner->stopFeed ();
+      } while (!done && (!_end || _draining) && !err && !isCancelled ());
 
    _scanner->cancel ();
 
