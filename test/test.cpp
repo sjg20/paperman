@@ -1,3 +1,5 @@
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QtTest/QtTest>
 #include <cstring>
 
@@ -37,6 +39,18 @@ int test_run(int, char **in_argv, QApplication *,
    int status = 0;
    const char *className = filter;
    const char *funcName = nullptr;
+
+   /* Keep the tests away from the user's own settings. The widgets read
+    * the saved splitter sizes and repository list from QSettings and
+    * write them back on close, so without this the results depend on
+    * the machine and a test run scribbles on the real configuration */
+   QTemporaryDir settings_dir;
+   if (!settings_dir.isValid()) {
+      fprintf(stderr, "Cannot create a temporary settings directory\n");
+      return 1;
+   }
+   QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
+                      settings_dir.path());
 
    // Split "Class::function" into class filter and function filter
    static char filterBuf[256];
