@@ -1287,16 +1287,38 @@ void TestDesktopUi::testScanIntoStack()
    if (!xmlConfig)
       new QXmlConfig();
    QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
-   xmlConfig->setStringValue("LAST_DEVICE", "simulscan");
+   xmlConfig->setStringValue("LAST_DEVICE", getenv("PM_SCAN_DEVICE") ? getenv("PM_SCAN_DEVICE") : "simulscan");
 
    Mainwidget *main = Mainwidget::singleton();
    QVERIFY(main);
+   if (getenv("PM_SCAN_SET")) {
+      QMap<QString, QString> opts;
+      foreach (const QString &kv, QString(getenv("PM_SCAN_SET")).split(','))
+         opts[kv.section('=', 0, 0)] = kv.section('=', 1);
+      main->setScanOptions(opts);
+   }
    int before = model->rowCount(repo_ind);
 
-   /* the simulated ADF holds 120 pages, so press the stop button (which
-      finishes the current page and ends the scan) shortly after the
-      scan begins */
-   QTimer::singleShot(400, main, [main]() { main->stopScan(false); });
+   /* the simulated ADF holds 120 pages at about a second each, so press
+      the stop button (which finishes the current page and ends the scan)
+      as soon as the scan is under way. Opening the scanner can take
+      several seconds here, so wait for it rather than using a fixed
+      delay, which would fire too early and let all 120 pages scan.
+      PM_SCAN_STOP_MS gives a fixed delay instead, for timing a longer
+      run on a real scanner (see PM_SCAN_DEVICE and PM_SCAN_SET) */
+   if (getenv("PM_SCAN_STOP_MS"))
+      QTimer::singleShot(atoi(getenv("PM_SCAN_STOP_MS")), main,
+                         [main]() { main->stopScan(false); });
+   else {
+      QTimer *stopper = new QTimer(main);
+      connect(stopper, &QTimer::timeout, main, [main, stopper]() {
+         if (main->isScanning()) {
+            main->stopScan(false);
+            stopper->stop();
+         }
+      });
+      stopper->start(100);
+   }
    me.actionScango->trigger();
 
    xmlConfig->setStringValue("LAST_DEVICE", old_device);
