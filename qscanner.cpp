@@ -3167,7 +3167,9 @@ void QScanner::setOptionsByName(QMap <QString,QString> omap)
            }
            break;
           case SANE_TYPE_BOOL:
-           sw = it.value().toInt();
+           /* as on the command line: yes/no, true/false, on/off or 1/0 */
+           qs = it.value().trimmed().toLower();
+           sw = qs == "yes" || qs == "true" || qs == "on" || qs.toInt();
            setOption(optnum,&sw);
            break;
           case SANE_TYPE_STRING:
