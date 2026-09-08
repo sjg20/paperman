@@ -48,6 +48,7 @@ typedef struct file_info file_info;
 struct err_info;
 struct print_info;
 
+#include <QElapsedTimer>
 #include <QModelIndex>
 #include <QStackedWidget>
 
@@ -172,6 +173,9 @@ public:
 
    // Returns true if currently scanning
    bool isScanning();
+
+   //! CPU time used so far by the calling thread, in seconds
+   static double threadCpuSeconds (void);
 
    void setMainwindow(Mainwindow *mainwindow);
 
@@ -458,6 +462,12 @@ private:
    bool _scan_cancelling;  //!< true if cancelling the scan
    bool _scan_ok;          //!< true if the last scan completed without error
    int _scan_pages;        //!< pages received in the current scan
+   struct {
+      QElapsedTimer wall;  //!< since the scan started
+      double gui_cpu;      //!< GUI-thread CPU seconds when the scan started
+      int progress;        //!< progress messages received
+      int max_behind;      //!< most sides the display was behind the scan
+      } _scan_stats;       //!< for PAPERMAN_SCAN_STATS
    QString _scan_summary;  //!< result message from the last scan
    bool _console;          //!< report scan progress on stdout
    QMap<QString, QString> _scan_options;  //!< options to apply before scanning

@@ -392,6 +392,12 @@ public:
        the page, so that another message may be sent for it */
    void progressHandled (const PPage *page);
 
+   //! number of sides the scanning thread has finished so far
+   int sidesDone (void) const { return _sides_done; }
+
+   //! CPU time used by the scanning thread, in seconds, once it has finished
+   double cpuSeconds (void) const { return _cpu_seconds; }
+
    /** free a previously scanned page */
    void pageAdded (const Filepage *mp);
 
@@ -536,6 +542,8 @@ private:
    err_info _cancel_err;      //!< error to return from a cancel operation
    bool _end;                 //!< true to end the scan
    bool _draining;            //!< feeder stopped; reading out its buffered pages
+   int _sides_done;           //!< sides finished, for the display to compare with
+   double _cpu_seconds;       //!< CPU time used by run()
    QSet<int> _progress_pending;   //!< pages with a progress message not yet handled
    QHash<int, qint64> _progress_time; //!< when each page last sent progress
    QElapsedTimer _progress_clock;  //!< clock for _progress_time

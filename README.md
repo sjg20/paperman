@@ -170,6 +170,13 @@ into the 'inbox' directory of the repository in ~/paper:
 
     paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
 
+With `PAPERMAN_SCAN_STATS=1` in the environment, paperman prints a line
+of statistics on stderr at the end of every scan, in the GUI as well as
+with `--scan`: sides scanned, time per side, CPU used by the display and
+scanning threads, and how far the display fell behind the scanner. This
+is the first thing to look at if scanning seems slow, since it says
+which side is the bottleneck.
+
 ### -o <directory> | --ocr <directory>
 
 Recursively process all .max files in a directory, performing OCR (Optical Character
