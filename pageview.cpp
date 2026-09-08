@@ -24,6 +24,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QScrollBar>
+#include <QTimer>
+#include <QKeyEvent>
 #include <QWheelEvent>
 
 #include "desktopmodel.h"
@@ -58,8 +60,15 @@ Pageview::Pageview (QWidget *parent)
    setEditTriggers (QAbstractItemView::EditKeyPressed);
    setStyleSheet ("QListView { background: palette(mid); }");
 
+   _follow = false;
    _autoscroll = true;  // the user has not scrolled yet
    _ignore_scroll = false;
+   /* actionTriggered() comes only from the user (scrollbar, wheel), never
+      from setValue(), so it tells user scrolls from ones a relayout makes */
+   connect (verticalScrollBar (), SIGNAL (actionTriggered (int)),
+            this, SLOT (slotUserScrolled ()));
+   connect (verticalScrollBar (), SIGNAL (rangeChanged (int, int)),
+            this, SLOT (slotRangeChanged (int, int)));
 
    _relayoutTimer.setSingleShot (true);
    connect (&_relayoutTimer, SIGNAL (timeout ()), this, SLOT (slotRelayout ()));
@@ -96,6 +105,21 @@ void Pageview::slotRelayout ()
          setGridSize (hint + QSize (spacing (), spacing ()));
       }
    scheduleDelayedItemsLayout ();
+   }
+
+
+void Pageview::slotRangeChanged (int min, int max)
+   {
+   Q_UNUSED (min);
+   /* the end has moved (rows added, cells re-measured, the view resized):
+      while following it, stay on it. scrollToRow() alone is not enough,
+      as the layout it scrolled to can still change afterwards */
+   if (followingEnd ())
+      {
+      _ignore_scroll = true;
+      verticalScrollBar ()->setValue (max);
+      _ignore_scroll = false;
+      }
    }
 
 
@@ -189,8 +213,12 @@ void Pageview::scrollToRow (int row, bool ifAtEnd)
    {
    if (row < 0)
       return;
-   if (!ifAtEnd || _autoscroll)
+   if (!ifAtEnd || followingEnd ())
       {
+      /* a relayout may be pending from the rows just added: do it first,
+         or the scroll is worked out from the old geometry and stops short
+         of the end */
+      executeDelayedItemsLayout ();
       _ignore_scroll = true;
       scrollTo (model ()->index (row, 0, QModelIndex ()), PositionAtBottom);
       _ignore_scroll = false;
@@ -200,17 +228,36 @@ void Pageview::scrollToRow (int row, bool ifAtEnd)
 
 void Pageview::scrollContentsBy (int dx, int dy)
    {
-   /* if we caused the scroll, then don't worry. Otherwise the user is trying
-      to adjust the scrollbars, so if they are not at the bottom, we turn off
-      autoscroll */
-   if (!_ignore_scroll)
-      {
+   /* Whether to keep following the end is decided by the user's scrolls
+      alone (slotUserScrolled, keyPressEvent). It used to be decided here,
+      by any scroll not of our own making: but a relayout as pages are
+      added moves the contents too, and the moment that happened with the
+      bar not quite at the end, following stopped for good and the view
+      sat on the first screenful while the scan went on below it */
+   QListView::scrollContentsBy (dx, dy);
+   }
+
+
+void Pageview::slotUserScrolled ()
+   {
+   /* the slider moves after the signal, so look once that is done */
+   QTimer::singleShot (0, this, [this] () {
       QScrollBar *vs = verticalScrollBar ();
 
       _autoscroll = vs->value () == vs->maximum ();
-//       qDebug () << "autoscroll" << _autoscroll;
-      }
-   QListView::scrollContentsBy (dx, dy);
+      });
+   }
+
+
+void Pageview::keyPressEvent (QKeyEvent *event)
+   {
+   QListView::keyPressEvent (event);
+
+   /* moving around with the keys scrolls the view without the scrollbar
+      knowing it was the user: treat it the same way */
+   QScrollBar *vs = verticalScrollBar ();
+
+   _autoscroll = vs->value () == vs->maximum ();
    }
 
 

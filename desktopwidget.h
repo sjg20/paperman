@@ -140,6 +140,9 @@ public:
 
    /** returns a pointer to the model, which contains the items being displayed */
    Desktopmodel *getModel (void) { return _contents; }
+   
+   //! the page pane that shows the current stack and follows a scan
+   Pagewidget *getPagewidget (void) { return _page; }
 
    /** returns a pointer to the view,, which contains the view of the items */
    Desktopview *getView (void) { return _view; }

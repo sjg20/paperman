@@ -653,6 +653,7 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
          }
 
       reset = true;
+      _pageview->setFollowEnd (false);
 
       /* if we were scanning into a stack, but have selected a different
          stack, disown the scanning stack */
@@ -866,6 +867,7 @@ void Pagewidget::beginningScan (const QModelIndex &ind)
    _prescan_mode = mode;
    showPages (ind.model (), ind, 0, -1, -1);
    _scanning = true;
+   _pageview->setFollowEnd (true);   // follow the pages as they arrive
    _pagemodel->beginningScan ();
    }
 
@@ -911,6 +913,9 @@ void Pagewidget::stopRendering (void)
 void Pagewidget::scanComplete (void)
    {
    _scanning = false;
+   /* keep following the end: the thumbnails are still being regenerated,
+      which can re-measure the cells and move it. Showing another stack,
+      or the user scrolling away, ends it */
    _pagemodel->endingScan ();
    revertMode ();
    }

@@ -90,11 +90,19 @@ public:
                         away from the end */
    void scrollToRow (int row, bool ifAtEnd = false);
 
+   /** Follow the end of the view as rows are added and the layout
+       changes, as when a scan is being shown. The user scrolling away
+       from the end suspends it until they scroll back to the end */
+   void setFollowEnd (bool follow)
+      { _follow = follow; _autoscroll = true; }
+   bool followingEnd (void) const { return _follow && _autoscroll; }
+
 public slots:
    void slotPagePartChanged (const QModelIndex &index, const QImage &image, int scaled_linenum);
 
 protected:
    void scrollContentsBy (int dx, int dy);
+   void keyPressEvent (QKeyEvent *event) override;
 
    //! update the view size based on the items within it
    void updateGeometries (void);
@@ -114,10 +122,19 @@ private slots:
    /** re-lay-out after page pixmaps load, so cells fit their pages */
    void slotRelayout ();
 
+   /** the user has moved the scrollbar (by any means): decide whether to
+       keep following the end of the view */
+   void slotUserScrolled ();
+
+   /** the scrollable range has changed (rows added, cells re-measured,
+       view resized): if following the end, stay there */
+   void slotRangeChanged (int min, int max);
+
 private:
    QTimer _relayoutTimer;  //!< coalesces re-layouts after pixmap updates
    int _scale_down;     //!< scale factor to use (1/n)
-   bool _autoscroll;    //!< true if the user has not manually adjusted the scrollbar
+   bool _follow;        //!< true to follow the end of the view (a scan is shown)
+   bool _autoscroll;    //!< true if the user has not scrolled away from the end
    bool _ignore_scroll; //!< true to ignore any scrolls (they are machine-generated)
    };
 
