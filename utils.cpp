@@ -294,7 +294,6 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
             uint32_t *out;
             int i;
 
-            mem_check ();
             in = (byte *)buffer [0];
             i = cinfo.output_width;
             if (max_width != -1 && i > max_width)
@@ -302,7 +301,6 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
             for (out = (uint32_t *)dest; i != 0;
                  i--, in += 3)
                *out++ = in [2] | (in [1] << 8) | (in [0] << 16);
-            mem_check ();
             }
          else
             {
