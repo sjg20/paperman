@@ -500,7 +500,8 @@ void Pagemodel::nextUpdate (void)
          /* a big page is slow to decode, so hand it to the render thread
             and carry on when it comes back; the scan image and small
             previews are cheap, so do those here */
-         if (_stackindex.isValid () && !pi->scanning () && _contents
+         if (_stackindex.isValid () && !pi->scanning () && !_own_scan
+             && _contents
              && _contents->imageNeedsDecode (_stackindex, pagenum, _pagesize))
             {
             pi->markRendering ();
@@ -548,6 +549,7 @@ void Pagemodel::slotRendered (int itemnum, QImage image, quint64 gen)
 void Pagemodel::beginningScan (void)
    {
    // we 'own' the scanning now, so will display previews as pages are scanning
+   _renderer->flush ();     // no render thread reads while the scan writes
    _own_scan = true;
    _lost_scan = false;
    _scan_pages.clear ();
