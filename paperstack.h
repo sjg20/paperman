@@ -38,6 +38,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QMutex>
+#include <QElapsedTimer>
+#include <QHash>
+#include <QSet>
 #include <QThread>
 #include <QWaitCondition>
 
@@ -385,6 +388,10 @@ public:
    /** stop scanning after the current page */
    void endScan (void);
 
+   /** Called by the receiver of stackPageProgress() once it has looked at
+       the page, so that another message may be sent for it */
+   void progressHandled (const PPage *page);
+
    /** free a previously scanned page */
    void pageAdded (const Filepage *mp);
 
@@ -479,7 +486,7 @@ signals:
 
    /** indicate that more bytes have arrived for the current page being scanned
        These are available through Paperstack->getData() */
-   void stackPageProgress (const PPage *page);
+   void stackPageProgress (const PPage *page);   // sent through notifyProgress()
 
    /** provide the user with the number of bytes so far read
 
@@ -501,6 +508,15 @@ private:
 
    void scan (void);
 
+   /** Tell the main thread that a page has more data, coalescing messages
+       so that at most one is outstanding per page and no more than one
+       every PROGRESS_INTERVAL ms
+
+      \param page    page with more data, or NULL for none
+      \param final   true if this is the page's last data, which must be
+                     shown, so the interval does not apply */
+   void notifyProgress (const PPage *page, bool final = false);
+
    /** check if the scan should be cancelled
 
       \returns true if the scan should be cancelled, false if all ok */
@@ -520,6 +536,9 @@ private:
    err_info _cancel_err;      //!< error to return from a cancel operation
    bool _end;                 //!< true to end the scan
    bool _draining;            //!< feeder stopped; reading out its buffered pages
+   QSet<int> _progress_pending;   //!< pages with a progress message not yet handled
+   QHash<int, qint64> _progress_time; //!< when each page last sent progress
+   QElapsedTimer _progress_clock;  //!< clock for _progress_time
    };
 
 

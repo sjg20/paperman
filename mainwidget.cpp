@@ -685,6 +685,9 @@ void Mainwidget::info (const QString &str)
 
 void Mainwidget::slotStackPageProgress (const PPage *page)
    {
+   /* let the scanning thread send another message for this page: any data
+      arriving from here on is not covered by this one */
+   _scan->progressHandled (page);
    if (!_scan_cancelling)
       {
       const char *data;
