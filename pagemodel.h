@@ -153,7 +153,14 @@ public:
    void markRendering (void) { _rescale = false; }
 
    //! store a pixmap produced by the background render thread
-   void setPixmap (const QPixmap &pm) { _pixmap = pm; _rescale = false; }
+   void setPixmap (const QPixmap &pm)
+      { _pixmap = pm; _rescale = false; _provisional = false; }
+
+   /** If this page is still showing the preview built up while it was
+       scanned, ask for the proper thumbnail to be generated instead
+
+      \returns true if a rescale was requested */
+   bool finishProvisional (void);
 
    /** returns the string with information on page coverage
 
@@ -210,6 +217,8 @@ private:
 //   int _scale_down;          //!< scale factor at which the pixmap was done (e.g. 24 means 1/24)
    QSize _size;            //!< image size
    bool _rescale;          //!< true if this page's pixmap needs to be rescaled
+   bool _provisional;      //!< the pixmap is the live scan preview, to be
+                           //!< regenerated from the file once the scan ends
    QString _coverage;      //!< information about page coverage
    bool _blank;            //!< true if page is blank
    bool _remove;           //!< marked for removal
