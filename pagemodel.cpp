@@ -558,9 +558,19 @@ void Pagemodel::beginningScan (void)
 
 void Pagemodel::endingScan (void)
    {
+   bool pending = false;
+
 //    qDebug () << "endingScan";
    _own_scan = false;
    _lost_scan = false;
+
+   /* the pages just scanned are showing their live previews: now that
+      the render thread may read the file again, have it generate the
+      proper thumbnails in the background */
+   for (int i = 0; i < _count; i++)
+      pending |= _pages [i].finishProvisional ();
+   if (pending)
+      scheduleRescale ();
    }
 
 
@@ -797,6 +807,7 @@ Pageinfo::Pageinfo (void)
    _model = 0;
    _size = QSize ();
    _rescale = false;
+   _provisional = false;
    }
 
 
@@ -843,6 +854,7 @@ void Pageinfo::haltRescale ()
 void Pageinfo::invalidate ()
    {
    _valid = false;
+   _provisional = false;
    _coverage = "";
    _blank = _remove = _scanning = false;
    }
@@ -851,8 +863,25 @@ void Pageinfo::invalidate ()
 void Pageinfo::scanDone (QString coverage, bool mark_blank)
    {
    setCoverage (coverage);
-   _rescale = true;  // force a regenerate of the pixmap
-//    _valid = false;
+
+   /* The preview built up while the page was scanning is a good enough
+      thumbnail for now. Regenerating it here would decode the whole page
+      on the GUI thread, once per page and one page per event-loop turn,
+      since the render thread must stay off the file while the scan
+      writes it: that is what lets the display fall behind a fast feeder.
+      Keep the preview and regenerate it once the scan is over. A page
+      that never got a preview has to be generated now */
+   if (_pixmap.isNull ())
+      _rescale = true;
+   else
+      {
+      _provisional = true;
+      /* the page was painted before its first preview arrived, with no
+         pixmap, which asked for a rescale: the preview answers that now,
+         so drop the request, or the page is decoded in full once the
+         update timer fires */
+      _rescale = false;
+      }
    _coverage = coverage;
    _remove = _blank = mark_blank;
    _scanning = false;
@@ -887,6 +916,16 @@ QPixmap Pageinfo::pixmap (bool &dodgy)
    }
 
 
+bool Pageinfo::finishProvisional (void)
+   {
+   if (!_provisional)
+      return false;
+   _provisional = false;
+   _rescale = true;
+   return true;
+   }
+
+
 bool Pageinfo::updatePixmap (void)
    {
    // any need for rescale?
@@ -909,6 +948,12 @@ bool Pageinfo::updatePixmap (void)
 void Pageinfo::updateScanImage (const QImage &image)
    {
    _pixmap = QPixmap::fromImage (image);
+   /* the preview surface is the page box, so the pixmap is for the
+      current page size: without saying so, every paint would find it the
+      wrong size and ask for a rescale from the file, which decodes the
+      page on the GUI thread while the scan is still writing the stack and
+      replaces the preview with a full-height box */
+   _size = image.size ();
    }
 
 
