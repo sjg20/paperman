@@ -170,12 +170,30 @@ into the 'inbox' directory of the repository in ~/paper:
 
     paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
 
+Before every scan paperman turns on the fast-transfer settings a backend
+offers: `buffermode=On`, so a scanner with memory scans ahead instead of
+stopping after each sheet, and in colour `compression=JPEG`, so a side
+arrives as under 1 MB rather than 25 MB. Both matter over USB (the
+patched fujitsu backend has them; the fi-8950 runs at a third of its
+speed without). A `None` chosen for compression in the scan dialog is
+respected, and `--set` still overrides either.
+
 With `PAPERMAN_SCAN_STATS=1` in the environment, paperman prints a line
 of statistics on stderr at the end of every scan, in the GUI as well as
 with `--scan`: sides scanned, time per side, CPU used by the display and
 scanning threads, and how far the display fell behind the scanner. This
 is the first thing to look at if scanning seems slow, since it says
 which side is the bottleneck.
+
+With `PAPERMAN_SNAP=<dir>` set (or `--snap <dir>`), paperman saves a
+snapshot of its window as it appears on screen once a second, as
+`snap-NNNN-<seconds>s.jpg` in that directory; `--clean-snaps` (or
+`PAPERMAN_SNAP_CLEAN=1`) removes the snapshots already there first. This shows what the display
+actually showed and when, to set against a log, which is useful when the
+display seems to lag behind what paperman reports. It grabs from
+paperman's own event loop, so it misses the moments paperman is busy, and
+it captures screen pixels, so it needs X11 (on Wayland the snapshots come
+out empty).
 
 ### -o <directory> | --ocr <directory>
 
