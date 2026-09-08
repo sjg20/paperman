@@ -519,6 +519,7 @@ private:
    bool _cancel;              //!< true to cancel the scan
    err_info _cancel_err;      //!< error to return from a cancel operation
    bool _end;                 //!< true to end the scan
+   bool _draining;            //!< feeder stopped; reading out its buffered pages
    };
 
 
