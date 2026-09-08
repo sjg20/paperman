@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QtGui>
 #include <QDir>
 #include <QMessageBox>
+#include <QScreen>
 #include <QSettings>
 #include <qvariant.h>
 
@@ -102,6 +103,51 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
 
    addAction(actionPscan);
    addAction(actionScango);
+
+   /* with PAPERMAN_SNAP=<dir>, save what is on screen once a second (or
+      every PAPERMAN_SNAP_MS milliseconds), to see what the display
+      actually showed when, against a log */
+   _snapTimer = 0;
+   _snapCount = 0;
+   _snapDir = QString::fromLocal8Bit(qgetenv("PAPERMAN_SNAP"));
+   if (!_snapDir.isEmpty() && QDir().mkpath(_snapDir)) {
+      /* --clean-snaps: start with an empty directory, so the files are
+         only this run's. Only our own files are touched */
+      if (!qgetenv("PAPERMAN_SNAP_CLEAN").isEmpty()) {
+         QDir dir(_snapDir);
+         foreach (const QString &old,
+                  dir.entryList(QStringList() << "snap-*.jpg", QDir::Files))
+            dir.remove(old);
+      }
+      _snapTimer = new QTimer(this);
+      connect(_snapTimer, SIGNAL(timeout()), this, SLOT(snapWindow()));
+      _snapClock.start();
+      int interval = qgetenv("PAPERMAN_SNAP_MS").toInt();
+      _snapTimer->start(interval > 0 ? interval : 1000);
+   }
+}
+
+
+void Mainwindow::snapWindow()
+{
+   if (!isVisible())
+      return;
+
+   /* grab the screen's pixels rather than render the widgets, so the
+      snapshot shows what the user sees even when the display has not
+      caught up with the widgets' state */
+   QScreen *scr = screen();
+   if (!scr)
+      return;
+   QPixmap pm = scr->grabWindow(winId());
+   if (pm.isNull())
+      return;
+   /* name by elapsed milliseconds, so frames line up with a timestamped
+      log at better than a second */
+   QString name = QString("%1/snap-%2-%3ms.jpg").arg(_snapDir)
+      .arg(++_snapCount, 4, 10, QChar('0'))
+      .arg(_snapClock.elapsed(), 6, 10, QChar('0'));
+   pm.save(name, "jpg", 85);
 }
 
 

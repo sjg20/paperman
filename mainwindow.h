@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <QElapsedTimer>
+#include <QTimer>
 #include "ui_mainwindow.h"
 #include "op.h"
 
@@ -112,6 +114,10 @@ public slots:
 
     void on_actionDirFilter_triggered(bool state);
 
+    /** save a snapshot of the window as shown on screen, for diagnosing
+        display problems (see PAPERMAN_SNAP) */
+    void snapWindow ();
+
 protected slots:
     virtual void languageChange();
     void closeEvent(QCloseEvent *event);
@@ -129,4 +135,9 @@ private:
     //! true if we have already shown the welcome message
     bool _welcome_shown;
     Desktopwidget *_desktop;
+
+    QTimer *_snapTimer;      //!< snapshot timer, or NULL (PAPERMAN_SNAP)
+    QString _snapDir;        //!< where the snapshots go
+    QElapsedTimer _snapClock; //!< time since the first snapshot
+    int _snapCount;          //!< snapshots taken so far
 };
