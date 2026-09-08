@@ -22,6 +22,7 @@
 #include "pagewidget.h"
 #include "searchserver.h"
 #include "qxmlconfig.h"
+#include <QScrollBar>
 #include "test_desktopui.h"
 
 void TestDesktopUi::setupShown(Mainwindow *me, Desktopmodel *&model,
@@ -1336,6 +1337,21 @@ void TestDesktopUi::testScanIntoStack()
    QString pathname =
       model->data(new_ind, Desktopmodel::Role_pathname).toString();
    QVERIFY(QFile::exists(pathname));
+
+   /* the page view followed the scan: it is scrolled to the end and the
+      last page is on screen, even once there were more pages than fit */
+   Pageview *pageview = me.getDesktop()->getPagewidget()->findChild<Pageview *>();
+   QVERIFY(pageview);
+   QAbstractItemModel *pages = pageview->model();
+   QVERIFY(pages);
+   QCOMPARE(pages->rowCount(), scanned->pagecount());
+   QScrollBar *vs = pageview->verticalScrollBar();
+   QCOMPARE(vs->value(), vs->maximum());
+   /* the last row is on screen: its rect may run a few pixels past the
+      viewport (cell spacing, or a relayout still pending), so ask only
+      that it overlaps the viewport */
+   QModelIndex last = pages->index(pages->rowCount() - 1, 0);
+   QVERIFY(pageview->viewport()->rect().intersects(pageview->visualRect(last)));
 }
 
 void TestDesktopUi::testScanCommandLine()
