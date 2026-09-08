@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QDialogButtonBox>
+#include <QEventLoop>
 #include <QtGlobal>
 #include <QShortcut>
 #if QT_VERSION >= 0x050000
@@ -464,10 +465,15 @@ void Mainwidget::scanInto(QModelIndex target)
    _scan_summary.clear ();
    updatePscan ();
 
+   /* Wait for the scan to finish, processing events as they arrive. Block
+      in WaitForMoreEvents rather than spinning on a bare processEvents(),
+      which returns at once when the queue is empty and so pegs a whole CPU
+      core for the entire scan. _buttonTimer wakes us at least twice a
+      second, so _scanning is re-checked promptly even if a wake-up is
+      missed. The scanning thread has no event loop of its own, so nothing
+      needs delivering to it. */
    while (_scanning)
-      /* note this will not allow the scanning thread to get events, but
-         at the moment it doesn't have an event loop anyway */
-      qApp->processEvents ();
+      qApp->processEvents (QEventLoop::WaitForMoreEvents);
    /* scanComplete() is emitted from the thread just before it finishes,
       so it may still be running: destroying it now would abort */
    scan.wait ();
