@@ -28,6 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 
 #include <QDebug>
+#include <time.h>
 #include <QDialogButtonBox>
 #include <QEventLoop>
 #include <QtGlobal>
@@ -463,6 +464,10 @@ void Mainwidget::scanInto(QModelIndex target)
    _scan_ok = false;
    _scan_pages = 0;
    _scan_summary.clear ();
+   _scan_stats.wall.start ();
+   _scan_stats.gui_cpu = threadCpuSeconds ();
+   _scan_stats.progress = 0;
+   _scan_stats.max_behind = 0;
    updatePscan ();
 
    /* Wait for the scan to finish, processing events as they arrive. Block
@@ -477,6 +482,20 @@ void Mainwidget::scanInto(QModelIndex target)
    /* scanComplete() is emitted from the thread just before it finishes,
       so it may still be running: destroying it now would abort */
    scan.wait ();
+   if (getenv ("PAPERMAN_SCAN_STATS"))
+      {
+      double wall = _scan_stats.wall.elapsed () / 1000.0;
+      double gui = threadCpuSeconds () - _scan_stats.gui_cpu;
+
+      qWarning ("scan stats: %d sides in %.1fs (%.0f ms/side); display "
+                "thread CPU %.2fs (%.0f%%), scanning thread CPU %.2fs "
+                "(%.0f%%); display was behind the scanner by up to %d "
+                "sides; %d progress messages",
+                _scan_pages, wall, _scan_pages ? wall * 1000 / _scan_pages : 0,
+                gui, wall ? gui * 100 / wall : 0, scan.cpuSeconds (),
+                wall ? scan.cpuSeconds () * 100 / wall : 0,
+                _scan_stats.max_behind, _scan_stats.progress);
+      }
    _scan = 0;
 //    qDebug () << "scan complete";
    _watchButtons = true;
@@ -528,6 +547,17 @@ void Mainwidget::slotStackNew (const QString &stack_name)
       if (err)
          _scan->cancelScan (err);
       }
+   }
+
+
+/* CPU time used so far by the calling thread, in seconds */
+double Mainwidget::threadCpuSeconds (void)
+   {
+   struct timespec ts;
+
+   if (clock_gettime (CLOCK_THREAD_CPUTIME_ID, &ts))
+      return 0;
+   return ts.tv_sec + ts.tv_nsec / 1e9;
    }
 
 
@@ -614,6 +644,8 @@ void Mainwidget::slotStackNewPage (const Filepage *mp, const QString &coverageSt
       if (!infostr.isEmpty ())
          info (infostr);
       _scan_pages++;
+      _scan_stats.max_behind = qMax (_scan_stats.max_behind,
+                                     _scan->sidesDone () - _scan_pages);
       if (_console)
          printf ("Page %d: %s\n", _scan_pages, qPrintable (coverageStr));
       err = _contents->addPageToScan (mp, coverageStr);
@@ -688,6 +720,7 @@ void Mainwidget::slotStackPageProgress (const PPage *page)
    /* let the scanning thread send another message for this page: any data
       arriving from here on is not covered by this one */
    _scan->progressHandled (page);
+   _scan_stats.progress++;
    if (!_scan_cancelling)
       {
       const char *data;

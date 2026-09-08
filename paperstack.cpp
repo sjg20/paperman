@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <assert.h>
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -712,6 +713,8 @@ Paperscan::Paperscan (QObject *parent)
       thread is started, before scan() would have run */
    _end = false;
    _draining = false;
+   _sides_done = 0;
+   _cpu_seconds = 0;
    _progress_clock.start ();
    }
 
@@ -932,6 +935,7 @@ void Paperscan::scan ()
                emit stackNewPage (mp, cov_f, _info_str);
                if (mp->markBlank ()) total_blank++;
                total_sides++;
+               _sides_done = total_sides;
                }
             if (!err)
                {
@@ -941,6 +945,7 @@ void Paperscan::scan ()
                   emit stackNewPage (mp, cov_b, _info_str);
                   if (mp->markBlank ()) total_blank++;
                   total_sides++;
+                  _sides_done = total_sides;
                   }
                }
             if (!err) status = SANE_STATUS_GOOD;
@@ -1082,6 +1087,7 @@ void Paperscan::scan ()
                total_blank++;
             status = SANE_STATUS_GOOD;
             total_sides++;
+            _sides_done = total_sides;
             }
          else
             {
@@ -1243,11 +1249,15 @@ SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
 
 void Paperscan::run (void)
    {
+   struct timespec ts;
+
 //    qDebug () << "run";
 
    // scan
    scan ();
 
+   if (!clock_gettime (CLOCK_THREAD_CPUTIME_ID, &ts))
+      _cpu_seconds = ts.tv_sec + ts.tv_nsec / 1e9;
    }
 
 
