@@ -3936,6 +3936,16 @@ bool QScanner::checkDoubleFeed (void)
 }
 
 
+int QScanner::imagesWaiting (void)
+{
+   int num = findOption ("images-waiting", false);
+
+   if (num == -1)
+      return -1;
+   return saneWordValue (num);
+}
+
+
 bool QScanner::stopFeed (void)
 {
    int num = findOption ("stop-feed");

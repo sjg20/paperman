@@ -715,6 +715,7 @@ Paperscan::Paperscan (QObject *parent)
    _draining = false;
    _sides_done = 0;
    _cpu_seconds = 0;
+   _max_waiting = -1;
    _progress_clock.start ();
    }
 
@@ -984,6 +985,13 @@ void Paperscan::scan ()
          QString str;
 
          str = QString ("Scanning page %1").arg (total_sides + 1);
+
+         /* say how far ahead the scanner is, if it can tell us: with a
+            fast feeder that is what the display seems to lag behind */
+         int waiting = _scanner->imagesWaiting ();
+         if (waiting > 0)
+            str += tr (", %1 waiting in the scanner").arg (waiting);
+         _max_waiting = qMax (_max_waiting, waiting);
          if (stack_count > 0)
             str += QString (" stack %1").arg (stack_count + 1);
          emit progress (str);

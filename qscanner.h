@@ -458,6 +458,13 @@ is able to choose an option value automatically. */
               will follow, false if the backend cannot do this */
   bool stopFeed (void);
 
+  /** How many finished images the scanner is holding that have not been
+      fetched yet, i.e. how far it is ahead of us. Only backends with a
+      read-only "images-waiting" option know (finet today)
+
+     \returns the count, or -1 if the backend cannot say */
+  int imagesWaiting (void);
+
   /** Request the backend to use a smaller per-read chunk so the frontend
       sees the page progressively. No-op if the backend has no
       "buffer-size" option (only the patched fujitsu backend does today).
