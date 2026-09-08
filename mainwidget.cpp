@@ -490,11 +490,13 @@ void Mainwidget::scanInto(QModelIndex target)
       qWarning ("scan stats: %d sides in %.1fs (%.0f ms/side); display "
                 "thread CPU %.2fs (%.0f%%), scanning thread CPU %.2fs "
                 "(%.0f%%); display was behind the scanner by up to %d "
-                "sides; %d progress messages",
+                "sides; scanner had up to %d images waiting; %d progress "
+                "messages",
                 _scan_pages, wall, _scan_pages ? wall * 1000 / _scan_pages : 0,
                 gui, wall ? gui * 100 / wall : 0, scan.cpuSeconds (),
                 wall ? scan.cpuSeconds () * 100 / wall : 0,
-                _scan_stats.max_behind, _scan_stats.progress);
+                _scan_stats.max_behind, scan.maxWaiting (),
+                _scan_stats.progress);
       }
    _scan = 0;
 //    qDebug () << "scan complete";

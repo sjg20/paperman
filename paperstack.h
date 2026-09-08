@@ -398,6 +398,9 @@ public:
    //! CPU time used by the scanning thread, in seconds, once it has finished
    double cpuSeconds (void) const { return _cpu_seconds; }
 
+   //! the most images the scanner has had waiting for us, or -1 if unknown
+   int maxWaiting (void) const { return _max_waiting; }
+
    /** free a previously scanned page */
    void pageAdded (const Filepage *mp);
 
@@ -543,6 +546,7 @@ private:
    bool _end;                 //!< true to end the scan
    bool _draining;            //!< feeder stopped; reading out its buffered pages
    int _sides_done;           //!< sides finished, for the display to compare with
+   int _max_waiting;          //!< most images seen waiting in the scanner
    double _cpu_seconds;       //!< CPU time used by run()
    QSet<int> _progress_pending;   //!< pages with a progress message not yet handled
    QHash<int, qint64> _progress_time; //!< when each page last sent progress
