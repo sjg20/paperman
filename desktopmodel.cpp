@@ -2044,6 +2044,11 @@ err_info *Desktopmodel::getScaledImageData (const QModelIndex &ind, int pagenum,
    QSize isize, tsize;
    int bpp;
 
+   /* the render thread may hold a model index that has gone stale, so
+      check it maps to a file rather than asserting deep in getImage */
+   if (!ind.isValid () || !IS_FILE (ind))
+      return err_make (ERRFN, ERR_file_not_loaded_yet1, "stale index");
+
    CALL (getImage (ind, pagenum, false, image, isize, tsize, bpp, blank));
    if (image.width () != size.width () && image.height () != size.height ())
       image = util_smooth_scale_image (image, size);
