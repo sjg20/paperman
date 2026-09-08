@@ -708,6 +708,11 @@ Paperscan::Paperscan (QObject *parent)
    _stack = 0;
    _scanner = 0;
    _cancel = false;
+   /* set up here, not in scan(): endScan() may be called as soon as the
+      thread is started, before scan() would have run */
+   _end = false;
+   _draining = false;
+   _progress_clock.start ();
    }
 
 
@@ -783,8 +788,6 @@ void Paperscan::scan ()
    _progress_str = "Starting...";
    emit progress (_progress_str);
 
-   _end = false;
-   _draining = false;
 
    stack_limit = xmlConfig->intValue ("SCAN_STACK_COUNT");
    err = NULL;
@@ -864,17 +867,6 @@ void Paperscan::scan ()
           * for the back. */
          unsigned char *buf_back = (unsigned char *) malloc (size);
          long total_f = 0, total_b = 0;
-         /* readDup() returns 4 KB chunks at scanner pace (~5 ms each)
-          * for two sides, which is faster than the GUI can absorb a
-          * progress event end-to-end (image.scaled, QPainter,
-          * QPixmap::fromImage, viewport repaint). Without throttling
-          * the queued events back up and the preview keeps painting
-          * for seconds after the scanner has finished. Cap emissions
-          * at ~20 fps per side; data still accumulates each
-          * iteration so the next emit shows a larger combined
-          * strip. */
-         const qint64 emit_interval_ms = 50;
-         qint64 t_last_emit_f = 0, t_last_emit_b = 0;
          if (!buf_back)
             status = SANE_STATUS_NO_MEM;
          while (status == SANE_STATUS_GOOD && !isCancelled ())
@@ -900,18 +892,13 @@ void Paperscan::scan ()
                }
             if (status != SANE_STATUS_GOOD)
                break;
-            qint64 t_now = QDateTime::currentMSecsSinceEpoch ();
             if (flen)
                {
                _mutex.lock ();
                _stack->addImageBytes (buf, flen);
                _mutex.unlock ();
                total_f += flen;
-               if (t_now - t_last_emit_f >= emit_interval_ms)
-                  {
-                  emit stackPageProgress (_stack->curPage ());
-                  t_last_emit_f = t_now;
-                  }
+               notifyProgress (_stack->curPage ());
                }
             if (blen)
                {
@@ -919,17 +906,13 @@ void Paperscan::scan ()
                _stack->addImageBytesBack (buf_back, blen);
                _mutex.unlock ();
                total_b += blen;
-               if (t_now - t_last_emit_b >= emit_interval_ms)
-                  {
-                  emit stackPageProgress (_stack->curPageBack ());
-                  t_last_emit_b = t_now;
-                  }
+               notifyProgress (_stack->curPageBack ());
                }
             }
-         /* drain any final state the throttled loop did not yet
-          * report so the preview shows the complete page. */
-         emit stackPageProgress (_stack->curPage ());
-         emit stackPageProgress (_stack->curPageBack ());
+         /* drain any final state notifyProgress() held back, so the
+          * preview shows the complete page */
+         notifyProgress (_stack->curPage (), true);
+         notifyProgress (_stack->curPageBack (), true);
          free (buf_back);
 
          if (status == SANE_STATUS_JAMMED && _scanner->checkDoubleFeed ())
@@ -1059,7 +1042,7 @@ void Paperscan::scan ()
             total += len;
             steps++;
 //             qDebug () << "thread up to " << total;
-            emit stackPageProgress (_stack->curPage ());
+            notifyProgress (_stack->curPage ());
             }
 
          // Check if error was due to double-feed
@@ -1069,6 +1052,7 @@ void Paperscan::scan ()
          // end of file is ok - indicates we have an image
          if (status == SANE_STATUS_EOF && total && !isCancelled ())
             {
+            notifyProgress (_stack->curPage (), true);
             QString cov = _stack->coverageStr ();
 
             if (side == 0 && numsides > 1)
@@ -1251,8 +1235,7 @@ SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
          _stack->addImageBytes (buf, len);
       _mutex.unlock ();
       total += len;
-      emit stackPageProgress (back ? _stack->curPageBack ()
-                                   : _stack->curPage ());
+      notifyProgress (back ? _stack->curPageBack () : _stack->curPage ());
       }
    return status;
    }
@@ -1276,6 +1259,41 @@ void Paperscan::cancelScan (err_info *err)
 //    qDebug () << "cancelScan";
    _cancel = true;
    _cancel_err = *err;
+   }
+
+
+/* The main thread does not need every chunk: the message carries no data
+   and the receiver looks at the page's current state when it gets to it,
+   so one outstanding message covers everything that arrives before then.
+   Sending one per chunk regardless swamps the display with repaints, a
+   hundred a page, and lets it fall ever further behind a fast feeder */
+void Paperscan::notifyProgress (const PPage *page, bool final)
+   {
+   const int PROGRESS_INTERVAL = 40;   // ms, so 25 updates a second at most
+
+   if (!page)
+      return;
+
+   int pagenum = page->pagenum ();
+   QMutexLocker locker (&_mutex);
+   qint64 now = _progress_clock.elapsed ();
+
+   if (_progress_pending.contains (pagenum)
+       || (!final && now - _progress_time.value (pagenum, -PROGRESS_INTERVAL)
+           < PROGRESS_INTERVAL))
+      return;
+   _progress_pending.insert (pagenum);
+   _progress_time.insert (pagenum, now);
+   locker.unlock ();
+   emit stackPageProgress (page);
+   }
+
+
+void Paperscan::progressHandled (const PPage *page)
+   {
+   QMutexLocker locker (&_mutex);
+
+   _progress_pending.remove (page->pagenum ());
    }
 
 
