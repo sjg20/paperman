@@ -217,6 +217,7 @@ private:
 //   int _scale_down;          //!< scale factor at which the pixmap was done (e.g. 24 means 1/24)
    QSize _size;            //!< image size
    bool _rescale;          //!< true if this page's pixmap needs to be rescaled
+   int _scan_painted;      //!< rows of the scan preview painted so far
    bool _provisional;      //!< the pixmap is the live scan preview, to be
                            //!< regenerated from the file once the scan ends
    QString _coverage;      //!< information about page coverage
