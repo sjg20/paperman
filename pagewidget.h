@@ -331,9 +331,10 @@ protected slots:
 
       \param image           image fragment
       \param scaled_linenum  destination start line for this fragment
-      \param pagenum         which page this fragment belongs to */
+      \param pagenum         which page this fragment belongs to
+      \param surface         size of the whole scaled page */
    void slotNewScaledImage (const QImage &image, int scaled_linenum,
-                            int pagenum);
+                            int pagenum, const QSize &surface);
 
    /** called when we are beginning to scan a new page. We display it and
        monitor progress with calls we receive to slotNewScaledImage() */

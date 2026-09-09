@@ -200,8 +200,9 @@ public:
 
    /** update the scan image (called while scan is in progress
 
-      \param image      scan image */
-   void updateScanImage (const QImage &image);
+      \param image      scan image
+      \param size       the page size the image was scaled for */
+   void updateScanImage (const QImage &image, const QSize &size);
 
 private:
    bool _valid;            //!< true if this page has been set up
@@ -361,8 +362,12 @@ public:
 
       \param image            scaled image to display
       \param scaled_linenum  destination start line for this fragment
-      \param pagenum         page index in our _pages list to update */
-   void newScaledImage (const QImage &image, int scaled_linenum, int pagenum);
+      \param pagenum         page index in our _pages list to update
+      \param surface         size of the whole scaled page: the preview
+                             surface is made this size, or brought to it
+                             if the page's height has since been learnt */
+   void newScaledImage (const QImage &image, int scaled_linenum, int pagenum,
+                        const QSize &surface);
 
    /** tell the model to disassociate itself with the scanning, since the
        user has clicked on another stack. This will halt previews */
