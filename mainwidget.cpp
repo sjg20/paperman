@@ -411,8 +411,8 @@ void Mainwidget::scanInto(QModelIndex target)
             _scanDialog = 0;
             if (_pscan)
                _pscan->setScanDialog (_scanDialog);
+            setupScanDialog ();
             }
-         setupScanDialog ();
          if (_pscan)
             _pscan->reapplyCurrentPreset ();
          status = _scanner->getParameters(&parameters);
@@ -615,8 +615,8 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
             _scanDialog = 0;
             if (_pscan)
                _pscan->setScanDialog (_scanDialog);
+            setupScanDialog ();
             }
-         setupScanDialog ();
          if (_pscan)
             _pscan->reapplyCurrentPreset ();
          inform ("Scanner reconnected",
@@ -851,8 +851,12 @@ void Mainwidget::setupScanDialog (void)
                   _scanDialog, SLOT (slotDoPendingChanges()));
    connect (_scanDialog, SIGNAL (warning (QString&)), this, SLOT (slotWarning (QString &)));
    _preview = _scanDialog->getPreview ();
-   _pscan->setPreviewWidget (_preview);
-   _pscan->setScanDialog (_scanDialog);
+   /* there is no scan window without a GUI, as in --scan mode */
+   if (_pscan)
+      {
+      _pscan->setPreviewWidget (_preview);
+      _pscan->setScanDialog (_scanDialog);
+      }
    updateScanDialog ();
    }
 
