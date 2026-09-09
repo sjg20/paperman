@@ -104,6 +104,8 @@ public:
   bool setDuplex (bool duplex);
 
   /** True if the scanner offers automatic paper-size detection */
+  //! the option behind the auto-size checkbox, or NULL if the backend has none
+  QSaneOption *autoSizeOption (void);
   bool hasAutoSize (void);
 
   /** The current state of the automatic-size option */
