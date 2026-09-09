@@ -113,6 +113,8 @@ public slots:
     virtual void setPreviewWidget( PreviewWidget * widget );
     virtual void setScanDialog( QScanDialog * dialog );
     virtual void progressSize( const char * str );
+    //! show the rate pages are arriving at, or clear it with an empty string
+    void progressRate( const QString & str );
     virtual void info( const char * str );
     virtual void options_clicked();
     virtual void presetShortcut1();

@@ -543,6 +543,12 @@ void Pscan::progressSize( const char *str )
 }
 
 
+void Pscan::progressRate( const QString &str )
+{
+    rateStr->setText (str);
+}
+
+
 void Pscan::setupBright()
 {
     int exp, min, max;
