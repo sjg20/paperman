@@ -3880,9 +3880,14 @@ void QScanner::findOptions (void)
   // then-dump mode where readDup() blocks until the page has fully
   // transited and the preview stays blank until then. See
   // SCAN_PREVIEW_INVESTIGATION.md.
+  /* A modest chunk shows the page filling in as it arrives. 4 KB was far
+     too small once the backend delivered JPEG: hundreds of reads a side,
+     each resuming the decoder and sending progress, cost more than the
+     scan itself and paperman fell well behind a USB scanner that was
+     delivering at full speed. 256 KB still gives a few updates a side */
   mOptionBufferSize = findOption ("buffer-size");
   if (mOptionBufferSize != -1)
-    setBufferSize (4096);
+    setBufferSize (256 * 1024);
 }
 
 
