@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QDateTime>
+#include <QRecursiveMutex>
 #include <QImage>
 
 #include "file.h"
@@ -478,6 +479,27 @@ private:
    //! Ensure that the file is closed
    void ensure_closed();
 
+   /** Holds the file open for as long as it is in scope
+
+       Every ensure_open() must be matched by an ensure_closed() or the
+       file is never closed, and on Windows nothing can then delete or
+       rename it. The CALL() macro returns as soon as anything fails, so
+       a function that closes at its end only gives the count back on the
+       paths it thinks about; this gives it back on all of them */
+   class Open
+      {
+   public:
+      Open (Filemax *max);
+      ~Open ();
+
+      //! the error from opening the file, or NULL
+      err_info *err (void) const { return _err; }
+
+   private:
+      Filemax *_max;
+      err_info *_err;
+      };
+
    err_info *max_open_file();
 
    err_info *dodump (FILE *f, byte *ptr, int start, int count);
@@ -607,6 +629,10 @@ private:
 private:
 //    char *_fname;                                               /* file name */
    FILE *_fin;     // the open file
+   int _open_count;  // ensure_open() calls not yet matched by ensure_closed()
+   /** serialises use of _fin and the caches: the render thread reads pages
+       while the GUI thread reads or writes others of the same stack */
+   QRecursiveMutex _file_mutex;
 //   byte *data;                                              /* file data */
 
    int _version;         // version number
