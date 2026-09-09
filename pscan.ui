@@ -497,6 +497,16 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QCheckBox" name="autocolour">
+           <property name="toolTip">
+            <string>When scanning in colour, store pages that have no colour as grey, or as mono if they have no shading either</string>
+           </property>
+           <property name="text">
+            <string>Auto colour</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
        <item>

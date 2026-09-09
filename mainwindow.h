@@ -80,7 +80,8 @@ public:
       \returns exit code: 0 on success */
    static int runScan(const QString& repo, const QString& subdir,
                       const QString& device, int pages,
-                      const QStringList& settings = QStringList());
+                      const QStringList& settings = QStringList(),
+                      bool autoColour = false);
 
 public slots:
     virtual void on_actionPrint_triggered(bool);

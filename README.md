@@ -164,9 +164,12 @@ many sides; otherwise scanning continues until the feeder is empty.
 `--set NAME=VALUE` sets a scanner option by its SANE name before the scan
 (for example `mode=Color`, `resolution=200`, `source="ADF Duplex"` or
 `page-height=355.6`, with fixed-point values in their units) and can be
-repeated. Progress is printed on stdout and the exit code is 0 if at
-least one page was scanned. For example, to scan two pages in colour
-into the 'inbox' directory of the repository in ~/paper:
+repeated. `--auto-colour` stores pages that turn out to have no colour
+as greyscale, or as mono when they have no shading either, as the
+Auto colour box in the scan window does. Progress is printed on stdout
+and the exit code is 0 if at least one page was scanned. For example,
+to scan two pages in colour into the 'inbox' directory of the
+repository in ~/paper:
 
     paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
 

@@ -109,6 +109,14 @@ public:
        progress events during a progressive duplex scan). */
    int pagenum (void) const { return _pagenum; }
 
+   /** what a page turned out to hold, judged from its pixels */
+   enum Kind
+      {
+      Kind_colour,   //!< enough coloured pixels to be worth keeping in colour
+      Kind_grey,     //!< no colour, but mid-tones: a greyscale page
+      Kind_mono      //!< dark marks on white only: text, line art
+      };
+
 private:
    /** constructor for page
 
@@ -118,9 +126,23 @@ private:
       \param depth    depth of image in bits per pixel (1, 8 or 24)
       \param stride   bytes per line
       \param jpeg     true if data being added with addBytes is JPEG compressed
-      \param blank_threshold  blank threshold 1:n */
+      \param blank_threshold  blank threshold 1:n
+      \param auto_colour  true to store a colour page as grey or mono when
+                        its pixels show it needs no more */
    PPage (int pagenum, int width, int height, int depth, int stride,
-         bool jpeg, int blank_threshold);
+         bool jpeg, int blank_threshold, bool auto_colour);
+
+   /** the kind of page this is, from the pixels counted so far */
+   Kind kind (void) const;
+
+private:
+   /** feed the next pixel's luminance to the filled-region count */
+   void inkPixel (int lum);
+
+   /** what a pixel is for the filled-region count */
+   enum Ink { Ink_none, Ink_dark, Ink_mid };
+
+public:
    ~PPage ();
    bool addBytes (const unsigned char *buf, int size);
 
@@ -207,6 +229,14 @@ private:
    int _nonblankPixels;     //!< number of non-white pixels
    int _pixels;         //!< total number of pixels
    int _pixelTarget;    //!< number of non-white pixels we need to have a non-blank page
+   bool _autoColour;    //!< store the page as grey or mono if it is not colour
+   int _colourPixels;   //!< pixels with a noticeable saturation
+   int _interiorPixels; //!< mid-tone pixels inside a filled region, see kind()
+   int _row_x;          //!< pixels of the current row seen so far
+   int _row_skip;       //!< padding bytes of the current row still to skip
+   QByteArray _rows;    //!< a ring of INTERIOR_ROWS rows of eroded Ink flags
+   int _rows_done;      //!< rows completed so far
+   QVector<int> _row_counts; //!< interior pixels of the last EDGE_ROWS rows
    bool _mark_blank;    //!< true to mark page blank
 //   Desktopmodel *_model;   //!< model that this page is destined for
    QByteArray _data;    //!< data bytes
@@ -244,6 +274,10 @@ public:
 
    /** set the blank policy and threshold */
    void setBlankPolicy (t_blankPolicy policy, int blank_threshold);
+
+   /** store colour pages as grey or mono when their pixels show they need
+       no more, or keep them as scanned */
+   void setAutoColour (bool on);
 
    /** adds a new image with the given parameters - data will come later.
        The image depth also determines the number of colours.
@@ -347,6 +381,7 @@ private:
    bool _scanning;              //!< are we scanning at the moment?
    t_blankPolicy _blankPolicy;  //!< what to do with blank pages
    int _blankThreshold;         //!< threshold for blank pages 1:n
+   bool _autoColour;            //!< reduce colour pages that need no colour
    bool _front;                 //!< true if this is a front page (else back)
    bool _jpeg;                  //!< true if we are doing JPEG compression (else raw data)
 

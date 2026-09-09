@@ -15,6 +15,9 @@ private slots:
    //! typeFromName maps extensions (and unknown extensions) to e_type
    void testTypeFromName();
 
+   //! a scanned colour page is kept, greyed or made mono by its pixels
+   void testAutoColour();
+
    //! typeName/typeExt round-trip and stay aligned with e_type
    void testTypeNameAndExt();
 

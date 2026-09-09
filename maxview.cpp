@@ -540,6 +540,7 @@ static void usage (void)
    printf ("     --device NAME       scanner (default: the last one used)\n");
    printf ("     --pages N           stop after N sides (default: until empty)\n");
    printf ("     --set NAME=VALUE    set a scanner option, e.g. mode=Color\n");
+   printf ("     --auto-colour       store pages without colour as grey or mono\n");
    printf ("   --snap DIR          save a snapshot of the window every second\n");
    printf ("                       (or every PAPERMAN_SNAP_MS milliseconds)\n");
    printf ("                       into DIR (the same as PAPERMAN_SNAP=DIR)\n");
@@ -614,6 +615,7 @@ int main (int argc, char *argv[])
      {"device", 1, 0, 266},
      {"pages", 1, 0, 267},
      {"set", 1, 0, 268},
+     {"auto-colour", 0, 0, 271},
      {"snap", 1, 0, 269},
      {"clean-snaps", 0, 0, 270},
      {0, 0, 0, 0}
@@ -631,6 +633,7 @@ int main (int argc, char *argv[])
    QString scanRepo, scanDir, scanDevice; // --scan options
    QStringList scanSettings;
    int scanPages = 0;
+   bool scanAutoColour = false;           // --auto-colour
 
 #ifndef Q_OS_WIN
    struct rlimit limit;
@@ -744,6 +747,10 @@ int main (int argc, char *argv[])
 
          case 268 :    // --set NAME=VALUE
             scanSettings << optarg;
+            break;
+
+         case 271 :    // --auto-colour
+            scanAutoColour = true;
             break;
 
          case 262 :    // --server URL
@@ -1005,7 +1012,7 @@ int main (int argc, char *argv[])
 #endif
       case 263 :
          return Mainwindow::runScan (scanRepo, scanDir, scanDevice,
-                                     scanPages, scanSettings);
+                                     scanPages, scanSettings, scanAutoColour);
 
       case 259 :
          {

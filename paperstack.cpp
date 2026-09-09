@@ -45,6 +45,42 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qscanner.h"
 #include "qxmlconfig.h"
 
+/* A pixel counts towards coverage when it is dark enough that the
+   lineart conversion would make it black, so a page reports a similar
+   coverage whether scanned in colour, grey or mono. This matches the
+   default lineart threshold (mid-grey). */
+#define COVERAGE_THRESHOLD 128
+
+/* A pixel is coloured when the spread between its strongest and weakest
+   of red, green and blue is at least a fifth of the strongest, so a dark
+   colour counts as much as a bright one, and it is not so dark that the
+   spread is just noise. A page counts as colour when at least
+   COLOUR_FRACTION of its pixels are: scanned text and line art give under
+   0.5% by this measure, from colour fringes at edges and the JPEG the
+   scanner sends, and anything with a coloured mark on it several percent */
+#define SATURATION_DIVISOR 5
+#define SATURATION_MIN_BRIGHT 40
+#define COLOUR_FRACTION 0.01
+
+/* Without colour, a page is grey rather than mono when enough of it lies
+   in the mid-tones inside filled regions: pixels with ink (darker than
+   INK_THRESHOLD, so print showing through from the back of the sheet
+   does not count) whose whole (2 * INTERIOR_RADIUS + 1)-square
+   neighbourhood has ink too, and which are themselves no darker than
+   MID_THRESHOLD. Text is thin strokes, so almost none of its pixels lie
+   inside a region, and a bold heading is solid black rather than
+   mid-toned, while a photograph qualifies across its area: 7% of a book
+   page for an illustration, 3% for a small one, against under 0.2% for
+   text. The scanner leaves a shadow of the paper edge along the top and
+   bottom of the page, a mid-grey band that would count, so the first and
+   last EDGE_ROWS rows are left out */
+#define INK_THRESHOLD 200
+#define MID_THRESHOLD 64
+#define INTERIOR_RADIUS 2
+#define INTERIOR_ROWS (2 * INTERIOR_RADIUS + 1)
+#define EDGE_ROWS 32
+#define GREY_FRACTION 0.01
+
 
 
 Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
@@ -58,6 +94,7 @@ Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
 //    _file = 0;
    _blankPolicy = record;
    _blankThreshold = 500;
+   _autoColour = false;
    _jpeg = jpeg;
    _scanning = true;
    _cleared = 0;
@@ -198,6 +235,12 @@ err_info *Paperstack::confirmImageBack (Filepage *&mp, QMutex &mutex)
    }
 
 
+void Paperstack::setAutoColour (bool on)
+   {
+   _autoColour = on;
+   }
+
+
 void Paperstack::setBlankPolicy (t_blankPolicy policy, int blank_threshold)
    {
    _blankPolicy = policy;
@@ -228,7 +271,8 @@ int Paperstack::pageCount (void)
 int Paperstack::addImage (int width, int height, int depth, int stride, bool front, bool jpeg)
    {
    assert (!_page);
-   _page = new PPage (_pages.size (), width, height, depth, stride, _jpeg, _blankThreshold);
+   _page = new PPage (_pages.size (), width, height, depth, stride, _jpeg,
+                      _blankThreshold, _autoColour);
    _front = front;
    if (!jpeg)
       return _page->size ();
@@ -255,7 +299,7 @@ int Paperstack::addImageBack (int width, int height, int depth, int stride, bool
    /* assign sequential page numbers so the back lands right after the
     * front in the stack list. */
    _page_back = new PPage (_pages.size () + 1, width, height, depth, stride,
-                           _jpeg, _blankThreshold);
+                           _jpeg, _blankThreshold, _autoColour);
    if (!jpeg)
       return _page_back->size ();
    if (depth == 8)
@@ -304,8 +348,11 @@ QString Paperstack::coverageStrBack ()
 
 
 PPage::PPage (int pagenum, int width, int height, int depth, int stride,
-      bool jpeg, int blank_threshold)
+      bool jpeg, int blank_threshold, bool auto_colour)
    {
+   _autoColour = auto_colour;
+   _colourPixels = _interiorPixels = 0;
+   _row_x = _row_skip = _rows_done = 0;
    /* a back end that finds the foot of the sheet as it scans (the fujitsu
       backend with ald) cannot say the height when the page starts and
       reports -1. Size the buffers for a letter-shaped page for now; the
@@ -559,11 +606,6 @@ void PPage::finishJpeg (void)
    }
 
 
-/* A pixel counts towards coverage when it is dark enough that the
-   lineart conversion would make it black, so a page reports a similar
-   coverage whether scanned in colour, grey or mono. This matches the
-   default lineart threshold (mid-grey). */
-#define COVERAGE_THRESHOLD 128
 
 
 bool PPage::checkBlank (const unsigned char *buf, int size)
@@ -592,13 +634,40 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
          break;
 
       case 24 :
+         {
          /* use luminance, as the greyscale/lineart conversion does, so
-            the three modes agree */
-         for (; buf < end; buf += 3)
-            if ((buf [0] * 77 + buf [1] * 150 + buf [2] * 29) >> 8
-                < COVERAGE_THRESHOLD)
+            the three modes agree. Count the coloured pixels in the same
+            pass, for kind(), and hand the ink flags on by row for the
+            filled-region test */
+         int colour = 0;
+
+         while (buf < end)
+            {
+            /* the tail of a row is padding when the stride exceeds it */
+            if (_row_skip)
+               {
+               int skip = qMin (_row_skip, (int)(end - buf));
+
+               buf += skip;
+               _row_skip -= skip;
+               continue;
+               }
+            int lum = (buf [0] * 77 + buf [1] * 150 + buf [2] * 29) >> 8;
+            int mx = qMax (buf [0], qMax (buf [1], buf [2]));
+            int mn = qMin (buf [0], qMin (buf [1], buf [2]));
+
+            if (lum < COVERAGE_THRESHOLD)
                count++;
+            if ((mx - mn) * SATURATION_DIVISOR >= mx
+                && mx >= SATURATION_MIN_BRIGHT)
+               colour++;
+            if (_autoColour)
+               inkPixel (lum);
+            buf += 3;
+            }
+         _colourPixels += colour;
          break;
+         }
       }
 
    // work out total pixels in this block
@@ -707,6 +776,39 @@ int PPage::size (void)
 
 err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
    {
+   Kind kind = _autoColour ? this->kind () : Kind_colour;
+
+   /* a colour page that turned out to need no colour is stored as grey
+      or, with no mid-tones either, as mono, from the decoded pixels */
+   if (kind != Kind_colour)
+      {
+      const unsigned char *src = (const unsigned char *)
+         (_jpeg ? _decomp.constData () : _data.constData ());
+      int lines = _jpeg ? _decomp_avail / _stride : _data.size () / _stride;
+      int height = qMin (lines, _height);
+      int stride = kind == Kind_grey ? _width : (_width + 7) / 8;
+      QByteArray out (stride * height, '\0');
+      unsigned char *dst = (unsigned char *)out.data ();
+
+      for (int y = 0; y < height; y++, src += _stride, dst += stride)
+         {
+         const unsigned char *in = src;
+
+         for (int x = 0; x < _width; x++, in += 3)
+            {
+            int lum = (in [0] * 77 + in [1] * 150 + in [2] * 29) >> 8;
+
+            if (kind == Kind_grey)
+               dst [x] = lum;
+            else if (lum < COVERAGE_THRESHOLD)
+               dst [x >> 3] |= 0x80 >> (x & 7);   // 1 is black, as SANE has it
+            }
+         }
+      mp->addData (_width, height, kind == Kind_grey ? 8 : 1, stride, _name,
+                   false, mark_blank, _pagenum, out, out.size ());
+      return mp->compress ();
+      }
+
 //   printf ("final count = %d, pixels = %d\n", _nonblankPixels, _pixels);
    mp->addData (_width, _height, _depth, _stride, _name, _jpeg, mark_blank, _pagenum, _data,
       _jpeg ? -1 : _size);
@@ -732,9 +834,98 @@ err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
    }
 
 
+/* Take the next pixel of the page, in row order, for the filled-region
+   count. Ink flags are kept for the last INTERIOR_ROWS rows, each row
+   already eroded sideways by INTERIOR_RADIUS; once a row completes, the
+   mid-tone pixels of the middle row of the ring whose column has ink in
+   every row of it are the interior ones. Each row's count is held for
+   EDGE_ROWS rows before it is added, so the last EDGE_ROWS rows of the
+   page never are, and the first EDGE_ROWS are skipped */
+void PPage::inkPixel (int lum)
+   {
+   if (_rows.isEmpty ())
+      {
+      _rows = QByteArray (INTERIOR_ROWS * _width, '\0');
+      _row_counts = QVector<int> (EDGE_ROWS, 0);
+      }
+
+   char *row = _rows.data () + (_rows_done % INTERIOR_ROWS) * _width;
+   char flag = lum >= INK_THRESHOLD ? Ink_none
+         : lum >= MID_THRESHOLD ? Ink_mid : Ink_dark;
+
+   /* a pixel is kept only if it and its INTERIOR_RADIUS neighbours each
+      side have ink: mark it now, and unmark the neighbours a gap unmarks */
+   row [_row_x] = flag;
+   if (flag == Ink_none)
+      for (int i = qMax (0, _row_x - INTERIOR_RADIUS); i < _row_x; i++)
+         row [i] = Ink_none;
+   else if (_row_x < INTERIOR_RADIUS)
+      row [_row_x] = Ink_none;
+   if (++_row_x < _width)
+      return;
+
+   /* row complete: the last INTERIOR_RADIUS pixels have no right-hand
+      neighbours, then count the middle row of the ring */
+   for (int i = qMax (0, _width - INTERIOR_RADIUS); i < _width; i++)
+      row [i] = Ink_none;
+   _row_x = 0;
+   _row_skip = _stride - _width * 3;
+   if (++_rows_done >= INTERIOR_ROWS)
+      {
+      const char *rows [INTERIOR_ROWS];
+      int mid = (_rows_done - 1 - INTERIOR_RADIUS) % INTERIOR_ROWS;
+      int n = 0;
+
+      for (int r = 0; r < INTERIOR_ROWS; r++)
+         rows [r] = _rows.constData () + r * _width;
+      for (int x = 0; x < _width; x++)
+         {
+         if (rows [mid][x] != Ink_mid)
+            continue;
+         bool all = true;
+         for (int r = 0; r < INTERIOR_ROWS && all; r++)
+            all = rows [r][x] != Ink_none;
+         n += all;
+         }
+
+      /* add the count from EDGE_ROWS rows back, once past the top edge */
+      int done = _rows_done - INTERIOR_ROWS;
+
+      if (done >= 2 * EDGE_ROWS)
+         _interiorPixels += _row_counts [done % EDGE_ROWS];
+      _row_counts [done % EDGE_ROWS] = n;
+      }
+   }
+
+
+PPage::Kind PPage::kind (void) const
+   {
+   if (_depth != 24 || !_pixels)
+      return Kind_colour;
+   if ((double)_colourPixels / _pixels >= COLOUR_FRACTION)
+      return Kind_colour;
+   if ((double)_interiorPixels / _pixels >= GREY_FRACTION)
+      return Kind_grey;
+   return Kind_mono;
+   }
+
+
+/* what coverageStr() adds when a colour page is stored as something less */
+static const char *kind_suffix (PPage::Kind kind)
+   {
+   switch (kind)
+      {
+      case PPage::Kind_grey: return " grey";
+      case PPage::Kind_mono: return " mono";
+      default: return "";
+      }
+   }
+
+
 QString PPage::coverageStr ()
    {
    double cov;
+   QString suffix = _autoColour ? kind_suffix (kind ()) : "";
 
    // can't work out coverage from JPEG data
 //    if (_jpeg)
@@ -743,11 +934,11 @@ QString PPage::coverageStr ()
    // work out coverage
    cov = (double)_nonblankPixels / _pixels;
    if (_nonblankPixels == 0)
-      return "0";
+      return "0" + suffix;
 
    // if more than 0.1%, use x.y% notation
    if (cov >= 0.001)
-      return QString ("%1%").arg (cov * 100, 0, 'f', 1);
+      return QString ("%1%").arg (cov * 100, 0, 'f', 1) + suffix;
 
    cov = 1 / cov;
 
@@ -798,6 +989,7 @@ void Paperscan::ensureStack (QString &stack_name, QString &page_name,
 
       _stack->setBlankPolicy ((Paperstack::t_blankPolicy)xmlConfig->intValue("SCAN_BLANK"),
                xmlConfig->intValue("SCAN_BLANK_THRESHOLD"));
+      _stack->setAutoColour (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
       emit stackNew (stack_name);
       }
    }
