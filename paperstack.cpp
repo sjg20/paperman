@@ -306,6 +306,14 @@ QString Paperstack::coverageStrBack ()
 PPage::PPage (int pagenum, int width, int height, int depth, int stride,
       bool jpeg, int blank_threshold)
    {
+   /* a back end that finds the foot of the sheet as it scans (the fujitsu
+      backend with ald) cannot say the height when the page starts and
+      reports -1. Size the buffers for a letter-shaped page for now; the
+      real height comes from the JPEG header, or for raw data from how
+      much arrives before the end of the page */
+   _height_known = height > 0;
+   if (!_height_known)
+      height = width * 13 / 10;
    _width = width;
    _height = height;
    _depth = depth;
@@ -494,6 +502,8 @@ void PPage::continueJpeg ()
       case State_read_header:
          if (jpeg_read_header (&_cinfo, true) == JPEG_SUSPENDED)
             break;
+         if (!_height_known)
+            setHeight (_cinfo.image_height);
          _state = State_start;
          Q_FALLTHROUGH();
 
@@ -608,8 +618,47 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
    }
 
 
+void PPage::setHeight (int height)
+   {
+   int i;
+
+   _height = height;
+   _height_known = true;
+   int size = _stride * height;
+   if (_jpeg)
+      {
+      /* the decompressor's row pointers go into _decomp, which may move
+         when it grows, so rebuild them */
+      if (size > _decomp.capacity ())
+         {
+         _decomp.reserve (size);
+         memset (_decomp.data (), '\0', size);
+         }
+      if (_jpeg_created)
+         {
+         delete[] _buffer;
+         _buffer = new JSAMPROW [height];
+         for (i = 0; i < height; i++)
+            _buffer [i] = (JSAMPLE *)(_decomp.data () + _stride * i);
+         }
+      size /= 2;
+      }
+   _size = qMax (size, _data.size ());
+   _data.reserve (_size);
+   _pixelTarget = _width * height;
+   if (_blankThreshold)
+      _pixelTarget /= _blankThreshold;
+   }
+
+
 bool PPage::addBytes (const unsigned char *buf, int size)
    {
+   /* raw data of a height not yet known: keep room for whatever comes */
+   if (!_height_known && !_jpeg && _data.size () + size > _size)
+      {
+      _size = qMax (_size * 2, _data.size () + size);
+      _data.reserve (_size);
+      }
    if (_data.size () + size <= _size)
       {
       _data.append (QByteArray ((const char *)buf, size));
@@ -635,6 +684,14 @@ err_info *PPage::confirm (QString &pageName, bool mark_blank, Filepage *mp)
       pageName.truncate (pageName.length () - 1);
    _name = pageName;
    _mark_blank = mark_blank;
+   /* raw data of a height the back end did not know: it is however many
+      lines arrived */
+   if (!_height_known)
+      {
+      _height = _stride ? _data.size () / _stride : 0;
+      _size = _height * _stride;
+      _height_known = true;
+      }
 //   printf ("confirmed %s\n", _name.latin1 ());
 //   printf ("page complete: %dx%dx%d @%d, size %d/%d, short %d\n", _width, _height,
 //      _depth, _stride, _upto, _size, _size - _upto);
