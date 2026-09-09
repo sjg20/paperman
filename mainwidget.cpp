@@ -538,7 +538,7 @@ void Mainwidget::applyScanOptions (void)
       else
          rest [it.key ()] = it.value ();
       }
-   _scanner->setOptionsByName (rest);
+   _scanner->setOptionsByName (rest, true);   // --set may set anything
    }
 
 void Mainwidget::slotStackNew (const QString &stack_name)

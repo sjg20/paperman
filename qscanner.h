@@ -321,7 +321,22 @@ is able to choose an option value automatically. */
   /**  */
   bool isReadOnly(int num);
   /**  */
-  void setOptionsByName(QMap <QString,QString> omap);
+  /** set options from a name/value map, as saved settings and --set do
+
+      \param omap            the options and their values
+      \param allowTransport  also set transport options (see
+                             isTransportOption()), as --set may; saved
+                             settings may not */
+  void setOptionsByName(QMap <QString,QString> omap,
+                        bool allowTransport = false);
+
+  /** Is this option a transport knob, which QScanner sets for itself
+      (the read chunk size) rather than a scan setting? Such options are
+      not saved with a device's settings nor restored from them: a saved
+      buffer-size of 4 KB once made every USB read a 4 KB round trip and
+      a scan three times slower than the scanner */
+  static bool isTransportOption (const QString &name)
+     { return name == "buffer-size"; }
   /**Returns the name of the selected device.
     */
   QString name();
