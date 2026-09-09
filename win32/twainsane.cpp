@@ -458,6 +458,7 @@ enum
    OPT_THRESHOLD,
    OPT_ADVANCED_GROUP,
    OPT_COMPRESSION,
+   OPT_AUTO_COLOR,
    NUM_OPTIONS
    };
 
@@ -501,6 +502,8 @@ struct Scanner
    SANE_Fixed tl_x, tl_y, br_x, br_y, page_width, page_height;
    SANE_Int brightness, contrast, threshold;
    bool has_brightness, has_contrast, has_threshold;
+   bool has_auto_color;       // the source can choose colour or not per page
+   bool auto_color;           // let it
    bool has_flatbed, has_adf, has_duplex;
 
    // what the source told us about the image being transferred
@@ -1004,6 +1007,25 @@ void build_options (void)
                       s.compress_items);
    strcpy (s.compression, string_None);
 
+   /* TWAIN 2's automatic colour detection, which PaperStream IP offers:
+      the source looks at each page and scans it in colour or not. The
+      mode gives the pixel type for the pages it judges colour; the rest
+      come as grey or lineart, which shows in each image's info, read
+      per page before its data */
+   s.has_auto_color = cap_get (ds, ICAP_AUTOMATICCOLORENABLED, MSG_GET, v);
+   s.auto_color = false;
+   SANE_Option_Descriptor &ac = s.opt [OPT_AUTO_COLOR];
+   ac.name = "auto-color";
+   ac.title = "Automatic colour detection";
+   ac.desc = "Let the scanner decide for each page whether to scan it in "
+             "colour";
+   ac.type = SANE_TYPE_BOOL;
+   ac.unit = SANE_UNIT_NONE;
+   ac.size = sizeof (SANE_Word);
+   ac.cap = SANE_CAP_SOFT_SELECT | SANE_CAP_SOFT_DETECT
+            | (s.has_auto_color ? 0 : SANE_CAP_INACTIVE);
+   ac.constraint_type = SANE_CONSTRAINT_NONE;
+
    /* log the rest of what the source offers, for bringing up new models */
    if (debug_enabled ())
       {
@@ -1092,6 +1114,8 @@ bool apply_options (void)
       pixel = TWPT_GRAY;
    cap_set (ds, ICAP_PIXELTYPE, TWTY_UINT16, pixel);
    cap_set (ds, ICAP_BITDEPTH, TWTY_UINT16, pixel == TWPT_BW ? 1 : 8);
+   if (s.has_auto_color)
+      cap_set (ds, ICAP_AUTOMATICCOLORENABLED, TWTY_BOOL, s.auto_color);
 
    cap_set (ds, ICAP_XRESOLUTION, TWTY_FIX32, s.resolution);
    cap_set (ds, ICAP_YRESOLUTION, TWTY_FIX32, s.resolution);
@@ -1575,6 +1599,7 @@ SANE_Status sane_control_option (SANE_Handle, SANE_Int option,
          case OPT_CONTRAST: *(SANE_Word *)value = s.contrast; break;
          case OPT_THRESHOLD: *(SANE_Word *)value = s.threshold; break;
          case OPT_COMPRESSION: strcpy ((char *)value, s.compression); break;
+         case OPT_AUTO_COLOR: *(SANE_Word *)value = s.auto_color; break;
          default: return SANE_STATUS_INVAL;
          }
       return SANE_STATUS_GOOD;
@@ -1600,6 +1625,8 @@ SANE_Status sane_control_option (SANE_Handle, SANE_Int option,
 
    /* clamp numbers to their range */
    SANE_Word word = 0;
+   if (s.opt [option].type == SANE_TYPE_BOOL)
+      word = *(SANE_Word *)value != 0;
    if (s.opt [option].type == SANE_TYPE_INT
        || s.opt [option].type == SANE_TYPE_FIXED)
       {
@@ -1665,6 +1692,7 @@ SANE_Status sane_control_option (SANE_Handle, SANE_Int option,
       case OPT_COMPRESSION:
          strcpy (s.compression, (const char *)value);
          break;
+      case OPT_AUTO_COLOR: s.auto_color = word != 0; break;
       default:
          return SANE_STATUS_INVAL;
       }
