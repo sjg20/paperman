@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "config.h"
 
+#include <QTimer>
 #include <QDebug>
 #include <time.h>
 #include <QDialogButtonBox>
@@ -115,6 +116,11 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _scanning = false;
    _scan_ok = false;
    _scan_pages = 0;
+   _scan_first_page = -1;
+   _scan_rate_timer = new QTimer (this);
+   _scan_rate_timer->setInterval (1000);
+   connect (_scan_rate_timer, &QTimer::timeout, this,
+            [this] () { updateScanRate (); });
    _console = false;
 //    _stack = 0;
 
@@ -471,6 +477,10 @@ void Mainwidget::scanInto(QModelIndex target)
    _scan_stats.gui_cpu = threadCpuSeconds ();
    _scan_stats.progress = 0;
    _scan_stats.max_behind = 0;
+   _scan_page_times.clear ();
+   _scan_first_page = -1;
+   updateScanRate ();
+   _scan_rate_timer->start ();
    updatePscan ();
 
    /* Wait for the scan to finish, processing events as they arrive. Block
@@ -502,6 +512,8 @@ void Mainwidget::scanInto(QModelIndex target)
                 _scan_stats.progress);
       }
    _scan = 0;
+   /* leave the last rate showing, as a record of the scan */
+   _scan_rate_timer->stop ();
 //    qDebug () << "scan complete";
    _watchButtons = true;
    updatePscan ();
@@ -649,6 +661,11 @@ void Mainwidget::slotStackNewPage (const Filepage *mp, const QString &coverageSt
       if (!infostr.isEmpty ())
          info (infostr);
       _scan_pages++;
+      qint64 t = _scan_stats.wall.elapsed ();
+      if (_scan_page_times.isEmpty () && _scan_first_page < 0)
+         _scan_first_page = t;
+      _scan_page_times.append (t);
+      updateScanRate ();
       _scan_stats.max_behind = qMax (_scan_stats.max_behind,
                                      _scan->sidesDone () - _scan_pages);
       if (_console)
@@ -743,6 +760,32 @@ void Mainwidget::slotDoubleFeedDetected (void)
    // Show a message to the user that double-feed was detected
    // This is emitted from the scanning thread, so use queued connection behavior
    info (tr("Double feed detected - please clear the scanner"));
+   }
+
+
+void Mainwidget::updateScanRate (void)
+   {
+   const qint64 WINDOW_MS = 10000;
+   qint64 now = _scan_stats.wall.isValid () ? _scan_stats.wall.elapsed () : 0;
+
+   /* the window runs back ten seconds, or to the first page while the
+      scan is younger than that: counting from the start of the scan would
+      spread the pages over the scanner's warm-up as well and read low for
+      the first ten seconds. The page at the very start of a short window
+      is the window's origin, not part of the count */
+   qint64 window = qMin (now - _scan_first_page, WINDOW_MS);
+   int count = 0;
+   foreach (qint64 t, _scan_page_times)
+      if (t > now - window)
+         count++;
+   while (!_scan_page_times.isEmpty ()
+          && now - _scan_page_times.first () > WINDOW_MS)
+      _scan_page_times.removeFirst ();
+
+   /* below a second the figure would just be noise */
+   double rate = window >= 1000 ? count * 1000.0 / window : 0;
+   if (_pscan)
+      _pscan->progressRate (tr ("%1 pages/s").arg (rate, 0, 'f', 1));
    }
 
 

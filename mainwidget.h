@@ -49,6 +49,7 @@ struct err_info;
 struct print_info;
 
 #include <QElapsedTimer>
+#include <QList>
 #include <QModelIndex>
 #include <QStackedWidget>
 
@@ -120,6 +121,11 @@ public:
 
    /** sets the displayed size of the scanned file so far */
    void progressSize (int size);
+
+   /** show the rate the scanner is delivering pages at: those finished in
+       the last ten seconds, or since the scan started if that is sooner,
+       so the figure settles quickly and follows a stall within seconds */
+   void updateScanRate (void);
 
    /** set the current information text */
    void info (const QString &str);
@@ -462,6 +468,9 @@ private:
    bool _scan_cancelling;  //!< true if cancelling the scan
    bool _scan_ok;          //!< true if the last scan completed without error
    int _scan_pages;        //!< pages received in the current scan
+   QList<qint64> _scan_page_times;  //!< when recent pages arrived, ms into the scan
+   qint64 _scan_first_page;  //!< when the first page arrived, ms into the scan, or -1
+   QTimer *_scan_rate_timer;  //!< refreshes the page rate while scanning
    struct {
       QElapsedTimer wall;  //!< since the scan started
       double gui_cpu;      //!< GUI-thread CPU seconds when the scan started
