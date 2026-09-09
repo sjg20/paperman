@@ -221,7 +221,7 @@ void Mainwindow::shutdown()
 
 int Mainwindow::runScan(const QString& repo, const QString& subdir,
                         const QString& device, int pages,
-                        const QStringList& settings)
+                        const QStringList& settings, bool autoColour)
 {
    Mainwindow me;
    Desktopwidget *desktop = me.getDesktop();
@@ -294,16 +294,20 @@ int Mainwindow::runScan(const QString& repo, const QString& subdir,
       new QXmlConfig();
    QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
    int old_single = xmlConfig->intValue("SCAN_SINGLE");
+   bool old_auto_colour = xmlConfig->boolValue("SCAN_AUTO_COLOUR");
    if (!device.isEmpty())
       xmlConfig->setStringValue("LAST_DEVICE", device);
    if (pages)
       xmlConfig->setIntValue("SCAN_SINGLE", pages);
+   if (autoColour)
+      xmlConfig->setBoolValue("SCAN_AUTO_COLOUR", true);
 
    printf("Scanning into %s\n", qPrintable(path));
    main->scanInto(target);
 
    xmlConfig->setStringValue("LAST_DEVICE", old_device);
    xmlConfig->setIntValue("SCAN_SINGLE", old_single);
+   xmlConfig->setBoolValue("SCAN_AUTO_COLOUR", old_auto_colour);
 
    if (!main->scanOk() || !main->scanPages()) {
       fprintf(stderr, "Scan failed: %s\n", qPrintable(main->scanSummary()));

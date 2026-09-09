@@ -13,6 +13,7 @@
 #include "filepdf.h"
 
 #include "op.h"
+#include "paperstack.h"
 
 #include "test_file.h"
 
@@ -1077,4 +1078,87 @@ void TestFile::testJpegTransform()
    QImage flipped(dir + "photo.jpg");
    QVERIFY(qGray(flipped.pixel(5, 20)) > 128);    // now light on the left
    QVERIFY(qGray(flipped.pixel(55, 20)) < 128);   // and dark on the right
+}
+
+
+/* Feed a synthetic 24-bit page through a Paperstack with auto colour on
+   and return the depth it was stored at, with the coverage string */
+static int scanSynthetic (const QByteArray &rgb, int width, int height,
+                          QString &coverage)
+{
+   Paperstack stack ("stack", "page", false);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   stack.setAutoColour (true);
+   stack.addImage (width, height, 24, width * 3, true, false);
+   stack.addImageBytes ((unsigned char *)rgb.data (), rgb.size ());
+   coverage = stack.coverageStr ();
+   err_info *err = stack.confirmImage (mp, mutex);
+   if (err || !mp)
+      return -1;
+   int depth = mp->_depth;
+   delete mp;
+   return depth;
+}
+
+void TestFile::testAutoColour()
+{
+   const int width = 200, height = 200;
+   QByteArray page (width * height * 3, (char)255);
+   unsigned char *p = (unsigned char *)page.data ();
+   QString cov;
+
+   /* black text-like strokes on white with soft edges, and some print
+      showing through from the back of the sheet: mono, as text is */
+   for (int y = 10; y < height - 10; y += 10)
+      for (int x = 0; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         px [-3 * width] = px [1 - 3 * width] = px [2 - 3 * width] = 150;
+         px [3 * width] = px [1 + 3 * width] = px [2 + 3 * width] = 200;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 1);
+   QVERIFY (cov.endsWith (" mono"));
+
+   /* add a bold black heading and the mid-grey shadow of the paper edge
+      that the scanner leaves along the top and bottom: still mono */
+   for (int y = 40; y < 60; y++)
+      for (int x = 20; x < 180; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 10;
+         }
+   for (int y = 0; y < height; y++)
+      if (y < 8 || y >= height - 12)
+         for (int x = 0; x < width; x++)
+            {
+            unsigned char *px = p + (y * width + x) * 3;
+            px [0] = px [1] = px [2] = 160;
+            }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 1);
+   QVERIFY (cov.endsWith (" mono"));
+
+   // the same page with a dark red mark on it: enough colour to keep
+   for (int y = 80; y < 100; y++)
+      for (int x = 20; x < 60; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = 90; px [1] = 30; px [2] = 30;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 24);
+   QVERIFY (!cov.endsWith (" mono") && !cov.endsWith (" grey"));
+
+   /* a blank page with a small dark photograph on it, a twentieth of
+      the page in the darker mid-tones: grey */
+   page.fill ((char)255);
+   for (int y = 80; y < 120; y++)
+      for (int x = 50; x < 100; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 70 + ((x * 7 + y * 3) % 60);
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 8);
+   QVERIFY (cov.endsWith (" grey"));
 }

@@ -100,6 +100,7 @@ public slots:
     virtual void adf_clicked();
     virtual void duplex_clicked();
     virtual void autosize_clicked();
+    virtual void autocolour_clicked();
     virtual void res_activated( int id );
     virtual void brightChanged( int bright );
     virtual void contrastChanged( int contrast );

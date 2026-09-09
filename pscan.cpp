@@ -74,6 +74,9 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     connect(duplex, SIGNAL(clicked()), this, SLOT(duplex_clicked()));
     connect(autosize, SIGNAL(clicked()), this, SLOT(autosize_clicked()));
     autosize->hide ();
+    connect(autocolour, SIGNAL(clicked()), this, SLOT(autocolour_clicked()));
+    if (xmlConfig)
+       autocolour->setChecked (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
     connect(adf, SIGNAL(clicked()), this, SLOT(adf_clicked()));
     connect(scan, SIGNAL(clicked()), this, SLOT(scan_clicked()));
     connect(settings, SIGNAL(clicked()), this, SLOT(settings_clicked()));
@@ -361,6 +364,15 @@ void Pscan::autosize_clicked()
       _scanDialog->setAutoSize (autosize->isChecked ());
    /* the scan area no longer applies while the scanner is cropping */
    pageSize->setDisabled (autosize->isChecked ());
+}
+
+
+/* paperman does this itself, from the pixels, so it is a setting of ours
+   rather than one of the scanner's */
+void Pscan::autocolour_clicked()
+{
+   if (xmlConfig)
+      xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", autocolour->isChecked ());
 }
 
 
