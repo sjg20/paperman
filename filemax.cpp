@@ -466,6 +466,7 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
    _debug = no_debug ();
 
    _fin = NULL;
+   _open_count = 0;
    max_clear_cache (_cache);
    max_clear_cache (_scache);
    _bermuda = _tunguska = _annot = _trail = _b0 = _b4 = 0;
@@ -742,6 +743,9 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
    cache.buff.resize (size + 4);
 
    // read the data
+   QMutexLocker locker (&_file_mutex);
+   if (!_fin)
+      return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1().constData());
    fseek (_fin, pos, SEEK_SET);
    n = fread (cache.buff.data (), 1, size, _fin);
    if (n != size)
@@ -795,6 +799,8 @@ byte *Filemax::max_check_scache (int pos)
 
 err_info *Filemax::max_read_data (int pos, byte *buf, int size)
    {
+   //! see max_write_data(): the file must not close under the read
+   QMutexLocker locker (&_file_mutex);
    int count;
 
    // guard against a read while the file is closed, rather than crashing in
@@ -811,6 +817,11 @@ err_info *Filemax::max_read_data (int pos, byte *buf, int size)
 
 err_info *Filemax::max_write_data (int pos, byte *data, int size)
    {
+   /* Hold the file across the write. Another thread closing the file
+      between the check below and the write leaves this one seeking and
+      writing down a closed handle, which fails with a bad file
+      descriptor part way through saving a stack */
+   QMutexLocker locker (&_file_mutex);
    int count;
 
    // guard against a write while the file is closed (see max_read_data)
@@ -2729,6 +2740,8 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
       QSize &true_size, int &bpp, int &image_size, int &compressed_size,
       QDateTime &timestamp)
    {
+   QMutexLocker locker (&_file_mutex);
+
    chunk_info *chunk;
    page_info *page;
 
@@ -2776,8 +2789,27 @@ int Filemax::pagecount (void)
    return _pages.size ();
    }
 
+Filemax::Open::Open (Filemax *max) : _max (max), _err (max->ensure_open ())
+   {
+   }
+
+
+Filemax::Open::~Open ()
+   {
+   if (!_err)
+      _max->ensure_closed ();
+   }
+
+
+/* Open the file if it is not open, and count the request, so that the
+   matching ensure_closed() only closes it once every caller is done: the
+   render thread and the GUI thread each open and close around their own
+   reads of the same stack, and one thread's close used to pull the file
+   from under the other's read */
 err_info *Filemax::ensure_open()
 {
+   QMutexLocker locker (&_file_mutex);
+
    if (!_fin) {
       _fin = fopen (_pathname.toLatin1(), "r+b");
       if (!_fin) {
@@ -2787,7 +2819,7 @@ err_info *Filemax::ensure_open()
             return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1().constData());
       }
    }
-
+   _open_count++;
    return nullptr;
 }
 
@@ -2803,7 +2835,11 @@ err_info *Filemax::max_open_file()
 
 void Filemax::ensure_closed()
 {
-   if (_fin) {
+   QMutexLocker locker (&_file_mutex);
+
+   if (_open_count > 0)
+      _open_count--;
+   if (_fin && !_open_count) {
       fclose(_fin);
       _fin = nullptr;
    }
@@ -4594,11 +4630,13 @@ err_info *Filemax::max_replace_page (page_info &page, Filemaxpage &mp)
       page keeps its existing chunk positions: insert_chunk() reuses
       each one where the new data fits and relocates it where not. The
       text chunk is untouched, so any OCR text survives */
-   CALL (ensure_open ());
+   Open open (this);
+
+   CALL (open.err ());
    page.chunkid = _chunkid_next;
    page.titlestr = mp.name ();
    CALL (max_setup_page (page, mp));
-   return flush ();   // this also closes the file
+   return flush ();
    }
 
 err_info *Filemaxpage::compress (void)
@@ -5278,9 +5316,10 @@ err_info *Filemax::flush_chunks (void)
 
          // write the chunk to disc
          assert (chunk.buf);
-         CALL(ensure_open());
+         Open open (this);
+
+         CALL (open.err ());
          CALL (max_write_data (chunk.start, chunk.buf, chunk.size));
-         ensure_closed();
          chunk.saved = true;
          }
       }
@@ -5311,7 +5350,9 @@ err_info *Filemax::flush (void)
    _xform_page = -1;
    _xform_image = QImage ();
 
-   CALL(ensure_open());
+   Open open (this);
+
+   CALL (open.err ());
    ensure_all_chunks ();
 
    // write back any changed page titles
@@ -5323,12 +5364,10 @@ err_info *Filemax::flush (void)
 
    // now flush header
    write_max_header ();
-   CALL(ensure_open());
    CALL (max_write_data (0, (byte *)_hdr.data (), _hdr.size ()));
    _hdr_updated = true;
 
    fflush (_fin);
-   ensure_closed();
 
    // update the file size
    QFileInfo fi (_pathname);
@@ -5567,6 +5606,7 @@ err_info *Filemax::reload (void)
       page_resize() insist on starting from empty lists */
    max_free ();
    _fin = NULL;
+   _open_count = 0;
    _chunks.clear ();
    _pages.clear ();
    _annot_loaded = false;
@@ -5942,7 +5982,9 @@ Filemaxpage::~Filemaxpage (void)
 
 err_info *Filemax::rebuildPagePreview (int pagenum)
    {
-   CALL (ensure_open ());
+   Open open (this);
+
+   CALL (open.err ());
    CALL (ensure_all_chunks ());
 
    chunk_info *chunk;
@@ -6074,6 +6116,8 @@ err_info *Filemax::rebuildPreviews ()
 err_info *Filemax::getImage (int pagenum, bool,
             QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank)
    {
+   QMutexLocker locker (&_file_mutex);
+
    int num_bytes;
    int compressed_size;
    QDateTime timestamp;
