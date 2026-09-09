@@ -652,6 +652,7 @@ void Pagemodel::beginningPage (void)
    Pageinfo &page = _pages [pagenum];
    page.setScanning (true, pagenum);
    page._scan_image = QImage ();
+   page._scan_painted = 0;
    endInsertRows ();
 //    emit dataChanged (index (pagenum, 0, QModelIndex ()),
 //       index (pagenum, 0, QModelIndex ()));
@@ -710,6 +711,8 @@ void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum,
       p.drawImage (QPoint (0, scaled_linenum), src);
       p.end ();
 
+      page._scan_painted = qMax (page._scan_painted,
+                                 scaled_linenum + src.height ());
       page.updateScanImage (surface);
 
       // tell the view that part of an item has changed
@@ -808,6 +811,7 @@ Pageinfo::Pageinfo (void)
    _size = QSize ();
    _rescale = false;
    _provisional = false;
+   _scan_painted = 0;
    }
 
 
@@ -875,6 +879,12 @@ void Pageinfo::scanDone (QString coverage, bool mark_blank)
       _rescale = true;
    else
       {
+      /* the preview surface is the full page box; a shorter page (a
+         landscape sheet) fills only the top of it. Cut it to what was
+         painted, so the cell has the page's own shape, as the thumbnail
+         made from the file later will */
+      if (_scan_painted > 0 && _scan_painted < _pixmap.height ())
+         _pixmap = _pixmap.copy (0, 0, _pixmap.width (), _scan_painted);
       _provisional = true;
       /* the page was painted before its first preview arrived, with no
          pixmap, which asked for a rescale: the preview answers that now,
