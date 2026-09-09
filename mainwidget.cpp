@@ -386,7 +386,10 @@ void Mainwidget::scanInto(QModelIndex target)
 
    if (!ensureScanner ())
       return;
+   /* the mode must be set first, since JPEG is only offered in colour;
+      anything --set names is left as set */
    applyScanOptions ();
+   _scanner->useFastTransfer (_scan_options.keys ());
 
    // check resolution, etc.
    status = _scanner->getParameters(&parameters);
