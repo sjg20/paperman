@@ -73,6 +73,11 @@ If there is no room, the name gets dropped
 
 
 
+/** the gap between the bottom of a page and its label, and the gap the
+    cell keeps clear under the label */
+#define LABEL_TOP 3
+#define LABEL_GAP 8
+
 Pagedelegate::Pagedelegate (QObject *parent)
       : QAbstractItemDelegate (parent)
    {
@@ -166,8 +171,12 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
       arrives (see Pageview's relayout on dataChanged) */
    int pageHeight = pm.height () > 0 ? pm.height () : _pagesize.height ();
 
+   /* the label sits LABEL_TOP below the page, and the cell keeps
+      LABEL_GAP clear under it so the label does not run into the row
+      beneath */
    measure.size = _pagesize;
-   measure.size.setHeight (pageHeight + lines * fmb.height ());
+   measure.size.setHeight (pageHeight + LABEL_TOP + lines * fmb.height ()
+         + LABEL_GAP);
    measure.pixmapRect = QRect ((_pagesize.width () - pm.width ()) / 2, 0,
          pm.width (), pm.height ());
 
@@ -178,9 +187,9 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
    measure.pagenameRect = QRect (measure.pagenumRect.width () + 5, 0,
       leftmost - 5, fmb.height ());
 
-   measure.pagenumRect.translate (0, pageHeight + 3);
-   measure.pagenameRect.translate (0, pageHeight + 3);
-   measure.coverageRect.translate (0, pageHeight + 3);
+   measure.pagenumRect.translate (0, pageHeight + LABEL_TOP);
+   measure.pagenameRect.translate (0, pageHeight + LABEL_TOP);
+   measure.coverageRect.translate (0, pageHeight + LABEL_TOP);
    measure.blankRect.translate (0, pageHeight);
    measure.removeRect.translate (0, pageHeight);
 
