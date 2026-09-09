@@ -465,6 +465,14 @@ is able to choose an option value automatically. */
      \returns the count, or -1 if the backend cannot say */
   int imagesWaiting (void);
 
+  /** Turn on the fast-transfer settings a backend may offer: buffering
+      in the scanner ("buffermode"), so it scans ahead rather than
+      stopping after every sheet, and JPEG delivery ("compression") in
+      colour, which cuts a side from 25 MB to under 1 MB. The patched
+      fujitsu backend has both; without them a USB fi-8950 runs at a
+      third of its speed. Options a backend lacks are left alone */
+  void useFastTransfer (const QStringList &except = QStringList ());
+
   /** Request the backend to use a smaller per-read chunk so the frontend
       sees the page progressively. No-op if the backend has no
       "buffer-size" option (only the patched fujitsu backend does today).

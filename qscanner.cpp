@@ -1238,6 +1238,10 @@ static sane_read_dup_fn lookup_read_dup (void)
 
 bool QScanner::hasReadDup (void)
    {
+   /* PAPERMAN_NO_READ_DUP=1 reads duplex the ordinary way, side by side,
+      for comparison */
+   if (getenv ("PAPERMAN_NO_READ_DUP"))
+      return false;
    return !mNoReadDup && lookup_read_dup () != NULL;
    }
 
@@ -3938,6 +3942,48 @@ bool QScanner::checkDoubleFeed (void)
    int val = saneWordValue (mOptionDoubleFeed);
 
    return val > 0;
+}
+
+
+void QScanner::useFastTransfer (const QStringList &except)
+{
+   QMap<QString, QString> opts;
+   int num;
+   bool stats = getenv ("PAPERMAN_SCAN_STATS") != NULL;
+
+   if (findOption ("buffermode") != -1 && !except.contains ("buffermode"))
+      opts ["buffermode"] = "On";
+   num = findOption ("compression");
+   if (num != -1 && !except.contains ("compression"))
+      {
+      int mode = findOption ("mode", false);
+      QString cur = saneStringValue (num);
+
+      /* only in colour, where the option is active, and only from the
+         backend's own default, so a choice of None in the dialog holds */
+      if (mode != -1 && saneStringValue (mode) == "Color"
+          && (cur.isEmpty () || cur == "None"))
+         opts ["compression"] = "JPEG";
+      }
+   if (!opts.isEmpty ())
+      setOptionsByName (opts);
+   if (stats)
+      {
+      QStringList report;
+
+      foreach (const char *name, QList<const char *> () << "mode"
+               << "buffermode" << "compression")
+         {
+         int n = findOption (name, false);
+
+         if (n != -1)
+            report << QString ("%1=%2").arg (name).arg (saneStringValue (n));
+         }
+      qWarning ("fast transfer: set %s; backend now has %s; read_dup %s",
+                qPrintable (QStringList (opts.keys ()).join (",")),
+                qPrintable (report.join (" ")),
+                hasReadDup () ? "in use" : "not used");
+      }
 }
 
 
