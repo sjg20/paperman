@@ -441,3 +441,61 @@ void TestPagewidget::testEditAttributesRevert()
    QCOMPARE(model->data(ind, Desktopmodel::Role_author).toString(),
             "Fred");
 }
+
+/* The scan preview is built from bands as they arrive. With the fujitsu
+   lower-edge detection the page starts with a guessed height and the
+   real one arrives part way through, so the surface changes shape: what
+   was painted must be carried over at the new scale and the rest stay
+   hatched, or the page shows gaps and bands in the wrong place */
+void TestPagewidget::testScanPreviewReshape()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+   Pagemodel *pm = page->_pagemodel;
+
+   pm->beginningScan();
+   pm->beginningPage();
+   int pagenum = pm->rowCount(QModelIndex()) - 1;
+   Pageinfo &pi = pm->_pages[pagenum];
+   QVERIFY(pi.scanning());
+
+   // the first band arrives while the page is thought to be portrait
+   QImage band(100, 20, QImage::Format_RGB32);
+   band.fill(Qt::red);
+   pm->newScaledImage(band, 0, pagenum, QSize(100, 130));
+   QCOMPARE(pi._scan_image.size(), QSize(100, 130));
+   QCOMPARE(pi._scan_painted, 20);
+   QCOMPARE(pi._scan_image.pixelColor(50, 10), QColor(Qt::red));
+
+   // the height is learnt: the page is landscape, so the surface shrinks
+   band.fill(Qt::blue);
+   pm->newScaledImage(band, 20, pagenum, QSize(100, 80));
+   QCOMPARE(pi._scan_image.size(), QSize(100, 80));
+   QCOMPARE(pi._scan_painted, 40);
+   QCOMPARE(pi._scan_image.pixelColor(50, 10), QColor(Qt::red));
+   QCOMPARE(pi._scan_image.pixelColor(50, 30), QColor(Qt::blue));
+
+   // below the bands the surface is still the hatched placeholder
+   const QImage &img = pi._scan_image;
+   int white = 0, other = 0;
+   for (int y = 45; y < 80; y++)
+      for (int x = 0; x < 100; x++)
+         {
+         QColor col = img.pixelColor(x, y);
+         if (col == QColor(Qt::white))
+            white++;
+         else
+            {
+            QVERIFY(col != QColor(Qt::red) && col != QColor(Qt::blue));
+            other++;
+            }
+         }
+   QVERIFY(white > 0 && other > 0);
+
+   // the preview stands for the page at the current page size
+   QCOMPARE(pi._size, pm->_pagesize);
+   pm->endingScan();
+}

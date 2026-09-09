@@ -1019,8 +1019,11 @@ signals:
       \param image            the new part of the image
       \param scaled_linenum   destination start line number for this image
       \param pagenum          which page in the active scan this is (0 =
-                              front; 1 = back during progressive duplex) */
-   void newScaledImage (const QImage &image, int scaled_linenum, int pagenum);
+                              front; 1 = back during progressive duplex)
+      \param surface          size of the whole scaled page the image is
+                              part of */
+   void newScaledImage (const QImage &image, int scaled_linenum, int pagenum,
+                        const QSize &surface);
 
    /** request that the scan stack be commited, because we are about to
        operate on it */
@@ -1092,7 +1095,7 @@ private:
                                    int pagenum, File::e_transform op);
 
    bool getNewScaledImage (Paperscan &scan, const PPage *page, const char *data,
-         int nbytes, QImage &image, int &scaled_linenum);
+         int nbytes, QImage &image, int &scaled_linenum, QSize &surface);
 
    /** check if the list contains the scan stack - if so commit it
 
@@ -1550,6 +1553,7 @@ private:
       and back independently. Reset by pageStarting() / replaced by
       registerScaledImageSize() whenever the size changes. */
    QHash<int, int> _scaled_linenums;
+   QHash<int, double> _scaled_factors; //!< scale factor used per page
    QPixmap _unknown;
    QPixmap _no_access;
    QStringList _persistent_filenames;  //!< list of filename for each persistent model index (used when saving)

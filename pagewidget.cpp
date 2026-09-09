@@ -957,11 +957,11 @@ void Pagewidget::slotBeginningPage (void)
 
 
 void Pagewidget::slotNewScaledImage (const QImage &image, int scaled_linenum,
-                                     int pagenum)
+                                     int pagenum, const QSize &surface)
    {
    // tell the model that we have a new image
    if (_scanning)
-      _pagemodel->newScaledImage (image, scaled_linenum, pagenum);
+      _pagemodel->newScaledImage (image, scaled_linenum, pagenum, surface);
    }
 
 

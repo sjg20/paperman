@@ -295,8 +295,8 @@ void Desktopwidget::createPage(void)
       _page, SLOT (slotBeginningPage ()));
 
    // and when we have a new preview image fragment for the page being scanned
-   connect (_contents, SIGNAL (newScaledImage (const QImage &, int, int)),
-      _page, SLOT (slotNewScaledImage (const QImage &, int, int)));
+   connect (_contents, SIGNAL (newScaledImage (const QImage &, int, int, const QSize &)),
+      _page, SLOT (slotNewScaledImage (const QImage &, int, int, const QSize &)));
 
    // and when we change a stack
    connect (_contents, SIGNAL (dataChanged (const QModelIndex &, const QModelIndex &)),

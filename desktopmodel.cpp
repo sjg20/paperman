@@ -941,6 +941,7 @@ void Desktopmodel::pageStarting (Paperscan &scan, const PPage *page)
    _need_scaled_image = false;
    _scaled_image_size = QSize ();
    _scaled_linenums.clear ();
+   _scaled_factors.clear ();
    emit beginningPage ();
    }
 
@@ -951,14 +952,16 @@ void Desktopmodel::pageProgress (Paperscan &scan, const PPage *page)
    const char *data = 0;
    int scaled_linenum;
    int size = 0;
+   QSize surface;
    bool ok;
 
    if (_scan_err)
       return;
 
    ok = scan.getData (page, data, size);
-   if (ok && getNewScaledImage (scan, page, data, size, image, scaled_linenum))
-      emit newScaledImage (image, scaled_linenum, page->pagenum ());
+   if (ok && getNewScaledImage (scan, page, data, size, image, scaled_linenum,
+                                surface))
+      emit newScaledImage (image, scaled_linenum, page->pagenum (), surface);
    }
 
 
@@ -968,24 +971,45 @@ void Desktopmodel::pageProgress (Paperscan &scan, const PPage *page)
 
 
 bool Desktopmodel::getNewScaledImage (Paperscan &scan, const PPage *page,
-      const char *data, int nbytes, QImage &image, int &scaled_linenum)
+      const char *data, int nbytes, QImage &image, int &scaled_linenum,
+      QSize &surface)
    {
    int width, height;
    int depth, stride;
 
-   if (_need_scaled_image && scan.getPageDetails (page, width, height, depth, stride) && stride)
+   if (_need_scaled_image && scan.getPageDetails (page, width, height, depth, stride)
+       && stride && width > 0 && height > 0)
       {
       int linenum, lines;
+      int pagenum = page->pagenum ();
+
+      /* scale the page to fit the box, keeping its shape, and place
+         each band with that same factor, so bands butt up against each
+         other whatever shape the page is. The surface is the page's
+         scaled shape, not the box */
+      double scale = qMin ((double)_scaled_image_size.width () / width,
+                           (double)_scaled_image_size.height () / height);
+
+      surface = QSize (qMax (1, qRound (width * scale)),
+                       qMax (1, qRound (height * scale)));
+
       /* progress is tracked per page, so front and back can advance
        * independently during a progressive duplex scan. Default 0 for a
-       * page we haven't seen yet. */
-      int prev_linenum = _scaled_linenums.value (page->pagenum (), 0);
+       * page we haven't seen yet. When the back end learns the page's
+       * true height part way through (fujitsu ald) the factor can change:
+       * carry the progress over in the new scale, as the surface is */
+      int prev_linenum = _scaled_linenums.value (pagenum, 0);
+      double prev_scale = _scaled_factors.value (pagenum, scale);
+
+      if (prev_scale != scale)
+         prev_linenum = qRound (prev_linenum * scale / prev_scale);
+      _scaled_factors.insert (pagenum, scale);
 
       // how many scan lines worth of data do we have?
       lines = nbytes / stride;
 
       // what scaled line number are we up to now?
-      linenum = lines * _scaled_image_size.height () / height;
+      linenum = (int)(lines * scale);
 
       /** we must have at least 2 lines to work with to be sure of getting a
           single line result */
@@ -1000,9 +1024,11 @@ bool Desktopmodel::getNewScaledImage (Paperscan &scan, const PPage *page,
 
       /* we now need to generate an image from scaled lines prev_linenum
          to linenum. First work out the input (unscaled) line numbers */
-      int from_linenum = scaled_from * height / _scaled_image_size.height ();
-      int to_linenum = linenum * height / _scaled_image_size.height ();
+      int from_linenum = (int)(scaled_from / scale);
+      int to_linenum = qMin (lines, (int)(linenum / scale));
 
+      if (to_linenum <= from_linenum)
+         return false;
 //       qDebug () << "getNewScaledImage bytes " << nbytes << " lines from" << from_linenum << to_linenum;
       Filepage::getImageFromLines (data + stride * from_linenum, width,
          to_linenum - from_linenum, depth, stride, image);
@@ -1013,12 +1039,12 @@ bool Desktopmodel::getNewScaledImage (Paperscan &scan, const PPage *page,
          image = image.convertToFormat (QImage::Format_RGB32);
 #endif
 
-      image = image.scaled (_scaled_image_size, Qt::KeepAspectRatio);
+      image = image.scaled (surface.width (), linenum - scaled_from);
       if (!image.height ())
          return false;
 //       qDebug () << "desktopmodel image" << image.width () << image.height ()<< image.format ();
       scaled_linenum = scaled_from;
-      _scaled_linenums.insert (page->pagenum (), linenum);
+      _scaled_linenums.insert (pagenum, linenum);
       return true;
       }
    return false;
@@ -1035,6 +1061,7 @@ void Desktopmodel::registerScaledImageSize (const QSize &size)
       // if the size has changed, start the image again
       _scaled_image_size = size;
       _scaled_linenums.clear ();
+   _scaled_factors.clear ();
       }
    }
 

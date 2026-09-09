@@ -660,7 +660,7 @@ void Pagemodel::beginningPage (void)
 
 
 void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum,
-                                int pagenum)
+                                int pagenum, const QSize &size)
    {
    if (!_stackindex.isValid ())
       return;
@@ -688,18 +688,36 @@ void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum,
    QPainter p;
    QImage &surface = page._scan_image;
 
-   if (surface.isNull ())
+   if (surface.isNull () || surface.size () != size)
       {
-      surface = QImage (_pagesize.width (), _pagesize.height (),
-                        QImage::Format_RGB32);
-      surface.fill (Qt::white);
-      ok = p.begin (&surface);
+      /* the surface is the scaled page: hatched where nothing has
+         arrived yet. If there is one already of another size, the page's
+         height has been learnt since and the scale with it, so carry
+         what was painted across at the new scale */
+      QImage fresh (size, QImage::Format_RGB32);
+
+      fresh.fill (Qt::white);
+      ok = p.begin (&fresh);
       if (ok)
-         p.fillRect (QRect (QPoint (0, 0), surface.size ()),
+         {
+         p.fillRect (QRect (QPoint (0, 0), fresh.size ()),
                      QBrush (Qt::DiagCrossPattern));
+         if (!surface.isNull () && page._scan_painted > 0)
+            {
+            double factor = (double)size.width () / surface.width ();
+            QImage done = surface.copy (0, 0, surface.width (),
+                                        page._scan_painted);
+
+            done = done.scaled (size.width (),
+                                qMax (1, qRound (done.height () * factor)));
+            p.drawImage (QPoint (0, 0), done);
+            page._scan_painted = done.height ();
+            }
+         p.end ();
+         }
+      surface = fresh;
       }
-   else
-      ok = p.begin (&surface);
+   ok = p.begin (&surface);
 
    QImage src = image;
    if (src.format () != QImage::Format_RGB32
@@ -713,7 +731,7 @@ void Pagemodel::newScaledImage (const QImage &image, int scaled_linenum,
 
       page._scan_painted = qMax (page._scan_painted,
                                  scaled_linenum + src.height ());
-      page.updateScanImage (surface);
+      page.updateScanImage (surface, _pagesize);
 
       // tell the view that part of an item has changed
       QModelIndex ind = index (pagenum, 0, QModelIndex ());
@@ -955,15 +973,15 @@ bool Pageinfo::updatePixmap (void)
    }
 
 
-void Pageinfo::updateScanImage (const QImage &image)
+void Pageinfo::updateScanImage (const QImage &image, const QSize &size)
    {
    _pixmap = QPixmap::fromImage (image);
-   /* the preview surface is the page box, so the pixmap is for the
-      current page size: without saying so, every paint would find it the
-      wrong size and ask for a rescale from the file, which decodes the
-      page on the GUI thread while the scan is still writing the stack and
-      replaces the preview with a full-height box */
-   _size = image.size ();
+   /* the preview is scaled for the current page size: without saying so,
+      every paint would find it the wrong size and ask for a rescale from
+      the file, which decodes the page on the GUI thread while the scan is
+      still writing the stack and replaces the preview with a full-height
+      box */
+   _size = size;
    }
 
 

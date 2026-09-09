@@ -49,6 +49,9 @@ private slots:
    //! Test that revert discards unsaved attribute edits
    void testEditAttributesRevert();
 
+   //! Test the scan preview keeps its bands when the page's shape changes
+   void testScanPreviewReshape();
+
 private:
    /** Open the 5-page test stack in the page view of a shown
        Mainwindow
