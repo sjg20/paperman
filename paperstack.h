@@ -140,6 +140,10 @@ private:
    /** set up ready for jpeg decompression */
    void setupJpeg (void);
 
+   /** the back end did not know the height when the page started: now it
+       is known, size the buffers and the blank-page target for it */
+   void setHeight (int height);
+
    /** continue JPEG decompression with any new data we have */
    void continueJpeg (void);
 
@@ -190,7 +194,8 @@ private:
 private:
    int _size;     //!< size of image in bytes
    int _width;    //!< width of image
-   int _height;   //!< height of image
+   int _height;   //!< height of image, provisional until _height_known
+   bool _height_known;  //!< false while the back end has yet to say the height
    int _depth;    //!< depth of image
    int _stride;   //!< number of bytes per line
 //   unsigned char *_buf;    //!< buffer containing image
