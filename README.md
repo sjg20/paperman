@@ -170,6 +170,12 @@ into the 'inbox' directory of the repository in ~/paper:
 
     paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
 
+For a benchmark or a test scan that should not end up in a real
+repository, point `--repo` at a throwaway directory: it is used for that
+run only and is not added to the configured repositories.
+
+    mkdir -p /tmp/bench && paperman --scan --repo /tmp/bench --pages 50
+
 Before every scan paperman turns on the fast-transfer settings a backend
 offers: `buffermode=On`, so a scanner with memory scans ahead instead of
 stopping after each sheet, and in colour `compression=JPEG`, so a side
