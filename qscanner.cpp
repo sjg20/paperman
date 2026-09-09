@@ -3111,8 +3111,15 @@ bool QScanner::isReadOnly(int num)
     return false;
 }
 /**  */
-void QScanner::setOptionsByName(QMap <QString,QString> omap)
+void QScanner::setOptionsByName(QMap <QString,QString> omap,
+                                bool allowTransport)
 {
+  if (!allowTransport)
+    {
+    foreach (const QString &name, omap.keys ())
+      if (isTransportOption (name))
+        omap.remove (name);
+    }
   //We can only set active and settable options, otherwise
   //most backends return an error.
   //The following approach is used
@@ -3246,7 +3253,8 @@ void QScanner::settingsDomElement(QDomDocument doc,QDomElement domel)
   for(int i=0;i<mOptionNumber;i++)
   {
     //only append active & settable options
-    if(isOptionActive(i) && isOptionSettable(i))
+    if(isOptionActive(i) && isOptionSettable(i)
+       && !isTransportOption(getOptionName(i)))
     {
       type = getOptionType(i);
       //we don't save vectors here
