@@ -2700,15 +2700,32 @@ bool QScanDialog::setAdf (bool adf)
 }
 
 
+/* The finet backend has an auto-size option, which crops the image to
+   the paper. The fujitsu backend's nearest thing that costs nothing is
+   ald, automatic lower-edge detection, where the scanner ends each image
+   at the foot of the sheet instead of the window: the width stays the
+   page-width setting. Its hwdeskewcrop would trim the width too, but
+   makes the backend read every page in full before it can start the
+   next, which loses the buffered feeding and halves the speed */
+QSaneOption *QScanDialog::autoSizeOption (void)
+{
+   QSaneOption *opt = findOption ("auto-size", (int)SANE_TYPE_BOOL);
+
+   if (!opt)
+      opt = findOption ("ald", (int)SANE_TYPE_BOOL);
+   return opt;
+}
+
+
 bool QScanDialog::hasAutoSize (void)
 {
-   return findOption ("auto-size", (int)SANE_TYPE_BOOL) != 0;
+   return autoSizeOption () != 0;
 }
 
 
 bool QScanDialog::autoSize (void)
 {
-   QSaneOption *opt = findOption ("auto-size", (int)SANE_TYPE_BOOL);
+   QSaneOption *opt = autoSizeOption ();
 
    if (!opt)
       return false;
@@ -2718,7 +2735,7 @@ bool QScanDialog::autoSize (void)
 
 bool QScanDialog::setAutoSize (bool on)
 {
-   QSaneOption *opt = findOption ("auto-size", (int)SANE_TYPE_BOOL);
+   QSaneOption *opt = autoSizeOption ();
 
    if (!opt || !opt->inherits ("QBoolOption"))
       return false;
