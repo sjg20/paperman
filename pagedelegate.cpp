@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "pagedelegate.h"
 #include "pagemodel.h"
+#include "utils.h"
 
 
 /*
@@ -225,20 +226,20 @@ void Pagedelegate::paint (QPainter *painter, const QStyleOptionViewItem &option,
       painter->fillRect (measure.rect, QBrush (Qt::DiagCrossPattern));
 
    style->drawItemText (painter, measure.pagenumRect, Qt::AlignLeft,
-         style->standardPalette (), false, QString ("%1").arg (measure.pagenum));
+         utilStylePalette (style), false, QString ("%1").arg (measure.pagenum));
    f.setBold (false);
    painter->setFont (f);
 
    if (option.state & QStyle::State_Selected)
-      painter->fillRect (measure.pagenameRect, style->standardPalette().color(QPalette::Highlight));
+      painter->fillRect (measure.pagenameRect, utilStylePalette (style).color(QPalette::Highlight));
    style->drawItemText (painter, measure.pagenameRect, Qt::AlignLeft,
-         style->standardPalette (), false, measure.pagename,
+         utilStylePalette (style), false, measure.pagename,
          option.state & QStyle::State_Selected
              ? QPalette::HighlightedText : QPalette::WindowText);
 
    if (_display & Display_coverage)
       style->drawItemText (painter, measure.coverageRect, Qt::AlignLeft,
-         style->standardPalette (), false, measure.coverageStr,
+         utilStylePalette (style), false, measure.coverageStr,
          QPalette::WindowText);
 
    if (measure.blank)

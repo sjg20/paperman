@@ -44,6 +44,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QImage>
 #ifndef QT_NO_WIDGETS
 #include <QMessageBox>
+#include <QStyle>
 #endif
 #include <QMimeData>
 #include <QRegularExpression>
@@ -1260,6 +1261,23 @@ bool utilHeadless()
 {
    return headless_mode;
 }
+
+#ifndef QT_NO_WIDGETS
+const QPalette &utilStylePalette(QStyle *style)
+{
+   static QPalette pal;
+   static QStyle *pal_style = nullptr;
+   static qint64 pal_key = -1;
+   qint64 key = QGuiApplication::palette().cacheKey();
+
+   if (style != pal_style || key != pal_key) {
+      pal = style->standardPalette();
+      pal_style = style;
+      pal_key = key;
+   }
+   return pal;
+}
+#endif
 
 void utilInit(const QString& group)
 {
