@@ -343,6 +343,19 @@ QString utilUserName();
 void utilSetHeadless(bool headless);
 bool utilHeadless();
 
+class QPalette;
+class QStyle;
+
+#ifndef QT_NO_WIDGETS
+/** the style's standard palette, kept between calls
+
+    QStyle::standardPalette() builds the palette from scratch every time,
+    which is most of the cost of painting an item in the page and desktop
+    views. The result only changes with the style or the application
+    palette, so keep it until one of those does */
+const QPalette &utilStylePalette(QStyle *style);
+#endif
+
 /** rename a file, retrying briefly if it fails
 
     On Windows a file which has just been written is often still held

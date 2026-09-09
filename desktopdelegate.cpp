@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTimer>
 
 #include "desktopdelegate.h"
+#include "utils.h"
 #include "desktopmodel.h"
 
 
@@ -409,19 +410,19 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
       {
       // otherwise we just draw an outline
       painter->fillRect (measure.pixmapRectHint, QBrush (Qt::DiagCrossPattern));
-         //style->standardPalette().color(QPalette::BrightText));
+         //utilStylePalette (style).color(QPalette::BrightText));
       }
 
    // if this is the target of a drag, draw a little 'pages' symbol over it
    if (measure.target) // || measure.source)
       {
       style->drawItemPixmap (painter, measure.pixmapRect, Qt::AlignHCenter, *pages);
-      painter->fillRect (measure.titleRect, style->standardPalette().color(QPalette::BrightText));
+      painter->fillRect (measure.titleRect, utilStylePalette (style).color(QPalette::BrightText));
       }
    if (option.state & QStyle::State_Selected)
-      painter->fillRect (measure.titleRect, style->standardPalette().color(QPalette::Highlight));
+      painter->fillRect (measure.titleRect, utilStylePalette (style).color(QPalette::Highlight));
    style->drawItemText (painter, measure.titleRect, Qt::AlignHCenter,
-         style->standardPalette (), false, measure.title,
+         utilStylePalette (style), false, measure.title,
          option.state & QStyle::State_Selected
              ? QPalette::HighlightedText : QPalette::WindowText);
    f.setBold (false);
@@ -434,7 +435,7 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
    if (measure.multiple)
       {
       style->drawItemText (painter, measure.pagenameRect, Qt::AlignHCenter,
-         style->standardPalette (), false, measure.pagename, QPalette::WindowText);
+         utilStylePalette (style), false, measure.pagename, QPalette::WindowText);
 //    printf ("%s\n", measure.title.latin1 ());
 
 #ifdef OUTLINE
@@ -444,14 +445,14 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
       // draw control area
       QRect rect = measure.pagenumRect;
 
-      painter->fillRect (rect, style->standardPalette().color(QPalette::Button));
+      painter->fillRect (rect, utilStylePalette (style).color(QPalette::Button));
       painter->drawPixmap (rect.x (), rect.y (), *pleft);
       painter->drawPixmap (rect.right () - pright->width (), rect.y (), *pright);
 
       rect.adjust (pleft->width (), 0, -pright->width (), 0);
 
       style->drawItemText (painter, rect, Qt::AlignHCenter,
-            style->standardPalette (), false, measure.pagestr, QPalette::WindowText);
+            utilStylePalette (style), false, measure.pagestr, QPalette::WindowText);
 #ifdef OUTLINE
       painter->setPen (Qt::blue);
       painter->drawRect (measure.pagenumRect);
