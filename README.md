@@ -185,6 +185,15 @@ scanning threads, and how far the display fell behind the scanner. This
 is the first thing to look at if scanning seems slow, since it says
 which side is the bottleneck.
 
+To measure the scanner itself, `tools/psip-bench.py` talks the fi-8950's
+network protocol directly, with neither the SANE backend nor paperman in
+the way: it scans a number of sides (default 50) as fast as the scanner
+will hand them over, prints the timing of every side with `-v`, and
+reports the rate, how long the scanner made it wait for each side, and
+how far the feeder ran ahead. Options vary resolution, pre-pick, divided
+delivery and end-of-page detection. It always stops the feeder and
+closes the session, so it can be interrupted with Ctrl-C.
+
 With `PAPERMAN_SNAP=<dir>` set (or `--snap <dir>`), paperman saves a
 snapshot of its window as it appears on screen once a second, as
 `snap-NNNN-<seconds>s.jpg` in that directory; `--clean-snaps` (or
