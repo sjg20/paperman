@@ -194,6 +194,12 @@ how far the feeder ran ahead. Options vary resolution, pre-pick, divided
 delivery and end-of-page detection. It always stops the feeder and
 closes the session, so it can be interrupted with Ctrl-C.
 
+`tools/sane-bench.py` does the same through SANE with scanimage, so it
+works over USB (fujitsu backend) as well as the network, timing each side
+as it completes; for a fujitsu device it adds `buffermode=On` and, in
+colour, `compression=JPEG`, which the fi-8950 needs to run at speed over
+USB.
+
 With `PAPERMAN_SNAP=<dir>` set (or `--snap <dir>`), paperman saves a
 snapshot of its window as it appears on screen once a second, as
 `snap-NNNN-<seconds>s.jpg` in that directory; `--clean-snaps` (or
