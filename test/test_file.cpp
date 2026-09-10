@@ -1084,14 +1084,17 @@ void TestFile::testJpegTransform()
 /* Feed a synthetic 24-bit page through a Paperstack with auto colour on
    and return the depth it was stored at, with the coverage string */
 static int scanSynthetic (const QByteArray &rgb, int width, int height,
-                          QString &coverage, int chunk = 0)
+                          QString &coverage, int chunk = 0,
+                          Paperstack::t_sideways sideways = Paperstack::Sideways_no,
+                          bool front = true, Filepage **mpp = NULL)
 {
    Paperstack stack ("stack", "page", false);
    QMutex mutex;
    Filepage *mp = NULL;
 
    stack.setAutoColour (true);
-   stack.addImage (width, height, 24, width * 3, true, false);
+   stack.setSideways (sideways);
+   stack.addImage (width, height, 24, width * 3, front, false);
    /* feed the page in chunks of the given size, as a back end delivering
       raw data does, or all at once */
    if (!chunk)
@@ -1104,8 +1107,71 @@ static int scanSynthetic (const QByteArray &rgb, int width, int height,
    if (err || !mp)
       return -1;
    int depth = mp->_depth;
-   delete mp;
+   if (mpp)
+      *mpp = mp;
+   else
+      delete mp;
    return depth;
+}
+
+//! whether the given pixel of a stored mono page is black
+static bool monoPixel (const Filepage *mp, int x, int y)
+{
+   const unsigned char *data = (const unsigned char *)mp->_data.constData ();
+
+   return data [y * mp->_stride + (x >> 3)] & (0x80 >> (x & 7));
+}
+
+/* Sheets fed sideways are turned upright as they are stored: the front a
+   quarter turn one way and the back, seen from the other side of the
+   sheet, the other way */
+void TestFile::testSideways()
+{
+   const int width = 200, height = 100;
+   QByteArray page (width * height * 3, (char)255);
+   unsigned char *p = (unsigned char *)page.data ();
+   QString cov;
+   Filepage *mp;
+
+   // a black square in the top-left corner of the scan
+   for (int y = 0; y < 20; y++)
+      for (int x = 0; x < 20; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         }
+
+   /* the top of the page at the left of the front: a quarter turn
+      clockwise puts the square top right */
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_left, true, &mp), 1);
+   QCOMPARE (mp->_width, height);
+   QCOMPARE (mp->_height, width);
+   QVERIFY (monoPixel (mp, 90, 10));
+   QVERIFY (!monoPixel (mp, 10, 10));
+   QVERIFY (!monoPixel (mp, 10, 190));
+   delete mp;
+
+   // the back of that sheet turns the other way: the square goes bottom left
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_left, false, &mp), 1);
+   QCOMPARE (mp->_width, height);
+   QVERIFY (monoPixel (mp, 10, 190));
+   QVERIFY (!monoPixel (mp, 90, 10));
+   delete mp;
+
+   // with the top at the right, the front turns anticlockwise instead
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_right, true, &mp), 1);
+   QVERIFY (monoPixel (mp, 10, 190));
+   delete mp;
+
+   // fed upright, the page is stored as scanned
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_no, true, &mp), 1);
+   QCOMPARE (mp->_width, width);
+   QVERIFY (monoPixel (mp, 10, 10));
+   delete mp;
 }
 
 void TestFile::testAutoColour()

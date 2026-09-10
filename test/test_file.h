@@ -18,6 +18,9 @@ private slots:
    //! a scanned colour page is kept, greyed or made mono by its pixels
    void testAutoColour();
 
+   //! Test that pages fed sideways are turned upright as they are stored
+   void testSideways();
+
    //! typeName/typeExt round-trip and stay aligned with e_type
    void testTypeNameAndExt();
 

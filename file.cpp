@@ -1422,7 +1422,7 @@ Filepage::Filepage ()
    _timestamp = QDateTime::currentDateTime ();
 //    mp->stack = NULL;
 //    mp->chunk = NULL;
-   _width = _height = _depth = _stride = _size = 0;
+   _width = _height = _depth = _stride = _size = _rotate = 0;
    _jpeg = _mark_blank = false;
    _pagenum = -1;
    _stack = 0;

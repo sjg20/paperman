@@ -117,6 +117,14 @@ public:
       Kind_mono      //!< dark marks on white only: text, line art
       };
 
+   /** how a page is turned as it is stored, to be upright */
+   enum Rotate
+      {
+      Rotate_none,
+      Rotate_cw,     //!< a quarter turn clockwise
+      Rotate_ccw     //!< a quarter turn anticlockwise
+      };
+
 private:
    /** constructor for page
 
@@ -128,12 +136,28 @@ private:
       \param jpeg     true if data being added with addBytes is JPEG compressed
       \param blank_threshold  blank threshold 1:n
       \param auto_colour  true to store a colour page as grey or mono when
-                        its pixels show it needs no more */
+                        its pixels show it needs no more
+      \param rotate   how to turn the page as it is stored */
    PPage (int pagenum, int width, int height, int depth, int stride,
-         bool jpeg, int blank_threshold, bool auto_colour);
+         bool jpeg, int blank_threshold, bool auto_colour,
+         Rotate rotate = Rotate_none);
 
    /** the kind of page this is, from the pixels counted so far */
    Kind kind (void) const;
+
+private:
+   /** build the page as stored from its decoded pixels, at the given
+       depth and turned as _rotate says
+
+      \param src      the decoded pixels, _stride bytes per row
+      \param height   rows of them
+      \param depth    depth wanted: 24, 8 or 1
+      \param width_out, height_out, stride_out  the result's shape
+      \returns the pixels of the page as stored */
+   QByteArray convert (const unsigned char *src, int height, int depth,
+                       int &width_out, int &height_out, int &stride_out) const;
+
+public:
 
 private:
    /** feed the next pixel's luminance to the filled-region count */
@@ -230,6 +254,7 @@ private:
    int _pixels;         //!< total number of pixels
    int _pixelTarget;    //!< number of non-white pixels we need to have a non-blank page
    bool _autoColour;    //!< store the page as grey or mono if it is not colour
+   Rotate _rotate;      //!< how to turn the page as it is stored
    int _colourPixels;   //!< pixels with a noticeable saturation
    int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
    int _interiorPixels; //!< mid-tone pixels inside a filled region, see kind()
@@ -281,6 +306,25 @@ public:
    /** store colour pages as grey or mono when their pixels show they need
        no more, or keep them as scanned */
    void setAutoColour (bool on);
+
+   /** how the sheets are fed: upright, or sideways with the top of the
+       page at the left or the right of the front */
+   enum t_sideways
+      {
+      Sideways_no,
+      Sideways_top_left,
+      Sideways_top_right
+      };
+
+   /** say how the sheets are fed, so that pages fed sideways are turned
+       upright as they are stored: the back of a sheet is seen from the
+       other side, so its top is at the opposite edge */
+   void setSideways (t_sideways how);
+
+   /** the turn a page needs to be upright, from how the sheets are fed
+
+      \param front   true for the front of a sheet, false for the back */
+   PPage::Rotate rotationFor (bool front) const;
 
    /** adds a new image with the given parameters - data will come later.
        The image depth also determines the number of colours.
@@ -391,6 +435,7 @@ private:
    t_blankPolicy _blankPolicy;  //!< what to do with blank pages
    int _blankThreshold;         //!< threshold for blank pages 1:n
    bool _autoColour;            //!< reduce colour pages that need no colour
+   t_sideways _sideways;        //!< how the sheets are fed
    bool _front;                 //!< true if this is a front page (else back)
    bool _jpeg;                  //!< true if we are doing JPEG compression (else raw data)
 

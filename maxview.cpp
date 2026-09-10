@@ -544,6 +544,8 @@ static void usage (void)
    printf ("     --pages N           stop after N sides (default: until empty)\n");
    printf ("     --set NAME=VALUE    set a scanner option, e.g. mode=Color\n");
    printf ("     --auto-colour       store pages without colour as grey or mono\n");
+   printf ("     --sideways SIDE     sheets are fed sideways with the top of the\n");
+   printf ("                         page at the left or right: turn them upright\n");
    printf ("   --snap DIR          save a snapshot of the window every second\n");
    printf ("                       (or every PAPERMAN_SNAP_MS milliseconds)\n");
    printf ("                       into DIR (the same as PAPERMAN_SNAP=DIR)\n");
@@ -690,6 +692,7 @@ int main (int argc, char *argv[])
      {"pages", 1, 0, 267},
      {"set", 1, 0, 268},
      {"auto-colour", 0, 0, 271},
+     {"sideways", 1, 0, 272},
      {"snap", 1, 0, 269},
      {"clean-snaps", 0, 0, 270},
      {0, 0, 0, 0}
@@ -708,6 +711,7 @@ int main (int argc, char *argv[])
    QStringList scanSettings;
    int scanPages = 0;
    bool scanAutoColour = false;           // --auto-colour
+   int scanSideways = 0;                  // --sideways, Paperstack::t_sideways
 
 #ifndef Q_OS_WIN
    struct rlimit limit;
@@ -826,6 +830,18 @@ int main (int argc, char *argv[])
 
          case 271 :    // --auto-colour
             scanAutoColour = true;
+            break;
+
+         case 272 :    // --sideways left|right
+            if (!strcmp (optarg, "left"))
+               scanSideways = 1;
+            else if (!strcmp (optarg, "right"))
+               scanSideways = 2;
+            else
+               {
+               fprintf (stderr, "--sideways needs left or right\n");
+               return 1;
+               }
             break;
 
          case 262 :    // --server URL
@@ -1090,7 +1106,8 @@ int main (int argc, char *argv[])
 #endif
       case 263 :
          return Mainwindow::runScan (scanRepo, scanDir, scanDevice,
-                                     scanPages, scanSettings, scanAutoColour);
+                                     scanPages, scanSettings, scanAutoColour,
+                                     scanSideways);
 
       case 259 :
          {

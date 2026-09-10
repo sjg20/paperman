@@ -97,6 +97,7 @@ Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
    _blankPolicy = record;
    _blankThreshold = 500;
    _autoColour = false;
+   _sideways = Sideways_no;
    _jpeg = jpeg;
    _scanning = true;
    _cleared = 0;
@@ -243,6 +244,26 @@ void Paperstack::setAutoColour (bool on)
    }
 
 
+void Paperstack::setSideways (t_sideways how)
+   {
+   _sideways = how;
+   }
+
+
+PPage::Rotate Paperstack::rotationFor (bool front) const
+   {
+   if (_sideways == Sideways_no)
+      return PPage::Rotate_none;
+
+   /* the top of the page is at one side of the front and, the sheet being
+      seen from behind, at the other side of the back. With the top at the
+      left, a quarter turn clockwise brings it to the top */
+   bool top_left = (_sideways == Sideways_top_left) == front;
+
+   return top_left ? PPage::Rotate_cw : PPage::Rotate_ccw;
+   }
+
+
 void Paperstack::setBlankPolicy (t_blankPolicy policy, int blank_threshold)
    {
    _blankPolicy = policy;
@@ -273,9 +294,9 @@ int Paperstack::pageCount (void)
 int Paperstack::addImage (int width, int height, int depth, int stride, bool front, bool jpeg)
    {
    assert (!_page);
-   _page = new PPage (_pages.size (), width, height, depth, stride, _jpeg,
-                      _blankThreshold, _autoColour);
    _front = front;
+   _page = new PPage (_pages.size (), width, height, depth, stride, _jpeg,
+                      _blankThreshold, _autoColour, rotationFor (front));
    if (!jpeg)
       return _page->size ();
 
@@ -301,7 +322,8 @@ int Paperstack::addImageBack (int width, int height, int depth, int stride, bool
    /* assign sequential page numbers so the back lands right after the
     * front in the stack list. */
    _page_back = new PPage (_pages.size () + 1, width, height, depth, stride,
-                           _jpeg, _blankThreshold, _autoColour);
+                           _jpeg, _blankThreshold, _autoColour,
+                           rotationFor (false));
    if (!jpeg)
       return _page_back->size ();
    if (depth == 8)
@@ -361,9 +383,10 @@ QString Paperstack::coverageStrBack ()
 
 
 PPage::PPage (int pagenum, int width, int height, int depth, int stride,
-      bool jpeg, int blank_threshold, bool auto_colour)
+      bool jpeg, int blank_threshold, bool auto_colour, Rotate rotate)
    {
    _autoColour = auto_colour;
+   _rotate = rotate;
    _colourPixels = _interiorPixels = 0;
    _colourBand [0] = _colourBand [1] = _colourBand [2] = 0;
    _row_x = _row_skip = _rows_done = _partial_len = 0;
@@ -819,38 +842,105 @@ int PPage::size (void)
    }
 
 
+QByteArray PPage::convert (const unsigned char *src, int height, int depth,
+                           int &width_out, int &height_out,
+                           int &stride_out) const
+   {
+   bool turn = _rotate != Rotate_none;
+   int ow = turn ? height : _width;
+   int oh = turn ? _width : height;
+   int ostride = depth == 24 ? ow * 3 : depth == 8 ? ow : (ow + 7) / 8;
+   QByteArray out (ostride * oh, '\0');
+   unsigned char *dst = (unsigned char *)out.data ();
+
+   for (int dy = 0; dy < oh; dy++, dst += ostride)
+      for (int dx = 0; dx < ow; dx++)
+         {
+         int sx, sy;
+
+         /* where this output pixel comes from: a quarter turn clockwise
+            brings the left edge to the top, anticlockwise the right */
+         switch (_rotate)
+            {
+            case Rotate_cw :
+               sx = dy;
+               sy = height - 1 - dx;
+               break;
+            case Rotate_ccw :
+               sx = _width - 1 - dy;
+               sy = dx;
+               break;
+            default :
+               sx = dx;
+               sy = dy;
+               break;
+            }
+
+         const unsigned char *in = src + sy * _stride;
+         int r, g, b;
+
+         switch (_depth)
+            {
+            case 24 :
+               in += sx * 3;
+               r = in [0];
+               g = in [1];
+               b = in [2];
+               break;
+            case 8 :
+               r = g = b = in [sx];
+               break;
+            default :   // 1 is black, as SANE has it
+               r = g = b = in [sx >> 3] & (0x80 >> (sx & 7)) ? 0 : 255;
+               break;
+            }
+
+         int lum = (r * 77 + g * 150 + b * 29) >> 8;
+
+         switch (depth)
+            {
+            case 24 :
+               dst [dx * 3] = r;
+               dst [dx * 3 + 1] = g;
+               dst [dx * 3 + 2] = b;
+               break;
+            case 8 :
+               dst [dx] = lum;
+               break;
+            default :
+               if (lum < COVERAGE_THRESHOLD)
+                  dst [dx >> 3] |= 0x80 >> (dx & 7);
+               break;
+            }
+         }
+   width_out = ow;
+   height_out = oh;
+   stride_out = ostride;
+   return out;
+   }
+
+
 err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
    {
    Kind kind = _autoColour ? this->kind () : Kind_colour;
+   int depth = kind == Kind_grey ? 8 : kind == Kind_mono ? 1 : _depth;
+
+   mp->_rotate = _rotate == Rotate_cw ? 90 : _rotate == Rotate_ccw ? 270 : 0;
 
    /* a colour page that turned out to need no colour is stored as grey
-      or, with no mid-tones either, as mono, from the decoded pixels */
-   if (kind != Kind_colour)
+      or, with no mid-tones either, as mono, and a page fed sideways is
+      turned upright: either is done from the decoded pixels */
+   if (depth != _depth || _rotate != Rotate_none)
       {
       const unsigned char *src = (const unsigned char *)
          (_jpeg ? _decomp.constData () : _data.constData ());
       int lines = _jpeg ? _decomp_avail / _stride : _data.size () / _stride;
-      int height = qMin (lines, _height);
-      int stride = kind == Kind_grey ? _width : (_width + 7) / 8;
-      QByteArray out (stride * height, '\0');
-      unsigned char *dst = (unsigned char *)out.data ();
+      int width, height, stride;
+      QByteArray out = convert (src, qMin (lines, _height), depth, width,
+                                height, stride);
 
-      for (int y = 0; y < height; y++, src += _stride, dst += stride)
-         {
-         const unsigned char *in = src;
-
-         for (int x = 0; x < _width; x++, in += 3)
-            {
-            int lum = (in [0] * 77 + in [1] * 150 + in [2] * 29) >> 8;
-
-            if (kind == Kind_grey)
-               dst [x] = lum;
-            else if (lum < COVERAGE_THRESHOLD)
-               dst [x >> 3] |= 0x80 >> (x & 7);   // 1 is black, as SANE has it
-            }
-         }
-      mp->addData (_width, height, kind == Kind_grey ? 8 : 1, stride, _name,
-                   false, mark_blank, _pagenum, out, out.size ());
+      mp->addData (width, height, depth, stride, _name, false, mark_blank,
+                   _pagenum, out, out.size ());
       return mp->compress ();
       }
 
@@ -1065,6 +1155,8 @@ void Paperscan::ensureStack (QString &stack_name, QString &page_name,
       _stack->setBlankPolicy ((Paperstack::t_blankPolicy)xmlConfig->intValue("SCAN_BLANK"),
                xmlConfig->intValue("SCAN_BLANK_THRESHOLD"));
       _stack->setAutoColour (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
+      _stack->setSideways ((Paperstack::t_sideways)
+                           xmlConfig->intValue ("SCAN_SIDEWAYS"));
       emit stackNew (stack_name);
       }
    }

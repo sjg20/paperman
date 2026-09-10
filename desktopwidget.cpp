@@ -287,8 +287,8 @@ void Desktopwidget::createPage(void)
    _page->init ();
 
    // alert the page widget whenever a new page is finished scanning
-   connect (_contents, SIGNAL (newScannedPage (const QString &, bool)),
-      _page, SLOT (slotNewScannedPage (const QString &, bool)));
+   connect (_contents, SIGNAL (newScannedPage (const QString &, bool, int)),
+      _page, SLOT (slotNewScannedPage (const QString &, bool, int)));
 
    // alert the page widget whenever we start to scan a new page
    connect (_contents, SIGNAL (beginningPage ()),

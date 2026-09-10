@@ -75,8 +75,12 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     connect(autosize, SIGNAL(clicked()), this, SLOT(autosize_clicked()));
     autosize->hide ();
     connect(autocolour, SIGNAL(clicked()), this, SLOT(autocolour_clicked()));
+    connect(sideways, SIGNAL(activated(int)), this, SLOT(sideways_activated(int)));
     if (xmlConfig)
+       {
        autocolour->setChecked (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
+       sideways->setCurrentIndex (xmlConfig->intValue ("SCAN_SIDEWAYS"));
+       }
     connect(adf, SIGNAL(clicked()), this, SLOT(adf_clicked()));
     connect(scan, SIGNAL(clicked()), this, SLOT(scan_clicked()));
     connect(settings, SIGNAL(clicked()), this, SLOT(settings_clicked()));
@@ -373,6 +377,14 @@ void Pscan::autocolour_clicked()
 {
    if (xmlConfig)
       xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", autocolour->isChecked ());
+}
+
+
+/* likewise paperman turns the pages itself */
+void Pscan::sideways_activated(int how)
+{
+   if (xmlConfig)
+      xmlConfig->setIntValue ("SCAN_SIDEWAYS", how);
 }
 
 

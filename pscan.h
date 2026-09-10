@@ -101,6 +101,7 @@ public slots:
     virtual void duplex_clicked();
     virtual void autosize_clicked();
     virtual void autocolour_clicked();
+    virtual void sideways_activated(int how);
     virtual void res_activated( int id );
     virtual void brightChanged( int bright );
     virtual void contrastChanged( int contrast );
