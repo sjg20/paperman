@@ -608,33 +608,19 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
 
 //    qDebug () << "slotScanComplete" << status << msg << err;
 
-   // If the scanner went to sleep and woke up, the SANE handle is in a
-   // broken state. Reconnect it and reapply the active preset so the user
-   // can simply retry.
-   if (status == SANE_STATUS_IO_ERROR && _scanner)
-      {
-      if (_scanner->reconnect ())
-         {
-         // QScanDialog's QSaneOption widgets are bound to the old SANE
-         // handle; rebuild against the new handle before reapplying the
-         // preset, otherwise option writes go nowhere.
-         if (_scanDialog)
-            {
-            delete _scanDialog;
-            _scanDialog = 0;
-            if (_pscan)
-               _pscan->setScanDialog (_scanDialog);
-            setupScanDialog ();
-            }
-         if (_pscan)
-            _pscan->reapplyCurrentPreset ();
-         inform ("Scanner reconnected",
-            "The scanner connection was lost and has been re-established.\n"
-            "Please try the scan again.");
-         _scanning = false;
-         return;
-         }
-      }
+   /* A scan that ends in an I/O error leaves the SANE handle in a broken
+      state, and reconnecting recovers it. Do not do that here: this runs
+      on the GUI thread, inside the event loop scanInto() is spinning, and
+      a reconnect closes and reopens the device. When the scanner is not
+      answering, as a misfeed can leave it, every one of those calls waits
+      out the USB timeout of 30 seconds, and the interface is frozen for
+      the whole minute or more. That is exactly when the user is pressing
+      Stop, so Stop appears to do nothing.
+
+      Leave the handle alone and report what happened. The next scan finds
+      the stale handle when it asks for the scan parameters and reconnects
+      there, which is where a wait belongs: the user has just asked for
+      something and expects it to take a moment. */
 
    // don't report end of documents if we have managed to scan some
    if (status)
