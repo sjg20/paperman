@@ -231,6 +231,7 @@ private:
    int _pixelTarget;    //!< number of non-white pixels we need to have a non-blank page
    bool _autoColour;    //!< store the page as grey or mono if it is not colour
    int _colourPixels;   //!< pixels with a noticeable saturation
+   int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
    int _interiorPixels; //!< mid-tone pixels inside a filled region, see kind()
    int _row_x;          //!< pixels of the current row seen so far
    int _row_skip;       //!< padding bytes of the current row still to skip

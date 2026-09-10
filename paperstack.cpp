@@ -30,6 +30,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "jpeglib.h"
 
+#include <QDir>
+#include <QFile>
 #include <QDateTime>
 #include <QDebug>
 
@@ -352,6 +354,7 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    {
    _autoColour = auto_colour;
    _colourPixels = _interiorPixels = 0;
+   _colourBand [0] = _colourBand [1] = _colourBand [2] = 0;
    _row_x = _row_skip = _rows_done = _partial_len = 0;
    /* a back end that finds the foot of the sheet as it scans (the fujitsu
       backend with ald) cannot say the height when the page starts and
@@ -687,7 +690,10 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
                count++;
             if ((mx - mn) * SATURATION_DIVISOR >= mx
                 && mx >= SATURATION_MIN_BRIGHT)
+               {
                colour++;
+               _colourBand [lum < 100 ? 0 : lum < 200 ? 1 : 2]++;
+               }
             if (_autoColour)
                inkPixel (lum);
             pixels++;
@@ -954,6 +960,36 @@ QString PPage::coverageStr ()
    {
    double cov;
    QString suffix = _autoColour ? kind_suffix (kind ()) : "";
+
+   /* PAPERMAN_KIND_DEBUG shows what the page-kind test saw, for tuning
+      its thresholds against real scans */
+   const char *debug = getenv ("PAPERMAN_KIND_DEBUG");
+
+   if (debug && QDir (debug).exists ())
+      {
+      /* a directory: keep the page's data as well, the scanner's JPEG or
+         the raw pixels as a PPM, to run the test on outside the scan */
+      QFile f (QString ("%1/page%2.%3").arg (debug).arg (_pagenum)
+               .arg (_jpeg ? "jpg" : "ppm"));
+
+      if (f.open (QIODevice::WriteOnly))
+         {
+         if (!_jpeg && _depth == 24)
+            f.write (QString ("P6\n%1 %2\n255\n").arg (_width)
+                     .arg (_data.size () / _stride).toLatin1 ());
+         f.write (_data);
+         }
+      }
+   if (debug)
+      fprintf (stderr, "page %d: %dx%d depth %d%s pixels %d, colour %d "
+               "(%.3f%%: dark %d mid %d light %d), interior %d (%.3f%%)%s\n",
+               _pagenum, _width, _height, _depth, _jpeg ? " jpeg" : "",
+               _pixels, _colourPixels,
+               _pixels ? 100.0 * _colourPixels / _pixels : 0,
+               _colourBand [0], _colourBand [1], _colourBand [2],
+               _interiorPixels,
+               _pixels ? 100.0 * _interiorPixels / _pixels : 0,
+               qPrintable (suffix));
 
    // can't work out coverage from JPEG data
 //    if (_jpeg)
