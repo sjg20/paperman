@@ -631,6 +631,9 @@ private:
       \returns true if the scan should be cancelled, false if all ok */
    bool isCancelled (void);
 
+   /** stop the feeder if Stop has been pressed, at most once */
+   void checkStopFeed (void);
+
 private:
    QScanner *_scanner;        //!< the scanner we are using
    QString _stack_name;       //!< suggested stack name
@@ -645,6 +648,7 @@ private:
    err_info _cancel_err;      //!< error to return from a cancel operation
    bool _end;                 //!< true to end the scan
    bool _draining;            //!< feeder stopped; reading out its buffered pages
+   bool _stop_tried;          //!< the feeder has been asked to stop once
    int _sides_done;           //!< sides finished, for the display to compare with
    int _max_waiting;          //!< most images seen waiting in the scanner
    /* where the scanning thread's time goes, in ms, for
