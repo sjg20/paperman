@@ -9,10 +9,12 @@ CONFIG -= app_bundle
 DEFINES += QT_NO_WIDGETS
 
 HEADERS += backend.h \
+    backendstats.h \
     remotebackend.h
 
 SOURCES += paperman-client.cpp \
     backend.cpp \
+    backendstats.cpp \
     remotebackend.cpp
 
 unix {
