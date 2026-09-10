@@ -27,7 +27,13 @@ OCRLIBPATH = /usr/local/lib/nuance-omnipage-csdk-15.5
 
 CONFIG += qt warn_on
 CONFIG -= release
-!debug:!coverage: QMAKE_CXXFLAGS += -O2
+# 'CONFIG -= release' above leaves a debug build, which is what we want
+# for the symbols, but it also made the '!debug' below never hold, so
+# nothing was ever optimised: every per-pixel pass over a scanned page,
+# the coverage and colour counting worst of all, ran several times
+# slower than it needed to. Optimise unless we are measuring coverage,
+# which needs the unoptimised line numbering
+!coverage: QMAKE_CXXFLAGS += -O2
 
 #QMAKE_LFLAGS += -static
 
