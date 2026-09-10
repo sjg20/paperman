@@ -310,6 +310,17 @@ int Paperstack::addImageBack (int width, int height, int depth, int stride, bool
    }
 
 
+int Paperstack::restartBack (int width, int height, int depth, int stride,
+                             bool jpeg)
+   {
+   assert (_page_back);
+   assert (_page_back->_data.isEmpty ());
+   delete _page_back;
+   _page_back = NULL;
+   return addImageBack (width, height, depth, stride, jpeg);
+   }
+
+
 bool Paperstack::addImageBytesBack (unsigned char *buf, int size)
    {
    assert (_page_back);
@@ -1202,6 +1213,22 @@ void Paperscan::scan ()
                   {
                   _op = "sane_start";
                   status = _scanner->start ();
+
+                  /* the back is its own image, so take its size from its
+                     own start: a back end that crops each side to its
+                     content makes it differ from the front by a few
+                     pixels, and read at the front's width it would come
+                     out sheared and cut short */
+                  if (status == SANE_STATUS_GOOD
+                      && _scanner->getParameters (&parameters)
+                         == SANE_STATUS_GOOD)
+                     {
+                     _mutex.lock ();
+                     _stack->restartBack (parameters.pixels_per_line,
+                                          parameters.lines, image_bpp,
+                                          parameters.bytes_per_line, is_jpeg);
+                     _mutex.unlock ();
+                     }
                   }
                if (status == SANE_STATUS_GOOD)
                   status = readSide (buf_back, size, true, total_b);
