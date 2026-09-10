@@ -1126,6 +1126,7 @@ Paperscan::Paperscan (QObject *parent)
       thread is started, before scan() would have run */
    _end = false;
    _draining = false;
+   _stop_tried = false;
    _sides_done = 0;
    _t_start = _t_read = _t_data = _t_confirm = 0;
    _cpu_seconds = 0;
@@ -1345,6 +1346,7 @@ void Paperscan::scan ()
                total_b += blen;
                notifyProgress (_stack->curPageBack ());
                }
+            checkStopFeed ();
             }
          /* drain any final state notifyProgress() held back, so the
           * preview shows the complete page */
@@ -1495,6 +1497,7 @@ void Paperscan::scan ()
             steps++;
 //             qDebug () << "thread up to " << total;
             notifyProgress (_stack->curPage ());
+            checkStopFeed ();
             }
 
          // Check if error was due to double-feed
@@ -1584,8 +1587,8 @@ void Paperscan::scan ()
          ahead of us has sheets scanned that we have not read yet: if the
          backend can stop the feeder while keeping those, carry on until
          it runs dry. Otherwise stop here as before */
-      if (_end && !_draining && !done && !err && !isCancelled ())
-         _draining = _scanner->stopFeed ();
+      if (!done && !err && !isCancelled ())
+         checkStopFeed ();
       } while (!done && (!_end || _draining) && !err && !isCancelled ());
 
    _scanner->cancel ();
@@ -1695,6 +1698,7 @@ SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
       _t_data += QDateTime::currentMSecsSinceEpoch () - tr1;
       total += len;
       notifyProgress (back ? _stack->curPageBack () : _stack->curPage ());
+      checkStopFeed ();
       }
    return status;
    }
@@ -1773,6 +1777,27 @@ bool Paperscan::isCancelled (void)
    QMutexLocker locker (&_mutex);
 
    return _cancel;
+   }
+
+
+/* Stop means finish the batch rather than abandon it: the feeder stops
+   and the sheets already fed are read out. Ask for that the moment the
+   button is pressed, not at the end of the side, since a side can take
+   a long time to end when the paper misfeeds and until then the press
+   shows no sign of having done anything. Only worth asking once: a back
+   end that cannot stop the feeder says so, and the scan then ends after
+   this side as it always did */
+void Paperscan::checkStopFeed (void)
+   {
+   if (_stop_tried || _draining)
+      return;
+   _mutex.lock ();
+   bool ending = _end;
+   _mutex.unlock ();
+   if (!ending)
+      return;
+   _stop_tried = true;
+   _draining = _scanner->stopFeed ();
    }
 
 
