@@ -36,6 +36,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QDateTime>
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QImage>
@@ -513,6 +514,8 @@ static void usage (void)
    printf ("   -p|--pdf        convert given file to .pdf\n");
    printf ("   -m|--max        convert given file to .max\n");
    printf ("   -j|--jpeg       convert given file to .jpg\n");
+   printf ("   -l|--list       list the pages in a stack with their size,\n");
+   printf ("                   depth and compressed size\n");
 /*
    printf ("   -v|--verbose    be verbose\n");
 */
@@ -551,6 +554,76 @@ static void usage (void)
           "mode, displaying\nthumbails of the given directory\n");
 */
    }
+
+/** List the pages of a stack, one per line, with the totals at the end
+
+   \param fname   the stack to list
+   \returns exit code: 0 on success */
+static int listPages (const QString &fname)
+   {
+   QFileInfo fi (fname);
+
+   if (!fi.exists ())
+      {
+      fprintf (stderr, "File not found: %s\n", qPrintable (fname));
+      return 1;
+      }
+
+   QString dir = fi.absolutePath () + '/';
+   File::e_type type = File::typeFromName (fi.fileName ());
+   File *file = File::createFile (dir, fi.fileName (), nullptr, type);
+
+   if (!file)
+      {
+      fprintf (stderr, "Unsupported file type: %s\n", qPrintable (fname));
+      return 1;
+      }
+
+   err_info *err = file->load ();
+
+   if (err)
+      {
+      fprintf (stderr, "Error loading %s: %s\n", qPrintable (fname),
+               err->errstr);
+      delete file;
+      return 1;
+      }
+
+   int count = file->pagecount ();
+   int depths [3] = {0, 0, 0};   // mono, grey, colour
+   qint64 total = 0;
+
+   printf ("%4s  %-24s %5s x %-5s  %-6s %9s  %s\n", "page", "name", "width",
+           "height", "depth", "bytes", "time");
+   for (int i = 0; i < count; i++)
+      {
+      QSize size, true_size;
+      int bpp, image_size, compressed;
+      QDateTime dt;
+      QString title;
+
+      err = file->getImageInfo (i, size, true_size, bpp, image_size,
+                                compressed, dt);
+      if (err)
+         {
+         printf ("%4d  error: %s\n", i + 1, err->errstr);
+         continue;
+         }
+      if (file->getPageTitle (i, title))
+         title = "?";
+      depths [bpp == 1 ? 0 : bpp == 8 ? 1 : 2]++;
+      total += compressed;
+      printf ("%4d  %-24s %5d x %-5d  %-6s %9d  %s\n", i + 1,
+              qPrintable (title), size.width (), size.height (),
+              bpp == 1 ? "mono" : bpp == 8 ? "grey" : "colour", compressed,
+              qPrintable (dt.toString ("yyyy-MM-dd hh:mm:ss")));
+      }
+   printf ("%d pages: %d mono, %d grey, %d colour, %lld bytes\n", count,
+           depths [0], depths [1], depths [2], (long long)total);
+   delete file;
+   return 0;
+   }
+
 
 int main (int argc, char *argv[])
    {
@@ -598,6 +671,7 @@ int main (int argc, char *argv[])
      {"relocate", 0, 0, 'r'},
 */
      {"sum", 1, 0, 's'},
+     {"list", 1, 0, 'l'},
      {"test", 0, 0, 't'},
      /*
      {"verbose", 0, 0, 'v'},
@@ -648,7 +722,7 @@ int main (int argc, char *argv[])
    }
 #endif
 
-   while (c = getopt_long (argc, argv, "hj:m:o:p:q:s:t",
+   while (c = getopt_long (argc, argv, "hj:l:m:o:p:q:s:t",
                            long_options, NULL), c != -1)
       switch (c)
          {
@@ -658,6 +732,7 @@ int main (int argc, char *argv[])
             op_type = c;
             break;
          case 'j' :
+         case 'l' :
          case 'm' :
          case 'p' :
             fname = optarg;
@@ -772,7 +847,7 @@ int main (int argc, char *argv[])
          }
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
-       op_type != 'j' && op_type != 'o' && op_type != 'q' &&
+       op_type != 'j' && op_type != 'l' && op_type != 'o' && op_type != 'q' &&
        op_type != 259 && op_type != 260 && op_type != 263)
       need_gui = true;
 
@@ -792,8 +867,8 @@ int main (int argc, char *argv[])
       }
 
    // OCR batch mode, search, and rebuild-previews don't need GUI
-   if (op_type == 'o' || op_type == 'q' || op_type == 259 ||
-       op_type == 260)
+   if (op_type == 'o' || op_type == 'q' || op_type == 'l' ||
+       op_type == 259 || op_type == 260)
       {
       useGUI = false;
       // Force offscreen platform for console mode
@@ -910,6 +985,9 @@ int main (int argc, char *argv[])
 #endif
          break;
          }
+      case 'l' :
+         return listPages (fname);
+
       case 'j' :
       case 'p' :
          {
