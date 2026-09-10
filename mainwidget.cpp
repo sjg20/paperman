@@ -500,6 +500,9 @@ void Mainwidget::scanInto(QModelIndex target)
       double wall = _scan_stats.wall.elapsed () / 1000.0;
       double gui = threadCpuSeconds () - _scan_stats.gui_cpu;
 
+      qint64 t_start, t_read, t_data, t_confirm;
+
+      scan.phases (t_start, t_read, t_data, t_confirm);
       qWarning ("scan stats: %d sides in %.1fs (%.0f ms/side); display "
                 "thread CPU %.2fs (%.0f%%), scanning thread CPU %.2fs "
                 "(%.0f%%); display was behind the scanner by up to %d "
@@ -510,6 +513,12 @@ void Mainwidget::scanInto(QModelIndex target)
                 wall ? scan.cpuSeconds () * 100 / wall : 0,
                 _scan_stats.max_behind, scan.maxWaiting (),
                 _scan_stats.progress);
+      int n = _scan_pages ? _scan_pages : 1;
+      qWarning ("scan phases per side: start (fetch and decode) %lld ms, "
+                "read %lld ms, coverage %lld ms, confirm (turn and store) "
+                "%lld ms",
+                (long long) (t_start / n), (long long) (t_read / n),
+                (long long) (t_data / n), (long long) (t_confirm / n));
       }
    _scan = 0;
    /* leave the last rate showing, as a record of the scan */

@@ -1127,6 +1127,7 @@ Paperscan::Paperscan (QObject *parent)
    _end = false;
    _draining = false;
    _sides_done = 0;
+   _t_start = _t_read = _t_data = _t_confirm = 0;
    _cpu_seconds = 0;
    _max_waiting = -1;
    _progress_clock.start ();
@@ -1440,6 +1441,7 @@ void Paperscan::scan ()
                   emit doubleFeedDetected ();
                }
             _op = "sane_start";
+            qint64 t0 = QDateTime::currentMSecsSinceEpoch ();
             status = _scanner->start ();
             if (status == SANE_STATUS_INVAL && !busy_count)
                {
@@ -1448,6 +1450,7 @@ void Paperscan::scan ()
                _op = "sane_start";
                status = _scanner->start ();
                }
+            _t_start += QDateTime::currentMSecsSinceEpoch () - t0;
 //            printf ("status = %d\n", status);
             }
          if (status != SANE_STATUS_GOOD || isCancelled ())
@@ -1476,7 +1479,10 @@ void Paperscan::scan ()
             {
             todo = size;
             _op = "sane_read";
+            qint64 tr0 = QDateTime::currentMSecsSinceEpoch ();
             status = _scanner->read (buf, todo, &len);
+            qint64 tr1 = QDateTime::currentMSecsSinceEpoch ();
+            _t_read += tr1 - tr0;
 //             printf ("status = %d, len = %d, total = %d\n", status, len, total + len);
             if (status != 0)
                break;
@@ -1484,6 +1490,7 @@ void Paperscan::scan ()
             _mutex.lock ();
             _stack->addImageBytes (buf, len);
             _mutex.unlock ();
+            _t_data += QDateTime::currentMSecsSinceEpoch () - tr1;
             total += len;
             steps++;
 //             qDebug () << "thread up to " << total;
@@ -1515,7 +1522,9 @@ void Paperscan::scan ()
             Filepage *mp;
 
             // mp is destroyed by the receive, we do not destroy it here
+            qint64 tc0 = QDateTime::currentMSecsSinceEpoch ();
             err = _stack->confirmImage (mp, _mutex);
+            _t_confirm += QDateTime::currentMSecsSinceEpoch () - tc0;
             if (err)
                break;
 
@@ -1671,7 +1680,10 @@ SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
    while (status == SANE_STATUS_GOOD && !isCancelled ())
       {
       _op = "sane_read";
+      qint64 tr0 = QDateTime::currentMSecsSinceEpoch ();
       status = _scanner->read (buf, size, &len);
+      qint64 tr1 = QDateTime::currentMSecsSinceEpoch ();
+      _t_read += tr1 - tr0;
       if (status != SANE_STATUS_GOOD)
          break;
       _mutex.lock ();
@@ -1680,6 +1692,7 @@ SANE_Status Paperscan::readSide (unsigned char *buf, int size, bool back,
       else
          _stack->addImageBytes (buf, len);
       _mutex.unlock ();
+      _t_data += QDateTime::currentMSecsSinceEpoch () - tr1;
       total += len;
       notifyProgress (back ? _stack->curPageBack () : _stack->curPage ());
       }
