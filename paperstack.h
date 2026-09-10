@@ -495,6 +495,12 @@ public:
    //! the most images the scanner has had waiting for us, or -1 if unknown
    int maxWaiting (void) const { return _max_waiting; }
 
+   /** where the scanning thread's time went, in ms */
+   void phases (qint64 &start, qint64 &read, qint64 &data,
+                qint64 &confirm) const
+      { start = _t_start; read = _t_read; data = _t_data;
+        confirm = _t_confirm; }
+
    /** free a previously scanned page */
    void pageAdded (const Filepage *mp);
 
@@ -641,6 +647,13 @@ private:
    bool _draining;            //!< feeder stopped; reading out its buffered pages
    int _sides_done;           //!< sides finished, for the display to compare with
    int _max_waiting;          //!< most images seen waiting in the scanner
+   /* where the scanning thread's time goes, in ms, for
+      PAPERMAN_SCAN_STATS: they should account for most of the scan */
+   qint64 _t_start;           //!< in sane_start(), where a network back
+                              //!< end fetches and decodes the whole page
+   qint64 _t_read;            //!< in sane_read(), taking the data over
+   qint64 _t_data;            //!< counting coverage and colour as it lands
+   qint64 _t_confirm;         //!< turning the page and writing it out
    double _cpu_seconds;       //!< CPU time used by run()
    QSet<int> _progress_pending;   //!< pages with a progress message not yet handled
    QHash<int, qint64> _progress_time; //!< when each page last sent progress
