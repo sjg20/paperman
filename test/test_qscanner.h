@@ -50,6 +50,9 @@ private slots:
    //! The Alt-L paper-size toggle keeps the size sent to the scanner in
    //! step with the size shown in the combo, across repeated toggles.
    void testPscanPaperToggle();
+
+   //! Test a sideways feed turns the paper size round for the scanner
+   void testPscanPaperSideways();
 };
 
 #endif // TEST_QSCANNER_H

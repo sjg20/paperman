@@ -1704,7 +1704,16 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
   {
 //    printf ("change slot under ADF\n");
     QString oldname = sca->getName ();
-    setPageSize (sca->width (), sca->height ());
+
+    /* Sheets fed sideways go through with the page's height across the
+       scanner, so the size the user picked describes the page, not the
+       window: hand it over the other way round. Without this a page
+       longer than the paper width is cut off at the foot, and on a back
+       end that only trims the length there is nothing to put it back */
+    if (xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS"))
+      setPageSize (sca->height (), sca->width ());
+    else
+      setPageSize (sca->width (), sca->height ());
     setPreviewRange ();
 
     // this may invalidate sca, so find it again, by name!
@@ -2714,6 +2723,12 @@ QSaneOption *QScanDialog::autoSizeOption (void)
    if (!opt)
       opt = findOption ("ald", (int)SANE_TYPE_BOOL);
    return opt;
+}
+
+
+bool QScanDialog::autoSizeTrimsWidth (void)
+{
+   return findOption ("auto-size", (int)SANE_TYPE_BOOL) != 0;
 }
 
 

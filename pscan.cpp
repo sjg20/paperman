@@ -396,7 +396,12 @@ void Pscan::updateAutoSize (void)
    if (has)
       {
       autosize->setChecked (_scanDialog->autoSize ());
-      pageSize->setDisabled (autosize->isChecked ());
+      /* only leave the size out of the user's hands when auto-size
+         trims the width too. The fujitsu backend's ald trims the length
+         alone, so the paper width still decides where a page is cut,
+         and it is the setting to reach for when one comes out short */
+      pageSize->setDisabled (autosize->isChecked ()
+                             && _scanDialog->autoSizeTrimsWidth ());
       }
    else
       pageSize->setEnabled (true);

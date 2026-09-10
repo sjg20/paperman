@@ -108,6 +108,10 @@ public:
   QSaneOption *autoSizeOption (void);
   bool hasAutoSize (void);
 
+  /** true if the back end's auto-size trims the width as well as the
+      length, so the paper size no longer decides where a page is cut */
+  bool autoSizeTrimsWidth (void);
+
   /** The current state of the automatic-size option */
   bool autoSize (void);
 

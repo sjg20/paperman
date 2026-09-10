@@ -358,6 +358,10 @@ void TestQscanner::testPscanControls()
 void TestQscanner::testPscanPaperToggle()
 {
    ensureXmlConfig ();
+   /* the paper sizes are handed to the scanner the other way round when
+      the sheets are fed sideways, so pin the feed: this test is about
+      the sizes themselves */
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
    QScanner scanner;
    scanner.setDeviceName (SIMUL_NAME);
    QVERIFY (scanner.openDevice ());
@@ -406,6 +410,56 @@ void TestQscanner::testPscanPaperToggle()
    QVERIFY (bryForName.contains (legalName));
    QVERIFY (bryForName.contains (letterName));
    QVERIFY (bryForName[legalName] > bryForName[letterName] + 50.0);
+}
+
+
+/* Sheets fed sideways go through with the page's height across the
+   scanner, so the size the user picks describes the page and has to
+   reach the scanner the other way round. Letter fed sideways must give
+   a scan area 11 inches across and 8.5 down, not the reverse */
+void TestQscanner::testPscanPaperSideways()
+{
+   ensureXmlConfig ();
+   QScanner scanner;
+   scanner.setDeviceName (SIMUL_NAME);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   PreviewWidget *pv = dialog.getPreview ();
+   if (pv->getPreDefLetter () == -1)
+      QSKIP ("scanner does not offer a Letter size");
+
+   int letter = pv->getPreDefLetter ();
+   double upright_x, upright_y, sideways_x, sideways_y;
+
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+   pscan.selectPreviewSize (letter);
+   upright_x = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ()));
+   upright_y = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ()));
+
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 2);
+   pscan.selectPreviewSize (letter);
+   sideways_x = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ()));
+   sideways_y = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ()));
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   /* Upright, Letter is taller than it is wide. Fed sideways the page's
+      width becomes the length of the scan, so the scan must get shorter
+      by that much. The width should grow to the page's height to match,
+      but a scanner too narrow to take the page lengthways caps it, as
+      the simulated one does, so only the length is checked here */
+   QVERIFY2 (upright_y > upright_x, "Letter upright should be taller than wide");
+   QVERIFY2 (qAbs (sideways_y - upright_x) < 2.0,
+             "fed sideways, the scan length should be the page's width");
+   QVERIFY2 (sideways_y < upright_y - 20.0,
+             "fed sideways, the scan should be shorter than upright");
+   QVERIFY2 (sideways_x >= upright_x - 2.0,
+             "fed sideways, the scan should be no narrower than upright");
 }
 
 
