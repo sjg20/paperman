@@ -306,6 +306,12 @@ public:
    /** Mirror of addImageBytes() for the back side. */
    bool addImageBytesBack (unsigned char *buf, int size);
 
+   /** Start the back page again with a new size, before any of its data
+       has arrived: the back is its own image and a back end that crops
+       each side to its content can make it a different size from the
+       front. Takes the same arguments as addImageBack() */
+   int restartBack (int width, int height, int depth, int stride, bool jpeg);
+
    /** confirm an image - add it to the stack - call this when there is
        no more data
 
