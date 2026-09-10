@@ -262,7 +262,8 @@ public slots:
 
        \param coverageStr  page coverage string
        \param blank        true if page is marked blank */
-   void slotNewScannedPage (const QString &coverageStr, bool blank);
+   void slotNewScannedPage (const QString &coverageStr, bool blank,
+                            int rotate);
 
    /******************************************************************/
    /** handle an item being clicked

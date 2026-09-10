@@ -924,7 +924,7 @@ err_info *Desktopmodel::addPageToScan (const Filepage *mp, const QString &covera
       return NULL;
    CALL (_scan_file->addPage (mp, false));
 //    qDebug () << "Desktopmodel::addPageToScan, page count" << _scan_file->pagecount;
-   emit newScannedPage (coverageStr, mp->markBlank ());
+   emit newScannedPage (coverageStr, mp->markBlank (), mp->_rotate);
    return NULL;
    }
 

@@ -590,7 +590,7 @@ void Pagemodel::disownScanning (void)
 
 
 int Pagemodel::slotNewScannedPage (const QString &coverageStr,
-      bool mark_blank)
+      bool mark_blank, int rotate)
    {
    Pageinfo *page;
    int pagenum = -1;
@@ -616,7 +616,7 @@ int Pagemodel::slotNewScannedPage (const QString &coverageStr,
       page = new Pageinfo;
 
    // should invalidate pixmap so it is created fresh
-   page->scanDone (coverageStr, mark_blank);
+   page->scanDone (coverageStr, mark_blank, rotate);
 
    _scan_pages << *page;
 //       qDebug () << "Pagemodel::slotNewScannedPage, OWNED count now" << _scan_pages.size ();
@@ -882,7 +882,7 @@ void Pageinfo::invalidate ()
    }
 
 
-void Pageinfo::scanDone (QString coverage, bool mark_blank)
+void Pageinfo::scanDone (QString coverage, bool mark_blank, int rotate)
    {
    setCoverage (coverage);
 
@@ -903,6 +903,9 @@ void Pageinfo::scanDone (QString coverage, bool mark_blank)
          made from the file later will */
       if (_scan_painted > 0 && _scan_painted < _pixmap.height ())
          _pixmap = _pixmap.copy (0, 0, _pixmap.width (), _scan_painted);
+      // a page fed sideways was turned as it was stored: match it
+      if (rotate)
+         _pixmap = _pixmap.transformed (QTransform ().rotate (rotate));
       _provisional = true;
       /* the page was painted before its first preview arrived, with no
          pixmap, which asked for a rescale: the preview answers that now,

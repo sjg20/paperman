@@ -132,8 +132,11 @@ public:
        when we change the stack that is being used */
    void invalidate (void);
 
-   /** complete a scan on a page */
-   void scanDone (QString coverage, bool mark_blank);
+   /** complete a scan on a page
+
+      \param rotate   degrees the page was turned as it was stored, so the
+                      preview can be turned to match */
+   void scanDone (QString coverage, bool mark_blank, int rotate = 0);
 
    /** Stop any rescale that is pending. This happens when we change the
        scale of all the pages at once - any preview rescale is therefore
@@ -382,7 +385,8 @@ public slots:
       \param coverageStr   coverage string
       \param mark_blank    true if page should be marked blank
       \returns the row of the page that was just completed, or -1 */
-   int slotNewScannedPage (const QString &coverageStr, bool mark_blank);
+   int slotNewScannedPage (const QString &coverageStr, bool mark_blank,
+                           int rotate);
 
 signals:
    /* indicate that part of a page has changed

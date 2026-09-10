@@ -1336,7 +1336,8 @@ signals:
 
       \param coverageStr      coverage string for user
       \param mark_blank       true if page should be marked blank */
-   void newScannedPage (const QString &coverageStr, bool mark_blank);
+   void newScannedPage (const QString &coverageStr, bool mark_blank,
+                        int rotate);
 
 public:
    /** clone a model

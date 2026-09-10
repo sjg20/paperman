@@ -559,6 +559,48 @@ Use Alt-L to toggle US letter/legal</string>
         </layout>
        </item>
        <item>
+        <layout class="QHBoxLayout">
+         <item>
+          <widget class="QLabel" name="textLabel3_3">
+           <property name="text">
+            <string>Feed</string>
+           </property>
+           <property name="wordWrap">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="sideways">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Sheets fed sideways are turned upright as they are stored: say which side of the front the top of the page is at</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>Upright</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Top at left</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Top at right</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
         <widget class="SliderSpin" name="bright" native="true">
          <property name="minimumSize">
           <size>

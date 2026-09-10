@@ -77,11 +77,14 @@ public:
       \param device   scanner to use (empty for the last one used)
       \param pages    maximum number of sides to scan (0 for no limit)
       \param settings scanner options to set, as name=value
+      \param autoColour  true to store pages without colour as grey or mono
+      \param sideways    how the sheets are fed (Paperstack::t_sideways),
+                         0 for upright
       \returns exit code: 0 on success */
    static int runScan(const QString& repo, const QString& subdir,
                       const QString& device, int pages,
                       const QStringList& settings = QStringList(),
-                      bool autoColour = false);
+                      bool autoColour = false, int sideways = 0);
 
 public slots:
     virtual void on_actionPrint_triggered(bool);

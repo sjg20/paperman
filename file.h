@@ -698,6 +698,7 @@ public:
    int _height;  //!< height in pixels
    int _depth;   //!< depth in bpp
    int _stride;  //!< bytes per line
+   int _rotate;  //!< degrees the page was turned as it was stored: 0, 90, 270
    int _size;       //!< size of data
    QString _name; //!< the page name
    int _jpeg;           //!< true if page is already JPEG compressed

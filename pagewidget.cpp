@@ -921,7 +921,8 @@ void Pagewidget::scanComplete (void)
    }
 
 
-void Pagewidget::slotNewScannedPage (const QString &coverageStr, bool blank)
+void Pagewidget::slotNewScannedPage (const QString &coverageStr, bool blank,
+                                     int rotate)
    {
    if (_scanning)
       {
@@ -933,7 +934,7 @@ void Pagewidget::slotNewScannedPage (const QString &coverageStr, bool blank)
          }
       }
 
-   int pagenum = _pagemodel->slotNewScannedPage (coverageStr, blank);
+   int pagenum = _pagemodel->slotNewScannedPage (coverageStr, blank, rotate);
 
    /* Follow the scan by the pages that actually have data: scroll to
       the page that just finished.  This keeps the most recently
