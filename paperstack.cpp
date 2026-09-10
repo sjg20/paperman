@@ -352,7 +352,7 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    {
    _autoColour = auto_colour;
    _colourPixels = _interiorPixels = 0;
-   _row_x = _row_skip = _rows_done = 0;
+   _row_x = _row_skip = _rows_done = _partial_len = 0;
    /* a back end that finds the foot of the sheet as it scans (the fujitsu
       backend with ald) cannot say the height when the page starts and
       reports -1. Size the buffers for a letter-shaped page for now; the
@@ -616,7 +616,7 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
       0, 1, 1, 2, 1, 2, 2, 3,
       1, 2, 2, 3, 2, 3, 3, 4
       };
-   int count = 0, pixels;
+   int count = 0, pixels = 0;
    const unsigned char *end = buf + size;
 
    // scan the buffer counting the number of non-blank pixels
@@ -652,9 +652,36 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
                _row_skip -= skip;
                continue;
                }
-            int lum = (buf [0] * 77 + buf [1] * 150 + buf [2] * 29) >> 8;
-            int mx = qMax (buf [0], qMax (buf [1], buf [2]));
-            int mn = qMin (buf [0], qMin (buf [1], buf [2]));
+
+            /* raw data arrives in chunks of any length, so a pixel can be
+               split across two: carry its first bytes over, or the rest
+               of the page is read a byte or two out of step and every
+               edge looks coloured */
+            const unsigned char *px;
+
+            if (_partial_len)
+               {
+               while (_partial_len < 3 && buf < end)
+                  _partial [_partial_len++] = *buf++;
+               if (_partial_len < 3)
+                  break;
+               px = _partial;
+               _partial_len = 0;
+               }
+            else if (end - buf < 3)
+               {
+               while (buf < end)
+                  _partial [_partial_len++] = *buf++;
+               break;
+               }
+            else
+               {
+               px = buf;
+               buf += 3;
+               }
+            int lum = (px [0] * 77 + px [1] * 150 + px [2] * 29) >> 8;
+            int mx = qMax (px [0], qMax (px [1], px [2]));
+            int mn = qMin (px [0], qMin (px [1], px [2]));
 
             if (lum < COVERAGE_THRESHOLD)
                count++;
@@ -663,7 +690,7 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
                colour++;
             if (_autoColour)
                inkPixel (lum);
-            buf += 3;
+            pixels++;
             }
          _colourPixels += colour;
          break;
@@ -671,7 +698,8 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
       }
 
    // work out total pixels in this block
-   pixels = size * 8 / _depth;
+   if (_depth != 24)
+      pixels = size * 8 / _depth;
 
    // if more than 1 in COVERAGE pixels are blank, consider it blank
 //   printf ("count = %d, pixels = %d\n", count, pixels);

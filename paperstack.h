@@ -234,6 +234,8 @@ private:
    int _interiorPixels; //!< mid-tone pixels inside a filled region, see kind()
    int _row_x;          //!< pixels of the current row seen so far
    int _row_skip;       //!< padding bytes of the current row still to skip
+   unsigned char _partial [3]; //!< bytes of a pixel split across chunks
+   int _partial_len;    //!< how many of them there are
    QByteArray _rows;    //!< a ring of INTERIOR_ROWS rows of eroded Ink flags
    int _rows_done;      //!< rows completed so far
    QVector<int> _row_counts; //!< interior pixels of the last EDGE_ROWS rows

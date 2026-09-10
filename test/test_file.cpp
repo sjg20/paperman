@@ -1084,7 +1084,7 @@ void TestFile::testJpegTransform()
 /* Feed a synthetic 24-bit page through a Paperstack with auto colour on
    and return the depth it was stored at, with the coverage string */
 static int scanSynthetic (const QByteArray &rgb, int width, int height,
-                          QString &coverage)
+                          QString &coverage, int chunk = 0)
 {
    Paperstack stack ("stack", "page", false);
    QMutex mutex;
@@ -1092,7 +1092,13 @@ static int scanSynthetic (const QByteArray &rgb, int width, int height,
 
    stack.setAutoColour (true);
    stack.addImage (width, height, 24, width * 3, true, false);
-   stack.addImageBytes ((unsigned char *)rgb.data (), rgb.size ());
+   /* feed the page in chunks of the given size, as a back end delivering
+      raw data does, or all at once */
+   if (!chunk)
+      chunk = rgb.size ();
+   for (int pos = 0; pos < rgb.size (); pos += chunk)
+      stack.addImageBytes ((unsigned char *)rgb.data () + pos,
+                           qMin (chunk, rgb.size () - pos));
    coverage = stack.coverageStr ();
    err_info *err = stack.confirmImage (mp, mutex);
    if (err || !mp)
@@ -1120,6 +1126,12 @@ void TestFile::testAutoColour()
          px [3 * width] = px [1 + 3 * width] = px [2 + 3 * width] = 200;
          }
    QCOMPARE (scanSynthetic (page, width, height, cov), 1);
+   QVERIFY (cov.endsWith (" mono"));
+
+   /* the same page in chunks that split pixels between them, as raw
+      data from a back end arrives: the pixels must stay in step, or the
+      stroke edges read as colour */
+   QCOMPARE (scanSynthetic (page, width, height, cov, 1001), 1);
    QVERIFY (cov.endsWith (" mono"));
 
    /* add a bold black heading and the mid-grey shadow of the paper edge
