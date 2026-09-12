@@ -19,7 +19,9 @@ moc_*.h
 /Makefile.qt6
 /paperman
 /paperman-server
+/paperman-client
 /Makefile.server
+/Makefile.client
 /builddate.h
 /qrc_maxview.cpp
 /qmake_image_collection.cpp
