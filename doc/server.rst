@@ -249,6 +249,92 @@ Using JavaScript (browser or Node.js)
        });
      });
 
+Connecting Clients
+------------------
+
+Both the GUI (``paperman``) and the command-line client
+(``paperman-client``) find servers through a shared configuration file:
+
+.. code:: text
+
+   ~/.config/paperman/client.conf
+
+List one server per line, either as a bare URL or as a name and a URL
+separated by ``=``. Blank lines and lines starting with ``#`` are
+ignored:
+
+.. code:: text
+
+   # Servers this machine knows about
+   http://localhost:8080
+   Office = https://paper.office.example.com
+   Home   = https://nas.local:8443
+
+The name is a convenient label: it is shown in the GUI's directory tree
+and can be given to ``--server`` in place of the full URL. When no name
+is supplied the server's host is used.
+
+Set ``PAPERMAN_CONFIG`` to use a different file, which is handy for
+testing against a throwaway configuration.
+
+Adding a server
+~~~~~~~~~~~~~~~
+
+Edit the file by hand, or let the client append to it:
+
+.. code:: bash
+
+   paperman-client add-server http://localhost:8080
+   paperman-client add-server https://paper.office.example.com Office
+
+A server that is already listed is not added twice; URLs that differ
+only by a trailing slash or by the case of the host are recognised as
+the same server.
+
+Listing servers
+~~~~~~~~~~~~~~~
+
+.. code:: bash
+
+   paperman-client servers
+
+The entry the next command would talk to is marked with ``*``.
+
+Choosing a server
+~~~~~~~~~~~~~~~~~
+
+``--server`` accepts either a URL or the name of a configured server:
+
+.. code:: bash
+
+   paperman-client --server Office ls repo
+   paperman --server Office
+
+Without ``--server``, ``paperman-client`` uses ``$PAPERMAN_SERVER`` if
+it is set, otherwise the first server in ``client.conf``, otherwise
+``http://localhost:8080``.
+
+The GUI attaches *every* server listed in ``client.conf`` at startup, so
+remote repositories appear in the directory tree alongside local ones. A
+server that cannot be reached is reported once and the rest of the
+program carries on, so an unavailable machine does not stop Paperman
+from starting.
+
+Authentication
+~~~~~~~~~~~~~~
+
+``client.conf`` holds no credentials. Log in once per server and the
+bearer token is cached, keyed by the server's own id:
+
+.. code:: bash
+
+   paperman-client --server Office login simon
+
+The token is written to ``~/.config/paperman/<serverId>.token`` with
+0600 permissions and is picked up by both the CLI and the GUI, so
+logging in from either one is enough. The GUI prompts for credentials
+itself when it attaches to a server that needs them.
+
 Troubleshooting
 ---------------
 

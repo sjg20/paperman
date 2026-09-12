@@ -130,3 +130,42 @@ Testing
 
    # Run unit tests (includes testImageDepth)
    paperman -t
+
+Remote Servers
+--------------
+
+``paperman-client`` is a small command-line client for a
+``paperman-server``. It shares its configuration and cached login tokens
+with the GUI, so a server configured for one is available to the other.
+See :doc:`server` for the ``client.conf`` format.
+
+``servers``
+   List the servers configured in ``client.conf``, marking the one the
+   next command would use.
+
+``add-server <url> [name]``
+   Add a server to ``client.conf``, optionally under a friendly name. A
+   server that is already listed is left alone.
+
+``login <user>`` / ``logout``
+   Log in to the selected server (prompting for the password) and cache
+   the bearer token, or forget the cached token.
+
+``status`` / ``repos``
+   Show the server's status, or list the repositories it serves.
+
+``ls <repo> [path]``
+   List the files in a repository directory.
+
+``cat <repo> <path> [-o OUT]``
+   Fetch a file, writing it to stdout or to ``OUT``.
+
+``--server <url-or-name>`` picks the server; without it the client uses
+``$PAPERMAN_SERVER``, else the first entry in ``client.conf``, else
+``http://localhost:8080``.
+
+.. code:: bash
+
+   paperman-client add-server https://paper.office.example.com Office
+   paperman-client --server Office login simon
+   paperman-client --server Office ls docs Invoices
