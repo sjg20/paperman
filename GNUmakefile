@@ -35,6 +35,10 @@ dark-icons:
 builddate.h:
 	@echo '#define SERVER_BUILD_DATE "$(BUILD_DATE)"' > $@
 
+# Phony so the sub-make always runs: with a real file target GNU make
+# sees the up-to-date binary and never checks the sources behind it.
+.PHONY: paperman-server paperman-client
+
 paperman-server: Makefile.server builddate.h
 	$(MAKE) -f Makefile.server
 
