@@ -164,6 +164,7 @@ HEADERS += desktopwidget.h \
     qlistwidgetitemiterator.h \
     searchindex.h \
     backend.h \
+    clientconf.h \
     backendstats.h \
     cachedfile.h \
     localbackend.h \
@@ -255,6 +256,7 @@ SOURCES += desktopwidget.cpp \
     qlistwidgetitemiterator.cpp \
     searchindex.cpp \
     backend.cpp \
+    clientconf.cpp \
     backendstats.cpp \
     localbackend.cpp \
     remotebackend.cpp
@@ -290,6 +292,7 @@ test {
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
       test/test_localbackend.cpp \
+      test/test_clientconf.cpp \
       searchserver.cpp \
       serverlog.cpp \
       tokenstore.cpp \
@@ -308,6 +311,7 @@ test {
       test/test_searchserver.h \
       test/test_ocrsearch.h \
       test/test_localbackend.h \
+      test/test_clientconf.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \
