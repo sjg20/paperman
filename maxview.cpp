@@ -550,6 +550,10 @@ static void usage (void)
    printf ("                       (or every PAPERMAN_SNAP_MS milliseconds)\n");
    printf ("                       into DIR (the same as PAPERMAN_SNAP=DIR)\n");
    printf ("   --clean-snaps       first remove the snapshots already in DIR\n");
+   printf ("   --server URL|NAME   attach a paperman-server, by URL or by the\n");
+   printf ("                       name of one listed in client.conf\n");
+   printf ("                       (~/.config/paperman/client.conf, whose\n");
+   printf ("                       servers are all attached at startup)\n");
 /*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "

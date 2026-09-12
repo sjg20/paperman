@@ -49,6 +49,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qstatusbar.h"
 #include "qstring.h"
 
+#include "clientconf.h"
 #include "config.h"
 
 #include "ui_about.h"
@@ -178,15 +179,46 @@ void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
 
    err_list = desktop->addRepositories(dirs);
 
+   /* Attach the server named on the command line, if any.  A bare name
+      is looked up in client.conf so --server works the same way as it
+      does for paperman-client. */
    QString serverError;
+   QUrl cmdlineUrl;
    if (!serverUrl.isEmpty()) {
-      QUrl url(serverUrl);
-      if (url.isValid() && !url.scheme().isEmpty()) {
-         serverError = desktop->addRemoteServer(url);
+      ServerEntry named;
+      if (ClientConfig::findByName(serverUrl, &named))
+         cmdlineUrl = named.url;
+      else
+         cmdlineUrl = QUrl(serverUrl);
+
+      if (cmdlineUrl.isValid() && !cmdlineUrl.scheme().isEmpty()) {
+         serverError = desktop->addRemoteServer(cmdlineUrl);
       } else {
          serverError = QString("invalid URL: %1").arg(serverUrl);
+         cmdlineUrl.clear();
       }
    }
+
+   /* Attach everything else listed in client.conf.  These are best
+      effort: a server that is down must not stop the GUI from starting,
+      so their failures are collected and reported together rather than
+      being treated like the command-line one. */
+   QStringList badLines;
+   QStringList serverErrors;
+   const QList<ServerEntry> configured = ClientConfig::load(&badLines);
+   for (const ServerEntry &entry : configured) {
+      if (!cmdlineUrl.isEmpty()
+          && ClientConfig::sameServer(entry.url, cmdlineUrl))
+         continue;      // already attached above
+
+      QString err = desktop->addRemoteServer(entry.url);
+      if (!err.isEmpty())
+         serverErrors << QString("%1 (%2): %3")
+                            .arg(entry.name, entry.url.toString(), err);
+   }
+   for (const QString &line : badLines)
+      serverErrors << QString("cannot parse \"%1\" in %2")
+                         .arg(line, ClientConfig::configPath());
 
    show ();
    QModelIndex ind = QModelIndex();
@@ -207,6 +239,11 @@ void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
       QMessageBox::warning(0, "Paperman",
          QString("Failed to connect to %1: %2")
              .arg(serverUrl, serverError));
+
+   if (!serverErrors.isEmpty())
+      QMessageBox::warning(0, "Paperman",
+         QString("Some configured servers are unavailable:\n%1")
+             .arg(serverErrors.join("\n")));
 }
 
 void Mainwindow::shutdown()
