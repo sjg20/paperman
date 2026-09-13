@@ -59,6 +59,13 @@ public:
     /** Inject a token directly (e.g. one loaded from a config file). */
     void setBearerToken(const QString &token) { _token = token; }
 
+    /** Supply the server's id, so it need not be fetched.  serverId()
+     *  blocks on /v1/status when it has none, which an asynchronous
+     *  caller must avoid: a nested event loop there cancels replies
+     *  that are already in flight.  Each repository gets its own
+     *  backend, so pass the id the first one discovered to the rest. */
+    void setServerId(const QString &id) { _serverId = id; }
+
     /** The bearer token currently in use (empty if not authenticated). */
     QString bearerToken() const { return _token; }
 
