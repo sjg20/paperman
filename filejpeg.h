@@ -243,6 +243,10 @@ public:
 
    QString pathname (const QString &dir) const;
 
+   /** The filename of this page, empty for a placeholder standing in
+    *  for a page whose file has not been seen */
+   QString filename (void) const { return _filename; }
+
    void setFilename (const QString &fname);
 
    err_info *remove (const QString &dir) const;

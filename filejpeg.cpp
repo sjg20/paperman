@@ -55,7 +55,18 @@ err_info *Filejpeg::load (void)
 
    if (!_valid)
       {
-      addSubPage(_filename, _has_pagenum ? _base_pagenum : 0);
+      /* A name like "scan_p3.jpg" carries page number 3, so the file
+         becomes page 3 of a stack whose other pages are separate
+         files.  Those are attached by claimFileAsNewPage() as the desk
+         scans the directory; until then this is a stack of one page,
+         and numbering it 3 would leave pages 0 to 2 as placeholders
+         with no file behind them.  Anything that opens the file on its
+         own -- the server making a thumbnail, say -- then asks for
+         page 0 and gets a placeholder rather than the image.
+
+         Start the page at 0 and let claimFileAsNewPage() renumber it
+         if the rest of the stack does turn up. */
+      addSubPage(_filename, 0);
       err = _pages [0]->load (_dir);
       _valid = err == 0;
       }
@@ -646,6 +657,16 @@ bool Filejpeg::claimFileAsNewPage (const QString &fname, QString &base_fname,
 
    if (base_fname != _base_fname)
       return false;
+
+   /* load() puts this file at page 0 so a stack of one page can be
+      read on its own; now that the rest of the stack is turning up,
+      move it to the page its name asks for. */
+   if (_pages.count () == 1 && _base_pagenum != 0
+       && _pages [0] && _pages [0]->filename () == _filename)
+      {
+      delete _pages [0];
+      _pages.clear ();
+      }
 
    if (!_pages.count ())
       addSubPage(_filename, _has_pagenum ? _base_pagenum : 0);
