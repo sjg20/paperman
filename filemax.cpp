@@ -6247,12 +6247,18 @@ err_info *Filemax::getPreviewImage (int pagenum, QImage &out, bool blank)
    if (debug_level >= 3)
       show_file (stderr);
 
-   /* find_page_chunk() reads from the file, so it needs it open.  The
-      desktop happens to call this between its own ensure_open() and
-      ensure_closed(), but callers that just want one preview (the
-      server making a thumbnail) do not, so open it here. */
-   CALL (ensure_open ());
-   CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
+   /* find_page_chunk() reads from the file.  The desktop calls this
+      between its own ensure_open() and ensure_closed(), but a caller
+      that just wants one preview (the server making a thumbnail) does
+      not, so hold the file open here.  The guard gives the count back
+      on every path out, including the ones CALL() returns on: leaving
+      it open stops the file being deleted on Windows. */
+      {
+      Open open (this);
+
+      CALL (open.err ());
+      CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
+      }
 
    // Rebuild stub greyscale previews on the fly
    if (chunk->bits == 8
