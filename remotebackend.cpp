@@ -51,16 +51,31 @@ bool RemoteBackend::login(const QString &user, const QString &password)
       return false;
    }
 
+   /* A rejected login still carries a body, and postRequest() has
+      already put the HTTP status in _lastError.  Prefer the server's
+      own message ("Invalid credentials") over anything we infer from
+      the missing token, so the user is told what actually went wrong. */
+   QString httpError = _lastError;
+
    QJsonDocument doc = QJsonDocument::fromJson(resp);
    if (!doc.isObject()) {
-      _lastError = "login response is not a JSON object";
+      if (httpError.isEmpty())
+         _lastError = "login response is not a JSON object";
       return false;
    }
-   QString token = doc.object().value("token").toString();
+
+   QJsonObject obj = doc.object();
+   QString token = obj.value("token").toString();
    if (token.isEmpty()) {
-      _lastError = "login response missing token";
+      QString serverError = obj.value("error").toString();
+      if (!serverError.isEmpty())
+         _lastError = serverError;
+      else if (httpError.isEmpty())
+         _lastError = "login response missing token";
       return false;
    }
+
+   _lastError.clear();
    _token = token;
    return true;
 }
