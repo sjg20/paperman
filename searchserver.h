@@ -240,6 +240,27 @@ private:
      * stack path.  @p verb is the trailing part including its leading
      * slash (e.g. "/rename").  Returns false if the URL is malformed.
      */
+    /** GET /v1/repos/{repo}/stacks/{path}/info - the stack's structure
+     *  (page count and per-page size, depth and title) without any
+     *  pixels, so a client can lay out the pages before fetching any of
+     *  them. */
+    QByteArray handleStackInfo(const QString &path,
+                               const QHash<QString, QString> &params,
+                               const QString &authedUser);
+
+    /** GET /v1/repos/{repo}/stacks/{path}/pages/{n} - one page of a
+     *  stack as a max file holding just that page, so the client
+     *  fetches only the pages it shows. */
+    QByteArray handleStackPage(const QString &path,
+                               const QHash<QString, QString> &params,
+                               const QString &authedUser);
+
+    /** Write a max file holding just page @p page of the stack at
+     *  @p stackPath, returning its pathname (empty on failure).  The
+     *  caller removes the file once it has been sent. */
+    QString extractPageFile(const QString &stackPath, int page,
+                            bool *pastEnd = nullptr);
+
     static bool splitStackUrl(const QString &path, const QString &verb,
                               QString *repoName, QString *filePath);
 
