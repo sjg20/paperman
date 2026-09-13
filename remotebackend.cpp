@@ -688,12 +688,7 @@ QString RemoteBackend::ensureCachedFile(const QString &repo,
    if (refreshed)
       *refreshed = false;
 
-   /* cachePathFor() needs the server id, and fetching one blocks in a
-      nested event loop, which would cancel replies already in flight.
-      The id is seeded when the backend is made, so an empty one here
-      means we cannot cache without blocking: report it instead. */
-   QString cachePath = _serverId.isEmpty() ? QString()
-                                           : cachePathFor(repo, relPath);
+   QString cachePath = cachePathFor(repo, relPath);
    if (cachePath.isEmpty()) {
       _lastError = "cannot determine the server's cache directory";
       return QString();
@@ -778,7 +773,14 @@ quint64 RemoteBackend::ensureCachedFileAsync(const QString &repo,
 {
    quint64 token = _nextAsyncToken++;
 
-   QString cachePath = cachePathFor(repo, relPath);
+   /* cachePathFor() needs the server id, and serverId() fetches one
+      with a blocking request when it has none.  That nested event loop
+      would deliver replies that are still in flight elsewhere, so an
+      asynchronous caller must not reach it: the id is seeded when the
+      backend is made, and an empty one here means we cannot work out
+      where to cache without blocking. */
+   QString cachePath = _serverId.isEmpty() ? QString()
+                                           : cachePathFor(repo, relPath);
    if (cachePath.isEmpty()) {
       _lastError = "cannot determine the server's cache directory";
       QMetaObject::invokeMethod(this, [this, token]() {
