@@ -216,6 +216,15 @@ public:
     QString ensureCachedFile(const QString &repo, const QString &relPath,
                              bool *refreshed = nullptr);
 
+    /** Async counterpart to ensureCachedFile().  Returns a token at
+     *  once and emits cachedFileReady() when the cached copy is
+     *  current, so a caller on the GUI thread never blocks and the
+     *  network is only ever touched from the thread owning this
+     *  object.  An empty path in the signal means the fetch failed
+     *  (lastError() set). */
+    quint64 ensureCachedFileAsync(const QString &repo,
+                                  const QString &relPath);
+
     /** Forget any cached copy of @p relPath (bytes and validator), so
      *  the next ensureCachedFile() downloads afresh. */
     void invalidateCachedFile(const QString &repo, const QString &relPath);
@@ -225,11 +234,22 @@ signals:
                               const DirectoryListing &listing);
     void thumbnailReady(quint64 token, const QByteArray &jpegBytes);
 
+    /** A file requested with ensureCachedFileAsync() is now cached.
+     *  @p cachePath is empty if the fetch failed; @p refreshed is true
+     *  when new bytes were written, so any parsed state is stale. */
+    void cachedFileReady(quint64 token, const QString &cachePath,
+                         bool refreshed);
+
     /** A change made by another client arrived on the event stream */
     void stackEvent(const QString &repo, const QString &op,
                     const QString &path, const QString &name);
 
 private:
+    /** Write downloaded bytes and their validator into the cache,
+     *  returning the cache pathname (empty on failure). */
+    QString storeCachedFile(const QString &cachePath, const QByteArray &body,
+                            const QString &newEtag, bool *refreshed);
+
     QByteArray getRequest(const QString &pathAndQuery);
     QByteArray postRequest(const QString &path, const QByteArray &body,
                            const QString &contentType
