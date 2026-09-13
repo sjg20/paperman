@@ -322,10 +322,18 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
        * are uncounted; tolerable for a user-facing tally. */
       _stats->requestStarted();
       _stats->recordSent(pathAndQuery.toUtf8().size());
-      QObject::connect(reply, &QNetworkReply::finished, _stats,
-          [this, reply]() {
-             _stats->recordReceived(reply->bytesAvailable());
-             _stats->requestFinished();
+      /* Tie the callback to the reply, not to _stats: the stats object
+         outlives this backend, so a connection owned by it keeps firing
+         after the backend (and the reply it captured) have gone.  That
+         happens on every startup, where the probe backend is a local
+         whose replies are cancelled as it goes out of scope, and shows
+         up as "device not open" from the read below.  Capture the stats
+         pointer rather than this, so nothing reaches the dead backend. */
+      BackendStats *stats = _stats;
+      QObject::connect(reply, &QNetworkReply::finished, reply,
+          [stats, reply]() {
+             stats->recordReceived(reply->bytesAvailable());
+             stats->requestFinished();
           });
    }
    return reply;
