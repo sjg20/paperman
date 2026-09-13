@@ -809,6 +809,12 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
 
         return response;
     }
+    else if (path.startsWith("/v1/repos/") && path.endsWith("/info")) {
+        return handleStackInfo(path, params, authedUser);
+    }
+    else if (path.startsWith("/v1/repos/") && path.contains("/pages/")) {
+        return handleStackPage(path, params, authedUser);
+    }
     else if (path.startsWith("/v1/repos/") && path.endsWith("/events")) {
         return handleEvents(path, params, authedUser, client);
     }
@@ -1298,6 +1304,210 @@ static File *openTargetFile(const QString &fullPath, QString *errMsg)
     }
     return file;
 }
+
+/* Write a max file holding just one page of a stack, into the thumbnail
+   cache directory, and return its pathname (empty on failure).  The
+   caller deletes it once it has been sent.
+
+   The page keeps the compression it has on disk, so this costs the
+   bytes of one page rather than of the whole stack.  Previews are
+   already served cheaply by /thumbnail, so there is only one form. */
+QString SearchServer::extractPageFile(const QString &stackPath, int page,
+                                      bool *pastEnd)
+{
+    if (pastEnd)
+        *pastEnd = false;
+
+    QFileInfo fi(stackPath);
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, File::typeFromName(fi.fileName()));
+    if (!file)
+        return QString();
+    if (file->load()) {
+        delete file;
+        return QString();
+    }
+    if (page > file->pagecount()) {
+        if (pastEnd)
+            *pastEnd = true;
+        delete file;
+        return QString();
+    }
+
+    QString dir = cacheDirPath("pages");
+    QDir().mkpath(dir);
+    QString name = QString("p%1-%2-%3.max")
+                       .arg(QCoreApplication::applicationPid())
+                       .arg(page)
+                       .arg(QDateTime::currentMSecsSinceEpoch());
+
+    File *dest = File::createFile(dir + "/", name, nullptr, File::Type_max);
+    err_info *err = dest ? dest->create() : nullptr;
+    if (!err)
+        err = file->unstackPages(page - 1, 1, /*remove=*/false, dest);
+    if (!err)
+        err = dest->flush();
+    delete dest;
+    delete file;
+
+    if (err) {
+        QFile::remove(dir + "/" + name);
+        return QString();
+    }
+    return dir + "/" + name;
+}
+
+
+/* GET .../stacks/{path}/info - the stack's structure, no pixels. */
+QByteArray SearchServer::handleStackInfo(const QString &path,
+                                         const QHash<QString, QString> &params,
+                                         const QString &authedUser)
+{
+    Q_UNUSED(params);
+
+    QString repoName, filePath;
+    if (!splitStackUrl(path, QStringLiteral("/info"), &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed info path"));
+
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QFileInfo fi(target.fullPath);
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, File::typeFromName(fi.fileName()));
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot open stack"));
+    if (file->load()) {
+        delete file;
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot read stack"));
+    }
+
+    QJsonArray pages;
+    int count = file->pagecount();
+    for (int i = 0; i < count; i++) {
+        QSize size, trueSize;
+        int bpp = 0, imageBytes = 0, compressed = 0;
+        QDateTime stamp;
+        QJsonObject page;
+
+        page["page"] = i + 1;
+        if (!file->getImageInfo(i, size, trueSize, bpp, imageBytes,
+                                compressed, stamp)) {
+            page["width"] = size.width();
+            page["height"] = size.height();
+            page["bpp"] = bpp;
+            page["bytes"] = imageBytes;
+            if (compressed >= 0)
+                page["compressed"] = compressed;
+            if (stamp.isValid())
+                page["modified"] = stamp.toString(Qt::ISODate);
+        }
+        QSize previewSize;
+        int previewBpp = 0;
+        if (!file->getPreviewInfo(i, previewSize, previewBpp)) {
+            page["previewWidth"] = previewSize.width();
+            page["previewHeight"] = previewSize.height();
+        }
+        QString title;
+        if (!file->getPageTitle(i, title) && !title.isEmpty())
+            page["title"] = title;
+        pages.append(page);
+    }
+    delete file;
+
+    QJsonObject out;
+    out["success"] = true;
+    out["pagecount"] = count;
+    out["size"] = QFileInfo(target.fullPath).size();
+    out["pages"] = pages;
+    QJsonDocument doc(out);
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(doc.toJson(
+                                 QJsonDocument::Compact)));
+}
+
+
+/* GET .../stacks/{path}/pages/{n}?form=preview|full - one page, as a
+   max file containing just that page.  The client stores these beside
+   each other and reads them as a stack whose pages arrive separately. */
+QByteArray SearchServer::handleStackPage(const QString &path,
+                                         const QHash<QString, QString> &params,
+                                         const QString &authedUser)
+{
+    Q_UNUSED(params);
+
+    /* Path shape: .../stacks/{path}/pages/{n} */
+    int sep = path.lastIndexOf("/pages/");
+    if (sep < 0)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed page path"));
+    bool numOk = false;
+    int page = path.mid(sep + QStringLiteral("/pages/").size()).toInt(&numOk);
+    if (!numOk || page < 1)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid page number"));
+
+    QString repoName, filePath;
+    if (!splitStackUrl(path.left(sep), "", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed page path"));
+
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    bool pastEnd = false;
+    QString single = extractPageFile(target.fullPath, page, &pastEnd);
+    if (single.isEmpty()) {
+        if (pastEnd)
+            return buildHttpResponse(404, "Not Found", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "No such page"));
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot extract page"));
+    }
+
+    QFile f(single);
+    if (!f.open(QIODevice::ReadOnly)) {
+        QFile::remove(single);
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot read extracted page"));
+    }
+    QByteArray bytes = f.readAll();
+    f.close();
+    QFile::remove(single);
+
+    QByteArray response;
+    response += "HTTP/1.1 200 OK\r\n";
+    response += "Content-Type: application/octet-stream\r\n";
+    response += "Content-Length: " + QByteArray::number(bytes.size()) + "\r\n";
+    response += "Cache-Control: private, max-age=86400\r\n";
+    response += "Connection: close\r\n";
+    response += "\r\n";
+    response += bytes;
+    return response;
+}
+
 
 QByteArray SearchServer::handleOcrPage(const QString &path,
                                        const QHash<QString, QString> &params,
