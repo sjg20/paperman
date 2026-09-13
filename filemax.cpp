@@ -6234,7 +6234,7 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
    }
 
 
-err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
+err_info *Filemax::getPreviewImage (int pagenum, QImage &out, bool blank)
    {
    byte *preview;
    QString path;
@@ -6246,6 +6246,12 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 
    if (debug_level >= 3)
       show_file (stderr);
+
+   /* find_page_chunk() reads from the file, so it needs it open.  The
+      desktop happens to call this between its own ensure_open() and
+      ensure_closed(), but callers that just want one preview (the
+      server making a thumbnail) do not, so open it here. */
+   CALL (ensure_open ());
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
 
    // Rebuild stub greyscale previews on the fly
@@ -6302,9 +6308,23 @@ err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 
    // Deep-copy the image before freeing the preview buffer, since the
    // QImage wraps the raw pointer without copying
-   pixmap = QPixmap::fromImage(image.copy());
+   out = image.copy ();
    free (preview);
-   return pixmap.isNull () ? err_make (ERRFN, ERR_failed_to_generate_preview_image) : NULL;
+   return out.isNull () ? err_make (ERRFN, ERR_failed_to_generate_preview_image) : NULL;
+   }
+
+
+/* The preview is decoded as a QImage; QPixmap needs a GUI application,
+   so callers without one (the server) use getPreviewImage() directly. */
+err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
+   {
+   QImage image;
+
+   CALL (getPreviewImage (pagenum, image, blank));
+   pixmap = QPixmap::fromImage (image);
+
+   return pixmap.isNull ()
+              ? err_make (ERRFN, ERR_failed_to_generate_preview_image) : NULL;
    }
 
 

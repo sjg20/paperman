@@ -203,6 +203,18 @@ public:
 
    virtual err_info *getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank);
 
+   /** Decode the preview embedded in the file for a page, as a QImage.
+    *  This is what getPreviewPixmap() is built on; it exists separately
+    *  because QPixmap needs a GUI application, and the server has only
+    *  a QCoreApplication.  Reading the preview avoids decoding the
+    *  full-resolution page just to make a thumbnail.
+    *
+    *  \param pagenum   page number within the stack
+    *  \param out       returns the preview image
+    *  \param blank     true to show the image as 'blank'
+    *  \returns error, or NULL if none */
+   err_info *getPreviewImage (int pagenum, QImage &out, bool blank);
+
    virtual err_info *getImage (int pagenum, bool do_scale,
                QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank);
 

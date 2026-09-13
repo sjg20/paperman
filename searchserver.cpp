@@ -28,6 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 
 #include "file.h"
+#include "filemax.h"
 #include "pdfio.h"
 #include "utils.h"
 
@@ -2544,11 +2545,24 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
         }
 
         QImage image;
-        QSize imgSize, trueSize;
-        int bpp;
 
-        err = file->getImage(page - 1, false, image, imgSize, trueSize,
-                             bpp, false);
+        /* A .max file embeds a small preview of each page, which is all
+         * a thumbnail needs; decoding the full-resolution page instead
+         * means reading and unpacking megabytes to produce a ~150px
+         * image.  Fall back to the full page if the preview cannot be
+         * read (an old file may have none). */
+        err = NULL;
+        Filemax *max = dynamic_cast<Filemax *>(file);
+        if (max)
+            err = max->getPreviewImage(page - 1, image, false);
+
+        if (err || image.isNull()) {
+            QSize imgSize, trueSize;
+            int bpp;
+
+            err = file->getImage(page - 1, false, image, imgSize, trueSize,
+                                 bpp, false);
+        }
         delete file;
         if (err || image.isNull()) {
             qWarning() << "SearchServer: Failed to get image for thumbnail";
