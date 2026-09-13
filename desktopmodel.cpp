@@ -2063,6 +2063,89 @@ bool Desktopmodel::imageNeedsDecode (const QModelIndex &ind, int pagenum,
    }
 
 
+/* Start fetching a remote stack's bytes if they are not here yet.
+   Runs on the GUI thread (so the network stack is only touched from the
+   thread that owns it) and returns at once; when the bytes land,
+   onCachedFileReady() parses them and rebuilds the item, which makes the
+   view ask for the image again.  Returns true if a fetch is needed, so
+   the caller knows the image is not available yet. */
+bool Desktopmodel::requestContent (const QModelIndex &ind)
+   {
+   File *f = getFile (ind);
+
+   if (!f)
+      return false;
+   Desk *desk = f->desk ();
+   RemoteBackend *remote = remoteForFile (f);
+   if (!remote || f->remoteChecked ())
+      return false;      // local, or already here
+
+   /* one request per stack at a time */
+   for (const QPersistentModelIndex &pending : _pendingContent)
+      if (pending.isValid () && getFile (QModelIndex (pending)) == f)
+         return true;
+
+   if (!_connectedBackends.contains (remote))
+      {
+      connect (remote, &RemoteBackend::thumbnailReady,
+               this, &Desktopmodel::onThumbnailReady);
+      connect (remote, &RemoteBackend::stackEvent,
+               this, &Desktopmodel::onRemoteStackEvent, Qt::QueuedConnection);
+      _connectedBackends.insert (remote);
+      }
+   if (!_contentBackends.contains (remote))
+      {
+      connect (remote, &RemoteBackend::cachedFileReady,
+               this, &Desktopmodel::onCachedFileReady);
+      _contentBackends.insert (remote);
+      }
+
+   quint64 token = remote->ensureCachedFileAsync (desk->repoName (),
+                                                  remoteStackPath (desk, f));
+   _pendingContent.insert (token, QPersistentModelIndex (ind));
+   return true;
+   }
+
+
+/* A stack's bytes have arrived (or the fetch failed).  Parse them and
+   rebuild the item so the view renders the real pages in place of the
+   placeholder. */
+void Desktopmodel::onCachedFileReady (quint64 token, const QString &cachePath,
+                                      bool refreshed)
+   {
+   auto it = _pendingContent.find (token);
+
+   if (it == _pendingContent.end ())
+      return;
+   QPersistentModelIndex pind = it.value ();
+   _pendingContent.erase (it);
+
+   if (!pind.isValid ())
+      return;             // the view moved on
+   QModelIndex ind (pind);
+   File *f = getFile (ind);
+   if (!f)
+      return;
+
+   if (cachePath.isEmpty ())
+      return;             // fetch failed; the placeholder stays
+
+   if (refreshed || !f->pagecount ())
+      {
+      QMutexLocker locker (&_imageMutex);
+
+      if (f->reload ())
+         return;
+      f->setValid (true);
+      }
+   f->setRemoteChecked (true);
+
+   _minor_change = true;
+   buildItem (ind);
+   _minor_change = false;
+   }
+
+
 err_info *Desktopmodel::getScaledImageData (const QModelIndex &ind, int pagenum,
       const QSize &size, bool blank, QImage &image) const
    {
@@ -2074,6 +2157,17 @@ err_info *Desktopmodel::getScaledImageData (const QModelIndex &ind, int pagenum,
       check it maps to a file rather than asserting deep in getImage */
    if (!ind.isValid () || !IS_FILE (ind))
       return err_make (ERRFN, ERR_file_not_loaded_yet1, "stale index");
+
+   /* This runs on the render thread, which must not touch the network:
+      QNetworkAccessManager belongs to the GUI thread that created it.
+      A stack whose bytes have not arrived yet simply has no image to
+      give, so say so and leave the placeholder in place; requestContent
+      () has asked for the fetch and the page is rendered again when it
+      lands. */
+   File *f = getFile (ind);
+   if (f && !f->remoteChecked () && remoteForFile (f))
+      return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                       qPrintable (f->filename ()));
 
    CALL (getImage (ind, pagenum, false, image, isize, tsize, bpp, blank));
    if (image.width () != size.width () && image.height () != size.height ())

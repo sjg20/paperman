@@ -500,6 +500,15 @@ void Pagemodel::nextUpdate (void)
          /* a big page is slow to decode, so hand it to the render thread
             and carry on when it comes back; the scan image and small
             previews are cheap, so do those here */
+         /* A remote stack may not have its bytes yet.  Ask for them
+            here, on the GUI thread, since the render thread must not
+            touch the network; the placeholder stays up until they
+            arrive and the item is rebuilt. */
+         if (_stackindex.isValid () && _contents
+             && const_cast<Desktopmodel *> (_contents)
+                    ->requestContent (_stackindex))
+            continue;
+
          if (_stackindex.isValid () && !pi->scanning () && !_own_scan
              && _contents
              && _contents->imageNeedsDecode (_stackindex, pagenum, _pagesize))

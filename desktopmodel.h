@@ -1042,6 +1042,8 @@ private slots:
     *  JPEG into a QPixmap, and emits dataChanged() so the view
     *  repaints. */
    void onThumbnailReady(quint64 token, const QByteArray &jpegBytes);
+   void onCachedFileReady(quint64 token, const QString &cachePath,
+                          bool refreshed);
 
    /** Another client changed a stack in a remote repository: drop
     *  the suspect cached copy and refresh any desk showing the
@@ -1186,6 +1188,12 @@ public:
       \param ind    model index of stack
       \returns error, or NULL if the content is ready */
    err_info *ensureContent (const QModelIndex &ind);
+
+   /** Start fetching a remote stack's bytes if they are not cached yet.
+    *  Call from the GUI thread only.  Returns at once; true means the
+    *  bytes are still on their way, so the caller should show whatever
+    *  placeholder it has and wait to be asked again. */
+   bool requestContent (const QModelIndex &ind);
 
    /** gets an image of a page scaled to the exact requested size, using
        either the preview or full image. Returns a pixmap which is first freed
@@ -1540,6 +1548,12 @@ private:
     *  RemoteBackend::fetchThumbnailAsync → File* that wants the
     *  result.  Cleared in the slot. */
    QHash<quint64, File *> _pendingThumbnails;
+
+   //! stacks whose bytes are being fetched, by request token
+   QHash<quint64, QPersistentModelIndex> _pendingContent;
+
+   //! backends already connected to cachedFileReady()
+   QSet<class RemoteBackend *> _contentBackends;
    /** Set of RemoteBackends we've already connected our slot to,
     *  so we don't connect twice when revisiting the same desk. */
    QSet<class RemoteBackend *> _connectedBackends;
