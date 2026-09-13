@@ -752,6 +752,9 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
 
       RemoteBackend *rb = new RemoteBackend(baseUrl);
       rb->setStats(stats());
+      /* Hand on the id the probe already fetched, so this backend never
+         has to block on /v1/status to work out its cache directory. */
+      rb->setServerId(serverId);
       if (!token.isEmpty())
          rb->setBearerToken(token);
       connect(rb, &RemoteBackend::browseDirectoryReady,

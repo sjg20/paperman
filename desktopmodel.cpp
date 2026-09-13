@@ -2056,6 +2056,14 @@ bool Desktopmodel::imageNeedsDecode (const QModelIndex &ind, int pagenum,
    QMutexLocker locker (&_imageMutex);
    QSize preview_size, image_size;
 
+   /* A stack still being fetched has nothing to measure, and asking
+      would block in a nested event loop that cancels the very fetch we
+      are waiting for.  requestContent() has already asked for it. */
+   File *f = getFile (ind);
+   if (f && !f->remoteChecked ()
+       && const_cast<Desktopmodel *> (this)->remoteForFile (f))
+      return false;
+
    if (getImagePreviewSizes (ind, pagenum, preview_size, image_size))
       return false;   // on error let the synchronous path deal with it
    return size.width () > preview_size.width () + 20
