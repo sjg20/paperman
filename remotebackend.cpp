@@ -710,6 +710,19 @@ QString RemoteBackend::ensureCachedFile(const QString &repo,
       return QString();
    }
 
+   return storeCachedFile(cachePath, body, newEtag, refreshed);
+}
+
+
+/* Write freshly-downloaded bytes (and their validator) into the cache.
+   Shared by the sync and async fetch paths. */
+QString RemoteBackend::storeCachedFile(const QString &cachePath,
+                                       const QByteArray &body,
+                                       const QString &newEtag,
+                                       bool *refreshed)
+{
+   QString etagPath = cachePath + ".etag";
+
    QDir().mkpath(QFileInfo(cachePath).path());
    QSaveFile out(cachePath);
    if (!out.open(QIODevice::WriteOnly)) {
@@ -732,6 +745,75 @@ QString RemoteBackend::ensureCachedFile(const QString &repo,
    if (refreshed)
       *refreshed = true;
    return cachePath;
+}
+
+
+/* Async counterpart to ensureCachedFile(): returns at once and emits
+   cachedFileReady() when the copy is current.  The reply is handled on
+   the thread that owns this object, so the network stack is only ever
+   touched from there. */
+quint64 RemoteBackend::ensureCachedFileAsync(const QString &repo,
+                                             const QString &relPath)
+{
+   quint64 token = _nextAsyncToken++;
+
+   QString cachePath = cachePathFor(repo, relPath);
+   if (cachePath.isEmpty()) {
+      _lastError = "cannot determine the server's cache directory";
+      QMetaObject::invokeMethod(this, [this, token]() {
+         emit cachedFileReady(token, QString(), false);
+      }, Qt::QueuedConnection);
+      return token;
+   }
+
+   QString etag;
+   bool haveCopy = QFile::exists(cachePath);
+   if (haveCopy) {
+      QFile ef(cachePath + ".etag");
+      if (ef.open(QIODevice::ReadOnly))
+         etag = QString::fromUtf8(ef.readAll()).trimmed();
+   }
+
+   QNetworkReply *reply = startGet(wholeFilePathFor(repo, relPath),
+                                   haveCopy ? etag : QString());
+   QObject::connect(reply, &QNetworkReply::finished, this,
+       [this, reply, token, cachePath, haveCopy]() {
+          _lastError.clear();
+          QByteArray body = reply->readAll();
+          int status = reply->attribute(
+                           QNetworkRequest::HttpStatusCodeAttribute).toInt();
+          QString newEtag = QString::fromUtf8(
+                                reply->rawHeader("ETag")).trimmed();
+          if (reply->error() != QNetworkReply::NoError
+              && status != 304)
+             _lastError = reply->errorString();
+          reply->deleteLater();
+
+          if (status == 304) {
+             emit cachedFileReady(token, cachePath, false);
+             return;
+          }
+          if (status != 200) {
+             /* Unreachable or unhappy: an existing copy still shows,
+                matching the sync path's behaviour. */
+             if (haveCopy) {
+                qInfo() << "RemoteBackend: using cached copy after fetch"
+                        << "error:" << _lastError;
+                emit cachedFileReady(token, cachePath, false);
+             } else {
+                if (_lastError.isEmpty())
+                   _lastError = QString("HTTP %1").arg(status);
+                emit cachedFileReady(token, QString(), false);
+             }
+             return;
+          }
+
+          bool refreshed = false;
+          QString path = storeCachedFile(cachePath, body, newEtag,
+                                         &refreshed);
+          emit cachedFileReady(token, path, refreshed);
+       });
+   return token;
 }
 
 
