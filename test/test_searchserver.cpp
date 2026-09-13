@@ -760,7 +760,10 @@ void TestSearchServer::testThumbnailMatchesLocalRender()
    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
 
    /* Local render: same recipe as SearchServer::generateThumbnail
-    * for non-PDF.  thumbSize 300 matches getThumbnailSize("medium"). */
+    * for non-PDF.  thumbSize 300 matches getThumbnailSize("medium").
+    * That recipe reads the preview embedded in a max file and only
+    * decodes the full page when there is none, so follow it here or
+    * the two scale from different images. */
    const int kThumbSize = 300;
    QString fname = "testfile.max";
    QString dir = tmpDir.path() + "/";
@@ -770,10 +773,16 @@ void TestSearchServer::testThumbnailMatchesLocalRender()
    QVERIFY(file->load() == nullptr);
 
    QImage image;
-   QSize imgSize, trueSize;
-   int bpp;
-   err_info *err = file->getImage(0, false, image, imgSize, trueSize,
-                                  bpp, false);
+   err_info *err = nullptr;
+   Filemax *max = dynamic_cast<Filemax *>(file);
+   if (max)
+      err = max->getPreviewImage(0, image, false);
+   if (!max || err || image.isNull()) {
+      QSize imgSize, trueSize;
+      int bpp;
+
+      err = file->getImage(0, false, image, imgSize, trueSize, bpp, false);
+   }
    delete file;
    QVERIFY(err == nullptr);
    QVERIFY(!image.isNull());
