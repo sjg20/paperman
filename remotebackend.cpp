@@ -246,6 +246,13 @@ FileFetch RemoteBackend::readFile(const QString &repo, const QString &path)
  * surfaces quickly. */
 static const int kRequestTimeoutMs = 5000;
 
+/* Fetching a whole stack is not a round-trip: a large one takes tens of
+ * seconds over a link slower than a LAN, and the timeout above cancels
+ * it long before it arrives, leaving nothing cached and the stack
+ * unreadable.  Qt counts the timeout from the last byte received, so
+ * this only fires when the transfer really has stalled. */
+static const int kFetchTimeoutMs = 120000;
+
 
 /* Build the "/thumbnail?repo=...&path=...&page=N&size=..." path. */
 static QString thumbnailPathFor(const QString &repo, const QString &path,
@@ -297,7 +304,8 @@ quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
 
 
 QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
-                                       const QString &ifNoneMatch)
+                                       const QString &ifNoneMatch,
+                                       int timeoutMs)
 {
    QUrl url(_baseUrl);
    int q = pathAndQuery.indexOf('?');
@@ -308,7 +316,7 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
       url.setQuery(pathAndQuery.mid(q + 1));
    }
    QNetworkRequest req(url);
-   req.setTransferTimeout(kRequestTimeoutMs);
+   req.setTransferTimeout(timeoutMs > 0 ? timeoutMs : kRequestTimeoutMs);
    req.setRawHeader("X-Client-Id", _clientId.toUtf8());
    if (!_token.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
@@ -704,7 +712,7 @@ QString RemoteBackend::ensureCachedFile(const QString &repo,
    QString newEtag;
    QByteArray body = waitForReplyFull(
        startGet(wholeFilePathFor(repo, relPath),
-                haveCopy ? etag : QString()),
+                haveCopy ? etag : QString(), kFetchTimeoutMs),
        &status, &newEtag);
 
    if (status == 304)
@@ -788,7 +796,8 @@ quint64 RemoteBackend::ensureCachedFileAsync(const QString &repo,
    }
 
    QNetworkReply *reply = startGet(wholeFilePathFor(repo, relPath),
-                                   haveCopy ? etag : QString());
+                                   haveCopy ? etag : QString(),
+                                   kFetchTimeoutMs);
    QObject::connect(reply, &QNetworkReply::finished, this,
        [this, reply, token, cachePath, haveCopy]() {
           _lastError.clear();

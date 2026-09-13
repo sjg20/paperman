@@ -280,8 +280,11 @@ private:
      *  responsibility for the returned reply's signals; reply will
      *  call deleteLater on itself once consumed.  @p ifNoneMatch, when
      *  non-empty, is sent as an If-None-Match header. */
+    /** @p timeoutMs overrides the default per-request transfer timeout,
+     *  which is far too short for fetching a whole stack. */
     QNetworkReply *startGet(const QString &pathAndQuery,
-                            const QString &ifNoneMatch = QString());
+                            const QString &ifNoneMatch = QString(),
+                            int timeoutMs = 0);
 
     /** Translate a /browse reply (body bytes + reply error state)
      *  into a typed DirectoryListing.  Shared by sync and async
