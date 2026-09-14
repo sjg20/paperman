@@ -33,6 +33,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QDateTime>
+#include <QHash>
+#include <QMap>
 #include <QRecursiveMutex>
 #include <QImage>
 
@@ -214,6 +216,34 @@ public:
     *  \param blank     true to show the image as 'blank'
     *  \returns error, or NULL if none */
    err_info *getPreviewImage (int pagenum, QImage &out, bool blank);
+
+   /** Read this stack as a directory of pages rather than one file.
+
+       A remote stack is fetched a page at a time: @p dir holds an
+       info.json describing every page (as the server's /info route
+       returns it) and a page-N.max, itself a one-page max file, for
+       each page that has arrived.  The stack knows its page count,
+       sizes, titles and annotations from info.json alone, so it can be
+       laid out before any page is fetched; a page's pixels come from
+       its own file, and asking for one that has not arrived yet fails
+       with ERR_file_not_loaded_yet1 so the caller can fetch it.
+
+       Nothing here writes: changes go to the server and the affected
+       page file is refetched.  Call before load(). */
+   void setPageDir (const QString &dir);
+
+   /** True if the stack reads its pages from a directory */
+   bool isSparse (void) const { return !_pageDir.isEmpty (); }
+
+   /** True if the file for @p pagenum has arrived */
+   bool hasPage (int pagenum) const;
+
+   /** Forget any parsed state for @p pagenum so its file is read
+       afresh, e.g. after it has been fetched or refetched */
+   void pageArrived (int pagenum);
+
+   /** Name of the file holding one page in a page directory */
+   static QString pageFileName (int pagenum);
 
    virtual err_info *getImage (int pagenum, bool do_scale,
                QImage &image, QSize &Size, QSize &trueSize, int &bpp, bool blank);
@@ -641,6 +671,37 @@ private:
 private:
 //    char *_fname;                                               /* file name */
    FILE *_fin;     // the open file
+
+   /** What info.json says about one page of a sparse stack */
+   struct SparsePage
+      {
+      QSize size;
+      QSize trueSize;      //!< as getImageInfo() reports it: tile-padded
+      QSize previewSize;
+      int bpp = 0;
+      int imageBytes = 0;
+      int compressed = -1;
+      QDateTime timestamp;
+      QString text;
+      bool hasText = false;
+      };
+
+   /** Build the page list of a sparse stack from info.json */
+   err_info *loadSparse (void);
+
+   /** Pathname of the file holding @p pagenum */
+   QString pageFile (int pagenum) const;
+
+   /** The one-page stack holding @p pagenum, opened on first use.
+       Fails with ERR_file_not_loaded_yet1 if its file is not here. */
+   err_info *child (int pagenum, Filemax *&max);
+
+   void dropChildren (void);
+
+   QString _pageDir;                  //!< set for a sparse stack
+   QVector<SparsePage> _sparse;       //!< per-page facts from info.json
+   QHash<int, Filemax *> _children;   //!< opened page files, by page
+   QMap<int, QString> _sparseAnnot;   //!< annotations, keyed by e_annot
    int _open_count;  // ensure_open() calls not yet matched by ensure_closed()
    /** serialises use of _fin and the caches: the render thread reads pages
        while the GUI thread reads or writes others of the same stack */

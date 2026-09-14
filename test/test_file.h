@@ -152,6 +152,11 @@ private slots:
    //! crashing (restorePages must open the file before reading chunks)
    void testRemoveRestorePages();
 
+   //! A stack read from a directory of one-page files answers sizes,
+   //! titles and annotations from info.json, pixels from the page files
+   //! that have arrived, and "not loaded yet" for the ones that have not
+   void testSparseStack();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);

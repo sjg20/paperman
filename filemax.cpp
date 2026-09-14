@@ -59,6 +59,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "desk.h"
 #include "filemax.h"
+
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "utils.h"
 
 
@@ -482,6 +486,7 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
 
 Filemax::~Filemax ()
    {
+   dropChildren ();
    max_free ();
    }
 
@@ -2622,6 +2627,14 @@ err_info *Filemax::find_page_chunk (int pagenum,
             chunk_info *&chunkp, bool *tempp, page_info **pagep)
    {
    page_info *page;
+
+   /* every read of the file comes through here, and a sparse stack has
+      none to read: its pages are answered from info.json or from their
+      own files by the overrides, so reaching this is a page that has not
+      been fetched (or a path that has not been taught about it) */
+   if (isSparse ())
+      return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                       qPrintable (_filename));
    int i, id;
 
    Q_ASSERT (_valid);
@@ -2787,6 +2800,23 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
       QSize &true_size, int &bpp, int &image_size, int &compressed_size,
       QDateTime &timestamp)
    {
+   if (isSparse ())
+      {
+      /* answered from info.json, so no page need have arrived */
+      if (pagenum < 0 || pagenum >= _sparse.size ())
+         return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum,
+                          _sparse.size () - 1);
+      const SparsePage &sp = _sparse [pagenum];
+
+      size = sp.size;
+      true_size = sp.trueSize.isValid () ? sp.trueSize : sp.size;
+      bpp = sp.bpp;
+      image_size = sp.imageBytes;
+      compressed_size = sp.compressed;
+      timestamp = sp.timestamp;
+      return NULL;
+      }
+
    QMutexLocker locker (&_file_mutex);
 
    chunk_info *chunk;
@@ -2857,6 +2887,10 @@ Filemax::Open::~Open ()
    from under the other's read */
 err_info *Filemax::ensure_open()
 {
+   /* a sparse stack has no file of its own; its pages open theirs */
+   if (isSparse ())
+      return NULL;
+
    QMutexLocker locker (&_file_mutex);
 
    if (!_fin) {
@@ -5556,11 +5590,162 @@ int Filemax::getSize (void)
    }
 
 
+void Filemax::setPageDir (const QString &dir)
+   {
+   _pageDir = dir;
+   while (_pageDir.endsWith ('/'))
+      _pageDir.chop (1);
+   }
+
+
+QString Filemax::pageFileName (int pagenum)
+   {
+   return QString ("page-%1.max").arg (pagenum + 1);
+   }
+
+
+QString Filemax::pageFile (int pagenum) const
+   {
+   return _pageDir + "/" + pageFileName (pagenum);
+   }
+
+
+bool Filemax::hasPage (int pagenum) const
+   {
+   return isSparse () && QFile::exists (pageFile (pagenum));
+   }
+
+
+void Filemax::pageArrived (int pagenum)
+   {
+   Filemax *max = _children.take (pagenum);
+
+   delete max;
+   }
+
+
+void Filemax::dropChildren (void)
+   {
+   qDeleteAll (_children);
+   _children.clear ();
+   }
+
+
+err_info *Filemax::child (int pagenum, Filemax *&max)
+   {
+   if (_children.contains (pagenum))
+      {
+      max = _children [pagenum];
+      return NULL;
+      }
+   if (pagenum < 0 || pagenum >= _pages.size ())
+      return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum,
+                       _pages.size () - 1);
+
+   QString fname = pageFileName (pagenum);
+
+   if (!QFile::exists (pageFile (pagenum)))
+      return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (fname));
+
+   /* a page file is an ordinary one-page stack, read by an ordinary
+      Filemax; this stack just keeps track of which page is which */
+   File *f = File::createFile (_pageDir + "/", fname, NULL, File::Type_max);
+   Filemax *page = dynamic_cast<Filemax *> (f);
+
+   if (!page)
+      {
+      delete f;
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (fname));
+      }
+   err_info *err = page->load ();
+   if (err)
+      {
+      delete page;
+      return err;
+      }
+   _children [pagenum] = page;
+   max = page;
+   return NULL;
+   }
+
+
+err_info *Filemax::loadSparse (void)
+   {
+   QString path = _pageDir + "/info.json";
+   QFile f (path);
+
+   if (!f.open (QIODevice::ReadOnly))
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (path));
+
+   QJsonParseError perr;
+   QJsonDocument doc = QJsonDocument::fromJson (f.readAll (), &perr);
+
+   if (perr.error != QJsonParseError::NoError || !doc.isObject ())
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (path));
+
+   QJsonObject top = doc.object ();
+   QJsonArray pages = top.value ("pages").toArray ();
+   int count = top.value ("pagecount").toInt (pages.size ());
+
+   if (count != pages.size ())
+      return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (path));
+
+   page_resize (_pages, count);
+   _sparse.resize (count);
+
+   for (int i = 0; i < count; i++)
+      {
+      QJsonObject pj = pages [i].toObject ();
+      SparsePage &sp = _sparse [i];
+      page_info &page = _pages [i];
+
+      sp.size = QSize (pj.value ("width").toInt (),
+                       pj.value ("height").toInt ());
+      if (pj.contains ("trueWidth"))
+         sp.trueSize = QSize (pj.value ("trueWidth").toInt (),
+                              pj.value ("trueHeight").toInt ());
+      sp.previewSize = QSize (pj.value ("previewWidth").toInt (),
+                              pj.value ("previewHeight").toInt ());
+      sp.bpp = pj.value ("bpp").toInt ();
+      sp.imageBytes = pj.value ("bytes").toInt ();
+      sp.compressed = pj.value ("compressed").toInt (-1);
+      sp.timestamp = QDateTime::fromString (pj.value ("modified").toString (),
+                                            Qt::ISODate);
+      if (pj.contains ("text"))
+         {
+         sp.text = pj.value ("text").toString ();
+         sp.hasText = true;
+         }
+
+      /* the title is known already, so ensure_titlestr() must never go
+         to a file for it */
+      page.titlestr = pj.value ("title").toString ();
+      page.title_loaded = page.title_saved = true;
+      }
+
+   QJsonObject annots = top.value ("annotations").toObject ();
+   for (auto it = annots.begin (); it != annots.end (); ++it)
+      {
+      e_annot type;
+
+      if (annotFromWireName (it.key (), type))
+         _sparseAnnot [type] = it.value ().toString ();
+      }
+
+   _size = top.value ("size").toInt ();
+   _valid = true;
+   return NULL;
+   }
+
+
 err_info *Filemax::load ()  // was desk->ensureMax
    {
    QMutexLocker locker (&_file_mutex);
 
    err_info *err;
+
+   if (isSparse ())
+      return _valid ? NULL : loadSparse ();
 
    if (!_valid)
       {
@@ -5592,6 +5777,16 @@ err_info *Filemax::reload (void)
    {
    QMutexLocker locker (&_file_mutex);
 
+   if (isSparse ())
+      {
+      dropChildren ();
+      _pages.clear ();
+      _sparse.clear ();
+      _sparseAnnot.clear ();
+      _valid = false;
+      return loadSparse ();
+      }
+
    /* free the parsed chunk and page state; chunk_resize() and
       page_resize() insist on starting from empty lists */
    max_free ();
@@ -5608,6 +5803,15 @@ err_info *Filemax::reload (void)
 err_info *Filemax::getAnnot (e_annot type, QString &text)
    {
    QMutexLocker locker (&_file_mutex);
+
+   if (isSparse ())
+      {
+      if (!_valid)
+         return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                          qPrintable (_filename));
+      text = _sparseAnnot.value (type);
+      return NULL;
+      }
 
    if (!_valid)
       return err_make (ERRFN, ERR_file_not_loaded_yet1,
@@ -5630,6 +5834,27 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
 
    page_info *page;
    chunk_info *chunk;
+
+   if (isSparse ())
+      {
+      /* the page file carries its text; failing that, info.json may
+         have been fetched with the text included */
+      Filemax *max;
+
+      if (hasPage (pagenum))
+         {
+         CALL (child (pagenum, max));
+         return max->getPageText (0, str);
+         }
+      if (pagenum < 0 || pagenum >= _sparse.size ())
+         return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum,
+                          _sparse.size () - 1);
+      if (!_sparse [pagenum].hasText)
+         return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                          qPrintable (pageFileName (pagenum)));
+      str = _sparse [pagenum].text;
+      return NULL;
+      }
    bool temp;
 
    CALL(ensure_open());
@@ -5696,6 +5921,13 @@ err_info *Filemax::getPageTitle (int pagenum, QString &title)
    QMutexLocker locker (&_file_mutex);
 
    page_info *page;
+
+   if (isSparse ())
+      {
+      CALL (find_page (pagenum, page));
+      title = page->titlestr;     // filled from info.json
+      return NULL;
+      }
 
    CALL (find_page (pagenum, page));
    CALL(ensure_open());
@@ -6157,6 +6389,14 @@ err_info *Filemax::getImage (int pagenum, bool,
    {
    QMutexLocker locker (&_file_mutex);
 
+   if (isSparse ())
+      {
+      Filemax *max;
+
+      CALL (child (pagenum, max));
+      return max->getImage (0, false, image, Size, trueSize, bpp, blank);
+      }
+
    int num_bytes;
    int compressed_size;
    QDateTime timestamp;
@@ -6257,6 +6497,16 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
 
    QString title;
 
+   if (isSparse ())
+      {
+      if (pagenum < 0 || pagenum >= _sparse.size ())
+         return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum,
+                          _sparse.size () - 1);
+      Size = _sparse [pagenum].previewSize;
+      bpp = _sparse [pagenum].bpp == 24 ? 24 : 8;
+      return NULL;
+      }
+
    load ();
    chunk_info *chunk;
    bool temp;  //!< chunk is temporarily allocated
@@ -6283,6 +6533,14 @@ err_info *Filemax::getPreviewImage (int pagenum, QImage &out, bool blank)
 
    byte *preview;
    QString path;
+
+   if (isSparse ())
+      {
+      Filemax *max;
+
+      CALL (child (pagenum, max));
+      return max->getPreviewImage (0, out, blank);
+      }
 
    load ();
 

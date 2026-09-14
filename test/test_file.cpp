@@ -5,6 +5,9 @@
 #include <QTextStream>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardPaths>
 
 #include <cstring>
@@ -2242,4 +2245,191 @@ void TestFile::testRawPageCutShort()
                                   "holds %3 bytes").arg (mp->_height)
                          .arg (mp->_stride).arg (mp->_data.size ())));
    delete mp;
+}
+
+
+/* Split one page of a stack into its own one-page file, the way the
+   server's /pages/N route does */
+static err_info *writePageFile(Filemax *src, int pagenum, const QString &dir)
+{
+   QString fname = Filemax::pageFileName(pagenum);
+   File *dest = File::createFile(dir + "/", fname, nullptr, File::Type_max);
+   err_info *err = dest->create();
+
+   if (!err)
+      err = src->unstackPages(pagenum, 1, false, dest);
+   if (!err)
+      err = dest->flush();
+   delete dest;
+   return err;
+}
+
+
+/* Describe a stack the way the server's /info route does, with an
+   annotation or two; @p text gives every page a known text so a page
+   that has not arrived can still answer getPageText() */
+static void writeInfo(Filemax *src, const QString &dir, bool text)
+{
+   QJsonArray pages;
+
+   for (int i = 0; i < src->pagecount(); i++) {
+      QJsonObject pj;
+      QSize size, trueSize, preview;
+      int bpp = 0, bytes = 0, comp = 0, pbpp = 0;
+      QDateTime stamp;
+      QString title;
+
+      pj["page"] = i + 1;
+      if (!src->getImageInfo(i, size, trueSize, bpp, bytes, comp, stamp)) {
+         pj["width"] = size.width();
+         pj["height"] = size.height();
+         pj["trueWidth"] = trueSize.width();
+         pj["trueHeight"] = trueSize.height();
+         pj["bpp"] = bpp;
+         pj["bytes"] = bytes;
+         pj["compressed"] = comp;
+         pj["modified"] = stamp.toString(Qt::ISODate);
+      }
+      if (!src->getPreviewInfo(i, preview, pbpp)) {
+         pj["previewWidth"] = preview.width();
+         pj["previewHeight"] = preview.height();
+      }
+      if (!src->getPageTitle(i, title))
+         pj["title"] = title;
+      if (text)
+         pj["text"] = QString("text of page %1").arg(i + 1);
+      pages.append(pj);
+   }
+
+   QJsonObject annots;
+   annots["author"] = "Simon";
+   annots["notes"] = "sparse test";
+
+   QJsonObject top;
+   top["pagecount"] = src->pagecount();
+   top["pages"] = pages;
+   top["annotations"] = annots;
+
+   QFile f(dir + "/info.json");
+   QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+   f.write(QJsonDocument(top).toJson());
+}
+
+
+static QImage rgb(const QImage &img)
+{
+   return img.convertToFormat(QImage::Format_RGB32);
+}
+
+
+void TestFile::testSparseStack()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+   Filemax *src = new Filemax(dir, "testfile.max", nullptr);
+   QVERIFY(src->load() == nullptr);
+   const int count = src->pagecount();
+   QVERIFY(count >= 4);
+
+   /* pages 1 and 3 have arrived; the rest have not */
+   const QString pageDir = tmp.path() + "/stack.d";
+   QVERIFY(QDir().mkpath(pageDir));
+   QVERIFY(writePageFile(src, 0, pageDir) == nullptr);
+   QVERIFY(writePageFile(src, 2, pageDir) == nullptr);
+   writeInfo(src, pageDir, false);
+
+   Filemax *sp = new Filemax(dir, "stack.max", nullptr);
+   sp->setPageDir(pageDir);
+   QVERIFY(sp->isSparse());
+   QVERIFY(sp->load() == nullptr);
+   QVERIFY(sp->valid());
+
+   QCOMPARE(sp->pagecount(), count);
+   QVERIFY(sp->hasPage(0));
+   QVERIFY(!sp->hasPage(1));
+   QVERIFY(sp->hasPage(2));
+
+   /* sizes, previews and titles come from info.json for every page,
+      whether or not its file is here */
+   for (int i = 0; i < count; i++) {
+      QSize s1, t1, s2, t2, p1, p2;
+      int b1 = 0, n1 = 0, c1 = 0, b2 = 0, n2 = 0, c2 = 0, pb1 = 0, pb2 = 0;
+      QDateTime d1, d2;
+      QString title1, title2;
+
+      QVERIFY(src->getImageInfo(i, s1, t1, b1, n1, c1, d1) == nullptr);
+      QVERIFY(sp->getImageInfo(i, s2, t2, b2, n2, c2, d2) == nullptr);
+      QCOMPARE(s2, s1);
+      QCOMPARE(t2, t1);
+      QCOMPARE(b2, b1);
+      QCOMPARE(n2, n1);
+      QCOMPARE(c2, c1);
+
+      QVERIFY(src->getPreviewInfo(i, p1, pb1) == nullptr);
+      QVERIFY(sp->getPreviewInfo(i, p2, pb2) == nullptr);
+      QCOMPARE(p2, p1);
+      QCOMPARE(pb2, pb1);
+
+      QVERIFY(src->getPageTitle(i, title1) == nullptr);
+      QVERIFY(sp->getPageTitle(i, title2) == nullptr);
+      QCOMPARE(title2, title1);
+   }
+
+   QString annot;
+   QVERIFY(sp->getAnnot(File::Annot_author, annot) == nullptr);
+   QCOMPARE(annot, QString("Simon"));
+   QVERIFY(sp->getAnnot(File::Annot_notes, annot) == nullptr);
+   QCOMPARE(annot, QString("sparse test"));
+   QVERIFY(sp->getAnnot(File::Annot_keywords, annot) == nullptr);
+   QVERIFY(annot.isEmpty());
+
+   /* a page that is here decodes to the same pixels as the whole file */
+   QImage i1, i2;
+   QSize s1, t1, s2, t2;
+   int b1 = 0, b2 = 0;
+   QVERIFY(src->getImage(0, false, i1, s1, t1, b1, false) == nullptr);
+   QVERIFY(sp->getImage(0, false, i2, s2, t2, b2, false) == nullptr);
+   QCOMPARE(i2.size(), i1.size());
+   QCOMPARE(rgb(i2), rgb(i1));
+
+   QImage pv1, pv2;
+   QVERIFY(src->getPreviewImage(2, pv1, false) == nullptr);
+   QVERIFY(sp->getPreviewImage(2, pv2, false) == nullptr);
+   QCOMPARE(rgb(pv2), rgb(pv1));
+
+   /* a page that is not here is reported, not read from a file that
+      does not exist */
+   err_info *err = sp->getImage(1, false, i2, s2, t2, b2, false);
+   QVERIFY(err != nullptr);
+   QCOMPARE(err->errnum, (int)ERR_file_not_loaded_yet1);
+   QString text;
+   err = sp->getPageText(1, text);
+   QVERIFY(err != nullptr);
+   QCOMPARE(err->errnum, (int)ERR_file_not_loaded_yet1);
+
+   /* ...until it arrives */
+   QVERIFY(writePageFile(src, 1, pageDir) == nullptr);
+   sp->pageArrived(1);
+   QVERIFY(sp->hasPage(1));
+   QVERIFY(src->getImage(1, false, i1, s1, t1, b1, false) == nullptr);
+   QVERIFY(sp->getImage(1, false, i2, s2, t2, b2, false) == nullptr);
+   QCOMPARE(rgb(i2), rgb(i1));
+
+   /* reloading rebuilds the page list and keeps working */
+   QVERIFY(sp->reload() == nullptr);
+   QCOMPARE(sp->pagecount(), count);
+   QVERIFY(sp->getImage(1, false, i2, s2, t2, b2, false) == nullptr);
+   QCOMPARE(rgb(i2), rgb(i1));
+
+   /* text carried in info.json answers for a page that has not arrived */
+   writeInfo(src, pageDir, true);
+   QVERIFY(sp->reload() == nullptr);
+   QVERIFY(sp->getPageText(3, text) == nullptr);
+   QCOMPARE(text, QString("text of page 4"));
+
+   delete sp;
+   delete src;
 }
