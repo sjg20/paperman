@@ -107,6 +107,10 @@ private slots:
    //! OCR of a remote stack runs on the server and stores the text
    void testRemoteOcr();
 
+   //! A stack can be fetched a page at a time: /info into info.json
+   //! and /pages/N into page-N.max, which a sparse Filemax then reads
+   void testRemotePageFetch();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
