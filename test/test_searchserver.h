@@ -111,6 +111,10 @@ private slots:
    //! and /pages/N into page-N.max, which a sparse Filemax then reads
    void testRemotePageFetch();
 
+   //! The desktop fetches a remote stack's structure first and each
+   //! page only when the view asks for it; the whole file never comes
+   void testDesktopRemotePages();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);

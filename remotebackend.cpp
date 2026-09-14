@@ -853,7 +853,11 @@ void RemoteBackend::invalidateCachedFile(const QString &repo,
       return;
    QFile::remove(cachePath);
    QFile::remove(cachePath + ".etag");
+   /* and any copy held a page at a time: the pages are as suspect as
+      the whole file would be */
+   invalidatePageDir(repo, relPath);
 }
+
 
 
 static QString stackInfoPathFor(const QString &repo, const QString &path,

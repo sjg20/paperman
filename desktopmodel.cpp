@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 #include "backend.h"
 #include "dirmodel.h"
+#include "filemax.h"
 #include "remotebackend.h"
 
 #include "qapplication.h"
@@ -1904,8 +1905,9 @@ err_info *Desktopmodel::getImage (const QModelIndex &ind, int pnum, bool do_scal
    _modelconv->assertIsSource (0, &ind, 0);
    File *f = getFile (ind);
 
-   // a remote stack may not have been fetched yet
+   // a remote stack may not have been fetched yet, nor this page of it
    CALL (const_cast<Desktopmodel *> (this)->ensureContent (ind));
+   CALL (const_cast<Desktopmodel *> (this)->ensurePage (ind, pnum));
 
    if (!f->valid())
       return err_make(ERRFN, ERR_file_not_loaded_yet1,
@@ -2091,6 +2093,50 @@ bool Desktopmodel::imageNeedsDecode (const QModelIndex &ind, int pagenum,
    onCachedFileReady() parses them and rebuilds the item, which makes the
    view ask for the image again.  Returns true if a fetch is needed, so
    the caller knows the image is not available yet. */
+Filemax *Desktopmodel::sparseFor (File *file, RemoteBackend *remote,
+                                  Desk *desk)
+   {
+   if (!remote || !remote->hasPageRoutes ())
+      return nullptr;
+   Filemax *max = dynamic_cast<Filemax *> (file);
+   if (!max)
+      return nullptr;      // only a max stack comes a page at a time
+
+   if (!max->isSparse ())
+      {
+      QString dir = remote->pageDirFor (desk->repoName (),
+                                        remoteStackPath (desk, file));
+      if (dir.isEmpty ())
+         return nullptr;   // cache root unknown: fetch whole instead
+      max->setPageDir (dir);
+      }
+   return max;
+   }
+
+
+void Desktopmodel::connectContentSignals (RemoteBackend *remote)
+   {
+   if (!_connectedBackends.contains (remote))
+      {
+      connect (remote, &RemoteBackend::thumbnailReady,
+               this, &Desktopmodel::onThumbnailReady);
+      connect (remote, &RemoteBackend::stackEvent,
+               this, &Desktopmodel::onRemoteStackEvent, Qt::QueuedConnection);
+      _connectedBackends.insert (remote);
+      }
+   if (!_contentBackends.contains (remote))
+      {
+      connect (remote, &RemoteBackend::cachedFileReady,
+               this, &Desktopmodel::onCachedFileReady);
+      connect (remote, &RemoteBackend::stackInfoReady,
+               this, &Desktopmodel::onStackInfoReady);
+      connect (remote, &RemoteBackend::pageReady,
+               this, &Desktopmodel::onPageReady);
+      _contentBackends.insert (remote);
+      }
+   }
+
+
 bool Desktopmodel::requestContent (const QModelIndex &ind)
    {
    File *f = getFile (ind);
@@ -2107,25 +2153,112 @@ bool Desktopmodel::requestContent (const QModelIndex &ind)
       if (pending.isValid () && getFile (QModelIndex (pending)) == f)
          return true;
 
-   if (!_connectedBackends.contains (remote))
-      {
-      connect (remote, &RemoteBackend::thumbnailReady,
-               this, &Desktopmodel::onThumbnailReady);
-      connect (remote, &RemoteBackend::stackEvent,
-               this, &Desktopmodel::onRemoteStackEvent, Qt::QueuedConnection);
-      _connectedBackends.insert (remote);
-      }
-   if (!_contentBackends.contains (remote))
-      {
-      connect (remote, &RemoteBackend::cachedFileReady,
-               this, &Desktopmodel::onCachedFileReady);
-      _contentBackends.insert (remote);
-      }
+   connectContentSignals (remote);
 
-   quint64 token = remote->ensureCachedFileAsync (desk->repoName (),
-                                                  remoteStackPath (desk, f));
+   /* A server that serves pages gets asked only for the stack's
+      structure here; the pages follow one at a time through
+      requestPage() as the view shows them.  Otherwise the whole file
+      has to come down. */
+   quint64 token;
+   if (sparseFor (f, remote, desk))
+      token = remote->fetchStackInfoAsync (desk->repoName (),
+                                           remoteStackPath (desk, f));
+   else
+      token = remote->ensureCachedFileAsync (desk->repoName (),
+                                             remoteStackPath (desk, f));
    _pendingContent.insert (token, QPersistentModelIndex (ind));
    return true;
+   }
+
+
+bool Desktopmodel::requestPage (const QModelIndex &ind, int pagenum)
+   {
+   File *f = getFile (ind);
+
+   if (!f || !f->remoteChecked ())
+      return false;      // structure not here yet: requestContent() first
+   Desk *desk = f->desk ();
+   RemoteBackend *remote = remoteForFile (f);
+   Filemax *max = sparseFor (f, remote, desk);
+   if (!max || max->hasPage (pagenum))
+      return false;
+
+   for (auto it = _pendingPages.cbegin (); it != _pendingPages.cend (); ++it)
+      if (it.value ().second == pagenum && it.value ().first.isValid ()
+          && getFile (QModelIndex (it.value ().first)) == f)
+         return true;    // already on its way
+
+   connectContentSignals (remote);
+   quint64 token = remote->fetchPageAsync (desk->repoName (),
+                                           remoteStackPath (desk, f),
+                                           pagenum + 1);
+   _pendingPages.insert (token, qMakePair (QPersistentModelIndex (ind),
+                                           pagenum));
+   return true;
+   }
+
+
+/* A stack's structure has arrived (or the fetch failed).  Read it and
+   rebuild the item: the pages lay out from info.json alone, and each
+   fetches when the view asks for it. */
+void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
+   {
+   auto it = _pendingContent.find (token);
+
+   if (it == _pendingContent.end ())
+      return;
+   QPersistentModelIndex pind = it.value ();
+   _pendingContent.erase (it);
+
+   if (!pind.isValid () || pageDir.isEmpty ())
+      return;             // moved on, or failed: the placeholder stays
+   QModelIndex ind (pind);
+   File *f = getFile (ind);
+   if (!f)
+      return;
+
+      {
+      QMutexLocker locker (&_imageMutex);
+
+      if (f->reload ())
+         return;
+      f->setValid (true);
+      }
+   f->setRemoteChecked (true);
+
+   _minor_change = true;
+   buildItem (ind);
+   _minor_change = false;
+   }
+
+
+/* One page's file has arrived.  Tell the stack, then rebuild the item
+   so the view asks for the page again and this time gets it. */
+void Desktopmodel::onPageReady (quint64 token, const QString &pagePath)
+   {
+   auto it = _pendingPages.find (token);
+
+   if (it == _pendingPages.end ())
+      return;
+   QPersistentModelIndex pind = it.value ().first;
+   int pagenum = it.value ().second;
+   _pendingPages.erase (it);
+
+   if (!pind.isValid () || pagePath.isEmpty ())
+      return;
+   QModelIndex ind (pind);
+   Filemax *max = dynamic_cast<Filemax *> (getFile (ind));
+   if (!max)
+      return;
+
+      {
+      QMutexLocker locker (&_imageMutex);
+
+      max->pageArrived (pagenum);
+      }
+   _minor_change = true;
+   buildItem (ind);
+   _minor_change = false;
    }
 
 
@@ -2187,9 +2320,19 @@ err_info *Desktopmodel::getScaledImageData (const QModelIndex &ind, int pagenum,
       () has asked for the fetch and the page is rendered again when it
       lands. */
    File *f = getFile (ind);
-   if (f && !f->remoteChecked () && remoteForFile (f))
-      return err_make (ERRFN, ERR_file_not_loaded_yet1,
-                       qPrintable (f->filename ()));
+   if (f && remoteForFile (f))
+      {
+      if (!f->remoteChecked ())
+         return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                          qPrintable (f->filename ()));
+
+      /* likewise a page of a stack held a page at a time: getImage()
+         would fetch it, which this thread must not do */
+      Filemax *max = dynamic_cast<Filemax *> (f);
+      if (max && max->isSparse () && !max->hasPage (pagenum))
+         return err_make (ERRFN, ERR_file_not_loaded_yet1,
+                          qPrintable (Filemax::pageFileName (pagenum)));
+      }
 
    CALL (getImage (ind, pagenum, false, image, isize, tsize, bpp, blank));
    if (image.width () != size.width () && image.height () != size.height ())
@@ -2205,12 +2348,15 @@ err_info *Desktopmodel::getImagePreview (const QModelIndex &ind, int pagenum,
    File *f = getFile (ind);
    err_info *err;
 
-   // a remote stack may not have been fetched yet
+   // a remote stack may not have been fetched yet, nor this page of it
+   if (pagenum == -1)
+      pagenum = f->pagenum ();
    err = const_cast<Desktopmodel *> (this)->ensureContent (ind);
+   if (!err)
+      err = const_cast<Desktopmodel *> (this)->ensurePage (ind, pagenum);
 
    if (!err)
-      err = f->getPreviewPixmap (pagenum == -1 ? f->pagenum () : pagenum,
-         pixmap, blank);
+      err = f->getPreviewPixmap (pagenum, pixmap, blank);
    if (err)
       pixmap = err->errnum == ERR_cannot_open_file1 ? _no_access : _unknown;
    return err;
@@ -2222,8 +2368,9 @@ err_info *Desktopmodel::getPageText (const QModelIndex &ind, int pagenum, QStrin
    File *f = getFile (ind);
    err_info *err;
 
-   // a remote stack may not have been fetched yet
+   // a remote stack may not have been fetched yet, nor this page of it
    CALL (ensureContent (ind));
+   CALL (ensurePage (ind, pagenum));
 
    if (!f->valid())
       return err_make(ERRFN, ERR_file_not_loaded_yet1,

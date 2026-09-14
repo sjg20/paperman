@@ -250,8 +250,9 @@ public:
     quint64 ensureCachedFileAsync(const QString &repo,
                                   const QString &relPath);
 
-    /** Forget any cached copy of @p relPath (bytes and validator), so
-     *  the next ensureCachedFile() downloads afresh. */
+    /** Forget any cached copy of @p relPath, whether fetched whole
+     *  (bytes and validator) or a page at a time (the page directory),
+     *  so the next fetch downloads afresh. */
     void invalidateCachedFile(const QString &repo, const QString &relPath);
 
     /** Directory holding a stack fetched a page at a time: the whole-

@@ -2398,3 +2398,89 @@ void TestSearchServer::testRemotePageFetch()
     backend.invalidatePageDir(repo, "testfile.max");
     QVERIFY(!QDir(dir).exists());
 }
+
+
+void TestSearchServer::testDesktopRemotePages()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    /* where the model will put things, and a clean slate */
+    RemoteBackend probe(url);
+    QVERIFY(!probe.serverId().isEmpty());
+    QString whole = probe.cachePathFor(repo, "testfile.max");
+    QString pageDir = probe.pageDirFor(repo, "testfile.max");
+    probe.invalidateCachedFile(repo, "testfile.max");
+    probe.invalidatePageDir(repo, "testfile.max");
+    QVERIFY(!QFile::exists(whole));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    /* the view asks for the stack: only its structure comes */
+    QVERIFY(model.requestContent(stack));
+    QTRY_COMPARE_WITH_TIMEOUT(
+        model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5, 5000);
+    QVERIFY(QFile::exists(pageDir + "/info.json"));
+    QVERIFY(!QFile::exists(pageDir + "/page-1.max"));
+    QVERIFY(!QFile::exists(whole));
+    QVERIFY(!model.requestContent(stack));     // nothing more to ask for
+
+    /* sizes come from the structure, so no page is needed for them */
+    QSize preview, image;
+    int bpp = 0;
+    QVERIFY(!model.getImagePreviewSizes(stack, 2, preview, image));
+    QVERIFY(image.width() > 0 && preview.width() > 0);
+    QVERIFY(!QFile::exists(pageDir + "/page-3.max"));
+
+    /* the render thread's entry refuses a page that is not here rather
+       than fetching it, since it must not touch the network */
+    QImage img;
+    QSize s, t;
+    err_info *e = model.getScaledImageData(stack, 0, QSize(100, 100), false,
+                                           img);
+    QVERIFY(e != nullptr);
+    QCOMPARE(e->errnum, (int)ERR_file_not_loaded_yet1);
+    QVERIFY(!QFile::exists(pageDir + "/page-1.max"));
+
+    /* the view asks for the page the way it does in the GUI: at once,
+       with the placeholder up until it lands */
+    QVERIFY(model.requestPage(stack, 0));
+    QVERIFY(model.requestPage(stack, 0));      // already on its way
+    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(pageDir + "/page-1.max"), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!model.requestPage(stack, 0), 5000);
+    QVERIFY(!model.getScaledImageData(stack, 0, QSize(100, 100), false,
+                                      img));
+    QVERIFY(!img.isNull());
+
+    /* a reader on the GUI thread that needs a page gets that page
+       fetched, and only that page */
+    QVERIFY(!model.getImage(stack, 2, false, img, s, t, bpp, false));
+    QVERIFY(!img.isNull());
+    QCOMPARE(img.size(), t);
+    QVERIFY(QFile::exists(pageDir + "/page-3.max"));
+    QVERIFY(!QFile::exists(pageDir + "/page-2.max"));
+    QVERIFY(!QFile::exists(whole));
+}

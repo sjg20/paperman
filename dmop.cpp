@@ -49,6 +49,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDir>
 
 #include "op.h"
+#include "filemax.h"
 #include "remotebackend.h"
 #include "utils.h"
 
@@ -111,6 +112,42 @@ err_info *Desktopmodel::opUnstackStacks (QModelIndexList &list, QModelIndex pare
          Desk *desk = f->desk ();
 
          CALL (ensureContent (ind));
+
+         /* A stack held a page at a time mirrors nothing.  The page
+            count is known up front, so unstack that many on the server
+            and fetch the structure once at the end; each new stack is a
+            shell that fetches on its first read. */
+         if (sparseFor (f, remote, desk))
+            {
+            int total = f->pagecount ();
+
+            for (int i = 1; !err && i < total; i++)
+               {
+               QString serverName;
+               if (!remote->unstackStack (desk->repoName (),
+                                          remoteStackPath (desk, f), 1, 1,
+                                          true, "", &serverName))
+                  {
+                  err = err_make (ERRFN, ERR_remote_op_failed2, "unstack",
+                                  qPrintable (remote->lastError ()));
+                  break;
+                  }
+               fnew = desk->createFile (desk->dir (), serverName);
+               desk->newFile (fnew, f, pagenum++);
+               stack_names << serverName;
+               flist << fnew;
+               }
+            err_info *e2 = remoteStackChanged (ind, QList<int> ());
+            if (!err)
+               err = e2;
+            if (flist.size ())
+               insertRows (flist, parent);
+            _newnames << stack_names;
+            if (err)
+               break;
+            continue;
+            }
+
          while (!err && f->pagecount () > 1)
             {
             QString serverName;
@@ -709,6 +746,21 @@ err_info *Desktopmodel::opUnstackPage (QModelIndex &ind, int &pagenum,
          return err_make (ERRFN, ERR_remote_op_failed2, "unstack",
                           qPrintable (remote->lastError ()));
 
+      /* A stack held a page at a time mirrors nothing: the new stack
+         is a shell that fetches on its first read, and the source is
+         fetched again if a page left it. */
+      if (sparseFor (f, remote, desk))
+         {
+         fnew = desk->createFile (desk->dir (), serverName);
+         row = desk->newFile (fnew, f, 1);
+         newname = serverName;
+         if (remove)
+            CALL (remoteStackChanged (ind, QList<int> ()));
+         QModelIndexList list;
+         newItem (row, ind.parent (), list);
+         return NULL;
+         }
+
       fnew = desk->createFile (desk->dir (), serverName);
       row = desk->newFile (fnew, f, 1);
       e = fnew->create ();
@@ -761,9 +813,23 @@ err_info *Desktopmodel::opUpdateAnnot (QModelIndex &ind, QHash<int, QString> &up
             return err_make (ERRFN, ERR_remote_op_failed2, "annotation",
                              qPrintable (remote->lastError ()));
 
-         /* mirror onto the parsed cached copy so the annotations pane
-            shows the new values without a refetch */
-         if (f->remoteChecked ())
+         /* A stack held a page at a time keeps its annotations in
+            info.json, so fetch that again: 50KB, and it cannot drift
+            from the server.  A stack fetched whole is mirrored, so the
+            annotations pane shows the new values without a refetch. */
+         Filemax *max = sparseFor (f, remote, desk);
+
+         if (max)
+            {
+            if (!remote->fetchStackInfo (desk->repoName (),
+                                         remoteStackPath (desk, f)).isEmpty ())
+               {
+               QMutexLocker locker (&_imageMutex);
+
+               max->reload ();
+               }
+            }
+         else if (f->remoteChecked ())
             {
             f->putAnnot (updates);
             f->flush ();
@@ -806,6 +872,18 @@ err_info *Desktopmodel::opDeletePages (QModelIndex &ind, QBitArray &pages,
                                    &undoId))
             return err_make (ERRFN, ERR_remote_op_failed2, "page delete",
                              qPrintable (remote->lastError ()));
+
+         /* A stack held a page at a time is fetched again, since its
+            pages have been renumbered; the undo record carries only the
+            server's token, and the restore refetches too. */
+         if (sparseFor (f, remote, desk))
+            {
+            count = pageList.size ();
+            del_info.clear ();
+            QDataStream ds (&del_info, QIODevice::WriteOnly);
+            ds << undoId << QByteArray ();
+            return remoteStackChanged (ind, QList<int> ());
+            }
 
          /* Mirror the removal onto the cached copy so the view stays
             in step without a refetch.  The undo record's blob carries
@@ -851,6 +929,12 @@ err_info *Desktopmodel::opUndeletePages (QModelIndex &ind, QBitArray &pages,
             return err_make (ERRFN, ERR_remote_op_failed2,
                              "page undelete",
                              qPrintable (remote->lastError ()));
+
+         if (sparseFor (f, remote, desk))
+            {
+            count = pages.count (true);
+            return remoteStackChanged (ind, QList<int> ());
+            }
 
          e = f->restorePages (pages, localInfo, count);
          buildItem (ind);
@@ -926,6 +1010,15 @@ err_info *Desktopmodel::opRenamePage (const QModelIndex &index, int pagenum, QSt
                                   newname))
             return err_make (ERRFN, ERR_remote_op_failed2, "page rename",
                              qPrintable (remote->lastError ()));
+
+         /* a stack held a page at a time has the title in both the
+            page file and info.json, so both are fetched again */
+         if (sparseFor (f, remote, desk))
+            {
+            CALL (remoteStackChanged (index, QList<int> () << pagenum));
+            f->setPagenum (pagenum);
+            return NULL;
+            }
 
          /* mirror the change onto the cached copy so the page view
             stays in step without a refetch */
@@ -1079,6 +1172,11 @@ err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
          return err_make (ERRFN, ERR_remote_op_failed2, "ocr",
                           qPrintable (remote->lastError ()));
 
+      /* a stack held a page at a time fetches the page again, which
+         now carries the text */
+      if (sparseFor (f, remote, desk))
+         return remoteStackChanged (ind, QList<int> () << pagenum);
+
       /* the server stored the text in the stack's ocr annotation;
          mirror it onto the parsed cached copy */
       if (f->remoteChecked ())
@@ -1163,6 +1261,25 @@ err_info *Desktopmodel::ensureContent (const QModelIndex &ind)
    if (f->remoteChecked ())
       return NULL;
 
+   /* A server that serves pages needs only the stack's structure
+      fetched here; a page is fetched when something reads it.  This is
+      the blocking path, used by operations that run on the GUI thread
+      and can wait; the view uses requestContent() instead. */
+   if (sparseFor (f, remote, desk))
+      {
+      if (remote->fetchStackInfo (desk->repoName (),
+                                  remoteStackPath (desk, f)).isEmpty ())
+         return err_make (ERRFN, ERR_remote_fetch_failed1,
+                          qPrintable (remote->lastError ()));
+      CALL (f->reload ());
+      f->setValid (true);
+      _minor_change = true;
+      buildItem (ind);
+      _minor_change = false;
+      f->setRemoteChecked (true);
+      return NULL;
+      }
+
    bool refreshed = false;
 
    if (remote->ensureCachedFile (desk->repoName (),
@@ -1193,6 +1310,71 @@ err_info *Desktopmodel::ensureContent (const QModelIndex &ind)
    }
 
 
+/* Fetch one page of a stack held a page at a time, if it is not here.
+   The blocking companion of requestPage(), for readers on the GUI
+   thread that need the page now; the render thread must never get
+   here, and getScaledImageData() sees to that. */
+err_info *Desktopmodel::ensurePage (const QModelIndex &ind, int pagenum)
+   {
+   File *f = getFile (ind);
+
+   if (!f)
+      return NULL;
+   Desk *desk = f->desk ();
+   RemoteBackend *remote = remoteForFile (f);
+   Filemax *max = sparseFor (f, remote, desk);
+   if (!max || max->hasPage (pagenum))
+      return NULL;
+
+   if (remote->fetchPage (desk->repoName (), remoteStackPath (desk, f),
+                          pagenum + 1).isEmpty ())
+      return err_make (ERRFN, ERR_remote_fetch_failed1,
+                       qPrintable (remote->lastError ()));
+   max->pageArrived (pagenum);
+   return NULL;
+   }
+
+
+err_info *Desktopmodel::remoteStackChanged (const QModelIndex &ind,
+                                            const QList<int> &pages)
+   {
+   File *f = getFile (ind);
+
+   if (!f)
+      return NULL;
+   Desk *desk = f->desk ();
+   RemoteBackend *remote = remoteForFile (f);
+   Filemax *max = sparseFor (f, remote, desk);
+   if (!max)
+      return NULL;
+
+   QString path = remoteStackPath (desk, f);
+
+   if (pages.isEmpty ())
+      remote->invalidatePageDir (desk->repoName (), path);
+   else
+      for (int page : pages)
+         remote->invalidatePage (desk->repoName (), path, page + 1);
+
+   if (remote->fetchStackInfo (desk->repoName (), path).isEmpty ())
+      {
+      f->setRemoteChecked (false);   // fetched again on the next read
+      return err_make (ERRFN, ERR_remote_fetch_failed1,
+                       qPrintable (remote->lastError ()));
+      }
+      {
+      QMutexLocker locker (&_imageMutex);
+
+      CALL (max->reload ());
+      }
+   f->setRemoteChecked (true);
+   _minor_change = true;
+   buildItem (ind);
+   _minor_change = false;
+   return NULL;
+   }
+
+
 err_info *Desktopmodel::opTransformPageRemote (const QModelIndex &index,
       File *file, Desk *desk, RemoteBackend *backend, int pagenum,
       File::e_transform op)
@@ -1207,6 +1389,19 @@ err_info *Desktopmodel::opTransformPageRemote (const QModelIndex &index,
                                 File::transformName (op)))
       return err_make (ERRFN, ERR_remote_transform_failed1,
                        qPrintable (backend->lastError ()));
+
+   /* A stack held a page at a time cannot be turned locally: its
+      changed page comes back from the server on the next read. */
+   if (sparseFor (file, backend, desk))
+      {
+      QList<int> pages;
+
+      if (pagenum >= 0)
+         pages << pagenum;
+      CALL (remoteStackChanged (index, pages));
+      refreshRemoteThumbnail (desk, backend, file);
+      return NULL;
+      }
 
    /* Keep the cached copy in step with the server so an open page
       view shows the turn at once: apply the same transform to the
