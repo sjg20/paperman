@@ -11,6 +11,9 @@ License: GPL-2
 #include "clientconf.h"
 #include "remotebackend.h"
 
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -39,6 +42,10 @@ static void usage(const char *prog)
       "  repos                      List repositories\n"
       "  ls <repo> [path]           List files in a repo directory\n"
       "  cat <repo> <path> [-o OUT] Fetch a file (stdout, or to OUT)\n"
+      "  info <repo> <stack> [--text|--json]\n"
+      "                             Show a stack's pages without fetching it\n"
+      "  page <repo> <stack> <n> [-o OUT]\n"
+      "                             Fetch one page as a one-page .max\n"
       "\n"
       "--server takes a URL, or the name of a server listed in\n"
       "client.conf.  With neither, $PAPERMAN_SERVER is used, else the\n"
@@ -186,6 +193,100 @@ static int cmdCat(RemoteBackend *b, const QString &repo, const QString &path,
       std::cerr << "Wrote " << f.bytes.size() << " bytes ("
                 << f.contentType.toStdString() << ") to "
                 << outPath.toStdString() << "\n";
+   }
+   return 0;
+}
+
+
+/* Print what /info says about a stack: enough to see what is in it
+ * without fetching a page. */
+static int cmdInfo(RemoteBackend *b, const QString &repo, const QString &path,
+                   bool withText, bool rawJson)
+{
+   if (!b->hasPageRoutes()) {
+      std::cerr << "Failed: this server does not serve stacks a page at "
+                   "a time\n";
+      return 1;
+   }
+   QString dir = b->fetchStackInfo(repo, path, withText);
+   if (dir.isEmpty()) {
+      std::cerr << "Failed: " << b->lastError().toStdString() << "\n";
+      return 1;
+   }
+   QFile f(dir + "/info.json");
+   if (!f.open(QIODevice::ReadOnly)) {
+      std::cerr << "Cannot read " << f.fileName().toStdString() << "\n";
+      return 1;
+   }
+   QByteArray json = f.readAll();
+   if (rawJson) {
+      std::cout.write(json.constData(), json.size());
+      std::cout << "\n";
+      return 0;
+   }
+
+   QJsonObject top = QJsonDocument::fromJson(json).object();
+   std::cout << path.toStdString() << ": " << top.value("pagecount").toInt()
+             << " pages, " << top.value("size").toDouble() / 1048576
+             << " MB\n";
+   QJsonObject annots = top.value("annotations").toObject();
+   for (auto it = annots.begin(); it != annots.end(); ++it)
+      std::cout << "  " << it.key().toStdString() << ": "
+                << it.value().toString().toStdString() << "\n";
+
+   std::cout << "page\tsize\tbpp\tbytes\ttitle\n";
+   const QJsonArray pages = top.value("pages").toArray();
+   for (const QJsonValue &v : pages) {
+      QJsonObject pj = v.toObject();
+      std::cout << pj.value("page").toInt() << "\t"
+                << pj.value("width").toInt() << "x"
+                << pj.value("height").toInt() << "\t"
+                << pj.value("bpp").toInt() << "\t"
+                << pj.value("compressed").toInt() << "\t"
+                << pj.value("title").toString().toStdString() << "\n";
+      if (withText && pj.contains("text")) {
+         QString text = pj.value("text").toString().trimmed();
+         if (!text.isEmpty())
+            std::cout << "\t" << text.replace('\n', ' ').left(70)
+                                  .toStdString() << "\n";
+      }
+   }
+   return 0;
+}
+
+
+/* Fetch one page of a stack as a one-page .max, to stdout or a file. */
+static int cmdPage(RemoteBackend *b, const QString &repo, const QString &path,
+                   int page, const QString &outPath)
+{
+   if (!b->hasPageRoutes()) {
+      std::cerr << "Failed: this server does not serve stacks a page at "
+                   "a time\n";
+      return 1;
+   }
+   QString cached = b->fetchPage(repo, path, page);
+   if (cached.isEmpty()) {
+      std::cerr << "Failed: " << b->lastError().toStdString() << "\n";
+      return 1;
+   }
+   QFile in(cached);
+   if (!in.open(QIODevice::ReadOnly)) {
+      std::cerr << "Cannot read " << cached.toStdString() << "\n";
+      return 1;
+   }
+   QByteArray bytes = in.readAll();
+   if (outPath.isEmpty()) {
+      std::cout.write(bytes.constData(), bytes.size());
+   } else {
+      QFile out(outPath);
+      if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+         std::cerr << "Cannot write " << outPath.toStdString()
+                   << ": " << out.errorString().toStdString() << "\n";
+         return 1;
+      }
+      out.write(bytes);
+      std::cerr << "Wrote page " << page << " (" << bytes.size()
+                << " bytes) to " << outPath.toStdString() << "\n";
    }
    return 0;
 }
@@ -394,6 +495,35 @@ int main(int argc, char *argv[])
       QString path = rest.size() > 2 ? rest[2] : QString();
       RemoteBackend *b = makeBackend(url, /*loadCachedToken=*/true);
       int r = cmdLs(b, repo, path);
+      delete b;
+      return r;
+   }
+   if (cmd == "info") {
+      if (rest.size() < 3) { usage(argv[0]); return 1; }
+      bool withText = rest.contains("--text");
+      bool rawJson = rest.contains("--json");
+      RemoteBackend *b = makeBackend(url, /*loadCachedToken=*/true);
+      int r = cmdInfo(b, rest[1], rest[2], withText, rawJson);
+      delete b;
+      return r;
+   }
+   if (cmd == "page") {
+      if (rest.size() < 4) { usage(argv[0]); return 1; }
+      bool ok = false;
+      int page = rest[3].toInt(&ok);
+      if (!ok || page < 1) {
+         std::cerr << "Bad page number: " << rest[3].toStdString() << "\n";
+         return 1;
+      }
+      QString outPath;
+      for (int i = 4; i < rest.size(); i++) {
+         if ((rest[i] == "-o" || rest[i] == "--out")
+             && i + 1 < rest.size()) {
+            outPath = rest[++i];
+         }
+      }
+      RemoteBackend *b = makeBackend(url, /*loadCachedToken=*/true);
+      int r = cmdPage(b, rest[1], rest[2], page, outPath);
       delete b;
       return r;
    }
