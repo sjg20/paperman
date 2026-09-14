@@ -811,6 +811,55 @@ resulting name where one exists, and ``origin`` echoes the
 ignore its own changes.  Behind nginx the events path needs
 ``proxy_buffering off`` and a long ``proxy_read_timeout``.
 
+8. Pages (v1)
+~~~~~~~~~~~~~
+
+A stack can be fetched a page at a time instead of as a whole file, so
+a client that wants to look at one page of a large stack need not
+download all of it.  Servers that support this list ``pages`` in the
+``features`` array of ``GET /v1/status``; a client should check for it
+rather than probe the routes, since an older server answers them with
+the same 404 it gives any unknown path.
+
+**Endpoint**: ``GET /v1/repos/{repo}/stacks/{path}/info``
+
+The stack's structure without any pixels: the page count, the file's
+size, its annotations (keyed as for the annotations mutation) and, per
+page, the image size, the size it decodes to (``trueWidth`` and
+``trueHeight``, which tiling can pad beyond the image), depth, bytes,
+compressed size, modification time, preview size and title.  With
+``?text=1`` each page also carries its OCR text, which is omitted by
+default because it can be large.
+
+.. code:: json
+
+   {
+     "success": true,
+     "pagecount": 276,
+     "size": 75133216,
+     "annotations": {"author": "Simon", "keywords": "tax"},
+     "pages": [
+       {"page": 1, "width": 2200, "height": 2544,
+        "trueWidth": 2200, "trueHeight": 2544, "bpp": 24,
+        "bytes": 22387200, "compressed": 829408,
+        "modified": "2026-09-10T20:50:04",
+        "previewWidth": 91, "previewHeight": 106,
+        "title": "10_September_2026"}
+     ]
+   }
+
+**Endpoint**: ``GET /v1/repos/{repo}/stacks/{path}/pages/{n}``
+
+Page ``n`` (1-based) of the stack as a ``.max`` file holding just that
+page, with the compression it has on disk, as ``application/octet-
+stream``.  A page past the end is a 404.  The page is extracted into a
+temporary file and removed once sent; the stack on disk is untouched.
+
+Together these let a client lay a stack out from ``/info`` alone (the
+desktop draws its thumbnails from ``/thumbnail``) and fetch each page
+only when it is shown.  Opening the stack above and viewing its first
+ten pages costs about 1 MB rather than 75 MB.
+
 --------------
 
 Security Considerations
@@ -922,6 +971,8 @@ Version 1.3 (Current)
 -  Streamed file responses (512 KB chunks with flow control)
 -  Conversion progress reporting via ``progress=true``
 -  Optional local URL for fast LAN downloads (app)
+-  Stacks served a page at a time: ``/info`` and ``/pages/{n}``,
+   advertised as the ``pages`` feature
 
 Version 1.2
 ~~~~~~~~~~~~

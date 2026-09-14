@@ -335,6 +335,29 @@ The token is written to ``~/.config/paperman/<serverId>.token`` with
 logging in from either one is enough. The GUI prompts for credentials
 itself when it attaches to a server that needs them.
 
+Fetching pages
+~~~~~~~~~~~~~~
+
+When the server serves stacks a page at a time (it lists ``pages``
+among its features in ``/v1/status``), the GUI opens a remote stack by
+fetching only its structure, which is enough to lay the pages out, and
+then fetches each page the first time it is shown. Against an older
+server the whole file is fetched, as before.
+
+The pages are kept under the cache, beside where the whole file would
+go:
+
+.. code:: text
+
+   ~/.cache/paperman/<serverId>/<repo>/<stack>.max.d/
+       info.json      the stack's structure, from /info
+       page-7.max     each page fetched so far, a one-page stack
+
+A page is fetched again after it is changed on the server. The cache
+grows by a page for every page viewed and is not yet trimmed
+automatically; it is safe to delete any of it at any time, since
+anything missing is simply fetched again.
+
 Troubleshooting
 ---------------
 
