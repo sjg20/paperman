@@ -1044,6 +1044,8 @@ private slots:
    void onThumbnailReady(quint64 token, const QByteArray &jpegBytes);
    void onCachedFileReady(quint64 token, const QString &cachePath,
                           bool refreshed);
+   void onStackInfoReady(quint64 token, const QString &pageDir);
+   void onPageReady(quint64 token, const QString &pagePath);
 
    /** Another client changed a stack in a remote repository: drop
     *  the suspect cached copy and refresh any desk showing the
@@ -1189,11 +1191,32 @@ public:
       \returns error, or NULL if the content is ready */
    err_info *ensureContent (const QModelIndex &ind);
 
+   /** Fetch one page of a remote stack held a page at a time, if its
+    *  file is not here yet.  Blocks; GUI thread only, like
+    *  ensureContent().  A no-op for any other stack. */
+   err_info *ensurePage (const QModelIndex &ind, int pagenum);
+
+   /** A remote stack held a page at a time has been changed on the
+    *  server.  Drop the page files now stale (@p pages, 0-based; an
+    *  empty list means every page, as after anything that renumbers
+    *  them), fetch the structure again and rebuild the item, so what
+    *  is shown follows the server rather than a mirrored guess.  A
+    *  no-op for any other stack. */
+   err_info *remoteStackChanged (const QModelIndex &ind,
+                                 const QList<int> &pages);
+
    /** Start fetching a remote stack's bytes if they are not cached yet.
     *  Call from the GUI thread only.  Returns at once; true means the
     *  bytes are still on their way, so the caller should show whatever
     *  placeholder it has and wait to be asked again. */
    bool requestContent (const QModelIndex &ind);
+
+   /** Start fetching one page of a remote stack held a page at a time,
+    *  if its file is not here yet.  GUI thread only; returns at once.
+    *  True means the page is on its way, so show the placeholder.
+    *  False for a local stack, a stack fetched whole, or a page that is
+    *  already here. */
+   bool requestPage (const QModelIndex &ind, int pagenum);
 
    /** gets an image of a page scaled to the exact requested size, using
        either the preview or full image. Returns a pixmap which is first freed
@@ -1551,6 +1574,18 @@ private:
 
    //! stacks whose bytes are being fetched, by request token
    QHash<quint64, QPersistentModelIndex> _pendingContent;
+
+   //! pages being fetched, by request token
+   QHash<quint64, QPair<QPersistentModelIndex, int> > _pendingPages;
+
+   /** The stack as a page-at-a-time Filemax, if the server serves
+    *  pages and the file is a max file: sets its page directory on
+    *  first use.  Null otherwise, meaning fetch the whole file. */
+   class Filemax *sparseFor (File *file, class RemoteBackend *remote,
+                             Desk *desk);
+
+   /** Connect a backend's fetch signals to this model, once */
+   void connectContentSignals (class RemoteBackend *remote);
 
    //! backends already connected to cachedFileReady()
    QSet<class RemoteBackend *> _contentBackends;
