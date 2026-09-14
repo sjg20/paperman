@@ -233,6 +233,16 @@ See :doc:`server` for the ``client.conf`` format.
 ``cat <repo> <path> [-o OUT]``
    Fetch a file, writing it to stdout or to ``OUT``.
 
+``info <repo> <stack> [--text|--json]``
+   Show the pages of a stack (size, depth, compressed size, title) and
+   its annotations without fetching any of them; ``--text`` adds each
+   page's OCR text and ``--json`` prints the server's reply as is.
+   Needs a server that serves stacks a page at a time.
+
+``page <repo> <stack> <n> [-o OUT]``
+   Fetch page ``n`` of a stack as a one-page ``.max`` file, to stdout or
+   to ``OUT``.
+
 ``--server <url-or-name>`` picks the server; without it the client uses
 ``$PAPERMAN_SERVER``, else the first entry in ``client.conf``, else
 ``http://localhost:8080``.
