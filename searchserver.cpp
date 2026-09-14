@@ -1363,7 +1363,9 @@ QByteArray SearchServer::handleStackInfo(const QString &path,
                                          const QHash<QString, QString> &params,
                                          const QString &authedUser)
 {
-    Q_UNUSED(params);
+    /* The OCR text of every page can be large, so it is sent only when
+       asked for; a client laying the stack out does not need it. */
+    bool wantText = params.value("text") == QStringLiteral("1");
 
     QString repoName, filePath;
     if (!splitStackUrl(path, QStringLiteral("/info"), &repoName, &filePath))
@@ -1406,6 +1408,11 @@ QByteArray SearchServer::handleStackInfo(const QString &path,
                                 compressed, stamp)) {
             page["width"] = size.width();
             page["height"] = size.height();
+            /* the size the page decodes to, which the tiling pads
+               beyond the image; a client holding no chunk to read it
+               from needs it to size the decoded image */
+            page["trueWidth"] = trueSize.width();
+            page["trueHeight"] = trueSize.height();
             page["bpp"] = bpp;
             page["bytes"] = imageBytes;
             if (compressed >= 0)
@@ -1422,7 +1429,24 @@ QByteArray SearchServer::handleStackInfo(const QString &path,
         QString title;
         if (!file->getPageTitle(i, title) && !title.isEmpty())
             page["title"] = title;
+        if (wantText) {
+            QString text;
+            if (!file->getPageText(i, text))
+                page["text"] = text;
+        }
         pages.append(page);
+    }
+
+    /* The stack-level annotations live in the envelope chunk, which a
+       client holding only separate pages has no other way to read. */
+    QJsonObject annots;
+    for (int a = 0; a < File::Annot_count; a++) {
+        File::e_annot type = (File::e_annot)a;
+        if (type == File::Annot_ocr)
+            continue;      // per page, above
+        QString text;
+        if (!file->getAnnot(type, text) && !text.isEmpty())
+            annots[File::annotWireName(type)] = text;
     }
     delete file;
 
@@ -1430,6 +1454,7 @@ QByteArray SearchServer::handleStackInfo(const QString &path,
     out["success"] = true;
     out["pagecount"] = count;
     out["size"] = QFileInfo(target.fullPath).size();
+    out["annotations"] = annots;
     out["pages"] = pages;
     QJsonDocument doc(out);
     return buildHttpResponse(200, "OK", "application/json",
