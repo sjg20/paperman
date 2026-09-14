@@ -588,9 +588,14 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         obj["apiVersion"] = PAPERMAN_API_VERSION;
         obj["serverId"] = _serverId;
         obj["version"] = CONFIG_version_str;
-        // Empty for now: the features list will be populated as endpoints
-        // ship. Clients should feature-detect rather than version-detect.
-        obj["features"] = QJsonArray();
+        /* What a client can rely on beyond the base API.  Clients
+           feature-detect rather than version-detect.
+             pages: /v1/repos/{repo}/stacks/{path}/info and
+                    /pages/{n}, so a stack can be fetched a page at
+                    a time rather than as a whole file */
+        QJsonArray features;
+        features.append("pages");
+        obj["features"] = features;
         QJsonDocument doc(obj);
         return buildHttpResponse(200, "OK", "application/json",
                                  QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));

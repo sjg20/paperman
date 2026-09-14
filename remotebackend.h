@@ -66,6 +66,24 @@ public:
      *  backend, so pass the id the first one discovered to the rest. */
     void setServerId(const QString &id) { _serverId = id; }
 
+    /** Supply the server's id and its advertised features together,
+     *  as one backend learns them from /v1/status and hands them to
+     *  the backends made for each repository. */
+    void setServerInfo(const QString &id, const QStringList &features)
+    {
+        _serverId = id;
+        _features = features;
+    }
+
+    /** The features /v1/status advertised; empty until serverId() has
+     *  fetched it or setServerInfo() has been called. */
+    QStringList features() const { return _features; }
+
+    /** True if the server serves a stack a page at a time (the "pages"
+     *  feature): /info for its structure and /pages/{n} for one page.
+     *  Without it a stack has to be fetched whole. */
+    bool hasPageRoutes() const { return _features.contains(QStringLiteral("pages")); }
+
     /** The bearer token currently in use (empty if not authenticated). */
     QString bearerToken() const { return _token; }
 
@@ -236,6 +254,40 @@ public:
      *  the next ensureCachedFile() downloads afresh. */
     void invalidateCachedFile(const QString &repo, const QString &relPath);
 
+    /** Directory holding a stack fetched a page at a time: the whole-
+     *  file cache path with ".d" appended.  It holds info.json, as
+     *  /info returns it, and page-N.max for each page fetched (N is
+     *  1-based, matching Filemax::pageFileName()).  Empty if the cache
+     *  root is unknown.  Not created. */
+    QString pageDirFor(const QString &repo, const QString &relPath);
+
+    /** Fetch a stack's structure into <pageDir>/info.json, with each
+     *  page's OCR text if @p withText.  Sync; returns the page
+     *  directory, or empty on failure (lastError() set). */
+    QString fetchStackInfo(const QString &repo, const QString &relPath,
+                           bool withText = false);
+
+    /** Async counterpart: emits stackInfoReady(token, pageDir), with
+     *  an empty directory on failure. */
+    quint64 fetchStackInfoAsync(const QString &repo, const QString &relPath,
+                                bool withText = false);
+
+    /** Fetch one page (1-based) into <pageDir>/page-N.max.  Sync;
+     *  returns the file's path, or empty on failure. */
+    QString fetchPage(const QString &repo, const QString &relPath, int page);
+
+    /** Async counterpart: emits pageReady(token, pagePath), empty on
+     *  failure. */
+    quint64 fetchPageAsync(const QString &repo, const QString &relPath,
+                           int page);
+
+    /** Forget every fetched page of a stack, and its info.json. */
+    void invalidatePageDir(const QString &repo, const QString &relPath);
+
+    /** Forget one fetched page, so it is downloaded afresh. */
+    void invalidatePage(const QString &repo, const QString &relPath,
+                        int page);
+
 signals:
     void browseDirectoryReady(quint64 token,
                               const DirectoryListing &listing);
@@ -246,6 +298,13 @@ signals:
      *  when new bytes were written, so any parsed state is stale. */
     void cachedFileReady(quint64 token, const QString &cachePath,
                          bool refreshed);
+
+    /** A stack's info.json is in place (fetchStackInfoAsync); the
+     *  directory is empty if the fetch failed. */
+    void stackInfoReady(quint64 token, const QString &pageDir);
+
+    /** One page's file is in place (fetchPageAsync); empty on failure. */
+    void pageReady(quint64 token, const QString &pagePath);
 
     /** A change made by another client arrived on the event stream */
     void stackEvent(const QString &repo, const QString &op,
@@ -297,6 +356,7 @@ private:
     QUrl _baseUrl;
     QString _token;
     QString _serverId;
+    QStringList _features;   //!< from /v1/status
     QString _clientId;
     QString _lastError;
     QNetworkAccessManager *_nam;

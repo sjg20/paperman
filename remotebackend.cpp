@@ -91,6 +91,10 @@ QString RemoteBackend::serverId()
    if (!doc.isObject())
       return QString();
    _serverId = doc.object().value("serverId").toString();
+   _features.clear();
+   const QJsonArray feats = doc.object().value("features").toArray();
+   for (const QJsonValue &v : feats)
+      _features.append(v.toString());
    return _serverId;
 }
 
@@ -849,6 +853,216 @@ void RemoteBackend::invalidateCachedFile(const QString &repo,
       return;
    QFile::remove(cachePath);
    QFile::remove(cachePath + ".etag");
+}
+
+
+static QString stackInfoPathFor(const QString &repo, const QString &path,
+                                bool withText)
+{
+   QString p = "/v1/repos/" + repo + "/stacks/" + path + "/info";
+   if (withText)
+      p += "?text=1";
+   return p;
+}
+
+
+static QString stackPagePathFor(const QString &repo, const QString &path,
+                                int page)
+{
+   return "/v1/repos/" + repo + "/stacks/" + path + "/pages/"
+          + QString::number(page);
+}
+
+
+/* The file holding one page in a page directory; the name matches
+   Filemax::pageFileName(), which this file cannot include since the
+   command-line client is built without the stack code. */
+static QString pageFileIn(const QString &pageDir, int page)
+{
+   return pageDir + QString("/page-%1.max").arg(page);
+}
+
+
+/* Write bytes so a reader never sees a half-written file: a page file
+   is opened as a stack the moment it exists. */
+static bool writeWhole(const QString &path, const QByteArray &bytes,
+                       QString *error)
+{
+   QDir().mkpath(QFileInfo(path).path());
+   QSaveFile out(path);
+   if (!out.open(QIODevice::WriteOnly)) {
+      *error = "cannot write " + path;
+      return false;
+   }
+   out.write(bytes);
+   if (!out.commit()) {
+      *error = "cannot commit " + path;
+      return false;
+   }
+   return true;
+}
+
+
+QString RemoteBackend::pageDirFor(const QString &repo, const QString &relPath)
+{
+   QString p = cachePathFor(repo, relPath);
+   return p.isEmpty() ? QString() : p + ".d";
+}
+
+
+QString RemoteBackend::fetchStackInfo(const QString &repo,
+                                      const QString &relPath, bool withText)
+{
+   QString dir = pageDirFor(repo, relPath);
+   if (dir.isEmpty()) {
+      _lastError = "cannot determine the server's cache directory";
+      return QString();
+   }
+
+   int status = 0;
+   QString etag;
+   QByteArray body = waitForReplyFull(
+       startGet(stackInfoPathFor(repo, relPath, withText)), &status, &etag);
+   if (status != 200) {
+      if (_lastError.isEmpty())
+         _lastError = QString("HTTP %1").arg(status);
+      return QString();
+   }
+   if (!writeWhole(dir + "/info.json", body, &_lastError))
+      return QString();
+   return dir;
+}
+
+
+quint64 RemoteBackend::fetchStackInfoAsync(const QString &repo,
+                                           const QString &relPath,
+                                           bool withText)
+{
+   quint64 token = _nextAsyncToken++;
+
+   /* as in ensureCachedFileAsync(): working out the directory must not
+      block on /v1/status, so the id has to be known already */
+   QString dir = _serverId.isEmpty() ? QString() : pageDirFor(repo, relPath);
+   if (dir.isEmpty()) {
+      _lastError = "cannot determine the server's cache directory";
+      QMetaObject::invokeMethod(this, [this, token]() {
+         emit stackInfoReady(token, QString());
+      }, Qt::QueuedConnection);
+      return token;
+   }
+
+   QNetworkReply *reply = startGet(stackInfoPathFor(repo, relPath, withText));
+   QObject::connect(reply, &QNetworkReply::finished, this,
+       [this, reply, token, dir]() {
+          _lastError.clear();
+          QByteArray body = reply->readAll();
+          int status = reply->attribute(
+                           QNetworkRequest::HttpStatusCodeAttribute).toInt();
+          if (reply->error() != QNetworkReply::NoError)
+             _lastError = reply->errorString();
+          reply->deleteLater();
+
+          if (status != 200) {
+             if (_lastError.isEmpty())
+                _lastError = QString("HTTP %1").arg(status);
+             emit stackInfoReady(token, QString());
+             return;
+          }
+          if (!writeWhole(dir + "/info.json", body, &_lastError)) {
+             emit stackInfoReady(token, QString());
+             return;
+          }
+          emit stackInfoReady(token, dir);
+       });
+   return token;
+}
+
+
+QString RemoteBackend::fetchPage(const QString &repo, const QString &relPath,
+                                 int page)
+{
+   QString dir = pageDirFor(repo, relPath);
+   if (dir.isEmpty()) {
+      _lastError = "cannot determine the server's cache directory";
+      return QString();
+   }
+
+   int status = 0;
+   QString etag;
+   QByteArray body = waitForReplyFull(
+       startGet(stackPagePathFor(repo, relPath, page), QString(),
+                kFetchTimeoutMs),
+       &status, &etag);
+   if (status != 200) {
+      if (_lastError.isEmpty())
+         _lastError = QString("HTTP %1").arg(status);
+      return QString();
+   }
+   QString path = pageFileIn(dir, page);
+   if (!writeWhole(path, body, &_lastError))
+      return QString();
+   return path;
+}
+
+
+quint64 RemoteBackend::fetchPageAsync(const QString &repo,
+                                      const QString &relPath, int page)
+{
+   quint64 token = _nextAsyncToken++;
+
+   QString dir = _serverId.isEmpty() ? QString() : pageDirFor(repo, relPath);
+   if (dir.isEmpty()) {
+      _lastError = "cannot determine the server's cache directory";
+      QMetaObject::invokeMethod(this, [this, token]() {
+         emit pageReady(token, QString());
+      }, Qt::QueuedConnection);
+      return token;
+   }
+
+   QNetworkReply *reply = startGet(stackPagePathFor(repo, relPath, page),
+                                   QString(), kFetchTimeoutMs);
+   QObject::connect(reply, &QNetworkReply::finished, this,
+       [this, reply, token, dir, page]() {
+          _lastError.clear();
+          QByteArray body = reply->readAll();
+          int status = reply->attribute(
+                           QNetworkRequest::HttpStatusCodeAttribute).toInt();
+          if (reply->error() != QNetworkReply::NoError)
+             _lastError = reply->errorString();
+          reply->deleteLater();
+
+          if (status != 200) {
+             if (_lastError.isEmpty())
+                _lastError = QString("HTTP %1").arg(status);
+             emit pageReady(token, QString());
+             return;
+          }
+          QString path = pageFileIn(dir, page);
+          if (!writeWhole(path, body, &_lastError)) {
+             emit pageReady(token, QString());
+             return;
+          }
+          emit pageReady(token, path);
+       });
+   return token;
+}
+
+
+void RemoteBackend::invalidatePageDir(const QString &repo,
+                                      const QString &relPath)
+{
+   QString dir = pageDirFor(repo, relPath);
+   if (!dir.isEmpty())
+      QDir(dir).removeRecursively();
+}
+
+
+void RemoteBackend::invalidatePage(const QString &repo, const QString &relPath,
+                                   int page)
+{
+   QString dir = pageDirFor(repo, relPath);
+   if (!dir.isEmpty())
+      QFile::remove(pageFileIn(dir, page));
 }
 
 

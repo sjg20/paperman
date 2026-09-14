@@ -2297,3 +2297,104 @@ void TestSearchServer::testTransformEndpointErrors()
 
     server.stop();
 }
+
+
+void TestSearchServer::testRemotePageFetch()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    RemoteBackend backend(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+    /* the server says it serves pages, and the backend hears it */
+    QVERIFY(!backend.serverId().isEmpty());
+    QVERIFY(backend.hasPageRoutes());
+    backend.invalidatePageDir(repo, "testfile.max");   // start clean
+
+    /* structure first: no page has been fetched */
+    QString dir = backend.fetchStackInfo(repo, "testfile.max");
+    QVERIFY2(!dir.isEmpty(), qPrintable(backend.lastError()));
+    QVERIFY(dir.endsWith(".d"));
+    /* read info.json and close it again at once: the fetch below
+       replaces it, which Windows refuses while it is open */
+    auto readInfo = [&dir]() {
+        QFile info(dir + "/info.json");
+        return info.open(QIODevice::ReadOnly)
+            ? QJsonDocument::fromJson(info.readAll()).object()
+            : QJsonObject();
+    };
+    QJsonObject top = readInfo();
+    QCOMPARE(top.value("pagecount").toInt(), 5);
+    QVERIFY(!top.value("pages").toArray().at(0).toObject().contains("text"));
+
+    /* one page: a real one-page stack lands under the page directory */
+    QString p1 = backend.fetchPage(repo, "testfile.max", 1);
+    QVERIFY2(!p1.isEmpty(), qPrintable(backend.lastError()));
+    QCOMPARE(QFileInfo(p1).fileName(), QString("page-1.max"));
+    QCOMPARE(QFileInfo(p1).absolutePath(), QFileInfo(dir).absoluteFilePath());
+    {
+        Filemax one(dir + "/", "page-1.max", nullptr);
+        QVERIFY(one.load() == nullptr);
+        QCOMPARE(one.pagecount(), 1);
+    }
+
+    /* a sparse stack over the directory sees five pages, one present,
+       and decodes it to the same pixels as the whole file */
+    Filemax src(tmpDir.path() + "/", "testfile.max", nullptr);
+    QVERIFY(src.load() == nullptr);
+    Filemax sp(tmpDir.path() + "/", "sparse.max", nullptr);
+    sp.setPageDir(dir);
+    QVERIFY(sp.load() == nullptr);
+    QCOMPARE(sp.pagecount(), 5);
+    QVERIFY(sp.hasPage(0));
+    QVERIFY(!sp.hasPage(1));
+
+    QImage i1, i2;
+    QSize s1, t1, s2, t2;
+    int b1 = 0, b2 = 0;
+    QVERIFY(src.getImage(0, false, i1, s1, t1, b1, false) == nullptr);
+    QVERIFY(sp.getImage(0, false, i2, s2, t2, b2, false) == nullptr);
+    QCOMPARE(i2.convertToFormat(QImage::Format_RGB32),
+             i1.convertToFormat(QImage::Format_RGB32));
+    QCOMPARE(t2, t1);
+
+    /* a page the stack does not have is refused, not invented */
+    QVERIFY(backend.fetchPage(repo, "testfile.max", 99).isEmpty());
+    QVERIFY(!backend.lastError().isEmpty());
+
+    /* the async paths land in the same places */
+    QSignalSpy pageSpy(&backend, &RemoteBackend::pageReady);
+    quint64 t = backend.fetchPageAsync(repo, "testfile.max", 2);
+    QVERIFY(pageSpy.wait(5000));
+    QCOMPARE(pageSpy.at(0).at(0).toULongLong(), t);
+    QString p2 = pageSpy.at(0).at(1).toString();
+    QVERIFY(p2.endsWith("/page-2.max"));
+    sp.pageArrived(1);
+    QVERIFY(sp.hasPage(1));
+    QVERIFY(src.getImage(1, false, i1, s1, t1, b1, false) == nullptr);
+    QVERIFY(sp.getImage(1, false, i2, s2, t2, b2, false) == nullptr);
+    QCOMPARE(i2.convertToFormat(QImage::Format_RGB32),
+             i1.convertToFormat(QImage::Format_RGB32));
+
+    QSignalSpy infoSpy(&backend, &RemoteBackend::stackInfoReady);
+    quint64 ti = backend.fetchStackInfoAsync(repo, "testfile.max", true);
+    QVERIFY(infoSpy.wait(5000));
+    QCOMPARE(infoSpy.at(0).at(0).toULongLong(), ti);
+    QCOMPARE(infoSpy.at(0).at(1).toString(), dir);
+    top = readInfo();
+    QVERIFY(top.value("pages").toArray().at(0).toObject().contains("text"));
+
+    /* forgetting a page, then the whole directory */
+    backend.invalidatePage(repo, "testfile.max", 2);
+    QVERIFY(!QFile::exists(p2));
+    QVERIFY(QFile::exists(p1));
+    backend.invalidatePageDir(repo, "testfile.max");
+    QVERIFY(!QDir(dir).exists());
+}
