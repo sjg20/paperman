@@ -83,6 +83,23 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define EDGE_ROWS 32
 #define GREY_FRACTION 0.01
 
+/* The scanner scans the full width of its window, so a sheet narrower
+   than the window leaves the backing showing beyond its edge. The
+   backing is a shade of grey and never reaches paper white, while the
+   sheet is paper-bright somewhere along every line of it, even a blank
+   one, so the brightest pixel of a line says whether the sheet is still
+   there. Keep at least this much of the window, in case a page really
+   is dark to its edges */
+#define PAPER_BRIGHT 250
+#define PAPER_MIN_FRACTION 0.25
+
+/* How much of a line across the sheet has to be paper-bright for the
+   sheet to be there. Anything beyond its edge can still catch the odd
+   bright patch, so a single pixel is not enough; the edge itself is
+   sharp, going from nothing to almost the whole line within about
+   fifteen lines, so asking for half loses only a few of them */
+#define PAPER_COLUMN_FRACTION 0.5
+
 
 
 Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
@@ -388,6 +405,8 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    _autoColour = auto_colour;
    _rotate = rotate;
    _colourPixels = _interiorPixels = 0;
+   _col = 0;
+   _bright_cols.clear ();
    _colourBand [0] = _colourBand [1] = _colourBand [2] = 0;
    _row_x = _row_skip = _rows_done = _partial_len = 0;
    /* a back end that finds the foot of the sheet as it scans (the fujitsu
@@ -722,6 +741,16 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
 
             if (lum < COVERAGE_THRESHOLD)
                count++;
+            /* the sheet is paper-bright somewhere in every line of it,
+               even a blank one; the backing beyond its edge never is */
+            if (lum >= PAPER_BRIGHT)
+               {
+               if (_bright_cols.isEmpty ())
+                  _bright_cols = QVector<int> (_width, 0);
+               _bright_cols [_col]++;
+               }
+            if (++_col >= _width)
+               _col = 0;
             if ((mx - mn) * SATURATION_DIVISOR >= mx
                 && mx >= SATURATION_MIN_BRIGHT)
                {
@@ -847,8 +876,40 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
                            int &stride_out) const
    {
    bool turn = _rotate != Rotate_none;
+   /* A sideways feed puts the page's height along the scanner, where
+      nothing trims it: the window is the paper size turned round, so a
+      page shorter than that leaves the backing showing. Cut it off at
+      the edge of the sheet */
+   int lo = 0, hi = _width - 1;
+   int paper_lo = -1, paper_hi = -1;
+
+   if (turn && !_bright_cols.isEmpty ())
+      {
+      int need = (int)(height * PAPER_COLUMN_FRACTION);
+
+      for (int x = 0; x < _width; x++)
+         if (_bright_cols [x] >= need)
+            {
+            if (paper_lo < 0)
+               paper_lo = x;
+            paper_hi = x;
+            }
+      }
+   if (paper_lo >= 0
+       && paper_hi - paper_lo + 1 >= _width * PAPER_MIN_FRACTION)
+      {
+      /* leave a margin: a sheet goes through slightly skewed, and the
+         very edge of a page printed to its margins is dark rather than
+         paper-bright, so the sheet reaches a little beyond where it
+         last looks like paper. The margin is white on a mono or grey
+         page, since the backing is lighter than the ink threshold */
+      int margin = _width / 100;
+
+      lo = qMax (0, paper_lo - margin);
+      hi = qMin (_width - 1, paper_hi + margin);
+      }
    int ow = turn ? height : _width;
-   int oh = turn ? _width : height;
+   int oh = turn ? hi - lo + 1 : height;
    int ostride = depth == 24 ? ow * 3 : depth == 8 ? ow : (ow + 7) / 8;
    QByteArray out (ostride * oh, '\0');
    unsigned char *dst = (unsigned char *)out.data ();
@@ -863,11 +924,11 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
          switch (_rotate)
             {
             case Rotate_cw :
-               sx = dy;
+               sx = lo + dy;
                sy = height - 1 - dx;
                break;
             case Rotate_ccw :
-               sx = _width - 1 - dy;
+               sx = hi - dy;
                sy = dx;
                break;
             default :
