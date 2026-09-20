@@ -109,6 +109,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define PAPER_BRIGHT 250
 #define PAPER_MIN_FRACTION 0.25
 
+/* How much of a column has to be ink for the sheet to be there where
+   it is not bright. A cover is often printed right to the edge of the
+   sheet, leaving nothing paper-bright to find it by, while the backing
+   beyond it holds no ink at all: on the covers of three books not one
+   column of backing came near this, and the sheet found this way is
+   the same width as the body pages of the book */
+#define PAPER_INK_FRACTION 0.1
+
 /* How much of a line across the sheet has to be paper-bright for the
    sheet to be there. Anything beyond its edge can still catch the odd
    bright patch, so a single pixel is not enough; the edge itself is
@@ -423,6 +431,7 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    _colourPixels = 0;
    _col = 0;
    _bright_cols.clear ();
+   _ink_cols.clear ();
    _colourBand [0] = _colourBand [1] = _colourBand [2] = 0;
    _row_x = _row_skip = _rows_done = _partial_len = 0;
    _row_gap = -INTERIOR_ROWS;
@@ -759,12 +768,20 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
             if (lum < COVERAGE_THRESHOLD)
                count++;
             /* the sheet is paper-bright somewhere in every line of it,
-               even a blank one; the backing beyond its edge never is */
-            if (lum >= PAPER_BRIGHT)
+               even a blank one; the backing beyond its edge never is.
+               A cover printed to its edges is not bright there, but it
+               has ink where the backing has none */
+            if (lum >= PAPER_BRIGHT || lum < INK_THRESHOLD)
                {
                if (_bright_cols.isEmpty ())
+                  {
                   _bright_cols = QVector<int> (_width, 0);
-               _bright_cols [_col]++;
+                  _ink_cols = QVector<int> (_width, 0);
+                  }
+               if (lum >= PAPER_BRIGHT)
+                  _bright_cols [_col]++;
+               else
+                  _ink_cols [_col]++;
                }
             if (++_col >= _width)
                _col = 0;
@@ -900,7 +917,7 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
    int lo = 0, hi = _width - 1;
    int paper_lo, paper_hi;
 
-   if (turn && sheetBounds (height, paper_lo, paper_hi))
+   if (turn && sheetBounds (height, paper_lo, paper_hi, true))
       {
       /* leave a margin: a sheet goes through slightly skewed, and the
          very edge of a page printed to its margins is dark rather than
@@ -1156,18 +1173,25 @@ void PPage::inkPixel (int lum)
 
    \param height  rows of the page
    \param lo, hi  return the first and last column holding the sheet
+   \param printed true to take a column with ink on it for the sheet as
+            well, which finds the edge of a cover printed right up to
+            it. The shade the edge of the sheet casts on the backing is
+            ink by this measure, so a count of what is on the page
+            passes false and keeps to the paper-bright columns
    \returns true if the window holds something that looks like a sheet */
 
-bool PPage::sheetBounds (int height, int &lo, int &hi) const
+bool PPage::sheetBounds (int height, int &lo, int &hi, bool printed) const
    {
    int paper_lo = -1, paper_hi = -1;
 
    if (!_bright_cols.isEmpty ())
       {
       int need = (int)(height * PAPER_COLUMN_FRACTION);
+      int ink = (int)(height * PAPER_INK_FRACTION);
 
       for (int x = 0; x < _width; x++)
-         if (_bright_cols [x] >= need)
+         if (_bright_cols [x] >= need
+             || (printed && _ink_cols [x] >= ink))
             {
             if (paper_lo < 0)
                paper_lo = x;
@@ -1198,7 +1222,7 @@ void PPage::inkTotals (int &interior, int &soft) const
    interior = soft = 0;
    if (_interior_cols.isEmpty ())
       return;
-   if (sheetBounds (_rows_done, lo, hi))
+   if (sheetBounds (_rows_done, lo, hi, false))
       {
       lo = qMax (0, lo + SHEET_INSET);
       hi = qMin (_width - 1, hi - SHEET_INSET);

@@ -183,7 +183,7 @@ private:
       };
 
    /** find the edges of the sheet across the window, see the .cpp */
-   bool sheetBounds (int height, int &lo, int &hi) const;
+   bool sheetBounds (int height, int &lo, int &hi, bool printed) const;
 
    /** add up the ink marks made on the sheet, see the .cpp */
    void inkTotals (int &interior, int &soft) const;
@@ -281,6 +281,7 @@ private:
    int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
    int _col;            //!< column of the pixel being counted
    QVector<int> _bright_cols; //!< paper-bright pixels seen in each column
+   QVector<int> _ink_cols; //!< pixels with ink seen in each column
    int _row_x;          //!< pixels of the current row seen so far
    int _row_gap;        //!< where the row last had no ink
    int _row_skip;       //!< padding bytes of the current row still to skip
