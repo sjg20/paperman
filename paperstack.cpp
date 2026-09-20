@@ -103,6 +103,20 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define SHEET_INSET 16
 #define GREY_FRACTION 0.01
 
+/* A picture is a solid area of ink, whatever its tones: a photograph
+   has mid-tones and is found by the rule below, but an engraving or a
+   line drawing is ink and paper with nothing in between and reads like
+   print. Print is thin strokes, though, so a block FILL_CELL square
+   with ink in every pixel of it is not print. Counting those blocks
+   over the whole page would lose a small picture among the white around
+   it, so the page is divided into tiles FILL_TILE blocks square and the
+   densest tile decides: a page of print fills under a twelfth of a
+   tile, an engraving three fifths of one and a photograph all of it */
+#define FILL_CELL 8
+#define FILL_TILE 16
+#define FILL_TILE_CELLS (FILL_TILE * FILL_TILE)
+#define FILL_FRACTION 0.25
+
 /* Handwriting in pencil, and a faded stamp, are pale all through, and
    storing the page as mono would throw them away: everything lighter
    than COVERAGE_THRESHOLD is dropped. A page is grey as well, then,
@@ -464,6 +478,7 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    _autoSize = auto_size;
    _rotate = rotate;
    _colourPixels = 0;
+   _fill_max = 0;
    _col = 0;
    _bright_cols.clear ();
    _ink_cols.clear ();
@@ -1104,10 +1119,15 @@ void PPage::inkPixel (int lum, bool coloured)
       _interior_cols = QVector<int> (_width, 0);
       _soft_cols = QVector<int> (_width, 0);
       _colour_cols = QVector<int> (_width, 0);
+      _cell_ink = QVector<int> (_width / FILL_CELL + 1, 0);
+      _tile_solid = QVector<int> (_width / (FILL_CELL * FILL_TILE) + 1, 0);
       }
 
    if (!_row_x)
       _row_gap = -INTERIOR_ROWS;   // no gap behind the start of a row
+
+   if (lum < PALE_THRESHOLD)
+      _cell_ink [_row_x / FILL_CELL]++;
 
    char *row = _rows.data () + (_rows_done % INTERIOR_ROWS) * _width;
    char flag = lum >= INK_THRESHOLD ? Ink_none
@@ -1140,7 +1160,27 @@ void PPage::inkPixel (int lum, bool coloured)
       row [i] |= Ink_gap;
    _row_x = 0;
    _row_skip = _stride - _width * 3;
-   if (++_rows_done < INTERIOR_ROWS)
+   _rows_done++;
+
+   /* a row of cells is complete: the cells with ink right through are
+      the filled ones, and the densest tile of them says whether the
+      page holds a picture */
+   if (_rows_done % FILL_CELL == 0)
+      {
+      for (int cell = 0; cell < _cell_ink.size (); cell++)
+         {
+         if (_cell_ink [cell] == FILL_CELL * FILL_CELL)
+            _tile_solid [cell / FILL_TILE]++;
+         _cell_ink [cell] = 0;
+         }
+      if (_rows_done % (FILL_CELL * FILL_TILE) == 0)
+         for (int tile = 0; tile < _tile_solid.size (); tile++)
+            {
+            _fill_max = qMax (_fill_max, _tile_solid [tile]);
+            _tile_solid [tile] = 0;
+            }
+      }
+   if (_rows_done < INTERIOR_ROWS)
       return;
 
    const char *rows [INTERIOR_ROWS];
@@ -1331,6 +1371,8 @@ PPage::Kind PPage::kind (void) const
    inkTotals (interior, soft, colour);
    if ((double)colour / _pixels >= COLOUR_SOLID_FRACTION)
       return Kind_colour;
+   if ((double)_fill_max / FILL_TILE_CELLS >= FILL_FRACTION)
+      return Kind_grey;
    if ((double)interior / _pixels >= GREY_FRACTION
        || (double)soft / _pixels >= SOFT_FRACTION)
       return Kind_grey;

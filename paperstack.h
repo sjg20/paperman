@@ -300,6 +300,9 @@ private:
    QVector<int> _interior_cols; //!< interior pixels counted in each column
    QVector<int> _soft_cols; //!< soft pixels counted in each column
    QVector<int> _colour_cols; //!< solid colour counted in each column
+   QVector<int> _cell_ink; //!< ink pixels in each cell of the row being read
+   QVector<int> _tile_solid; //!< filled cells in each tile of the tile row
+   int _fill_max;       //!< filled cells in the densest tile of the page
    bool _mark_blank;    //!< true to mark page blank
 //   Desktopmodel *_model;   //!< model that this page is destined for
    QByteArray _data;    //!< data bytes
