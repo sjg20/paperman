@@ -96,8 +96,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    INTERIOR_RADIUS to stand in for it. Print never gives this, however
    fine: its pale pixels are the edges of strokes whose middle is
    solid. A page of text gives under 0.002% of itself, a pencil note
-   across the head of a page 0.06% */
+   across the head of a page 0.06%.
+
+   A run of pale ink too long to be a stroke is not writing at all: it
+   is a printed rule, or the shade the edge of the sheet casts, which
+   lies across the window wherever the back end is not cutting the page
+   down to the sheet. Handwriting stays well within a hundredth of the
+   window, so longer runs are left out */
 #define SOFT_FRACTION 0.0001
+#define SOFT_MAX_RUN(width) ((width) / 100)
 
 /* The scanner scans the full width of its window, so a sheet narrower
    than the window leaves the backing showing beyond its edge. The
@@ -1174,6 +1181,22 @@ void PPage::inkPixel (int lum)
             mark |= Mark_soft;
          }
       slot [x] = mark;
+      }
+
+   /* drop the pale ink that lies in runs too long to be writing */
+   int run = 0;
+
+   for (int x = 0; x <= _width; x++)
+      {
+      if (x < _width && (slot [x] & Mark_soft))
+         {
+         run++;
+         continue;
+         }
+      if (run > SOFT_MAX_RUN (_width))
+         for (int i = x - run; i < x; i++)
+            slot [i] &= ~Mark_soft;
+      run = 0;
       }
    }
 
