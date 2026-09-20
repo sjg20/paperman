@@ -1125,6 +1125,71 @@ static bool monoPixel (const Filepage *mp, int x, int y)
 /* Sheets fed sideways are turned upright as they are stored: the front a
    quarter turn one way and the back, seen from the other side of the
    sheet, the other way */
+/* The scanner scans the full width of its window. Fed sideways the page's
+   height lies along that width and nothing trims it, so a page shorter
+   than the window leaves the backing showing past the sheet's edge. The
+   sheet is paper-bright somewhere along every line of it; the backing
+   never is, so the page is cut off where the brightness stops */
+void TestFile::testSidewaysCrop()
+{
+   const int width = 400, height = 400, paper = 300;
+   QByteArray page (width * height * 3, (char)255);
+   unsigned char *p = (unsigned char *)page.data ();
+   QString cov;
+   Filepage *mp;
+
+   /* the sheet fills the first 'paper' columns; the grey backing shows
+      beyond it, never as bright as the paper */
+   for (int y = 0; y < height; y++)
+      for (int x = paper; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 215;
+         }
+
+   // a line of text on the sheet, so it is not a blank page
+   for (int y = 40; y < 44; y++)
+      for (int x = 20; x < 280; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         }
+
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_right, true, &mp), 1);
+   /* turned upright the scan's width becomes the height, and it should
+      stop at the sheet rather than run on to the end of the window,
+      give or take the margin left for skew */
+   QCOMPARE (mp->_width, height);
+   QVERIFY (mp->_height >= paper);
+   QVERIFY (mp->_height <= paper + width / 25);
+   delete mp;
+
+   /* a blank sheet has no content to find, but it is still paper: it
+      must be cut in the same place, not thrown away */
+   page.fill ((char)255);
+   for (int y = 0; y < height; y++)
+      for (int x = paper; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 215;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_right, true, &mp), 1);
+   QVERIFY (mp->_height >= paper);
+   QVERIFY (mp->_height <= paper + width / 25);
+   delete mp;
+
+   /* a scan with nothing paper-bright anywhere gives nothing to cut
+      on, so the window is kept whole rather than guessed at */
+   page.fill ((char)240);
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_right, true, &mp), 1);
+   QCOMPARE (mp->_height, width);
+   delete mp;
+}
+
+
 void TestFile::testSideways()
 {
    const int width = 200, height = 100;

@@ -21,6 +21,9 @@ private slots:
    //! Test that pages fed sideways are turned upright as they are stored
    void testSideways();
 
+   //! Test a sideways page is cut off at the edge of the sheet
+   void testSidewaysCrop();
+
    //! typeName/typeExt round-trip and stay aligned with e_type
    void testTypeNameAndExt();
 

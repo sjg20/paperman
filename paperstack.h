@@ -257,6 +257,8 @@ private:
    Rotate _rotate;      //!< how to turn the page as it is stored
    int _colourPixels;   //!< pixels with a noticeable saturation
    int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
+   int _col;            //!< column of the pixel being counted
+   QVector<int> _bright_cols; //!< paper-bright pixels seen in each column
    int _interiorPixels; //!< mid-tone pixels inside a filled region, see kind()
    int _row_x;          //!< pixels of the current row seen so far
    int _row_skip;       //!< padding bytes of the current row still to skip
