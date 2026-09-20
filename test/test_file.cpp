@@ -1,5 +1,6 @@
 #include <QPainter>
 #include <QSet>
+#include <QTextStream>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 #include <QStandardPaths>
@@ -1268,6 +1269,73 @@ void TestFile::testSideways()
    QVERIFY (monoPixel (mp, 10, 10));
    delete mp;
 }
+
+/* Real pages from the scanner, with what each should be stored as, so
+   that a change made for one kind of page cannot quietly change what
+   happens to another. test/files/corpus/corpus.txt says where they came
+   from and how to add one */
+
+void TestFile::testCorpus()
+{
+   QFile manifest (QString ("test/corpus/corpus.txt"));
+
+   QVERIFY (manifest.open (QIODevice::ReadOnly | QIODevice::Text));
+
+   QTextStream in (&manifest);
+   int pages = 0;
+
+   while (!in.atEnd ())
+      {
+      QString line = in.readLine ().trimmed ();
+
+      if (line.isEmpty () || line.startsWith ('#'))
+         continue;
+
+      QStringList field = line.split (' ', Qt::SkipEmptyParts);
+
+      QVERIFY2 (field.size () >= 4, qPrintable (line));
+
+      QString name = field [0];
+      Paperstack::t_sideways sideways =
+         field [1] == "left" ? Paperstack::Sideways_top_left
+            : field [1] == "right" ? Paperstack::Sideways_top_right
+            : Paperstack::Sideways_no;
+      int depth = field [2].toInt ();
+      int height = field [3].toInt ();
+
+      QImage im (QString ("test/corpus/") + name);
+
+      QVERIFY2 (!im.isNull (), qPrintable (name));
+      im = im.convertToFormat (QImage::Format_RGB888);
+
+      QByteArray rgb;
+
+      for (int y = 0; y < im.height (); y++)
+         rgb.append ((const char *)im.constScanLine (y), im.width () * 3);
+
+      QString cov;
+      Filepage *mp = NULL;
+      int got = scanSynthetic (rgb, im.width (), im.height (), cov, 0,
+                               sideways, true, &mp);
+
+      QVERIFY2 (mp, qPrintable (name));
+      QVERIFY2 (got == depth,
+                qPrintable (QString ("%1: stored at %2 bpp, expected %3 (%4)")
+                            .arg (name).arg (got).arg (depth).arg (cov)));
+      if (height)
+         {
+         int slack = height / 50;
+
+         QVERIFY2 (qAbs (mp->_height - height) <= slack,
+                   qPrintable (QString ("%1: stored %2 high, expected %3")
+                               .arg (name).arg (mp->_height).arg (height)));
+         }
+      delete mp;
+      pages++;
+      }
+   QVERIFY (pages >= 5);
+}
+
 
 void TestFile::testAutoColour()
 {

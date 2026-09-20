@@ -18,6 +18,9 @@ private slots:
    //! a scanned colour page is kept, greyed or made mono by its pixels
    void testAutoColour();
 
+   //! Check real scanned pages against what each should be stored as
+   void testCorpus();
+
    //! Test that pages fed sideways are turned upright as they are stored
    void testSideways();
 
