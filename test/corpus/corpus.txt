@@ -1,0 +1,25 @@
+# Real pages from a Ricoh fi-8950, kept as the scanner sent them, with
+# what paperman should make of each. They are fed sideways, as a book
+# guillotined into loose sheets is, and they are the record of how
+# auto-colour and the sheet-edge crop behave on the kinds of page a
+# book holds, so that tuning one kind cannot quietly change another.
+#
+# To add a page, scan it with PAPERMAN_KIND_DEBUG set to a directory:
+#
+#   PAPERMAN_KIND_DEBUG=/tmp/pages ./paperman --scan --repo DIR \
+#      --dir inbox --pages 2 --auto-colour --sideways right
+#
+# which writes the scanner's own data as pageN.jpg and prints the counts
+# behind the decision. Copy the page in under a name saying what it
+# holds, and add a line here.
+#
+# file  sideways(none|left|right)  depth(1|8|24)  height  what it holds
+#
+# A height of 0 asks for no check; otherwise it is the height the page
+# should be stored at, and it must come out within a fiftieth of it.
+
+cover-colour.jpg      right  24     0  a black cover printed to the edges of the sheet
+title-mono.jpg        right   1  3025  a title page, a few lines of print on white
+pencil-grey.jpg       right   8  3020  a printed page with a note in pencil across the head
+text-unix-mono.jpg    right   1  3009  a page of printed text
+text-java-mono.jpg    right   1  2845  a page of printed text, from another book
