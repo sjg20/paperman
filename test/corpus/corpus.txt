@@ -38,3 +38,11 @@ lkd-dedication-mono.jpg   right   1  2790  a blank page with one line of print o
 lkd-contents-grey.jpg     right   8  2780  contents, set on a grey panel
 lkd-chapter-grey.jpg      right   8  2787  a chapter opening, the number set in grey
 lkd-figure-grey.jpg       right   8  2776  print with a figure whose boxes are filled grey
+
+# Linux Device Drivers: a chapter opening with an engraving on it, and
+# the back of the same sheet. The engraving is ink and paper with no
+# mid-tones, so the rule that finds a photograph does not see it: it is
+# the filled-area rule that keeps this one out of mono.
+
+ldd-engraving-grey.jpg    right   8  2842  a chapter opening with an engraving at the head
+ldd-text-mono.jpg         right   1  2834  the back of that sheet, printed text

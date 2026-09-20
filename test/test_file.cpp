@@ -1433,6 +1433,25 @@ void TestFile::testAutoColour()
    QCOMPARE (scanSynthetic (page, width, height, cov), 24);
    QVERIFY (!cov.endsWith (" mono") && !cov.endsWith (" grey"));
 
+   /* a page of text with a picture on it that is ink and paper with no
+      mid-tones at all, as an engraving is: the tones say nothing, but
+      no print fills a block of the page solidly */
+   page.fill ((char)255);
+   for (int y = 10; y < height - 10; y += 10)
+      for (int x = 0; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         }
+   for (int y = 20; y < 100; y++)
+      for (int x = 20; x < 100; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 8);
+   QVERIFY (cov.endsWith (" grey"));
+
    /* a blank page with a small dark photograph on it, a twentieth of
       the page in the darker mid-tones: grey */
    page.fill ((char)255);
