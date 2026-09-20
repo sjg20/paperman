@@ -19,6 +19,7 @@ private slots:
    //! Test that the user name is found without a controlling terminal
    void testUserName();
 
+   void testTimeStr();
    void testDetectYear();
    void testDetectMonth();
    void testDetectMatches();
