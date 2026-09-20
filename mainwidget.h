@@ -109,6 +109,9 @@ public:
    /** apply the options from setScanOptions() to the open scanner */
    void applyScanOptions (void);
 
+   /** turn the scan window round when the sheets are fed sideways */
+   void applySidewaysPageSize (void);
+
    /** as for warn(), but for information */
    void inform (const QString &title, const QString &msg);
    Pagewidget *getPage (void) { return _page; }
