@@ -395,6 +395,7 @@ void Mainwidget::scanInto(QModelIndex target)
    /* the mode must be set first, since JPEG is only offered in colour;
       anything --set names is left as set */
    applyScanOptions ();
+   applySidewaysPageSize ();
    _scanner->useFastTransfer (_scan_options.keys ());
 
    // check resolution, etc.
@@ -533,6 +534,45 @@ void Mainwidget::scan(void)
 {
    scanInto(QModelIndex());
 }
+
+
+/* Sheets fed sideways go through the scanner with the page's height
+   across it, so the window has to be the paper size the other way
+   round. The scan dialog turns the size round as it is chosen, but a
+   scan uses whatever the scanner already holds, which comes from the
+   settings saved with the device: choosing the size once is not enough,
+   and every page comes out with its foot cut off. Turn the window round
+   here instead, where every scan goes past. Nothing to do if it is that
+   way round already, so this can run before each scan */
+void Mainwidget::applySidewaysPageSize (void)
+   {
+   if (!xmlConfig || !xmlConfig->intValue ("SCAN_SIDEWAYS") || !_scanner)
+      return;
+
+   static const char *pair [][2] =
+      {
+         { "page-width", "page-height" },
+         { "br-x", "br-y" },
+      };
+
+   for (unsigned i = 0; i < sizeof (pair) / sizeof (pair [0]); i++)
+      {
+      int wnum = _scanner->findOption (pair [i][0]);
+      int hnum = _scanner->findOption (pair [i][1]);
+
+      if (wnum < 0 || hnum < 0)
+         continue;
+
+      SANE_Word w = _scanner->saneWordValue (wnum);
+      SANE_Word h = _scanner->saneWordValue (hnum);
+
+      // already lying down: leave it be
+      if (w >= h)
+         continue;
+      _scanner->setOption (wnum, &h);
+      _scanner->setOption (hnum, &w);
+      }
+   }
 
 
 void Mainwidget::applyScanOptions (void)
