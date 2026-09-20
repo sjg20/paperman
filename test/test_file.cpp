@@ -1306,6 +1306,28 @@ void TestFile::testAutoColour()
    QCOMPARE (scanSynthetic (page, width, height, cov), 24);
    QVERIFY (!cov.endsWith (" mono") && !cov.endsWith (" grey"));
 
+   /* a page of text with a note written on it in pencil: the note is
+      mid-toned all through, which mono would throw away, so the page is
+      kept as grey although the print on it is as black as ever */
+   page.fill ((char)255);
+   for (int y = 10; y < height - 10; y += 10)
+      for (int x = 0; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 1);
+   QVERIFY (cov.endsWith (" mono"));
+
+   for (int y = 101; y < 110; y++)
+      for (int x = 40; x < 140; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 150;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 8);
+   QVERIFY (cov.endsWith (" grey"));
+
    /* a blank page with a small dark photograph on it, a twentieth of
       the page in the darker mid-tones: grey */
    page.fill ((char)255);

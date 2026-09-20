@@ -75,13 +75,29 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    page for an illustration, 3% for a small one, against under 0.2% for
    text. The scanner leaves a shadow of the paper edge along the top and
    bottom of the page, a mid-grey band that would count, so the first and
-   last EDGE_ROWS rows are left out */
+   last EDGE_ROWS rows are left out. The window is wider than the sheet
+   and its backing is mid-grey too, with a soft edge where the sheet
+   ends, which on its own gives a text page five times the interior
+   pixels its text does, so each row is counted only between its
+   paper-bright edges, less SHEET_INSET to clear the shade of that edge */
 #define INK_THRESHOLD 200
+#define PALE_THRESHOLD COVERAGE_THRESHOLD
 #define MID_THRESHOLD 64
 #define INTERIOR_RADIUS 2
 #define INTERIOR_ROWS (2 * INTERIOR_RADIUS + 1)
 #define EDGE_ROWS 32
+#define SHEET_INSET 16
 #define GREY_FRACTION 0.01
+
+/* Handwriting in pencil, and a faded stamp, are pale all through, and
+   storing the page as mono would throw them away: everything lighter
+   than COVERAGE_THRESHOLD is dropped. A page is grey as well, then,
+   when enough of it is ink that mono drops with nothing it keeps within
+   INTERIOR_RADIUS to stand in for it. Print never gives this, however
+   fine: its pale pixels are the edges of strokes whose middle is
+   solid. A page of text gives under 0.002% of itself, a pencil note
+   across the head of a page 0.06% */
+#define SOFT_FRACTION 0.0001
 
 /* The scanner scans the full width of its window, so a sheet narrower
    than the window leaves the backing showing beyond its edge. The
@@ -404,11 +420,12 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    {
    _autoColour = auto_colour;
    _rotate = rotate;
-   _colourPixels = _interiorPixels = 0;
+   _colourPixels = 0;
    _col = 0;
    _bright_cols.clear ();
    _colourBand [0] = _colourBand [1] = _colourBand [2] = 0;
    _row_x = _row_skip = _rows_done = _partial_len = 0;
+   _row_gap = -INTERIOR_ROWS;
    /* a back end that finds the foot of the sheet as it scans (the fujitsu
       backend with ald) cannot say the height when the page starts and
       reports -1. Size the buffers for a letter-shaped page for now; the
@@ -881,22 +898,9 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
       page shorter than that leaves the backing showing. Cut it off at
       the edge of the sheet */
    int lo = 0, hi = _width - 1;
-   int paper_lo = -1, paper_hi = -1;
+   int paper_lo, paper_hi;
 
-   if (turn && !_bright_cols.isEmpty ())
-      {
-      int need = (int)(height * PAPER_COLUMN_FRACTION);
-
-      for (int x = 0; x < _width; x++)
-         if (_bright_cols [x] >= need)
-            {
-            if (paper_lo < 0)
-               paper_lo = x;
-            paper_hi = x;
-            }
-      }
-   if (paper_lo >= 0
-       && paper_hi - paper_lo + 1 >= _width * PAPER_MIN_FRACTION)
+   if (turn && sheetBounds (height, paper_lo, paper_hi))
       {
       /* leave a margin: a sheet goes through slightly skewed, and the
          very edge of a page printed to its margins is dark rather than
@@ -1042,54 +1046,167 @@ void PPage::inkPixel (int lum)
    if (_rows.isEmpty ())
       {
       _rows = QByteArray (INTERIOR_ROWS * _width, '\0');
-      _row_counts = QVector<int> (EDGE_ROWS, 0);
+      _delay = QByteArray (EDGE_ROWS * _width, '\0');
+      _interior_cols = QVector<int> (_width, 0);
+      _soft_cols = QVector<int> (_width, 0);
       }
+
+   if (!_row_x)
+      _row_gap = -INTERIOR_ROWS;   // no gap behind the start of a row
 
    char *row = _rows.data () + (_rows_done % INTERIOR_ROWS) * _width;
    char flag = lum >= INK_THRESHOLD ? Ink_none
+         : lum >= PALE_THRESHOLD ? Ink_pale
          : lum >= MID_THRESHOLD ? Ink_mid : Ink_dark;
 
    /* a pixel is kept only if it and its INTERIOR_RADIUS neighbours each
-      side have ink: mark it now, and unmark the neighbours a gap unmarks */
+      side have ink: mark it now, unmark the neighbours behind it that a
+      gap unmarks, and unmark it if a gap just behind it, or the edge of
+      the image, leaves it too close to one */
    row [_row_x] = flag;
    if (flag == Ink_none)
+      {
       for (int i = qMax (0, _row_x - INTERIOR_RADIUS); i < _row_x; i++)
-         row [i] = Ink_none;
-   else if (_row_x < INTERIOR_RADIUS)
-      row [_row_x] = Ink_none;
+         row [i] |= Ink_gap;
+      _row_gap = _row_x;
+      }
+   else if (_row_x < INTERIOR_RADIUS
+            || _row_x - _row_gap <= INTERIOR_RADIUS)
+      row [_row_x] |= Ink_gap;
    if (++_row_x < _width)
       return;
 
    /* row complete: the last INTERIOR_RADIUS pixels have no right-hand
       neighbours, then count the middle row of the ring */
    for (int i = qMax (0, _width - INTERIOR_RADIUS); i < _width; i++)
-      row [i] = Ink_none;
+      row [i] |= Ink_gap;
    _row_x = 0;
    _row_skip = _stride - _width * 3;
-   if (++_rows_done >= INTERIOR_ROWS)
-      {
-      const char *rows [INTERIOR_ROWS];
-      int mid = (_rows_done - 1 - INTERIOR_RADIUS) % INTERIOR_ROWS;
-      int n = 0;
+   if (++_rows_done < INTERIOR_ROWS)
+      return;
 
-      for (int r = 0; r < INTERIOR_ROWS; r++)
-         rows [r] = _rows.constData () + r * _width;
+   const char *rows [INTERIOR_ROWS];
+   int mid = (_rows_done - 1 - INTERIOR_RADIUS) % INTERIOR_ROWS;
+
+   for (int r = 0; r < INTERIOR_ROWS; r++)
+      rows [r] = _rows.constData () + r * _width;
+
+   /* a row's marks wait EDGE_ROWS rows before they are added to their
+      columns, so the last EDGE_ROWS rows of the page never are, and
+      the first EDGE_ROWS are skipped */
+   int done = _rows_done - INTERIOR_ROWS;
+   char *slot = _delay.data () + (done % EDGE_ROWS) * _width;
+
+   if (done >= 2 * EDGE_ROWS)
       for (int x = 0; x < _width; x++)
          {
-         if (rows [mid][x] != Ink_mid)
-            continue;
+         if (slot [x] & Mark_interior)
+            _interior_cols [x]++;
+         if (slot [x] & Mark_soft)
+            _soft_cols [x]++;
+         }
+   memset (slot, Mark_none, _width);
+   for (int x = 0; x < _width; x++)
+      {
+      char centre = rows [mid][x] & Ink_mask;
+      char mark = Mark_none;
+
+      if (centre == Ink_none)
+         continue;
+
+      /* a mid-tone pixel every one of whose neighbours has ink is
+         inside a filled region: a photograph rather than a stroke */
+      if (centre != Ink_dark)
+         {
          bool all = true;
+
          for (int r = 0; r < INTERIOR_ROWS && all; r++)
-            all = rows [r][x] != Ink_none;
-         n += all;
+            all = rows [r][x] != Ink_none && !(rows [r][x] & Ink_gap);
+         if (all)
+            mark = Mark_interior;
          }
 
-      /* add the count from EDGE_ROWS rows back, once past the top edge */
-      int done = _rows_done - INTERIOR_ROWS;
+      /* ink too pale for mono to keep, with nothing it would keep
+         anywhere near it, is writing that mono would lose */
+      if (centre == Ink_pale)
+         {
+         bool kept = false;
 
-      if (done >= 2 * EDGE_ROWS)
-         _interiorPixels += _row_counts [done % EDGE_ROWS];
-      _row_counts [done % EDGE_ROWS] = n;
+         for (int r = 0; r < INTERIOR_ROWS && !kept; r++)
+            for (int dx = -INTERIOR_RADIUS; dx <= INTERIOR_RADIUS && !kept;
+                 dx++)
+               {
+               int nx = x + dx;
+               /* not "near": Windows takes that name for itself */
+               char beside = nx >= 0 && nx < _width
+                     ? rows [r][nx] & Ink_mask : Ink_none;
+
+               kept = beside == Ink_dark || beside == Ink_mid;
+               }
+         if (!kept)
+            mark |= Mark_soft;
+         }
+      slot [x] = mark;
+      }
+   }
+
+
+/* Find the edges of the sheet across the scanner window, from the
+   paper-bright pixels counted in each column
+
+   \param height  rows of the page
+   \param lo, hi  return the first and last column holding the sheet
+   \returns true if the window holds something that looks like a sheet */
+
+bool PPage::sheetBounds (int height, int &lo, int &hi) const
+   {
+   int paper_lo = -1, paper_hi = -1;
+
+   if (!_bright_cols.isEmpty ())
+      {
+      int need = (int)(height * PAPER_COLUMN_FRACTION);
+
+      for (int x = 0; x < _width; x++)
+         if (_bright_cols [x] >= need)
+            {
+            if (paper_lo < 0)
+               paper_lo = x;
+            paper_hi = x;
+            }
+      }
+   if (paper_lo < 0 || paper_hi - paper_lo + 1 < _width * PAPER_MIN_FRACTION)
+      return false;
+   lo = paper_lo;
+   hi = paper_hi;
+   return true;
+   }
+
+
+/* Add up the ink marks of the columns that lie on the sheet. The sheet
+   is not as wide as the window and its edge casts a shade along the
+   whole length of the page, which is mid-toned and would otherwise
+   count for more than anything printed on the page, so the count stops
+   SHEET_INSET short of each edge
+
+   \param interior  returns mid-tone pixels inside a filled region
+   \param soft      returns those of them with no dark ink near */
+
+void PPage::inkTotals (int &interior, int &soft) const
+   {
+   int lo = 0, hi = _width - 1;
+
+   interior = soft = 0;
+   if (_interior_cols.isEmpty ())
+      return;
+   if (sheetBounds (_rows_done, lo, hi))
+      {
+      lo = qMax (0, lo + SHEET_INSET);
+      hi = qMin (_width - 1, hi - SHEET_INSET);
+      }
+   for (int x = lo; x <= hi; x++)
+      {
+      interior += _interior_cols [x];
+      soft += _soft_cols [x];
       }
    }
 
@@ -1100,7 +1217,12 @@ PPage::Kind PPage::kind (void) const
       return Kind_colour;
    if ((double)_colourPixels / _pixels >= COLOUR_FRACTION)
       return Kind_colour;
-   if ((double)_interiorPixels / _pixels >= GREY_FRACTION)
+
+   int interior, soft;
+
+   inkTotals (interior, soft);
+   if ((double)interior / _pixels >= GREY_FRACTION
+       || (double)soft / _pixels >= SOFT_FRACTION)
       return Kind_grey;
    return Kind_mono;
    }
@@ -1143,15 +1265,21 @@ QString PPage::coverageStr ()
          }
       }
    if (debug)
+      {
+      int interior, soft;
+
+      inkTotals (interior, soft);
       fprintf (stderr, "page %d: %dx%d depth %d%s pixels %d, colour %d "
-               "(%.3f%%: dark %d mid %d light %d), interior %d (%.3f%%)%s\n",
+               "(%.3f%%: dark %d mid %d light %d), interior %d (%.3f%%), "
+               "soft %d (%.4f%%)%s\n",
                _pagenum, _width, _height, _depth, _jpeg ? " jpeg" : "",
                _pixels, _colourPixels,
                _pixels ? 100.0 * _colourPixels / _pixels : 0,
                _colourBand [0], _colourBand [1], _colourBand [2],
-               _interiorPixels,
-               _pixels ? 100.0 * _interiorPixels / _pixels : 0,
+               interior, _pixels ? 100.0 * interior / _pixels : 0,
+               soft, _pixels ? 100.0 * soft / _pixels : 0,
                qPrintable (suffix));
+      }
 
    // can't work out coverage from JPEG data
 //    if (_jpeg)

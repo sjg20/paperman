@@ -163,8 +163,30 @@ private:
    /** feed the next pixel's luminance to the filled-region count */
    void inkPixel (int lum);
 
-   /** what a pixel is for the filled-region count */
-   enum Ink { Ink_none, Ink_dark, Ink_mid };
+   /** what a pixel holds, for the ink counts */
+   enum Ink
+      {
+      Ink_none,      //!< no ink at all
+      Ink_dark,      //!< solid ink
+      Ink_mid,       //!< a mid-tone, which mono keeps
+      Ink_pale,      //!< ink so pale that mono drops it
+      Ink_mask = 3,  //!< the bits those take up
+      Ink_gap = 4    //!< too near a pixel with no ink to be an interior
+      };
+
+   /** what a counted pixel turned out to be */
+   enum Mark
+      {
+      Mark_none = 0,      //!< nothing of interest
+      Mark_interior = 1,  //!< a mid-tone pixel inside a filled region
+      Mark_soft = 2       //!< pale ink with nothing mono keeps near it
+      };
+
+   /** find the edges of the sheet across the window, see the .cpp */
+   bool sheetBounds (int height, int &lo, int &hi) const;
+
+   /** add up the ink marks made on the sheet, see the .cpp */
+   void inkTotals (int &interior, int &soft) const;
 
 public:
    ~PPage ();
@@ -259,14 +281,16 @@ private:
    int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
    int _col;            //!< column of the pixel being counted
    QVector<int> _bright_cols; //!< paper-bright pixels seen in each column
-   int _interiorPixels; //!< mid-tone pixels inside a filled region, see kind()
    int _row_x;          //!< pixels of the current row seen so far
+   int _row_gap;        //!< where the row last had no ink
    int _row_skip;       //!< padding bytes of the current row still to skip
    unsigned char _partial [3]; //!< bytes of a pixel split across chunks
    int _partial_len;    //!< how many of them there are
    QByteArray _rows;    //!< a ring of INTERIOR_ROWS rows of eroded Ink flags
    int _rows_done;      //!< rows completed so far
-   QVector<int> _row_counts; //!< interior pixels of the last EDGE_ROWS rows
+   QByteArray _delay;   //!< a ring of EDGE_ROWS rows of Mark flags
+   QVector<int> _interior_cols; //!< interior pixels counted in each column
+   QVector<int> _soft_cols; //!< soft pixels counted in each column
    bool _mark_blank;    //!< true to mark page blank
 //   Desktopmodel *_model;   //!< model that this page is destined for
    QByteArray _data;    //!< data bytes
