@@ -690,6 +690,28 @@ err_info *util_getUsername (QString &userName)
    return NULL;
    }
 
+/* How long something took, in a form to read at a glance: 45s, 1m4s or
+   1h2m3s, with the parts that are zero left off the front
+
+   \param ms   how many milliseconds it took */
+
+QString utilTimeStr (qint64 ms)
+   {
+   int secs = (ms + 500) / 1000;
+   int mins = secs / 60;
+   int hours = mins / 60;
+   QString str;
+
+   secs -= mins * 60;
+   mins -= hours * 60;
+   if (hours)
+      str = QString ("%1h").arg (hours);
+   if (hours || mins)
+      str += QString ("%1m").arg (mins);
+   return str + QString ("%1s").arg (secs);
+   }
+
+
 QString utilRemoveQuotes (QString str)
    {
    // Remove quotes

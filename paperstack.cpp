@@ -1539,6 +1539,7 @@ void Paperscan::scan ()
    SANE_Parameters parameters;
    int numsides, side;
    int total_sides = 0;  // total number of sides scanned
+   QElapsedTimer wall;   // how long the whole scan takes
    int total_blank = 0;  // total number of blank sides scanned
    int stack_count = 0;  // total number of stacks created
 //    Paperstack *stack = 0;
@@ -1552,6 +1553,7 @@ void Paperscan::scan ()
 
 //    qDebug () << "scan start";
 
+   wall.start ();
    if (!_scanner)
       return;
 
@@ -1974,7 +1976,8 @@ void Paperscan::scan ()
       str = tr ("All pages blank");
    else
       {
-      str = QString (tr ("Scanned %n page(s)", "", total_sides));
+      str = tr ("Scanned %1 page%2 in %3").arg (total_sides)
+            .arg (total_sides == 1 ? "" : "s").arg (utilTimeStr (wall.elapsed ()));
       if (total_blank)
          str += QString (tr (" (%1 blank)")).arg (total_blank);
       if (stack_count > 1)
@@ -1996,7 +1999,8 @@ void Paperscan::scan ()
       {
       emit stackCancel ();
       _stack->cancel ();
-      str = tr ("Scan cancelled - %n page(s) discarded", "", total_sides);
+      str = tr ("Scan cancelled - %1 page%2 discarded").arg (total_sides)
+            .arg (total_sides == 1 ? "" : "s");
       }
 
 //    delete _stack;  (pageAdded() does this now)

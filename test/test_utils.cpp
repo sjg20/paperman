@@ -22,6 +22,21 @@ extern "C" {
 
 #include "test_utils.h"
 
+/* the time a scan took, as the end-of-scan message shows it */
+
+void TestUtils::testTimeStr()
+{
+   QCOMPARE (utilTimeStr (0), QString ("0s"));
+   QCOMPARE (utilTimeStr (400), QString ("0s"));
+   QCOMPARE (utilTimeStr (600), QString ("1s"));
+   QCOMPARE (utilTimeStr (45000), QString ("45s"));
+   QCOMPARE (utilTimeStr (59500), QString ("1m0s"));
+   QCOMPARE (utilTimeStr (64000), QString ("1m4s"));
+   QCOMPARE (utilTimeStr (3600000), QString ("1h0m0s"));
+   QCOMPARE (utilTimeStr (3723000), QString ("1h2m3s"));
+}
+
+
 void TestUtils::testDetectYear()
 {
    int pos;

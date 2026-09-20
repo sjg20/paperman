@@ -231,6 +231,12 @@ err_info *util_getUsername (QString &userName);
 
   \param str   String to process
   \returns string without quotes, or unchanged if there are no quotes */
+/** How long something took, to read at a glance: 45s, 1m4s, 1h2m3s
+
+   \param ms   how many milliseconds it took
+   \returns the time as a string */
+QString utilTimeStr (qint64 ms);
+
 QString utilRemoveQuotes (QString str);
 
 /**
