@@ -137,9 +137,10 @@ private:
       \param blank_threshold  blank threshold 1:n
       \param auto_colour  true to store a colour page as grey or mono when
                         its pixels show it needs no more
+      \param auto_size  true if the page is to be cut to the sheet
       \param rotate   how to turn the page as it is stored */
    PPage (int pagenum, int width, int height, int depth, int stride,
-         bool jpeg, int blank_threshold, bool auto_colour,
+         bool jpeg, int blank_threshold, bool auto_colour, bool auto_size,
          Rotate rotate = Rotate_none);
 
    /** the kind of page this is, from the pixels counted so far */
@@ -276,6 +277,7 @@ private:
    int _pixels;         //!< total number of pixels
    int _pixelTarget;    //!< number of non-white pixels we need to have a non-blank page
    bool _autoColour;    //!< store the page as grey or mono if it is not colour
+   bool _autoSize;      //!< cut the page down to the sheet
    Rotate _rotate;      //!< how to turn the page as it is stored
    int _colourPixels;   //!< pixels with a noticeable saturation
    int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
@@ -347,6 +349,12 @@ public:
        upright as they are stored: the back of a sheet is seen from the
        other side, so its top is at the opposite edge */
    void setSideways (t_sideways how);
+
+   /** say whether the back end is cutting each page down to the sheet,
+       so that a page fed sideways is cut to it as well
+
+       \param on   true if auto-size is on */
+   void setAutoSize (bool on);
 
    /** the turn a page needs to be upright, from how the sheets are fed
 
@@ -462,6 +470,7 @@ private:
    t_blankPolicy _blankPolicy;  //!< what to do with blank pages
    int _blankThreshold;         //!< threshold for blank pages 1:n
    bool _autoColour;            //!< reduce colour pages that need no colour
+   bool _autoSize;              //!< cut each page down to the sheet
    t_sideways _sideways;        //!< how the sheets are fed
    bool _front;                 //!< true if this is a front page (else back)
    bool _jpeg;                  //!< true if we are doing JPEG compression (else raw data)
@@ -500,6 +509,9 @@ public:
    ~Paperscan ();
 
    void setup (QScanner *scanner, QString stack_name, QString page_name);
+
+   /** true if the back end is cutting each page down to the sheet */
+   bool autoSize (void) const;
 
    /** cancel scanning
 
