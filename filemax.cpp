@@ -1712,6 +1712,26 @@ err_info *Filemax::decode_tiledata (chunk_info &chunk,
 #define DEBUG_MAX_COUNT 0
 
 
+/* A 1-bit page's preview used to be stored in the 2bpp format MaxView
+   uses, which holds only four levels and makes text look like a set of
+   black bars. It is now stored as 8bpp greyscale, in the same run-length
+   format a grey page uses, behind this marker. The first byte is an RLE
+   type-3 code, which rle_encode() never wrote, so a reader that does not
+   know the marker stops on it instead of drawing nonsense */
+static const byte preview_grey_magic [4] = { 0xc0, 'P', 'M', 'G' };
+
+#define PREVIEW_MAGIC_LEN ((int)sizeof (preview_grey_magic))
+
+
+/* does this preview hold 8bpp greyscale data rather than the old 2bpp? */
+
+static bool preview_is_grey (const byte *buf, int size)
+   {
+   return size >= PREVIEW_MAGIC_LEN
+       && !memcmp (buf, preview_grey_magic, PREVIEW_MAGIC_LEN);
+   }
+
+
 int decode_8bpp_preview (byte *ptr, byte *end, byte *out, byte *out_end)
    {
    byte *out_start = out;
@@ -1793,6 +1813,19 @@ int encode_8bpp_preview (byte *raw, int size, byte *out)
       }
 
    return out - out_start;
+   }
+
+
+/* step over the marker of an 8bpp preview written for a 1-bit page, so
+   the data is read as the greyscale it holds */
+
+static void skip_preview_magic (byte *&buf, int &size, int &bits)
+   {
+   if (bits != 1 || !preview_is_grey (buf, size))
+      return;
+   buf += PREVIEW_MAGIC_LEN;
+   size -= PREVIEW_MAGIC_LEN;
+   bits = 8;
    }
 
 
@@ -1963,12 +1996,18 @@ err_info *Filemax::decode_preview (chunk_info &chunk, int flip,
    int pos, wrote;
    byte *buf;
 
+   int bits = chunk.bits;
+   int size;
+
    if (_version_a)
       {
       CALL (max_cache_data (_cache, chunk.start, chunk.size, chunk.size, &buf));
 
-      CALL (rle_decode (_filename, buf + 0x42, chunk.size, &chunk.preview_size,
-                 chunk.bits, &wrote, flip, &preview));
+      buf += 0x42;
+      size = chunk.size;
+      skip_preview_magic (buf, size, bits);
+      CALL (rle_decode (_filename, buf, size, &chunk.preview_size,
+                 bits, &wrote, flip, &preview));
       }
    else if (chunk.parts.size () > PT_preview)
       {
@@ -1978,8 +2017,10 @@ err_info *Filemax::decode_preview (chunk_info &chunk, int flip,
 
       CALL (max_cache_data (_cache, pos, part.size, part.size, &buf));
 
-      CALL (rle_decode (_filename, buf, part.size, &chunk.preview_size,
-                 chunk.bits, &wrote, flip, &preview));
+      size = part.size;
+      skip_preview_magic (buf, size, bits);
+      CALL (rle_decode (_filename, buf, size, &chunk.preview_size,
+                 bits, &wrote, flip, &preview));
       }
    else
       return err_make (ERRFN, ERR_unable_to_read_preview);
@@ -3072,23 +3113,34 @@ static void calc_tiles (cpoint *image_size, cpoint *tile_size, cpoint *tile_exte
    }
 
 
-static int scale_2bpp (byte *image, cpoint *image_size, byte *preview,
+/* scale down a 1bpp image by a factor of PREVIEW_SCALE, producing the
+   same sort of 8bpp preview a greyscale page gets: each preview pixel
+   holds the mean brightness of the PREVIEW_SCALE x PREVIEW_SCALE pixels
+   under it, so text comes out as grey strokes instead of the four levels
+   the 2bpp preview MaxView uses can hold
+
+   \param image       pointer to image
+   \param image_size  size of image (x, y)
+   \param preview     buffer to use for preview
+   \param preview_size required size for preview
+   \param stride      line stride for image
+   \returns number of bytes in preview image */
+
+static int scale_1bpp (byte *image, cpoint *image_size, byte *preview,
              cpoint *preview_size, int stride)
    {
-   int *line;    // pixels sums for current preview line
-   int sum;    // current pixel sum being calculated
+   int *line;    // pixel sums for current preview line
+   int sum;      // current pixel sum being calculated
    int image_line_bytes;
    int line_bytes;
    int x, y;     // work through the preview
    int xsub, ysub;  // which image pixel we are up to
    int mask;     // source image bit mask
-   int pshift;   // 2bpp preview shift
    byte *in;     // image data in
    byte *out;    // preview data out
-   int ysubcount;  // number of image lines to scan for this preview lines
+   int ysubcount;  // number of image lines to scan for this preview line
    int result;
 
-   pshift = 6;
    out = preview;
 
    // add together all the PREVIEW_SCALE pixels into one int in
@@ -3097,7 +3149,7 @@ static int scale_2bpp (byte *image, cpoint *image_size, byte *preview,
    line = (int *)malloc (line_bytes);
 
    // use stride because SANE may not word align
-   image_line_bytes = stride; //(image_size->x + 31) / 32 * 4;
+   image_line_bytes = stride;
    for (y = 0; y < preview_size->y; y++)
       {
       memset (line, '\0', line_bytes);
@@ -3115,18 +3167,17 @@ static int scale_2bpp (byte *image, cpoint *image_size, byte *preview,
          assert (in >= image && in <= image + image_line_bytes * (image_size->y - 1));
          mask = 1;
 
-         /* calculate the value for each preview pixel. The preview
-            width is padded to a multiple of 4 pixels, so the source
-            position can pass the right edge of the image: treat those
-            pixels as white rather than reading bits from the row
-            padding, which holds uninitialised data */
          for (x = 0; x < preview_size->x; x++)
             {
             sum = 0;
             for (xsub = 0; xsub < PREVIEW_SCALE; xsub++)
                {
-               if (x * PREVIEW_SCALE + xsub < image_size->x)
-                  sum += *in & mask ? 255 : 0;
+               /* a set bit is ink, so it is black; pixels past the right
+                  edge of the image are the row padding, which holds
+                  uninitialised data, so count them as white */
+               if (x * PREVIEW_SCALE + xsub >= image_size->x
+                   || !(*in & mask))
+                  sum += 255;
                mask <<= 1;
                if (mask == 0x100)
                   {
@@ -3138,33 +3189,23 @@ static int scale_2bpp (byte *image, cpoint *image_size, byte *preview,
             }
          }
 
-      // we now have the line values - each represents
-      // PREVIEW_SCALE x PREVIEW_SCALE pixels
-      // convert to 2bpp preview
+      /* we now have the line values - each represents
+         PREVIEW_SCALE x PREVIEW_SCALE pixels. Write them as brightness,
+         which is what the 8bpp preview holds */
       for (x = 0; x < preview_size->x; x++)
          {
-         // scale result up by 5/2 to get a darker image
-         result = (line [x] * 5 / PREVIEW_SCALE / 2 / ysubcount) >> 6;
-         if (result > 3)
-            result = 3;
-         *out |= result << pshift;
-/*
-         pshift += 2;
-         if (pshift == 8)
-            {
-            pshift = 0;
-            out++;
-            }
+         result = line [x] / PREVIEW_SCALE / ysubcount;
+         if (result > 0xff)
+            result = 0xff;
+         *out++ = result;
          }
-*/
-         pshift -= 2;
-         if (pshift < 0)
-            {
-            pshift = 6;
-            out++;
-            }
-         }
+
+      // word align
+      for (; x & 3; x++)
+         *out++ = 0;
       }
+
+   free (line);
 
    // done
    return out - preview;
@@ -3355,24 +3396,18 @@ static int build_preview (chunk_info &chunk, int stride, int bpp)
 
    switch (bpp)
       {
-      case 1 :  // build a 2bpp preview
-         {
-         cpoint psize;
-
-         psize.x = (chunk.preview_size.x + 3) & ~3;
-         psize.y = chunk.preview_size.y;
-         width = psize.x / 4;
+      case 1 :  // build an 8bpp greyscale preview, as for a grey page
+         width = (chunk.preview_size.x + 3) & ~3;
          size = width * chunk.preview_size.y;
          chunk.preview_bytes = size;
          chunk.preview = (byte *)malloc (size);
          if (!chunk.preview)
             return ERR (-ENOMEM);
          memset (chunk.preview, '\0', size);
-         len = scale_2bpp (chunk.image, &chunk.image_size,
-                     chunk.preview, &psize, stride);
+         len = scale_1bpp (chunk.image, &chunk.image_size,
+              chunk.preview, &chunk.preview_size, stride);
          debug2 (("1bpp preview size %d, alloced %d\n", len, size));
          break;
-         }
 
       case 8 :  // build an 8bpp greyscale preview padded to words at EOL
          width = (chunk.preview_size.x + 3) & ~3;
@@ -4382,74 +4417,7 @@ static int add_colourmap (chunk_info &, part_info &part)
    }
 
 
-/* run-length-encode the input buffer of given size to out. Returns the
-number of resulting bytes */
-
-static int rle_encode (byte *in, int size, byte *out_buff)
-   {
-   int ch = 0, run;
-   int count;
-   byte *p, *end = in + size, *start, *out = out_buff;
-   int debug_count = 0;
-
-   /* we need to search for runs of:
-         0, encoded as 0
-         255, encoded as 1
-         anything that isn't 0 or 255, encoded as 2 */
-   p = in;
-   count = 0;
-   for (start = p; p <= end; p++)
-      {
-      // get the next byte
-      if (p < end)
-         {
-         ch = *p;
-         if (ch == 255)
-            ch = 1;
-         else if (ch != 0)
-            ch = 2;
-         }
-
-      // start a new run?
-      if (!count)
-         run = ch;
-
-      // end of a run, or end of data?
-      if (p == end || ch != run || count == 63) // end the run
-         {
-         debug_count++;
-         if (debug_count < DEBUG_MAX_COUNT)
-            printf ("count=%d, run=%d\n", count, run);
-         *out++ = (run << 6) | count;
-
-         // output data if required
-         if (run == 2)
-            {
-            if (debug_count < DEBUG_MAX_COUNT)
-               printf ("   :");
-            for (; start < p; start++)
-               {
-               if (debug_count < DEBUG_MAX_COUNT)
-                  printf ("%x ", *start);
-               *out++ = *start;
-               }
-            if (debug_count < DEBUG_MAX_COUNT)
-               printf ("\n");
-            }
-         count = 1;
-         run = ch;
-         start = p;  // start of next run
-         }
-
-      // otherwise inc the count
-      else
-         count++;
-      }
-
-   // return length
-   return out - out_buff;
-   }
-
+/* encode the preview built for this chunk into its preview part */
 
 static int add_preview (chunk_info &chunk, part_info &part)
    {
@@ -4458,13 +4426,13 @@ static int add_preview (chunk_info &chunk, part_info &part)
 
    switch (chunk.bits)
       {
-      case 1 : // RLE
-         {
-         // allocate plenty of space for worst case?
-         dest = (byte *)malloc (chunk.preview_size.x * chunk.preview_size.y);
-         len = rle_encode (chunk.preview, chunk.preview_bytes, dest);
+      case 1 : // 8bpp greyscale behind the marker, see preview_grey_magic
+         dest = (byte *)malloc (chunk.preview_bytes + PREVIEW_MAGIC_LEN);
+         memcpy (dest, preview_grey_magic, PREVIEW_MAGIC_LEN);
+         len = PREVIEW_MAGIC_LEN
+             + encode_8bpp_preview (chunk.preview, chunk.preview_bytes,
+                                    dest + PREVIEW_MAGIC_LEN);
          break;
-         }
 
       case 8 :
          dest = (byte *)malloc (chunk.preview_bytes);
@@ -5992,18 +5960,24 @@ err_info *Filemax::rebuildPagePreview (int pagenum)
 
    CALL (find_page_chunk (pagenum, chunk, NULL, &page));
 
-   // only fix 8bpp greyscale pages
-   if (chunk->bits != 8)
-      return NULL;
-
-   // skip pages that already have a real preview (> 4 bytes)
    if (chunk->parts.size () <= PT_preview)
       return NULL;
-   if (chunk->parts [PT_preview].size > 4)
-      return NULL;
 
-   // load the chunk buffer from disk so we can extract part data
+   // load the chunk buffer from disk so we can look at the preview
    CALL (read_chunk_buf (*chunk));
+
+   part_info &old_preview = chunk->parts [PT_preview];
+
+   /* rebuild a greyscale page whose preview is only a stub (4 bytes or
+      fewer), and a 1-bit page whose preview is still in the old 2bpp
+      format, which shows text as black bars */
+   bool stub = chunk->bits == 8 && old_preview.size <= 4;
+   bool two_bpp = chunk->bits == 1
+       && !preview_is_grey (chunk->buf + 0x20 + old_preview.start,
+                            old_preview.size);
+
+   if (!stub && !two_bpp)
+      return NULL;
 
    // copy each part's data from chunk.buf into individual part.buf
    for (int i = 0; i < chunk->parts.size (); i++)

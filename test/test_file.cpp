@@ -1,4 +1,5 @@
 #include <QPainter>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 #include <QStandardPaths>
@@ -689,6 +690,18 @@ void TestFile::testTransformPage()
          }
          qDebug() << "preview size" << pixmap.size() << "dark" << pdark;
          QVERIFY(pdark > 20);
+
+         /* the preview of a 1-bit page holds greyscale, so text scaled
+            down to a twenty-fourth comes out as a range of greys, not
+            the four levels the 2bpp preview MaxView uses can hold */
+         QSet<int> levels;
+         for (int y = 0; y < pgrey.height(); y++) {
+            const uchar *p = pgrey.constScanLine(y);
+            for (int x = 0; x < pgrey.width(); x++)
+               levels.insert(p[x]);
+         }
+         qDebug() << "preview levels" << levels.size();
+         QVERIFY(levels.size() > 4);
       }
    }
 

@@ -534,7 +534,8 @@ static void usage (void)
    printf ("   --page-range S:E  convert only pages S to E (1-based)\n");
    printf ("   --output FILE   write output to FILE (used with --page-range)\n");
    printf ("   --jobs N        use N parallel workers (0 = auto)\n");
-   printf ("   --rebuild-previews FILE|DIR  regenerate missing greyscale previews\n");
+   printf ("   --rebuild-previews FILE|DIR  regenerate missing greyscale\n"
+           "                       previews and coarse monochrome ones\n");
    printf ("   --adjust TYPE FILE  apply image adjustment (e.g. whiten) to a stack\n");
    printf ("   --quality N         JPEG quality 1-100 for PDF output (default 75)\n");
    printf ("   --scan              scan into a repository without the GUI, with:\n");
