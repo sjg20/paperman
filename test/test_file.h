@@ -18,6 +18,9 @@ private slots:
    //! a scanned colour page is kept, greyed or made mono by its pixels
    void testAutoColour();
 
+   //! Decode a page of a stack while pages are added to it
+   void testAddWhileRendering();
+
    //! Check real scanned pages against what each should be stored as
    void testCorpus();
 

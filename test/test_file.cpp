@@ -1,4 +1,5 @@
 #include <QPainter>
+#include <QtConcurrent>
 #include <QSet>
 #include <QTextStream>
 #include <QTemporaryDir>
@@ -1269,6 +1270,83 @@ void TestFile::testSideways()
    QVERIFY (monoPixel (mp, 10, 10));
    delete mp;
 }
+
+/* The render thread decodes a page of a stack while the GUI thread adds
+   pages to the same stack, which is what happens all through a scan.
+   Adding a page grows the chunk list, moving it in memory, so a decode
+   walking it must not be left holding where it used to be: that crashed
+   the page renderer in decode_tiledata() */
+
+void TestFile::testAddWhileRendering()
+{
+   QTemporaryDir tmp;
+   QVERIFY (tmp.isValid ());
+
+   QString dir = tmp.path () + "/";
+
+   QVERIFY (!copyFixture ("testfile.max", tmp.path ()).isEmpty ());
+
+   Filemax max (dir, "testfile.max", nullptr);
+
+   QVERIFY (!max.load ());
+   QVERIFY (max.pagecount () > 0);
+
+   // a page to add over and over
+   const int width = 200, height = 200;
+   QByteArray rgb (width * height * 3, (char)255);
+   unsigned char *p = (unsigned char *)rgb.data ();
+
+   for (int y = 20; y < height - 20; y += 8)
+      for (int x = 10; x < width - 10; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+
+         px [0] = px [1] = px [2] = 0;
+         }
+
+   /* a page can only be added once, since the file takes over the
+      memory it holds, so make one for each */
+   const int adds = 40;
+   QString cov;
+   QList<Filepage *> page;
+
+   for (int i = 0; i < adds; i++)
+      {
+      Filepage *mp = NULL;
+
+      QCOMPARE (scanSynthetic (rgb, width, height, cov, 0,
+                               Paperstack::Sideways_no, true, &mp), 1);
+      QVERIFY (mp);
+      page << mp;
+      }
+
+   int pages = max.pagecount ();
+   QAtomicInt decoded (0), stop (0);
+   QFuture<void> render = QtConcurrent::run ([&] ()
+      {
+      while (!stop.loadAcquire ())
+         {
+         QImage image;
+         QSize size, trueSize;
+         int bpp;
+
+         if (max.getImage (0, false, image, size, trueSize, bpp, false))
+            break;
+         decoded.fetchAndAddRelaxed (1);
+         }
+      });
+
+   for (int i = 0; i < adds; i++)
+      QVERIFY (!max.addPage (page [i], false));
+   stop.storeRelease (1);
+   render.waitForFinished ();
+
+   QVERIFY (decoded.loadRelaxed () > 0);
+   QCOMPARE (max.pagecount (), pages + adds);
+   QVERIFY (!max.flush ());
+   qDeleteAll (page);
+}
+
 
 /* Real pages from the scanner, with what each should be stored as, so
    that a change made for one kind of page cannot quietly change what

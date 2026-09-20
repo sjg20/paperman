@@ -2743,6 +2743,8 @@ err_info *Filemax::load_annot (void)
 
 err_info *Filemax::putEnvelope (QStringList &env)
    {
+   QMutexLocker locker (&_file_mutex);
+
    int type;
 
    if (!_env_loaded)
@@ -2757,6 +2759,8 @@ err_info *Filemax::putEnvelope (QStringList &env)
 
 err_info *Filemax::putAnnot (QHash<int, QString> &updates)
    {
+   QMutexLocker locker (&_file_mutex);
+
    int type;
 
    /* The file may not be open and its chunk list may be partial when
@@ -2827,6 +2831,8 @@ err_info *Filemax::max_free_image (int pagenum)
 
 int Filemax::pagecount (void)
    {
+   QMutexLocker locker (&_file_mutex);
+
    return _pages.size ();
    }
 
@@ -5313,6 +5319,8 @@ err_info *Filemax::flush_pages (void)
 
 err_info *Filemax::flush (void)
    {
+   QMutexLocker locker (&_file_mutex);
+
    /* any write to the file may change page content or ordering, so the
       transformPage() image cache is no longer guaranteed valid */
    _xform_page = -1;
@@ -5540,6 +5548,8 @@ int Filemax::getSize (void)
 
 err_info *Filemax::load ()  // was desk->ensureMax
    {
+   QMutexLocker locker (&_file_mutex);
+
    err_info *err;
 
    if (!_valid)
@@ -5570,6 +5580,8 @@ err_info *Filemax::load ()  // was desk->ensureMax
 
 err_info *Filemax::reload (void)
    {
+   QMutexLocker locker (&_file_mutex);
+
    /* free the parsed chunk and page state; chunk_resize() and
       page_resize() insist on starting from empty lists */
    max_free ();
@@ -5585,6 +5597,8 @@ err_info *Filemax::reload (void)
 
 err_info *Filemax::getAnnot (e_annot type, QString &text)
    {
+   QMutexLocker locker (&_file_mutex);
+
    if (!_valid)
       return err_make (ERRFN, ERR_file_not_loaded_yet1,
                        qPrintable (_filename));
@@ -5602,6 +5616,8 @@ err_info *Filemax::getAnnot (e_annot type, QString &text)
 
 err_info *Filemax::getPageText (int pagenum, QString &str)
    {
+   QMutexLocker locker (&_file_mutex);
+
    page_info *page;
    chunk_info *chunk;
    bool temp;
@@ -5627,6 +5643,8 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
 
 err_info *Filemax::renamePage (int pagenum, QString &name)
    {
+   QMutexLocker locker (&_file_mutex);
+
    if (_valid)
       {
       page_info *page;
@@ -5643,6 +5661,8 @@ err_info *Filemax::renamePage (int pagenum, QString &name)
 
 err_info *Filemax::addPage (const Filepage *mp, bool do_flush)
    {
+   QMutexLocker locker (&_file_mutex);
+
    Q_ASSERT (mp);
 
    page_info *page;
@@ -5663,6 +5683,8 @@ err_info *Filemax::addPage (const Filepage *mp, bool do_flush)
 
 err_info *Filemax::getPageTitle (int pagenum, QString &title)
    {
+   QMutexLocker locker (&_file_mutex);
+
    page_info *page;
 
    CALL (find_page (pagenum, page));
@@ -5676,6 +5698,8 @@ err_info *Filemax::getPageTitle (int pagenum, QString &title)
 
 err_info *Filemax::stackStack (File *fsrc)
    {
+   QMutexLocker locker (&_file_mutex);
+
    Filemax *src = (Filemax *)fsrc;
 
    int destpage = _pagenum;
@@ -5748,6 +5772,8 @@ err_info *Filemax::stackStack (File *fsrc)
 err_info *Filemax::unstackPages (int pagenum, int pagecount, bool remove,
          File *fdest)
    {
+   QMutexLocker locker (&_file_mutex);
+
    Filemax *dest = (Filemax *)fdest;
    page_info *srcpage, *dstpage;
    int i;
@@ -5792,6 +5818,8 @@ err_info *Filemax::unstackPages (int pagenum, int pagecount, bool remove,
 err_info *Filemax::removePages (QBitArray &pages,
       QByteArray &del_info, int &count)
    {
+   QMutexLocker locker (&_file_mutex);
+
    QString fname, uniq;
 
    load ();
@@ -5840,6 +5868,8 @@ err_info *Filemax::removePages (QBitArray &pages,
 err_info *Filemax::restorePages (QBitArray &pages,
       QByteArray &del_info, int count)
    {
+   QMutexLocker locker (&_file_mutex);
+
    QString fname, uniq;
 
    load ();
@@ -5892,6 +5922,8 @@ err_info *Filemax::restorePages (QBitArray &pages,
 err_info *Filemax::duplicate (File *&, File::e_type , const QString &,
       int, Operation &, bool &supported)
    {
+   QMutexLocker locker (&_file_mutex);
+
    // we don't add anything of value here, so just let File do it
    supported = false;
    return NULL;
@@ -5900,6 +5932,8 @@ err_info *Filemax::duplicate (File *&, File::e_type , const QString &,
 
 err_info *Filemax::remove ()
    {
+   QMutexLocker locker (&_file_mutex);
+
    QFile file (_dir + _filename);
 
    if (!file.remove ())
@@ -5912,6 +5946,8 @@ err_info *Filemax::remove ()
 
 err_info *Filemax::create (void)
    {
+   QMutexLocker locker (&_file_mutex);
+
    _version = MAX_VERSION;
    _hdr.resize (0xe0);   //0xc8;  // allow room for file header
    _chunk0_start = _hdr.size ();
@@ -5950,6 +5986,8 @@ Filemaxpage::~Filemaxpage (void)
 
 err_info *Filemax::rebuildPagePreview (int pagenum)
    {
+   QMutexLocker locker (&_file_mutex);
+
    Open open (this);
 
    CALL (open.err ());
@@ -6078,6 +6116,8 @@ err_info *Filemax::rebuildPagePreview (int pagenum)
 
 err_info *Filemax::rebuildPreviews ()
    {
+   QMutexLocker locker (&_file_mutex);
+
    int pc = pagecount ();
 
    for (int pagenum = 0; pagenum < pc; pagenum++)
@@ -6137,6 +6177,8 @@ err_info *Filemax::getImage (int pagenum, bool,
 
 err_info *Filemax::transformPage (int pagenum, e_transform op)
    {
+   QMutexLocker locker (&_file_mutex);
+
    QImage image;
    QSize size, trueSize;
    int bpp;
@@ -6186,6 +6228,8 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
 
 err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
    {
+   QMutexLocker locker (&_file_mutex);
+
    QString title;
 
    load ();
@@ -6210,6 +6254,8 @@ err_info *Filemax::getPreviewInfo (int pagenum, QSize &Size, int &bpp)
 
 err_info *Filemax::getPreviewImage (int pagenum, QImage &out, bool blank)
    {
+   QMutexLocker locker (&_file_mutex);
+
    byte *preview;
    QString path;
 
@@ -6298,6 +6344,8 @@ err_info *Filemax::getPreviewImage (int pagenum, QImage &out, bool blank)
    so callers without one (the server) use getPreviewImage() directly. */
 err_info *Filemax::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    {
+   QMutexLocker locker (&_file_mutex);
+
    QImage image;
 
    CALL (getPreviewImage (pagenum, image, blank));

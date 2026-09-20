@@ -1169,6 +1169,11 @@ bool Desktopmodel::removeRows (int row, int count, const QModelIndex &parent)
 
 void Desktopmodel::internalRemoveRows (int row, int count, const QModelIndex &parent)
    {
+   /* this deletes the File objects, and the render thread may be in the
+      middle of decoding a page from one of them: hold the lock it
+      decodes under, so that it has finished before the file goes */
+   QMutexLocker locker (&_imageMutex);
+
    getDesk (parent)->removeRows (row, count);
    }
 
