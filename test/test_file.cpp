@@ -1099,13 +1099,15 @@ void TestFile::testJpegTransform()
 static int scanSynthetic (const QByteArray &rgb, int width, int height,
                           QString &coverage, int chunk = 0,
                           Paperstack::t_sideways sideways = Paperstack::Sideways_no,
-                          bool front = true, Filepage **mpp = NULL)
+                          bool front = true, Filepage **mpp = NULL,
+                          bool auto_size = true)
 {
    Paperstack stack ("stack", "page", false);
    QMutex mutex;
    Filepage *mp = NULL;
 
    stack.setAutoColour (true);
+   stack.setAutoSize (auto_size);
    stack.setSideways (sideways);
    stack.addImage (width, height, 24, width * 3, front, false);
    /* feed the page in chunks of the given size, as a back end delivering
@@ -1198,6 +1200,21 @@ void TestFile::testSidewaysCrop()
    page.fill ((char)240);
    QCOMPARE (scanSynthetic (page, width, height, cov, 0,
                             Paperstack::Sideways_top_right, true, &mp), 1);
+   QCOMPARE (mp->_height, width);
+   delete mp;
+
+   /* with auto-size off the user has asked for the page size they set,
+      so the sheet is stored as wide as the window */
+   page.fill ((char)255);
+   for (int y = 0; y < height; y++)
+      for (int x = paper; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 215;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov, 0,
+                            Paperstack::Sideways_top_right, true, &mp, false),
+             1);
    QCOMPARE (mp->_height, width);
    delete mp;
 }

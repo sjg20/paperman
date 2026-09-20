@@ -138,6 +138,7 @@ Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
    _blankPolicy = record;
    _blankThreshold = 500;
    _autoColour = false;
+   _autoSize = false;
    _sideways = Sideways_no;
    _jpeg = jpeg;
    _scanning = true;
@@ -291,6 +292,12 @@ void Paperstack::setSideways (t_sideways how)
    }
 
 
+void Paperstack::setAutoSize (bool on)
+   {
+   _autoSize = on;
+   }
+
+
 PPage::Rotate Paperstack::rotationFor (bool front) const
    {
    if (_sideways == Sideways_no)
@@ -337,7 +344,8 @@ int Paperstack::addImage (int width, int height, int depth, int stride, bool fro
    assert (!_page);
    _front = front;
    _page = new PPage (_pages.size (), width, height, depth, stride, _jpeg,
-                      _blankThreshold, _autoColour, rotationFor (front));
+                      _blankThreshold, _autoColour, _autoSize,
+                      rotationFor (front));
    if (!jpeg)
       return _page->size ();
 
@@ -363,7 +371,7 @@ int Paperstack::addImageBack (int width, int height, int depth, int stride, bool
    /* assign sequential page numbers so the back lands right after the
     * front in the stack list. */
    _page_back = new PPage (_pages.size () + 1, width, height, depth, stride,
-                           _jpeg, _blankThreshold, _autoColour,
+                           _jpeg, _blankThreshold, _autoColour, _autoSize,
                            rotationFor (false));
    if (!jpeg)
       return _page_back->size ();
@@ -424,9 +432,11 @@ QString Paperstack::coverageStrBack ()
 
 
 PPage::PPage (int pagenum, int width, int height, int depth, int stride,
-      bool jpeg, int blank_threshold, bool auto_colour, Rotate rotate)
+      bool jpeg, int blank_threshold, bool auto_colour, bool auto_size,
+      Rotate rotate)
    {
    _autoColour = auto_colour;
+   _autoSize = auto_size;
    _rotate = rotate;
    _colourPixels = 0;
    _col = 0;
@@ -917,7 +927,7 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
    int lo = 0, hi = _width - 1;
    int paper_lo, paper_hi;
 
-   if (turn && sheetBounds (height, paper_lo, paper_hi, true))
+   if (turn && _autoSize && sheetBounds (height, paper_lo, paper_hi, true))
       {
       /* leave a margin: a sheet goes through slightly skewed, and the
          very edge of a page printed to its margins is dark rather than
@@ -1353,6 +1363,29 @@ Paperscan::~Paperscan ()
    }
 
 
+/* Is the back end cutting each page down to the sheet? That is what
+   the auto-size checkbox turns on: the finet backend's auto-size, which
+   crops the image to the paper, or the fujitsu backend's ald, which
+   ends each image at the foot of the sheet. With it off the user has
+   asked for the page size they set, so a page fed sideways is left as
+   long as the window rather than cut at the edge of the sheet */
+
+bool Paperscan::autoSize (void) const
+   {
+   static const char *const name [] = { "auto-size", "ald" };
+
+   for (unsigned i = 0; _scanner && i < sizeof (name) / sizeof (name [0]);
+        i++)
+      {
+      int num = _scanner->findOption (name [i]);
+
+      if (num >= 0)
+         return _scanner->saneWordValue (num) != 0;
+      }
+   return false;
+   }
+
+
 void Paperscan::ensureStack (QString &stack_name, QString &page_name,
       SANE_Parameters &parameters)
    {
@@ -1370,6 +1403,7 @@ void Paperscan::ensureStack (QString &stack_name, QString &page_name,
       _stack->setBlankPolicy ((Paperstack::t_blankPolicy)xmlConfig->intValue("SCAN_BLANK"),
                xmlConfig->intValue("SCAN_BLANK_THRESHOLD"));
       _stack->setAutoColour (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
+      _stack->setAutoSize (autoSize ());
       _stack->setSideways ((Paperstack::t_sideways)
                            xmlConfig->intValue ("SCAN_SIDEWAYS"));
       emit stackNew (stack_name);
