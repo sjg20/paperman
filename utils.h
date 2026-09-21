@@ -41,6 +41,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTextStream>
 #include <QVariantList>
 
+class QCoreApplication;
 class QDate;
 class QDropEvent;
 class Operation;
@@ -236,6 +237,12 @@ err_info *util_getUsername (QString &userName);
    \param ms   how many milliseconds it took
    \returns the time as a string */
 QString utilTimeStr (qint64 ms);
+
+/** Write what every message box says to the log as it appears, so that
+    what the user was told is in the log with everything else
+
+    \param app   the application whose dialogs to watch */
+void utilLogDialogs (QCoreApplication *app);
 
 QString utilRemoveQuotes (QString str);
 

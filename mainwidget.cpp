@@ -670,11 +670,14 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
       if (utilHeadless ())
          qWarning () << "Scan status:" << sane_strstatus (status) << msg;
 
-      /* a misfeed has been reported already, as it happened, and is put
-         right at the scanner: do not ask the user to answer for it here
-         as well */
-      else if (Paperscan::isMisfeed (status))
-         slotScanProblem (msg);
+      /* the scanner stopping part way through a batch is the user's to
+         put right, at the scanner, and a dialog saying the device had
+         an I/O error tells them nothing about that: say what to do
+         where they are looking, and leave the pages they did get */
+      else if (Paperscan::stoppedMidBatch (status, _scan_pages))
+         slotScanProblem (tr ("The scanner stopped after %n page(s): check "
+                              "for a misfeed, clear the paper path and "
+                              "start the scan again", "", _scan_pages));
       else
          {
          QSaneStatusMessage fred (status, this, msg);

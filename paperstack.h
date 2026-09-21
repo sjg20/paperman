@@ -527,6 +527,12 @@ public:
       \param status  what the back end said */
    static bool isMisfeed (SANE_Status status);
 
+   /** true if the scanner stopped part way through a batch, see the .cpp
+
+      \param status  what the back end said
+      \param pages   sides scanned before it said so */
+   static bool stoppedMidBatch (SANE_Status status, int pages);
+
    /** cancel scanning
 
       \param err     error to return from the scan once cancelled */

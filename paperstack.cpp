@@ -1504,6 +1504,22 @@ bool Paperscan::isMisfeed (SANE_Status status)
    }
 
 
+/* Did the scanner stop in the middle of a batch? A misfeed leaves this
+   scanner in a state where it drops the connection rather than saying
+   what is wrong, and the back end can only report that as an I/O error,
+   which is true and useless: what the user has to do about it is clear
+   the paper path and scan again
+
+   \param status  what the back end said
+   \param pages   sides scanned before it said so */
+
+bool Paperscan::stoppedMidBatch (SANE_Status status, int pages)
+   {
+   return isMisfeed (status)
+       || (status == SANE_STATUS_IO_ERROR && pages > 0);
+   }
+
+
 SANE_Status Paperscan::waitForResume (SANE_Status status)
    {
    QString why = QString (sane_strstatus (status));
