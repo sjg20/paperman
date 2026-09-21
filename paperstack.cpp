@@ -102,9 +102,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    is a printed rule, or the shade the edge of the sheet casts, which
    lies across the window wherever the back end is not cutting the page
    down to the sheet. Handwriting stays well within a hundredth of the
-   window, so longer runs are left out */
+   window, so longer runs are left out. That shade is patchy, breaking
+   into pieces a stroke's length, so a gap of up to a four-hundredth of
+   the window does not break a run: joined up again, the pieces show
+   themselves for what they are while writing is untouched */
 #define SOFT_FRACTION 0.0001
 #define SOFT_MAX_RUN(width) ((width) / 100)
+#define SOFT_GAP(width) ((width) / 400)
 
 /* The scanner scans the full width of its window, so a sheet narrower
    than the window leaves the backing showing beyond its edge. The
@@ -1184,19 +1188,26 @@ void PPage::inkPixel (int lum)
       }
 
    /* drop the pale ink that lies in runs too long to be writing */
-   int run = 0;
+   int start = -1;   // where the run being measured began
+   int last = -1;    // the last pale pixel of it
 
    for (int x = 0; x <= _width; x++)
       {
       if (x < _width && (slot [x] & Mark_soft))
          {
-         run++;
+         if (start < 0)
+            start = x;
+         last = x;
          continue;
          }
-      if (run > SOFT_MAX_RUN (_width))
-         for (int i = x - run; i < x; i++)
+      if (start < 0)
+         continue;
+      if (x < _width && x - last <= SOFT_GAP (_width))
+         continue;       // near enough to be the same run
+      if (last - start + 1 > SOFT_MAX_RUN (_width))
+         for (int i = start; i <= last; i++)
             slot [i] &= ~Mark_soft;
-      run = 0;
+      start = -1;
       }
    }
 

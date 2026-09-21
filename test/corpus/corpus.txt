@@ -23,3 +23,18 @@ title-mono.jpg        right   1  3025  a title page, a few lines of print on whi
 pencil-grey.jpg       right   8  3020  a printed page with a note in pencil across the head
 text-unix-mono.jpg    right   1  3009  a page of printed text
 text-java-mono.jpg    right   1  2845  a page of printed text, from another book
+
+# Linux Kernel Development, scanned with the window wider and longer
+# than the sheet (auto-size off, 300 x 230mm), so both edges of the
+# sheet lie inside the image. The shade along those edges is what made
+# every page of this book come out grey.
+
+lkd-cover-colour.jpg      right  24  2814  a colour cover, a dark photograph over most of it
+lkd-photo-grey.jpg        right   8  2796  print with a photograph of the author on it
+lkd-title-mono.jpg        right   1  2794  a title page, print and a little blue
+lkd-stamp-grey.jpg        right   8  2786  print, with a name stamp showing through from the back
+lkd-copyright-mono.jpg    right   1  2774  a copyright page, small print throughout
+lkd-dedication-mono.jpg   right   1  2790  a blank page with one line of print on it
+lkd-contents-grey.jpg     right   8  2780  contents, set on a grey panel
+lkd-chapter-grey.jpg      right   8  2787  a chapter opening, the number set in grey
+lkd-figure-grey.jpg       right   8  2776  print with a figure whose boxes are filled grey
