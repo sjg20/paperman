@@ -349,6 +349,11 @@ private slots:
    /** handle double-feed detection from scanner */
    void slotDoubleFeedDetected (void);
 
+   /** report something the user has to put right at the scanner
+
+      \param msg   what happened, or empty once it is over */
+   void slotScanProblem (const QString &msg);
+
    void slotWarning (QString &str);
 
 private:

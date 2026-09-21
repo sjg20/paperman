@@ -1496,7 +1496,7 @@ Paperscan::~Paperscan ()
    which is what an unattended scan wants */
 
 #define RESUME_POLL_MS 1000
-#define RESUME_WAIT_MS (2 * 60 * 1000)
+#define RESUME_WAIT_MS (30 * 1000)
 
 bool Paperscan::isMisfeed (SANE_Status status)
    {
@@ -1511,15 +1511,19 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
    bool watch = buttons != INT_MIN;
    QElapsedTimer waited;
 
-   emit scanProblem (tr ("%1: clear the scanner to carry on, or press "
-                         "Stop to end the scan").arg (why));
-
    /* end the frame, so that the back end is ready to start another once
       the paper path is clear */
    _scanner->cancel ();
    waited.start ();
    while (!isCancelled () && waited.elapsed () < RESUME_WAIT_MS)
       {
+      /* say what is wanted, and keep saying it with the time left, so
+         that a scan waiting on the user never looks like a scan that
+         has hung */
+      emit scanProblem (tr ("%1: clear the scanner to carry on, or press "
+                            "Stop to end the scan (%2s)").arg (why)
+                        .arg ((RESUME_WAIT_MS - waited.elapsed () + 999)
+                              / 1000));
       msleep (RESUME_POLL_MS);
       if (watch)
          {
@@ -1540,6 +1544,8 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
       if (!isMisfeed (status))
          break;       // the hopper is empty, or the scanner has given up
       }
+   emit scanProblem (QString ());
+
    return status;
    }
 
