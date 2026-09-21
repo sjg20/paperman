@@ -1175,7 +1175,9 @@ void TestOps::testRenameDir()
 // convention utilDetectMatches expects (e.g. "06jun").
 static QString monthDirName(const QDate& date)
 {
-   return date.toString("MM") + date.toString("MMM").toLower();
+   /* the same name the code makes: the short month name is cut to three
+      letters, which only shows in a month with a longer one (September) */
+   return date.toString("MM") + date.toString("MMM").toLower().left(3);
 }
 
 // Returns ("bills/YEAR/MMmmm" for the previous month, suggestion for the
