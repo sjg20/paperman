@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDate>
 #include <QDebug>
+#include <QEvent>
 #include <QDir>
 #ifndef QT_NO_WIDGETS
 #include <QDropEvent>
@@ -694,6 +695,52 @@ err_info *util_getUsername (QString &userName)
    1h2m3s, with the parts that are zero left off the front
 
    \param ms   how many milliseconds it took */
+
+#ifndef QT_NO_WIDGETS
+
+/* Watches for message boxes and writes what each one says to the log.
+   The boxes are raised from four dozen places, and any of them may be
+   the one that appears while something else is being chased, so they
+   are caught as they are shown rather than at each of those places */
+
+class Dialoglogger : public QObject
+   {
+public:
+   Dialoglogger (QObject *parent) : QObject (parent) {}
+
+protected:
+   bool eventFilter (QObject *obj, QEvent *event) override
+      {
+      QMessageBox *box;
+
+      if (event->type () == QEvent::Show
+          && (box = qobject_cast<QMessageBox *> (obj)))
+         {
+         QString str = box->text () + " " + box->informativeText ()
+               + " " + box->detailedText ();
+
+         str = str.simplified ();
+         qWarning ().noquote ()
+            << QString ("dialog: [%1] %2").arg (box->windowTitle (), str);
+         }
+      return QObject::eventFilter (obj, event);
+      }
+   };
+
+
+void utilLogDialogs (QCoreApplication *app)
+   {
+   app->installEventFilter (new Dialoglogger (app));
+   }
+
+#else
+
+void utilLogDialogs (QCoreApplication *)
+   {
+   }
+
+#endif
+
 
 QString utilTimeStr (qint64 ms)
    {
