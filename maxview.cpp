@@ -835,6 +835,7 @@ int main (int argc, char *argv[])
             fprintf (stderr, "\n=== paperman %s ===\n",
                      qPrintable (QDateTime::currentDateTime ()
                                  .toString ("yyyy-MM-dd hh:mm:ss")));
+            utilLogBuild ("startup:");
             break;
 
          case 274 :    // --sane-debug LEVEL

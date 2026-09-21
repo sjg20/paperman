@@ -238,6 +238,12 @@ err_info *util_getUsername (QString &userName);
    \returns the time as a string */
 QString utilTimeStr (qint64 ms);
 
+/** Log what paperman was built from and which scanner libraries it has
+    loaded, with the date each was built
+
+    \param when   a word saying at what point this is being logged */
+void utilLogBuild (const char *when);
+
 /** Write what every message box says to the log as it appears, so that
     what the user was told is in the log with everything else
 

@@ -742,6 +742,51 @@ void utilLogDialogs (QCoreApplication *)
 #endif
 
 
+/* Say what this paperman was built from, and which scanner libraries
+   it has loaded, with the date each was built. A log from a build a few
+   days old, or from a backend which was not the one that was just
+   installed, is worse than no log at all: this puts the answer at the
+   top of it */
+
+void utilLogBuild (const char *when)
+   {
+   static bool said;
+   QFile maps ("/proc/self/maps");
+   QStringList seen;
+
+   if (!said)
+      {
+      said = true;
+      qWarning ().noquote ()
+         << QString ("paperman built %1 %2").arg (__DATE__).arg (__TIME__);
+      }
+
+   /* the SANE libraries are found by looking at what is mapped, since
+      the back ends are loaded as they are needed and where they came
+      from is exactly what is in doubt */
+   if (!maps.open (QIODevice::ReadOnly | QIODevice::Text))
+      return;
+   while (!maps.atEnd ())
+      {
+      QString line = QString::fromLatin1 (maps.readLine ());
+      int pos = line.indexOf ("/");
+
+      if (pos < 0 || !line.contains ("libsane"))
+         continue;
+
+      QString path = line.mid (pos).trimmed ();
+      QFileInfo info (path);
+
+      if (seen.contains (path))
+         continue;
+      seen << path;
+      qWarning ().noquote ()
+         << QString ("%1 %2 built %3").arg (when).arg (path)
+            .arg (info.lastModified ().toString ("yyyy-MM-dd hh:mm:ss"));
+      }
+   }
+
+
 QString utilTimeStr (qint64 ms)
    {
    int secs = (ms + 500) / 1000;
