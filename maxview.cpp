@@ -551,6 +551,13 @@ static void usage (void)
    printf ("                       (or every PAPERMAN_SNAP_MS milliseconds)\n");
    printf ("                       into DIR (the same as PAPERMAN_SNAP=DIR)\n");
    printf ("   --clean-snaps       first remove the snapshots already in DIR\n");
+   printf ("   --log FILE          append everything normally written to\n");
+   printf ("                       stderr to FILE: Qt's messages, the\n");
+   printf ("                       scanner back end's debugging and the\n");
+   printf ("                       dialogs the user is shown\n");
+   printf ("   --sane-debug LEVEL  how much the scanner back ends say,\n");
+   printf ("                       1 to 35; 15 shows every command and\n");
+   printf ("                       what the scanner answered\n");
    printf ("   --server URL|NAME   attach a paperman-server, by URL or by the\n");
    printf ("                       name of one listed in client.conf\n");
    printf ("                       (~/.config/paperman/client.conf, whose\n");
@@ -700,6 +707,8 @@ int main (int argc, char *argv[])
      {"sideways", 1, 0, 272},
      {"snap", 1, 0, 269},
      {"clean-snaps", 0, 0, 270},
+     {"log", 1, 0, 273},
+     {"sane-debug", 1, 0, 274},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -809,6 +818,38 @@ int main (int argc, char *argv[])
 
          case 270 :    // --clean-snaps: remove old snapshots first
             qputenv ("PAPERMAN_SNAP_CLEAN", "1");
+            break;
+
+         case 273 :    // --log FILE
+            /* send everything written to stderr to the file instead:
+               Qt's own messages, the scanner back end's debugging and
+               anything paperman prints. Appending keeps the run before
+               this one, which is what is wanted when something happens
+               every few scans */
+            if (!freopen (optarg, "a", stderr))
+               {
+               fprintf (stdout, "cannot write log '%s'\n", optarg);
+               return 1;
+               }
+            setvbuf (stderr, NULL, _IOLBF, 0);
+            fprintf (stderr, "\n=== paperman %s ===\n",
+                     qPrintable (QDateTime::currentDateTime ()
+                                 .toString ("yyyy-MM-dd hh:mm:ss")));
+            break;
+
+         case 274 :    // --sane-debug LEVEL
+            {
+            /* the back ends take their level from the environment, and
+               which one is in use is not known until the device is
+               opened, so tell them all */
+            static const char *const backend [] =
+               { "FUJITSU", "FINET", "RICOH", "RICOH2", "DLL" };
+
+            for (unsigned i = 0; i < sizeof (backend) / sizeof (backend [0]);
+                 i++)
+               qputenv (QString ("SANE_DEBUG_%1").arg (backend [i])
+                        .toLatin1 (), optarg);
+            }
             break;
 
          case 264 :    // --repo
