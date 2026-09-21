@@ -246,6 +246,8 @@ void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
          break;
       }
 #endif
+   if (!currentIndex ())
+      qWarning ().noquote () << "view: showing the pages of a stack";
    setCurrentIndex(1);
 //    _page->showPage (index.model (), index, delay_smoothing);
    _page->showPages (index.model (), index, 0, -1, -1);
@@ -255,7 +257,10 @@ void Mainwidget::showPage (const QModelIndex &index, bool delay_smoothing)
 void Mainwidget::showDesktop ()
    {
    if (currentIndex())
+      {
+      qWarning ().noquote () << "view: back to the desktop";
       setCurrentIndex(0);
+      }
    }
 
 

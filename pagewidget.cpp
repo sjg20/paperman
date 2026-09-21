@@ -304,6 +304,8 @@ void Pagewidget::setMode (e_mode mode)
 
    emit modeChanging (mode, _mode);
 
+   qWarning ().noquote () << QString ("view: page view now %1 (was %2)")
+      .arg (modeStr (mode)).arg (modeStr (_mode));
    _mode = mode;
    _prescan_mode = mode;
    if (_mode != Mode_none)
@@ -891,10 +893,29 @@ void Pagewidget::endingScan (bool cancel)
    }
 
 
+/* the name of a mode, for the log */
+
+const char *Pagewidget::modeStr (e_mode mode)
+   {
+   switch (mode)
+      {
+      case Mode_select: return "select";
+      case Mode_move: return "page sort";
+      case Mode_scan: return "scanning";
+      case Mode_info: return "stack info";
+      case Mode_none: return "none";
+      }
+   return "?";
+   }
+
+
 void Pagewidget::revertMode (void)
    {
    if (_prescan_mode != Mode_scan && _prescan_mode != _mode)
       {
+      qWarning ().noquote ()
+         << QString ("view: back to %1 after scanning")
+            .arg (modeStr (_prescan_mode));
       QToolButton *tb = modeToTool (_prescan_mode);
 
       tb->setChecked (true);

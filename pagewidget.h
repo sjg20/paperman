@@ -306,6 +306,9 @@ protected:
    /** change the view mode of the widget */
    void setMode (e_mode mode);
 
+   /** \returns the name of a mode, for the log */
+   static const char *modeStr (e_mode mode);
+
    /** toggle the remove flag on a page */
    void toggleRemove (const QModelIndex &index);
 
