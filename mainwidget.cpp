@@ -465,6 +465,8 @@ void Mainwidget::scanInto(QModelIndex target)
       this, SLOT (slotStackPageProgress (const PPage *)));
    connect (&scan, SIGNAL (doubleFeedDetected (void)),
       this, SLOT (slotDoubleFeedDetected (void)));
+   connect (&scan, SIGNAL (scanProblem (const QString &)),
+      this, SLOT (slotScanProblem (const QString &)));
 
    scan.setup (_scanner, stack_name, page_name);
    scan.start ();
@@ -667,6 +669,12 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
       {
       if (utilHeadless ())
          qWarning () << "Scan status:" << sane_strstatus (status) << msg;
+
+      /* a misfeed has been reported already, as it happened, and is put
+         right at the scanner: do not ask the user to answer for it here
+         as well */
+      else if (Paperscan::isMisfeed (status))
+         slotScanProblem (msg);
       else
          {
          QSaneStatusMessage fred (status, this, msg);
@@ -787,6 +795,23 @@ void Mainwidget::slotStackPageProgress (const PPage *page)
       if (_pscan && _scan->getData (page, data, size))
          _pscan->progress (size * 100 / _progressTotal);
       }
+   }
+
+
+/* A misfeed is put right at the scanner, so say what has happened where
+   the user is looking, in the scan window and the status bar, and leave
+   the scan alone: the scanning thread waits for the paper path to be
+   cleared and carries on. An empty message says the trouble is over */
+
+void Mainwidget::slotScanProblem (const QString &msg)
+   {
+   QString str = msg;
+
+   if (_pscan)
+      _pscan->warning (str);
+   if (_console && !msg.isEmpty ())
+      printf ("%s\n", qPrintable (msg));
+   emit newContents (msg);
    }
 
 
