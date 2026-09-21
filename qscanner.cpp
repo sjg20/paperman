@@ -226,6 +226,10 @@ bool QScanner::initScanner()
   if(mInitOk == true) return true;
 	SANE_Status status;
   status = sane_init(0,qis_authorization);//authorize
+
+  /* the back ends are loaded by sane_init(), so this is the first point
+     at which the log can say which ones are in use */
+  utilLogBuild ("sane:");
 	if(status == SANE_STATUS_GOOD)
   {
 		mInitOk = true;
