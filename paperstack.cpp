@@ -1482,6 +1482,109 @@ Paperscan::~Paperscan ()
    }
 
 
+/* A misfeed is the user's to clear, at the scanner, and the pages still
+   in the hopper are meant to follow it. Say what happened, through the
+   scan window and the status bar, then wait for the scan to be taken up
+   again rather than ending it and leaving the user to answer a dialog
+   first.
+
+   The scanner's own scan button says the user has cleared the paper
+   path and wants to go on.  A back end that does not offer the button
+   leaves nothing to wait for, so the scan is started again every
+   RESUME_POLL_MS to see whether the way is clear.  Either way Stop ends
+   the scan at once, and so does RESUME_WAIT_MS of nothing happening,
+   which is what an unattended scan wants */
+
+#define RESUME_POLL_MS 1000
+#define RESUME_WAIT_MS (2 * 60 * 1000)
+
+bool Paperscan::isMisfeed (SANE_Status status)
+   {
+   return status == SANE_STATUS_JAMMED || status == SANE_STATUS_COVER_OPEN;
+   }
+
+
+SANE_Status Paperscan::waitForResume (SANE_Status status)
+   {
+   QString why = QString (sane_strstatus (status));
+   int buttons = _scanner->checkButtons ();
+   bool watch = buttons != INT_MIN;
+   QElapsedTimer waited;
+
+   emit scanProblem (tr ("%1: clear the scanner to carry on, or press "
+                         "Stop to end the scan").arg (why));
+
+   /* end the frame, so that the back end is ready to start another once
+      the paper path is clear */
+   _scanner->cancel ();
+   waited.start ();
+   while (!isCancelled () && waited.elapsed () < RESUME_WAIT_MS)
+      {
+      msleep (RESUME_POLL_MS);
+      if (watch)
+         {
+         buttons = _scanner->checkButtons ();
+         if (buttons == INT_MIN)      // the back end has stopped telling us
+            watch = false;
+         else if (!(buttons & (1 << QScanner::BUT_scan)))
+            continue;
+         }
+      _op = "sane_start";
+      status = _scanner->start ();
+      if (status == SANE_STATUS_GOOD)
+         {
+         emit scanProblem (QString ());
+         emit progress (tr ("Carrying on after %1").arg (why));
+         return status;
+         }
+      if (!isMisfeed (status))
+         break;       // the hopper is empty, or the scanner has given up
+      }
+   return status;
+   }
+
+
+/* Start the next page, waiting out a scanner that says it is busy and a
+   misfeed that the user has yet to clear
+
+   \returns the status of the scan that has started */
+
+SANE_Status Paperscan::startPage (void)
+   {
+   SANE_Status status = SANE_STATUS_DEVICE_BUSY;
+   int busy_count;
+
+   for (busy_count = 0; status == SANE_STATUS_DEVICE_BUSY
+                        && busy_count < 30 && !isCancelled ();
+        busy_count++)
+      {
+      if (busy_count)
+         {
+         usleep (10000);
+         // Check for double-feed while waiting
+         if (_scanner->checkDoubleFeed ())
+            emit doubleFeedDetected ();
+         }
+      _op = "sane_start";
+      qint64 t0 = QDateTime::currentMSecsSinceEpoch ();
+
+      status = _scanner->start ();
+      if (status == SANE_STATUS_INVAL && !busy_count)
+         {
+         // did we forget to cancel last time?
+         _scanner->cancel ();
+         _op = "sane_start";
+         status = _scanner->start ();
+         }
+      _t_start += QDateTime::currentMSecsSinceEpoch () - t0;
+      }
+   if (isMisfeed (status) && !isCancelled ())
+      status = waitForResume (status);
+
+   return status;
+   }
+
+
 /* Is the back end cutting each page down to the sheet? That is what
    the auto-size checkbox turns on: the finet backend's auto-size, which
    crops the image to the paper, or the fujitsu backend's ald, which
@@ -1546,7 +1649,7 @@ void Paperscan::scan ()
    _stack = 0;
    bool adf;  // true if using an auto document feeder
    err_info *err;
-   int bpp, busy_count, image_bpp;
+   int bpp, image_bpp;
    bool is_jpeg;
    QString side0_str;
    int stack_limit; // maximum number of pages per stack
@@ -1605,26 +1708,7 @@ void Paperscan::scan ()
          emit progress (QString ("Scanning page %1+%2")
                         .arg (total_sides + 1).arg (total_sides + 2));
 
-         status = SANE_STATUS_DEVICE_BUSY;
-         for (busy_count = 0; status == SANE_STATUS_DEVICE_BUSY
-                              && busy_count < 30 && !isCancelled ();
-              busy_count++)
-            {
-            if (busy_count)
-               {
-               usleep (10000);
-               if (_scanner->checkDoubleFeed ())
-                  emit doubleFeedDetected ();
-               }
-            _op = "sane_start";
-            status = _scanner->start ();
-            if (status == SANE_STATUS_INVAL && !busy_count)
-               {
-               _scanner->cancel ();
-               _op = "sane_start";
-               status = _scanner->start ();
-               }
-            }
+         status = startPage ();
          if (status != SANE_STATUS_GOOD || isCancelled ())
             break;
 
@@ -1799,30 +1883,7 @@ void Paperscan::scan ()
             str += QString (" stack %1").arg (stack_count + 1);
          emit progress (str);
 
-         status = SANE_STATUS_DEVICE_BUSY;
-         for (busy_count = 0; status == SANE_STATUS_DEVICE_BUSY && busy_count < 30 && !isCancelled ();
-                busy_count++)
-            {
-            if (busy_count)
-               {
-               usleep (10000);
-               // Check for double-feed while waiting
-               if (_scanner->checkDoubleFeed ())
-                  emit doubleFeedDetected ();
-               }
-            _op = "sane_start";
-            qint64 t0 = QDateTime::currentMSecsSinceEpoch ();
-            status = _scanner->start ();
-            if (status == SANE_STATUS_INVAL && !busy_count)
-               {
-               // did we forget to cancel last time?
-               _scanner->cancel ();
-               _op = "sane_start";
-               status = _scanner->start ();
-               }
-            _t_start += QDateTime::currentMSecsSinceEpoch () - t0;
-//            printf ("status = %d\n", status);
-            }
+         status = startPage ();
          if (status != SANE_STATUS_GOOD || isCancelled ())
             break;
          total = 0;

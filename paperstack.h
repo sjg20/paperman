@@ -522,6 +522,11 @@ public:
    /** true if the back end is cutting each page down to the sheet */
    bool autoSize (void) const;
 
+   /** true if this status is a misfeed the user can clear and carry on
+
+      \param status  what the back end said */
+   static bool isMisfeed (SANE_Status status);
+
    /** cancel scanning
 
       \param err     error to return from the scan once cancelled */
@@ -653,6 +658,13 @@ signals:
    /** indicate that a double-feed has been detected by the scanner */
    void doubleFeedDetected (void);
 
+   /** say that the scan has hit something the user has to put right,
+       such as a misfeed, and is waiting for them to do it. An empty
+       string says the trouble is over
+
+      \param msg   what happened and what to do about it */
+   void scanProblem (const QString &msg);
+
 private:
    /** make sure that we have an active stack to scan into. If not, create
        one
@@ -681,6 +693,16 @@ private:
 
    /** stop the feeder if Stop has been pressed, at most once */
    void checkStopFeed (void);
+
+   /** start the next page, waiting out a busy scanner and a misfeed */
+   SANE_Status startPage (void);
+
+   /** wait for the user to clear a misfeed and take the scan up again
+
+      \param status  what the back end said went wrong
+      \returns the status of the scan that has started, or what stopped
+               the wait */
+   SANE_Status waitForResume (SANE_Status status);
 
 private:
    QScanner *_scanner;        //!< the scanner we are using
