@@ -31,8 +31,8 @@ text-java-mono.jpg    right   1  2845  a page of printed text, from another book
 
 lkd-cover-colour.jpg      right  24  2814  a colour cover, a dark photograph over most of it
 lkd-photo-grey.jpg        right   8  2796  print with a photograph of the author on it
-lkd-title-mono.jpg        right   1  2794  a title page, print and a little blue
-lkd-stamp-grey.jpg        right   8  2786  print, with a name stamp showing through from the back
+lkd-stamp-colour.jpg      right  24  2794  a title page with a name stamp on it in blue ink
+lkd-stamp-through-grey.jpg right  8  2786  the back of that sheet, the stamp showing through
 lkd-copyright-mono.jpg    right   1  2774  a copyright page, small print throughout
 lkd-dedication-mono.jpg   right   1  2790  a blank page with one line of print on it
 lkd-contents-grey.jpg     right   8  2780  contents, set on a grey panel

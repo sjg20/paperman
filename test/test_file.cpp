@@ -1413,6 +1413,26 @@ void TestFile::testAutoColour()
    QCOMPARE (scanSynthetic (page, width, height, cov), 8);
    QVERIFY (cov.endsWith (" grey"));
 
+   /* a page of text with a small stamp in blue ink on it: by area the
+      stamp is half the colour a page needs to be called colour, but it
+      is coloured through and through, which the fringes along the edges
+      of black print are not */
+   page.fill ((char)255);
+   for (int y = 10; y < height - 10; y += 10)
+      for (int x = 0; x < width; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = px [1] = px [2] = 0;
+         }
+   for (int y = 100; y < 115; y++)
+      for (int x = 60; x < 75; x++)
+         {
+         unsigned char *px = p + (y * width + x) * 3;
+         px [0] = 40; px [1] = 60; px [2] = 190;
+         }
+   QCOMPARE (scanSynthetic (page, width, height, cov), 24);
+   QVERIFY (!cov.endsWith (" mono") && !cov.endsWith (" grey"));
+
    /* a blank page with a small dark photograph on it, a twentieth of
       the page in the darker mid-tones: grey */
    page.fill ((char)255);

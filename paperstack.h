@@ -161,8 +161,11 @@ private:
 public:
 
 private:
-   /** feed the next pixel's luminance to the filled-region count */
-   void inkPixel (int lum);
+   /** feed the next pixel to the ink counts
+
+      \param lum       its luminance
+      \param coloured  true if it has a colour to it */
+   void inkPixel (int lum, bool coloured);
 
    /** what a pixel holds, for the ink counts */
    enum Ink
@@ -172,7 +175,8 @@ private:
       Ink_mid,       //!< a mid-tone, which mono keeps
       Ink_pale,      //!< ink so pale that mono drops it
       Ink_mask = 3,  //!< the bits those take up
-      Ink_gap = 4    //!< too near a pixel with no ink to be an interior
+      Ink_gap = 4,   //!< too near a pixel with no ink to be an interior
+      Ink_colour = 8 //!< the pixel has a colour to it
       };
 
    /** what a counted pixel turned out to be */
@@ -180,14 +184,15 @@ private:
       {
       Mark_none = 0,      //!< nothing of interest
       Mark_interior = 1,  //!< a mid-tone pixel inside a filled region
-      Mark_soft = 2       //!< pale ink with nothing mono keeps near it
+      Mark_soft = 2,      //!< pale ink with nothing mono keeps near it
+      Mark_colour = 4     //!< a pixel with colour all round it
       };
 
    /** find the edges of the sheet across the window, see the .cpp */
    bool sheetBounds (int height, int &lo, int &hi, bool printed) const;
 
    /** add up the ink marks made on the sheet, see the .cpp */
-   void inkTotals (int &interior, int &soft) const;
+   void inkTotals (int &interior, int &soft, int &colour) const;
 
 public:
    ~PPage ();
@@ -294,6 +299,7 @@ private:
    QByteArray _delay;   //!< a ring of EDGE_ROWS rows of Mark flags
    QVector<int> _interior_cols; //!< interior pixels counted in each column
    QVector<int> _soft_cols; //!< soft pixels counted in each column
+   QVector<int> _colour_cols; //!< solid colour counted in each column
    bool _mark_blank;    //!< true to mark page blank
 //   Desktopmodel *_model;   //!< model that this page is destined for
    QByteArray _data;    //!< data bytes
