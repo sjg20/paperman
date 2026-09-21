@@ -64,6 +64,20 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define SATURATION_MIN_BRIGHT 40
 #define COLOUR_FRACTION 0.01
 
+/* That measure alone cannot find a small mark, such as a stamp with a
+   name and address on it: the fringes along the edges of ordinary black
+   print come to 0.7% of a page by themselves, so nothing under a
+   percent can be believed. A fringe is a pixel or two wide, though,
+   while ink laid on the page is coloured through and through, so count
+   as well the pixels with colour all round them, within COLOUR_RADIUS.
+   Ink showing through from the back of the sheet is mottled and does
+   not hold its colour over a whole neighbourhood, so it is left out
+   with the fringes: pages of print give none of this at all, and the
+   back of the stamped sheet 0.018%, against 0.17% for the stamp
+   itself */
+#define COLOUR_RADIUS INTERIOR_RADIUS
+#define COLOUR_SOLID_FRACTION 0.0005
+
 /* Without colour, a page is grey rather than mono when enough of it lies
    in the mid-tones inside filled regions: pixels with ink (darker than
    INK_THRESHOLD, so print showing through from the back of the sheet
@@ -806,14 +820,16 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
                }
             if (++_col >= _width)
                _col = 0;
-            if ((mx - mn) * SATURATION_DIVISOR >= mx
-                && mx >= SATURATION_MIN_BRIGHT)
+            bool coloured = (mx - mn) * SATURATION_DIVISOR >= mx
+                  && mx >= SATURATION_MIN_BRIGHT;
+
+            if (coloured)
                {
                colour++;
                _colourBand [lum < 100 ? 0 : lum < 200 ? 1 : 2]++;
                }
             if (_autoColour)
-               inkPixel (lum);
+               inkPixel (lum, coloured);
             pixels++;
             }
          _colourPixels += colour;
@@ -1079,7 +1095,7 @@ err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
    every row of it are the interior ones. Each row's count is held for
    EDGE_ROWS rows before it is added, so the last EDGE_ROWS rows of the
    page never are, and the first EDGE_ROWS are skipped */
-void PPage::inkPixel (int lum)
+void PPage::inkPixel (int lum, bool coloured)
    {
    if (_rows.isEmpty ())
       {
@@ -1087,6 +1103,7 @@ void PPage::inkPixel (int lum)
       _delay = QByteArray (EDGE_ROWS * _width, '\0');
       _interior_cols = QVector<int> (_width, 0);
       _soft_cols = QVector<int> (_width, 0);
+      _colour_cols = QVector<int> (_width, 0);
       }
 
    if (!_row_x)
@@ -1097,12 +1114,15 @@ void PPage::inkPixel (int lum)
          : lum >= PALE_THRESHOLD ? Ink_pale
          : lum >= MID_THRESHOLD ? Ink_mid : Ink_dark;
 
+   if (coloured)
+      flag |= Ink_colour;
+
    /* a pixel is kept only if it and its INTERIOR_RADIUS neighbours each
       side have ink: mark it now, unmark the neighbours behind it that a
       gap unmarks, and unmark it if a gap just behind it, or the edge of
       the image, leaves it too close to one */
    row [_row_x] = flag;
-   if (flag == Ink_none)
+   if ((flag & Ink_mask) == Ink_none)
       {
       for (int i = qMax (0, _row_x - INTERIOR_RADIUS); i < _row_x; i++)
          row [i] |= Ink_gap;
@@ -1142,6 +1162,8 @@ void PPage::inkPixel (int lum)
             _interior_cols [x]++;
          if (slot [x] & Mark_soft)
             _soft_cols [x]++;
+         if (slot [x] & Mark_colour)
+            _colour_cols [x]++;
          }
    memset (slot, Mark_none, _width);
    for (int x = 0; x < _width; x++)
@@ -1149,8 +1171,24 @@ void PPage::inkPixel (int lum)
       char centre = rows [mid][x] & Ink_mask;
       char mark = Mark_none;
 
+      /* ink laid on the page is coloured all through, while the fringe
+         along the edge of black print is a pixel or two of colour with
+         white or black beside it */
+      if (rows [mid][x] & Ink_colour)
+         {
+         bool all = x >= COLOUR_RADIUS && x < _width - COLOUR_RADIUS;
+
+         for (int r = 0; r < INTERIOR_ROWS && all; r++)
+            for (int dx = -COLOUR_RADIUS; dx <= COLOUR_RADIUS && all; dx++)
+               all = (rows [r][x + dx] & Ink_colour) != 0;
+         if (all)
+            mark = Mark_colour;
+         }
       if (centre == Ink_none)
+         {
+         slot [x] = mark;
          continue;
+         }
 
       /* a mid-tone pixel every one of whose neighbours has ink is
          inside a filled region: a photograph rather than a stroke */
@@ -1161,7 +1199,7 @@ void PPage::inkPixel (int lum)
          for (int r = 0; r < INTERIOR_ROWS && all; r++)
             all = rows [r][x] != Ink_none && !(rows [r][x] & Ink_gap);
          if (all)
-            mark = Mark_interior;
+            mark |= Mark_interior;
          }
 
       /* ink too pale for mono to keep, with nothing it would keep
@@ -1257,13 +1295,14 @@ bool PPage::sheetBounds (int height, int &lo, int &hi, bool printed) const
    SHEET_INSET short of each edge
 
    \param interior  returns mid-tone pixels inside a filled region
-   \param soft      returns those of them with no dark ink near */
+   \param soft      returns the pale ink with nothing mono keeps near it
+   \param colour    returns the pixels with colour all round them */
 
-void PPage::inkTotals (int &interior, int &soft) const
+void PPage::inkTotals (int &interior, int &soft, int &colour) const
    {
    int lo = 0, hi = _width - 1;
 
-   interior = soft = 0;
+   interior = soft = colour = 0;
    if (_interior_cols.isEmpty ())
       return;
    if (sheetBounds (_rows_done, lo, hi, false))
@@ -1275,6 +1314,7 @@ void PPage::inkTotals (int &interior, int &soft) const
       {
       interior += _interior_cols [x];
       soft += _soft_cols [x];
+      colour += _colour_cols [x];
       }
    }
 
@@ -1286,9 +1326,11 @@ PPage::Kind PPage::kind (void) const
    if ((double)_colourPixels / _pixels >= COLOUR_FRACTION)
       return Kind_colour;
 
-   int interior, soft;
+   int interior, soft, colour;
 
-   inkTotals (interior, soft);
+   inkTotals (interior, soft, colour);
+   if ((double)colour / _pixels >= COLOUR_SOLID_FRACTION)
+      return Kind_colour;
    if ((double)interior / _pixels >= GREY_FRACTION
        || (double)soft / _pixels >= SOFT_FRACTION)
       return Kind_grey;
@@ -1334,16 +1376,17 @@ QString PPage::coverageStr ()
       }
    if (debug)
       {
-      int interior, soft;
+      int interior, soft, solid;
 
-      inkTotals (interior, soft);
+      inkTotals (interior, soft, solid);
       fprintf (stderr, "page %d: %dx%d depth %d%s pixels %d, colour %d "
-               "(%.3f%%: dark %d mid %d light %d), interior %d (%.3f%%), "
-               "soft %d (%.4f%%)%s\n",
+               "(%.3f%%: dark %d mid %d light %d, solid %d %.4f%%), "
+               "interior %d (%.3f%%), soft %d (%.4f%%)%s\n",
                _pagenum, _width, _height, _depth, _jpeg ? " jpeg" : "",
                _pixels, _colourPixels,
                _pixels ? 100.0 * _colourPixels / _pixels : 0,
                _colourBand [0], _colourBand [1], _colourBand [2],
+               solid, _pixels ? 100.0 * solid / _pixels : 0,
                interior, _pixels ? 100.0 * interior / _pixels : 0,
                soft, _pixels ? 100.0 * soft / _pixels : 0,
                qPrintable (suffix));
