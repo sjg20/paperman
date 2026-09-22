@@ -136,6 +136,12 @@ private:
     QProgressBar *_progress;
     QLabel *_label;
 
+    /** how many operations are running: one shows the progress bar and
+        the last one to finish takes it away again, since an operation
+        started while another is still going would otherwise leave the
+        one still running with nothing to report to */
+    int _operations;
+
     //! true if we have already shown the welcome message
     bool _welcome_shown;
     Desktopwidget *_desktop;

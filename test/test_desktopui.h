@@ -120,6 +120,10 @@ private slots:
    //! Test the year/month directory filter hides other years
    void testDirFilterHidesOtherYears();
 
+   //! An operation started while another is running must not take the
+   //! progress bar away from the one still going
+   void testOverlappingOperations();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root

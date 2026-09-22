@@ -34,7 +34,9 @@ static QWidget *receiver;
 Operation::Operation (QString name, int count, QWidget *parent)
    {
    UNUSED (parent);
-   _maximum = count;
+   /* a caller which does not know how much there will be passes 0, and
+      dividing by it in setProgress() gives nonsense */
+   _maximum = count < 1 ? 1 : count;
    if (receiver) {
       connect(this, SIGNAL(operationProgress(Operation::state_t, int, QString)),
               receiver, SLOT(updateProgress(Operation::state_t, int, QString)));
