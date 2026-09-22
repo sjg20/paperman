@@ -5824,11 +5824,18 @@ err_info *Filemax::removePages (QBitArray &pages,
 
    load ();
 
-   Q_ASSERT (count > 0 && count < _pages.size ());
+   /* Which pages to remove is decided elsewhere, by the page view,
+      whose list of pages is not always this stack's: it may be showing
+      another stack, or have pages in it which never reached this file.
+      Take out the pages this file does have and report what was asked
+      for, rather than stopping the program. This runs at the end of a
+      scan, where the pages which have just been scanned are worth a
+      great deal more than a tidy page list */
+   int last = qMin (_pages.size (), pages.size ());
 
    // create a new list of pages that survive the cull
    QVector<page_info> dest_pages;
-   dest_pages.reserve (_pages.size () - count);
+   dest_pages.reserve (_pages.size ());
    int i, upto;
 
    CALL (ensure_all_chunks ());
@@ -5840,7 +5847,7 @@ err_info *Filemax::removePages (QBitArray &pages,
       {
       page_info &src_page = _pages [i];
 
-      if (pages.testBit (i))
+      if (i < last && pages.testBit (i))
          {
          CALL(ensure_open());
          CALL (free_page (src_page));
@@ -5853,7 +5860,14 @@ err_info *Filemax::removePages (QBitArray &pages,
       }
 
    // we have a new list of pages for this stack
-   Q_ASSERT (upto == count);
+   if (upto != count)
+      {
+      /* not qWarning(): this file has a warning() of its own, which
+         the Qt one expands into */
+      fprintf (stderr, "removePages: asked to remove %d pages from a "
+               "stack of %d, removed %d\n", count, _pages.size (), upto);
+      count = upto;
+      }
    _pages = dest_pages;
 
    // now need to update header and bermuda on disc!

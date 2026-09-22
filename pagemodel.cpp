@@ -770,13 +770,15 @@ err_info *Pagemodel::commit (void)
    if (!contents)
       return NULL;
 
-   // delete any pages marked for deletion
-   QBitArray ba (pages->size ());
+   /* delete any pages marked for deletion. The view can be showing a
+      window into the stack rather than the whole of it, so a row is
+      page _start + row of the stack */
+   QBitArray ba (_start + pages->size ());
 
    for (int i = 0; i < pages->size (); i++)
       if ((*pages) [i].toRemove ())
          {
-         ba.setBit (i);
+         ba.setBit (_start + i);
          del_count++;
          }
 
