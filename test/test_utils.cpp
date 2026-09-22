@@ -714,3 +714,55 @@ void TestUtils::testJpegDecodeShort()
              qPrintable (QString ("%1 of %2 lines decoded: the data did "
                                   "not stop short").arg (written).arg (h)));
 }
+
+
+/* Cutting the sides off a JPEG must leave the pixels it keeps exactly as
+   they were, since the point of it is to store what the scanner sent
+   rather than a second-hand copy of it */
+void TestUtils::testJpegCrop()
+{
+   const int w = 320, h = 64;
+   QImage im (w, h, QImage::Format_RGB888);
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb ((x * 7) & 0xff, (y * 11) & 0xff,
+                                  ((x ^ y) * 3) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 90));
+   buf.close ();
+
+   const int lo = 100, hi = 219;
+   QByteArray out;
+   int at = jpegCrop ((const byte *)data.constData (), data.size (),
+                      lo, hi, out);
+
+   /* the cut falls on a block boundary at or before the column asked
+      for, so a little more of the page is kept and never less */
+   QVERIFY2 (at >= 0, "the JPEG could not be cropped");
+   QVERIFY (at <= lo && lo - at < 16);
+   QVERIFY (out.size () > 0 && out.size () < data.size ());
+
+   QImage was, now;
+
+   QVERIFY (was.loadFromData (data, "JPEG"));
+   QVERIFY (now.loadFromData (out, "JPEG"));
+   QCOMPARE (now.height (), was.height ());
+   QCOMPARE (now.width (), hi + 1 - at);
+
+   /* every pixel is the one the scanner sent, bar the column at each
+      edge: colour is stored for every second pixel and spread back over
+      its neighbours as the page is decoded, and the outermost column of
+      a page has no neighbour beyond it to be spread from */
+   was = was.convertToFormat (QImage::Format_RGB888);
+   now = now.convertToFormat (QImage::Format_RGB888);
+   for (int y = 0; y < now.height (); y++)
+      for (int x = 1; x < now.width () - 1; x++)
+         QVERIFY2 (now.pixel (x, y) == was.pixel (x + at, y),
+                   qPrintable (QString ("pixel %1,%2 changed").arg (x)
+                               .arg (y)));
+}
