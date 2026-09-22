@@ -27,6 +27,9 @@ private slots:
    //! A blank page is found whether it arrives raw or as the scanner's JPEG
    void testBlankJpeg();
 
+   //! A page the scanner ended early is stored at the length which arrived
+   void testShortJpegPage();
+
    //! Test that pages fed sideways are turned upright as they are stored
    void testSideways();
 
