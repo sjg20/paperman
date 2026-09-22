@@ -57,6 +57,10 @@ private slots:
    //! A scan with a sideways feed turns the page size back afterwards,
    //! so that what is saved with the device is still the page size
    void testSidewaysPageSizeRestored();
+
+   //! A scan is the size the panel shows, whatever window the scanner
+   //! was left holding
+   void testPanelPageSizeApplied();
 };
 
 #endif // TEST_QSCANNER_H

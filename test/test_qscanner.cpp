@@ -622,3 +622,103 @@ void TestQscanner::testSidewaysPageSizeRestored()
    xmlConfig->setIntValue ("SCAN_SIDEWAYS", old_sideways);
    utilSetHeadless (false);
 }
+
+
+/* The panel shows a paper size from the moment it is built, while the
+   scanner holds whatever window was saved with the device, which may be
+   from another session, another scanner, or one turned round for sheets
+   fed sideways. The two are brought together when the panel is built.
+
+   Only then: a window set by hand in the options dialog is the user's
+   own, and a scan must use it rather than putting the panel's size back */
+void TestQscanner::testPanelPageSizeApplied()
+{
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   QVERIFY (!desktop->addDir (repo.path ()));
+   QString path = repo.path ();
+   if (path.endsWith ("/"))
+      path.chop (1);
+   QModelIndex repo_ind = desktop->getDirIndex (path + "/");
+   QVERIFY (repo_ind.isValid ());
+
+   Mainwidget *main = Mainwidget::singleton ();
+   QVERIFY (main);
+
+   QString old_dev = xmlConfig->stringValue ("LAST_DEVICE", QString ());
+   int old_single = xmlConfig->intValue ("SCAN_SINGLE");
+   int old_sideways = xmlConfig->intValue ("SCAN_SIDEWAYS");
+   xmlConfig->setStringValue ("LAST_DEVICE", SIMUL_NAME);
+   xmlConfig->setIntValue ("SCAN_SINGLE", 1);
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QVERIFY (main->ensureScanner ());
+   QScanner *scanner = main->_scanner;
+   QVERIFY (scanner);
+
+   int hnum = scanner->findOption ("page-height");
+   int bry = scanner->getBryOption ();
+   QVERIFY (hnum != -1 && bry != -1);
+
+   /* the window the scanner was left holding, too short for the page
+      the panel is about to show */
+   SANE_Word squat = SANE_FIX (150.0);
+
+   scanner->setOption (hnum, &squat);
+   scanner->setOption (bry, &squat);
+
+   // opens the scan panel, as the user would
+   main->pscan ();
+   QVERIFY (main->_pscan && main->_preview);
+
+   // the size the panel shows has reached the scanner
+   bry = scanner->getBryOption ();
+   QVERIFY2 (SANE_UNFIX (scanner->saneWordValue (bry)) > 200.0,
+             qPrintable (QString ("the window is still %1mm, so the size "
+                                  "the panel shows never reached the "
+                                  "scanner")
+                         .arg (SANE_UNFIX (scanner->saneWordValue (bry)))));
+
+   /* now the user sets a window by hand, as the options dialog does.
+      A scan must use it: putting the panel's size back would throw
+      away what was asked for */
+   hnum = scanner->findOption ("page-height");
+   scanner->setOption (hnum, &squat);
+   scanner->setOption (bry, &squat);
+
+   main->scanInto (repo_ind);
+
+   QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
+                                               QDir::Files);
+   QCOMPARE (stacks.size (), 1);
+   Filemax max (path + "/", stacks [0], nullptr);
+   QVERIFY (!max.load ());
+   QVERIFY2 (max.pagecount () == 1,
+             qPrintable (QString ("the scan left %1 pages in %2, %3 bytes")
+                         .arg (max.pagecount ()).arg (stacks [0])
+                         .arg (QFileInfo (path + "/" + stacks [0]).size ())));
+
+   QSize size, true_size;
+   int bpp, image_size, compressed_size;
+   QDateTime when;
+
+   QVERIFY (!max.getImageInfo (0, size, true_size, bpp, image_size,
+                               compressed_size, when));
+
+   int want = (int)(150.0 / 25.4 * scanner->yResolutionDpi ());
+
+   QVERIFY2 (qAbs (size.height () - want) < want / 10,
+             qPrintable (QString ("the page is %1 lines: the scan wanted "
+                                  "%2, for the 150mm window set by hand")
+                         .arg (size.height ()).arg (want)));
+
+   xmlConfig->setStringValue ("LAST_DEVICE", old_dev);
+   xmlConfig->setIntValue ("SCAN_SINGLE", old_single);
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", old_sideways);
+   utilSetHeadless (false);
+}
