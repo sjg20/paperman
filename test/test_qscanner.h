@@ -53,6 +53,10 @@ private slots:
 
    //! Test a sideways feed turns the paper size round for the scanner
    void testPscanPaperSideways();
+
+   //! A scan with a sideways feed turns the page size back afterwards,
+   //! so that what is saved with the device is still the page size
+   void testSidewaysPageSizeRestored();
 };
 
 #endif // TEST_QSCANNER_H

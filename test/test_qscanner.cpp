@@ -13,6 +13,7 @@
 #include <QElapsedTimer>
 #include <QTemporaryDir>
 #include "qscanner.h"
+#include "filemax.h"
 #include "qxmlconfig.h"
 #include "test_qscanner.h"
 
@@ -523,4 +524,101 @@ void TestQscanner::testReconnectPreservesSettings()
    QVERIFY (nearMm (tly, margin));
    compress = scanner.findOption ("compression");
    QCOMPARE (scanner.saneStringValue (compress), QString ("JPEG"));
+}
+
+
+/* Sheets fed sideways go through with the page's height across the
+   scanner, so a scan turns the scan window round. What the scanner
+   holds afterwards is saved with the device and used by the next scan,
+   so the window has to be put back: a scanner too narrow to take the
+   page lengthways caps the width, and the page's length goes with it,
+   after which an upright page is cut off at the foot */
+void TestQscanner::testSidewaysPageSizeRestored()
+{
+   ensureXmlConfig ();
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   QVERIFY (!desktop->addDir (repo.path ()));
+   QString path = repo.path ();
+   if (path.endsWith ("/"))
+      path.chop (1);
+   QModelIndex repo_ind = desktop->getDirIndex (path + "/");
+   QVERIFY (repo_ind.isValid ());
+
+   Mainwidget *main = Mainwidget::singleton ();
+   QVERIFY (main);
+
+   QString old_dev = xmlConfig->stringValue ("LAST_DEVICE", QString ());
+   int old_single = xmlConfig->intValue ("SCAN_SINGLE");
+   int old_sideways = xmlConfig->intValue ("SCAN_SIDEWAYS");
+   xmlConfig->setStringValue ("LAST_DEVICE", SIMUL_NAME);
+   xmlConfig->setIntValue ("SCAN_SINGLE", 1);
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 2);
+
+   QVERIFY (main->ensureScanner ());
+   QScanner *scanner = main->_scanner;
+   QVERIFY (scanner);
+
+   int wnum = scanner->findOption ("page-width");
+   int hnum = scanner->findOption ("page-height");
+   int brx = scanner->getBrxOption ();
+   int bry = scanner->getBryOption ();
+   QVERIFY (wnum != -1 && hnum != -1 && brx != -1 && bry != -1);
+
+   // an upright Letter page, as the user would have set it up
+   SANE_Word wide = SANE_FIX (215.9);
+   SANE_Word tall = SANE_FIX (279.4);
+   scanner->setOption (wnum, &wide);
+   scanner->setOption (hnum, &tall);
+   scanner->setOption (brx, &wide);
+   scanner->setOption (bry, &tall);
+
+   SANE_Word was_w = scanner->saneWordValue (wnum);
+   SANE_Word was_h = scanner->saneWordValue (hnum);
+   SANE_Word was_brx = scanner->saneWordValue (brx);
+   SANE_Word was_bry = scanner->saneWordValue (bry);
+   QVERIFY2 (was_h > was_w, "Letter upright should be taller than wide");
+
+   main->scanInto (repo_ind);
+
+   /* the scan really was turned round: fed on its side the page is as
+      long as the paper is wide, well short of the 11in it stands when
+      it is upright (the width cannot grow to match on a scanner too
+      narrow to take the page lengthways, as the simulated one is) */
+   QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
+                                               QDir::Files);
+   QCOMPARE (stacks.size (), 1);
+   Filemax max (path + "/", stacks [0], nullptr);
+   QVERIFY (!max.load ());
+   QSize size, true_size;
+   int bpp, image_size, compressed_size;
+   QDateTime when;
+   QVERIFY (!max.getImageInfo (0, size, true_size, bpp, image_size,
+                               compressed_size, when));
+   QVERIFY2 (size.height () < 10 * scanner->yResolutionDpi (),
+             qPrintable (QString ("fed sideways the page should be shorter "
+                                  "than 10in, got %1x%2 at %3 dpi")
+                         .arg (size.width ()).arg (size.height ())
+                         .arg (scanner->yResolutionDpi ())));
+
+   /* look the options up again, since the scan may have been through a
+      reconnect and the numbers with it */
+   wnum = scanner->findOption ("page-width");
+   hnum = scanner->findOption ("page-height");
+   brx = scanner->getBrxOption ();
+   bry = scanner->getBryOption ();
+   QCOMPARE (scanner->saneWordValue (wnum), was_w);
+   QCOMPARE (scanner->saneWordValue (hnum), was_h);
+   QCOMPARE (scanner->saneWordValue (brx), was_brx);
+   QCOMPARE (scanner->saneWordValue (bry), was_bry);
+
+   xmlConfig->setStringValue ("LAST_DEVICE", old_dev);
+   xmlConfig->setIntValue ("SCAN_SINGLE", old_single);
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", old_sideways);
+   utilSetHeadless (false);
 }

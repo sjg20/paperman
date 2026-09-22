@@ -427,6 +427,7 @@ void Mainwidget::scanInto(QModelIndex target)
          {
          warn ("Scanner Problem",
                "Could not get parameters - is the scanner connected?");
+         restorePageSize ();
          return;
          }
       }
@@ -529,6 +530,7 @@ void Mainwidget::scanInto(QModelIndex target)
                 (long long) (t_data / n), (long long) (t_confirm / n));
       }
    _scan = 0;
+   restorePageSize ();
    /* leave the last rate showing, as a record of the scan */
    _scan_rate_timer->stop ();
 //    qDebug () << "scan complete";
@@ -550,7 +552,14 @@ void Mainwidget::scan(void)
    settings saved with the device: choosing the size once is not enough,
    and every page comes out with its foot cut off. Turn the window round
    here instead, where every scan goes past. Nothing to do if it is that
-   way round already, so this can run before each scan */
+   way round already, so this can run before each scan.
+
+   What is changed is noted so that restorePageSize() can put it back
+   when the scan is over. Otherwise the turned-round window is what gets
+   saved with the device, and since a scanner too narrow to take the
+   page lengthways caps the width, the page's length is capped with it:
+   turning the window back would no longer give the page it came from,
+   and the next upright page is cut short */
 void Mainwidget::applySidewaysPageSize (void)
    {
    if (!xmlConfig || !xmlConfig->intValue ("SCAN_SIDEWAYS") || !_scanner)
@@ -576,9 +585,31 @@ void Mainwidget::applySidewaysPageSize (void)
       // already lying down: leave it be
       if (w >= h)
          continue;
+      _page_turned.append ({ wnum, w });
+      _page_turned.append ({ hnum, h });
       _scanner->setOption (wnum, &h);
       _scanner->setOption (hnum, &w);
       }
+   }
+
+
+/* Put the scan window back the way the user set it up, so that what is
+   saved with the device describes the page rather than the way the
+   sheets happened to be fed for one scan.
+
+   In the order they were turned, which is the order they have to go
+   back in: the paper size holds the window inside it, so a window put
+   back before the paper it sits on is trimmed to the paper it had */
+void Mainwidget::restorePageSize (void)
+   {
+   if (_scanner)
+      for (int i = 0; i < _page_turned.size (); i++)
+         {
+         SANE_Word was = _page_turned [i].was;
+
+         _scanner->setOption (_page_turned [i].num, &was);
+         }
+   _page_turned.clear ();
    }
 
 
