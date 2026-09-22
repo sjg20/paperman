@@ -748,16 +748,33 @@ void utilLogDialogs (QCoreApplication *)
    installed, is worse than no log at all: this puts the answer at the
    top of it */
 
+Q_LOGGING_CATEGORY (logView, "paperman.view", QtWarningMsg)
+Q_LOGGING_CATEGORY (logErr, "paperman.err", QtWarningMsg)
+Q_LOGGING_CATEGORY (logBuild, "paperman.build", QtWarningMsg)
+
+
+void utilLogEnable (void)
+   {
+   QLoggingCategory::setFilterRules ("paperman.*.debug=true");
+   }
+
+
 void utilLogBuild (const char *when)
    {
    static bool said;
    QFile maps ("/proc/self/maps");
    QStringList seen;
 
+   /* nothing to say when no one is listening; this also means that
+      what was built is reported the first time the log is on, rather
+      than being used up by a silent call before that */
+   if (!logBuild ().isDebugEnabled ())
+      return;
+
    if (!said)
       {
       said = true;
-      qWarning ().noquote ()
+      qCDebug (logBuild).noquote ()
          << QString ("paperman built %1 %2").arg (__DATE__).arg (__TIME__);
       }
 
@@ -780,7 +797,7 @@ void utilLogBuild (const char *when)
       if (seen.contains (path))
          continue;
       seen << path;
-      qWarning ().noquote ()
+      qCDebug (logBuild).noquote ()
          << QString ("%1 %2 built %3").arg (when).arg (path)
             .arg (info.lastModified ().toString ("yyyy-MM-dd hh:mm:ss"));
       }

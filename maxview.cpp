@@ -554,7 +554,9 @@ static void usage (void)
    printf ("   --log FILE          append everything normally written to\n");
    printf ("                       stderr to FILE: Qt's messages, the\n");
    printf ("                       scanner back end's debugging and the\n");
-   printf ("                       dialogs the user is shown\n");
+   printf ("                       dialogs the user is shown; this also\n");
+   printf ("                       turns on the diagnostics which a normal\n");
+   printf ("                       run keeps quiet\n");
    printf ("   --sane-debug LEVEL  how much the scanner back ends say,\n");
    printf ("                       1 to 35; 15 shows every command and\n");
    printf ("                       what the scanner answered\n");
@@ -835,6 +837,7 @@ int main (int argc, char *argv[])
             fprintf (stderr, "\n=== paperman %s ===\n",
                      qPrintable (QDateTime::currentDateTime ()
                                  .toString ("yyyy-MM-dd hh:mm:ss")));
+            utilLogEnable ();
             utilLogBuild ("startup:");
             break;
 

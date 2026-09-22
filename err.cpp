@@ -28,6 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <string.h>
 
 #include "err.h"
+#include "utils.h"
 
 static const char *err_msg [ERR_count] =
    {
@@ -146,7 +147,7 @@ err_info *err_make (const char *func_name, int errnum, ...)
    va_start (ptr, errnum);
    e = err_vmake (func_name, errnum, ptr);
    va_end (ptr);
-   printf ("**Error: %s\n", e->errstr);
+   qCDebug (logErr, "**Error: %s (in %s)", e->errstr, e->func_name);
    return e;
    }
 
