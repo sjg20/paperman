@@ -154,6 +154,23 @@ int jpeg_thumbnail (byte *data, int insize, byte **destp, int *dest_sizep, cpoin
 void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
                   int bpp, int max_width, int max_height);
 
+/** Cut the sides off a JPEG without decoding it
+
+   The pixels are left exactly as the scanner sent them: only the blocks
+   outside the columns wanted are dropped, so nothing is decoded and
+   nothing is encoded again. A cut can only fall on a block boundary, so
+   the left edge moves out to the boundary below it and a little more of
+   the page is kept than was asked for.
+
+   \param data   the JPEG data
+   \param size   how many bytes of it there are
+   \param lo     the first column wanted
+   \param hi     the last column wanted
+   \param out    returns the cropped JPEG
+   \returns the column the result starts at, or -1 if it could not be
+            cropped, in which case the JPEG should be stored as it is */
+int jpegCrop (const byte *data, int size, int lo, int hi, QByteArray &out);
+
 QString removeExtension (const QString &fname, QString &ext);
 
 /** JPEG-encode an image tile

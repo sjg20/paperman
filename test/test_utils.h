@@ -34,6 +34,9 @@ private slots:
    //! Decoding a page whose JPEG data stops short must not run off the end
    void testJpegDecodeShort();
 
+   //! Cutting the sides off a JPEG leaves the pixels it keeps untouched
+   void testJpegCrop();
+
    //! Test preview encode/decode against the greyscale test image
    void testPreviewFromJpeg();
 

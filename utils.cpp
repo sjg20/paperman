@@ -244,6 +244,138 @@ static void my_error_exit (j_common_ptr cinfo)
 }
 
 
+/* Cut the sides off a JPEG by moving its coefficients about, so that the
+   pixels which are kept are the ones the scanner sent, bit for bit.
+
+   A JPEG is stored as blocks of 8 pixels, grouped into units as wide as
+   the colour sampling needs, so a cut can only fall where one of those
+   units ends: the left edge is moved out to the unit below it, which
+   keeps a little more of the page than was asked for and never less.
+   The right edge needs no such care, since the last unit of a row may
+   run past the width the file records and the decoder drops what lies
+   beyond it. */
+static int jpeg_crop_blocks (const byte *data, int size, int lo, int hi,
+                             QByteArray &out)
+   {
+   struct jpeg_decompress_struct srcinfo;
+   struct jpeg_compress_struct dstinfo;
+   struct my_error_mgr jerr;
+   jvirt_barray_ptr *src_coef;
+   jvirt_barray_ptr *dst_coef;
+   unsigned char *buf = NULL;
+   unsigned long buf_size = 0;
+   int ci, unit, x_off, width, result = -1;
+
+   /* the error handler must be in place before either object is made,
+      since making one already reports through it */
+   memset (&srcinfo, '\0', sizeof (srcinfo));
+   memset (&dstinfo, '\0', sizeof (dstinfo));
+   srcinfo.err = dstinfo.err = jpeg_std_error (&jerr.mgr);
+   jerr.err = 0;
+   jerr.mgr.error_exit = my_error_exit;
+   jpeg_create_decompress (&srcinfo);
+   jpeg_create_compress (&dstinfo);
+
+   if (!setjmp (jerr.setjmp_buffer))
+      {
+      jpeg_mem_src (&srcinfo, data, size);
+      jpeg_read_header (&srcinfo, true);
+      src_coef = jpeg_read_coefficients (&srcinfo);
+      if (!src_coef)
+         goto done;
+
+      /* where a cut can fall: the width of one unit of blocks */
+      unit = DCTSIZE * srcinfo.max_h_samp_factor;
+      x_off = qMax (0, lo) / unit * unit;
+      width = qMin ((int)srcinfo.image_width, hi + 1) - x_off;
+      if (width <= 0 || x_off + width > (int)srcinfo.image_width)
+         goto done;
+      if (!x_off && width == (int)srcinfo.image_width)
+         goto done;   // nothing to cut
+
+      jpeg_mem_dest (&dstinfo, &buf, &buf_size);
+      jpeg_copy_critical_parameters (&srcinfo, &dstinfo);
+      dstinfo.image_width = width;
+      dstinfo.image_height = srcinfo.image_height;
+#if JPEG_LIB_VERSION >= 70
+      /* the size the blocks are laid out for, which is what the
+         library works from when it is handed coefficients rather than
+         pixels: copying the parameters over took it from the source,
+         and leaving it there lays out the whole of the old width */
+      dstinfo.jpeg_width = dstinfo.image_width;
+      dstinfo.jpeg_height = dstinfo.image_height;
+#endif
+
+      /* room for the blocks which are kept, a whole number of units
+         each way as the format requires */
+      dst_coef = (jvirt_barray_ptr *) (*dstinfo.mem->alloc_small)
+         ((j_common_ptr) &dstinfo, JPOOL_IMAGE,
+          sizeof (jvirt_barray_ptr) * dstinfo.num_components);
+      for (ci = 0; ci < dstinfo.num_components; ci++)
+         {
+         jpeg_component_info *comp = dstinfo.comp_info + ci;
+         int h = comp->h_samp_factor, v = comp->v_samp_factor;
+         long wb = ((long)width * h
+                    + (long)srcinfo.max_h_samp_factor * DCTSIZE - 1)
+               / ((long)srcinfo.max_h_samp_factor * DCTSIZE);
+         long hb = ((long)dstinfo.image_height * v
+                    + (long)srcinfo.max_v_samp_factor * DCTSIZE - 1)
+               / ((long)srcinfo.max_v_samp_factor * DCTSIZE);
+
+         dst_coef [ci] = (*dstinfo.mem->request_virt_barray)
+            ((j_common_ptr) &dstinfo, JPOOL_IMAGE, FALSE,
+             (JDIMENSION) ((wb + h - 1) / h * h),
+             (JDIMENSION) ((hb + v - 1) / v * v),
+             (JDIMENSION) v);
+         }
+      jpeg_write_coefficients (&dstinfo, dst_coef);
+
+      // copy the blocks which are kept, a row of units at a time
+      for (ci = 0; ci < dstinfo.num_components; ci++)
+         {
+         jpeg_component_info *comp = dstinfo.comp_info + ci;
+         JDIMENSION skip = x_off / unit * comp->h_samp_factor;
+         JDIMENSION y;
+
+         for (y = 0; y < comp->height_in_blocks;
+              y += comp->v_samp_factor)
+            {
+            JBLOCKARRAY dst_rows = (*dstinfo.mem->access_virt_barray)
+               ((j_common_ptr) &dstinfo, dst_coef [ci], y,
+                (JDIMENSION) comp->v_samp_factor, TRUE);
+            JBLOCKARRAY src_rows = (*srcinfo.mem->access_virt_barray)
+               ((j_common_ptr) &srcinfo, src_coef [ci], y,
+                (JDIMENSION) comp->v_samp_factor, FALSE);
+
+            for (int row = 0; row < comp->v_samp_factor; row++)
+               memcpy (dst_rows [row], src_rows [row] + skip,
+                       comp->width_in_blocks * sizeof (JBLOCK));
+            }
+         }
+      jpeg_finish_compress (&dstinfo);
+      jpeg_finish_decompress (&srcinfo);
+      if (buf && buf_size)
+         {
+         out = QByteArray ((const char *)buf, (int)buf_size);
+         result = x_off;
+         }
+      }
+
+done:
+   jpeg_destroy_compress (&dstinfo);
+   jpeg_destroy_decompress (&srcinfo);
+   if (buf)
+      free (buf);
+   return jerr.err ? -1 : result;
+   }
+
+
+int jpegCrop (const byte *data, int size, int lo, int hi, QByteArray &out)
+   {
+   return jpeg_crop_blocks (data, size, lo, hi, out);
+   }
+
+
 void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
                   int bpp, int max_width, int max_height)
    {
