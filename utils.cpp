@@ -252,6 +252,7 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
    jpeg_source_info source;
    int tile_bytes;
    struct my_error_mgr jerr;
+   bool short_data = false;   //!< the data ended before the image did
 
    jpeg_create_decompress(&cinfo);
    cinfo.err = jpeg_std_error(&jerr.mgr);
@@ -289,7 +290,19 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
       while (cinfo.output_scanline < cinfo.output_height &&
              cinfo.output_scanline < (unsigned)max_height)
          {
-         jpeg_read_scanlines(&cinfo, buffer, 1);
+         /* The data can end before the image does: a scanner which cut
+            the page short leaves a JPEG whose header promises more
+            lines than it sent, and a file still being written has only
+            the part that reached the disk. The source then has nothing
+            to give, jpeg_read_scanlines() decodes no line and leaves
+            output_scanline where it was, and going round again would
+            write a line further past the end of the image every time,
+            until the write lands off the end of memory */
+         if (!jpeg_read_scanlines (&cinfo, buffer, 1))
+            {
+            short_data = true;
+            break;
+            }
          if (cinfo.output_components == 3 && bpp == 32)
             {
             byte *in;
@@ -320,7 +333,10 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
 //       debug1 (("width = %d, tile_bytes = %d, line_bytes = %d, decoded %d lines\n",
 //          cinfo.output_width, tile_bytes, line_bytes, cinfo.output_height));
 
-      jpeg_finish_decompress(&cinfo);
+      if (short_data)
+         jpeg_abort_decompress (&cinfo);
+      else
+         jpeg_finish_decompress(&cinfo);
       }
    jpeg_destroy_decompress(&cinfo);
    if (jerr.err)
