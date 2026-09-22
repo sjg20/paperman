@@ -185,6 +185,17 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
    fifteen lines, so asking for half loses only a few of them */
 #define PAPER_COLUMN_FRACTION 0.5
 
+/* A sheet which went through the feeder a little askew has its corners
+   out beyond the rest of it, in columns which hold only a few lines of
+   paper each: asking for half a column of paper there cuts the corners
+   off. Once the edge has been found, follow it outwards while the next
+   column still holds some paper, which walks along the corner and
+   stops where the sheet does. A speck on the backing cannot pull the
+   edge out to itself, since the walk stops at the first column with no
+   paper in it at all */
+#define PAPER_EDGE_FRACTION 0.02
+#define PAPER_EDGE_MOST 0.05
+
 
 
 Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
@@ -1018,7 +1029,7 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
    int lo = 0, hi = _width - 1;
    int paper_lo, paper_hi;
 
-   if (_autoSize && sheetBounds (height, paper_lo, paper_hi, true))
+   if (_autoSize && sheetEdges (height, paper_lo, paper_hi))
       {
       /* leave a margin: a sheet goes through slightly skewed, and the
          very edge of a page printed to its margins is dark rather than
@@ -1135,7 +1146,7 @@ err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
       {
       int paper_lo, paper_hi;
 
-      if (sheetBounds (_height, paper_lo, paper_hi, true))
+      if (sheetEdges (_height, paper_lo, paper_hi))
          {
          int margin = _width / 100;
          int lo = qMax (0, paper_lo - margin);
@@ -1443,8 +1454,49 @@ bool PPage::sheetBounds (int height, int &lo, int &hi, bool printed) const
       }
    if (paper_lo < 0 || paper_hi - paper_lo + 1 < _width * PAPER_MIN_FRACTION)
       return false;
+
    lo = paper_lo;
    hi = paper_hi;
+   return true;
+   }
+
+
+/* Where to cut a page down to the sheet, which is not quite where the
+   sheet is reckoned to be for reading what is on it.
+
+   A sheet which went through the feeder a little askew has its corners
+   out beyond the rest of it, in columns holding only a few lines of
+   paper each, and cutting the page where half a column is paper takes
+   the corners off with the backing. Follow the edge outwards from
+   there while the next column still holds some paper: that walks along
+   the corner and stops where the sheet does, and a speck out on the
+   backing cannot pull the edge to itself, since the walk stops at the
+   first column with no paper at all.
+
+   Only paper counts here, not the ink which stands in for it when the
+   sheet is being found: the shade the edge of a sheet casts on the
+   backing is dark enough to read as ink, and following that leads out
+   across the whole window. A corner reaches out by the length of the
+   sheet times how far it is off square, so there is a limit on how far
+   this goes as well */
+bool PPage::sheetEdges (int height, int &lo, int &hi) const
+   {
+   if (!sheetBounds (height, lo, hi, true))
+      return false;
+
+   /* what the backing itself gives, measured at the edge of the
+      window, where there is no sheet: the window can take in more than
+      the sheet in both directions, and a page whose sheet ends part
+      way down is bright below it right across the window */
+   int edge = qMax (1, (int)(height * PAPER_EDGE_FRACTION));
+   int most = (int)(_width * PAPER_EDGE_MOST);
+
+   for (int i = 0; i < most && lo > 0
+        && _bright_cols [lo - 1] >= _bright_cols [0] + edge; i++)
+      lo--;
+   for (int i = 0; i < most && hi < _width - 1
+        && _bright_cols [hi + 1] >= _bright_cols [_width - 1] + edge; i++)
+      hi++;
    return true;
    }
 
@@ -1564,7 +1616,7 @@ QString PPage::kindStr ()
    QString sheet = "sheet not found";
 
    inkTotals (interior, soft, solid);
-   if (sheetBounds (_rows_done, lo, hi, true))
+   if (sheetEdges (_rows_done, lo, hi))
       sheet = QString ().asprintf ("sheet %d..%d (%d wide, %.0f%%)",
                                    lo, hi, hi - lo + 1,
                                    100.0 * (hi - lo + 1) / _width);

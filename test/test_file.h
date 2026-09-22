@@ -33,6 +33,9 @@ private slots:
    //! A sheet narrower than the window has the backing cut off its sides
    void testNarrowSheetCrop();
 
+   //! A sheet which went through askew keeps its corners
+   void testSkewedSheetCrop();
+
    //! Test that pages fed sideways are turned upright as they are stored
    void testSideways();
 
