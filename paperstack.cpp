@@ -277,8 +277,11 @@ err_info *Paperstack::confirmImage (Filepage *&mp, QMutex &mutex)
    bool mark_blank = false;
    mp = NULL;
 
-   // check the blank page policy
-   if (_blankPolicy != record && !_jpeg)
+   /* check the blank page policy. The pixels behind it are counted as
+      the page arrives, the scanner's JPEG decompressed as it comes, so
+      this works for a colour page too: it used not to, back when the
+      JPEG was stored without ever being looked at */
+   if (_blankPolicy != record)
       {
       // if this page is blank and not required, skip
       bool blank = _page->isBlank ();
@@ -318,7 +321,7 @@ err_info *Paperstack::confirmImageBack (Filepage *&mp, QMutex &mutex)
 
    /* mirrors confirmImage() but for the back-side page in a progressive
     * duplex scan. ignoreIfBack always treats this as a back page. */
-   if (_blankPolicy != record && !_jpeg)
+   if (_blankPolicy != record)
       {
       bool blank = _page_back->isBlank ();
       if (blank)

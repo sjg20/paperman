@@ -1,3 +1,4 @@
+#include <QBuffer>
 #include <QPainter>
 #include <QtConcurrent>
 #include <QSet>
@@ -1541,4 +1542,65 @@ void TestFile::testAutoColour()
          }
    QCOMPARE (scanSynthetic (page, width, height, cov), 8);
    QVERIFY (cov.endsWith (" grey"));
+}
+
+
+/* Feed a page to the scan path as the back end delivers it and say
+   whether it came out marked blank
+
+   \param rgb    the page, as RGB pixels
+   \param w, h   its size
+   \param jpeg   true to hand it over as JPEG, as a colour scan arrives */
+static bool scanIsBlank (const QByteArray &rgb, int w, int h, bool jpeg)
+{
+   Paperstack stack ("stack", "page", jpeg);
+   QMutex mutex;
+   Filepage *mp = NULL;
+   QByteArray data = rgb;
+
+   if (jpeg)
+      {
+      QImage im ((const uchar *)rgb.constData (), w, h, w * 3,
+                 QImage::Format_RGB888);
+      QBuffer buf (&data);
+
+      data.clear ();
+      buf.open (QIODevice::WriteOnly);
+      im.save (&buf, "JPEG", 90);
+      }
+   stack.setBlankPolicy (Paperstack::ignore, 500);
+   stack.addImage (w, h, 24, w * 3, true, jpeg);
+   stack.addImageBytes ((unsigned char *)data.data (), data.size ());
+   if (stack.confirmImage (mp, mutex) || !mp)
+      return false;
+
+   bool blank = mp->_mark_blank;
+
+   delete mp;
+   return blank;
+}
+
+
+/* The scanner sends a colour page as JPEG, so blank detection has to
+   work on that as well as on raw pixels: a colour scan is the only kind
+   which arrives compressed, and a blank sheet in the middle of one used
+   to be kept as a page like any other */
+void TestFile::testBlankJpeg()
+{
+   const int w = 400, h = 600;
+   QByteArray blank (w * h * 3, (char)255);
+   QByteArray printed = blank;
+   unsigned char *p = (unsigned char *)printed.data ();
+
+   /* something on the page, well over the 1-in-500 pixels which the
+      blank threshold allows */
+   for (int y = 100; y < 160; y++)
+      for (int x = 100; x < 300; x++)
+         p [(y * w + x) * 3] = p [(y * w + x) * 3 + 1] =
+            p [(y * w + x) * 3 + 2] = 0;
+
+   QVERIFY2 (scanIsBlank (blank, w, h, false), "raw blank page");
+   QVERIFY2 (!scanIsBlank (printed, w, h, false), "raw printed page");
+   QVERIFY2 (scanIsBlank (blank, w, h, true), "blank page sent as JPEG");
+   QVERIFY2 (!scanIsBlank (printed, w, h, true), "printed page sent as JPEG");
 }
