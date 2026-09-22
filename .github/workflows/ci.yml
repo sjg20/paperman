@@ -135,6 +135,32 @@ jobs:
         # fail a hung test quickly rather than after QtTest's five minutes
         run: QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=60000 ./paperman.exe -t
 
+      # The tests are built with a console attached, so that their output
+      # is not swallowed; what is shipped is built without one
+      - name: Build the app to ship
+        run: |
+          make -f Makefile.win clean
+          qmake6 paperman.pro -o Makefile.win
+          make -f Makefile.win -j$(nproc)
+
+      - name: Gather what it needs
+        run: scripts/win-stage.sh dist/paperman
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = (Select-String -Path config.h `
+             -Pattern 'CONFIG_version_str "(.*)"').Matches[0].Groups[1].Value
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+             "/DStageDir=$pwd\dist\paperman" "/DAppVersion=$version" `
+             packaging/windows/paperman.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paperman-windows-installer
+          path: packaging/windows/paperman-setup-*.exe
+
   flutter:
     name: Flutter app + widget tests
     runs-on: ubuntu-24.04
