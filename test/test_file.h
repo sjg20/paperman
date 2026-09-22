@@ -24,6 +24,9 @@ private slots:
    //! Check real scanned pages against what each should be stored as
    void testCorpus();
 
+   //! A blank page is found whether it arrives raw or as the scanner's JPEG
+   void testBlankJpeg();
+
    //! Test that pages fed sideways are turned upright as they are stored
    void testSideways();
 
