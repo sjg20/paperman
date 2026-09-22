@@ -1748,3 +1748,37 @@ void TestFile::testSkewedSheetCrop()
                          .arg (mp->_width)));
    delete mp;
 }
+
+
+/* Which pages to remove is decided by the page view, whose list of
+   pages is not always the stack's: it can hold pages which never
+   reached the file, or belong to another stack. That used to stop the
+   program with an assertion at the end of a scan, taking the pages
+   which had just been scanned with it */
+void TestFile::testRemovePagesMismatch()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+   int orig = max.pagecount();
+   QVERIFY(orig > 1);
+
+   /* a list longer than the stack, asking for a page past the end of
+      it as well as one it has */
+   QBitArray pages(orig + 3);
+   pages.setBit(0);
+   pages.setBit(orig + 2);
+   QByteArray del_info;
+   int count = 2;
+
+   QVERIFY(max.removePages(pages, del_info, count) == nullptr);
+
+   // the page the stack has is gone, and the one it does not have is
+   // reported as not removed
+   QCOMPARE(max.pagecount(), orig - 1);
+   QCOMPARE(count, 1);
+}
