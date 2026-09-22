@@ -77,6 +77,7 @@ class Mainwidget : public QStackedWidget
    {
    Q_OBJECT
    friend class TestOps;
+   friend class TestQscanner;
 public:
    Mainwidget (QWidget *parent, const char *name = 0);
    ~Mainwidget();
@@ -111,6 +112,9 @@ public:
 
    /** turn the scan window round when the sheets are fed sideways */
    void applySidewaysPageSize (void);
+
+   /** put back what applySidewaysPageSize() turned round */
+   void restorePageSize (void);
 
    /** as for warn(), but for information */
    void inform (const QString &title, const QString &msg);
@@ -488,6 +492,11 @@ private:
    QString _scan_summary;  //!< result message from the last scan
    bool _console;          //!< report scan progress on stdout
    QMap<QString, QString> _scan_options;  //!< options to apply before scanning
+   struct pageturn {
+      int num;         //!< scanner option which was turned round
+      SANE_Word was;   //!< what it held before
+      };
+   QList<pageturn> _page_turned;  //!< what applySidewaysPageSize() changed
 //   Paperstack *_stack;     //!< paper stack to scan into
    Paperscan *_scan;       //!< the current scan in progress
 
