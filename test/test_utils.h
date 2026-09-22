@@ -31,6 +31,9 @@ private slots:
    //! Test 8bpp preview encode/decode roundtrip
    void testPreview8bppRoundtrip();
 
+   //! Decoding a page whose JPEG data stops short must not run off the end
+   void testJpegDecodeShort();
+
    //! Test preview encode/decode against the greyscale test image
    void testPreviewFromJpeg();
 

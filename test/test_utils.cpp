@@ -653,3 +653,64 @@ void TestUtils::testImageAdjustWhiten()
    ImageAdjust::apply(mono, ImageAdjust::Adjust_whiten);
    QCOMPARE(mono, before);
 }
+
+
+/* A scanner which ends a page early leaves a JPEG whose header promises
+   more lines than the data holds, as does a file still being written.
+   The decoder used to go round its loop for ever on one of those, since
+   a line which cannot be decoded leaves the scanline count where it was,
+   writing a line further past the end of the image each time until it
+   ran off the end of memory */
+void TestUtils::testJpegDecodeShort()
+{
+   const int w = 64, h = 400;
+   QImage im (w, h, QImage::Format_RGB888);
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb ((x * 37) & 0xff, (y * 53) & 0xff,
+                                  ((x + y) * 17) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 90));
+   buf.close ();
+
+   // cut the data off part way through the image
+   QVERIFY (data.size () > 200);
+   data.truncate (data.size () / 4);
+
+   /* room for the image and no more, with a mark after it which the
+      decode must leave alone */
+   const int line_bytes = w * 4, guard = 4096;
+   QByteArray dest (line_bytes * h + guard, '\xa5');
+
+   jpeg_decode ((byte *)data.data (), data.size (),
+                (byte *)dest.data (), line_bytes, 32, w, h);
+
+   for (int i = line_bytes * h; i < dest.size (); i++)
+      QVERIFY2 ((unsigned char)dest [i] == 0xa5,
+                qPrintable (QString ("wrote %1 bytes past the image")
+                            .arg (i - line_bytes * h + 1)));
+
+   /* and the data really did stop short, or the test proves nothing:
+      count the lines which were written */
+   int written = 0;
+
+   for (int y = 0; y < h; y++)
+      {
+      const unsigned char *line =
+         (const unsigned char *)dest.constData () + y * line_bytes;
+      bool touched = false;
+
+      for (int i = 0; i < line_bytes && !touched; i++)
+         touched = line [i] != 0xa5;
+      if (touched)
+         written = y + 1;
+      }
+   QVERIFY2 (written > 0 && written < h,
+             qPrintable (QString ("%1 of %2 lines decoded: the data did "
+                                  "not stop short").arg (written).arg (h)));
+}
