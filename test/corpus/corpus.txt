@@ -46,3 +46,11 @@ lkd-figure-grey.jpg       right   8  2776  print with a figure whose boxes are f
 
 ldd-engraving-grey.jpg    right   8  2842  a chapter opening with an engraving at the head
 ldd-text-mono.jpg         right   1  2834  the back of that sheet, printed text
+
+# A page fed upright, printed on both sides, with a note written across
+# the head of it in blue biro. The mark is a few thin strokes: too
+# little of the page for the measure which asks what share of it has
+# colour, and too thin for the one which asks for colour all round a
+# pixel, so it is the pen-ink rule which keeps this one in colour.
+
+pen-colour.jpg            none   24  2192  a printed page with a note written on it in blue ink
