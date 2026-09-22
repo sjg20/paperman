@@ -1643,3 +1643,56 @@ void TestFile::testShortJpegPage()
                          .arg (h)));
    delete mp;
 }
+
+
+/* A sheet narrower than the window the scanner was given leaves the
+   backing showing down both sides of the page. With auto-size on it is
+   cut off at the edge of the sheet, and for a page kept as the
+   scanner's JPEG that is done by moving the JPEG's blocks about, so
+   what is left is still what the scanner sent */
+void TestFile::testNarrowSheetCrop()
+{
+   const int w = 640, h = 480, edge = 160;
+   QImage im (w, h, QImage::Format_RGB888);
+
+   /* the sheet in the middle with a line of print down it, the
+      scanner's backing either side */
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         {
+         /* the backing is a light grey, as the scanner's is: lighter
+            than ink and darker than paper */
+         bool sheet = x >= edge && x < w - edge;
+         int v = sheet ? 254 : 225;
+
+         if (sheet && (y % 40) < 8 && x > edge + 20 && x < w - edge - 20)
+            v = 0;
+         im.setPixel (x, y, qRgb (v, v, v));
+         }
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 90));
+   buf.close ();
+
+   Paperstack stack ("stack", "page", true);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   stack.setAutoSize (true);
+   stack.addImage (w, h, 24, w * 3, true, true);
+   stack.addImageBytes ((unsigned char *)data.data (), data.size ());
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+
+   /* the sheet is 320 wide, and a margin is left round it; the cut can
+      only fall on a JPEG block boundary, so a little more is kept */
+   QVERIFY2 (mp->_width >= w - 2 * edge && mp->_width < w - edge,
+             qPrintable (QString ("stored %1 wide for a sheet %2 wide in "
+                                  "a window %3 wide").arg (mp->_width)
+                         .arg (w - 2 * edge).arg (w)));
+   QCOMPARE (mp->_height, h);
+   delete mp;
+}

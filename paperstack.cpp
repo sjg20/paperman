@@ -1010,14 +1010,15 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
                            int &stride_out) const
    {
    bool turn = _rotate != Rotate_none;
-   /* A sideways feed puts the page's height along the scanner, where
-      nothing trims it: the window is the paper size turned round, so a
-      page shorter than that leaves the backing showing. Cut it off at
-      the edge of the sheet */
+   /* The sheet is narrower than the window the scanner was given, and
+      what lies beyond its edge is the backing. A sideways feed puts the
+      page's height along the scanner, where nothing trims it, so the
+      page is left with the backing at its foot; an upright one has it
+      down the sides. Either way, cut it off at the edge of the sheet */
    int lo = 0, hi = _width - 1;
    int paper_lo, paper_hi;
 
-   if (turn && _autoSize && sheetBounds (height, paper_lo, paper_hi, true))
+   if (_autoSize && sheetBounds (height, paper_lo, paper_hi, true))
       {
       /* leave a margin: a sheet goes through slightly skewed, and the
          very edge of a page printed to its margins is dark rather than
@@ -1029,7 +1030,7 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
       lo = qMax (0, paper_lo - margin);
       hi = qMin (_width - 1, paper_hi + margin);
       }
-   int ow = turn ? height : _width;
+   int ow = turn ? height : hi - lo + 1;
    int oh = turn ? hi - lo + 1 : height;
    int ostride = depth == 24 ? ow * 3 : depth == 8 ? ow : (ow + 7) / 8;
    QByteArray out (ostride * oh, '\0');
@@ -1053,7 +1054,7 @@ QByteArray PPage::convert (const unsigned char *src, int height, int depth,
                sy = dx;
                break;
             default :
-               sx = dx;
+               sx = lo + dx;
                sy = dy;
                break;
             }
@@ -1124,6 +1125,36 @@ err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
       mp->addData (width, height, depth, stride, _name, false, mark_blank,
                    _pagenum, out, out.size ());
       return mp->compress ();
+      }
+
+   /* The page is stored as the scanner sent it, so cutting the backing
+      off the sides means cutting up the JPEG, which can be done by
+      moving its blocks about rather than by decoding and encoding it
+      again: the pixels which are kept are the ones the scanner sent */
+   if (_autoSize && _jpeg && _depth == 24)
+      {
+      int paper_lo, paper_hi;
+
+      if (sheetBounds (_height, paper_lo, paper_hi, true))
+         {
+         int margin = _width / 100;
+         int lo = qMax (0, paper_lo - margin);
+         int hi = qMin (_width - 1, paper_hi + margin);
+         QByteArray out;
+
+         if (lo || hi < _width - 1)
+            {
+            int at = jpegCrop ((const byte *)_data.constData (),
+                               _data.size (), lo, hi, out);
+
+            if (at >= 0)
+               {
+               _data = out;
+               _width = hi + 1 - at;
+               _stride = _width * 3;
+               }
+            }
+         }
       }
 
 //   printf ("final count = %d, pixels = %d\n", _nonblankPixels, _pixels);
@@ -1529,12 +1560,18 @@ static const char *kind_suffix (PPage::Kind kind)
 QString PPage::kindStr ()
    {
    int interior, soft, solid;
+   int lo = 0, hi = _width - 1;
+   QString sheet = "sheet not found";
 
    inkTotals (interior, soft, solid);
+   if (sheetBounds (_rows_done, lo, hi, true))
+      sheet = QString ().asprintf ("sheet %d..%d (%d wide, %.0f%%)",
+                                   lo, hi, hi - lo + 1,
+                                   100.0 * (hi - lo + 1) / _width);
    return QString ().asprintf (
             "%dx%d depth %d%s pixels %d, colour %d "
             "(%.3f%%: dark %d mid %d light %d, solid %d %.4f%%, "
-            "pen %d %.3f%%), interior %d (%.3f%%), soft %d (%.4f%%) -> %s",
+            "pen %d %.3f%%), interior %d (%.3f%%), soft %d (%.4f%%), %s -> %s",
             _width, _height, _depth, _jpeg ? " jpeg" : "",
             _pixels, _colourPixels,
             _pixels ? 100.0 * _colourPixels / _pixels : 0,
@@ -1544,7 +1581,7 @@ QString PPage::kindStr ()
             100.0 * colourTile () / (COLOUR_TILE * COLOUR_TILE),
             interior, _pixels ? 100.0 * interior / _pixels : 0,
             soft, _pixels ? 100.0 * soft / _pixels : 0,
-            kind_name (kind ()));
+            qPrintable (sheet), kind_name (kind ()));
    }
 
 

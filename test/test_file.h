@@ -30,6 +30,9 @@ private slots:
    //! A page the scanner ended early is stored at the length which arrived
    void testShortJpegPage();
 
+   //! A sheet narrower than the window has the backing cut off its sides
+   void testNarrowSheetCrop();
+
    //! Test that pages fed sideways are turned upright as they are stored
    void testSideways();
 
