@@ -74,6 +74,7 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
 {
    setObjectName(name);
    _progress = 0;
+   _operations = 0;
    _label = 0;
    setupUi(this);
    utilUpdateIcons(this);
@@ -165,6 +166,10 @@ Mainwindow::~Mainwindow()
       stopped while everything it touches is still there */
    if (_main && _main->getPage ())
       _main->getPage ()->stopRendering ();
+
+   /* an operation which outlives the window would report to a window
+      that is no longer there */
+   Operation::setReceiver (0);
     // no need to delete child widgets, Qt does it all for us
 }
 
@@ -526,6 +531,13 @@ void Mainwindow::updateProgress(enum Operation::state_t state, int percent,
    {
    switch (state) {
    case Operation::init: {
+      /* an operation started while another is still running shares the
+         bar which is already there: what it says is the name of the
+         newest, which is the one making the progress */
+      if (_operations++ && _label) {
+         _label->setText (name);
+         break;
+      }
       statusBar()->clearMessage ();
       _label = new QLabel (name);
       _progress = new QProgressBar ();
@@ -542,13 +554,20 @@ void Mainwindow::updateProgress(enum Operation::state_t state, int percent,
       break;
    }
    case Operation::uninit:
+      /* the bar stays until the last operation using it has finished */
+      if (_operations > 0 && --_operations)
+         break;
       delete _progress;
       delete _label;
       _progress = 0;
       _label = 0;
       break;
    default:
-      _progress->setValue (percent);
+      /* there may be no bar: an operation can be made before this
+         window is told to listen, and then it reports progress which
+         nothing has been set up for */
+      if (_progress)
+         _progress->setValue (percent);
    }
 }
 

@@ -17,6 +17,7 @@
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "op.h"
 #include "pagemodel.h"
 #include "pageview.h"
 #include "pagewidget.h"
@@ -1502,3 +1503,37 @@ void TestDesktopUi::testDirFilterHidesOtherYears()
    QVERIFY(desktop->findDir(path + "/" + last_year).isValid());
 }
 
+
+
+/* Progress is reported to the window, which puts a bar in the status bar
+   for as long as an operation is running. An operation reports its
+   progress with the event loop running, though, so the user can start
+   another one while the first is still going: when that one finished it
+   used to take the bar away, and the operation still running then
+   reported its progress to a bar which was no longer there */
+void TestDesktopUi::testOverlappingOperations()
+{
+   Mainwindow me;
+
+   me.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&me));
+
+   Operation outer ("outer", 10, 0);
+
+   outer.setProgress (1);
+      {
+      // an operation which starts and finishes while the first runs
+      Operation inner ("inner", 10, 0);
+
+      inner.setProgress (5);
+      }
+
+   // the first one is still going, and still has somewhere to report to
+   outer.setProgress (2);
+
+   /* an operation which asks for no count at all divides by it to work
+      out a percentage */
+   Operation unknown ("unknown", 0, 0);
+
+   unknown.setProgress (3);
+}
