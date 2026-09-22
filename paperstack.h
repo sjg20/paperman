@@ -164,8 +164,9 @@ private:
    /** feed the next pixel to the ink counts
 
       \param lum       its luminance
-      \param coloured  true if it has a colour to it */
-   void inkPixel (int lum, bool coloured);
+      \param coloured  true if it has a colour to it
+      \param strong    true if that colour is strong and dark, as ink is */
+   void inkPixel (int lum, bool coloured, bool strong);
 
    /** what a pixel holds, for the ink counts */
    enum Ink
@@ -176,7 +177,9 @@ private:
       Ink_pale,      //!< ink so pale that mono drops it
       Ink_mask = 3,  //!< the bits those take up
       Ink_gap = 4,   //!< too near a pixel with no ink to be an interior
-      Ink_colour = 8 //!< the pixel has a colour to it
+      Ink_colour = 8, //!< the pixel has a colour to it
+      Ink_strong = 16, //!< a strong colour, and dark, as ink laid on paper is
+      Ink_paper = 32  //!< paper-bright: the sheet with nothing on it
       };
 
    /** what a counted pixel turned out to be */
@@ -185,7 +188,8 @@ private:
       Mark_none = 0,      //!< nothing of interest
       Mark_interior = 1,  //!< a mid-tone pixel inside a filled region
       Mark_soft = 2,      //!< pale ink with nothing mono keeps near it
-      Mark_colour = 4     //!< a pixel with colour all round it
+      Mark_colour = 4,    //!< a pixel with colour all round it
+      Mark_pen = 8        //!< strong colour with white paper beside it
       };
 
    /** find the edges of the sheet across the window, see the .cpp */
@@ -193,6 +197,9 @@ private:
 
    /** add up the ink marks made on the sheet, see the .cpp */
    void inkTotals (int &interior, int &soft, int &colour) const;
+
+   /** the pen-marked pixels of the densest tile on the sheet, see the .cpp */
+   int colourTile (void) const;
 
 public:
    ~PPage ();
@@ -249,6 +256,10 @@ public:
    /** returns a string representing the page coverage */
    QString coverageStr ();
 
+   /** what the auto-colour test saw on this page: the counts behind its
+       choice of colour, grey or mono, for tuning the thresholds */
+   QString kindStr ();
+
    /** clear the page's buffer, releasing any memory used */
    void clear (void);
 
@@ -300,6 +311,9 @@ private:
    QVector<int> _interior_cols; //!< interior pixels counted in each column
    QVector<int> _soft_cols; //!< soft pixels counted in each column
    QVector<int> _colour_cols; //!< solid colour counted in each column
+   QVector<int> _colour_cells; //!< pen-marked pixels in each tile of the tile row
+   QVector<int> _colour_tiles; //!< the most any tile of each tile column held
+   int _colour_rows;    //!< rows counted into the tile row being filled
    QVector<int> _cell_ink; //!< ink pixels in each cell of the row being read
    QVector<int> _tile_solid; //!< filled cells in each tile of the tile row
    int _fill_max;       //!< filled cells in the densest tile of the page
@@ -439,6 +453,9 @@ public:
 
    /** Coverage string for the back-side page (progressive duplex). */
    QString coverageStrBack ();
+
+   /** what the auto-colour test saw on the page, see PPage::kindStr() */
+   QString kindStr ();
 
    bool isScanning (void) { return _scanning; }
 

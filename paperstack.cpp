@@ -78,6 +78,28 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define COLOUR_RADIUS INTERIOR_RADIUS
 #define COLOUR_SOLID_FRACTION 0.0005
 
+/* Both of those measures look at the page as a whole, and a note
+   written on it is a few thin strokes in one corner: too little of the
+   page to tell from the fringes of the print, and too thin to hold its
+   colour all round the way a stamp pressed on the page does. What
+   marks writing out is what it is made of. Ink laid on the page is
+   strongly coloured, dark as ink is, and the paper beside it is white,
+   within COLOUR_PAPER_RADIUS. Ink which has soaked through from the
+   back of the sheet is strongly coloured too, but it has stained the
+   paper it came through, so there is no white beside it, and the
+   fringe along the edge of black print is neither strong nor dark.
+
+   Count those pixels in each COLOUR_TILE-square tile of the sheet and
+   take the densest, since writing is in one place rather than spread
+   over the page: a tile with a few pen strokes across it gives around
+   1%, a page of print none at all, and the back of a sheet with a blue
+   stamp on it under a tenth of that */
+#define COLOUR_STRONG 60
+#define COLOUR_INK_LUM 100
+#define COLOUR_PAPER_RADIUS INTERIOR_RADIUS
+#define COLOUR_TILE 128
+#define COLOUR_TILE_FRACTION 0.003
+
 /* Without colour, a page is grey rather than mono when enough of it lies
    in the mid-tones inside filled regions: pixels with ink (darker than
    INK_THRESHOLD, so print showing through from the back of the sheet
@@ -462,6 +484,14 @@ QString Paperstack::coverageStr ()
    }
 
 
+QString Paperstack::kindStr ()
+   {
+   if (_page)
+      return _page->kindStr ();
+   return "";
+   }
+
+
 QString Paperstack::coverageStrBack ()
    {
    if (_page_back)
@@ -479,6 +509,7 @@ PPage::PPage (int pagenum, int width, int height, int depth, int stride,
    _rotate = rotate;
    _colourPixels = 0;
    _fill_max = 0;
+   _colour_rows = 0;
    _col = 0;
    _bright_cols.clear ();
    _ink_cols.clear ();
@@ -844,7 +875,8 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
                _colourBand [lum < 100 ? 0 : lum < 200 ? 1 : 2]++;
                }
             if (_autoColour)
-               inkPixel (lum, coloured);
+               inkPixel (lum, coloured,
+                         mx - mn >= COLOUR_STRONG && lum < COLOUR_INK_LUM);
             pixels++;
             }
          _colourPixels += colour;
@@ -1110,7 +1142,7 @@ err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
    every row of it are the interior ones. Each row's count is held for
    EDGE_ROWS rows before it is added, so the last EDGE_ROWS rows of the
    page never are, and the first EDGE_ROWS are skipped */
-void PPage::inkPixel (int lum, bool coloured)
+void PPage::inkPixel (int lum, bool coloured, bool strong)
    {
    if (_rows.isEmpty ())
       {
@@ -1119,6 +1151,8 @@ void PPage::inkPixel (int lum, bool coloured)
       _interior_cols = QVector<int> (_width, 0);
       _soft_cols = QVector<int> (_width, 0);
       _colour_cols = QVector<int> (_width, 0);
+      _colour_cells = QVector<int> (_width / COLOUR_TILE + 1, 0);
+      _colour_tiles = QVector<int> (_width / COLOUR_TILE + 1, 0);
       _cell_ink = QVector<int> (_width / FILL_CELL + 1, 0);
       _tile_solid = QVector<int> (_width / (FILL_CELL * FILL_TILE) + 1, 0);
       }
@@ -1136,6 +1170,10 @@ void PPage::inkPixel (int lum, bool coloured)
 
    if (coloured)
       flag |= Ink_colour;
+   if (strong)
+      flag |= Ink_strong;
+   if (lum >= PAPER_BRIGHT)
+      flag |= Ink_paper;
 
    /* a pixel is kept only if it and its INTERIOR_RADIUS neighbours each
       side have ink: mark it now, unmark the neighbours behind it that a
@@ -1196,6 +1234,19 @@ void PPage::inkPixel (int lum, bool coloured)
    char *slot = _delay.data () + (done % EDGE_ROWS) * _width;
 
    if (done >= 2 * EDGE_ROWS)
+      {
+      /* a tile row is complete: keep the most each tile column held */
+      if (_colour_rows == COLOUR_TILE)
+         {
+         for (int tile = 0; tile < _colour_cells.size (); tile++)
+            {
+            _colour_tiles [tile] = qMax (_colour_tiles [tile],
+                                         _colour_cells [tile]);
+            _colour_cells [tile] = 0;
+            }
+         _colour_rows = 0;
+         }
+      _colour_rows++;
       for (int x = 0; x < _width; x++)
          {
          if (slot [x] & Mark_interior)
@@ -1204,12 +1255,35 @@ void PPage::inkPixel (int lum, bool coloured)
             _soft_cols [x]++;
          if (slot [x] & Mark_colour)
             _colour_cols [x]++;
+         if (slot [x] & Mark_pen)
+            _colour_cells [x / COLOUR_TILE]++;
          }
+      }
    memset (slot, Mark_none, _width);
    for (int x = 0; x < _width; x++)
       {
       char centre = rows [mid][x] & Ink_mask;
       char mark = Mark_none;
+
+      /* ink of a strong colour with the paper still white beside it is
+         a pen mark: ink which soaked through from the back has stained
+         the paper it came through, and has no white left beside it */
+      if (rows [mid][x] & Ink_strong)
+         {
+         bool paper = false;
+
+         for (int r = 0; r < INTERIOR_ROWS && !paper; r++)
+            for (int dx = -COLOUR_PAPER_RADIUS;
+                 dx <= COLOUR_PAPER_RADIUS && !paper; dx++)
+               {
+               int nx = x + dx;
+
+               paper = nx >= 0 && nx < _width
+                     && (rows [r][nx] & Ink_paper) != 0;
+               }
+         if (paper)
+            mark |= Mark_pen;
+         }
 
       /* ink laid on the page is coloured all through, while the fringe
          along the edge of black print is a pixel or two of colour with
@@ -1222,7 +1296,7 @@ void PPage::inkPixel (int lum, bool coloured)
             for (int dx = -COLOUR_RADIUS; dx <= COLOUR_RADIUS && all; dx++)
                all = (rows [r][x + dx] & Ink_colour) != 0;
          if (all)
-            mark = Mark_colour;
+            mark |= Mark_colour;
          }
       if (centre == Ink_none)
          {
@@ -1359,6 +1433,32 @@ void PPage::inkTotals (int &interior, int &soft, int &colour) const
    }
 
 
+/* The densest tile of pen ink lying on the sheet. Tiles which are not
+   wholly inside the edges of the sheet are left out: the step from the
+   sheet to the backing beyond it comes back from the scanner with a
+   coloured fringe along it, as any sharp edge does */
+int PPage::colourTile (void) const
+   {
+   int lo = 0, hi = _width - 1;
+   int most = 0;
+
+   if (_colour_tiles.isEmpty ())
+      return 0;
+   if (sheetBounds (_rows_done, lo, hi, false))
+      {
+      lo = qMax (0, lo + SHEET_INSET);
+      hi = qMin (_width - 1, hi - SHEET_INSET);
+      }
+   for (int tile = 0; tile < _colour_tiles.size (); tile++)
+      {
+      if (tile * COLOUR_TILE < lo || (tile + 1) * COLOUR_TILE - 1 > hi)
+         continue;
+      most = qMax (most, qMax (_colour_tiles [tile], _colour_cells [tile]));
+      }
+   return most;
+   }
+
+
 PPage::Kind PPage::kind (void) const
    {
    if (_depth != 24 || !_pixels)
@@ -1371,12 +1471,27 @@ PPage::Kind PPage::kind (void) const
    inkTotals (interior, soft, colour);
    if ((double)colour / _pixels >= COLOUR_SOLID_FRACTION)
       return Kind_colour;
+   if ((double)colourTile () / (COLOUR_TILE * COLOUR_TILE)
+       >= COLOUR_TILE_FRACTION)
+      return Kind_colour;
    if ((double)_fill_max / FILL_TILE_CELLS >= FILL_FRACTION)
       return Kind_grey;
    if ((double)interior / _pixels >= GREY_FRACTION
        || (double)soft / _pixels >= SOFT_FRACTION)
       return Kind_grey;
    return Kind_mono;
+   }
+
+
+/* what the page-kind test decided, for a line the user reads */
+static const char *kind_name (PPage::Kind kind)
+   {
+   switch (kind)
+      {
+      case PPage::Kind_grey: return "grey";
+      case PPage::Kind_mono: return "mono";
+      default: return "colour";
+      }
    }
 
 
@@ -1389,6 +1504,31 @@ static const char *kind_suffix (PPage::Kind kind)
       case PPage::Kind_mono: return " mono";
       default: return "";
       }
+   }
+
+
+/* What the auto-colour test saw: the counts it is built on, as
+   percentages of the page, and what it made of them. The thresholds
+   these are compared against are at the head of this file */
+QString PPage::kindStr ()
+   {
+   int interior, soft, solid;
+
+   inkTotals (interior, soft, solid);
+   return QString ().asprintf (
+            "%dx%d depth %d%s pixels %d, colour %d "
+            "(%.3f%%: dark %d mid %d light %d, solid %d %.4f%%, "
+            "pen %d %.3f%%), interior %d (%.3f%%), soft %d (%.4f%%) -> %s",
+            _width, _height, _depth, _jpeg ? " jpeg" : "",
+            _pixels, _colourPixels,
+            _pixels ? 100.0 * _colourPixels / _pixels : 0,
+            _colourBand [0], _colourBand [1], _colourBand [2],
+            solid, _pixels ? 100.0 * solid / _pixels : 0,
+            colourTile (),
+            100.0 * colourTile () / (COLOUR_TILE * COLOUR_TILE),
+            interior, _pixels ? 100.0 * interior / _pixels : 0,
+            soft, _pixels ? 100.0 * soft / _pixels : 0,
+            kind_name (kind ()));
    }
 
 
@@ -1417,22 +1557,7 @@ QString PPage::coverageStr ()
          }
       }
    if (debug)
-      {
-      int interior, soft, solid;
-
-      inkTotals (interior, soft, solid);
-      fprintf (stderr, "page %d: %dx%d depth %d%s pixels %d, colour %d "
-               "(%.3f%%: dark %d mid %d light %d, solid %d %.4f%%), "
-               "interior %d (%.3f%%), soft %d (%.4f%%)%s\n",
-               _pagenum, _width, _height, _depth, _jpeg ? " jpeg" : "",
-               _pixels, _colourPixels,
-               _pixels ? 100.0 * _colourPixels / _pixels : 0,
-               _colourBand [0], _colourBand [1], _colourBand [2],
-               solid, _pixels ? 100.0 * solid / _pixels : 0,
-               interior, _pixels ? 100.0 * interior / _pixels : 0,
-               soft, _pixels ? 100.0 * soft / _pixels : 0,
-               qPrintable (suffix));
-      }
+      fprintf (stderr, "page %d: %s\n", _pagenum, qPrintable (kindStr ()));
 
    // can't work out coverage from JPEG data
 //    if (_jpeg)
