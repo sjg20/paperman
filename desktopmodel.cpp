@@ -1080,12 +1080,21 @@ err_info *Desktopmodel::scanCommitPages (QModelIndex &ind, int del_count,
    if (_scan_err)
       return NULL;
 
+   /* How many pages the stack has, which is not always how many rows
+      the page view holds: a page which started but never finished, or
+      one from a stack the view was left showing, is a row with no page
+      behind it. Asking the stack means that a scan whose every page
+      was blank takes the stack away with them, instead of trying to
+      empty it page by page */
+   File *file = getFile (ind);
+   int count = file ? file->pagecount () : pages.size ();
+
     // do nothing - nothing to delete
    if (!del_count)
       ;
 
    // delete whole stack
-   else if (del_count == pages.size ())
+   else if (del_count >= count)
       {
       /*if (use_desk)
          err = _scan_desk->remove (_scan_file);

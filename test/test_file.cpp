@@ -1781,4 +1781,15 @@ void TestFile::testRemovePagesMismatch()
    // reported as not removed
    QCOMPARE(max.pagecount(), orig - 1);
    QCOMPARE(count, 1);
+
+   /* asking for every page that is left, which is what a scan of
+      nothing but blank sheets comes to, empties the stack rather than
+      stopping the program */
+   int left = max.pagecount();
+   QBitArray all(left);
+
+   all.fill(true);
+   count = left;
+   QVERIFY(max.removePages(all, del_info, count) == nullptr);
+   QCOMPARE(max.pagecount(), 0);
 }
