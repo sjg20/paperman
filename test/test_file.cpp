@@ -1604,3 +1604,42 @@ void TestFile::testBlankJpeg()
    QVERIFY2 (scanIsBlank (blank, w, h, true), "blank page sent as JPEG");
    QVERIFY2 (!scanIsBlank (printed, w, h, true), "printed page sent as JPEG");
 }
+
+
+/* A scanner told to stop at the foot of the sheet ends the page early,
+   and what it said about the page beforehand stands: the JPEG header
+   promises the lines of the whole window while the data stops short of
+   them. The page must be stored at the length which arrived, or what is
+   in the file cannot be read back out of it */
+void TestFile::testShortJpegPage()
+{
+   const int w = 64, h = 400;
+   QImage im (w, h, QImage::Format_RGB888);
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb ((x * 37) & 0xff, (y * 53) & 0xff,
+                                  ((x + y) * 17) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 90));
+   buf.close ();
+   data.truncate (data.size () / 4);
+
+   Paperstack stack ("stack", "page", true);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   stack.addImage (w, h, 24, w * 3, true, true);
+   stack.addImageBytes ((unsigned char *)data.data (), data.size ());
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+   QVERIFY2 (mp->_height > 0 && mp->_height < h,
+             qPrintable (QString ("stored %1 lines of a page whose data "
+                                  "holds fewer than %2").arg (mp->_height)
+                         .arg (h)));
+   delete mp;
+}

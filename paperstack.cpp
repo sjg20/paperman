@@ -979,6 +979,19 @@ err_info *PPage::confirm (QString &pageName, bool mark_blank, Filepage *mp)
       _size = _height * _stride;
       _height_known = true;
       }
+
+   /* A scanner asked to stop at the foot of the sheet ends the page
+      early, and what it has already said about the page stands: the
+      JPEG header promises the lines of the whole window and the data
+      stops short of them. Store the page at the length which arrived,
+      so that what is in the file is what can be read back out of it */
+   if (_jpeg && _stride)
+      {
+      int lines = _decomp_avail / _stride;
+
+      if (lines > 0 && lines < _height)
+         _height = lines;
+      }
 //   printf ("confirmed %s\n", _name.latin1 ());
 //   printf ("page complete: %dx%dx%d @%d, size %d/%d, short %d\n", _width, _height,
 //      _depth, _stride, _upto, _size, _size - _upto);
