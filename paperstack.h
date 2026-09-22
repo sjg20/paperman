@@ -195,6 +195,9 @@ private:
    /** find the edges of the sheet across the window, see the .cpp */
    bool sheetBounds (int height, int &lo, int &hi, bool printed) const;
 
+   /** where to cut the page down to the sheet, see the .cpp */
+   bool sheetEdges (int height, int &lo, int &hi) const;
+
    /** add up the ink marks made on the sheet, see the .cpp */
    void inkTotals (int &interior, int &soft, int &colour) const;
 

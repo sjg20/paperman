@@ -1696,3 +1696,55 @@ void TestFile::testNarrowSheetCrop()
    QCOMPARE (mp->_height, h);
    delete mp;
 }
+
+
+/* A sheet which went through the feeder a little askew has its corners
+   out beyond the rest of it. The columns they lie in are mostly
+   backing, so a rule which asks for half a column of paper puts the
+   edge of the sheet inside them, and cutting the page there takes the
+   corners off along with the backing */
+void TestFile::testSkewedSheetCrop()
+{
+   const int w = 800, h = 600, sheet = 500, lean = 40;
+   QByteArray page (w * h * 3, (char)0);
+   unsigned char *p = (unsigned char *)page.data ();
+
+   /* the sheet leans across the window by `lean' columns from top to
+      bottom, as a sheet fed a degree or two off square does */
+   for (int y = 0; y < h; y++)
+      {
+      int at = (w - sheet) / 2 - lean / 2 + lean * y / h;
+
+      for (int x = 0; x < w; x++)
+         {
+         bool on_sheet = x >= at && x < at + sheet;
+         int v = on_sheet ? 254 : 225;
+
+         // a line of print, well inside the sheet
+         if (on_sheet && (y % 50) < 6 && x > at + 40 && x < at + sheet - 40)
+            v = 0;
+         p [(y * w + x) * 3] = p [(y * w + x) * 3 + 1] =
+            p [(y * w + x) * 3 + 2] = v;
+         }
+      }
+
+   QString cov;
+   Filepage *mp = NULL;
+   int depth = scanSynthetic (page, w, h, cov, 0, Paperstack::Sideways_no,
+                              true, &mp, true);
+
+   QVERIFY (depth > 0);
+   QVERIFY (mp);
+
+   /* the sheet reaches from the leftmost point of its top edge to the
+      rightmost point of its foot, which is `sheet' plus the lean; the
+      page must be at least that wide, and not the whole window */
+   QVERIFY2 (mp->_width >= sheet + lean,
+             qPrintable (QString ("stored %1 wide, but the sheet covers "
+                                  "%2 columns of the window")
+                         .arg (mp->_width).arg (sheet + lean)));
+   QVERIFY2 (mp->_width < w,
+             qPrintable (QString ("stored %1 wide: the backing was kept")
+                         .arg (mp->_width)));
+   delete mp;
+}
