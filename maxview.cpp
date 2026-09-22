@@ -65,6 +65,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "filemax.h"
 #include "maxview.h"
 #include "ocr.h"
+#include "paperstack.h"
 #include "op.h"
 #include "utils.h"
 #include "searchindex.h"
@@ -551,6 +552,9 @@ static void usage (void)
    printf ("                       (or every PAPERMAN_SNAP_MS milliseconds)\n");
    printf ("                       into DIR (the same as PAPERMAN_SNAP=DIR)\n");
    printf ("   --clean-snaps       first remove the snapshots already in DIR\n");
+   printf ("   --kind FILE         show what the auto-colour test makes of\n");
+   printf ("                       each page: the counts behind its choice\n");
+   printf ("                       of colour, grey or mono\n");
    printf ("   --log FILE          append everything normally written to\n");
    printf ("                       stderr to FILE: Qt's messages, the\n");
    printf ("                       scanner back end's debugging and the\n");
@@ -575,6 +579,78 @@ static void usage (void)
 
    \param fname   the stack to list
    \returns exit code: 0 on success */
+/* Report what the auto-colour test makes of each page of a file: the
+   counts behind its choice of colour, grey or mono, which is what the
+   thresholds in paperstack.cpp are tuned against. The page goes
+   through the same code a scan does, so a page already stored as grey
+   or mono reports on what is left of it rather than on what the
+   scanner sent */
+static int kindPages (const QString &fname)
+   {
+   QFileInfo fi (fname);
+
+   if (!fi.exists ())
+      {
+      fprintf (stderr, "File not found: %s\n", qPrintable (fname));
+      return 1;
+      }
+
+   QString dir = fi.absolutePath () + '/';
+   File::e_type type = File::typeFromName (fi.fileName ());
+   File *file = File::createFile (dir, fi.fileName (), nullptr, type);
+
+   if (!file)
+      {
+      fprintf (stderr, "Unsupported file type: %s\n", qPrintable (fname));
+      return 1;
+      }
+
+   err_info *err = file->load ();
+
+   if (err)
+      {
+      fprintf (stderr, "Error loading %s: %s\n", qPrintable (fname),
+               err->errstr);
+      delete file;
+      return 1;
+      }
+
+   for (int i = 0; i < file->pagecount (); i++)
+      {
+      QImage image;
+      QSize size, true_size;
+      int bpp;
+
+      err = file->getImage (i, false, image, size, true_size, bpp, false);
+      if (err)
+         {
+         fprintf (stderr, "page %d: %s\n", i + 1, err->errstr);
+         continue;
+         }
+
+      /* the test works on colour pixels, so hand it the page as
+         colour whatever it is stored as */
+      image = image.convertToFormat (QImage::Format_RGB888);
+
+      Paperstack stack ("stack", "page", false);
+      QByteArray rgb;
+
+      for (int y = 0; y < image.height (); y++)
+         rgb.append ((const char *)image.constScanLine (y),
+                     image.width () * 3);
+      stack.setAutoColour (true);
+      stack.addImage (image.width (), image.height (), 24,
+                      image.width () * 3, true, false);
+      stack.addImageBytes ((unsigned char *)rgb.data (), rgb.size ());
+      printf ("page %d: %s (the file holds it as %s)\n", i + 1,
+              qPrintable (stack.kindStr ()),
+              bpp == 1 ? "mono" : bpp == 8 ? "grey" : "colour");
+      }
+   delete file;
+   return 0;
+   }
+
+
 static int listPages (const QString &fname)
    {
    QFileInfo fi (fname);
@@ -711,6 +787,7 @@ int main (int argc, char *argv[])
      {"clean-snaps", 0, 0, 270},
      {"log", 1, 0, 273},
      {"sane-debug", 1, 0, 274},
+     {"kind", 1, 0, 275},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -814,6 +891,11 @@ int main (int argc, char *argv[])
             op_type = 263;
             break;
 
+         case 275 :    // --kind FILE
+            fname = optarg;
+            op_type = c;
+            break;
+
          case 269 :    // --snap DIR: the same as PAPERMAN_SNAP=DIR
             qputenv ("PAPERMAN_SNAP", optarg);
             break;
@@ -912,7 +994,7 @@ int main (int argc, char *argv[])
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
        op_type != 'j' && op_type != 'l' && op_type != 'o' && op_type != 'q' &&
-       op_type != 259 && op_type != 260 && op_type != 263)
+       op_type != 259 && op_type != 260 && op_type != 263 && op_type != 275)
       need_gui = true;
 
 #ifdef Q_WS_X11
@@ -930,9 +1012,9 @@ int main (int argc, char *argv[])
       qputenv("QT_QPA_PLATFORM", "offscreen");
       }
 
-   // OCR batch mode, search, and rebuild-previews don't need GUI
+   // OCR batch mode, search, listing and rebuild-previews don't need GUI
    if (op_type == 'o' || op_type == 'q' || op_type == 'l' ||
-       op_type == 259 || op_type == 260)
+       op_type == 259 || op_type == 260 || op_type == 275)
       {
       useGUI = false;
       // Force offscreen platform for console mode
@@ -1054,6 +1136,9 @@ int main (int argc, char *argv[])
          }
       case 'l' :
          return listPages (fname);
+
+      case 275 :    // --kind FILE
+         return kindPages (fname);
 
       case 'j' :
       case 'p' :
