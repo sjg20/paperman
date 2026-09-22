@@ -2,9 +2,10 @@ Releasing
 =========
 
 Paperman uses a GitHub Actions workflow to automate releases.  Pushing a
-version tag triggers two parallel jobs: one builds a ``.deb`` package and
-publishes a GitHub Release, the other signs and uploads source packages to
-the Launchpad PPA.
+version tag triggers three jobs: one builds a ``.deb`` package and
+publishes a GitHub Release, one builds the Windows installer and adds it
+to that release, and one signs and uploads source packages to the
+Launchpad PPA.
 
 Release Checklist
 -----------------
@@ -47,6 +48,13 @@ What the Workflow Does
    builds a binary ``.deb`` with ``dpkg-buildpackage``, then creates a GitHub
    Release with the ``.deb`` attached.
 
+**windows-installer** — Build the Windows installer
+   Builds the app in an MSYS2 MinGW64 shell, runs ``scripts/win-stage.sh``
+   to gather it together with the libraries it needs, builds
+   ``packaging/windows/paperman.iss`` with Inno Setup and adds the
+   resulting ``paperman-setup-VERSION.exe`` to the release.  It waits for
+   **build-deb**, which is what creates the release to add it to.
+
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures
    ``gpg-agent`` for non-interactive signing and sets up ``dput``, then runs
@@ -71,6 +79,30 @@ The PPA job needs two secrets configured in the GitHub repository settings
 
 Without these secrets the PPA job fails, but the ``.deb`` / GitHub Release
 job still succeeds independently.
+
+Building the Windows Installer by Hand
+--------------------------------------
+
+Every push builds the installer and keeps it as a CI artifact, so there is
+usually no need to build one locally.  To do it anyway, in an MSYS2
+MINGW64 shell with the build dependencies the ``windows`` CI job lists::
+
+   qmake6 paperman.pro -o Makefile.win
+   make -f Makefile.win -j$(nproc)
+   scripts/win-stage.sh dist/paperman
+
+``dist/paperman`` then holds the program and every library it needs, and
+can be copied to another machine and run as it is.  To wrap it up, with
+`Inno Setup <https://jrsoftware.org/isinfo.php>`_ installed::
+
+   iscc /DStageDir=..\..\dist\paperman /DAppVersion=1.3.1 \
+      packaging/windows/paperman.iss
+
+The installer asks for no more rights than the user has, so it installs
+into the user's own programs folder without an administrator; there is a
+choice at the start for installing it for everyone on the machine.
+Scanners are reached through their TWAIN driver rather than through SANE,
+so nothing scanner-related is bundled.
 
 Manual PPA Upload
 -----------------
