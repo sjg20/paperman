@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QList>
+#include <QLoggingCategory>
 #include <QString>
 
 #include <QTextStream>
@@ -249,6 +250,16 @@ void utilLogBuild (const char *when);
 
     \param app   the application whose dialogs to watch */
 void utilLogDialogs (QCoreApplication *app);
+
+/** Diagnostics which are only of interest when something is being
+    investigated: the view changing, errors as they are created. These are
+    quiet unless --log is used, so that a normal run says nothing */
+Q_DECLARE_LOGGING_CATEGORY (logView)
+Q_DECLARE_LOGGING_CATEGORY (logErr)
+Q_DECLARE_LOGGING_CATEGORY (logBuild)
+
+/** Turn on the diagnostic categories above, for when the log is wanted */
+void utilLogEnable (void);
 
 QString utilRemoveQuotes (QString str);
 
