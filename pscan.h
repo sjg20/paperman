@@ -89,6 +89,11 @@ public:
    // Tell pscan that a scan is starting
    void scanStarting();
 
+   /* Hand the paper size the panel is showing to the scanner, so that a
+      scan is the size of the page the user chose rather than whatever
+      window the scanner happens to be holding */
+   void applyPageSize (void);
+
 public slots:
     virtual void scannerChanged( QScanner * scanner );
 

@@ -955,6 +955,13 @@ void Mainwidget::setupScanDialog (void)
       {
       _pscan->setPreviewWidget (_preview);
       _pscan->setScanDialog (_scanDialog);
+
+      /* the panel shows a paper size from the moment it is built, and
+         the scanner is holding whatever was saved with it, which may
+         be from another session or another scanner. Say it once, here,
+         where the two first come together: saying it again before each
+         scan would undo a size set by hand in the options dialog */
+      _pscan->applyPageSize ();
       }
    updateScanDialog ();
    }

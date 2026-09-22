@@ -269,6 +269,32 @@ void Pscan::scanStarting()
    _folders->scanStarting();
 }
 
+
+/* The combo is filled in when the panel is built and shows a paper size
+   from the start, but nothing tells the scanner about it unless the user
+   picks it again. The scanner uses the window saved with the device,
+   which may be from another session, another scanner, or one turned
+   round for sheets fed sideways, and then the page is not the size the
+   panel says: most often it is cut off at the foot. Send the size shown
+   before each scan so that the two agree.
+
+   A window the user drew by hand on the preview shows as "User size" and
+   is left alone, since there is no size to send for it */
+void Pscan::applyPageSize (void)
+{
+   QString name = pageSize->currentText ();
+
+   if (!_preview || name.isEmpty ())
+      return;
+   for (int i = 0; !_preview->getSizeName (i).isEmpty (); i++)
+      if (_preview->getSizeName (i) == name)
+      {
+         if (i != 1)
+            selectPreviewSize (i);
+         return;
+      }
+}
+
 void Pscan::scannerChanged (QScanner *scanner)
 {
     _scanner = scanner;
