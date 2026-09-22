@@ -1291,6 +1291,12 @@ void TestDesktopUi::testScanIntoStack()
    QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
    xmlConfig->setStringValue("LAST_DEVICE", getenv("PM_SCAN_DEVICE") ? getenv("PM_SCAN_DEVICE") : "simulscan");
 
+   /* a scan reads the settings the user keeps, so say what this test
+      wants rather than taking whatever the machine it runs on has: a
+      page with nothing on it is thrown away on one and kept on another */
+   int old_blank = xmlConfig->intValue("SCAN_BLANK");
+   xmlConfig->setIntValue("SCAN_BLANK", 0);
+
    Mainwidget *main = Mainwidget::singleton();
    QVERIFY(main);
    if (getenv("PM_SCAN_SET")) {
@@ -1324,6 +1330,7 @@ void TestDesktopUi::testScanIntoStack()
    me.actionScango->trigger();
 
    xmlConfig->setStringValue("LAST_DEVICE", old_device);
+   xmlConfig->setIntValue("SCAN_BLANK", old_blank);
 
    // A new stack should appear, holding the scanned pages
    QCOMPARE(model->rowCount(repo_ind), before + 1);
