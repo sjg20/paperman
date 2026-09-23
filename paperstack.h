@@ -586,6 +586,11 @@ public:
       \param err     error to return from the scan once cancelled */
    void cancelScan (err_info *err);
 
+   /** Tell a scan which is waiting for a misfeed to be cleared to try
+       again now, as pressing the scanner's own Scan button does. It
+       does nothing if the scan is not waiting */
+   void resumeScan (void);
+
    /** stop scanning after the current page */
    void endScan (void);
 
@@ -719,6 +724,13 @@ signals:
       \param msg   what happened and what to do about it */
    void scanProblem (const QString &msg);
 
+   /** say whether the scan is waiting for the user to clear the
+       scanner, so that Scan can be offered as a way of saying that it
+       is done
+
+      \param waiting   true while the scan is waiting */
+   void scanWaiting (bool waiting);
+
 private:
    /** make sure that we have an active stack to scan into. If not, create
        one
@@ -758,6 +770,11 @@ private:
                the wait */
    SANE_Status waitForResume (SANE_Status status);
 
+   /** has the user asked the scan to carry on since we last looked?
+
+      \returns true if so, clearing the request */
+   bool takeResume (void);
+
 private:
    QScanner *_scanner;        //!< the scanner we are using
    QString _stack_name;       //!< suggested stack name
@@ -773,6 +790,7 @@ private:
    bool _end;                 //!< true to end the scan
    bool _draining;            //!< feeder stopped; reading out its buffered pages
    bool _stop_tried;          //!< the feeder has been asked to stop once
+   bool _resume;              //!< the user says the scanner is clear
    int _sides_done;           //!< sides finished, for the display to compare with
    int _max_waiting;          //!< most images seen waiting in the scanner
    /* where the scanning thread's time goes, in ms, for

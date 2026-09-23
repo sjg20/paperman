@@ -84,7 +84,12 @@ public:
     // the scanner is reconnected, since the new SANE handle starts with
     // default options.
     void reapplyCurrentPreset (void);
-   void checkEnabled (bool scanning);
+   /** Set which buttons can be pressed
+
+      \param scanning   true while a scan is in progress
+      \param waiting    true while that scan waits for the user to
+                        clear the scanner, when Scan means carry on */
+   void checkEnabled (bool scanning, bool waiting = false);
 
    // Tell pscan that a scan is starting
    void scanStarting();
@@ -162,6 +167,10 @@ protected:
 
     // true to check the preset combbox to see an item matches current settings
     bool _do_preset_check;
+
+    /* true while a scan is waiting for the user to clear the scanner,
+       when Scan means carry on rather than start another scan */
+    bool _waiting;
 
     // List of folders found using the folderName search
     Folderlist *_folders;

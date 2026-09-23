@@ -764,6 +764,38 @@ void TestQscanner::testPanelPageSizeApplied()
    it on. The panel offers it where the scanner has it and says nothing
    where it does not, and the page size is the scanner's business while
    it is on */
+/* A scan which stops for a misfeed waits for the user to say that the
+   paper path is clear. The scanner's own Scan button says that, but it
+   is not always within reach, so the Scan button in the panel says it
+   too: while the scan waits it is offered again, and means carry on
+   rather than start another scan */
+
+void TestQscanner::testPscanResume()
+{
+   ensureXmlConfig ();
+   Pscan pscan;
+
+   // with nothing going on, Scan starts a scan and there is none to stop
+   pscan.checkEnabled (false, false);
+   QVERIFY (pscan.scan->isEnabled ());
+   QVERIFY (!pscan.stop->isEnabled ());
+
+   // while a scan runs there is nothing for Scan to do
+   pscan.checkEnabled (true, false);
+   QVERIFY (!pscan.scan->isEnabled ());
+   QVERIFY (pscan.stop->isEnabled ());
+
+   // while it waits for the scanner to be cleared, Scan means carry on
+   pscan.checkEnabled (true, true);
+   QVERIFY (pscan.scan->isEnabled ());
+   QVERIFY (pscan.stop->isEnabled ());
+
+   // and the scan going on again takes the offer away
+   pscan.checkEnabled (true, false);
+   QVERIFY (!pscan.scan->isEnabled ());
+}
+
+
 void TestQscanner::testPscanDeskew()
 {
    ensureXmlConfig ();
