@@ -278,6 +278,21 @@ Q_DECLARE_LOGGING_CATEGORY (logBuild)
 /** Turn on the diagnostic categories above, for when the log is wanted */
 void utilLogEnable (void);
 
+/** Report something going wrong, without saying it over and over
+
+    The first time a thing goes wrong it is reported as it happens;
+    while the same thing keeps happening it is only counted, and the
+    count is given when something else goes wrong or when paperman
+    stops. A fault which affects every page of a scan therefore costs
+    two lines rather than one per page.
+
+    \param what   what went wrong, as the user should read it */
+void utilReportOnce (const QString &what);
+
+/** Give the count of whatever utilReportOnce() is still holding, so
+    that it is in the log before something which needs to be read
+    alongside it */
+void utilReportFlush (void);
 
 /** how many frames of a stack are worth printing */
 #define MAX_TRACE_DEPTH 64
