@@ -756,3 +756,50 @@ void TestQscanner::testPanelPageSizeApplied()
 
    utilSetHeadless (false);
 }
+
+
+/* A scanner which can straighten a sheet and cut the page down to it
+   does that better than anything which can be done to the page
+   afterwards, at the cost of reading each page in full before passing
+   it on. The panel offers it where the scanner has it and says nothing
+   where it does not, and the page size is the scanner's business while
+   it is on */
+void TestQscanner::testPscanDeskew()
+{
+   ensureXmlConfig ();
+   QScanner scanner;
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+
+   /* the simulated scanner cannot do this, so set PAPERMAN_TEST_DEVICE
+      to a scanner which can to see the rest of it */
+   scanner.setDeviceName (dev ? dev : SIMUL_NAME);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+
+   if (!dialog.hasDeskewCrop ())
+      {
+      // nothing to offer, so nothing is shown
+      QVERIFY (!pscan.deskew->isVisible ());
+      QSKIP ("scanner cannot straighten and crop pages itself");
+      }
+
+   QVERIFY (dialog.setDeskewCrop (true));
+   QVERIFY (dialog.deskewCrop ());
+   pscan.updateDeskew ();
+   pscan.updateAutoSize ();
+   QVERIFY (pscan.deskew->isChecked ());
+
+   // the scanner decides where a page is cut, so the size is not ours
+   QVERIFY (!pscan.pageSize->isEnabled ());
+
+   QVERIFY (dialog.setDeskewCrop (false));
+   QVERIFY (!dialog.deskewCrop ());
+   pscan.updateDeskew ();
+   pscan.updateAutoSize ();
+   QVERIFY (!pscan.deskew->isChecked ());
+}

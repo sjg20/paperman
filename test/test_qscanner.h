@@ -61,6 +61,9 @@ private slots:
    //! A scan is the size the panel shows, whatever window the scanner
    //! was left holding
    void testPanelPageSizeApplied();
+
+   //! The Straighten box follows what the scanner can do and is set to
+   void testPscanDeskew();
 };
 
 #endif // TEST_QSCANNER_H
