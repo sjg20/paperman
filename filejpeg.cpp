@@ -720,6 +720,14 @@ err_info *Filejpegpage::compress (void)
 
 err_info *Filejpegpage::load (const QString &dir)
    {
+   /* A stack of JPEGs is one file per page, and pages can be taken out
+      of it: the file left behind is named for page 3, say, and the
+      pages before it have no file of their own. Such a page is blank
+      rather than missing, so there is nothing to read and nothing has
+      gone wrong */
+   if (_filename.isEmpty ())
+      return 0;
+
    QString path = pathname (dir);
 
    if (!_image.load (path, "JPG"))
@@ -732,6 +740,9 @@ err_info *Filejpegpage::load (const QString &dir)
 
 err_info *Filejpegpage::flush (const QString &dir)
    {
+   if (_filename.isEmpty ())
+      return 0;
+
    QString path = pathname (dir);
 
    if (_changed && !_image.save (path, "JPG"))
@@ -778,6 +789,9 @@ void Filejpegpage::setFilename (const QString &fname)
 
 err_info *Filejpegpage::remove (const QString &dir) const
 {
+   if (_filename.isEmpty ())
+      return 0;
+
    QFile file (pathname (dir));
 
    if (file.exists () && !file.remove ())

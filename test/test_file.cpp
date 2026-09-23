@@ -1010,6 +1010,64 @@ void TestFile::testRemoveRestorePages()
 }
 
 
+/* A stack of JPEGs is one file per page, named foo_p1.jpg, foo_p2.jpg
+   and so on. Pages can be taken out of it, leaving the first file on
+   the desk with a page number of 3, and the stack then starts with
+   three pages which have no file behind them. Those pages cannot be
+   read from the disk, but asking for one is not a fault: it is simply
+   blank */
+
+void TestFile::testJpegStackMissingPages()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   QImage img(40, 30, QImage::Format_RGB32);
+   img.fill(Qt::white);
+   QVERIFY(img.save(dir + "scan_p3.jpg", "JPG"));
+   QVERIFY(img.save(dir + "scan_p4.jpg", "JPG"));
+
+   Filejpeg jf(dir, "scan_p3.jpg", nullptr);
+   QVERIFY(jf.load() == nullptr);
+
+   /* the desk finds the second file and hands it to the first, with
+      the page number the name carries */
+   QString base, ext;
+   int pagenum = 0;
+
+   QVERIFY(File::decodePageNumber("scan_p4.jpg", base, pagenum, ext));
+   QVERIFY(jf.claimFileAsNewPage("scan_p4.jpg", base, pagenum));
+
+   /* the names count from one and the pages from zero, so the stack
+      runs to page 3 with its first two pages missing */
+   QCOMPARE(jf.pagecount(), 4);
+
+   // the two real pages read back as images
+   QImage page;
+   QSize size, true_size;
+   int bpp;
+
+   QVERIFY(jf.getImage(2, false, page, size, true_size, bpp, false) == nullptr);
+   QCOMPARE(page.size(), QSize(40, 30));
+   QVERIFY(jf.getImage(3, false, page, size, true_size, bpp, false) == nullptr);
+   QCOMPARE(page.size(), QSize(40, 30));
+
+   /* the two which have no file are blank rather than an error; this
+      used to report "Cannot open file" with the directory as its name,
+      since a page with no filename was asked for the directory itself */
+   for (int i = 0; i < 2; i++)
+      {
+      QVERIFY(jf.getImage(i, false, page, size, true_size, bpp, false)
+              == nullptr);
+      QVERIFY(page.isNull());
+      }
+
+   // and re-reading the whole stack from the disk is no different
+   QVERIFY(jf.reload() == nullptr);
+}
+
+
 void TestFile::testJpegAnnotations()
 {
    if (QStandardPaths::findExecutable("exiftool").isEmpty())

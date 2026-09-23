@@ -74,6 +74,9 @@ private slots:
    //! decodePageNumber/encodePageNumber round-trip for the _pN convention
    void testPageNumberCodec();
 
+   //! A JPEG stack whose first pages are missing still opens
+   void testJpegStackMissingPages();
+
    //! extMatchesType compares the file's own type against the supplied ext
    void testExtMatchesType();
 
