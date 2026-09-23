@@ -1035,9 +1035,21 @@ bool PPage::addBytes (const unsigned char *buf, int size)
       if (_jpeg)
          {
          int avail = _decomp_avail;
+         int end;
 
          continueJpeg ();
-         if (!checkBlank ((const unsigned char *)_decomp.data () + avail, _decomp_avail - avail))
+         end = _decomp_avail;
+
+         /* the lines the decoder made up where the scanner's data ran
+            out are flat grey, which reads as ink across the whole
+            width: counting them makes a page look covered in ink from
+            edge to edge, and the edges of the sheet can no longer be
+            made out */
+         if (_data_lines > 0 && _data_lines * _stride < end)
+            end = _data_lines * _stride;
+         if (end > avail
+             && !checkBlank ((const unsigned char *)_decomp.data () + avail,
+                             end - avail))
             _blank = false;
          }
       else if (!checkBlank (buf, size))
