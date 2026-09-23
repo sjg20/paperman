@@ -2414,6 +2414,11 @@ void Paperscan::scan ()
          // end of file is ok - indicates we have an image
          if (status == SANE_STATUS_EOF && total && !isCancelled ())
             {
+            /* the page arrived, so whatever happens to it from here is
+               not the scanner's doing: reporting the scan as having
+               ended on an unexpected end of file would hide the real
+               trouble */
+            status = SANE_STATUS_GOOD;
             notifyProgress (_stack->curPage (), true);
             QString cov = _stack->coverageStr ();
 
@@ -2444,7 +2449,6 @@ void Paperscan::scan ()
             if (mp->markBlank ())
                // page not confirmed, so it is blank
                total_blank++;
-            status = SANE_STATUS_GOOD;
             total_sides++;
             _sides_done = total_sides;
             }
