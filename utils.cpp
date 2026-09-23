@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <execinfo.h>
 #endif
 
+#include <QCoreApplication>
 #include <QDate>
 #include <QDebug>
 #include <QEvent>
@@ -52,6 +53,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QStyle>
 #endif
 #include <QMimeData>
+#include <QMutex>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStringList>
@@ -228,21 +230,83 @@ static void term_source(j_decompress_ptr cinfo)
    }
 
 
+/* The same thing tends to go wrong with a whole scan rather than with
+   one page of it: a stack whose pages were all cut short reports the
+   same fault for every page, and again for every thumbnail, which
+   buries whatever else the log has to say. Say it the first time and
+   then count, and give the count when something else goes wrong or
+   when paperman stops */
+
+static QMutex report_lock;
+static QString report_last;   //!< what was last reported
+static int report_more;       //!< how many times the same has happened since
+
+
+static void utilReportSummary (void)
+   {
+   if (report_more)
+      qWarning ().noquote ()
+         << QString ("%1 (and %2 more like it)").arg (report_last)
+               .arg (report_more);
+   report_last.clear ();
+   report_more = 0;
+   }
+
+
+void utilReportFlush (void)
+   {
+   QMutexLocker lock (&report_lock);
+
+   utilReportSummary ();
+   }
+
+
+void utilReportOnce (const QString &what)
+   {
+   QMutexLocker lock (&report_lock);
+
+   if (what == report_last)
+      {
+      report_more++;
+      return;
+      }
+
+   utilReportSummary ();
+
+   /* the count of whatever comes next is only given if something asks
+      for it, so make sure that something does */
+   static bool hooked;
+
+   if (!hooked && QCoreApplication::instance ())
+      {
+      hooked = true;
+      qAddPostRoutine (utilReportFlush);
+      }
+
+   report_last = what;
+   qWarning ().noquote () << what;
+   }
+
+
 struct my_error_mgr
    {
    struct jpeg_error_mgr mgr;
    jmp_buf setjmp_buffer;
    int err;
+   char msg [JMSG_LENGTH_MAX];   //!< what went wrong, for the caller to report
    };
 
+
+/* Keep what the library says rather than printing it here. The caller
+   knows what it was doing at the time, which is the part worth
+   reporting, and printing from here loses that and says it once per
+   page besides */
 
 static void my_error_exit (j_common_ptr cinfo)
    {
    struct my_error_mgr* myerr = (struct my_error_mgr*) cinfo->err;
-   char buffer[JMSG_LENGTH_MAX];
 
-   (*cinfo->err->format_message)(cinfo, buffer);
-   printf ("%s", buffer);
+   (*cinfo->err->format_message) (cinfo, myerr->msg);
    myerr->err = 1;
    longjmp(myerr->setjmp_buffer, 1);
 }
@@ -370,6 +434,10 @@ done:
    jpeg_destroy_decompress (&srcinfo);
    if (buf)
       free (buf);
+   if (jerr.err)
+      utilReportOnce (QString ("Cannot cut the page image to %1..%2: %3")
+                      .arg (lo).arg (hi).arg (jerr.msg));
+
    return jerr.err ? -1 : result;
    }
 
@@ -389,6 +457,10 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
    int tile_bytes;
    struct my_error_mgr jerr;
    bool short_data = false;   //!< the data ended before the image did
+
+   /* how far the image got, for the report if it goes wrong; these
+      survive the jump out of the decoder */
+   volatile int got = 0, want = 0;
 
    jpeg_create_decompress(&cinfo);
    cinfo.err = jpeg_std_error(&jerr.mgr);
@@ -469,14 +541,23 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
 //       debug1 (("width = %d, tile_bytes = %d, line_bytes = %d, decoded %d lines\n",
 //          cinfo.output_width, tile_bytes, line_bytes, cinfo.output_height));
 
-      if (short_data)
+      /* Finishing asks the library to make sure the whole image came
+         out, which it did not whenever the page holds fewer lines than
+         its header promises (a page cut short by a jam) or the caller
+         wanted only the top of it. Neither is a fault, so in both
+         cases stop instead of asking */
+      got = cinfo.output_scanline;
+      want = cinfo.output_height;
+      if (short_data || cinfo.output_scanline < cinfo.output_height)
          jpeg_abort_decompress (&cinfo);
       else
          jpeg_finish_decompress(&cinfo);
       }
    jpeg_destroy_decompress(&cinfo);
    if (jerr.err)
-      printf ("error = %d\n", jerr.err);
+      utilReportOnce (QString ("Cannot decode the page image"
+                               " (%1 lines of %2): %3")
+                      .arg (got).arg (want).arg (jerr.msg));
    }
 
 
@@ -612,7 +693,10 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
    jpeg_destroy_compress(&cinfo);
    free (buff);
    if (jerr.err)
-      printf ("error = %d\n", jerr.err);
+      utilReportOnce (QString ("Cannot compress the page image"
+                               " (%1 x %2, %3 bits): %4")
+                      .arg (tile_size->x).arg (tile_size->y).arg (bpp)
+                      .arg (jerr.msg));
    }
 
 #endif
