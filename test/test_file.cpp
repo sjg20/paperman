@@ -2071,3 +2071,45 @@ void TestFile::testDeskewedSheetCrop()
                          .arg (mp->_width).arg (w - 2 * edge).arg (w)));
    delete mp;
 }
+
+
+/* The page is made ready for the window the scanner was given, or for
+   what the scanner said it would send. What arrives can be longer than
+   either: a page the scanner straightened for itself stands square in a
+   box which has to hold it cornerwise, and a scanner reading past the
+   foot of a sheet sends what it read. There has to be a line waiting
+   for every line the decoder writes, or it writes past the end of them,
+   which is a crash inside the JPEG library with nothing in the stack to
+   say where it came from */
+void TestFile::testJpegTallerThanSaid()
+{
+   const int w = 600, said_w = 300, said = 100, real = 800;
+   QImage im (w, real, QImage::Format_RGB888);
+
+   for (int y = 0; y < real; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb (x & 0xff, y & 0xff, (x + y) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 85));
+   buf.close ();
+
+   Paperstack stack ("stack", "page", true);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   /* the scanner said the page would be small, and sends a bigger one
+      in both directions, as it does for a page it straightened */
+   stack.addImage (said_w, said, 24, said_w * 3, true, true);
+   for (int pos = 0; pos < data.size (); pos += 4096)
+      stack.addImageBytes ((unsigned char *)data.data () + pos,
+                           qMin (4096, data.size () - pos));
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+   QCOMPARE (mp->_width, w);
+   QCOMPARE (mp->_height, real);
+   delete mp;
+}
