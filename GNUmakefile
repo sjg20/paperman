@@ -74,6 +74,25 @@ coverage: test-setup
 
 .PHONY: coverage
 
+# Build with the address sanitiser, in its own directory so that the
+# ordinary build is left alone. Run scanning under this when chasing a
+# crash: it stops at the moment something is written past the end of
+# what holds it and says what and where, which a stack from a crash in
+# a library with no symbols of its own cannot.
+#
+#    make asan
+#    ./build-asan/paperman --log ~/paperman.log
+#
+asan:
+	mkdir -p build-asan
+	cd build-asan && qmake ../paperman.pro CONFIG+=test \
+		'QMAKE_CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer' \
+		QMAKE_CFLAGS+=-fsanitize=address \
+		QMAKE_LFLAGS+=-fsanitize=address -o Makefile
+	$(MAKE) -C build-asan -j$$(nproc)
+
+.PHONY: asan
+
 docs:
 	$(SPHINXBUILD) -b html $(SPHINXOPTS) $(DOCDIR) $(BUILDDIR)/html
 

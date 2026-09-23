@@ -35,6 +35,13 @@ CONFIG -= release
 # which needs the unoptimised line numbering
 !coverage: QMAKE_CXXFLAGS += -O2
 
+# Keep the frame pointer. Without it a crash inside a library with no
+# symbols of its own - the JPEG library, say - gives a stack of
+# nonsense, and where it came from is the one thing wanted from a
+# crash. It costs a register and a percent or so
+QMAKE_CXXFLAGS += -fno-omit-frame-pointer
+QMAKE_CFLAGS += -fno-omit-frame-pointer
+
 #QMAKE_LFLAGS += -static
 
 equals(QT_MAJOR_VERSION, 6) {
