@@ -196,6 +196,7 @@ void Pscan::init()
     _scanner = 0;
     _scanDialog = 0;
     _preview = 0;
+    _waiting = false;
 
     _do_preset_check = false;
 
@@ -517,6 +518,14 @@ void Pscan::scan_clicked()
 {
    QModelIndex ind;
 
+   /* while the scan waits for a misfeed to be cleared, this says that
+      the paper path is clear, as the scanner's own Scan button does */
+   if (_waiting)
+      {
+      _main->resumeScan ();
+      return;
+      }
+
    if (_folders->getSelected(ind, false))
       _main->scanInto(ind);
 }
@@ -695,9 +704,12 @@ void Pscan::on_config_clicked()
 }
 
 
-void Pscan::checkEnabled (bool scanning)
+void Pscan::checkEnabled (bool scanning, bool waiting)
    {
-   scan->setEnabled (!scanning);
+   /* a scan waiting for the user to clear the scanner is offered Scan
+      as well, since there it means carry on rather than start again */
+   _waiting = waiting;
+   scan->setEnabled (!scanning || waiting);
    cancel->setEnabled (scanning);
    stop->setEnabled (scanning);
    source->setEnabled (!scanning);

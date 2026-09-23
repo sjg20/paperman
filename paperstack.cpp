@@ -1846,6 +1846,7 @@ Paperscan::Paperscan (QObject *parent)
    _end = false;
    _draining = false;
    _stop_tried = false;
+   _resume = false;
    _sides_done = 0;
    _t_start = _t_read = _t_data = _t_confirm = 0;
    _cpu_seconds = 0;
@@ -1897,6 +1898,25 @@ bool Paperscan::stoppedMidBatch (SANE_Status status, int pages)
    }
 
 
+void Paperscan::resumeScan (void)
+   {
+   QMutexLocker locker (&_mutex);
+
+   _resume = true;
+   }
+
+
+bool Paperscan::takeResume (void)
+   {
+   QMutexLocker locker (&_mutex);
+   bool asked = _resume;
+
+   _resume = false;
+
+   return asked;
+   }
+
+
 SANE_Status Paperscan::waitForResume (SANE_Status status)
    {
    QString why = QString (sane_strstatus (status));
@@ -1907,18 +1927,26 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
    /* end the frame, so that the back end is ready to start another once
       the paper path is clear */
    _scanner->cancel ();
+   takeResume ();      // anything asked for before now was about the last page
+   emit scanWaiting (true);
    waited.start ();
    while (!isCancelled () && waited.elapsed () < RESUME_WAIT_MS)
       {
       /* say what is wanted, and keep saying it with the time left, so
          that a scan waiting on the user never looks like a scan that
          has hung */
-      emit scanProblem (tr ("%1: clear the scanner to carry on, or press "
-                            "Stop to end the scan (%2s)").arg (why)
+      emit scanProblem (tr ("%1: clear the scanner, then press Scan here "
+                            "or on the scanner to carry on, or Stop to "
+                            "end the scan (%2s)").arg (why)
                         .arg ((RESUME_WAIT_MS - waited.elapsed () + 999)
                               / 1000));
       msleep (RESUME_POLL_MS);
-      if (watch)
+
+      /* the scanner's own button is not always within reach, and a
+         back end which cannot report its buttons leaves it as the only
+         way to say the paper path is clear, so take the button in the
+         scan window as saying the same thing */
+      if (!takeResume () && watch)
          {
          buttons = _scanner->checkButtons ();
          if (buttons == INT_MIN)      // the back end has stopped telling us
@@ -1930,6 +1958,7 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
       status = _scanner->start ();
       if (status == SANE_STATUS_GOOD)
          {
+         emit scanWaiting (false);
          emit scanProblem (QString ());
          emit progress (tr ("Carrying on after %1").arg (why));
          return status;
@@ -1937,6 +1966,7 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
       if (!isMisfeed (status))
          break;       // the hopper is empty, or the scanner has given up
       }
+   emit scanWaiting (false);
    emit scanProblem (QString ());
 
    return status;

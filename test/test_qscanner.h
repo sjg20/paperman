@@ -64,6 +64,9 @@ private slots:
 
    //! The Straighten box follows what the scanner can do and is set to
    void testPscanDeskew();
+
+   //! Scan is offered again while a scan waits for a misfeed to be cleared
+   void testPscanResume();
 };
 
 #endif // TEST_QSCANNER_H

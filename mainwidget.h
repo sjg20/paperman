@@ -242,6 +242,13 @@ public slots:
                      after current page) */
    void stopScan (bool cancel);
 
+   /** is the scan waiting for the user to clear the scanner? */
+   bool scanWaiting (void) const { return _scan_waiting; }
+
+   /** tell a waiting scan that the scanner is clear, as pressing the
+       scanner's own Scan button does */
+   void resumeScan (void);
+
    /** scan a page or group of pages under control of the pscan dialogue */
    void pscan (void);
 
@@ -357,6 +364,12 @@ private slots:
 
       \param msg   what happened, or empty once it is over */
    void slotScanProblem (const QString &msg);
+
+   /** note whether the scan is waiting for the user to clear the
+       scanner, so that Scan can be offered as a way of saying it is
+
+      \param waiting   true while the scan is waiting */
+   void slotScanWaiting (bool waiting);
 
    void slotWarning (QString &str);
 
@@ -477,6 +490,7 @@ private:
 
    //! information about a scanning job in progress
    bool _scanning;         //!< true if scanning
+   bool _scan_waiting;     //!< scan is waiting for the scanner to be cleared
    bool _scan_cancelling;  //!< true if cancelling the scan
    bool _scan_ok;          //!< true if the last scan completed without error
    int _scan_pages;        //!< pages received in the current scan

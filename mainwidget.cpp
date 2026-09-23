@@ -114,6 +114,7 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _pscan = 0;
    _options = 0;
    _scanning = false;
+   _scan_waiting = false;
    _scan_ok = false;
    _scan_pages = 0;
    _scan_first_page = -1;
@@ -364,7 +365,7 @@ static QString getDefaultPageName (void)
 void Mainwidget::updatePscan ()
    {
    if (_pscan)
-      _pscan->checkEnabled (_scanning);
+      _pscan->checkEnabled (_scanning, _scan_waiting);
    }
 
 
@@ -473,11 +474,14 @@ void Mainwidget::scanInto(QModelIndex target)
       this, SLOT (slotDoubleFeedDetected (void)));
    connect (&scan, SIGNAL (scanProblem (const QString &)),
       this, SLOT (slotScanProblem (const QString &)));
+   connect (&scan, SIGNAL (scanWaiting (bool)),
+      this, SLOT (slotScanWaiting (bool)));
 
    scan.setup (_scanner, stack_name, page_name);
    scan.start ();
    _scan = &scan;
    _scanning = true;
+   _scan_waiting = false;
    _scan_cancelling = false;
    _scan_ok = false;
    _scan_pages = 0;
@@ -729,6 +733,7 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
    _scan_ok = status == SANE_STATUS_GOOD && !err;
    _scan_summary = msg;
    _scanning = false;
+   _scan_waiting = false;
    }
 
 
@@ -851,6 +856,26 @@ void Mainwidget::slotScanProblem (const QString &msg)
    if (_console && !msg.isEmpty ())
       printf ("%s\n", qPrintable (msg));
    emit newContents (msg);
+   }
+
+
+/* The scanner's own Scan button says 'I have cleared it, carry on',
+   but it is not always within reach and a back end which cannot report
+   its buttons leaves nothing to press. Offer the same thing in the
+   scan window: while the scan waits, Scan means carry on rather than
+   start again */
+
+void Mainwidget::slotScanWaiting (bool waiting)
+   {
+   _scan_waiting = waiting;
+   updatePscan ();
+   }
+
+
+void Mainwidget::resumeScan (void)
+   {
+   if (_scan)
+      _scan->resumeScan ();
    }
 
 
