@@ -278,6 +278,22 @@ Q_DECLARE_LOGGING_CATEGORY (logBuild)
 /** Turn on the diagnostic categories above, for when the log is wanted */
 void utilLogEnable (void);
 
+
+/** how many frames of a stack are worth printing */
+#define MAX_TRACE_DEPTH 64
+
+/** Say what the program is in the middle of doing, innermost first
+
+    Each frame is given as the name of the function and the file it came
+    from, as far as those can be worked out; a frame with no name at all
+    is given as the address. This needs glibc and returns nothing
+    without it.
+
+    \param skip   how many frames to leave off the top, so that a caller
+                  which prints this itself need not show itself doing so
+    \return the frames above the caller, innermost first */
+QStringList utilBacktrace (int skip);
+
 QString utilRemoveQuotes (QString str);
 
 /**

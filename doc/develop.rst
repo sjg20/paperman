@@ -168,6 +168,21 @@ something going wrong earlier.  ``--sane-debug LEVEL`` adds the back
 end's own account of every command and answer; 15 is enough to see the
 shape of a scan and 30 to see the data.
 
+An error often says only that something is missing, not which part of
+paperman went looking for it.  ``PAPERMAN_ERR_TRACE=1`` follows each
+error with the stack which made it, whether or not the log is on::
+
+   PAPERMAN_ERR_TRACE=1 ./paperman --log ~/paperman.log
+
+   **Error: Cannot open file '/vid/homepaper/' (in Filejpegpage::load)
+      Filejpegpage::load(QString const&) [paperman]
+      Filejpeg::loadPage(int, QImage&) [paperman]
+      Filejpeg::getImage(int, bool, QImage&, ...) [paperman]
+
+The names come from the dynamic symbol table, which the desktop app is
+linked to keep; a frame with no name is one the compiler made up, and
+``addr2line -f -C -e paperman <address>`` says where it is.
+
 Build Targets
 -------------
 

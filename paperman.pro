@@ -42,6 +42,11 @@ CONFIG -= release
 QMAKE_CXXFLAGS += -fno-omit-frame-pointer
 QMAKE_CFLAGS += -fno-omit-frame-pointer
 
+# Put paperman's own symbols in the dynamic table, so that a stack
+# printed by the program itself names the functions on it rather than
+# just their addresses
+!win32: QMAKE_LFLAGS += -rdynamic
+
 #QMAKE_LFLAGS += -static
 
 equals(QT_MAJOR_VERSION, 6) {

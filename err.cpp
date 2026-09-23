@@ -27,6 +27,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <stdlib.h>
 #include <string.h>
 
+#include <QDebug>
+#include <QStringList>
+
 #include "err.h"
 #include "utils.h"
 
@@ -119,6 +122,58 @@ static err_info static_err;
 static err_info static_copy;
 
 
+/* An error on its own often says only that something is missing, not
+   which part of paperman went looking for it. With PAPERMAN_ERR_TRACE
+   set, each error is followed by the stack which made it, and is shown
+   whether or not the log is on, since someone who sets it is looking
+   for exactly this */
+
+static bool err_tracing (void)
+   {
+   static int tracing = -1;
+
+   if (tracing < 0)
+      tracing = getenv ("PAPERMAN_ERR_TRACE") != NULL;
+
+   return tracing;
+   }
+
+
+/** Say that an error has been made, and where it came from
+
+    \param e   the error just made */
+
+void err_report (err_info *e)
+   {
+   if (!err_tracing ())
+      {
+      qCDebug (logErr, "**Error: %s (in %s)", e->errstr, e->func_name);
+      return;
+      }
+
+   qWarning ().noquote ()
+      << QString ("**Error: %1 (in %2)").arg (e->errstr).arg (e->func_name);
+
+   /* The frames which make the error are no help in finding out who
+      wanted it, so drop them. They are dropped by name rather than by
+      counting, since whether each one is really on the stack depends
+      on what the compiler decided to inline; a frame with no name at
+      all is one of these too, since the ones here are private to their
+      own file and the compiler may split a function in half */
+   const QStringList trace = utilBacktrace (0);
+   bool started = false;
+
+   for (const QString &line : trace)
+      {
+      if (!started && (line.startsWith ("err_") || line.contains ("merr_make")
+                       || line.contains ("(+0x")))
+         continue;
+      started = true;
+      qWarning ().noquote () << QString ("   %1").arg (line);
+      }
+   }
+
+
 err_info *err_copy (err_info *err)
    {
    if (err)
@@ -147,7 +202,8 @@ err_info *err_make (const char *func_name, int errnum, ...)
    va_start (ptr, errnum);
    e = err_vmake (func_name, errnum, ptr);
    va_end (ptr);
-   qCDebug (logErr, "**Error: %s (in %s)", e->errstr, e->func_name);
+   err_report (e);
+
    return e;
    }
 
@@ -162,6 +218,8 @@ err_info *err_make_new (const char *func_name, int errnum, ...)
    va_start (ptr, errnum);
    vsnprintf (e->errstr, sizeof (e->errstr), err_msg [errnum], ptr);
    va_end (ptr);
+   err_report (e);
+
    return e;
    }
 
@@ -179,6 +237,8 @@ err_info *err_subsume (const char *func_name, err_info *err, int errnum, ...)
    va_end (ptr);
    strcat (e->errstr, ": ");
    strcat (e->errstr, serr.errstr);
+   err_report (e);
+
    return e;
    }
 

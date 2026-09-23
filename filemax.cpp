@@ -728,6 +728,8 @@ err_info *Filemax::merr_make (const char *func_name, int errnum, ...)
    va_end (ptr);
    sprintf (str, "%s: %s", _filename.toLatin1 ().constData(), e->errstr);
    strcpy (e->errstr, str);
+   err_report (e);
+
    return e;
    }
 
