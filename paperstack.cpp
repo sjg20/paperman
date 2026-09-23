@@ -800,8 +800,26 @@ void PPage::continueJpeg ()
       case State_read_header:
          if (jpeg_read_header (&_cinfo, true) == JPEG_SUSPENDED)
             break;
-         if (!_height_known)
-            setHeight (_cinfo.image_height);
+
+         /* The page was made ready for the window the scanner was
+            given, or for what it said it would send. What it sends can
+            be longer than either: a page it straightened for itself
+            stands square in a box which has to hold it cornerwise, and
+            a scanner reading past the foot of the sheet sends what it
+            read. There is a line of the page waiting for every line
+            the decoder is about to write, and if there is not it
+            writes past the end of them */
+         if (!_height_known || (int)_cinfo.image_height > _height
+             || (int)_cinfo.image_width > _width)
+            {
+            int width = qMax ((int)_cinfo.image_width, _width);
+            int stride = qMax (_stride,
+                               (int)_cinfo.image_width * _cinfo.num_components);
+
+            setSize (width, stride,
+                     qMax ((int)_cinfo.image_height, _height_known
+                           ? _height : (int)_cinfo.image_height));
+            }
          _state = State_start;
          Q_FALLTHROUGH();
 
@@ -992,9 +1010,22 @@ bool PPage::checkBlank (const unsigned char *buf, int size)
 
 void PPage::setHeight (int height)
    {
+   setSize (_width, _stride, height);
+   }
+
+
+/* Make the page ready for a picture of the given size, which is not
+   always the size the scanner said it would send: a page it
+   straightened for itself stands square in a box big enough to hold it
+   cornerwise, so it can come back both longer and wider. Every line of
+   it has to have somewhere to go, and every line has to be long
+   enough, or the decoder writes past the end of them */
+void PPage::setSize (int width, int stride, int height)
+   {
    int i;
 
-
+   _width = width;
+   _stride = stride;
    _height = height;
    _height_known = true;
    int size = _stride * height;

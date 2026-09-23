@@ -40,6 +40,10 @@ private slots:
    //! stored at the length which arrived
    void testJpegStopsShort();
 
+   //! A page longer than the scanner said it would be does not run off
+   //! the end of the lines waiting for it
+   void testJpegTallerThanSaid();
+
    //! A sheet narrower than the window has the backing cut off its sides
    void testNarrowSheetCrop();
 

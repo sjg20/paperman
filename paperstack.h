@@ -235,6 +235,9 @@ public:
        is known, size the buffers and the blank-page target for it */
    void setHeight (int height);
 
+   /** make the page ready for a picture of this size, see the .cpp */
+   void setSize (int width, int stride, int height);
+
    /** continue JPEG decompression with any new data we have */
    void continueJpeg (void);
 
