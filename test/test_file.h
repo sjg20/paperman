@@ -36,6 +36,10 @@ private slots:
    //! A page longer than the scanner said still decodes
    void testJpegLongerThanExpected();
 
+   //! A page which stops short of the height its JPEG promised is
+   //! stored at the length which arrived
+   void testJpegStopsShort();
+
    //! A sheet narrower than the window has the backing cut off its sides
    void testNarrowSheetCrop();
 
