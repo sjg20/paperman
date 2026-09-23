@@ -1884,3 +1884,97 @@ void TestFile::testJpegInChunks()
                                   "of %2").arg (last).arg (h)));
    delete mp;
 }
+
+
+/* A scanner set to stop at the foot of the sheet cannot say how long a
+   page will be, so the page starts with room for a guess and the JPEG
+   header says how long it really is. Making room for a longer page used
+   to move the bytes the decoder was part way through reading, and it
+   carried on reading the memory they had been in: the page came out
+   with an inch of picture and the rest flat grey, or not at all.
+
+   The pages which showed this up were 11x17, well past the guess; a
+   letter page is inside it and was never touched */
+void TestFile::testJpegLongerThanExpected()
+{
+   const int w = 256, h = 900;          // far longer than w * 13 / 10
+   QImage im (w, h, QImage::Format_RGB888);
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb ((x * 5) & 0xff, (y * 3) & 0xff,
+                                  ((x * y) / 7) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 85));
+   buf.close ();
+
+   Paperstack stack ("stack", "page", true);
+   QMutex mutex;
+   Filepage *mp = NULL, *mpb = NULL;
+
+   /* both sides of a sheet, as a duplex scan does: the memory the
+      first page gives up when it makes room is taken by the second,
+      so anything still reading it reads the second page's data */
+   stack.addImage (w, -1, 24, w * 3, true, true);
+   stack.addImageBack (w, -1, 24, w * 3, true);
+   for (int pos = 0; pos < data.size (); pos += 4096)
+      stack.addImageBytes ((unsigned char *)data.data () + pos,
+                           qMin (4096, data.size () - pos));
+   for (int pos = 0; pos < data.size (); pos += 4096)
+      stack.addImageBytesBack ((unsigned char *)data.data () + pos,
+                               qMin (4096, data.size () - pos));
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (!stack.confirmImageBack (mpb, mutex));
+   QVERIFY (mp && mpb);
+   QCOMPARE (mp->_height, h);
+   QCOMPARE (mpb->_height, h);
+
+   /* the whole page is there: a decode which lost the data it was
+      reading leaves the rest of the page flat */
+   QImage out;
+
+   QVERIFY (out.loadFromData (mp->_data, "JPEG"));
+   out = out.convertToFormat (QImage::Format_RGB888);
+   QCOMPARE (out.height (), h);
+
+   int last = 0;
+
+   for (int y = 0; y < out.height (); y++)
+      {
+      QRgb first = out.pixel (0, y);
+      bool flat = true;
+
+      for (int x = 1; x < out.width () && flat; x++)
+         flat = out.pixel (x, y) == first;
+      if (!flat)
+         last = y + 1;
+      }
+   QVERIFY2 (last == h,
+             qPrintable (QString ("the page has picture down to line %1 of "
+                                  "%2").arg (last).arg (h)));
+
+   QImage back;
+
+   QVERIFY (back.loadFromData (mpb->_data, "JPEG"));
+   back = back.convertToFormat (QImage::Format_RGB888);
+   last = 0;
+   for (int y = 0; y < back.height (); y++)
+      {
+      QRgb first = back.pixel (0, y);
+      bool flat = true;
+
+      for (int x = 1; x < back.width () && flat; x++)
+         flat = back.pixel (x, y) == first;
+      if (!flat)
+         last = y + 1;
+      }
+   QVERIFY2 (last == h,
+             qPrintable (QString ("the back has picture down to line %1 of "
+                                  "%2").arg (last).arg (h)));
+   delete mp;
+   delete mpb;
+}

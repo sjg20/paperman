@@ -953,6 +953,7 @@ void PPage::setHeight (int height)
    {
    int i;
 
+
    _height = height;
    _height_known = true;
    int size = _stride * height;
@@ -975,7 +976,16 @@ void PPage::setHeight (int height)
       size /= 2;
       }
    _size = qMax (size, _data.size ());
-   _data.reserve (_size);
+
+   /* Never move the buffer the data arrives in while a JPEG is being
+      decoded out of it. This is called by the decoder itself, from
+      inside the header it is reading, once that header says how big
+      the page really is; making room in that buffer moves the bytes
+      the decoder is part way through, and it carries on reading the
+      memory they used to be in. The buffer grows by itself as more
+      data arrives, which happens between decodes and is safe */
+   if (!_jpeg)
+      _data.reserve (_size);
    _pixelTarget = _width * height;
    if (_blankThreshold)
       _pixelTarget /= _blankThreshold;

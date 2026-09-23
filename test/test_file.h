@@ -33,6 +33,9 @@ private slots:
    //! A JPEG arriving in pieces decodes the same as one arriving whole
    void testJpegInChunks();
 
+   //! A page longer than the scanner said still decodes
+   void testJpegLongerThanExpected();
+
    //! A sheet narrower than the window has the backing cut off its sides
    void testNarrowSheetCrop();
 
