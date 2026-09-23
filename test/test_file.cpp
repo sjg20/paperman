@@ -2113,3 +2113,31 @@ void TestFile::testJpegTallerThanSaid()
    QCOMPARE (mp->_height, real);
    delete mp;
 }
+
+
+/* A sheet which jams ends its page wherever it stops, so the page holds
+   fewer lines than the scanner said it would. Storing it at the length
+   the scanner promised leaves a page with less in it than it says, and
+   whatever comes to compress it is handed too few lines: the JPEG
+   library says so, once for every part of the page it is asked for */
+void TestFile::testRawPageCutShort()
+{
+   const int w = 200, said = 400, got = 150;
+   QByteArray data (w * 3 * got, (char)0xc0);
+
+   Paperstack stack ("stack", "page", false);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   stack.addImage (w, said, 24, w * 3, true, false);
+   stack.addImageBytes ((unsigned char *)data.data (), data.size ());
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+
+   QCOMPARE (mp->_height, got);
+   QVERIFY2 (mp->_data.size () >= mp->_height * mp->_stride,
+             qPrintable (QString ("the page says %1 lines of %2 bytes but "
+                                  "holds %3 bytes").arg (mp->_height)
+                         .arg (mp->_stride).arg (mp->_data.size ())));
+   delete mp;
+}

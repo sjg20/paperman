@@ -44,6 +44,9 @@ private slots:
    //! the end of the lines waiting for it
    void testJpegTallerThanSaid();
 
+   //! A page cut short by a jam is stored at the length which arrived
+   void testRawPageCutShort();
+
    //! A sheet narrower than the window has the backing cut off its sides
    void testNarrowSheetCrop();
 
