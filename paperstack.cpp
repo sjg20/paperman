@@ -211,6 +211,7 @@ Paperstack::Paperstack (QString stackName, QString pageName, bool jpeg)
    _blankThreshold = 500;
    _autoColour = false;
    _autoSize = false;
+   _deskewed = false;
    _sideways = Sideways_no;
    _jpeg = jpeg;
    _scanning = true;
@@ -367,6 +368,16 @@ void Paperstack::setSideways (t_sideways how)
    }
 
 
+/* A scanner which straightens a page for itself hands it back turned
+   upright on a ground of its own, which is black: the sheet is then
+   what is bright, and the ink which stands for the sheet where a cover
+   is printed to its edges would take in the whole of that ground */
+void Paperstack::setDeskewed (bool on)
+   {
+   _deskewed = on;
+   }
+
+
 void Paperstack::setAutoSize (bool on)
    {
    _autoSize = on;
@@ -419,7 +430,7 @@ int Paperstack::addImage (int width, int height, int depth, int stride, bool fro
    assert (!_page);
    _front = front;
    _page = new PPage (_pages.size (), width, height, depth, stride, _jpeg,
-                      _blankThreshold, _autoColour, _autoSize,
+                      _blankThreshold, _autoColour, _autoSize, _deskewed,
                       rotationFor (front));
    if (!jpeg)
       return _page->size ();
@@ -447,7 +458,7 @@ int Paperstack::addImageBack (int width, int height, int depth, int stride, bool
     * front in the stack list. */
    _page_back = new PPage (_pages.size () + 1, width, height, depth, stride,
                            _jpeg, _blankThreshold, _autoColour, _autoSize,
-                           rotationFor (false));
+                           _deskewed, rotationFor (false));
    if (!jpeg)
       return _page_back->size ();
    if (depth == 8)
@@ -516,10 +527,11 @@ QString Paperstack::coverageStrBack ()
 
 PPage::PPage (int pagenum, int width, int height, int depth, int stride,
       bool jpeg, int blank_threshold, bool auto_colour, bool auto_size,
-      Rotate rotate)
+      bool deskewed, Rotate rotate)
    {
    _autoColour = auto_colour;
    _autoSize = auto_size;
+   _deskewed = deskewed;
    _rotate = rotate;
    _colourPixels = 0;
    _fill_max = 0;
@@ -1210,10 +1222,16 @@ err_info *PPage::compressPage (Filepage *mp, bool mark_blank)
 
    mp->_rotate = _rotate == Rotate_cw ? 90 : _rotate == Rotate_ccw ? 270 : 0;
 
+   /* a page whose sides are to be cut off has to be rebuilt as well,
+      unless it is a JPEG, which is cut below without decoding it */
+   int lo = 0, hi = _width - 1;
+   bool cut = _autoSize && !_jpeg && sheetEdges (_height, lo, hi)
+         && (lo > 0 || hi < _width - 1);
+
    /* a colour page that turned out to need no colour is stored as grey
       or, with no mid-tones either, as mono, and a page fed sideways is
       turned upright: either is done from the decoded pixels */
-   if (depth != _depth || _rotate != Rotate_none)
+   if (depth != _depth || _rotate != Rotate_none || cut)
       {
       const unsigned char *src = (const unsigned char *)
          (_jpeg ? _decomp.constData () : _data.constData ());
@@ -1570,7 +1588,10 @@ bool PPage::sheetBounds (int height, int &lo, int &hi, bool printed) const
    this goes as well */
 bool PPage::sheetEdges (int height, int &lo, int &hi) const
    {
-   if (!sheetBounds (height, lo, hi, true))
+   /* ink stands in for the sheet where a cover is printed to its
+      edges, but not when the scanner has stood the page on a ground
+      of its own: that ground is black, which is ink everywhere */
+   if (!sheetBounds (height, lo, hi, !_deskewed))
       return false;
 
    /* what the backing itself gives, measured at the edge of the
@@ -1970,6 +1991,16 @@ int Paperscan::expectedLines (const SANE_Parameters &parameters) const
    }
 
 
+/* true if the scanner is straightening each page itself, which it
+   hands back on a black ground */
+bool Paperscan::deskewed (void) const
+   {
+   int num = _scanner ? _scanner->findOption ("hwdeskewcrop") : -1;
+
+   return num >= 0 && _scanner->saneWordValue (num) != 0;
+   }
+
+
 bool Paperscan::autoSize (void) const
    {
    static const char *const name [] = { "auto-size", "ald" };
@@ -2004,6 +2035,7 @@ void Paperscan::ensureStack (QString &stack_name, QString &page_name,
                xmlConfig->intValue("SCAN_BLANK_THRESHOLD"));
       _stack->setAutoColour (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
       _stack->setAutoSize (autoSize ());
+      _stack->setDeskewed (deskewed ());
       _stack->setSideways ((Paperstack::t_sideways)
                            xmlConfig->intValue ("SCAN_SIDEWAYS"));
       emit stackNew (stack_name);
