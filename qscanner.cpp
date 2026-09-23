@@ -392,6 +392,7 @@ bool QScanner::openDevice()
    QScanner::msAuthorizationCancelled = false;
          SANE_Status status;
    mOptionNumber = -1;
+   mOptionByName.clear ();
    //if device already open or no device name chosen return
    if(mOpenOk==true) return true;
    if(mDeviceName.isEmpty())
@@ -3828,17 +3829,33 @@ bool QScanner::getRangeContrast (int *minp, int *maxp)
 
 int QScanner::findOption (const char *opt, bool settable)
 {
-   int count = optionCount ();
-   const char *name;
    QList<int> found;
 
-   for (int i = 0; i < count; i++)
+   /* Asking the scanner for every option's name to find one by name is
+      dear: a scanner has a hundred or so, a scan looks several of them
+      up, and with the back end's debugging turned on each question
+      fills a line of the log. Ask once and remember where they are.
+      Which options are settable changes as the scan goes on, so that
+      is still asked each time, but only of the options with the right
+      name */
+   if (mOptionByName.isEmpty ())
    {
-      name = getOptionName(i);
-      // qDebug() << "name" << name;
-      if (name && 0 == strcmp (name, opt) && (!settable || isOptionSettable (i)))
-         found << i;
+      int count = optionCount ();
+
+      for (int i = 0; i < count; i++)
+      {
+         const char *name = getOptionName (i);
+
+         if (name)
+            mOptionByName.insert (QString::fromLatin1 (name), i);
+      }
    }
+
+   const QList<int> nums = mOptionByName.values (QString::fromLatin1 (opt));
+
+   for (int i : nums)
+      if (!settable || isOptionSettable (i))
+         found << i;
 
    if (found.size() == 1)
       return found[0];

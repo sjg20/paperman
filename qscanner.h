@@ -24,6 +24,7 @@ extern "C"
 }
 
 #include <QByteArray>
+#include <QMultiHash>
 
 
 //s #include <qarray.h>
@@ -556,6 +557,12 @@ successfull */
      and sane_close(). We only have to query the number of options once after a call
      to sane_open. */
 	int mOptionNumber;
+
+   /** where each option name sits in the list, so that looking one up
+       by name does not mean asking the scanner about every option it
+       has. Built when first needed and thrown away when the option
+       list changes */
+   QMultiHash<QString, int> mOptionByName;
   /**  */
   QString mTempFilePath;
   /**  */
