@@ -1068,6 +1068,45 @@ void TestFile::testJpegStackMissingPages()
 }
 
 
+/* A sheet which jams can leave a page only a few lines high. Storing
+   one used to fail with 'Out of memory (-720 bytes)': the tile size
+   was chosen by taking whichever wasted least measured against the
+   image itself, which nothing can beat on an image smaller than a
+   single tile, so no size was chosen at all and the count of tiles
+   came out negative */
+
+void TestFile::testTinyPageStored()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   const int w = 2400, h = 8;
+
+   QByteArray data(w * 3 * h, (char)0xc0);
+   QString name("page 1");
+   Filemaxpage mp;
+
+   mp.addData(w, h, 24, w * 3, name, false, false, 0, data, data.size());
+   QVERIFY(!mp.compress());
+
+   Filemax max(dir, "tiny.max", nullptr);
+   QVERIFY(!max.create());
+   QVERIFY(!max.addPage(&mp, true));
+
+   // and it reads back at the size it went in
+   Filemax again(dir, "tiny.max", nullptr);
+   QVERIFY(!again.load());
+   QCOMPARE(again.pagecount(), 1);
+
+   QImage image;
+   QSize size, true_size;
+   int bpp;
+
+   QVERIFY(!again.getImage(0, false, image, size, true_size, bpp, false));
+   QCOMPARE(image.size(), QSize(w, h));
+}
+
+
 void TestFile::testJpegAnnotations()
 {
    if (QStandardPaths::findExecutable("exiftool").isEmpty())

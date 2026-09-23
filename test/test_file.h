@@ -77,6 +77,9 @@ private slots:
    //! A JPEG stack whose first pages are missing still opens
    void testJpegStackMissingPages();
 
+   //! A page of only a few lines, as a jam leaves behind, is stored
+   void testTinyPageStored();
+
    //! extMatchesType compares the file's own type against the supplied ext
    void testExtMatchesType();
 
