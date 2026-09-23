@@ -1887,6 +1887,43 @@ SANE_Status Paperscan::startPage (void)
    asked for the page size they set, so a page fed sideways is left as
    long as the window rather than cut at the edge of the sheet */
 
+/* A scanner told to stop at the foot of the sheet does not know how
+   long the page will be until it gets there, and says -1. The window it
+   was given is the most it can send, though, so that is what the page
+   is made ready for: a guess from the width instead means the buffers
+   grow part way through a long page, which costs a copy of the page.
+
+   The window can be far longer than any sheet - this scanner will take
+   a window nearly three metres long, for a banner or a till roll - and
+   a page made ready for all of it would hold hundreds of megabytes
+   waiting for a sheet of paper. Past twice the width, which covers
+   every ordinary paper size, the page starts smaller and grows if the
+   sheet really does go on that long */
+int Paperscan::expectedLines (const SANE_Parameters &parameters) const
+   {
+   if (parameters.lines > 0)
+      return parameters.lines;
+
+   int bry = _scanner->getBryOption ();
+   int tly = _scanner->getTlyOption ();
+   int dpi = _scanner->yResolutionDpi ();
+
+   if (bry < 0 || dpi <= 0)
+      return parameters.lines;    // no window to go on: let the page guess
+
+   double mm = SANE_UNFIX (_scanner->saneWordValue (bry));
+
+   if (tly >= 0)
+      mm -= SANE_UNFIX (_scanner->saneWordValue (tly));
+   if (mm <= 0)
+      return parameters.lines;
+
+   int lines = (int)(mm * dpi / 25.4);
+
+   return lines > parameters.pixels_per_line * 2 ? parameters.lines : lines;
+   }
+
+
 bool Paperscan::autoSize (void) const
    {
    static const char *const name [] = { "auto-size", "ald" };
@@ -2023,11 +2060,11 @@ void Paperscan::scan ()
             }
 #endif
          int expected_bytes_f = _stack->addImage (parameters.pixels_per_line,
-                parameters.lines, image_bpp,
+                expectedLines (parameters), image_bpp,
                 parameters.bytes_per_line, true, is_jpeg);
          emit stackPageStarting (expected_bytes_f, _stack->curPage ());
          int expected_bytes_b = _stack->addImageBack (parameters.pixels_per_line,
-                parameters.lines, image_bpp,
+                expectedLines (parameters), image_bpp,
                 parameters.bytes_per_line, is_jpeg);
          emit stackPageStarting (expected_bytes_b, _stack->curPageBack ());
 
@@ -2066,7 +2103,8 @@ void Paperscan::scan ()
                      {
                      _mutex.lock ();
                      _stack->restartBack (parameters.pixels_per_line,
-                                          parameters.lines, image_bpp,
+                                          expectedLines (parameters),
+                                          image_bpp,
                                           parameters.bytes_per_line, is_jpeg);
                      _mutex.unlock ();
                      }
@@ -2194,8 +2232,8 @@ void Paperscan::scan ()
             is_jpeg = true;
             }
 #endif
-         int expected_bytes = _stack->addImage (parameters.pixels_per_line, parameters.lines,
-                image_bpp,
+         int expected_bytes = _stack->addImage (parameters.pixels_per_line,
+                expectedLines (parameters), image_bpp,
                  parameters.bytes_per_line, side == 0, is_jpeg);
          emit stackPageStarting (expected_bytes, _stack->curPage ());
 //          qDebug () << "emit stackPageStarting page" << _stack->curPage ()->pagenum ();

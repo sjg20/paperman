@@ -542,6 +542,13 @@ public:
    /** true if the back end is cutting each page down to the sheet */
    bool autoSize (void) const;
 
+   /** how many lines a page can hold, for sizing its buffers
+
+      \param parameters  what the back end said about the page
+      \returns the number of lines, from the back end if it knows and
+               from the window it was given if it does not */
+   int expectedLines (const SANE_Parameters &parameters) const;
+
    /** true if this status is a misfeed the user can clear and carry on
 
       \param status  what the back end said */
