@@ -3096,7 +3096,15 @@ static void calc_tile_dimension (int target, int *tilep, int *countp)
    int waste, count;
    int best, best_waste, size;
 
-   best = -1; best_waste = target;
+   /* Take the size which wastes least. The waste was measured against
+      the size of the image itself, which no size can beat on an image
+      smaller than a tile: every one of them covers it in a single tile
+      and wastes the rest. Nothing was then chosen, and the count came
+      out as 2 - target: two tiles for an image of nothing, and a
+      negative count for anything bigger, which asks for a block of
+      memory of negative size. A page of a few lines, as a sheet which
+      jams leaves behind, was enough to do it */
+   best = 440; best_waste = INT_MAX;
    for (size = 440; size < 550; size += 8)
       {
       count = (target + size - 1) / size;
