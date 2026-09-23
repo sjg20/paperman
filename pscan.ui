@@ -543,7 +543,7 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
        <item>
         <layout class="QHBoxLayout">
          <item>
-          <widget class="QLabel" name="textLabel3_2">
+          <widget class="QLabel" name="sizeLabel">
            <property name="text">
             <string>Size</string>
            </property>
