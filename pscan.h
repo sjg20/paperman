@@ -99,6 +99,9 @@ public slots:
 
     /** Show and set the Auto-size box to match the scanner's option */
     void updateAutoSize (void);
+
+    /** Show and set the Straighten box to match the scanner's option */
+    void updateDeskew (void);
     virtual void setMainwidget( Mainwidget * main );
     virtual void source_clicked();
     virtual void settings_clicked();
@@ -107,6 +110,7 @@ public slots:
     virtual void adf_clicked();
     virtual void duplex_clicked();
     virtual void autosize_clicked();
+    virtual void deskew_clicked();
     virtual void autocolour_clicked();
     virtual void sideways_activated(int how);
     virtual void res_activated( int id );

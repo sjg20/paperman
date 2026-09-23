@@ -118,6 +118,20 @@ public:
   /** Turn automatic paper-size detection on or off */
   bool setAutoSize (bool on);
 
+  //! the option behind the straighten-and-crop box, or NULL if there is none
+  QSaneOption *deskewCropOption (void);
+
+  /** true if the scanner can straighten and crop a page itself */
+  bool hasDeskewCrop (void);
+
+  /** the current state of the scanner's straighten-and-crop */
+  bool deskewCrop (void);
+
+  /** Ask the scanner to straighten and crop each page, or stop asking.
+      It reads each page in full before passing it on, so the sheets go
+      through more slowly */
+  bool setDeskewCrop (bool on);
+
   /** set DPI */
   void setDpi (int dpi);
 

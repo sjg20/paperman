@@ -498,6 +498,16 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
           </widget>
          </item>
          <item>
+          <widget class="QCheckBox" name="deskew">
+           <property name="toolTip">
+            <string>Have the scanner straighten each sheet and cut the page down to it. The sheets go through more slowly, since the scanner reads each one in full before passing it on</string>
+           </property>
+           <property name="text">
+            <string>Straighten</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QCheckBox" name="autocolour">
            <property name="toolTip">
             <string>When scanning in colour, store pages that have no colour as grey, or as mono if they have no shading either</string>

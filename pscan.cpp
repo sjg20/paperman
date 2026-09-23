@@ -74,6 +74,8 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     connect(duplex, SIGNAL(clicked()), this, SLOT(duplex_clicked()));
     connect(autosize, SIGNAL(clicked()), this, SLOT(autosize_clicked()));
     autosize->hide ();
+    connect(deskew, SIGNAL(clicked()), this, SLOT(deskew_clicked()));
+    deskew->hide ();
     connect(autocolour, SIGNAL(clicked()), this, SLOT(autocolour_clicked()));
     connect(sideways, SIGNAL(activated(int)), this, SLOT(sideways_activated(int)));
     if (xmlConfig)
@@ -333,6 +335,7 @@ void Pscan::scannerChanged (QScanner *scanner)
     if (b)
         b->setChecked(true);
     setupBright ();
+    updateDeskew ();
     updateAutoSize ();
     if (_do_preset_check)
        presetCheck();
@@ -397,6 +400,30 @@ void Pscan::autosize_clicked()
 }
 
 
+/* The scanner straightens the sheet and cuts the page down to it,
+   which it does better than anything paperman can do to the page
+   afterwards, at the cost of reading each page in full before passing
+   it on */
+void Pscan::deskew_clicked()
+{
+   if (_scanDialog)
+      _scanDialog->setDeskewCrop (deskew->isChecked ());
+
+   // the scanner decides the size of a page now
+   updateAutoSize ();
+}
+
+
+void Pscan::updateDeskew (void)
+{
+   bool has = _scanDialog && _scanDialog->hasDeskewCrop ();
+
+   deskew->setVisible (has);
+   if (has)
+      deskew->setChecked (_scanDialog->deskewCrop ());
+}
+
+
 /* paperman does this itself, from the pixels, so it is a setting of ours
    rather than one of the scanner's */
 void Pscan::autocolour_clicked()
@@ -417,20 +444,25 @@ void Pscan::sideways_activated(int how)
 void Pscan::updateAutoSize (void)
 {
    bool has = _scanDialog && _scanDialog->hasAutoSize ();
+   bool deskewing = _scanDialog && _scanDialog->hasDeskewCrop ()
+         && _scanDialog->deskewCrop ();
 
    autosize->setVisible (has);
    if (has)
       {
       autosize->setChecked (_scanDialog->autoSize ());
-      /* only leave the size out of the user's hands when auto-size
-         trims the width too. The fujitsu backend's ald trims the length
-         alone, so the paper width still decides where a page is cut,
-         and it is the setting to reach for when one comes out short */
-      pageSize->setDisabled (autosize->isChecked ()
-                             && _scanDialog->autoSizeTrimsWidth ());
+      /* only leave the size out of the user's hands when the page is
+         cut to the sheet in both directions: the scanner straightening
+         and cropping does that, while the fujitsu back end's ald trims
+         the length alone, so the paper width still decides where a
+         page is cut and it is the setting to reach for when one comes
+         out short */
+      pageSize->setDisabled (deskewing
+                             || (autosize->isChecked ()
+                                 && _scanDialog->autoSizeTrimsWidth ()));
       }
    else
-      pageSize->setEnabled (true);
+      pageSize->setDisabled (deskewing);
 }
 
 
@@ -588,6 +620,7 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
 void Pscan::setScanDialog( QScanDialog *dialog )
 {
    _scanDialog = dialog;
+   updateDeskew ();
    updateAutoSize ();
 }
 

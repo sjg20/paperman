@@ -2762,6 +2762,48 @@ bool QScanDialog::setAutoSize (bool on)
 }
 
 
+/* The scanner can straighten a page which went through askew and cut
+   it down to the sheet, both of which it does better than anything
+   which can be done to the page afterwards. It reads the whole page
+   before passing any of it on to do so, which costs about half the
+   speed, so it is offered rather than assumed */
+QSaneOption *QScanDialog::deskewCropOption (void)
+{
+   return findOption ("hwdeskewcrop", (int)SANE_TYPE_BOOL);
+}
+
+
+bool QScanDialog::hasDeskewCrop (void)
+{
+   return deskewCropOption () != 0;
+}
+
+
+bool QScanDialog::deskewCrop (void)
+{
+   QSaneOption *opt = deskewCropOption ();
+
+   if (!opt)
+      return false;
+   return mpScanner->saneWordValue (opt->saneOptionNumber ()) != 0;
+}
+
+
+bool QScanDialog::setDeskewCrop (bool on)
+{
+   QSaneOption *opt = deskewCropOption ();
+
+   if (!opt || !opt->inherits ("QBoolOption"))
+      return false;
+   ((QBoolOption *)opt)->setState (on ? SANE_TRUE : SANE_FALSE);
+   slotOptionChanged (opt->optionNumber ());
+   /* the scanner decides the size of a page now, so the scan-area
+      options it works out for itself are no longer ours to set */
+   slotReloadOptions ();
+   return true;
+}
+
+
 bool QScanDialog::setDuplex (bool duplex)
 {
    QSaneOption *which;
