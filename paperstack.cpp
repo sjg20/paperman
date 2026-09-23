@@ -1876,6 +1876,13 @@ Paperscan::~Paperscan ()
 #define RESUME_POLL_MS 1000
 #define RESUME_WAIT_MS (30 * 1000)
 
+/* How long to keep asking a busy scanner to start a page. A scanner
+   which is briefly busy answers within a few of these, but one which
+   has stopped answering can take a minute to say so, and trying thirty
+   times over would leave the user watching a scan which is going
+   nowhere for half an hour */
+#define BUSY_WAIT_MS (5 * 1000)
+
 bool Paperscan::isMisfeed (SANE_Status status)
    {
    return status == SANE_STATUS_JAMMED || status == SANE_STATUS_COVER_OPEN;
@@ -1981,10 +1988,13 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
 SANE_Status Paperscan::startPage (void)
    {
    SANE_Status status = SANE_STATUS_DEVICE_BUSY;
+   QElapsedTimer busy;
    int busy_count;
 
+   busy.start ();
    for (busy_count = 0; status == SANE_STATUS_DEVICE_BUSY
-                        && busy_count < 30 && !isCancelled ();
+                        && busy_count < 30 && busy.elapsed () < BUSY_WAIT_MS
+                        && !isCancelled ();
         busy_count++)
       {
       if (busy_count)
