@@ -140,6 +140,34 @@ suite is a ``QObject`` subclass using the Qt Test framework (``QCOMPARE``,
 ``QVERIFY``, etc.).  Test data files are generated at build time by
 ``scripts/make_test_files.py`` and are not tracked in git.
 
+Chasing a Crash
+---------------
+
+The desktop app is built with the frame pointer kept, so a crash inside
+a library which has no symbols of its own - the JPEG library, say -
+still gives a stack saying where it was called from.  If the stack is
+nonsense anyway, something has written past the end of what holds it,
+and the way to find that is the address sanitiser::
+
+   make asan
+   ./build-asan/paperman --log ~/paperman.log
+
+That build stops at the moment something is written where it should not
+be and says what and where, rather than crashing some time later
+somewhere else.  It is slower and uses more memory, so it is for
+chasing a fault rather than for scanning a stack of paper.  The test
+suite runs under it too::
+
+   QT_QPA_PLATFORM=offscreen ASAN_OPTIONS=detect_leaks=0 \
+      ./build-asan/paperman -t
+
+``--log FILE`` collects everything paperman would have written to the
+terminal, including what the scanner back end says and the text of any
+dialog the user was shown, which is worth having when a crash follows
+something going wrong earlier.  ``--sane-debug LEVEL`` adds the back
+end's own account of every command and answer; 15 is enough to see the
+shape of a scan and 30 to see the data.
+
 Build Targets
 -------------
 
