@@ -676,6 +676,11 @@ static void my_error_exit (j_common_ptr cinfo)
    (*cinfo->err->format_message)(cinfo, buffer);
    qDebug () << "** JPEG error" << buffer;
    myerr->err = 1;
+
+   /* the library says this must not come back, and means it: what it
+      does afterwards is undefined, and it decoded a page of nonsense
+      when it was let to carry on */
+   longjmp (myerr->setjmp_buffer, 1);
    }
 
 
@@ -717,9 +722,37 @@ void PPage::continueJpeg ()
    {
    int nread;
 
+   if (_state == State_done || _jerr.err)
+      return;
+
+   /* A marker can say to skip more than has arrived so far, and the
+      rest of that skip has to come out of what arrives next: without
+      it the decoder starts again in the middle of the marker, reads
+      the page as one long run of nonsense and stops part way down */
+   if (_to_be_skipped)
+      {
+      int skip = qMin ((int)_to_be_skipped, _data.size () - _upto);
+
+      _upto += skip;
+      _to_be_skipped -= skip;
+      if (_to_be_skipped)
+         return;     // still inside it: nothing to decode yet
+      }
+
 //    qDebug () << "continueJpeg state" << _state << "avail" << _data.size () << "upto" << _upto;
    _source.pub.next_input_byte = (const JOCTET *)(_data.data () + _upto);
    _source.pub.bytes_in_buffer = _data.size () - _upto;;
+
+   /* the error handler comes back here rather than returning into the
+      library, whose state is not to be relied on after one */
+   if (setjmp (_jerr.setjmp_buffer))
+      {
+      qWarning () << "page" << _pagenum << ": the scanner's JPEG data is"
+                  << "damaged; keeping the" << _decomp_avail / qMax (_stride, 1)
+                  << "lines which came out of it";
+      _state = State_done;
+      return;
+      }
 
    switch (_state)
       {

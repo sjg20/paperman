@@ -1793,3 +1793,94 @@ void TestFile::testRemovePagesMismatch()
    QVERIFY(max.removePages(all, del_info, count) == nullptr);
    QCOMPARE(max.pagecount(), 0);
 }
+
+
+/* The scanner's JPEG arrives in pieces, and the decoder is fed each
+   piece as it comes. A marker in it can say to skip over more than has
+   arrived so far, which leaves the decoder to take the rest of that
+   skip out of the pieces which follow: get that wrong and it starts
+   again in the middle of the marker.
+
+   This checks that a page put together from small pieces, with a
+   marker across several of them, still comes out whole. A decoder
+   which loses its place here usually finds it again at the next
+   marker, so this is a check that the pieces are handled at all
+   rather than a test of what happens when it does not */
+void TestFile::testJpegInChunks()
+{
+   const int w = 256, h = 400;
+   QImage im (w, h, QImage::Format_RGB888);
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb ((x * 5) & 0xff, (y * 3) & 0xff,
+                                  ((x + y) * 7) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 85));
+   buf.close ();
+
+   /* a comment holding more than one piece of the data, so the skip
+      over it must carry from one piece to the next, as the scanner's
+      own markers do */
+   QByteArray marker ("\xff\xfe", 2);
+   const int len = 5000;
+
+   marker.append ((char)((len + 2) >> 8));
+   marker.append ((char)((len + 2) & 0xff));
+
+   /* what is inside it looks like the start of a picture, so a decoder
+      which comes back in the middle of it goes off making one rather
+      than quietly finding its way again */
+   for (int i = 0; i < len; i += 4)
+      marker.append ("\xff\xd8\xff\xc4", 4);
+   marker.truncate (4 + len);
+   /* put it where the picture starts, so that a decoder which comes
+      back in the wrong place lands in the middle of the picture data
+      rather than in the headers, where it would find its feet again */
+   int sos = data.indexOf (QByteArray ("\xff\xda", 2));
+
+   QVERIFY (sos > 0);
+   data.insert (sos, marker);
+
+   QString cov;
+   Filepage *mp = NULL;
+   Paperstack stack ("stack", "page", true);
+   QMutex mutex;
+
+   stack.addImage (w, h, 24, w * 3, true, true);
+   for (int pos = 0; pos < data.size (); pos += 1024)
+      stack.addImageBytes ((unsigned char *)data.data () + pos,
+                           qMin (1024, data.size () - pos));
+   cov = stack.coverageStr ();
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+   QCOMPARE (mp->_height, h);
+
+   /* every line of the page is there: a decode which lost its way
+      leaves the rest of the page as a flat fill */
+   QImage out;
+   QVERIFY (out.loadFromData (mp->_data, "JPEG"));
+   out = out.convertToFormat (QImage::Format_RGB888);
+   QCOMPARE (out.height (), h);
+
+   int last = 0;
+
+   for (int y = 0; y < out.height (); y++)
+      {
+      QRgb first = out.pixel (0, y);
+      bool flat = true;
+
+      for (int x = 1; x < out.width () && flat; x++)
+         flat = out.pixel (x, y) == first;
+      if (!flat)
+         last = y + 1;
+      }
+   QVERIFY2 (last == h,
+             qPrintable (QString ("the page has picture down to line %1 "
+                                  "of %2").arg (last).arg (h)));
+   delete mp;
+}
