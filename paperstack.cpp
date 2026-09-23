@@ -668,6 +668,33 @@ static void term_source (j_decompress_ptr cinfo)
    }
 
 
+/* A scanner which stops at the foot of the sheet sends a page shorter
+   than the height its JPEG promised, and the decoder fills what is
+   left with grey rather than saying it has finished. It does say so in
+   a warning, though, and where it says it is where the page ends */
+static void my_emit_message (j_common_ptr cinfo, int msg_level)
+   {
+   if (msg_level < 0 && cinfo->is_decompressor)
+      {
+      j_decompress_ptr dinfo = (j_decompress_ptr)cinfo;
+      jpeg_source_info *src = (jpeg_source_info *)dinfo->src;
+      char buffer [JMSG_LENGTH_MAX];
+
+      (*cinfo->err->format_message) (cinfo, buffer);
+      if (src && src->page)
+         src->page->dataRanOut (dinfo->output_scanline);
+      qCDebug (logErr, "JPEG: %s", buffer);
+      }
+   }
+
+
+void PPage::dataRanOut (int lines)
+   {
+   if (_data_lines < 0)
+      _data_lines = lines;
+   }
+
+
 static void my_error_exit (j_common_ptr cinfo)
    {
    struct my_error_mgr* myerr = (struct my_error_mgr*) cinfo->err;
@@ -705,7 +732,9 @@ void PPage::setupJpeg (void)
    _cinfo.err = jpeg_std_error (&_jerr.mgr);
    _jerr.err = 0;
    _jerr.mgr.error_exit = my_error_exit;
+   _jerr.mgr.emit_message = my_emit_message;
    _to_be_skipped = 0;
+   _data_lines = -1;
    _upto = 0;
    _decomp_avail = 0;
 
@@ -1043,6 +1072,11 @@ err_info *PPage::confirm (QString &pageName, bool mark_blank, Filepage *mp)
       {
       int lines = _decomp_avail / _stride;
 
+      /* the decoder fills the lines the scanner never sent, so where
+         it said the data ran out is a better answer than how many
+         lines it went on to produce */
+      if (_data_lines > 0 && _data_lines < lines)
+         lines = _data_lines;
       if (lines > 0 && lines < _height)
          _height = lines;
       }

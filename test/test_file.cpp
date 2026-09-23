@@ -1978,3 +1978,52 @@ void TestFile::testJpegLongerThanExpected()
    delete mp;
    delete mpb;
 }
+
+
+/* A scanner told to stop at the foot of the sheet says at the start how
+   long the page could be - the whole window - and then ends the picture
+   where the sheet ends, finishing the file off properly. The decoder
+   fills the lines which never came with flat grey and reports a full
+   page, so a receipt a foot long came out as a yard of grey with a
+   receipt at the top */
+void TestFile::testJpegStopsShort()
+{
+   const int w = 256, h = 600, real = 200;
+   QImage im (w, h, QImage::Format_RGB888);
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         im.setPixel (x, y, qRgb ((x * 5) & 0xff, (y * 7) & 0xff,
+                                  ((x + y) * 3) & 0xff));
+
+   QByteArray data;
+   QBuffer buf (&data);
+
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (im.save (&buf, "JPEG", 85));
+   buf.close ();
+
+   /* cut the picture short and finish the file off, as the scanner
+      does when the sheet ends before the window does */
+   data.truncate (data.size () * real / h);
+   data.append ("\xff\xd9", 2);
+
+   Paperstack stack ("stack", "page", true);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   stack.addImage (w, h, 24, w * 3, true, true);
+   for (int pos = 0; pos < data.size (); pos += 4096)
+      stack.addImageBytes ((unsigned char *)data.data () + pos,
+                           qMin (4096, data.size () - pos));
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+
+   /* stored at the length which arrived, near enough: the decoder
+      works in blocks, so the last of them may be part full */
+   QVERIFY2 (mp->_height > real / 2 && mp->_height < real + 32,
+             qPrintable (QString ("stored %1 lines for a page which sent "
+                                  "about %2 of the %3 it promised")
+                         .arg (mp->_height).arg (real).arg (h)));
+   delete mp;
+}

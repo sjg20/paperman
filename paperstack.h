@@ -206,6 +206,13 @@ private:
 
 public:
    ~PPage ();
+
+   /** note where the scanner's data ran out, so that the page can be
+       stored at the length which really arrived
+
+      \param lines  how many lines had been decoded by then */
+   void dataRanOut (int lines);
+
    bool addBytes (const unsigned char *buf, int size);
 
 
@@ -332,6 +339,7 @@ private:
    struct my_error_mgr _jerr;
    int _upto;                    //!< which byte we are up to in _data
    int _to_be_skipped;           //!< number of bytes to skip
+   int _data_lines;              //!< lines decoded when the data ran out, or -1
    State _state;                 //!< the current state of play
    QByteArray _decomp;           //!< destination image buffer to use for decompression
    bool _jpeg_created;           //!< true if we have created a JPEG decompressor
