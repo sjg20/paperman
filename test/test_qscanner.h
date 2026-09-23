@@ -67,6 +67,9 @@ private slots:
 
    //! Scan is offered again while a scan waits for a misfeed to be cleared
    void testPscanResume();
+
+   //! The size the user chose is called a maximum while the scanner crops
+   void testPscanMaxSize();
 };
 
 #endif // TEST_QSCANNER_H

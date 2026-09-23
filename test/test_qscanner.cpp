@@ -796,6 +796,52 @@ void TestQscanner::testPscanResume()
 }
 
 
+/* With the scanner cutting each page down to the sheet, the size the
+   user chose is the window it scans within rather than the size a page
+   comes out at, so the panel calls it a maximum */
+
+void TestQscanner::testPscanMaxSize()
+{
+   ensureXmlConfig ();
+   QScanner scanner;
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+
+   scanner.setDeviceName (dev ? dev : SIMUL_NAME);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+
+   if (!dialog.hasAutoSize ())
+      {
+      // nothing crops the page, so the size is the size
+      pscan.updateAutoSize ();
+      QCOMPARE (pscan.sizeLabel->text (), QString ("Size"));
+      QSKIP ("scanner cannot find the size of a sheet itself");
+      }
+
+   QVERIFY (dialog.setAutoSize (false));
+   pscan.updateAutoSize ();
+   QCOMPARE (pscan.sizeLabel->text (), QString ("Size"));
+
+   QVERIFY (dialog.setAutoSize (true));
+   pscan.updateAutoSize ();
+   QCOMPARE (pscan.sizeLabel->text (), QString ("Max size"));
+
+   // and the label is greyed along with the box it belongs to
+   QCOMPARE (pscan.sizeLabel->isEnabled (), pscan.pageSize->isEnabled ());
+
+   QVERIFY (dialog.setAutoSize (false));
+   pscan.updateAutoSize ();
+   QCOMPARE (pscan.sizeLabel->text (), QString ("Size"));
+   QVERIFY (pscan.pageSize->isEnabled ());
+   QVERIFY (pscan.sizeLabel->isEnabled ());
+}
+
+
 void TestQscanner::testPscanDeskew()
 {
    ensureXmlConfig ();

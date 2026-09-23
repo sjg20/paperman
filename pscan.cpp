@@ -396,8 +396,10 @@ void Pscan::autosize_clicked()
 {
    if (_scanDialog)
       _scanDialog->setAutoSize (autosize->isChecked ());
-   /* the scan area no longer applies while the scanner is cropping */
-   pageSize->setDisabled (autosize->isChecked ());
+
+   /* the size the user chose may no longer apply, and where it still
+      does it is now the most a page can be rather than what it is */
+   updateAutoSize ();
 }
 
 
@@ -449,6 +451,13 @@ void Pscan::updateAutoSize (void)
          && _scanDialog->deskewCrop ();
 
    autosize->setVisible (has);
+
+   /* with the scanner cutting each page down to the sheet, the size
+      the user chose is the window it scans within: a page comes out at
+      that size or smaller, never larger, so say so */
+   sizeLabel->setText (deskewing || (has && _scanDialog->autoSize ())
+                       ? tr ("Max size") : tr ("Size"));
+
    if (has)
       {
       autosize->setChecked (_scanDialog->autoSize ());
@@ -464,6 +473,10 @@ void Pscan::updateAutoSize (void)
       }
    else
       pageSize->setDisabled (deskewing);
+
+   /* grey the label with the box it belongs to, so that a size which
+      is not ours to set does not look as though it is */
+   sizeLabel->setEnabled (pageSize->isEnabled ());
 }
 
 
