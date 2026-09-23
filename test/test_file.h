@@ -46,6 +46,9 @@ private slots:
    //! A sheet which went through askew keeps its corners
    void testSkewedSheetCrop();
 
+   //! A page the scanner straightened is cut from its black ground
+   void testDeskewedSheetCrop();
+
    //! A list of pages to remove which does not match the stack is survivable
    void testRemovePagesMismatch();
 

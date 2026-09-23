@@ -2027,3 +2027,47 @@ void TestFile::testJpegStopsShort()
                          .arg (mp->_height).arg (real).arg (h)));
    delete mp;
 }
+
+
+/* A scanner asked to straighten each page hands it back turned upright
+   and standing on a ground of its own, which is black. Ink stands in
+   for the sheet when a cover is printed to its edges, and that ground
+   is ink from edge to edge, so a page cut that way keeps the whole
+   window: a receipt came back straight and in the middle of a foot of
+   black */
+void TestFile::testDeskewedSheetCrop()
+{
+   const int w = 800, h = 600, edge = 250;
+   QByteArray page (w * h * 3, (char)0);
+   unsigned char *p = (unsigned char *)page.data ();
+
+   for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+         {
+         // the sheet, on the black ground the scanner stands it on
+         bool sheet = x >= edge && x < w - edge;
+         int v = sheet ? 254 : 8;
+
+         if (sheet && (y % 40) < 6 && x > edge + 20 && x < w - edge - 20)
+            v = 0;
+         p [(y * w + x) * 3] = p [(y * w + x) * 3 + 1] =
+            p [(y * w + x) * 3 + 2] = v;
+         }
+
+   Paperstack stack ("stack", "page", false);
+   QMutex mutex;
+   Filepage *mp = NULL;
+
+   stack.setAutoSize (true);
+   stack.setDeskewed (true);
+   stack.addImage (w, h, 24, w * 3, true, false);
+   stack.addImageBytes ((unsigned char *)page.data (), page.size ());
+   QVERIFY (!stack.confirmImage (mp, mutex));
+   QVERIFY (mp);
+
+   QVERIFY2 (mp->_width >= w - 2 * edge && mp->_width < w - edge,
+             qPrintable (QString ("stored %1 wide for a sheet %2 wide "
+                                  "standing on a black ground %3 wide")
+                         .arg (mp->_width).arg (w - 2 * edge).arg (w)));
+   delete mp;
+}

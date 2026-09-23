@@ -141,7 +141,7 @@ private:
       \param rotate   how to turn the page as it is stored */
    PPage (int pagenum, int width, int height, int depth, int stride,
          bool jpeg, int blank_threshold, bool auto_colour, bool auto_size,
-         Rotate rotate = Rotate_none);
+         bool deskewed, Rotate rotate = Rotate_none);
 
    /** the kind of page this is, from the pixels counted so far */
    Kind kind (void) const;
@@ -304,6 +304,7 @@ private:
    int _pixelTarget;    //!< number of non-white pixels we need to have a non-blank page
    bool _autoColour;    //!< store the page as grey or mono if it is not colour
    bool _autoSize;      //!< cut the page down to the sheet
+   bool _deskewed;      //!< the scanner straightened the page itself
    Rotate _rotate;      //!< how to turn the page as it is stored
    int _colourPixels;   //!< pixels with a noticeable saturation
    int _colourBand [3]; //!< those pixels by luminance: dark, mid, light
@@ -389,6 +390,11 @@ public:
 
        \param on   true if auto-size is on */
    void setAutoSize (bool on);
+
+   /** the scanner is straightening each page and standing it on a
+       ground of its own, so the sheet is what is bright rather than
+       what has ink on it */
+   void setDeskewed (bool on);
 
    /** the turn a page needs to be upright, from how the sheets are fed
 
@@ -508,6 +514,7 @@ private:
    int _blankThreshold;         //!< threshold for blank pages 1:n
    bool _autoColour;            //!< reduce colour pages that need no colour
    bool _autoSize;              //!< cut each page down to the sheet
+   bool _deskewed;              //!< the scanner straightened each page
    t_sideways _sideways;        //!< how the sheets are fed
    bool _front;                 //!< true if this is a front page (else back)
    bool _jpeg;                  //!< true if we are doing JPEG compression (else raw data)
@@ -549,6 +556,9 @@ public:
 
    /** true if the back end is cutting each page down to the sheet */
    bool autoSize (void) const;
+
+   /** true if the scanner straightens each page itself */
+   bool deskewed (void) const;
 
    /** how many lines a page can hold, for sizing its buffers
 
