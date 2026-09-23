@@ -26,6 +26,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef _WIN32
 #include <grp.h>
 #endif
+#ifdef __GLIBC__
+#include <cxxabi.h>
+#include <execinfo.h>
+#endif
 
 #include <QDate>
 #include <QDebug>
@@ -904,6 +908,70 @@ Q_LOGGING_CATEGORY (logBuild, "paperman.build", QtWarningMsg)
 void utilLogEnable (void)
    {
    QLoggingCategory::setFilterRules ("paperman.*.debug=true");
+   }
+
+
+#ifdef __GLIBC__
+
+/* Turn one line of what backtrace_symbols() gives us into something
+   readable. It comes as
+
+      ./paperman(_ZN8Filejpeg4loadEv+0x1f) [0x5654321]
+
+   where the part before the '+' is the mangled name of the function,
+   which is the only part worth reading */
+
+static QString utilTidyFrame (const char *sym)
+   {
+   const char *open = strchr (sym, '(');
+   const char *plus = open ? strchr (open, '+') : NULL;
+
+   if (!open || !plus || plus == open + 1)
+      return QString::fromLatin1 (sym);
+
+   QByteArray name (open + 1, plus - open - 1);
+   int status = 0;
+   char *plain = abi::__cxa_demangle (name.constData (), NULL, NULL, &status);
+   QString out = status == 0 && plain ? QString::fromLatin1 (plain)
+                                      : QString::fromLatin1 (name);
+
+   free (plain);
+
+   /* keep the object the function came from, since a frame in a
+      library is worth telling apart from one of ours */
+   QByteArray obj (sym, open - sym);
+   int slash = obj.lastIndexOf ('/');
+
+   if (slash >= 0)
+      obj = obj.mid (slash + 1);
+
+   return out + " [" + QString::fromLatin1 (obj) + "]";
+   }
+
+#endif
+
+
+QStringList utilBacktrace (int skip)
+   {
+   QStringList out;
+
+#ifdef __GLIBC__
+   void *frame [MAX_TRACE_DEPTH];
+   int count = backtrace (frame, MAX_TRACE_DEPTH);
+   char **sym = backtrace_symbols (frame, count);
+
+   if (!sym)
+      return out;
+
+   /* drop this function as well as however many the caller asks for */
+   for (int i = skip + 1; i < count; i++)
+      out << utilTidyFrame (sym [i]);
+   free (sym);
+#else
+   (void)skip;
+#endif
+
+   return out;
    }
 
 

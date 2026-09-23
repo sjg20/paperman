@@ -146,6 +146,19 @@ err_info *err_subsume (const char *func_name, err_info *err, int errnum, ...);
 err_info *err_make (const char *func_name, int errnum, ...);
 err_info *err_vmake (const char *func_name, int errnum, va_list ptr);
 err_info *err_copy (err_info *err);
+
+/** Say that an error has been made, and where it came from
+
+    This is done by err_make() and friends already; anything which
+    builds an error itself, with err_vmake(), calls this once the error
+    is complete.
+
+    With PAPERMAN_ERR_TRACE set in the environment the error is
+    followed by the stack which made it, and both are shown whether or
+    not the log is on
+
+    \param err   the error just made */
+void err_report (err_info *err);
 int err_systemf (const char *cmd, ...);
 
 /** thread-safe variant of err_make() that heap-allocates the err_info */
