@@ -11,8 +11,11 @@
 #include "filemax.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "paperstack.h"
 #include "qscanner.h"
 #include "utils.h"
+
+#include <functional>
 
 #include "fakescan/fakescan.h"
 #include "scansettings.h"
@@ -27,6 +30,10 @@ struct Backdoor
    int (*loadSheet) (const struct fakescan_sheet *);
    int (*sheetsLeft) (void);
    void (*setBacking) (unsigned int);
+   int (*addFault) (const struct fakescan_fault *);
+   void (*clear) (void);
+   int (*press) (const char *);
+   const char *(*log) (void);
    };
 
 Backdoor backdoor;
@@ -94,8 +101,14 @@ bool Fakescan::setup (void)
    backdoor.sheetsLeft = (int (*) (void))dlsym (handle, "fakescan_sheets_left");
    backdoor.setBacking = (void (*) (unsigned int))
       dlsym (handle, "fakescan_set_backing");
+   backdoor.addFault = (int (*) (const struct fakescan_fault *))
+      dlsym (handle, "fakescan_add_fault");
+   backdoor.clear = (void (*) (void))dlsym (handle, "fakescan_clear");
+   backdoor.press = (int (*) (const char *))dlsym (handle, "fakescan_press");
+   backdoor.log = (const char *(*) (void))dlsym (handle, "fakescan_log");
    ready = backdoor.reset && backdoor.loadSheet && backdoor.sheetsLeft
-         && backdoor.setBacking;
+         && backdoor.setBacking && backdoor.addFault && backdoor.clear
+         && backdoor.press && backdoor.log;
 
    return ready;
 #else
@@ -154,6 +167,33 @@ int Fakescan::sheetsLeft (void)
 void Fakescan::setBacking (QRgb rgb)
 {
    backdoor.setBacking (rgb & 0xffffff);
+}
+
+
+void Fakescan::addFault (enum fakescan_fault_kind kind, int sheet, int line,
+                         int arg, int side)
+{
+   struct fakescan_fault fault = { kind, sheet, side, line, arg };
+
+   QCOMPARE (backdoor.addFault (&fault), 0);
+}
+
+
+void Fakescan::clear (void)
+{
+   backdoor.clear ();
+}
+
+
+void Fakescan::press (const char *name)
+{
+   QCOMPARE (backdoor.press (name), 0);
+}
+
+
+QStringList Fakescan::log (void)
+{
+   return QString::fromUtf8 (backdoor.log ()).split ('\n');
 }
 
 
@@ -267,6 +307,16 @@ void TestFakescan::init ()
       QSKIP ("the fake scanner is not built here, or a real one is "
              "being tested");
    Fakescan::reset ();
+
+   /* a person has half a minute to clear a jam; a test has a second and
+      a half */
+   Paperscan::setTimeScale (0.05);
+}
+
+
+void TestFakescan::cleanup ()
+{
+   Paperscan::setTimeScale (1);
 }
 
 
@@ -391,9 +441,14 @@ void TestFakescan::testSheetOnBacking ()
    paperman as the user would, and hand back its pages
 
    \param options   scanner options to set first, by name, as --set does
-   \param pages     set to the pages of the stack */
+   \param pages     set to the pages of the stack, which is none if the scan
+                    made no stack
+   \param during    if not empty, called every few milliseconds while the
+                    scan goes on, until it returns true: this is the person
+                    at the scanner */
 static void scanStack (const QMap<QString, QString> &options,
-                       QList<QImage> &pages)
+                       QList<QImage> &pages,
+                       std::function<bool (Mainwidget *)> during = nullptr)
 {
    utilSetHeadless (true);
 
@@ -416,15 +471,35 @@ static void scanStack (const QMap<QString, QString> &options,
 
    QVERIFY (main->ensureScanner ());
    main->setScanOptions (options);
+
+   QTimer person;
+
+   if (during)
+      {
+      person.setInterval (5);
+      QObject::connect (&person, &QTimer::timeout, [&] ()
+         {
+         if (during (main))
+            person.stop ();
+         });
+      person.start ();
+      }
    main->scanInto (repo_ind);
+   person.stop ();
+
+   // the scanner is only ever driven from one thread at a time
+   QVERIFY2 (!Fakescan::log ().join (" ").contains ("concurrent"),
+             qPrintable (Fakescan::log ().join ("\n")));
 
    QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
                                                QDir::Files);
-   QCOMPARE (stacks.size (), 1);
+   pages.clear ();
+   QVERIFY (stacks.size () <= 1);
+   if (stacks.isEmpty ())
+      return;
    Filemax max (path + "/", stacks [0], nullptr);
    QVERIFY (!max.load ());
 
-   pages.clear ();
    for (int pagenum = 0; pagenum < max.pagecount (); pagenum++)
       {
       QImage image;
@@ -695,4 +770,339 @@ void TestFakescan::testStraightenedSheetStored ()
                 qPrintable (QString ("the sheet is 472 x 709 but was stored "
                                      "%1 x %2").arg (page.width ())
                             .arg (page.height ())));
+}
+
+
+/* A jam stops the scanner until the paper path is cleared. The sheet
+   which jammed is in the paper path, not the hopper, so clearing it
+   takes it away; the next sheet goes through as normal */
+void TestFakescan::testJam ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0, 0)), QImage (),
+                                 10));
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0, 0, 0xff)), QImage (),
+                                 10));
+   Fakescan::addFault (FAKESCAN_JAM, 1);
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_COLOR, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_JAMMED);
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_JAMMED);
+   QCOMPARE (Fakescan::sheetsLeft (), 1);
+
+   Fakescan::clear ();
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE ((uchar)data [data.size () / 2 / 3 * 3 + 2], 0xff);   // blue
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_NO_DOCS);
+   QVERIFY (Fakescan::log ().contains ("start: Jammed"));
+
+   // a jam part-way down a page stops the frame there
+   Fakescan::clear ();
+   QVERIFY (Fakescan::loadSheet (shortSheet (), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_JAM, 3, 100);
+   scanner.cancel ();
+   setString (scanner, SANE_NAME_SCAN_MODE, SANE_VALUE_SCAN_MODE_GRAY);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_JAMMED);
+   QCOMPARE (data.size (), 100 * params.bytes_per_line);
+}
+
+
+/* A frame can end short of what it promised, or have nothing in it */
+void TestFakescan::testShortFrames ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   Fakescan::addFault (FAKESCAN_SHORT, 1, -1, 8);
+   Fakescan::addFault (FAKESCAN_EOF_EMPTY, 2);
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (params.lines, 550);
+   QCOMPARE (data.size (), 8 * params.bytes_per_line);
+
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (data.size (), 0);
+}
+
+
+/* A press of a button on the scanner waits until the front end has
+   looked, and the double-feed sensor says what happened until the
+   paper path is cleared */
+void TestFakescan::testButtons ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   Fakescan::addFault (FAKESCAN_DOUBLE_FEED, 1);
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (scanner.checkButtons (), 0);
+   Fakescan::press ("scan");
+   QCOMPARE (scanner.checkButtons (), 1 << QScanner::BUT_scan);
+   QCOMPARE (scanner.checkButtons (), 0);
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   QVERIFY (!scanner.checkDoubleFeed ());
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_JAMMED);
+   QVERIFY (scanner.checkDoubleFeed ());
+   Fakescan::clear ();
+   QVERIFY (!scanner.checkDoubleFeed ());
+}
+
+
+/* A scanner which has stopped handing anything over says it is busy,
+   and takes its time about it, until it is set going again */
+void TestFakescan::testBusy ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   Fakescan::addFault (FAKESCAN_BUSY, 1, -1, 100);
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+   QElapsedTimer timer;
+
+   timer.start ();
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_DEVICE_BUSY);
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_DEVICE_BUSY);
+   QVERIFY (timer.elapsed () >= 200);
+
+   Fakescan::clear ();
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+}
+
+
+/* a white sheet of US letter at 10dpi with a black band a fifth of the
+   way down it, in the middle, or four fifths down */
+static QImage bandSheet (int where)
+{
+   QImage image = plainSheet (qRgb (0xff, 0xff, 0xff));
+   int top = 12 + where * 38;
+
+   for (int y = top; y < top + 10; y++)
+      for (int x = 0; x < image.width (); x++)
+         image.setPixel (x, y, qRgb (0, 0, 0));
+
+   return image;
+}
+
+
+/* which third of a page is darkest, to tell bandSheet()s apart */
+static int darkThird (const QImage &page)
+{
+   QImage grey = page.convertToFormat (QImage::Format_Grayscale8);
+   int dark [3] = { 0, 0, 0 };
+
+   for (int y = 0; y < grey.height (); y++)
+      {
+      const uchar *line = grey.constScanLine (y);
+
+      for (int x = 0; x < grey.width (); x++)
+         if (line [x] < 0x80)
+            dark [y * 3 / grey.height ()]++;
+      }
+
+   return dark [0] > dark [1] && dark [0] > dark [2] ? 0
+      : dark [1] > dark [2] ? 1 : 2;
+}
+
+
+/* three sheets, the second of which jams */
+static void loadJamming (void)
+{
+   for (int i = 0; i < 3; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (i), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_JAM, 2);
+}
+
+
+/* The scan waits while the user clears a jam, and Scan in the panel
+   says to carry on */
+void TestFakescan::testResumeFromPanel ()
+{
+   QList<QImage> pages;
+   bool resumed = false;
+
+   loadJamming ();
+   scanStack (QMap<QString, QString> (), pages, [&] (Mainwidget *main)
+      {
+      if (!main->scanWaiting ())
+         return false;
+      Fakescan::clear ();
+      main->resumeScan ();
+      resumed = true;
+      return true;
+      });
+   if (QTest::currentTestFailed ())
+      return;
+
+   // the jammed sheet was taken away, and the batch went on after it
+   QVERIFY (resumed);
+   QCOMPARE (pages.size (), 2);
+   QCOMPARE (darkThird (pages [0]), 0);
+   QCOMPARE (darkThird (pages [1]), 2);
+   QCOMPARE (Fakescan::sheetsLeft (), 0);
+}
+
+
+/* The same, with the user pressing Scan on the scanner instead */
+void TestFakescan::testResumeFromScanner ()
+{
+   QList<QImage> pages;
+   bool pressed = false;
+
+   loadJamming ();
+   scanStack (QMap<QString, QString> (), pages, [&] (Mainwidget *main)
+      {
+      if (!main->scanWaiting ())
+         return false;
+      Fakescan::clear ();
+      Fakescan::press ("scan");
+      pressed = true;
+      return true;
+      });
+   if (QTest::currentTestFailed ())
+      return;
+
+   QVERIFY (pressed);
+   QCOMPARE (pages.size (), 2);
+   QCOMPARE (darkThird (pages [1]), 2);
+   QCOMPARE (Fakescan::sheetsLeft (), 0);
+}
+
+
+/* With nobody to clear the jam the scan gives up waiting, and the page
+   scanned before it is kept */
+void TestFakescan::testJamNotCleared ()
+{
+   QList<QImage> pages;
+
+   loadJamming ();
+   scanStack (QMap<QString, QString> (), pages);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (pages.size (), 1);
+   QCOMPARE (darkThird (pages [0]), 0);
+   QCOMPARE (Fakescan::sheetsLeft (), 1);
+}
+
+
+/* A scanner which ends a page early, as one does when a sheet jams and
+   is fed again, sends fewer lines than it said. Such a page is stored at
+   the length which arrived: a hundred lines of one used to fill the
+   terminal with "Application transferred too few scanlines", and eight
+   lines of another failed with "Out of memory (-720 bytes)" */
+void TestFakescan::testShortPagesStored ()
+{
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_SHORT, 1, -1, 100);
+   Fakescan::addFault (FAKESCAN_SHORT, 2, -1, 8);
+
+   QMap<QString, QString> options;
+   QList<QImage> pages;
+
+   options ["mode"] = SANE_VALUE_SCAN_MODE_GRAY;
+   options ["resolution"] = "100";
+   scanStack (options, pages);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (pages.size (), 2);
+   QCOMPARE (pages [0].size (), QSize (850, 100));
+   QCOMPARE (pages [1].size (), QSize (850, 8));
+}
+
+
+/* A scanner which stays busy, taking a while to say so each time, is
+   given up on after a few seconds rather than asked thirty times over */
+void TestFakescan::testBusyScanner ()
+{
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_BUSY, 1, -1, 200);
+
+   QList<QImage> pages;
+
+   scanStack (QMap<QString, QString> (), pages);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (pages.size (), 0);
+
+   int tries = Fakescan::log ().filter ("start: Device busy").size ();
+
+   QVERIFY2 (tries >= 1 && tries <= 3,
+             qPrintable (QString ("the scanner was asked %1 times")
+                         .arg (tries)));
+}
+
+
+/* A scanner which stops answering part-way through a batch leaves the
+   pages it did scan */
+void TestFakescan::testStopsAnswering ()
+{
+   for (int i = 0; i < 3; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (i), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_IO_ERROR, 3);
+
+   QList<QImage> pages;
+
+   scanStack (QMap<QString, QString> (), pages);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (pages.size (), 2);
+   QCOMPARE (darkThird (pages [1]), 1);
+}
+
+
+/* A JPEG with some of its data spoilt still makes a page */
+void TestFakescan::testCorruptJpegStored ()
+{
+   QVERIFY (Fakescan::loadSheet (bandSheet (1), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_CORRUPT_JPEG, 1);
+
+   QMap<QString, QString> options;
+   QList<QImage> pages;
+
+   options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   options ["resolution"] = "100";
+   scanStack (options, pages);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (pages.size (), 1);
+   QCOMPARE (pages [0].size (), QSize (850, 1100));
 }
