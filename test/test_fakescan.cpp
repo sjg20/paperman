@@ -32,6 +32,7 @@ struct Backdoor
    void (*setBacking) (unsigned int);
    int (*addFault) (const struct fakescan_fault *);
    void (*clear) (void);
+   void (*setSideTime) (int);
    int (*press) (const char *);
    const char *(*log) (void);
    };
@@ -104,11 +105,13 @@ bool Fakescan::setup (void)
    backdoor.addFault = (int (*) (const struct fakescan_fault *))
       dlsym (handle, "fakescan_add_fault");
    backdoor.clear = (void (*) (void))dlsym (handle, "fakescan_clear");
+   backdoor.setSideTime = (void (*) (int))
+      dlsym (handle, "fakescan_set_side_time");
    backdoor.press = (int (*) (const char *))dlsym (handle, "fakescan_press");
    backdoor.log = (const char *(*) (void))dlsym (handle, "fakescan_log");
    ready = backdoor.reset && backdoor.loadSheet && backdoor.sheetsLeft
          && backdoor.setBacking && backdoor.addFault && backdoor.clear
-         && backdoor.press && backdoor.log;
+         && backdoor.setSideTime && backdoor.press && backdoor.log;
 
    return ready;
 #else
@@ -182,6 +185,12 @@ void Fakescan::addFault (enum fakescan_fault_kind kind, int sheet, int line,
 void Fakescan::clear (void)
 {
    backdoor.clear ();
+}
+
+
+void Fakescan::setSideTime (int ms)
+{
+   backdoor.setSideTime (ms);
 }
 
 
@@ -938,12 +947,23 @@ static int darkThird (const QImage &page)
 }
 
 
-/* three sheets, the second of which jams */
-static void loadJamming (void)
+/* Three sheets, the second of which jams
+
+   The feeder is kept from running ahead, which would take the third
+   sheet into the scanner before the jam, where what becomes of it
+   depends on what a real scanner does with such a sheet on a jam, which
+   is not known */
+static QMap<QString, QString> loadJamming (void)
 {
+   QMap<QString, QString> options;
+
    for (int i = 0; i < 3; i++)
-      QVERIFY (Fakescan::loadSheet (bandSheet (i), QImage (), 10));
+      if (!Fakescan::loadSheet (bandSheet (i), QImage (), 10))
+         QTest::qFail ("cannot load a sheet", __FILE__, __LINE__);
    Fakescan::addFault (FAKESCAN_JAM, 2);
+   options ["buffermode"] = "Off";
+
+   return options;
 }
 
 
@@ -954,8 +974,7 @@ void TestFakescan::testResumeFromPanel ()
    QList<QImage> pages;
    bool resumed = false;
 
-   loadJamming ();
-   scanStack (QMap<QString, QString> (), pages, [&] (Mainwidget *main)
+   scanStack (loadJamming (), pages, [&] (Mainwidget *main)
       {
       if (!main->scanWaiting ())
          return false;
@@ -982,8 +1001,7 @@ void TestFakescan::testResumeFromScanner ()
    QList<QImage> pages;
    bool pressed = false;
 
-   loadJamming ();
-   scanStack (QMap<QString, QString> (), pages, [&] (Mainwidget *main)
+   scanStack (loadJamming (), pages, [&] (Mainwidget *main)
       {
       if (!main->scanWaiting ())
          return false;
@@ -1008,8 +1026,7 @@ void TestFakescan::testJamNotCleared ()
 {
    QList<QImage> pages;
 
-   loadJamming ();
-   scanStack (QMap<QString, QString> (), pages);
+   scanStack (loadJamming (), pages);
    if (QTest::currentTestFailed ())
       return;
 
@@ -1105,4 +1122,80 @@ void TestFakescan::testCorruptJpegStored ()
 
    QCOMPARE (pages.size (), 1);
    QCOMPARE (pages [0].size (), QSize (850, 1100));
+}
+
+
+/* With buffermode on the feeder takes sheets ahead of the one being
+   read. Stopping the feed keeps them, and the batch ends once they have
+   been read; cancelling sends them through unread */
+void TestFakescan::testFeeder ()
+{
+   for (int i = 0; i < 8; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   setString (scanner, "buffermode", "On");
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   // reading one sheet leaves four more in the scanner
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (Fakescan::sheetsLeft (), 3);
+
+   // there is nothing to stop between batches
+   int stop = scanner.findOption ("stop-feed");
+
+   QVERIFY (stop != -1);
+   QCOMPARE (scanner.setOption (stop, nullptr), SANE_STATUS_GOOD);
+
+   // the four it took are read, then no more
+   for (int i = 0; i < 4; i++)
+      QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_NO_DOCS);
+   QCOMPARE (Fakescan::sheetsLeft (), 3);
+
+   // a new batch takes some more, which a cancel sends through unread
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (Fakescan::sheetsLeft (), 0);
+   scanner.cancel ();
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_NO_DOCS);
+}
+
+
+/* Stop means finish the batch rather than abandon it. The feeder has
+   taken sheets which have not been read, and on a cancel they would go
+   through to the output tray unscanned, to be found and scanned again.
+   Stopping the feed instead has them read, so every sheet is either a
+   page or still in the hopper */
+void TestFakescan::testStopKeepsSheets ()
+{
+   for (int i = 0; i < 8; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (i % 3), QImage (), 10));
+
+   // slow enough to press Stop part-way through
+   Fakescan::setSideTime (100);
+
+   QList<QImage> pages;
+
+   scanStack (QMap<QString, QString> (), pages, [&] (Mainwidget *main)
+      {
+      if (!Fakescan::log ().contains ("read: EOF"))
+         return false;
+      main->stopScan (false);
+      return true;
+      });
+   if (QTest::currentTestFailed ())
+      return;
+
+   QVERIFY2 (pages.size () + Fakescan::sheetsLeft () == 8,
+             qPrintable (QString ("%1 pages scanned and %2 sheets left in "
+                                  "the hopper, of 8")
+                         .arg (pages.size ()).arg (Fakescan::sheetsLeft ())));
+   QVERIFY2 (pages.size () < 8, "the scan did not stop");
+   QVERIFY (Fakescan::log ().contains ("set stop-feed"));
 }

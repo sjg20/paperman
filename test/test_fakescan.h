@@ -58,6 +58,9 @@ public:
    /** clear the paper path, as a person does after a jam */
    static void clear (void);
 
+   /** set how long each side takes to scan, see fakescan_set_side_time() */
+   static void setSideTime (int ms);
+
    /** press a button on the scanner, e.g. "scan" */
    static void press (const char *name);
 
@@ -134,6 +137,12 @@ private slots:
 
    //! A spoilt JPEG is still stored
    void testCorruptJpegStored ();
+
+   //! The feeder runs ahead, and stop-feed keeps what it has taken
+   void testFeeder ();
+
+   //! Stop part-way through a batch keeps every sheet the feeder took
+   void testStopKeepsSheets ();
 };
 
 #endif // TEST_FAKESCAN_H
