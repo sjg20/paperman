@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <string.h>
 
 #include "jpeglib.h"
+#include "jerror.h"
 
 #include <QDir>
 #include <QFile>
@@ -680,10 +681,36 @@ static void term_source (j_decompress_ptr cinfo)
    }
 
 
+/* Has the decoder come to the end of the picture with lines still to
+   decode? It warns when it meets a marker where it wanted data: the end
+   of the picture, where the data runs out, but also a restart marker,
+   which is only a patch of spoilt data which it steps over and carries
+   on after. The warning is the same for both, so tell them apart by the
+   marker */
+static bool at_end_of_image (j_decompress_ptr dinfo)
+   {
+   switch (dinfo->err->msg_code)
+      {
+      case JWRN_JPEG_EOF:      // the data stops, with no end marker at all
+         return true;
+      case JWRN_MUST_RESYNC:   // this marker was found where a restart was due
+         return dinfo->err->msg_parm.i [0] == JPEG_EOI;
+      case JWRN_HIT_MARKER:    // a marker part-way through the data
+         return dinfo->unread_marker == JPEG_EOI;
+      default:
+         return false;
+      }
+   }
+
+
 /* A scanner which stops at the foot of the sheet sends a page shorter
    than the height its JPEG promised, and the decoder fills what is
    left with grey rather than saying it has finished. It does say so in
-   a warning, though, and where it says it is where the page ends */
+   a warning, though, and where it says it is where the page ends.
+
+   Only that warning: a scanner's JPEG often carries a few stray bytes
+   before a restart marker, or a spoilt patch, and the decoder warns of
+   those too before carrying on down the page */
 static void my_emit_message (j_common_ptr cinfo, int msg_level)
    {
    if (msg_level < 0 && cinfo->is_decompressor)
@@ -693,7 +720,7 @@ static void my_emit_message (j_common_ptr cinfo, int msg_level)
       char buffer [JMSG_LENGTH_MAX];
 
       (*cinfo->err->format_message) (cinfo, buffer);
-      if (src && src->page)
+      if (src && src->page && at_end_of_image (dinfo))
          src->page->dataRanOut (dinfo->output_scanline);
       qCDebug (logErr, "JPEG: %s", buffer);
       }
