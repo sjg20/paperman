@@ -798,6 +798,13 @@ static QByteArray encode_jpeg (const QImage &picture, bool gray, int level)
    cinfo.in_color_space = gray ? JCS_GRAYSCALE : JCS_RGB;
    jpeg_set_defaults (&cinfo);
    jpeg_set_quality (&cinfo, 20 + (level ? level : 4) * 10, TRUE);
+
+   /* a Fujitsu scanner keeps the colour at full resolution, where the
+      library would halve it each way, which blurs a thin line of colour
+      such as a pen stroke into the paper round it. Each row of blocks is
+      then 8 lines */
+   for (int i = 0; i < cinfo.num_components; i++)
+      cinfo.comp_info [i].h_samp_factor = cinfo.comp_info [i].v_samp_factor = 1;
    cinfo.restart_in_rows = 1;
    jpeg_start_compress (&cinfo, TRUE);
 
