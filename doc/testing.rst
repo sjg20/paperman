@@ -59,6 +59,40 @@ so the files are created automatically before running tests.
 The search-server tests copy them into temporary directories for each run so
 the originals are never modified.
 
+The Fake Scanner
+----------------
+
+The tests have a scanner of their own: ``test/fakescan`` is a SANE back end
+which answers as the fujitsu back end does for an fi-8170, with the same
+option names and values and a window placed on the sheet in the same way.
+It is built with the tests, and libsane loads it as it would a real
+scanner's back end, so paperman drives it through the same calls.
+
+Before any suite runs, ``libsane`` is given a configuration listing only
+this back end. The tests therefore cannot reach a real scanner, nor wait
+while other back ends look for theirs. Set ``PAPERMAN_TEST_DEVICE`` to a
+real scanner and this is left out, for the few tests which use one.
+
+What the scanner scans is whatever a test puts in its hopper, through the
+back door in ``test/fakescan/fakescan.h``. A test does that with the
+``Fakescan`` helper in ``test/test_fakescan.h``:
+
+.. code:: c++
+
+   QImage front (85, 110, QImage::Format_RGB32);   // US letter at 10dpi
+
+   front.fill (Qt::white);
+   Fakescan::loadSheet (front, QImage (), 10);     // plain paper behind
+
+Each sheet is a picture of the paper, laid on the scanner's backing inside
+the window and sent at the resolution and in the mode the front end asks
+for. A sheet narrower than the window has backing either side of it, and
+one shorter than the window has backing below it, as on the real scanner.
+When the hopper is empty the scanner says so, as a real one does.
+
+The ``TestFakescan`` suite checks the scanner itself and shows how to use
+it.
+
 Code Coverage
 -------------
 

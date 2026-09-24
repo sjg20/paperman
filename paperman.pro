@@ -305,6 +305,7 @@ test {
       test/test_ocrsearch.cpp \
       test/test_localbackend.cpp \
       test/test_clientconf.cpp \
+      test/test_fakescan.cpp \
       searchserver.cpp \
       serverlog.cpp \
       tokenstore.cpp \
@@ -324,6 +325,7 @@ test {
       test/test_ocrsearch.h \
       test/test_localbackend.h \
       test/test_clientconf.h \
+      test/test_fakescan.h \
       test/fakescan/fakescan.h \
       test/scansettings.h \
       searchserver.h \
