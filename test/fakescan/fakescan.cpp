@@ -91,6 +91,17 @@ static SANE_String_Const mode_list[] =
    SANE_VALUE_SCAN_MODE_GRAY, SANE_VALUE_SCAN_MODE_COLOR, nullptr
    };
 
+static SANE_String_Const buffermode_list[] =
+   {
+   "Default", "Off", "On", nullptr
+   };
+
+enum { BUFFERMODE_DEFAULT, BUFFERMODE_OFF, BUFFERMODE_ON };
+
+/* How many sheets the feeder takes ahead of the one being read, with
+   buffermode on: an fi-8950 has been seen to run four ahead */
+#define READ_AHEAD 4
+
 static SANE_String_Const compress_list[] =
    {
    "None", "JPEG", nullptr
@@ -115,6 +126,8 @@ enum
    OPT_COMPRESS,
    OPT_COMPRESS_ARG,
    OPT_HWDESKEWCROP,
+   OPT_BUFFERMODE,
+   OPT_STOP_FEED,
    OPT_SENSOR_GROUP,
    OPT_SCAN_SW,
    OPT_EMAIL_SW,
@@ -142,7 +155,10 @@ struct Machine
    QList<Sheet> sheets;               //!< in the hopper
    QRgb backing = BACKING_DEFAULT;
    QList<fakescan_fault> faults;      //!< still to happen
-   int fed = 0;                       //!< sheets taken since the reset
+   QList<Sheet> taken;                //!< fed but not yet read, in order
+   bool feed_stopped = false;         //!< taking no more from the hopper
+   int side_ms = 0;                   //!< how long a side takes to scan
+   int fed = 0;                       //!< sheets read since the reset
    bool jammed = false;               //!< until the paper path is cleared
    bool double_feed = false;          //!< what the sensor says
    bool cover_open = false;
@@ -173,6 +189,7 @@ struct Scanner
    int compress;
    int compress_arg;                //!< JPEG level, 1 small to 7 large
    bool hwdeskewcrop;               //!< straighten the sheet and cut to it
+   int buffermode;
 
    /** where a scan is up to: IDLE before sane_start() and after
        sane_cancel(), SCANNING while a frame is being read and DONE
@@ -375,6 +392,28 @@ static void init_options (Scanner *s)
    opt->type = SANE_TYPE_BOOL;
    opt->cap |= SANE_CAP_ADVANCED;
 
+   opt = &s->opt [OPT_BUFFERMODE];
+   opt->name = "buffermode";
+   opt->title = "Buffer mode";
+   opt->desc = "Request scanner to read pages quickly from ADF into internal "
+               "memory";
+   opt->type = SANE_TYPE_STRING;
+   opt->size = sizeof ("Default");
+   opt->constraint_type = SANE_CONSTRAINT_STRING_LIST;
+   opt->constraint.string_list = buffermode_list;
+   opt->cap |= SANE_CAP_ADVANCED;
+
+   // from the fujitsu back end in the libsane which paperman is used with
+   opt = &s->opt [OPT_STOP_FEED];
+   opt->name = "stop-feed";
+   opt->title = "Stop feed";
+   opt->desc = "Halt the paper feed during a batch but keep the sheets the "
+               "scanner has already taken: the batch ends once they have "
+               "been read.";
+   opt->type = SANE_TYPE_BUTTON;
+   opt->size = 0;
+   opt->cap |= SANE_CAP_ADVANCED;
+
    /* what the scanner's buttons and sensors say, which the front end can
       read but not set */
    opt = &s->opt [OPT_SENSOR_GROUP];
@@ -422,6 +461,7 @@ static void init_values (Scanner *s)
    s->compress = COMPRESS_NONE;
    s->compress_arg = 0;
    s->hwdeskewcrop = false;
+   s->buffermode = BUFFERMODE_DEFAULT;
    s->state = Scanner::IDLE;
    s->sent = 0;
    s->back_pending = false;
@@ -846,6 +886,32 @@ static bool take_fault (int sheet, int side, bool at_start,
    }
 
 
+/* Is there a sheet to read? With buffermode on, the feeder first takes
+   sheets from the hopper, the one to be read and up to READ_AHEAD more,
+   so they are in the scanner before the front end asks for them. Once
+   the feed is stopped it takes no more, and only those it has already
+   taken are left. With machine.lock held */
+static bool sheet_ready (const Scanner *s)
+   {
+   if (s->buffermode == BUFFERMODE_ON)
+      while (!machine.feed_stopped && machine.taken.size () <= READ_AHEAD
+             && !machine.sheets.isEmpty ())
+         machine.taken.append (machine.sheets.takeFirst ());
+
+   return !machine.taken.isEmpty ()
+          || (!machine.feed_stopped && !machine.sheets.isEmpty ());
+   }
+
+
+/* feed the next sheet, which sheet_ready() said there is */
+static Sheet take_sheet (void)
+   {
+   machine.fed++;
+   return !machine.taken.isEmpty () ? machine.taken.takeFirst ()
+                                    : machine.sheets.takeFirst ();
+   }
+
+
 /* what the scanner says while it is stuck, with machine.lock held */
 static SANE_Status stuck (void)
    {
@@ -1003,6 +1069,9 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
       case OPT_HWDESKEWCROP:
          *word = s->hwdeskewcrop;
          break;
+      case OPT_BUFFERMODE:
+         strcpy ((char *)val, buffermode_list [s->buffermode]);
+         break;
 
       // a press stays until it has been seen
       case OPT_SCAN_SW:
@@ -1069,6 +1138,10 @@ static SANE_Status set_option (Scanner *s, SANE_Int option, void *val,
 
       case OPT_HWDESKEWCROP:
          s->hwdeskewcrop = word;
+         return SANE_STATUS_GOOD;
+
+      case OPT_BUFFERMODE:
+         s->buffermode = list_index (buffermode_list, (const char *)val);
          return SANE_STATUS_GOOD;
 
       case OPT_RES:
@@ -1163,6 +1236,20 @@ EXPORT SANE_Status sane_fakefujitsu_control_option (SANE_Handle handle,
          return get_option (s, option, val);
 
       case SANE_ACTION_SET_VALUE:
+         /* the one option which makes sense only part-way through a
+            batch: the feeder stops, keeping the sheets it has taken */
+         if (option == OPT_STOP_FEED)
+            {
+            if (s->state == Scanner::IDLE)
+               return SANE_STATUS_INVAL;
+
+            QMutexLocker locker (&machine.lock);
+
+            machine.feed_stopped = true;
+            machine.log << "set stop-feed";
+            return SANE_STATUS_GOOD;
+            }
+
          // nothing can be changed part-way through a batch
          if (s->state != Scanner::IDLE)
             return SANE_STATUS_DEVICE_BUSY;
@@ -1236,6 +1323,11 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
 
    {
       QMutexLocker locker (&machine.lock);
+
+      // a new batch sets the feeder going again
+      if (s->state == Scanner::IDLE)
+         machine.feed_stopped = false;
+
       SANE_Status status = stuck ();
       bool back = s->source == SOURCE_ADF_DUPLEX && s->back_pending;
       int sheet_num = back ? s->sheet_num : machine.fed + 1;
@@ -1244,7 +1336,7 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
       busy_ms = machine.busy_ms;
       if (status == SANE_STATUS_GOOD && busy_ms < 0)
          {
-         if (!back && machine.sheets.isEmpty ())
+         if (!back && !sheet_ready (s))
             status = SANE_STATUS_NO_DOCS;
          else if (take_fault (sheet_num, side, true, &fault))
             {
@@ -1255,10 +1347,7 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
                {
                // the sheet is fed, and sticks in the paper path
                if (!back)
-                  {
-                  machine.sheets.takeFirst ();
-                  machine.fed++;
-                  }
+                  take_sheet ();
                status = happen (fault.kind);
                }
             else if (fault.kind == FAKESCAN_COVER_OPEN
@@ -1281,8 +1370,8 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
          {
          if (!back)
             {
-            s->sheet = machine.sheets.takeFirst ();
-            s->sheet_num = ++machine.fed;
+            s->sheet = take_sheet ();
+            s->sheet_num = machine.fed;
             }
          s->side = side;
          backing = machine.backing;
@@ -1303,6 +1392,17 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
       QThread::msleep (busy_ms);
       return noted ("start", SANE_STATUS_DEVICE_BUSY);
       }
+
+   // and so does scanning a side
+   int side_ms;
+
+   {
+      QMutexLocker locker (&machine.lock);
+
+      side_ms = machine.side_ms;
+   }
+   if (side_ms)
+      QThread::msleep (side_ms);
 
    s->params = window;
    if (s->hwdeskewcrop)
@@ -1442,11 +1542,18 @@ EXPORT void sane_fakefujitsu_cancel (SANE_Handle handle)
    Scanner *s = (Scanner *)handle;
    Call call (s, "cancel");
 
-   note ("cancel");
    s->state = Scanner::IDLE;
    s->back_pending = false;
    s->frame.clear ();
    s->sent = 0;
+
+   /* the sheets the feeder had already taken go through to the output
+      tray unread, which is what stop-feed is for */
+   QMutexLocker locker (&machine.lock);
+
+   machine.log << "cancel";
+   machine.taken.clear ();
+   machine.feed_stopped = false;
    }
 
 
@@ -1472,6 +1579,9 @@ EXPORT void fakescan_reset (void)
    machine.sheets.clear ();
    machine.backing = BACKING_DEFAULT;
    machine.faults.clear ();
+   machine.taken.clear ();
+   machine.feed_stopped = false;
+   machine.side_ms = 0;
    machine.fed = 0;
    machine.jammed = machine.double_feed = false;
    machine.cover_open = machine.wedged = false;
@@ -1576,4 +1686,12 @@ EXPORT const char *fakescan_log (void)
    machine.log_out = machine.log.join ("\n").toUtf8 ();
 
    return machine.log_out.constData ();
+   }
+
+
+EXPORT void fakescan_set_side_time (int ms)
+   {
+   QMutexLocker locker (&machine.lock);
+
+   machine.side_ms = ms;
    }

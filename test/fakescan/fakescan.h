@@ -45,8 +45,15 @@ void fakescan_reset (void);
              no size, since neither it nor an image gives one */
 int fakescan_load_sheet (const struct fakescan_sheet *sheet);
 
-/** \returns how many sheets are still in the hopper */
+/** \returns how many sheets are still in the hopper. With buffermode on,
+             the feeder takes a few from it as soon as a batch starts */
 int fakescan_sheets_left (void);
+
+/** Set how long each side takes to scan, so that a test has time to do
+    something while a batch is going through. It starts at 0
+
+    \param ms   time in milliseconds */
+void fakescan_set_side_time (int ms);
 
 /** Set the colour of the backing, which is what is scanned wherever the
     window reaches beyond the sheet
