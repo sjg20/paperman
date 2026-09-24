@@ -275,6 +275,18 @@ If no directory is specified, searches the current directory.
 
 Note: You must run --ocr on a directory first to create the search index.
 
+### --fake-scanner DIR
+
+Offers a fake Fujitsu fi-8170 beside the real scanners, for trying
+something out without a scanner or paper to hand. It is listed as
+`FUJITSU fi-8170 (fake)` and scans pictures put in `DIR/hopper`:
+`page.png` is the front of a sheet and `page.back.png` its back, fed in
+order of name. `touch DIR/press-scan` presses its Scan button. Setting
+`PAPERMAN_FAKE_SCANNER=DIR` does the same. It is built on Linux only;
+see doc/testing.rst for what it can do.
+
+    paperman --fake-scanner /tmp/fs
+
 
 ## Windows
 

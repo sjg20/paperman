@@ -230,7 +230,9 @@ static Machine machine;
 
 static const SANE_Device device =
    {
-   "fi-8170:00001", "FUJITSU", "fi-8170", "scanner"
+   /* named as the real one is, but with the model saying it is not, so
+      that the two can be told apart when both are offered */
+   "fi-8170:00001", "FUJITSU", "fi-8170 (fake)", "scanner"
    };
 
 

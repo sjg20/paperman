@@ -9,6 +9,7 @@
 #endif
 
 #include "desktopmodel.h"
+#include "fakescanner.h"
 #include "desktopwidget.h"
 #include "filemax.h"
 #include "mainwidget.h"
@@ -43,10 +44,8 @@ struct Backdoor
 Backdoor backdoor;
 bool ready;
 
-/* libsane reads its configuration on every sane_init(), and the scanner
-   reads each sheet when it goes in the hopper, so these last as long as
-   the tests do */
-QTemporaryDir *conf_dir;
+/* the scanner reads each sheet when it goes in the hopper, so this lasts
+   as long as the tests do */
 QTemporaryDir *sheet_dir;
 int sheet_count;
 
@@ -60,33 +59,23 @@ bool Fakescan::setup (void)
    if (qEnvironmentVariableIsSet ("PAPERMAN_TEST_DEVICE"))
       return false;
 
-   QString dir = QCoreApplication::applicationDirPath () + "/test/fakescan";
+   QString dir = fakescanLibDir ();
    QString lib = dir + "/" FAKESCAN_LIB;
 
-   if (!QFile::exists (lib))
-      return false;
-
-   /* Give libsane a configuration of its own which lists only the
-      fake scanner. It then loads no other back end, so a test cannot
-      reach a real scanner, nor wait while the others look for theirs */
-   conf_dir = new QTemporaryDir;
+   /* Give libsane a configuration of its own which lists only the fake
+      scanner. It then loads no other back end, so a test cannot reach a
+      real scanner, nor wait while the others look for theirs */
    sheet_dir = new QTemporaryDir;
-   if (!conf_dir->isValid () || !sheet_dir->isValid ())
+   if (!sheet_dir->isValid ())
       return false;
 
-   QFile conf (conf_dir->path () + "/dll.conf");
+   QString err = fakescanOffer (dir, QString (), QString ());
 
-   if (!conf.open (QIODevice::WriteOnly))
+   if (!err.isEmpty ())
+      {
+      qWarning () << "Cannot offer the fake scanner:" << err;
       return false;
-   conf.write (FAKESCAN_BACKEND "\n");
-   conf.close ();
-   qputenv ("SANE_CONFIG_DIR", conf_dir->path ().toLocal8Bit ());
-
-   // the dll back end looks along LD_LIBRARY_PATH for back ends
-   QByteArray path = qgetenv ("LD_LIBRARY_PATH");
-
-   qputenv ("LD_LIBRARY_PATH", dir.toLocal8Bit ()
-                               + (path.isEmpty () ? "" : ":" + path));
+      }
 
    /* Opening the file the dll back end will open gives the same copy of
       it, so the back door leads to the scanner a test has open. Holding
@@ -1581,4 +1570,57 @@ void TestFakescan::testOptionLookups ()
    QVERIFY2 (asked < 200,
              qPrintable (QString ("asked for %1 option descriptors to scan "
                                   "5 sheets").arg (asked)));
+}
+
+
+/* paperman can offer the fake scanner beside the scanners libsane knows
+   of, with --fake-scanner, which gives libsane a copy of its own
+   configuration with the fake one added */
+void TestFakescan::testOfferedBeside ()
+{
+   QTemporaryDir sys;
+
+   QVERIFY (sys.isValid ());
+   QVERIFY (QDir (sys.path ()).mkpath ("dll.d"));
+
+   // a configuration with libsane's own test back end, and a dll.d
+   QFile conf (sys.path () + "/dll.conf");
+   QFile extra (sys.path () + "/dll.d/extra");
+
+   QVERIFY (conf.open (QIODevice::WriteOnly));
+   conf.write ("test\n");
+   conf.close ();
+   QVERIFY (extra.open (QIODevice::WriteOnly));
+   extra.close ();
+
+   // whatever happens, the rest of the tests see the fake scanner alone
+   auto restore = qScopeGuard ([]
+      {
+      fakescanOffer (fakescanLibDir (), QString (), QString ());
+      });
+
+   QCOMPARE (fakescanOffer (fakescanLibDir (), QString (), sys.path ()),
+             QString ());
+
+   // libsane looks at the copy first, and then where it did before
+   QStringList search = QString::fromLocal8Bit (qgetenv ("SANE_CONFIG_DIR"))
+      .split (':');
+
+   QCOMPARE (search.size (), 2);
+   QFile copy (search [0] + "/dll.conf");
+
+   QVERIFY (copy.open (QIODevice::ReadOnly));
+   QCOMPARE (QString::fromLatin1 (copy.readAll ()).split ('\n',
+                                                           Qt::SkipEmptyParts),
+             QStringList () << "test" << FAKESCAN_BACKEND);
+   QVERIFY (QFile::exists (search [0] + "/dll.d/extra"));
+
+   QScanner scanner;
+   QStringList names;
+
+   QVERIFY (scanner.initScanner ());
+   QVERIFY (scanner.getDeviceList (false));
+   for (int i = 0; i < scanner.deviceCount (); i++)
+      names << scanner.name (i);
+   QVERIFY2 (names.contains (FAKESCAN_DEVICE), qPrintable (names.join (" ")));
 }
