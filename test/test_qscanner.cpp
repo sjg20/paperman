@@ -875,6 +875,105 @@ void TestQscanner::testPscanMaxSize()
 }
 
 
+/* A sheet longer than any paper size, such as a till receipt, is
+   scanned into the long size: a window as long as the scanner takes,
+   with the scanner ending the page at the foot of the sheet. That is
+   only offered while the scanner is doing that, since otherwise every
+   page would be the whole length of the window */
+void TestQscanner::testPscanLong()
+{
+   ensureXmlConfig ();
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QScanner scanner;
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   PreviewWidget *pv = dialog.getPreview ();
+
+   if (!dialog.hasAutoSize () || pv->getPreDefLong () == -1)
+      QSKIP ("scanner cannot find the foot of a sheet, or take a long one");
+
+   QString longName = pv->getSizeName (pv->getPreDefLong ());
+
+   // not while every page would be the whole window
+   QVERIFY (dialog.setAutoSize (false));
+   pscan.updateAutoSize ();
+   QCOMPARE (pscan.pageSize->findText (longName), -1);
+
+   QVERIFY (dialog.setAutoSize (true));
+   pscan.updateAutoSize ();
+   int row = pscan.pageSize->findText (longName);
+
+   QVERIFY (row != -1);
+
+   // choosing it asks for a page longer than US legal
+   pscan.pageSize->setCurrentIndex (row);
+   pscan.size_activated (row);
+
+   int bry = scanner.getBryOption ();
+   double length = SANE_UNFIX (scanner.saneWordValue (bry));
+
+   QVERIFY2 (length > 1000,
+             qPrintable (QString ("the window is %1mm").arg (length)));
+
+   // and as wide as the scanner takes, which is wider than US letter
+   double width = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ())
+                  - scanner.saneWordValue (scanner.getTlxOption ()));
+
+   QVERIFY2 (width > 220,
+             qPrintable (QString ("the window is %1mm wide").arg (width)));
+
+   /* a receipt 600mm long, more than half as long again as US legal,
+      comes out whole, if the scanner is the fake one */
+   if (!strcmp (dev, FAKESCAN_DEVICE))
+      {
+      QImage receipt (315, 2362, QImage::Format_RGB32);   // 80 x 600mm
+
+      receipt.fill (Qt::white);
+      Fakescan::reset ();
+      QVERIFY (Fakescan::loadSheet (receipt, QImage (), 100));
+
+      SANE_Parameters params;
+      SANE_Byte buf [65536];
+      SANE_Int len;
+      int bytes = 0;
+
+      QCOMPARE (scanner.start (), SANE_STATUS_GOOD);
+      scanner.getParameters (&params);
+      while (scanner.read (buf, sizeof (buf), &len) == SANE_STATUS_GOOD)
+         bytes += len;
+      scanner.cancel ();
+
+      int lines = bytes / params.bytes_per_line;
+      int want = 600 * scanner.yResolutionDpi () / 25.4;
+
+      QVERIFY2 (qAbs (lines - want) < want / 50,
+                qPrintable (QString ("the receipt came out %1 lines long, "
+                                     "not %2").arg (lines).arg (want)));
+      }
+
+   // and with the scanner no longer finding the foot, it goes again
+   QVERIFY (dialog.setAutoSize (false));
+   pscan.updateAutoSize ();
+   QCOMPARE (pscan.pageSize->findText (longName), -1);
+   QVERIFY (pscan.pageSize->currentText () != longName);
+   QVERIFY2 (SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ()))
+             < 400, "the window is still long");
+}
+
+
 void TestQscanner::testPscanDeskew()
 {
    ensureXmlConfig ();
@@ -905,8 +1004,10 @@ void TestQscanner::testPscanDeskew()
    pscan.updateAutoSize ();
    QVERIFY (pscan.deskew->isChecked ());
 
-   // the scanner decides where a page is cut, so the size is not ours
-   QVERIFY (!pscan.pageSize->isEnabled ());
+   /* the scanner cuts the page to the sheet, but within the window, so
+      the size is the most a page can be, and still ours to set */
+   QVERIFY (pscan.pageSize->isEnabled ());
+   QCOMPARE (pscan.sizeLabel->text (), QString ("Max size"));
 
    QVERIFY (dialog.setDeskewCrop (false));
    QVERIFY (!dialog.deskewCrop ());

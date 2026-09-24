@@ -107,6 +107,9 @@ public slots:
 
     /** Show and set the Straighten box to match the scanner's option */
     void updateDeskew (void);
+
+    /** Offer the long size only while it is of use, see the .cpp */
+    void updateLongSize (bool cutting);
     virtual void setMainwidget( Mainwidget * main );
     virtual void source_clicked();
     virtual void settings_clicked();
@@ -167,6 +170,9 @@ protected:
 
     // true to check the preset combbox to see an item matches current settings
     bool _do_preset_check;
+
+    //! name of the long size in our list, when it has been added
+    QString _long_name;
 
     /* true while a scan is waiting for the user to clear the scanner,
        when Scan means carry on rather than start another scan */

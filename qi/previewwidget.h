@@ -109,6 +109,11 @@ public:
   int getPreDefLetter (void) { return mPreDefLetter; }
   int getPreDefLegal (void) { return mPreDefLegal; }
 
+  /** \returns where the long size is in the list, for a sheet longer
+               than any paper size, or -1 if the scanner takes nothing
+               longer than US legal */
+  int getPreDefLong (void) { return mPreDefLong; }
+
   // Dummy version since we don't need this to work. It is supposed to
   // emulator isTopLevel() from QT3.
   bool topLevel() const { return false; }
@@ -232,6 +237,7 @@ private:
   int mPreDefA4;
   int mPreDefLetter;
   int mPreDefLegal;
+  int mPreDefLong;
 
   /**  */
   void initWidget();

@@ -441,6 +441,9 @@ void Pscan::sideways_activated(int how)
 {
    if (xmlConfig)
       xmlConfig->setIntValue ("SCAN_SIDEWAYS", how);
+
+   // the long size is only for sheets fed upright
+   updateAutoSize ();
 }
 
 
@@ -455,24 +458,21 @@ void Pscan::updateAutoSize (void)
    /* with the scanner cutting each page down to the sheet, the size
       the user chose is the window it scans within: a page comes out at
       that size or smaller, never larger, so say so */
-   sizeLabel->setText (deskewing || (has && _scanDialog->autoSize ())
-                       ? tr ("Max size") : tr ("Size"));
+   bool cutting = deskewing || (has && _scanDialog->autoSize ());
 
+   sizeLabel->setText (cutting ? tr ("Max size") : tr ("Size"));
+
+   /* Only leave the size out of the user's hands when the scanner pays
+      no heed to it: the finet back end's auto-size makes the window's
+      settings inactive. The fujitsu back end's ald trims only the
+      length, and its straightening crops within the window, so for both
+      the window is still the most a page can be, and it is the setting
+      to reach for when one comes out short */
    if (has)
-      {
       autosize->setChecked (_scanDialog->autoSize ());
-      /* only leave the size out of the user's hands when the page is
-         cut to the sheet in both directions: the scanner straightening
-         and cropping does that, while the fujitsu back end's ald trims
-         the length alone, so the paper width still decides where a
-         page is cut and it is the setting to reach for when one comes
-         out short */
-      pageSize->setDisabled (deskewing
-                             || (autosize->isChecked ()
-                                 && _scanDialog->autoSizeTrimsWidth ()));
-      }
-   else
-      pageSize->setDisabled (deskewing);
+   pageSize->setDisabled (has && autosize->isChecked ()
+                          && _scanDialog->autoSizeTrimsWidth ());
+   updateLongSize (cutting);
 
    /* grey the label with the box it belongs to, so that a size which
       is not ours to set does not look as though it is */
@@ -591,9 +591,53 @@ QString Pscan::getPageName (void)
 }
 
 
+/* The preview's list of sizes is rebuilt as the page size changes and
+   holds the long size whether or not it is offered here, so a row of
+   ours is found in it by name */
 void Pscan::size_activated( int id)
 {
-      _preview->setSize (id);
+   QString name = pageSize->itemText (id);
+   QString other;
+
+   for (int i = 0; !(other = _preview->getSizeName (i)).isEmpty (); i++)
+      if (other == name)
+         {
+         _preview->setSize (i);
+         return;
+         }
+}
+
+
+/* A sheet longer than any paper size, such as a till receipt, needs a
+   window as long as the scanner takes. That is only of use while the
+   scanner ends each page at the foot of the sheet: otherwise every page
+   would be the whole length of the window, most of it the scanner's own
+   backing. Nor is it of use to a sheet fed sideways, whose length goes
+   across the scanner. So offer it only when it is of use, and put the
+   usual size back if it was chosen when it stops being so
+
+   \param cutting   true if the scanner is ending each page at the foot
+                    of the sheet */
+void Pscan::updateLongSize (bool cutting)
+{
+   int id = _preview ? _preview->getPreDefLong () : -1;
+   bool sideways = xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS");
+   bool offer = cutting && !sideways && id != -1;
+   int row = _long_name.isEmpty () ? -1 : pageSize->findText (_long_name);
+
+   if (offer && row == -1)
+      {
+      _long_name = _preview->getSizeName (id);
+      pageSize->addItem (_long_name);
+      }
+   else if (!offer && row != -1)
+      {
+      bool chosen = pageSize->currentIndex () == row;
+
+      pageSize->removeItem (row);
+      if (chosen)
+         selectPreviewSize (_default_papersize_id);
+      }
 }
 
 
@@ -624,11 +668,15 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
       }
    }
 
+   // the long size is added by updateLongSize(), when it is of use
+   int long_id = widget->getPreDefLong ();
+
    do
    {
-      name = widget->getSizeName (i++);
-      if (!name.isEmpty())
+      name = widget->getSizeName (i);
+      if (!name.isEmpty() && i != long_id)
          pageSize->addItem (name);
+      i++;
    } while (!name.isEmpty());
    _preview = widget;
    if (_default_papersize_id != -1)
@@ -636,6 +684,7 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
 //      _preview->setSize (_a4_id);
       pageSize->setCurrentIndex (_default_papersize_id);
    }
+   updateAutoSize ();
 }
 
 
