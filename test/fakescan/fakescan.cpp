@@ -30,6 +30,7 @@
 
 #include <QAtomicInt>
 #include <QByteArray>
+#include <QHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -175,6 +176,7 @@ struct Machine
    int busy_ms = -1;                  //!< busy, taking this long to say so
    QSet<QString> pressed;             //!< buttons not yet seen
    QStringList log;                   //!< see fakescan_log()
+   QHash<QString, int> counts;        //!< see fakescan_count()
    QByteArray log_out;
    };
 
@@ -901,6 +903,11 @@ class Call
 public:
    Call (Scanner *s, const char *name) : _s (s)
       {
+      {
+         QMutexLocker locker (&machine.lock);
+
+         machine.counts [name]++;
+      }
       if (_s->calls.fetchAndAddOrdered (1))
          note (QString ("concurrent %1").arg (name));
       }
@@ -1169,6 +1176,7 @@ EXPORT const SANE_Option_Descriptor *
 sane_fakefujitsu_get_option_descriptor (SANE_Handle handle, SANE_Int option)
    {
    Scanner *s = (Scanner *)handle;
+   Call call (s, "get_option_descriptor");
 
    if (option < 0 || option >= NUM_OPTIONS)
       return nullptr;
@@ -1766,6 +1774,7 @@ EXPORT void fakescan_reset (void)
    machine.busy_ms = -1;
    machine.pressed.clear ();
    machine.log.clear ();
+   machine.counts.clear ();
    }
 
 
@@ -1853,4 +1862,12 @@ EXPORT void fakescan_set_side_time (int ms)
    QMutexLocker locker (&machine.lock);
 
    machine.side_ms = ms;
+   }
+
+
+EXPORT int fakescan_count (const char *call)
+   {
+   QMutexLocker locker (&machine.lock);
+
+   return machine.counts.value (call);
    }

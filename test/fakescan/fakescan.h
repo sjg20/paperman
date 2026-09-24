@@ -133,6 +133,14 @@ int fakescan_press (const char *name);
     \returns the log, valid until the next call of this */
 const char *fakescan_log (void);
 
+/** How many times the front end has made a call on the scanner since the
+    last reset, whatever it asked
+
+    \param call   name of the call, without sane_, e.g. "start" or
+                  "get_option_descriptor"
+    \returns the count */
+int fakescan_count (const char *call);
+
 #ifdef __cplusplus
 }
 #endif
