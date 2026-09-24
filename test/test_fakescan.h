@@ -171,6 +171,9 @@ private slots:
 
    //! A scan does not ask the scanner for every option over and over
    void testOptionLookups ();
+
+   //! The fake scanner can be offered beside the real ones
+   void testOfferedBeside ();
 };
 
 #endif // TEST_FAKESCAN_H

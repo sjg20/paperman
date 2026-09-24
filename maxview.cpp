@@ -68,6 +68,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "paperstack.h"
 #include "op.h"
 #include "utils.h"
+#include "fakescanner.h"
 #include "searchindex.h"
 #include "test/test.h"
 
@@ -564,6 +565,12 @@ static void usage (void)
    printf ("   --sane-debug LEVEL  how much the scanner back ends say,\n");
    printf ("                       1 to 35; 15 shows every command and\n");
    printf ("                       what the scanner answered\n");
+   printf ("   --fake-scanner DIR  offer a fake Fujitsu scanner beside the real\n");
+   printf ("                       ones, fed from pictures put in DIR/hopper:\n");
+   printf ("                       page.png is the front of a sheet and\n");
+   printf ("                       page.back.png its back, and touching\n");
+   printf ("                       DIR/press-scan presses its Scan button\n");
+   printf ("                       (the same as PAPERMAN_FAKE_SCANNER=DIR)\n");
    printf ("   --server URL|NAME   attach a paperman-server, by URL or by the\n");
    printf ("                       name of one listed in client.conf\n");
    printf ("                       (~/.config/paperman/client.conf, whose\n");
@@ -789,6 +796,7 @@ int main (int argc, char *argv[])
      {"log", 1, 0, 273},
      {"sane-debug", 1, 0, 274},
      {"kind", 1, 0, 275},
+     {"fake-scanner", 1, 0, 276},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -806,6 +814,7 @@ int main (int argc, char *argv[])
    int scanPages = 0;
    bool scanAutoColour = false;           // --auto-colour
    int scanSideways = 0;                  // --sideways, Paperstack::t_sideways
+   QString fakeScanner = QString::fromLocal8Bit (qgetenv ("PAPERMAN_FAKE_SCANNER"));
 
 #ifndef Q_OS_WIN
    struct rlimit limit;
@@ -895,6 +904,10 @@ int main (int argc, char *argv[])
          case 275 :    // --kind FILE
             fname = optarg;
             op_type = c;
+            break;
+
+         case 276 :    // --fake-scanner DIR
+            fakeScanner = optarg;
             break;
 
          case 269 :    // --snap DIR: the same as PAPERMAN_SNAP=DIR
@@ -992,6 +1005,22 @@ int main (int argc, char *argv[])
          case 'z' : hack = true; break;
 */
          }
+
+   /* libsane is told about the fake scanner through its configuration,
+      which it reads when it starts, so this must come before anything
+      asks it for a scanner. The tests offer it for themselves */
+   if (!fakeScanner.isEmpty () && op_type != 't')
+      {
+      QString err = fakescanOffer (fakescanLibDir (), fakeScanner,
+                                   fakescanSaneConfigDir ());
+
+      if (!err.isEmpty ())
+         {
+         fprintf (stderr, "cannot offer the fake scanner: %s\n",
+                  qPrintable (err));
+         return 1;
+         }
+      }
 
    if (!dir && op_type != 't' && op_type != 'p' && op_type != 'm' &&
        op_type != 'j' && op_type != 'l' && op_type != 'o' && op_type != 'q' &&

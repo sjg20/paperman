@@ -65,7 +65,7 @@ The Fake Scanner
 The tests have a scanner of their own: ``test/fakescan`` is a SANE back end
 which answers as the fujitsu back end does for an fi-8170, with the same
 option names and values and a window placed on the sheet in the same way.
-It is built with the tests, and libsane loads it as it would a real
+It is built with paperman, and libsane loads it as it would a real
 scanner's back end, so paperman drives it through the same calls.
 
 Before any suite runs, ``libsane`` is given a configuration listing only
@@ -135,22 +135,32 @@ pages it sends, including when something goes wrong.
 Driving it by hand
 ~~~~~~~~~~~~~~~~~~
 
-The fake scanner can be used from paperman itself, or any other SANE
-front end, through a directory:
+paperman offers the fake scanner beside the real ones when it is given a
+directory to feed it from:
 
 .. code:: bash
 
-   scripts/fakescan.sh /tmp/fs ./paperman
-   scripts/fakescan.sh /tmp/fs scanimage -d fakefujitsu:fi-8170:00001 \
-      --source "ADF Duplex" --batch
+   ./paperman --fake-scanner /tmp/fs
 
-This gives libsane a configuration which lists only the fake scanner.
+or with ``PAPERMAN_FAKE_SCANNER=/tmp/fs`` in the environment. It then
+shows in the list of scanners as ``FUJITSU fi-8170 (fake)``, named
+``fakefujitsu:fi-8170:00001``, and can be chosen like any other.
+
 Put pictures of sheets in ``/tmp/fs/hopper``: ``page.png`` is the front of
 a sheet and ``page.back.png``, if there is one, its back. They are fed in
 order of name and moved to ``/tmp/fs/fed`` as they are taken. A picture is
 taken to be at the resolution it says, or at 300dpi if it says less than
 100dpi, which is usually a default. ``touch /tmp/fs/press-scan`` presses
 the Scan button.
+
+The fake scanner is built on Linux, beside paperman in ``test/fakescan``,
+where paperman looks for it. Another SANE front end can use it through a
+script, which gives libsane a configuration listing only the fake:
+
+.. code:: bash
+
+   scripts/fakescan.sh /tmp/fs scanimage -d fakefujitsu:fi-8170:00001 \
+      --source "ADF Duplex" --batch
 
 Code Coverage
 -------------

@@ -177,6 +177,7 @@ HEADERS += desktopwidget.h \
     searchindex.h \
     backend.h \
     clientconf.h \
+    fakescanner.h \
     backendstats.h \
     cachedfile.h \
     localbackend.h \
@@ -269,6 +270,7 @@ SOURCES += desktopwidget.cpp \
     searchindex.cpp \
     backend.cpp \
     clientconf.cpp \
+    fakescanner.cpp \
     backendstats.cpp \
     localbackend.cpp \
     remotebackend.cpp
@@ -288,6 +290,20 @@ FORMS = mainwindow.ui \
         ocrbar.ui send.ui \
         search.ui \
    toolbar.ui
+
+# The fake scanner, which libsane loads as it does a real scanner's back
+# end: the tests drive it, and --fake-scanner offers it beside the real
+# ones. See test/fakescan/fakescan.h. It is built in test/fakescan under
+# the build directory, where paperman looks for it
+linux {
+    fakescan.target = test/fakescan/libsane-fakefujitsu.so.1
+    fakescan.commands = mkdir -p test/fakescan && cd test/fakescan && \
+        $(QMAKE) $$PWD/test/fakescan/fakescan.pro -o Makefile && $(MAKE)
+    fakescan.depends = $$PWD/test/fakescan/fakescan.cpp \
+        $$PWD/test/fakescan/fakescan.h $$PWD/test/fakescan/fakescan.pro
+    QMAKE_EXTRA_TARGETS += fakescan
+    PRE_TARGETDEPS += test/fakescan/libsane-fakefujitsu.so.1
+}
 
 test {
    SOURCES += test/test_utils.cpp \
@@ -338,19 +354,6 @@ test {
     # a GUI-subsystem executable has no stdout on Windows, so the test
     # results would be lost
     win32: CONFIG += console
-
-    # The fake scanner the tests drive, which libsane loads as it does
-    # a real scanner's back end: see test/fakescan/fakescan.h. It is built
-    # beside the tests, in test/fakescan under the build directory
-    linux {
-        fakescan.target = test/fakescan/libsane-fakefujitsu.so.1
-        fakescan.commands = mkdir -p test/fakescan && cd test/fakescan && \
-            $(QMAKE) $$PWD/test/fakescan/fakescan.pro -o Makefile && $(MAKE)
-        fakescan.depends = $$PWD/test/fakescan/fakescan.cpp \
-            $$PWD/test/fakescan/fakescan.h $$PWD/test/fakescan/fakescan.pro
-        QMAKE_EXTRA_TARGETS += fakescan
-        PRE_TARGETDEPS += test/fakescan/libsane-fakefujitsu.so.1
-    }
 }
 
 # tif_fax3sm.c   - causes tifflib to break
