@@ -581,6 +581,13 @@ public:
       \param pages   sides scanned before it said so */
    static bool stoppedMidBatch (SANE_Status status, int pages);
 
+   /** Make every wait a scan does for the scanner shorter or longer, so
+       that a test of a misfeed or a busy scanner need not sit through
+       the half minute a person is given to clear it
+
+      \param scale   how much to multiply the waits by */
+   static void setTimeScale (double scale);
+
    /** cancel scanning
 
       \param err     error to return from the scan once cancelled */
