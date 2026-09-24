@@ -74,11 +74,18 @@ PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WindowFlags f
   mWidth = mHeight = -1;
   mCancelled = false;
 
-#define SIZES  33
+#define SIZES  34
 
 #define SIZE_A4 6        // ID of A4 size
 #define SIZE_LEGAL  30   // ID of legal size
 #define SIZE_LETTER 31   // ID of US letter size
+#define SIZE_LONG   33   // ID of the long size, see below
+
+/* A sheet longer than any paper size, such as a till receipt, is scanned
+   into a window as long and as wide as the scanner takes, for the
+   scanner to end at the foot of the sheet. It is offered only by a
+   scanner which takes a page longer than US legal */
+#define LONG_BEYOND 356.0
 
    static PredefinedSizes predefs[SIZES] =
   {
@@ -114,11 +121,13 @@ PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WindowFlags f
     {"Ledger (432x279 mm)",432.0,279.0},
     {"Legal (8.5x14 inches)",216.0,356.0},
     {"Letter (8.5x11 inches)",216.0,279.0},
-    {"Tabloid (279x432 mm)",279.0,432.0}
+    {"Tabloid (279x432 mm)",279.0,432.0},
+    {tr("Long"),-1.0,-1.0},
   };
   /**  */
 
   mPreDefs = predefs;
+  mPreDefA4 = mPreDefLetter = mPreDefLegal = mPreDefLong = -1;
 
   initWidget();
   loadTemplates();
@@ -494,16 +503,31 @@ void PreviewWidget::slotRangeChange()
    mPreDefLetter = -1;
    mPreDefLegal = -1;
 
+   mPreDefLong = -1;
    for(a=0;a<SIZES;a++)
    {
 //      printf ("w=%1.1lf  h=%1.1lf: %s\n", mPreDefs[a].width, mPreDefs[a].height, mPreDefs[a].name.toLatin1 ());
+    double width = mPreDefs[a].width;
+    double height = mPreDefs[a].height;
+
     // check if this size fits within the limit
-    valid = (mPreDefs[a].width <= (mMaxRangeX -mMinRangeX)) &&
-       (mPreDefs[a].height <= (mMaxRangeY -mMinRangeY));
+    valid = (width <= (mMaxRangeX -mMinRangeX)) &&
+       (height <= (mMaxRangeY -mMinRangeY));
 
     // if we can adjust the page size, allow sizes up to this limit also
     valid2 = mWidth != -1 &&
-       (mPreDefs[a].width <= mWidth && mPreDefs[a].height <= mHeight);
+       (width <= mWidth && height <= mHeight);
+
+    // the long size is as long and as wide as the page can be made
+    if (a == SIZE_LONG)
+    {
+      width = mWidth;
+      height = mHeight;
+      valid = false;
+      valid2 = mWidth != -1 && mHeight > LONG_BEYOND;
+      if (valid2)
+         mPreDefLong = mSizeArray.size();
+    }
     if (valid || valid2)
     {
       if (mPreDefA4 == -1 && a >= SIZE_A4)
@@ -511,11 +535,11 @@ void PreviewWidget::slotRangeChange()
          mPreDefA4 = mSizeArray.size();
 //         printf ("mPreDefA4 = %d\n", mPreDefA4);
       }
-      if (mPreDefLetter == -1 && a >= SIZE_LETTER)
+      if (mPreDefLetter == -1 && a >= SIZE_LETTER && a < SIZE_LONG)
       {
          mPreDefLetter = mSizeArray.size();
       }
-      if (mPreDefLegal == -1 && a >= SIZE_LEGAL)
+      if (mPreDefLegal == -1 && a >= SIZE_LEGAL && a < SIZE_LONG)
       {
          mPreDefLegal = mSizeArray.size();
       }
@@ -535,11 +559,11 @@ void PreviewWidget::slotRangeChange()
       else
       {
         tlx = tly = 0.0;
-        brx = mPreDefs[a].width/(mMaxRangeX -mMinRangeX);
-        bry = mPreDefs[a].height/(mMaxRangeY -mMinRangeY);
+        brx = width/(mMaxRangeX -mMinRangeX);
+        bry = height/(mMaxRangeY -mMinRangeY);
       }
       sca = mSizeArray [mSizeArray.size() - 1];
-      sca->setRange (tlx,tly,brx,bry,mPreDefs[a].width, mPreDefs[a].height);
+      sca->setRange (tlx,tly,brx,bry,width, height);
     }
    }
 }

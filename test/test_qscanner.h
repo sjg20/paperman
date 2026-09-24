@@ -68,6 +68,9 @@ private slots:
    //! Scan is offered again while a scan waits for a misfeed to be cleared
    void testPscanResume();
 
+   //! A sheet longer than US legal can be scanned while the scanner crops
+   void testPscanLong();
+
    //! The size the user chose is called a maximum while the scanner crops
    void testPscanMaxSize();
 };
