@@ -324,6 +324,7 @@ test {
       test/test_ocrsearch.h \
       test/test_localbackend.h \
       test/test_clientconf.h \
+      test/scansettings.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \

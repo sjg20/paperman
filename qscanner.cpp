@@ -69,7 +69,7 @@ extern "C"
 
 /* simulated scanner
 
-We support a 'pretend' scanner for testing purposes.
+We support a 'fake' scanner for testing purposes.
 
 Options supported are
 - x, y resolution
@@ -5630,7 +5630,7 @@ bool QScanner::generate_pages (void)
    _front_upto = 0;
    _back_upto = 0;
 
-   // only have a small number of pages in our pretend scan
+   // only have a small number of pages in our fake scan
 //    if (_page_upto == 6)
    if (_page_upto == 120)
       return false;
