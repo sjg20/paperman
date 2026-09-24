@@ -16,4 +16,5 @@ QMAKE_CXXFLAGS += -fvisibility=hidden
 OBJECTS_DIR = .obj
 
 SOURCES = fakescan.cpp
+LIBS += -ljpeg
 HEADERS = fakescan.h

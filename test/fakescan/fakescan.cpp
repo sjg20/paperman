@@ -10,12 +10,23 @@
    What it scans is whatever a test put in the hopper through the back
    door in fakescan.h. Each sheet is a picture of the paper, which is
    laid on the backing inside the window and sent at the resolution and
-   in the mode asked for.
+   in the mode asked for, as raw lines or as a JPEG.
+
+   It does what the fujitsu back end does with the settings which decide
+   the size of a page. With automatic length detection (ald) the page
+   ends at the foot of the sheet, and the scanner says the length is
+   unknown until it gets there. With hardware deskew and crop
+   (hwdeskewcrop) the sheet comes back straightened and cut down to
+   itself, and its size is known only once it has been read in full.
 
    It is a model of what a front end sees, not of the scanner's firmware
    or of what passes over USB */
 
+#include <math.h>
+#include <stdio.h>
 #include <string.h>
+
+#include <jpeglib.h>
 
 #include <QByteArray>
 #include <QImage>
@@ -28,6 +39,12 @@
 #include <sane/saneopts.h>
 
 #include "fakescan.h"
+
+/* libsane has had this since 1.1, but some copies of its header still
+   leave it out */
+#ifndef SANE_FRAME_JPEG
+#define SANE_FRAME_JPEG ((SANE_Frame) 0x0b)
+#endif
 
 #define EXPORT extern "C" __attribute__ ((visibility ("default")))
 
@@ -56,6 +73,7 @@
 
 enum { SOURCE_ADF_FRONT, SOURCE_ADF_BACK, SOURCE_ADF_DUPLEX };
 enum { MODE_LINEART, MODE_HALFTONE, MODE_GRAY, MODE_COLOR };
+enum { COMPRESS_NONE, COMPRESS_JPEG };
 
 /* the same strings the fujitsu back end uses */
 static SANE_String_Const source_list[] =
@@ -67,6 +85,11 @@ static SANE_String_Const mode_list[] =
    {
    SANE_VALUE_SCAN_MODE_LINEART, SANE_VALUE_SCAN_MODE_HALFTONE,
    SANE_VALUE_SCAN_MODE_GRAY, SANE_VALUE_SCAN_MODE_COLOR, nullptr
+   };
+
+static SANE_String_Const compress_list[] =
+   {
+   "None", "JPEG", nullptr
    };
 
 enum
@@ -83,6 +106,11 @@ enum
    OPT_BR_Y,
    OPT_PAGE_WIDTH,
    OPT_PAGE_HEIGHT,
+   OPT_ADVANCED_GROUP,
+   OPT_ALD,
+   OPT_COMPRESS,
+   OPT_COMPRESS_ARG,
+   OPT_HWDESKEWCROP,
    NUM_OPTIONS
    };
 
@@ -94,6 +122,7 @@ struct Sheet
    QImage side [2];   //!< front and back, or null for plain paper
    int width;         //!< size of the paper, in scanner units
    int height;
+   double skew;       //!< degrees askew, clockwise, as it goes through
    };
 
 /** what is at the scanner rather than behind a SANE handle: it outlasts
@@ -114,18 +143,23 @@ struct Scanner
    SANE_Range y_range;        //!< and down it
    SANE_Range width_range;    //!< sizes of paper the scanner takes
    SANE_Range height_range;
+   SANE_Range compress_arg_range;
 
    int source;
    int mode;
    int resolution;
    int tl_x, tl_y, br_x, br_y;      //!< the window, in scanner units
    int page_width, page_height;     //!< the paper, in scanner units
+   bool ald;                        //!< end the page at the foot of the sheet
+   int compress;
+   int compress_arg;                //!< JPEG level, 1 small to 7 large
+   bool hwdeskewcrop;               //!< straighten the sheet and cut to it
 
    /** where a scan is up to: IDLE before sane_start() and after
        sane_cancel(), SCANNING while a frame is being read and DONE
        once all of it has been */
    enum { IDLE, SCANNING, DONE } state;
-   SANE_Parameters params;    //!< of the frame being read
+   SANE_Parameters params;    //!< of the frame being read, as announced
    QByteArray frame;          //!< all of it, as it is sent
    int sent;                  //!< how much of it has been
    bool back_pending;         //!< a duplex sheet whose back is still to go
@@ -151,6 +185,30 @@ static void update_ranges (Scanner *s)
    }
 
 
+static bool jpeg_on (const Scanner *s)
+   {
+   return s->compress == COMPRESS_JPEG && s->mode >= MODE_GRAY;
+   }
+
+
+static void set_active (SANE_Option_Descriptor *opt, bool active)
+   {
+   if (active)
+      opt->cap &= ~SANE_CAP_INACTIVE;
+   else
+      opt->cap |= SANE_CAP_INACTIVE;
+   }
+
+
+/* which options apply, as the fujitsu back end decides: there is no JPEG
+   of a black-and-white page, and no JPEG level without JPEG */
+static void update_caps (Scanner *s)
+   {
+   set_active (&s->opt [OPT_COMPRESS], s->mode >= MODE_GRAY);
+   set_active (&s->opt [OPT_COMPRESS_ARG], jpeg_on (s));
+   }
+
+
 static void init_options (Scanner *s)
    {
    SANE_Option_Descriptor *opt;
@@ -168,6 +226,7 @@ static void init_options (Scanner *s)
    s->y_range = { 0, 0, quant };
    s->width_range = { UNITS_TO_FIXED (MIN_X), UNITS_TO_FIXED (MAX_X), quant };
    s->height_range = { UNITS_TO_FIXED (MIN_Y), UNITS_TO_FIXED (MAX_Y), quant };
+   s->compress_arg_range = { 0, 7, 1 };
    update_ranges (s);
 
    opt = &s->opt [OPT_NUM_OPTS];
@@ -248,6 +307,48 @@ static void init_options (Scanner *s)
       opt->constraint_type = SANE_CONSTRAINT_RANGE;
       opt->constraint.range = g.range;
       }
+
+   // the names, titles and descriptions the fujitsu back end gives
+   opt = &s->opt [OPT_ADVANCED_GROUP];
+   opt->name = SANE_NAME_ADVANCED;
+   opt->title = SANE_TITLE_ADVANCED;
+   opt->desc = SANE_DESC_ADVANCED;
+   opt->type = SANE_TYPE_GROUP;
+   opt->size = 0;
+   opt->cap = 0;
+
+   opt = &s->opt [OPT_ALD];
+   opt->name = "ald";
+   opt->title = "Auto length detection";
+   opt->desc = "Scanner detects paper lower edge. May confuse some frontends.";
+   opt->type = SANE_TYPE_BOOL;
+   opt->cap |= SANE_CAP_ADVANCED;
+
+   opt = &s->opt [OPT_COMPRESS];
+   opt->name = "compression";
+   opt->title = "Compression";
+   opt->desc = "Enable compressed data. Needs a frontend which understands "
+               "JPEG frames";
+   opt->type = SANE_TYPE_STRING;
+   opt->size = sizeof ("None");
+   opt->constraint_type = SANE_CONSTRAINT_STRING_LIST;
+   opt->constraint.string_list = compress_list;
+
+   opt = &s->opt [OPT_COMPRESS_ARG];
+   opt->name = "compression-arg";
+   opt->title = "Compression argument";
+   opt->desc = "Level of JPEG compression. 1 is small file, 7 is large file. "
+               "0 (default) is same as 4";
+   opt->type = SANE_TYPE_INT;
+   opt->constraint_type = SANE_CONSTRAINT_RANGE;
+   opt->constraint.range = &s->compress_arg_range;
+
+   opt = &s->opt [OPT_HWDESKEWCROP];
+   opt->name = "hwdeskewcrop";
+   opt->title = "Hardware deskew and crop";
+   opt->desc = "Request scanner to rotate and crop pages digitally.";
+   opt->type = SANE_TYPE_BOOL;
+   opt->cap |= SANE_CAP_ADVANCED;
    }
 
 
@@ -263,10 +364,15 @@ static void init_values (Scanner *s)
    s->tl_x = s->tl_y = 0;
    s->br_x = s->page_width;
    s->br_y = s->page_height;
+   s->ald = false;
+   s->compress = COMPRESS_NONE;
+   s->compress_arg = 0;
+   s->hwdeskewcrop = false;
    s->state = Scanner::IDLE;
    s->sent = 0;
    s->back_pending = false;
    update_ranges (s);
+   update_caps (s);
    }
 
 
@@ -319,16 +425,9 @@ static int list_index (SANE_String_Const *list, const char *val)
    }
 
 
-/* the size of frame the window and mode make, as the fujitsu back end
-   works it out */
-static void calc_params (const Scanner *s, SANE_Parameters *p)
+/* how a frame is sent, from how wide it is */
+static void set_width (const Scanner *s, SANE_Parameters *p, int ppl)
    {
-   long long width = s->br_x - s->tl_x;
-   long long height = s->br_y - s->tl_y;
-   int ppl = (int)(width * s->resolution / UNITS_PER_INCH);
-
-   p->last_frame = SANE_TRUE;
-   p->lines = (int)(height * s->resolution / UNITS_PER_INCH);
    switch (s->mode)
       {
       case MODE_COLOR:
@@ -352,48 +451,163 @@ static void calc_params (const Scanner *s, SANE_Parameters *p)
          p->bytes_per_line = ppl / 8;
          break;
       }
+   if (jpeg_on (s))
+      p->format = SANE_FRAME_JPEG;
    }
 
 
-/* Scan one side of the sheet going through: lay it on the backing inside
-   the window and send it in the mode asked for.
-
-   The feeder's guides centre the sheet, and the fujitsu back end centres
-   the page width on the feeder, measuring the window from its left
-   edge. A sheet as wide as the page width therefore fills the window
-   from side to side, and one which is narrower has backing either side
-   of it. The window starts at the leading edge of the sheet and runs on
-   past its foot, over the backing, if it is longer */
-static QByteArray scan_side (const Scanner *s, int side, QRgb backing)
+/* the size of frame the window and mode make, as the fujitsu back end
+   works it out */
+static void calc_window (const Scanner *s, SANE_Parameters *p)
    {
-   const SANE_Parameters &p = s->params;
+   long long width = s->br_x - s->tl_x;
+   long long height = s->br_y - s->tl_y;
+
+   p->last_frame = SANE_TRUE;
+   p->lines = (int)(height * s->resolution / UNITS_PER_INCH);
+   set_width (s, p, (int)(width * s->resolution / UNITS_PER_INCH));
+   }
+
+
+/* where the sheet is, on the scanner: its centre, in scanner units from
+   the left of the feeder and the leading edge. The feeder's guides
+   centre it, and a sheet which goes through askew turns about there */
+static void sheet_centre (const Sheet &sheet, double *x, double *y)
+   {
+   *x = MAX_X / 2.0;
+   *y = sheet.height / 2.0;
+   }
+
+
+/* where the window starts, on the scanner. The fujitsu back end centres
+   the page width on the feeder and measures the window from its left
+   edge, so a sheet as wide as the page width fills the window from side
+   to side */
+static void window_origin (const Scanner *s, double *x, double *y)
+   {
+   *x = s->tl_x + (MAX_X - s->page_width) / 2.0;
+   *y = s->tl_y;
+   }
+
+
+/* draw a side of a sheet, upright, into the given rectangle */
+static void draw_side (QPainter &painter, const QImage &image,
+                       const QRectF &where)
+   {
+   if (image.isNull ())
+      painter.fillRect (where, Qt::white);
+   else
+      {
+      painter.setRenderHint (QPainter::SmoothPixmapTransform);
+      painter.drawImage (where, image);
+      }
+   }
+
+
+/* What the scanner sees through the window: the side of the sheet, askew
+   if it went through that way, on the backing. The window runs on past
+   the foot of the sheet if it is longer */
+static QImage scan_window (const Scanner *s, int side, int width, int height,
+                           QRgb backing)
+   {
    const Sheet &sheet = s->sheet;
-   const QImage &image = sheet.side [side];
    double scale = (double)s->resolution / UNITS_PER_INCH;
-   double sheet_x = (MAX_X - sheet.width) / 2.0;
-   double window_x = s->tl_x + (MAX_X - s->page_width) / 2.0;
-   QRectF paper ((sheet_x - window_x) * scale, -s->tl_y * scale,
-                 sheet.width * scale, sheet.height * scale);
-   QImage out (p.pixels_per_line, p.lines, QImage::Format_RGB32);
+   double cx, cy, wx, wy;
+   QImage out (width, height, QImage::Format_RGB32);
 
+   sheet_centre (sheet, &cx, &cy);
+   window_origin (s, &wx, &wy);
    out.fill (backing);
+
+   QPainter painter (&out);
+
+   painter.translate ((cx - wx) * scale, (cy - wy) * scale);
+   painter.rotate (sheet.skew);
+   draw_side (painter, sheet.side [side],
+              QRectF (-sheet.width * scale / 2, -sheet.height * scale / 2,
+                      sheet.width * scale, sheet.height * scale));
+
+   return out;
+   }
+
+
+/* How many lines of the window the sheet reaches down, which is where a
+   scanner finding the foot of the sheet ends the page. A sheet askew
+   reaches down as far as its lowest corner */
+static int sheet_foot (const Scanner *s, int lines)
    {
+   const Sheet &sheet = s->sheet;
+   double scale = (double)s->resolution / UNITS_PER_INCH;
+   double angle = sheet.skew * M_PI / 180;
+   double half = (sheet.width * fabs (sin (angle))
+                  + sheet.height * fabs (cos (angle))) / 2;
+   double cx, cy, wx, wy;
+
+   sheet_centre (sheet, &cx, &cy);
+   window_origin (s, &wx, &wy);
+
+   int foot = (int)ceil ((cy + half - wy) * scale);
+
+   return qBound (1, foot, lines);
+   }
+
+
+/* The sheet as a scanner which straightens and crops it sends it: turned
+   upright and cut down to itself, or to the window if it is bigger.
+
+   The size it reports is that of the sheet, but a JPEG it sends is the
+   size of the box which held the sheet as it went through, cornerwise
+   if it was askew, with the sheet upright in the middle of it on a
+   black ground. That is what an fi-8170 does, and a front end which
+   believes the size it was told runs off the end of the page
+
+   \param size    set to the size the scanner reports
+   \param box     true to send the box, false for just the sheet */
+static QImage straighten (const Scanner *s, int side, const QSize &window,
+                          QSize *size, bool box)
+   {
+   const Sheet &sheet = s->sheet;
+   double scale = (double)s->resolution / UNITS_PER_INCH;
+   double width = sheet.width * scale;
+   double height = sheet.height * scale;
+
+   *size = QSize (qMin ((int)(width + 0.5), window.width ()),
+                  qMin ((int)(height + 0.5), window.height ()));
+   if (box && sheet.skew)
+      {
+      double angle = sheet.skew * M_PI / 180;
+      double c = fabs (cos (angle)), sn = fabs (sin (angle));
+      QImage out ((int)ceil (width * c + height * sn),
+                  (int)ceil (width * sn + height * c), QImage::Format_RGB32);
       QPainter painter (&out);
 
-      if (image.isNull ())
-         painter.fillRect (paper, Qt::white);
-      else
-         {
-         painter.setRenderHint (QPainter::SmoothPixmapTransform);
-         painter.drawImage (paper, image);
-         }
+      out.fill (Qt::black);
+      draw_side (painter, sheet.side [side],
+                 QRectF ((out.width () - width) / 2,
+                         (out.height () - height) / 2, width, height));
+      return out;
+      }
+
+   QImage out (*size, QImage::Format_RGB32);
+   QPainter painter (&out);
+
+   out.fill (Qt::black);
+   draw_side (painter, sheet.side [side], QRectF (0, 0, width, height));
+
+   return out;
    }
 
-   QByteArray data (p.bytes_per_line * p.lines, '\0');
 
-   for (int y = 0; y < p.lines; y++)
+/* turn a picture into lines as a frame sends them */
+static QByteArray pack (const Scanner *s, const QImage &picture,
+                        const SANE_Parameters &p)
+   {
+   int lines = picture.height ();
+   QByteArray data (p.bytes_per_line * lines, '\0');
+
+   for (int y = 0; y < lines; y++)
       {
-      const QRgb *in = (const QRgb *)out.constScanLine (y);
+      const QRgb *in = (const QRgb *)picture.constScanLine (y);
       uchar *line = (uchar *)data.data () + (qsizetype)y * p.bytes_per_line;
 
       for (int x = 0; x < p.pixels_per_line; x++)
@@ -417,6 +631,85 @@ static QByteArray scan_side (const Scanner *s, int side, QRgb backing)
       }
 
    return data;
+   }
+
+
+/* Compress a picture as the scanner does, with a restart marker at the
+   end of each row of blocks
+
+   \param level   compression-arg: 1 for a small file up to 7 for a large
+                  one, or 0 for the same as 4 */
+static QByteArray encode_jpeg (const QImage &picture, bool gray, int level)
+   {
+   struct jpeg_compress_struct cinfo;
+   struct jpeg_error_mgr jerr;
+   unsigned char *buf = nullptr;
+   unsigned long size = 0;
+   QByteArray row (picture.width () * 3, '\0');
+
+   cinfo.err = jpeg_std_error (&jerr);
+   jpeg_create_compress (&cinfo);
+   jpeg_mem_dest (&cinfo, &buf, &size);
+   cinfo.image_width = picture.width ();
+   cinfo.image_height = picture.height ();
+   cinfo.input_components = gray ? 1 : 3;
+   cinfo.in_color_space = gray ? JCS_GRAYSCALE : JCS_RGB;
+   jpeg_set_defaults (&cinfo);
+   jpeg_set_quality (&cinfo, 20 + (level ? level : 4) * 10, TRUE);
+   cinfo.restart_in_rows = 1;
+   jpeg_start_compress (&cinfo, TRUE);
+
+   while (cinfo.next_scanline < cinfo.image_height)
+      {
+      const QRgb *in = (const QRgb *)picture.constScanLine
+         (cinfo.next_scanline);
+      JSAMPROW out = (JSAMPROW)row.data ();
+
+      for (int x = 0; x < picture.width (); x++)
+         if (gray)
+            out [x] = qGray (in [x]);
+         else
+            {
+            out [x * 3] = qRed (in [x]);
+            out [x * 3 + 1] = qGreen (in [x]);
+            out [x * 3 + 2] = qBlue (in [x]);
+            }
+      jpeg_write_scanlines (&cinfo, &out, 1);
+      }
+   jpeg_finish_compress (&cinfo);
+
+   QByteArray data ((const char *)buf, (int)size);
+
+   free (buf);
+   jpeg_destroy_compress (&cinfo);
+
+   return data;
+   }
+
+
+/* Change the height a JPEG promises, which a scanner ending the page at
+   the foot of the sheet leaves as the height of the whole window: it has
+   written that before it finds the foot, and then ends the picture there
+   and finishes the file off properly */
+static void promise_height (QByteArray &jpeg, int lines)
+   {
+   uchar *data = (uchar *)jpeg.data ();
+   int pos = 2;   // past the start of image
+
+   while (pos + 4 <= jpeg.size () && data [pos] == 0xff)
+      {
+      int marker = data [pos + 1];
+      int len = data [pos + 2] << 8 | data [pos + 3];
+
+      // any start of frame, which gives the precision and then the height
+      if (marker >= 0xc0 && marker <= 0xc3 && pos + 7 <= jpeg.size ())
+         {
+         data [pos + 5] = lines >> 8;
+         data [pos + 6] = lines & 0xff;
+         return;
+         }
+      pos += 2 + len;
+      }
    }
 
 
@@ -515,6 +808,18 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
       case OPT_PAGE_HEIGHT:
          *word = UNITS_TO_FIXED (s->page_height);
          break;
+      case OPT_ALD:
+         *word = s->ald;
+         break;
+      case OPT_COMPRESS:
+         strcpy ((char *)val, compress_list [s->compress]);
+         break;
+      case OPT_COMPRESS_ARG:
+         *word = s->compress_arg;
+         break;
+      case OPT_HWDESKEWCROP:
+         *word = s->hwdeskewcrop;
+         break;
       default:
          return SANE_STATUS_INVAL;
       }
@@ -542,7 +847,28 @@ static SANE_Status set_option (Scanner *s, SANE_Int option, void *val,
 
       case OPT_MODE:
          s->mode = list_index (mode_list, (const char *)val);
+         update_caps (s);
          *info |= reload;
+         return SANE_STATUS_GOOD;
+
+      /* these say which options apply, or how big a page will be, but
+         the fujitsu back end only says to reload for ald */
+      case OPT_ALD:
+         s->ald = word;
+         *info |= SANE_INFO_RELOAD_OPTIONS;
+         return SANE_STATUS_GOOD;
+
+      case OPT_COMPRESS:
+         s->compress = list_index (compress_list, (const char *)val);
+         update_caps (s);
+         return SANE_STATUS_GOOD;
+
+      case OPT_COMPRESS_ARG:
+         s->compress_arg = word;
+         return SANE_STATUS_GOOD;
+
+      case OPT_HWDESKEWCROP:
+         s->hwdeskewcrop = word;
          return SANE_STATUS_GOOD;
 
       case OPT_RES:
@@ -639,7 +965,12 @@ EXPORT SANE_Status sane_fakefujitsu_control_option (SANE_Handle handle,
          // nothing can be changed part-way through a batch
          if (s->state != Scanner::IDLE)
             return SANE_STATUS_DEVICE_BUSY;
-         if (!SANE_OPTION_IS_SETTABLE (opt->cap))
+         if (!SANE_OPTION_IS_SETTABLE (opt->cap)
+             || !SANE_OPTION_IS_ACTIVE (opt->cap))
+            return SANE_STATUS_INVAL;
+         if (opt->type == SANE_TYPE_BOOL
+             && *(SANE_Word *)val != SANE_FALSE
+             && *(SANE_Word *)val != SANE_TRUE)
             return SANE_STATUS_INVAL;
          status = constrain (opt, val, info);
          if (status != SANE_STATUS_GOOD)
@@ -659,7 +990,15 @@ EXPORT SANE_Status sane_fakefujitsu_get_parameters (SANE_Handle handle,
 
    // once a frame has started it is its own size, not the settings'
    if (s->state == Scanner::IDLE)
-      calc_params (s, params);
+      {
+      calc_window (s, params);
+
+      /* the page ends at the foot of the sheet, which is not known until
+         the scanner gets there, unless it reads the whole page before
+         sending any of it */
+      if (s->ald && !s->hwdeskewcrop)
+         params->lines = -1;
+      }
    else
       *params = s->params;
 
@@ -673,6 +1012,8 @@ EXPORT SANE_Status sane_fakefujitsu_get_parameters (SANE_Handle handle,
 EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
    {
    Scanner *s = (Scanner *)handle;
+   SANE_Parameters window;
+   QImage picture;
    QRgb backing;
    int side;
 
@@ -681,8 +1022,8 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
    if (s->state == Scanner::SCANNING)
       return SANE_STATUS_INVAL;
 
-   calc_params (s, &s->params);
-   if (s->params.pixels_per_line < 1 || s->params.lines < 1)
+   calc_window (s, &window);
+   if (window.pixels_per_line < 1 || window.lines < 1)
       return SANE_STATUS_INVAL;
 
    {
@@ -704,8 +1045,45 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
          }
    }
 
+   s->params = window;
+   if (s->hwdeskewcrop)
+      {
+      /* the whole sheet is read before any of it is sent, so its size
+         is known by the time the front end asks */
+      QSize size;
+
+      picture = straighten (s, side, QSize (window.pixels_per_line,
+                                            window.lines),
+                            &size, jpeg_on (s));
+      set_width (s, &s->params, size.width ());
+      s->params.lines = size.height ();
+      if (!jpeg_on (s))
+         picture = picture.copy (0, 0, s->params.pixels_per_line,
+                                 s->params.lines);
+      }
+   else
+      {
+      picture = scan_window (s, side, window.pixels_per_line, window.lines,
+                             backing);
+      if (s->ald)
+         {
+         picture = picture.copy (0, 0, picture.width (),
+                                 sheet_foot (s, window.lines));
+         s->params.lines = -1;
+         }
+      }
+
+   if (jpeg_on (s))
+      {
+      s->frame = encode_jpeg (picture, s->mode == MODE_GRAY,
+                              s->compress_arg);
+      if (s->ald && !s->hwdeskewcrop)
+         promise_height (s->frame, window.lines);
+      }
+   else
+      s->frame = pack (s, picture, s->params);
+
    s->back_pending = s->source == SOURCE_ADF_DUPLEX && side == 0;
-   s->frame = scan_side (s, side, backing);
    s->sent = 0;
    s->state = Scanner::SCANNING;
 
@@ -781,6 +1159,7 @@ EXPORT int fakescan_load_sheet (const struct fakescan_sheet *in)
    int dpi = in->dpi > 0 ? in->dpi : 300;
    Sheet sheet;
 
+   sheet.skew = in->skew;
    for (int i = 0; i < 2; i++)
       if (path [i])
          {
