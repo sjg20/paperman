@@ -116,7 +116,8 @@ void Fakescan::reset (void)
 }
 
 
-bool Fakescan::loadSheet (const QImage &front, const QImage &back, int dpi)
+bool Fakescan::loadSheet (const QImage &front, const QImage &back, int dpi,
+                          double skew)
 {
    QByteArray path [2];
    const QImage *side [2] = { &front, &back };
@@ -138,6 +139,7 @@ bool Fakescan::loadSheet (const QImage &front, const QImage &back, int dpi)
    sheet.front = path [0].isEmpty () ? nullptr : path [0].constData ();
    sheet.back = path [1].isEmpty () ? nullptr : path [1].constData ();
    sheet.dpi = dpi;
+   sheet.skew = skew;
 
    return !backdoor.loadSheet (&sheet);
 }
@@ -185,6 +187,54 @@ static void openScanner (QScanner &scanner, const char *source,
    QCOMPARE (scanner.setOption (scanner.findOption
                                 (SANE_NAME_SCAN_RESOLUTION), &res),
              SANE_STATUS_GOOD);
+}
+
+
+static void setBool (QScanner &scanner, const char *name, bool on)
+{
+   SANE_Word word = on;
+
+   QCOMPARE (scanner.setOption (scanner.findOption (name), &word),
+             SANE_STATUS_GOOD);
+}
+
+
+static void setString (QScanner &scanner, const char *name, const char *val)
+{
+   QByteArray str (val);
+
+   QCOMPARE (scanner.setOption (scanner.findOption (name), str.data ()),
+             SANE_STATUS_GOOD);
+}
+
+
+/* the size of picture a JPEG says it holds, from its start of frame */
+static QSize jpegSize (const QByteArray &jpeg)
+{
+   const uchar *data = (const uchar *)jpeg.constData ();
+
+   for (int pos = 2; pos + 9 <= jpeg.size () && data [pos] == 0xff;
+        pos += 2 + (data [pos + 2] << 8 | data [pos + 3]))
+      if (data [pos + 1] >= 0xc0 && data [pos + 1] <= 0xc3)
+         return QSize (data [pos + 7] << 8 | data [pos + 8],
+                       data [pos + 5] << 8 | data [pos + 6]);
+
+   return QSize ();
+}
+
+
+/* How many restart markers a JPEG holds. The fake scanner puts one at
+   the end of each row of blocks, as a real one does, so this says how
+   many rows of blocks it sent whatever height it promised */
+static int restartCount (const QByteArray &jpeg)
+{
+   int count = 0;
+
+   for (int i = 0; i + 1 < jpeg.size (); i++)
+      if ((uchar)jpeg [i] == 0xff && ((uchar)jpeg [i + 1] & 0xf8) == 0xd0)
+         count++;
+
+   return count;
 }
 
 
@@ -337,9 +387,13 @@ void TestFakescan::testSheetOnBacking ()
 }
 
 
-/* The whole way through: sheets in the hopper become pages of a stack,
-   each where it belongs */
-void TestFakescan::testScanIntoStack ()
+/* Scan what is in the hopper into a new stack, the whole way through
+   paperman as the user would, and hand back its pages
+
+   \param options   scanner options to set first, by name, as --set does
+   \param pages     set to the pages of the stack */
+static void scanStack (const QMap<QString, QString> &options,
+                       QList<QImage> &pages)
 {
    utilSetHeadless (true);
 
@@ -358,6 +412,36 @@ void TestFakescan::testScanIntoStack ()
    Mainwidget *main = Mainwidget::singleton ();
    QVERIFY (main);
 
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   QVERIFY (main->ensureScanner ());
+   main->setScanOptions (options);
+   main->scanInto (repo_ind);
+
+   QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
+                                               QDir::Files);
+   QCOMPARE (stacks.size (), 1);
+   Filemax max (path + "/", stacks [0], nullptr);
+   QVERIFY (!max.load ());
+
+   pages.clear ();
+   for (int pagenum = 0; pagenum < max.pagecount (); pagenum++)
+      {
+      QImage image;
+      QSize size, true_size;
+      int bpp;
+
+      QVERIFY (!max.getImage (pagenum, false, image, size, true_size, bpp,
+                              false));
+      pages << image;
+      }
+}
+
+
+/* The whole way through: sheets in the hopper become pages of a stack,
+   each where it belongs */
+void TestFakescan::testScanIntoStack ()
+{
    // a black band across the top of one sheet and the foot of the other
    QImage top = plainSheet (qRgb (0xff, 0xff, 0xff));
    QImage foot = top.copy ();
@@ -371,31 +455,21 @@ void TestFakescan::testScanIntoStack ()
    QVERIFY (Fakescan::loadSheet (top, QImage (), 10));
    QVERIFY (Fakescan::loadSheet (foot, QImage (), 10));
 
-   Scansettings settings (0, FAKESCAN_DEVICE);
+   QList<QImage> pages;
 
-   QVERIFY (main->ensureScanner ());
-   main->scanInto (repo_ind);
+   scanStack (QMap<QString, QString> (), pages);
+   if (QTest::currentTestFailed ())
+      return;
 
    // every sheet went through, and made a page each
    QCOMPARE (Fakescan::sheetsLeft (), 0);
-
-   QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
-                                               QDir::Files);
-   QCOMPARE (stacks.size (), 1);
-   Filemax max (path + "/", stacks [0], nullptr);
-   QVERIFY (!max.load ());
-   QCOMPARE (max.pagecount (), 2);
+   QCOMPARE (pages.size (), 2);
 
    // with the band in the half of each page it was put in
    for (int pagenum = 0; pagenum < 2; pagenum++)
       {
-      QImage image;
-      QSize size, true_size;
-      int bpp;
-
-      QVERIFY (!max.getImage (pagenum, false, image, size, true_size, bpp,
-                              false));
-      image = image.convertToFormat (QImage::Format_Grayscale8);
+      QImage image = pages [pagenum].convertToFormat
+         (QImage::Format_Grayscale8);
 
       int dark [2] = { 0, 0 };
 
@@ -413,4 +487,212 @@ void TestFakescan::testScanIntoStack ()
                             .arg (pagenum + 1).arg (dark [0])
                             .arg (dark [1])));
       }
+}
+
+
+/* a sheet at 10dpi which is US letter wide and 101.6mm long, which at
+   50dpi is 425 pixels across and 200 lines down */
+static QImage shortSheet ()
+{
+   QImage image (85, 40, QImage::Format_RGB32);
+
+   image.fill (Qt::white);
+   return image;
+}
+
+
+/* A scanner asked to find the foot of the sheet cannot say how long the
+   page will be, and ends it there */
+void TestFakescan::testAld ()
+{
+   QVERIFY (Fakescan::loadSheet (shortSheet (), QImage (), 10));
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   setBool (scanner, "ald", true);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   scanner.getParameters (&params);
+   QCOMPARE (params.lines, -1);
+
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (params.lines, -1);
+   QCOMPARE (params.pixels_per_line, 425);
+
+   // the sheet is 200 lines long, in a window of 550
+   int lines = data.size () / params.bytes_per_line;
+
+   QVERIFY2 (qAbs (lines - 200) <= 1, qPrintable (QString::number (lines)));
+}
+
+
+/* A scanner which finds the foot of the sheet while sending a JPEG has
+   already said in the JPEG's header how long the picture is, and says
+   the whole window. It then ends the picture at the foot of the sheet
+   and finishes the file off properly */
+void TestFakescan::testAldJpeg ()
+{
+   QVERIFY (Fakescan::loadSheet (shortSheet (), QImage (), 10));
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_COLOR, 50);
+   setString (scanner, "compression", "JPEG");
+   setBool (scanner, "ald", true);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE ((int)params.format, 0x0b);   // SANE_FRAME_JPEG
+   QCOMPARE (params.lines, -1);
+
+   // a whole file, which promises the whole window
+   QVERIFY (data.startsWith ("\xff\xd8"));
+   QVERIFY (data.endsWith ("\xff\xd9"));
+   QCOMPARE (jpegSize (data), QSize (425, 550));
+
+   /* but holds only the sheet: a colour JPEG's rows of blocks are 16
+      lines high, with a restart marker between each pair */
+   QCOMPARE (restartCount (data), (200 + 15) / 16 - 1);
+}
+
+
+/* A scanner which straightens each sheet and crops it reads the whole
+   sheet before sending any, so it can say the size of the sheet. The
+   JPEG it sends is bigger, since it holds the box the sheet went through
+   in, with the sheet upright in the middle */
+void TestFakescan::testDeskewCrop ()
+{
+   // 101.6 x 152.4mm, which at 50dpi is 200 x 300
+   QImage sheet (40, 60, QImage::Format_RGB32);
+
+   sheet.fill (Qt::white);
+   QVERIFY (Fakescan::loadSheet (sheet, QImage (), 10, 10));
+   QVERIFY (Fakescan::loadSheet (sheet, QImage (), 10, 10));
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_COLOR, 50);
+   setString (scanner, "compression", "JPEG");
+   setBool (scanner, "hwdeskewcrop", true);
+   setBool (scanner, "ald", true);
+   if (QTest::currentTestFailed ())
+      return;
+
+   // until the sheet is read, all the scanner knows is the window
+   SANE_Parameters params;
+   QByteArray data;
+
+   scanner.getParameters (&params);
+   QCOMPARE (params.pixels_per_line, 425);
+   QCOMPARE (params.lines, 550);
+
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (params.pixels_per_line, 200);
+   QCOMPARE (params.lines, 300);
+
+   QSize box = jpegSize (data);
+
+   QVERIFY2 (box.width () > 200 && box.height () > 300,
+             qPrintable (QString ("the JPEG is %1 x %2").arg (box.width ())
+                         .arg (box.height ())));
+
+   // sent as lines, it is the size it says
+   scanner.cancel ();
+   setString (scanner, "compression", "None");
+   setString (scanner, SANE_NAME_SCAN_MODE, SANE_VALUE_SCAN_MODE_GRAY);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+   QCOMPARE (params.format, SANE_FRAME_GRAY);
+   QCOMPARE (data.size (), 200 * 300);
+}
+
+
+/* a till receipt, 80 x 150mm at 100dpi, with lines of print on it */
+static QImage receipt ()
+{
+   QImage image (315, 591, QImage::Format_RGB32);
+
+   image.fill (Qt::white);
+   for (int y = 30; y < image.height () - 30; y += 40)
+      for (int x = 20; x < image.width () - 20; x++)
+         for (int i = 0; i < 8; i++)
+            image.setPixel (x, y + i, qRgb (0, 0, 0));
+
+   return image;
+}
+
+
+/* A receipt scanned in colour with ald comes back as a JPEG which says
+   it is the length of the whole window, and is stored at the length of
+   the receipt, cut down to its width. It came out a yard long with the
+   receipt at the top and flat grey below it, and then kept the width of
+   the window since the grey looked like ink */
+void TestFakescan::testReceiptStored ()
+{
+   QVERIFY (Fakescan::loadSheet (receipt (), QImage (), 100));
+
+   QMap<QString, QString> options;
+   QList<QImage> pages;
+
+   options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   options ["resolution"] = "100";
+   options ["ald"] = "yes";
+   scanStack (options, pages);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (pages.size (), 1);
+
+   // US letter at 100dpi is 850 x 1100
+   QSize size = pages [0].size ();
+
+   QVERIFY2 (qAbs (size.height () - 591) < 20 && size.width () > 300
+             && size.width () < 400,
+             qPrintable (QString ("the receipt is 315 x 591 but was stored "
+                                  "%1 x %2").arg (size.width ())
+                         .arg (size.height ())));
+}
+
+
+/* A sheet which goes through askew with the scanner straightening it
+   comes back bigger than the scanner says, upright on a black ground.
+   It crashed inside the JPEG library and later corrupted the heap, and
+   was then kept at the full width of the ground */
+void TestFakescan::testStraightenedSheetStored ()
+{
+   // 120 x 180mm at 100dpi, askew by 8 degrees
+   QImage sheet = receipt ().scaled (472, 709);
+
+   QVERIFY (Fakescan::loadSheet (sheet, QImage (), 100, 8));
+   QVERIFY (Fakescan::loadSheet (sheet, QImage (), 100, -8));
+
+   QMap<QString, QString> options;
+   QList<QImage> pages;
+
+   options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   options ["resolution"] = "100";
+   options ["ald"] = "yes";
+   options ["hwdeskewcrop"] = "yes";
+   scanStack (options, pages);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (pages.size (), 2);
+
+   /* the box the scanner sends is about 566 wide; the page is cut to
+      the sheet, and none of the sheet is lost */
+   for (const QImage &page : pages)
+      QVERIFY2 (page.width () > 450 && page.width () < 520
+                && page.height () >= 709,
+                qPrintable (QString ("the sheet is 472 x 709 but was stored "
+                                     "%1 x %2").arg (page.width ())
+                            .arg (page.height ())));
 }
