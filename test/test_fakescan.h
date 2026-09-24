@@ -146,6 +146,9 @@ private slots:
 
    //! A person can drive the scanner through a directory
    void testControlDir ();
+
+   //! The pages of a stack are numbered after the first
+   void testPageNames ();
 };
 
 #endif // TEST_FAKESCAN_H

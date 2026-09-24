@@ -285,6 +285,15 @@ err_info *Paperstack::confirm (void)
    }
 
 
+/* The title a page is given from the name it is scanned under. A name
+   ending in _ is the pattern for a stack's pages: the first page's title
+   leaves it off, and the rest are numbered, see Paperstack::incrementName() */
+static QString pageTitle (const QString &name)
+   {
+   return name.endsWith ("_") ? name.left (name.length () - 1) : name;
+   }
+
+
 err_info *Paperstack::confirmImage (Filepage *&mp, QMutex &mutex)
    {
    bool mark_blank = false;
@@ -317,7 +326,7 @@ err_info *Paperstack::confirmImage (Filepage *&mp, QMutex &mutex)
    CALL (_page->confirm (_pageName, mark_blank, mp));
 
    if (_stackName.isEmpty ())
-      _stackName = _pageName;
+      _stackName = pageTitle (_pageName);
    incrementName (_pageName);
    mutex.lock ();
    _pages.append (_page);
@@ -347,7 +356,7 @@ err_info *Paperstack::confirmImageBack (Filepage *&mp, QMutex &mutex)
    CALL (_page_back->confirm (_pageName, mark_blank, mp));
 
    if (_stackName.isEmpty ())
-      _stackName = _pageName;
+      _stackName = pageTitle (_pageName);
    incrementName (_pageName);
    mutex.lock ();
    _pages.append (_page_back);
@@ -487,10 +496,16 @@ bool Paperstack::addImageBytesBack (unsigned char *buf, int size)
    }
 
 
+/* Name the next page. The pages of a stack scanned under a name ending
+   in _, as the default of the day's date is, are that name without the
+   _, then with _2, _3 and so on. Taking the name without the _ took the
+   date's year for a page number, so each page was a year after the last */
 void Paperstack::incrementName (QString &name)
    {
-   util_incrementFilename (name);
-//   printf ("new name %s\n", name.latin1 ());
+   if (name.endsWith ("_"))
+      name.append ("2");
+   else
+      util_incrementFilename (name);
    }
 
 
@@ -1130,11 +1145,10 @@ bool PPage::addBytes (const unsigned char *buf, int size)
    }
 
 
-err_info *PPage::confirm (QString &pageName, bool mark_blank, Filepage *mp)
+err_info *PPage::confirm (const QString &pageName, bool mark_blank,
+                          Filepage *mp)
    {
-   if (pageName.right (1) == "_")
-      pageName.truncate (pageName.length () - 1);
-   _name = pageName;
+   _name = pageTitle (pageName);
    _mark_blank = mark_blank;
    /* raw data of a height the back end did not know: it is however many
       lines arrived */
