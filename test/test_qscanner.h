@@ -12,8 +12,8 @@ public:
    using Suite::Suite;
 
 private slots:
-   //! Opening the simulated scanner succeeds and is queryable.
-   void testOpenSimul();
+   //! Opening a scanner succeeds and is queryable.
+   void testOpen();
    void testOptionDialogLayout();
    void testAutoSize();
    void testAutoSizePanel();

@@ -107,7 +107,7 @@ private slots:
    //! Test importing files from a directory and moving one in
    void testImportFlow();
 
-   //! Test scanning into a new stack with the simulated scanner
+   //! Test scanning into a new stack with the fake scanner
    void testScanIntoStack();
    void testScanCommandLine();
 

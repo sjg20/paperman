@@ -25,6 +25,7 @@
 #include "qxmlconfig.h"
 #include <QScrollBar>
 #include "test_desktopui.h"
+#include "test_fakescan.h"
 
 void TestDesktopUi::setupShown(Mainwindow *me, Desktopmodel *&model,
                                QModelIndex &repo_ind)
@@ -1275,21 +1276,48 @@ void TestDesktopUi::testImportFlow()
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
 }
 
+/* Put some sheets of US letter in the fake scanner, unless a real one
+   is being used, which has what the person running the test put in it
+
+   \returns the scanner to use, or null if there is none */
+static const char *loadSheets(int count)
+{
+   if (getenv("PM_SCAN_DEVICE"))
+      return getenv("PM_SCAN_DEVICE");
+   if (!Fakescan::available())
+      return nullptr;
+
+   QImage sheet(850, 1100, QImage::Format_RGB32);
+
+   sheet.fill(Qt::white);
+   Fakescan::reset();
+   for (int i = 0; i < count; i++)
+      if (!Fakescan::loadSheet(sheet, QImage(), 100))
+         return nullptr;
+
+   return FAKESCAN_DEVICE;
+}
+
 void TestDesktopUi::testScanIntoStack()
 {
+   const char *device = loadSheets(3);
+
+   if (!device)
+      QSKIP("no scanner to test with: set PM_SCAN_DEVICE");
+
    QModelIndex repo_ind;
    Desktopmodel *model;
    Mainwindow me;
 
    setupShown(&me, model, repo_ind);
 
-   /* select the simulated scanner as the last-used device so that
-      ensureScanner() opens it without showing the selection dialog;
-      restore the user's setting afterwards */
+   /* select the scanner as the last-used device so that ensureScanner()
+      opens it without showing the selection dialog; restore the user's
+      setting afterwards */
    if (!xmlConfig)
       new QXmlConfig();
    QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
-   xmlConfig->setStringValue("LAST_DEVICE", getenv("PM_SCAN_DEVICE") ? getenv("PM_SCAN_DEVICE") : "simulscan");
+   xmlConfig->setStringValue("LAST_DEVICE", device);
 
    /* a scan reads the settings the user keeps, so say what this test
       wants rather than taking whatever the machine it runs on has: a
@@ -1307,13 +1335,13 @@ void TestDesktopUi::testScanIntoStack()
    }
    int before = model->rowCount(repo_ind);
 
-   /* the simulated ADF holds 120 pages at about a second each, so press
-      the stop button (which finishes the current page and ends the scan)
-      as soon as the scan is under way. Opening the scanner can take
-      several seconds here, so wait for it rather than using a fixed
-      delay, which would fire too early and let all 120 pages scan.
-      PM_SCAN_STOP_MS gives a fixed delay instead, for timing a longer
-      run on a real scanner (see PM_SCAN_DEVICE and PM_SCAN_SET) */
+   /* press the stop button (which finishes the batch and ends the scan)
+      as soon as the scan is under way, since a real scanner may hold a
+      great many sheets. Opening the scanner can take several seconds, so
+      wait for it rather than using a fixed delay, which could fire before
+      the scan started. PM_SCAN_STOP_MS gives a fixed delay instead, for
+      timing a longer run on a real scanner (see PM_SCAN_DEVICE and
+      PM_SCAN_SET) */
    if (getenv("PM_SCAN_STOP_MS"))
       QTimer::singleShot(atoi(getenv("PM_SCAN_STOP_MS")), main,
                          [main]() { main->stopScan(false); });
@@ -1375,7 +1403,10 @@ void TestDesktopUi::testScanCommandLine()
    QString old_device = xmlConfig->stringValue("LAST_DEVICE", QString());
    int old_single = xmlConfig->intValue("SCAN_SINGLE");
 
-   QCOMPARE(Mainwindow::runScan(path, "inbox", "simulscan", 2,
+   if (!Fakescan::available())
+      QSKIP("the fake scanner is only built on Linux");
+   loadSheets(2);
+   QCOMPARE(Mainwindow::runScan(path, "inbox", FAKESCAN_DEVICE, 2,
                                 QStringList() << "mode=Color"), 0);
 
    QCOMPARE(xmlConfig->stringValue("LAST_DEVICE", QString()), old_device);
@@ -1389,7 +1420,7 @@ void TestDesktopUi::testScanCommandLine()
    QCOMPARE(max.pagecount(), 2);
 
    // a missing directory is an error rather than a scan
-   QCOMPARE(Mainwindow::runScan(path, "nosuch", "simulscan", 1), 1);
+   QCOMPARE(Mainwindow::runScan(path, "nosuch", FAKESCAN_DEVICE, 1), 1);
 
    utilSetHeadless(false);
 }
