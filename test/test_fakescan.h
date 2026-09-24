@@ -143,6 +143,9 @@ private slots:
 
    //! Stop part-way through a batch keeps every sheet the feeder took
    void testStopKeepsSheets ();
+
+   //! A person can drive the scanner through a directory
+   void testControlDir ();
 };
 
 #endif // TEST_FAKESCAN_H

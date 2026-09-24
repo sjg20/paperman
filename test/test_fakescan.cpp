@@ -1,4 +1,5 @@
 #include <QtTest/QtTest>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 
 #include <sane/saneopts.h>
@@ -1198,4 +1199,66 @@ void TestFakescan::testStopKeepsSheets ()
                          .arg (pages.size ()).arg (Fakescan::sheetsLeft ())));
    QVERIFY2 (pages.size () < 8, "the scan did not stop");
    QVERIFY (Fakescan::log ().contains ("set stop-feed"));
+}
+
+
+/* A person can drive the scanner by hand through the directory named by
+   FAKESCAN_DIR, putting pictures of sheets in its hopper and pressing
+   buttons by making files */
+void TestFakescan::testControlDir ()
+{
+   QTemporaryDir dir;
+
+   QVERIFY (dir.isValid ());
+   QVERIFY (QDir (dir.path ()).mkpath ("hopper"));
+
+   // US letter at 100dpi, which the pictures say they are at
+   QImage side [2] = { QImage (850, 1100, QImage::Format_RGB32),
+                       QImage (850, 1100, QImage::Format_RGB32) };
+
+   side [0].fill (qRgb (0xff, 0, 0));
+   side [1].fill (qRgb (0, 0, 0xff));
+   for (QImage &image : side)
+      {
+      image.setDotsPerMeterX (qRound (100 / 0.0254));
+      image.setDotsPerMeterY (qRound (100 / 0.0254));
+      }
+   QVERIFY (side [0].save (dir.path () + "/hopper/page.png"));
+   QVERIFY (side [1].save (dir.path () + "/hopper/page.back.png"));
+
+   // named for this test only, whether it passes or not
+   qputenv ("FAKESCAN_DIR", dir.path ().toLocal8Bit ());
+   auto unset = qScopeGuard ([] { qunsetenv ("FAKESCAN_DIR"); });
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Duplex", SANE_VALUE_SCAN_MODE_COLOR, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+
+   for (QRgb colour : { qRgb (0xff, 0, 0), qRgb (0, 0, 0xff) })
+      {
+      QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+
+      const uchar *mid = (const uchar *)data.constData ()
+         + params.lines / 2 * params.bytes_per_line
+         + params.pixels_per_line / 2 * 3;
+
+      QCOMPARE (qRgb (mid [0], mid [1], mid [2]), colour);
+      }
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_NO_DOCS);
+
+   // what went through is put aside
+   QVERIFY (QDir (dir.path () + "/hopper").isEmpty ());
+   QVERIFY (QFile::exists (dir.path () + "/fed/page.back.png"));
+
+   QFile press (dir.path () + "/press-scan");
+
+   QVERIFY (press.open (QIODevice::WriteOnly));
+   press.close ();
+   QCOMPARE (scanner.checkButtons (), 1 << QScanner::BUT_scan);
+   QVERIFY (!press.exists ());
 }

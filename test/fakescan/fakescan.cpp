@@ -30,6 +30,9 @@
 
 #include <QAtomicInt>
 #include <QByteArray>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QList>
 #include <QMutex>
@@ -960,11 +963,111 @@ static void spoil (QByteArray &jpeg)
    }
 
 
+/* Make a sheet from its description, see fakescan_load_sheet()
+
+   \returns 0 if OK, -1 if an image cannot be read, -2 if there is no
+            size to be had */
+static int make_sheet (const struct fakescan_sheet *in, Sheet *sheet)
+   {
+   const char *path [2] = { in->front, in->back };
+   int dpi = in->dpi > 0 ? in->dpi : 300;
+
+   sheet->skew = in->skew;
+   for (int i = 0; i < 2; i++)
+      if (path [i])
+         {
+         if (!sheet->side [i].load (QString::fromUtf8 (path [i])))
+            return -1;
+         sheet->side [i] = sheet->side [i].convertToFormat
+            (QImage::Format_RGB32);
+         }
+
+   // with no size given, the paper is the size of its picture
+   const QImage &image = sheet->side [0].isNull () ? sheet->side [1]
+                                                   : sheet->side [0];
+
+   sheet->width = in->width_mm > 0 ? MM_TO_UNITS (in->width_mm)
+                                   : image.width () * UNITS_PER_INCH / dpi;
+   sheet->height = in->height_mm > 0 ? MM_TO_UNITS (in->height_mm)
+                                     : image.height () * UNITS_PER_INCH / dpi;
+   if (sheet->width <= 0 || sheet->height <= 0)
+      return -2;
+
+   return 0;
+   }
+
+
+/* The resolution a picture of a sheet is at: what the image says, if it
+   says something a scan could be at, else 300dpi. Most formats say 72dpi
+   when nobody has told them anything */
+static int image_dpi (const QString &path)
+   {
+   QImage image (path);
+   int dpi = qRound (image.dotsPerMeterX () * 0.0254);
+
+   return dpi >= 100 ? dpi : 300;
+   }
+
+
+/* Take up whatever a person has done through the directory named by
+   FAKESCAN_DIR, see fakescan.h: put the sheets in its hopper into the
+   scanner's hopper, in order of name, and press any buttons asked for.
+   With machine.lock held */
+static void look_at_dir (void)
+   {
+   QString control_dir = QString::fromLocal8Bit (qgetenv ("FAKESCAN_DIR"));
+
+   if (control_dir.isEmpty ())
+      return;
+
+   QDir hopper (control_dir + "/hopper");
+   QDir fed (control_dir + "/fed");
+   QStringList files = hopper.entryList (QDir::Files, QDir::Name);
+
+   if (!files.isEmpty ())
+      fed.mkpath (".");
+   for (const QString &name : files)
+      {
+      QFileInfo info (hopper.filePath (name));
+
+      // a back goes with its front
+      if (info.completeBaseName ().endsWith (".back"))
+         continue;
+
+      QString front = info.filePath ();
+      QString back;
+
+      for (const QString &other : files)
+         if (QFileInfo (other).completeBaseName ()
+             == info.completeBaseName () + ".back")
+            back = hopper.filePath (other);
+
+      QByteArray front8 = front.toUtf8 (), back8 = back.toUtf8 ();
+      struct fakescan_sheet desc = {};
+      Sheet sheet;
+
+      desc.front = front8.constData ();
+      desc.back = back.isEmpty () ? nullptr : back8.constData ();
+      desc.dpi = image_dpi (front);
+      if (!make_sheet (&desc, &sheet))
+         machine.sheets.append (sheet);
+      for (const QString &path : { front, back })
+         if (!path.isEmpty ())
+            QFile::rename (path, fed.filePath (QFileInfo (path).fileName ()));
+      }
+
+   for (const char *button : { SANE_NAME_SCAN, SANE_NAME_EMAIL })
+      if (QFile::remove (control_dir + "/press-" + button))
+         machine.pressed.insert (button);
+   }
+
+
 EXPORT SANE_Status sane_fakefujitsu_init (SANE_Int *version_code,
                                           SANE_Auth_Callback)
    {
    if (version_code)
       *version_code = SANE_VERSION_CODE (1, 0, 0);
+
    return SANE_STATUS_GOOD;
    }
 
@@ -1079,6 +1182,7 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
          {
          QMutexLocker locker (&machine.lock);
 
+         look_at_dir ();
          *word = machine.pressed.remove (s->opt [option].name);
          break;
          }
@@ -1327,6 +1431,7 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
       // a new batch sets the feeder going again
       if (s->state == Scanner::IDLE)
          machine.feed_stopped = false;
+      look_at_dir ();
 
       SANE_Status status = stuck ();
       bool back = s->source == SOURCE_ADF_DUPLEX && s->back_pending;
@@ -1593,30 +1698,11 @@ EXPORT void fakescan_reset (void)
 
 EXPORT int fakescan_load_sheet (const struct fakescan_sheet *in)
    {
-   const char *path [2] = { in->front, in->back };
-   int dpi = in->dpi > 0 ? in->dpi : 300;
    Sheet sheet;
+   int ret = make_sheet (in, &sheet);
 
-   sheet.skew = in->skew;
-   for (int i = 0; i < 2; i++)
-      if (path [i])
-         {
-         if (!sheet.side [i].load (QString::fromUtf8 (path [i])))
-            return -1;
-         sheet.side [i] = sheet.side [i].convertToFormat
-            (QImage::Format_RGB32);
-         }
-
-   // with no size given, the paper is the size of its picture
-   const QImage &image = sheet.side [0].isNull () ? sheet.side [1]
-                                                  : sheet.side [0];
-
-   sheet.width = in->width_mm > 0 ? MM_TO_UNITS (in->width_mm)
-                                  : image.width () * UNITS_PER_INCH / dpi;
-   sheet.height = in->height_mm > 0 ? MM_TO_UNITS (in->height_mm)
-                                    : image.height () * UNITS_PER_INCH / dpi;
-   if (sheet.width <= 0 || sheet.height <= 0)
-      return -2;
+   if (ret)
+      return ret;
 
    QMutexLocker locker (&machine.lock);
 
