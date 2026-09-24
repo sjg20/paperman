@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #endif
 
+#include "desktopmodel.h"
 #include "desktopwidget.h"
 #include "filemax.h"
 #include "mainwidget.h"
@@ -36,6 +37,7 @@ struct Backdoor
    void (*setSideTime) (int);
    int (*press) (const char *);
    const char *(*log) (void);
+   int (*count) (const char *);
    };
 
 Backdoor backdoor;
@@ -110,9 +112,11 @@ bool Fakescan::setup (void)
       dlsym (handle, "fakescan_set_side_time");
    backdoor.press = (int (*) (const char *))dlsym (handle, "fakescan_press");
    backdoor.log = (const char *(*) (void))dlsym (handle, "fakescan_log");
+   backdoor.count = (int (*) (const char *))dlsym (handle, "fakescan_count");
    ready = backdoor.reset && backdoor.loadSheet && backdoor.sheetsLeft
          && backdoor.setBacking && backdoor.addFault && backdoor.clear
-         && backdoor.setSideTime && backdoor.press && backdoor.log;
+         && backdoor.setSideTime && backdoor.press && backdoor.log
+         && backdoor.count;
 
    return ready;
 #else
@@ -204,6 +208,12 @@ void Fakescan::press (const char *name)
 QStringList Fakescan::log (void)
 {
    return QString::fromUtf8 (backdoor.log ()).split ('\n');
+}
+
+
+int Fakescan::count (const char *call)
+{
+   return backdoor.count (call);
 }
 
 
@@ -446,20 +456,33 @@ void TestFakescan::testSheetOnBacking ()
 }
 
 
-/* Scan what is in the hopper into a new stack, the whole way through
-   paperman as the user would, and hand back its pages
+namespace {
 
-   \param options   scanner options to set first, by name, as --set does
-   \param pages     set to the pages of the stack, which is none if the scan
-                    made no stack
-   \param during    if not empty, called every few milliseconds while the
-                    scan goes on, until it returns true: this is the person
-                    at the scanner
-   \param titles    if not null, set to the titles of the pages */
-static void scanStack (const QMap<QString, QString> &options,
-                       QList<QImage> &pages,
-                       std::function<bool (Mainwidget *)> during = nullptr,
-                       QStringList *titles = nullptr)
+/** a scan the whole way through paperman, and what it made */
+struct ScanRun
+   {
+   /** scanner options to set first, by name, as --set does */
+   QMap<QString, QString> options;
+
+   /** if set, called every few milliseconds while the scan goes on, until
+       it returns true: this is the person at the scanner */
+   std::function<bool (Mainwidget *)> during;
+
+   /** if set, called before the scan to change paperman's own settings,
+       which are put back afterwards */
+   std::function<void ()> configure;
+
+   QList<QImage> pages;       //!< the pages of the stack, if one was made
+   QStringList titles;        //!< and their titles
+   QList<bool> blank;         //!< which of them paperman found blank
+   };
+
+}
+
+
+/* Scan what is in the hopper into a new stack, the whole way through
+   paperman as the user would */
+static void scanStack (ScanRun &run)
 {
    utilSetHeadless (true);
 
@@ -480,17 +503,25 @@ static void scanStack (const QMap<QString, QString> &options,
 
    Scansettings settings (0, FAKESCAN_DEVICE);
 
+   if (run.configure)
+      run.configure ();
    QVERIFY (main->ensureScanner ());
-   main->setScanOptions (options);
+   main->setScanOptions (run.options);
+
+   QObject::connect (desktop->getModel (), &Desktopmodel::newScannedPage,
+                     [&run] (const QString &, bool blank)
+      {
+      run.blank << blank;
+      });
 
    QTimer person;
 
-   if (during)
+   if (run.during)
       {
       person.setInterval (5);
       QObject::connect (&person, &QTimer::timeout, [&] ()
          {
-         if (during (main))
+         if (run.during (main))
             person.stop ();
          });
       person.start ();
@@ -504,7 +535,8 @@ static void scanStack (const QMap<QString, QString> &options,
 
    QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
                                                QDir::Files);
-   pages.clear ();
+   run.pages.clear ();
+   run.titles.clear ();
    QVERIFY (stacks.size () <= 1);
    if (stacks.isEmpty ())
       return;
@@ -516,18 +548,37 @@ static void scanStack (const QMap<QString, QString> &options,
       QImage image;
       QSize size, true_size;
       int bpp;
+      QString title;
 
       QVERIFY (!max.getImage (pagenum, false, image, size, true_size, bpp,
                               false));
-      pages << image;
-      if (titles)
-         {
-         QString title;
-
-         QVERIFY (!max.getPageTitle (pagenum, title));
-         *titles << title;
-         }
+      QVERIFY (!max.getPageTitle (pagenum, title));
+      run.pages << image;
+      run.titles << title;
       }
+}
+
+
+/* the same, for the tests which need only the pages
+
+   \param options   scanner options to set first, by name, as --set does
+   \param pages     set to the pages of the stack, which is none if the scan
+                    made no stack
+   \param during    see ScanRun
+   \param titles    if not null, set to the titles of the pages */
+static void scanStack (const QMap<QString, QString> &options,
+                       QList<QImage> &pages,
+                       std::function<bool (Mainwidget *)> during = nullptr,
+                       QStringList *titles = nullptr)
+{
+   ScanRun run;
+
+   run.options = options;
+   run.during = during;
+   scanStack (run);
+   pages = run.pages;
+   if (titles)
+      *titles = run.titles;
 }
 
 
@@ -652,9 +703,9 @@ void TestFakescan::testAldJpeg ()
    QVERIFY (data.endsWith ("\xff\xd9"));
    QCOMPARE (jpegSize (data), QSize (425, 550));
 
-   /* but holds only the sheet: a colour JPEG's rows of blocks are 16
-      lines high, with a restart marker between each pair */
-   QCOMPARE (restartCount (data), (200 + 15) / 16 - 1);
+   /* but holds only the sheet: the scanner's rows of blocks are 8 lines
+      high, with a restart marker between each pair */
+   QCOMPARE (restartCount (data), (200 + 7) / 8 - 1);
 }
 
 
@@ -1290,4 +1341,244 @@ void TestFakescan::testPageNames ()
 
    QCOMPARE (titles, QStringList () << today << today + "_2"
                                     << today + "_3");
+}
+
+
+/* The problems found with a real scanner this week, tried again with the
+   fake one */
+
+
+/* A printed page with a note written on it in blue ink was stored as
+   grey by auto-colour, which looked for colour over the whole page and
+   found too little of it. The page from the corpus goes through the
+   scanner, as a JPEG, beside a grey page which should stay grey */
+void TestFakescan::testPenNoteKept ()
+{
+   QImage pen ("test/corpus/pen-colour.jpg");
+   QImage grey ("test/corpus/lkd-chapter-grey.jpg");
+
+   QVERIFY (!pen.isNull () && !grey.isNull ());
+   QVERIFY (Fakescan::loadSheet (pen, QImage (), 200));
+   QVERIFY (Fakescan::loadSheet (grey, QImage (),
+                                 qRound (grey.dotsPerMeterX () * 0.0254)));
+
+   ScanRun run;
+
+   run.options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   run.options ["resolution"] = "200";
+   run.configure = [] { xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", true); };
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* a colour page comes back 24 or 32 bits deep, grey 8 and mono 1 */
+   QCOMPARE (run.pages.size (), 2);
+   QVERIFY2 (run.pages [0].depth () >= 24,
+             qPrintable (QString ("the page with a note was stored %1 bits "
+                                  "deep").arg (run.pages [0].depth ())));
+   QCOMPARE (run.pages [1].depth (), 8);
+}
+
+
+/* A blank page scanned in colour was not found to be blank, so it was
+   kept however the user asked for blank pages to be treated */
+void TestFakescan::testBlankColourPage ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (bandSheet (1), QImage (), 10));
+
+   ScanRun run;
+
+   run.options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   run.options ["resolution"] = "100";
+   run.configure = []
+      {
+      xmlConfig->setIntValue ("SCAN_BLANK", Paperstack::ignore);
+      };
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (run.blank, QList<bool> () << true << false);
+}
+
+
+/* collects the warnings given while it is alive */
+namespace {
+class Warnings
+   {
+public:
+   Warnings ()
+      {
+      _self = this;
+      _old = qInstallMessageHandler (handler);
+      }
+
+   ~Warnings ()
+      {
+      qInstallMessageHandler (_old);
+      _self = nullptr;
+      }
+
+   QStringList seen;
+
+private:
+   static void handler (QtMsgType type, const QMessageLogContext &context,
+                        const QString &msg)
+      {
+      if (_self && type == QtWarningMsg)
+         _self->seen << msg;
+      _old (type, context, msg);
+      }
+
+   static Warnings *_self;
+   static QtMessageHandler _old;
+   };
+
+Warnings *Warnings::_self;
+QtMessageHandler Warnings::_old;
+}
+
+
+/* A colour page cut short, as by a jam, is stored at the length which
+   arrived. Reading it back, the decoder stopped before the height its
+   JPEG promised and then asked the library to finish, which said
+   "Application transferred too few scanlines", again and again */
+void TestFakescan::testShortColourPageRead ()
+{
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_SHORT, 1, -1, 100);
+
+   Warnings warnings;
+   ScanRun run;
+
+   run.options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   run.options ["resolution"] = "100";
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* the scanner's JPEG holds its lines eight at a time, so the last row
+      of them is filled out and the page can be up to seven lines long */
+   QCOMPARE (run.pages.size (), 1);
+   QCOMPARE (run.pages [0].width (), 850);
+   QVERIFY2 (run.pages [0].height () >= 100 && run.pages [0].height () < 108,
+             qPrintable (QString::number (run.pages [0].height ())));
+   QVERIFY2 (warnings.seen.filter ("scanlines").isEmpty (),
+             qPrintable (warnings.seen.join ("\n")));
+}
+
+
+/* A sheet which went through a little askew had its corners cut off
+   when the backing was cut away from its sides: the corners stand out
+   beyond the rest of the sheet, in columns which hold only a little of
+   it, and nothing but white margin */
+void TestFakescan::testSkewedCornersKept ()
+{
+   // 150 x 200mm at 100dpi, printed in the middle, 5 degrees askew
+   QImage sheet (591, 787, QImage::Format_RGB32);
+
+   sheet.fill (Qt::white);
+   for (int y = 100; y < sheet.height () - 100; y += 30)
+      for (int x = 80; x < sheet.width () - 80; x++)
+         for (int i = 0; i < 6; i++)
+            sheet.setPixel (x, y + i, qRgb (0, 0, 0));
+   QVERIFY (Fakescan::loadSheet (sheet, QImage (), 100, 5));
+
+   ScanRun run;
+
+   run.options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   run.options ["resolution"] = "100";
+   run.options ["ald"] = "yes";
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* askew, the sheet spans 591 * cos 5 + 787 * sin 5 = 658 pixels, in
+      a window of 850. Without following the corners out, the page is
+      cut to about 606, taking some 25 pixels off each side of the
+      sheet. Beyond about 7 degrees the corners reach further than
+      PAPER_EDGE_MOST lets the edge be followed, so some is still lost */
+   QCOMPARE (run.pages.size (), 1);
+   QVERIFY2 (run.pages [0].width () >= 658 && run.pages [0].width () < 720,
+             qPrintable (QString ("the sheet spans 658 pixels but the page "
+                                  "is %1 wide")
+                         .arg (run.pages [0].width ())));
+}
+
+
+/* A sheet in a window much longer than any page: the page cannot be
+   made ready for all of the window, so it starts smaller and grows as
+   the JPEG's header asks. Growing it moved the data out from under the
+   decoder which was reading it, and the back of an 11x17 sheet came out
+   grey from an inch down. What the decoder read was freed memory, which
+   usually still holds what it did, so this passes either way in an
+   ordinary build. Built with the address sanitiser and run with freed
+   memory overwritten, as doc/develop.rst says, the page comes out eight
+   lines long without the fix */
+void TestFakescan::testLongWindow ()
+{
+   // 216 x 300mm at 100dpi, with a band near its foot on either side
+   QImage side (850, 1181, QImage::Format_RGB32);
+
+   side.fill (Qt::white);
+   for (int y = 1100; y < 1120; y++)
+      for (int x = 0; x < side.width (); x++)
+         side.setPixel (x, y, qRgb (0, 0, 0));
+   QVERIFY (Fakescan::loadSheet (side, side, 100));
+
+   // in a window 600mm long
+   ScanRun run;
+
+   run.options ["mode"] = SANE_VALUE_SCAN_MODE_COLOR;
+   run.options ["resolution"] = "100";
+   run.options ["source"] = "ADF Duplex";
+   run.options ["page-height"] = "600";
+   run.options ["ald"] = "yes";
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+
+   // both sides whole, down to the band near the foot
+   QCOMPARE (run.pages.size (), 2);
+   for (const QImage &page : run.pages)
+      {
+      QVERIFY2 (qAbs (page.height () - 1181) < 10,
+                qPrintable (QString ("the sheet is 1181 lines but the page "
+                                     "is %1").arg (page.height ())));
+
+      QImage grey = page.convertToFormat (QImage::Format_Grayscale8);
+
+      QVERIFY2 (grey.pixelColor (grey.width () / 2, 1110).value () < 0x40,
+                "the band near the foot of the page is missing");
+      }
+}
+
+
+/* A scan which seemed to hang was spending its time asking the scanner
+   the name of every one of its options, over and over, to find a few of
+   them by name. With the back end's debugging on, each question was a
+   line in the log */
+void TestFakescan::testOptionLookups ()
+{
+   for (int i = 0; i < 5; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (i % 3), QImage (), 10));
+
+   ScanRun run;
+
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (run.pages.size (), 5);
+
+   /* asking once for each option, and a few more for each page, is
+      under a hundred; asking for all of them at each lookup is some
+      eight hundred, on a scanner with a third of the fi-8170's options */
+   int asked = Fakescan::count ("get_option_descriptor");
+
+   QVERIFY2 (asked < 200,
+             qPrintable (QString ("asked for %1 option descriptors to scan "
+                                  "5 sheets").arg (asked)));
 }

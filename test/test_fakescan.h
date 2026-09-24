@@ -66,6 +66,10 @@ public:
 
    /** \returns what the front end asked of the scanner, a call a line */
    static QStringList log (void);
+
+   /** \returns how many times the front end made a call, see
+                fakescan_count() */
+   static int count (const char *call);
 };
 
 class TestFakescan : public Suite
@@ -149,6 +153,24 @@ private slots:
 
    //! The pages of a stack are numbered after the first
    void testPageNames ();
+
+   //! A page with a note in blue ink stays colour
+   void testPenNoteKept ();
+
+   //! A blank page scanned in colour is found blank
+   void testBlankColourPage ();
+
+   //! A colour page cut short reads back without a fuss
+   void testShortColourPageRead ();
+
+   //! A sheet which went through askew keeps its corners
+   void testSkewedCornersKept ();
+
+   //! A page in a window much longer than itself is stored whole
+   void testLongWindow ();
+
+   //! A scan does not ask the scanner for every option over and over
+   void testOptionLookups ();
 };
 
 #endif // TEST_FAKESCAN_H

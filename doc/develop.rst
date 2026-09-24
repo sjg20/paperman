@@ -158,8 +158,15 @@ somewhere else.  It is slower and uses more memory, so it is for
 chasing a fault rather than for scanning a stack of paper.  The test
 suite runs under it too::
 
-   QT_QPA_PLATFORM=offscreen ASAN_OPTIONS=detect_leaks=0 \
+   QT_QPA_PLATFORM=offscreen \
+   ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=67108864:free_fill_byte=85 \
       ./build-asan/paperman -t
+
+The fill makes the sanitiser overwrite memory as it is freed. It only
+checks paperman's own code, so memory freed while a library such as the
+JPEG library is still reading it goes unnoticed, and the library reads
+back what was there; overwritten, it reads nonsense, and the page it was
+decoding comes out wrong where a test can see it.
 
 ``--log FILE`` collects everything paperman would have written to the
 terminal, including what the scanner back end says and the text of any
