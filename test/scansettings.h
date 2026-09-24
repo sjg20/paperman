@@ -5,9 +5,6 @@
 
 #include "qxmlconfig.h"
 
-/** the name paperman gives its built-in simulated scanner */
-#define SIMUL_NAME "simulscan"
-
 static inline void ensureXmlConfig ()
 {
    if (!xmlConfig)
@@ -26,7 +23,7 @@ public:
    /** \param pages    sides to scan before stopping, or 0 to go on until
                        the scanner runs out of paper
        \param device   the scanner to use */
-   Scansettings (int pages = 1, const char *device = SIMUL_NAME)
+   Scansettings (int pages, const char *device)
    {
       ensureXmlConfig ();
       _device = xmlConfig->stringValue ("LAST_DEVICE", QString ());

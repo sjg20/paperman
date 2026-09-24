@@ -337,12 +337,11 @@ void TestFakescan::testDevice ()
    QVERIFY (scanner.initScanner ());
    QVERIFY (scanner.getDeviceList (false));
 
-   // the only scanner libsane knows about, besides paperman's own
+   // the only scanner libsane knows about
    QStringList names;
 
    for (int i = 0; i < scanner.deviceCount (); i++)
-      if (strcmp (scanner.name (i), SIMUL_NAME))
-         names << scanner.name (i);
+      names << scanner.name (i);
    QCOMPARE (names, QStringList () << FAKESCAN_DEVICE);
 
    scanner.setDeviceName (FAKESCAN_DEVICE);

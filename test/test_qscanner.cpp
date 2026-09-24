@@ -28,22 +28,43 @@
 #include "qi/scanarea.h"
 
 /* The scanner a test which needs one uses: whichever one
-   PAPERMAN_TEST_DEVICE names, else the fake Fujitsu, which has the
-   settings of a real one, else paperman's own simulated scanner */
+   PAPERMAN_TEST_DEVICE names, else the fake Fujitsu, or null if there
+   is neither, since the fake one is only built on Linux */
 static const char *testDevice (void)
 {
    const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
 
    if (dev)
       return dev;
-   return Fakescan::available () ? FAKESCAN_DEVICE : SIMUL_NAME;
+   return Fakescan::available () ? FAKESCAN_DEVICE : nullptr;
+}
+
+#define NO_SCANNER "no scanner to test with: set PAPERMAN_TEST_DEVICE"
+
+/* Give the fake scanner a sheet of US letter to scan, unless a real
+   scanner is being tested, which has what the person running the test
+   put in it */
+static void loadLetter (void)
+{
+   if (!Fakescan::available ())
+      return;
+
+   QImage sheet (850, 1100, QImage::Format_RGB32);
+
+   sheet.fill (Qt::white);
+   Fakescan::reset ();
+   QVERIFY (Fakescan::loadSheet (sheet, QImage (), 100));
 }
 
 
-void TestQscanner::testOpenSimul()
+void TestQscanner::testOpen()
 {
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
    QVERIFY (scanner.isOpen ());
    QCOMPARE (scanner.xResolutionDpi (), 300);
@@ -137,7 +158,7 @@ void TestQscanner::testScanGuiTiming()
 void TestQscanner::testAutoSizePanel()
 {
    const char *dev = testDevice ();
-   if (!strcmp (dev, SIMUL_NAME))
+   if (!dev)
       QSKIP ("set PAPERMAN_TEST_DEVICE to a scanner with auto-size");
    ensureXmlConfig ();
    QScanner *scanner = new QScanner;
@@ -201,9 +222,12 @@ void TestQscanner::testAutoSize()
 void TestQscanner::testOptionDialogLayout()
 {
    ensureXmlConfig ();
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
    QScanner *scanner = new QScanner;
-   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
-   scanner->setDeviceName (dev ? dev : SIMUL_NAME);
+   scanner->setDeviceName (dev);
    QVERIFY (scanner->openDevice ());
    QVERIFY (scanner->getGroupCount () > 0);
    QScanDialog dlg (scanner, 0);
@@ -231,7 +255,11 @@ void TestQscanner::testOptionDialogLayout()
 void TestQscanner::testReconnectKeepsOpen()
 {
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
    QVERIFY (scanner.reconnect ());
    QVERIFY (scanner.isOpen ());
@@ -243,7 +271,11 @@ void TestQscanner::testReconnectKeepsOpen()
 void TestQscanner::testReapplyDpiAfterReconnect()
 {
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    // Set DPI to a non-default value. reconnect() now snapshots and
@@ -264,7 +296,11 @@ void TestQscanner::testScanDialogSetDpi()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -277,7 +313,11 @@ void TestQscanner::testScanDialogRebuildAfterReconnect()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    // Make a dialog and prove it can push settings.
@@ -302,7 +342,11 @@ void TestQscanner::testStaleScanDialogAfterReconnect()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -325,7 +369,11 @@ void TestQscanner::testPscanControls()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -370,7 +418,11 @@ void TestQscanner::testPscanPaperToggle()
       the sizes themselves */
    xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -428,7 +480,11 @@ void TestQscanner::testPscanPaperSideways()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -459,7 +515,7 @@ void TestQscanner::testPscanPaperSideways()
       width becomes the length of the scan, so the scan must get shorter
       by that much. The width should grow to the page's height to match,
       but a scanner too narrow to take the page lengthways caps it, as
-      the simulated one does, so only the length is checked here */
+      an fi-8170 does, so only the length is checked here */
    QVERIFY2 (upright_y > upright_x, "Letter upright should be taller than wide");
    QVERIFY2 (qAbs (sideways_y - upright_x) < 2.0,
              "fed sideways, the scan length should be the page's width");
@@ -473,7 +529,11 @@ void TestQscanner::testPscanPaperSideways()
 void TestQscanner::testReconnectPreservesSettings()
 {
    QScanner scanner;
-   scanner.setDeviceName (SIMUL_NAME);
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    // Set non-default values directly via QScanner.
@@ -505,7 +565,12 @@ void TestQscanner::testReconnectPreservesSettings()
    QVERIFY (nearMm (pageHeight, legal));
 
    /* a string option stands in for things like the Fujitsu's buffer
-      mode, which no hand-picked restore list would ever cover */
+      mode, which no hand-picked restore list would ever cover. The
+      scanner only compresses a colour or grey page, so ask for colour */
+   int mode = scanner.findOption (SANE_NAME_SCAN_MODE);
+   char colour[] = SANE_VALUE_SCAN_MODE_COLOR;
+   QVERIFY (mode != -1);
+   scanner.setOption (mode, colour);
    int compress = scanner.findOption ("compression");
    QVERIFY (compress != -1);
    char jpegName[] = "JPEG";
@@ -559,9 +624,12 @@ void TestQscanner::testSidewaysPageSizeRestored()
    Mainwidget *main = Mainwidget::singleton ();
    QVERIFY (main);
 
-   Scansettings settings;
+   if (!testDevice ())
+      QSKIP (NO_SCANNER);
+   Scansettings settings (1, testDevice ());
 
    settings.setSideways (2);
+   loadLetter ();
 
    QVERIFY (main->ensureScanner ());
    QScanner *scanner = main->_scanner;
@@ -592,7 +660,7 @@ void TestQscanner::testSidewaysPageSizeRestored()
    /* the scan really was turned round: fed on its side the page is as
       long as the paper is wide, well short of the 11in it stands when
       it is upright (the width cannot grow to match on a scanner too
-      narrow to take the page lengthways, as the simulated one is) */
+      narrow to take the page lengthways, as this one is) */
    QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
                                                QDir::Files);
    QCOMPARE (stacks.size (), 1);
@@ -650,8 +718,11 @@ void TestQscanner::testPanelPageSizeApplied()
    Mainwidget *main = Mainwidget::singleton ();
    QVERIFY (main);
 
-   Scansettings settings;
+   if (!testDevice ())
+      QSKIP (NO_SCANNER);
+   Scansettings settings (1, testDevice ());
 
+   loadLetter ();
    QVERIFY (main->ensureScanner ());
    QScanner *scanner = main->_scanner;
    QVERIFY (scanner);
@@ -764,8 +835,11 @@ void TestQscanner::testPscanMaxSize()
 {
    ensureXmlConfig ();
    QScanner scanner;
+   const char *dev = testDevice ();
 
-   scanner.setDeviceName (testDevice ());
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -805,8 +879,11 @@ void TestQscanner::testPscanDeskew()
 {
    ensureXmlConfig ();
    QScanner scanner;
+   const char *dev = testDevice ();
 
-   scanner.setDeviceName (testDevice ());
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
