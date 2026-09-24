@@ -33,9 +33,10 @@ public:
        \param back    picture of the back, likewise
        \param dpi     resolution of the pictures, which with their size
                       says how big the sheet is
+       \param skew    how far askew it goes through, in degrees clockwise
        \returns true if OK */
    static bool loadSheet (const QImage &front, const QImage &back = QImage (),
-                          int dpi = 100);
+                          int dpi = 100, double skew = 0);
 
    /** \returns how many sheets are still in the hopper */
    static int sheetsLeft (void);
@@ -64,6 +65,21 @@ private slots:
 
    //! Paperman scans a hopper of sheets into a stack, in order
    void testScanIntoStack ();
+
+   //! With ald the page ends at the foot of the sheet, length unknown
+   void testAld ();
+
+   //! A JPEG ended at the foot of the sheet still promises the window
+   void testAldJpeg ();
+
+   //! A straightened sheet is its own size, but its JPEG is bigger
+   void testDeskewCrop ();
+
+   //! A receipt scanned with ald is stored at its own size
+   void testReceiptStored ();
+
+   //! A sheet which went through askew is stored straightened
+   void testStraightenedSheetStored ();
 };
 
 #endif // TEST_FAKESCAN_H

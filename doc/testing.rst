@@ -86,12 +86,31 @@ back door in ``test/fakescan/fakescan.h``. A test does that with the
 
 Each sheet is a picture of the paper, laid on the scanner's backing inside
 the window and sent at the resolution and in the mode the front end asks
-for. A sheet narrower than the window has backing either side of it, and
-one shorter than the window has backing below it, as on the real scanner.
-When the hopper is empty the scanner says so, as a real one does.
+for, as raw lines or, with ``compression`` set to JPEG, as a JPEG. A sheet
+narrower than the window has backing either side of it, and one shorter
+than the window has backing below it, as on the real scanner. A sheet can
+go through askew, by giving ``loadSheet()`` an angle. When the hopper is
+empty the scanner says so, as a real one does.
 
-The ``TestFakescan`` suite checks the scanner itself and shows how to use
-it.
+The settings with which a Fujitsu scanner finds the size of the sheet
+work as they do on an fi-8170, awkward parts included:
+
+``ald``
+   The page ends at the foot of the sheet, and the scanner says the
+   length is unknown (``lines`` is -1) until it gets there. A JPEG's
+   header still promises the height of the whole window, with the picture
+   ending short of it.
+
+``hwdeskewcrop``
+   The sheet comes back straightened and cut down to itself, and the
+   scanner can only say its size once it has read the whole of it. A JPEG
+   of a sheet which went through askew is bigger than that size: it holds
+   the box the sheet went through in, with the sheet upright in the middle
+   of it on a black ground.
+
+The tests of the scanner in ``TestFakescan`` show how to drive it, and its
+tests of paperman scanning into a stack check that the pages it finds
+the size of are stored at the size of the sheet.
 
 Code Coverage
 -------------
