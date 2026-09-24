@@ -2973,6 +2973,9 @@ int QScanner::xResolutionDpi()
   return val;
 }
 /**  */
+/* Most back ends, the fujitsu and finet ones among them, have a single
+   resolution for both directions rather than one for each, so that is
+   the vertical resolution too */
 int QScanner::yResolutionDpi()
 {
   SANE_Word val;
@@ -2980,6 +2983,8 @@ int QScanner::yResolutionDpi()
   onum = 0;
   val = 0;
   onum = yResolutionOption();
+  if (!onum)
+     return xResolutionDpi ();
   if(onum)
   {
     if(isOptionActive(onum))
