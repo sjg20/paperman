@@ -16,6 +16,7 @@
 #include "test_utils.h"
 #include "test_searchserver.h"
 #include "test_clientconf.h"
+#include "test_fakescan.h"
 #include "test_localbackend.h"
 #include "test_ocrsearch.h"
 
@@ -34,6 +35,7 @@ static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
 static TestLocalBackend TEST_LOCALBACKEND("localbackend");
 static TestClientConf TEST_CLIENTCONF("clientconf");
+static TestFakescan TEST_FAKESCAN("fakescan");
 
 int test_run(int, char **in_argv, QApplication *,
              const char *filter)
@@ -53,6 +55,11 @@ int test_run(int, char **in_argv, QApplication *,
    }
    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
                       settings_dir.path());
+
+   /* Likewise keep them away from the user's scanners: libsane is told
+    * about the fake one in test/fakescan and nothing else. This has to
+    * happen before anything asks libsane for a scanner */
+   Fakescan::setup();
 
    // Split "Class::function" into class filter and function filter
    static char filterBuf[256];
