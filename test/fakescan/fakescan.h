@@ -54,6 +54,67 @@ int fakescan_sheets_left (void);
     \param rgb   colour as 0xRRGGBB */
 void fakescan_set_backing (unsigned int rgb);
 
+/** things which go wrong at a scanner */
+enum fakescan_fault_kind
+   {
+   /** the sheet jams: SANE_STATUS_JAMMED, and again from every
+       sane_start() until the paper path is cleared */
+   FAKESCAN_JAM,
+   /** two sheets go through together: as a jam, with the double-feed
+       sensor set */
+   FAKESCAN_DOUBLE_FEED,
+   /** the cover is opened: SANE_STATUS_COVER_OPEN until it is shut */
+   FAKESCAN_COVER_OPEN,
+   /** the frame ends at once, with no data */
+   FAKESCAN_EOF_EMPTY,
+   /** the frame ends after 'arg' lines, having promised the whole page */
+   FAKESCAN_SHORT,
+   /** some of the JPEG's data is spoilt */
+   FAKESCAN_CORRUPT_JPEG,
+   /** the scanner says it is busy, taking 'arg' ms each time, until the
+       paper path is cleared */
+   FAKESCAN_BUSY,
+   /** the scanner stops answering: SANE_STATUS_IO_ERROR from every call
+       until it is cleared, as though turned off and on again */
+   FAKESCAN_IO_ERROR,
+   };
+
+/** something to go wrong, and when */
+struct fakescan_fault
+   {
+   enum fakescan_fault_kind kind;
+   int sheet;           /**< which sheet fed, counting from 1 */
+   int side;            /**< 0 for the front, 1 for the back */
+   int line;            /**< how far into the side, or -1 at sane_start() */
+   int arg;             /**< as the kind says */
+   };
+
+/** Arrange for something to go wrong. It happens once, when that sheet
+    reaches that point, and the scanner then stays as the kind says
+
+    \returns 0 if OK, -1 if the fault makes no sense */
+int fakescan_add_fault (const struct fakescan_fault *fault);
+
+/** Clear the paper path and shut the cover, as a person does after a
+    jam, and bring back a scanner which stopped answering */
+void fakescan_clear (void);
+
+/** Press a button on the scanner. It stays pressed until the front end
+    has seen it, so a front end which looks from time to time does not
+    miss it
+
+    \param name   name of the button's option, e.g. "scan"
+    \returns 0 if OK, -1 if the scanner has no such button */
+int fakescan_press (const char *name);
+
+/** What the front end has asked of the scanner since the last reset, a
+    line for each call which changed something or which failed, oldest
+    first. Two calls made at once on one handle, which a real back end
+    does not expect, are given as "concurrent <call>"
+
+    \returns the log, valid until the next call of this */
+const char *fakescan_log (void);
+
 #ifdef __cplusplus
 }
 #endif
