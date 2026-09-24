@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QObject>
 
+#include "fakescan/fakescan.h"
 #include "suite.h"
 
 /** The tests' way in to the fake scanner in test/fakescan
@@ -43,6 +44,25 @@ public:
 
    /** set the colour scanned wherever the window reaches past the sheet */
    static void setBacking (QRgb rgb);
+
+   /** Arrange for something to go wrong, see fakescan_add_fault()
+
+       \param kind    what goes wrong
+       \param sheet   which sheet fed, counting from 1
+       \param line    how far into the side, or -1 at sane_start()
+       \param arg     as the kind says
+       \param side    0 for the front, 1 for the back */
+   static void addFault (enum fakescan_fault_kind kind, int sheet,
+                         int line = -1, int arg = 0, int side = 0);
+
+   /** clear the paper path, as a person does after a jam */
+   static void clear (void);
+
+   /** press a button on the scanner, e.g. "scan" */
+   static void press (const char *name);
+
+   /** \returns what the front end asked of the scanner, a call a line */
+   static QStringList log (void);
 };
 
 class TestFakescan : public Suite
@@ -53,6 +73,7 @@ public:
 
 private slots:
    void init ();
+   void cleanup ();
 
    //! The fake scanner is the one scanner libsane offers
    void testDevice ();
@@ -80,6 +101,39 @@ private slots:
 
    //! A sheet which went through askew is stored straightened
    void testStraightenedSheetStored ();
+
+   //! A jam holds the scanner up until the paper path is cleared
+   void testJam ();
+
+   //! A frame can stop short or come to nothing
+   void testShortFrames ();
+
+   //! A button press waits to be seen, and the sensors say what happened
+   void testButtons ();
+
+   //! A busy scanner takes its time saying so, until it is cleared
+   void testBusy ();
+
+   //! After a jam, Scan in the panel carries the batch on
+   void testResumeFromPanel ();
+
+   //! After a jam, Scan on the scanner carries the batch on
+   void testResumeFromScanner ();
+
+   //! A jam nobody clears ends the batch, keeping the pages before it
+   void testJamNotCleared ();
+
+   //! Pages the scanner cuts short are stored at their real length
+   void testShortPagesStored ();
+
+   //! A scanner which stays busy is given up on quickly
+   void testBusyScanner ();
+
+   //! A scanner which stops answering keeps the pages already scanned
+   void testStopsAnswering ();
+
+   //! A spoilt JPEG is still stored
+   void testCorruptJpegStored ();
 };
 
 #endif // TEST_FAKESCAN_H
