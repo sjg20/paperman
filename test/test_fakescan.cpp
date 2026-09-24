@@ -455,10 +455,12 @@ void TestFakescan::testSheetOnBacking ()
                     made no stack
    \param during    if not empty, called every few milliseconds while the
                     scan goes on, until it returns true: this is the person
-                    at the scanner */
+                    at the scanner
+   \param titles    if not null, set to the titles of the pages */
 static void scanStack (const QMap<QString, QString> &options,
                        QList<QImage> &pages,
-                       std::function<bool (Mainwidget *)> during = nullptr)
+                       std::function<bool (Mainwidget *)> during = nullptr,
+                       QStringList *titles = nullptr)
 {
    utilSetHeadless (true);
 
@@ -519,6 +521,13 @@ static void scanStack (const QMap<QString, QString> &options,
       QVERIFY (!max.getImage (pagenum, false, image, size, true_size, bpp,
                               false));
       pages << image;
+      if (titles)
+         {
+         QString title;
+
+         QVERIFY (!max.getPageTitle (pagenum, title));
+         *titles << title;
+         }
       }
 }
 
@@ -1261,4 +1270,25 @@ void TestFakescan::testControlDir ()
    press.close ();
    QCOMPARE (scanner.checkButtons (), 1 << QScanner::BUT_scan);
    QVERIFY (!press.exists ());
+}
+
+
+/* The pages of a stack are named for the day they were scanned, and
+   numbered after the first. They were numbered by the year in the date,
+   so that each page was a year after the one before */
+void TestFakescan::testPageNames ()
+{
+   for (int i = 0; i < 3; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (i), QImage (), 10));
+
+   QList<QImage> pages;
+   QStringList titles;
+   QString today = QDate::currentDate ().toString ("d_MMMM_yyyy");
+
+   scanStack (QMap<QString, QString> (), pages, nullptr, &titles);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (titles, QStringList () << today << today + "_2"
+                                    << today + "_3");
 }

@@ -254,8 +254,9 @@ public:
 
    /** confirm that a page will be stored
 
-      \param pageName   page name to give this page */
-   struct err_info *confirm (QString &pageName, bool mark_blank, Filepage *);
+      \param pageName   page name to give this page, see pageTitle() */
+   struct err_info *confirm (const QString &pageName, bool mark_blank,
+                             Filepage *);
 
    /** compress a new page and add it to the given maxdesk */
    struct err_info *compressPage (Filepage *mp, bool mark_blank);
