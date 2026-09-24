@@ -17,6 +17,8 @@
 #include "qxmlconfig.h"
 #include "test_qscanner.h"
 #include "scansettings.h"
+#include "test_fakescan.h"
+#include "fakescan/fakescan.h"
 
 #include "qi/previewwidget.h"
 #include "qi/qsaneoption.h"
@@ -24,6 +26,19 @@
 #include <QGroupBox>
 #include <QCheckBox>
 #include "qi/scanarea.h"
+
+/* The scanner a test which needs one uses: whichever one
+   PAPERMAN_TEST_DEVICE names, else the fake Fujitsu, which has the
+   settings of a real one, else paperman's own simulated scanner */
+static const char *testDevice (void)
+{
+   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
+
+   if (dev)
+      return dev;
+   return Fakescan::available () ? FAKESCAN_DEVICE : SIMUL_NAME;
+}
+
 
 void TestQscanner::testOpenSimul()
 {
@@ -121,8 +136,8 @@ void TestQscanner::testScanGuiTiming()
 
 void TestQscanner::testAutoSizePanel()
 {
-   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
-   if (!dev)
+   const char *dev = testDevice ();
+   if (!strcmp (dev, SIMUL_NAME))
       QSKIP ("set PAPERMAN_TEST_DEVICE to a scanner with auto-size");
    ensureXmlConfig ();
    QScanner *scanner = new QScanner;
@@ -749,9 +764,8 @@ void TestQscanner::testPscanMaxSize()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
 
-   scanner.setDeviceName (dev ? dev : SIMUL_NAME);
+   scanner.setDeviceName (testDevice ());
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
@@ -791,11 +805,8 @@ void TestQscanner::testPscanDeskew()
 {
    ensureXmlConfig ();
    QScanner scanner;
-   const char *dev = getenv ("PAPERMAN_TEST_DEVICE");
 
-   /* the simulated scanner cannot do this, so set PAPERMAN_TEST_DEVICE
-      to a scanner which can to see the rest of it */
-   scanner.setDeviceName (dev ? dev : SIMUL_NAME);
+   scanner.setDeviceName (testDevice ());
    QVERIFY (scanner.openDevice ());
 
    QScanDialog dialog (&scanner, 0);
