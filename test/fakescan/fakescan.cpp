@@ -1610,14 +1610,14 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
       }
    else
       {
+      /* a scanner finding the foot of the sheet reads no further, which
+         matters for a long window: at 600dpi in colour the whole of the
+         longest one is more than a gigabyte */
       picture = scan_window (s, s->side, window.pixels_per_line,
-                             window.lines, backing);
+                             s->ald ? sheet_foot (s, window.lines)
+                                    : window.lines, backing);
       if (s->ald)
-         {
-         picture = picture.copy (0, 0, picture.width (),
-                                 sheet_foot (s, window.lines));
          s->params.lines = -1;
-         }
       }
 
    /* what the scanner has promised by now: a page which stops short of
