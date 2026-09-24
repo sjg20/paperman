@@ -28,12 +28,16 @@
 
 #include <jpeglib.h>
 
+#include <QAtomicInt>
 #include <QByteArray>
 #include <QImage>
 #include <QList>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPainter>
+#include <QSet>
+#include <QStringList>
+#include <QThread>
 
 #include <sane/sane.h>
 #include <sane/saneopts.h>
@@ -111,6 +115,10 @@ enum
    OPT_COMPRESS,
    OPT_COMPRESS_ARG,
    OPT_HWDESKEWCROP,
+   OPT_SENSOR_GROUP,
+   OPT_SCAN_SW,
+   OPT_EMAIL_SW,
+   OPT_DOUBLE_FEED,
    NUM_OPTIONS
    };
 
@@ -125,13 +133,24 @@ struct Sheet
    double skew;       //!< degrees askew, clockwise, as it goes through
    };
 
-/** what is at the scanner rather than behind a SANE handle: it outlasts
-    sane_close() and sane_exit(), as paper in a real hopper does */
-struct Hopper
+/** What is at the scanner rather than behind a SANE handle: the paper
+    and the state of the machine. It outlasts sane_close() and
+    sane_exit(), as they do on a real scanner */
+struct Machine
    {
    QMutex lock;
-   QList<Sheet> sheets;
+   QList<Sheet> sheets;               //!< in the hopper
    QRgb backing = BACKING_DEFAULT;
+   QList<fakescan_fault> faults;      //!< still to happen
+   int fed = 0;                       //!< sheets taken since the reset
+   bool jammed = false;               //!< until the paper path is cleared
+   bool double_feed = false;          //!< what the sensor says
+   bool cover_open = false;
+   bool wedged = false;               //!< not answering at all
+   int busy_ms = -1;                  //!< busy, taking this long to say so
+   QSet<QString> pressed;             //!< buttons not yet seen
+   QStringList log;                   //!< see fakescan_log()
+   QByteArray log_out;
    };
 
 /** what a SANE handle refers to */
@@ -164,11 +183,17 @@ struct Scanner
    int sent;                  //!< how much of it has been
    bool back_pending;         //!< a duplex sheet whose back is still to go
    Sheet sheet;               //!< the sheet going through
+   int sheet_num;             //!< which sheet it is, counting from 1
+   int side;                  //!< which side of it is being sent
+   int stop_at;               //!< where the frame stops short, or -1
+   SANE_Status stop_status;   //!< and what reading there says
+   int stop_kind;             //!< and why, a fakescan_fault_kind
+   QAtomicInt calls;          //!< calls in progress on this handle
    };
 
 }
 
-static Hopper hopper;
+static Machine machine;
 
 static const SANE_Device device =
    {
@@ -349,6 +374,35 @@ static void init_options (Scanner *s)
    opt->desc = "Request scanner to rotate and crop pages digitally.";
    opt->type = SANE_TYPE_BOOL;
    opt->cap |= SANE_CAP_ADVANCED;
+
+   /* what the scanner's buttons and sensors say, which the front end can
+      read but not set */
+   opt = &s->opt [OPT_SENSOR_GROUP];
+   opt->name = SANE_NAME_SENSORS;
+   opt->title = SANE_TITLE_SENSORS;
+   opt->desc = SANE_DESC_SENSORS;
+   opt->type = SANE_TYPE_GROUP;
+   opt->size = 0;
+   opt->cap = 0;
+
+   struct { int num; const char *name, *title, *desc; } sensor [] =
+      {
+      { OPT_SCAN_SW, SANE_NAME_SCAN, SANE_TITLE_SCAN, SANE_DESC_SCAN },
+      { OPT_EMAIL_SW, SANE_NAME_EMAIL, SANE_TITLE_EMAIL, SANE_DESC_EMAIL },
+      { OPT_DOUBLE_FEED, "double-feed", "Double feed",
+        "Double feed detected" },
+      };
+
+   for (const auto &sw : sensor)
+      {
+      opt = &s->opt [sw.num];
+      opt->name = sw.name;
+      opt->title = sw.title;
+      opt->desc = sw.desc;
+      opt->type = SANE_TYPE_BOOL;
+      opt->cap = SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT
+         | SANE_CAP_ADVANCED;
+      }
    }
 
 
@@ -713,6 +767,133 @@ static void promise_height (QByteArray &jpeg, int lines)
    }
 
 
+static const char *status_name (SANE_Status status)
+   {
+   static const char *const name [] =
+      {
+      "Good", "Unsupported", "Cancelled", "Device busy", "Invalid",
+      "EOF", "Jammed", "No docs", "Cover open", "I/O error", "No memory",
+      "Access denied"
+      };
+
+   return (unsigned)status < sizeof (name) / sizeof (name [0])
+      ? name [status] : "?";
+   }
+
+
+/* add a line to what fakescan_log() gives */
+static void note (const QString &what)
+   {
+   QMutexLocker locker (&machine.lock);
+
+   machine.log << what;
+   }
+
+
+static SANE_Status noted (const char *call, SANE_Status status)
+   {
+   note (QString ("%1: %2").arg (call).arg (status_name (status)));
+   return status;
+   }
+
+
+/* A call on a handle, which says if it finds another already in progress
+   on the same one: the real back end keeps state in the handle which
+   nothing guards, so two at once is a fault in the front end */
+namespace {
+class Call
+   {
+public:
+   Call (Scanner *s, const char *name) : _s (s)
+      {
+      if (_s->calls.fetchAndAddOrdered (1))
+         note (QString ("concurrent %1").arg (name));
+      }
+
+   ~Call ()
+      {
+      _s->calls.fetchAndAddOrdered (-1);
+      }
+
+private:
+   Scanner *_s;
+   };
+}
+
+
+/* Take the fault arranged for a side of a sheet, if there is one. With
+   machine.lock held
+
+   \param at_start   true for one at sane_start(), false for one part-way
+                     through the side
+   \param kind       the kind wanted, or -1 for any */
+static bool take_fault (int sheet, int side, bool at_start,
+                        fakescan_fault *out, int kind = -1)
+   {
+   for (int i = 0; i < machine.faults.size (); i++)
+      {
+      const fakescan_fault &f = machine.faults [i];
+
+      if (f.sheet == sheet && f.side == side
+          && (f.line < 0) == at_start && (kind == -1 || f.kind == kind))
+         {
+         *out = machine.faults.takeAt (i);
+         return true;
+         }
+      }
+
+   return false;
+   }
+
+
+/* what the scanner says while it is stuck, with machine.lock held */
+static SANE_Status stuck (void)
+   {
+   if (machine.wedged)
+      return SANE_STATUS_IO_ERROR;
+   if (machine.cover_open)
+      return SANE_STATUS_COVER_OPEN;
+   if (machine.jammed)
+      return SANE_STATUS_JAMMED;
+
+   return SANE_STATUS_GOOD;
+   }
+
+
+/* Make a fault happen: leave the scanner as it says, and say what the
+   front end is told */
+static SANE_Status happen (int kind)
+   {
+   switch (kind)
+      {
+      case FAKESCAN_JAM:
+         machine.jammed = true;
+         return SANE_STATUS_JAMMED;
+      case FAKESCAN_DOUBLE_FEED:
+         machine.jammed = true;
+         machine.double_feed = true;
+         return SANE_STATUS_JAMMED;
+      case FAKESCAN_COVER_OPEN:
+         machine.cover_open = true;
+         return SANE_STATUS_COVER_OPEN;
+      case FAKESCAN_IO_ERROR:
+      default:
+         machine.wedged = true;
+         return SANE_STATUS_IO_ERROR;
+      }
+   }
+
+
+/* Spoil some of a JPEG's data, in the middle of it, without making a
+   marker of it */
+static void spoil (QByteArray &jpeg)
+   {
+   for (int i = jpeg.size () / 2; i < jpeg.size () / 2 + 64
+        && i < jpeg.size () - 2; i++)
+      jpeg [i] = (char)0x5a;
+   }
+
+
 EXPORT SANE_Status sane_fakefujitsu_init (SANE_Int *version_code,
                                           SANE_Auth_Callback)
    {
@@ -750,6 +931,7 @@ EXPORT SANE_Status sane_fakefujitsu_open (SANE_String_Const name,
    init_options (s);
    init_values (s);
    *handle = s;
+   note ("open");
 
    return SANE_STATUS_GOOD;
    }
@@ -757,6 +939,7 @@ EXPORT SANE_Status sane_fakefujitsu_open (SANE_String_Const name,
 
 EXPORT void sane_fakefujitsu_close (SANE_Handle handle)
    {
+   note ("close");
    delete (Scanner *)handle;
    }
 
@@ -820,6 +1003,23 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
       case OPT_HWDESKEWCROP:
          *word = s->hwdeskewcrop;
          break;
+
+      // a press stays until it has been seen
+      case OPT_SCAN_SW:
+      case OPT_EMAIL_SW:
+         {
+         QMutexLocker locker (&machine.lock);
+
+         *word = machine.pressed.remove (s->opt [option].name);
+         break;
+         }
+      case OPT_DOUBLE_FEED:
+         {
+         QMutexLocker locker (&machine.lock);
+
+         *word = machine.double_feed;
+         break;
+         }
       default:
          return SANE_STATUS_INVAL;
       }
@@ -943,6 +1143,7 @@ EXPORT SANE_Status sane_fakefujitsu_control_option (SANE_Handle handle,
       SANE_Int option, SANE_Action action, void *val, SANE_Int *info)
    {
    Scanner *s = (Scanner *)handle;
+   Call call (s, "control_option");
    SANE_Int dummy;
    SANE_Status status;
 
@@ -973,9 +1174,11 @@ EXPORT SANE_Status sane_fakefujitsu_control_option (SANE_Handle handle,
              && *(SANE_Word *)val != SANE_TRUE)
             return SANE_STATUS_INVAL;
          status = constrain (opt, val, info);
-         if (status != SANE_STATUS_GOOD)
-            return status;
-         return set_option (s, option, val, info);
+         if (status == SANE_STATUS_GOOD)
+            status = set_option (s, option, val, info);
+         if (status == SANE_STATUS_GOOD)
+            note (QString ("set %1").arg (opt->name));
+         return status;
 
       default:
          return SANE_STATUS_INVAL;
@@ -987,6 +1190,7 @@ EXPORT SANE_Status sane_fakefujitsu_get_parameters (SANE_Handle handle,
                                                     SANE_Parameters *params)
    {
    Scanner *s = (Scanner *)handle;
+   Call call (s, "get_parameters");
 
    // once a frame has started it is its own size, not the settings'
    if (s->state == Scanner::IDLE)
@@ -1012,38 +1216,93 @@ EXPORT SANE_Status sane_fakefujitsu_get_parameters (SANE_Handle handle,
 EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
    {
    Scanner *s = (Scanner *)handle;
+   Call call (s, "start");
    SANE_Parameters window;
    QImage picture;
    QRgb backing;
-   int side;
+   fakescan_fault fault;
+   bool shorten = false, mid = false;
+   fakescan_fault mid_fault;
+   int busy_ms;
 
    /* the front end must read a frame to the end, or cancel it, before
       asking for another */
    if (s->state == Scanner::SCANNING)
-      return SANE_STATUS_INVAL;
+      return noted ("start", SANE_STATUS_INVAL);
 
    calc_window (s, &window);
    if (window.pixels_per_line < 1 || window.lines < 1)
-      return SANE_STATUS_INVAL;
+      return noted ("start", SANE_STATUS_INVAL);
 
    {
-      QMutexLocker locker (&hopper.lock);
+      QMutexLocker locker (&machine.lock);
+      SANE_Status status = stuck ();
+      bool back = s->source == SOURCE_ADF_DUPLEX && s->back_pending;
+      int sheet_num = back ? s->sheet_num : machine.fed + 1;
+      int side = back ? 1 : s->source == SOURCE_ADF_BACK ? 1 : 0;
 
-      backing = hopper.backing;
-      if (s->source == SOURCE_ADF_DUPLEX && s->back_pending)
-         side = 1;
-      else
+      busy_ms = machine.busy_ms;
+      if (status == SANE_STATUS_GOOD && busy_ms < 0)
          {
-         if (hopper.sheets.isEmpty ())
+         if (!back && machine.sheets.isEmpty ())
+            status = SANE_STATUS_NO_DOCS;
+         else if (take_fault (sheet_num, side, true, &fault))
             {
-            s->state = Scanner::IDLE;
-            s->back_pending = false;
-            return SANE_STATUS_NO_DOCS;
+            if (fault.kind == FAKESCAN_BUSY)
+               busy_ms = machine.busy_ms = fault.arg;
+            else if (fault.kind == FAKESCAN_JAM
+                     || fault.kind == FAKESCAN_DOUBLE_FEED)
+               {
+               // the sheet is fed, and sticks in the paper path
+               if (!back)
+                  {
+                  machine.sheets.takeFirst ();
+                  machine.fed++;
+                  }
+               status = happen (fault.kind);
+               }
+            else if (fault.kind == FAKESCAN_COVER_OPEN
+                     || fault.kind == FAKESCAN_IO_ERROR)
+               status = happen (fault.kind);
+            else
+               // it happens once the side is under way
+               machine.faults.prepend (fault);
             }
-         s->sheet = hopper.sheets.takeFirst ();
-         side = s->source == SOURCE_ADF_BACK ? 1 : 0;
+         }
+      if (status != SANE_STATUS_GOOD)
+         {
+         s->state = Scanner::IDLE;
+         s->back_pending = false;
+         locker.unlock ();
+         return noted ("start", status);
+         }
+
+      if (busy_ms < 0)
+         {
+         if (!back)
+            {
+            s->sheet = machine.sheets.takeFirst ();
+            s->sheet_num = ++machine.fed;
+            }
+         s->side = side;
+         backing = machine.backing;
+         shorten = take_fault (sheet_num, side, true, &fault,
+                               FAKESCAN_SHORT)
+                   || take_fault (sheet_num, side, false, &fault,
+                                  FAKESCAN_SHORT);
+         mid = take_fault (sheet_num, side, false, &mid_fault);
+         if (!mid)
+            mid = take_fault (sheet_num, side, true, &mid_fault);
          }
    }
+
+   /* a scanner which is busy takes its time saying so, without the lock
+      held, as a real one does not stop anyone else asking */
+   if (busy_ms >= 0)
+      {
+      QThread::msleep (busy_ms);
+      return noted ("start", SANE_STATUS_DEVICE_BUSY);
+      }
 
    s->params = window;
    if (s->hwdeskewcrop)
@@ -1052,8 +1311,8 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
          is known by the time the front end asks */
       QSize size;
 
-      picture = straighten (s, side, QSize (window.pixels_per_line,
-                                            window.lines),
+      picture = straighten (s, s->side, QSize (window.pixels_per_line,
+                                               window.lines),
                             &size, jpeg_on (s));
       set_width (s, &s->params, size.width ());
       s->params.lines = size.height ();
@@ -1063,8 +1322,8 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
       }
    else
       {
-      picture = scan_window (s, side, window.pixels_per_line, window.lines,
-                             backing);
+      picture = scan_window (s, s->side, window.pixels_per_line,
+                             window.lines, backing);
       if (s->ald)
          {
          picture = picture.copy (0, 0, picture.width (),
@@ -1073,21 +1332,58 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
          }
       }
 
+   /* what the scanner has promised by now: a page which stops short of
+      it still ends properly, so a JPEG says it holds more than it does */
+   int promised = s->ald && !s->hwdeskewcrop ? window.lines
+                                             : picture.height ();
+
+   if (shorten)
+      picture = picture.copy (0, 0, picture.width (),
+                              qBound (1, fault.arg, picture.height ()));
    if (jpeg_on (s))
       {
       s->frame = encode_jpeg (picture, s->mode == MODE_GRAY,
                               s->compress_arg);
-      if (s->ald && !s->hwdeskewcrop)
-         promise_height (s->frame, window.lines);
+      if (picture.height () < promised)
+         promise_height (s->frame, promised);
       }
    else
       s->frame = pack (s, picture, s->params);
 
-   s->back_pending = s->source == SOURCE_ADF_DUPLEX && side == 0;
+   /* something which goes wrong part-way through the side stops the
+      frame there */
+   s->stop_at = -1;
+   if (mid)
+      switch (mid_fault.kind)
+         {
+         case FAKESCAN_EOF_EMPTY:
+            s->frame.clear ();
+            break;
+         case FAKESCAN_CORRUPT_JPEG:
+            if (jpeg_on (s))
+               spoil (s->frame);
+            break;
+         case FAKESCAN_JAM:
+         case FAKESCAN_DOUBLE_FEED:
+         case FAKESCAN_COVER_OPEN:
+         case FAKESCAN_IO_ERROR:
+            {
+            int line = qBound (0, mid_fault.line, picture.height ());
+
+            s->stop_at = (int)((long long)s->frame.size () * line
+                               / picture.height ());
+            s->stop_kind = mid_fault.kind;
+            break;
+            }
+         default:
+            break;
+         }
+
+   s->back_pending = s->source == SOURCE_ADF_DUPLEX && s->side == 0;
    s->sent = 0;
    s->state = Scanner::SCANNING;
 
-   return SANE_STATUS_GOOD;
+   return noted ("start", SANE_STATUS_GOOD);
    }
 
 
@@ -1095,17 +1391,40 @@ EXPORT SANE_Status sane_fakefujitsu_read (SANE_Handle handle, SANE_Byte *buf,
                                           SANE_Int max_len, SANE_Int *len)
    {
    Scanner *s = (Scanner *)handle;
-   int left;
+   Call call (s, "read");
+   int end, left;
 
    *len = 0;
+   {
+      QMutexLocker locker (&machine.lock);
+
+      if (machine.wedged)
+         {
+         locker.unlock ();
+         return noted ("read", SANE_STATUS_IO_ERROR);
+         }
+   }
    if (s->state == Scanner::IDLE)
       return SANE_STATUS_CANCELLED;
 
-   left = s->frame.size () - s->sent;
+   end = s->stop_at >= 0 ? s->stop_at : s->frame.size ();
+   left = end - s->sent;
+   if (!left && s->stop_at >= 0)
+      {
+      QMutexLocker locker (&machine.lock);
+      SANE_Status status = happen (s->stop_kind);
+
+      locker.unlock ();
+      s->state = Scanner::IDLE;
+      s->back_pending = false;
+      return noted ("read", status);
+      }
    if (!left)
       {
+      if (s->state == Scanner::DONE)
+         return SANE_STATUS_EOF;
       s->state = Scanner::DONE;
-      return SANE_STATUS_EOF;
+      return noted ("read", SANE_STATUS_EOF);
       }
 
    *len = qMin (max_len, left);
@@ -1121,7 +1440,9 @@ EXPORT SANE_Status sane_fakefujitsu_read (SANE_Handle handle, SANE_Byte *buf,
 EXPORT void sane_fakefujitsu_cancel (SANE_Handle handle)
    {
    Scanner *s = (Scanner *)handle;
+   Call call (s, "cancel");
 
+   note ("cancel");
    s->state = Scanner::IDLE;
    s->back_pending = false;
    s->frame.clear ();
@@ -1146,10 +1467,17 @@ EXPORT SANE_Status sane_fakefujitsu_get_select_fd (SANE_Handle, SANE_Int *)
 
 EXPORT void fakescan_reset (void)
    {
-   QMutexLocker locker (&hopper.lock);
+   QMutexLocker locker (&machine.lock);
 
-   hopper.sheets.clear ();
-   hopper.backing = BACKING_DEFAULT;
+   machine.sheets.clear ();
+   machine.backing = BACKING_DEFAULT;
+   machine.faults.clear ();
+   machine.fed = 0;
+   machine.jammed = machine.double_feed = false;
+   machine.cover_open = machine.wedged = false;
+   machine.busy_ms = -1;
+   machine.pressed.clear ();
+   machine.log.clear ();
    }
 
 
@@ -1180,9 +1508,9 @@ EXPORT int fakescan_load_sheet (const struct fakescan_sheet *in)
    if (sheet.width <= 0 || sheet.height <= 0)
       return -2;
 
-   QMutexLocker locker (&hopper.lock);
+   QMutexLocker locker (&machine.lock);
 
-   hopper.sheets.append (sheet);
+   machine.sheets.append (sheet);
 
    return 0;
    }
@@ -1190,15 +1518,62 @@ EXPORT int fakescan_load_sheet (const struct fakescan_sheet *in)
 
 EXPORT int fakescan_sheets_left (void)
    {
-   QMutexLocker locker (&hopper.lock);
+   QMutexLocker locker (&machine.lock);
 
-   return hopper.sheets.size ();
+   return machine.sheets.size ();
    }
 
 
 EXPORT void fakescan_set_backing (unsigned int rgb)
    {
-   QMutexLocker locker (&hopper.lock);
+   QMutexLocker locker (&machine.lock);
 
-   hopper.backing = qRgb (rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
+   machine.backing = qRgb (rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
+   }
+
+
+EXPORT int fakescan_add_fault (const struct fakescan_fault *fault)
+   {
+   if (fault->sheet < 1 || fault->side < 0 || fault->side > 1
+       || fault->kind < FAKESCAN_JAM || fault->kind > FAKESCAN_IO_ERROR)
+      return -1;
+
+   QMutexLocker locker (&machine.lock);
+
+   machine.faults.append (*fault);
+
+   return 0;
+   }
+
+
+EXPORT void fakescan_clear (void)
+   {
+   QMutexLocker locker (&machine.lock);
+
+   machine.jammed = machine.double_feed = false;
+   machine.cover_open = machine.wedged = false;
+   machine.busy_ms = -1;
+   }
+
+
+EXPORT int fakescan_press (const char *name)
+   {
+   if (strcmp (name, SANE_NAME_SCAN) && strcmp (name, SANE_NAME_EMAIL))
+      return -1;
+
+   QMutexLocker locker (&machine.lock);
+
+   machine.pressed.insert (name);
+
+   return 0;
+   }
+
+
+EXPORT const char *fakescan_log (void)
+   {
+   QMutexLocker locker (&machine.lock);
+
+   machine.log_out = machine.log.join ("\n").toUtf8 ();
+
+   return machine.log_out.constData ();
    }
