@@ -30,6 +30,8 @@ struct fakescan_sheet
    double width_mm;     /**< size of the sheet, or 0 to go by the images */
    double height_mm;
    int dpi;             /**< resolution of the images, or 0 for 300 */
+   double skew;         /**< how far askew it goes through, in degrees
+                             clockwise */
    };
 
 /** Take all the paper out of the hopper and put everything which is not
