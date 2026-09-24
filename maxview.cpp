@@ -728,8 +728,9 @@ int main (int argc, char *argv[])
       Also point SANE at the scratch directory: with no dll.conf there,
       no backends are loaded, so device enumeration returns at once
       instead of probing the host's scanners (which takes many seconds
-      per sane_init). The tests only use the built-in simulated
-      scanner, which does not need a backend */
+      per sane_init). The tests use the fake scanner in
+      test/fakescan, which Fakescan::setup() gives a configuration of
+      its own */
    for (int i = 1; i < argc; i++)
       if (!strcmp (argv [i], "-t"))
          {

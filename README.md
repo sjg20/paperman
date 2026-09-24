@@ -158,9 +158,9 @@ For example:
 Scans into a repository without showing the GUI, using the saved scanner
 settings. The stack goes into the top-level directory of the first
 configured repository unless `--repo` and `--dir` say otherwise, and the
-scanner is the last one used unless `--device` names another (the
-built-in simulated scanner is `simulscan`). `--pages` stops after that
-many sides; otherwise scanning continues until the feeder is empty.
+scanner is the last one used unless `--device` names another. `--pages`
+stops after that many sides; otherwise scanning continues until the
+feeder is empty.
 `--set NAME=VALUE` sets a scanner option by its SANE name before the scan
 (for example `mode=Color`, `resolution=200`, `source="ADF Duplex"` or
 `page-height=355.6`, with fixed-point values in their units) and can be
@@ -293,8 +293,8 @@ make
 
 Scanners are driven through TWAIN rather than SANE: every TWAIN data
 source installed on the machine (for the Ricoh fi-series that is the
-PaperStream IP TWAIN driver) appears in the device list, along with the
-built-in simulated scanner. The TWAIN back end lives in win32/twainsane.cpp
+PaperStream IP TWAIN driver) appears in the device list. The TWAIN back
+end lives in win32/twainsane.cpp
 and presents the same options as SANE's fujitsu backend.
 
 When bringing up a new scanner, run paperman from a shell with
