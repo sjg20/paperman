@@ -63,14 +63,16 @@
 #define UNITS_TO_FIXED(u) SANE_FIX (UNITS_TO_MM (u))
 #define FIXED_TO_UNITS(f) MM_TO_UNITS (SANE_UNFIX (f))
 
-/* What an fi-8170 takes: paper from 50.8 x 54mm up to 8.5in wide and,
-   in its long-page mode, 5588mm long. The fujitsu back end reads the
-   longest page from the scanner for each resolution and allows less at
-   the higher ones; this allows the longest at all of them */
+/* The largest window an fi-8170 has: 9.15 x 108.30 inches, which is what
+   one tells the fujitsu back end, for a sheet no wider than 216mm. It is
+   wider than the sheet so that US letter, at 8.5in, fits with room to
+   spare: a front end which is told any less can find US letter a hair
+   too wide, after SANE's fixed point, and offer no US paper sizes at
+   all. The smallest sheet it takes is 50.8 x 54mm */
 #define MIN_X             MM_TO_UNITS (50.8)
 #define MIN_Y             MM_TO_UNITS (54)
-#define MAX_X             (UNITS_PER_INCH * 17 / 2)
-#define MAX_Y             MM_TO_UNITS (5588)
+#define MAX_X             (UNITS_PER_INCH * 915 / 100)
+#define MAX_Y             (UNITS_PER_INCH * 10830 / 100)
 #define MIN_RES           50
 #define MAX_RES           600
 
@@ -124,6 +126,10 @@ enum
    OPT_BR_Y,
    OPT_PAGE_WIDTH,
    OPT_PAGE_HEIGHT,
+   OPT_ENHANCEMENT_GROUP,
+   OPT_BRIGHTNESS,
+   OPT_CONTRAST,
+   OPT_THRESHOLD,
    OPT_ADVANCED_GROUP,
    OPT_ALD,
    OPT_COMPRESS,
@@ -182,12 +188,17 @@ struct Scanner
    SANE_Range width_range;    //!< sizes of paper the scanner takes
    SANE_Range height_range;
    SANE_Range compress_arg_range;
+   SANE_Range enhance_range;          //!< brightness and contrast
+   SANE_Range threshold_range;
 
    int source;
    int mode;
    int resolution;
    int tl_x, tl_y, br_x, br_y;      //!< the window, in scanner units
    int page_width, page_height;     //!< the paper, in scanner units
+   int brightness;                  //!< kept, but not yet applied
+   int contrast;                    //!< kept, but not yet applied
+   int threshold;                   //!< line art: darker is black, 0 for 128
    bool ald;                        //!< end the page at the foot of the sheet
    int compress;
    int compress_arg;                //!< JPEG level, 1 small to 7 large
@@ -250,6 +261,7 @@ static void set_active (SANE_Option_Descriptor *opt, bool active)
 static void update_caps (Scanner *s)
    {
    set_active (&s->opt [OPT_COMPRESS], s->mode >= MODE_GRAY);
+   set_active (&s->opt [OPT_THRESHOLD], s->mode == MODE_LINEART);
    set_active (&s->opt [OPT_COMPRESS_ARG], jpeg_on (s));
    }
 
@@ -272,6 +284,8 @@ static void init_options (Scanner *s)
    s->width_range = { UNITS_TO_FIXED (MIN_X), UNITS_TO_FIXED (MAX_X), quant };
    s->height_range = { UNITS_TO_FIXED (MIN_Y), UNITS_TO_FIXED (MAX_Y), quant };
    s->compress_arg_range = { 0, 7, 1 };
+   s->enhance_range = { -127, 127, 1 };
+   s->threshold_range = { 0, 255, 1 };
    update_ranges (s);
 
    opt = &s->opt [OPT_NUM_OPTS];
@@ -351,6 +365,36 @@ static void init_options (Scanner *s)
       opt->unit = SANE_UNIT_MM;
       opt->constraint_type = SANE_CONSTRAINT_RANGE;
       opt->constraint.range = g.range;
+      }
+
+   opt = &s->opt [OPT_ENHANCEMENT_GROUP];
+   opt->name = SANE_NAME_ENHANCEMENT;
+   opt->title = SANE_TITLE_ENHANCEMENT;
+   opt->desc = SANE_DESC_ENHANCEMENT;
+   opt->type = SANE_TYPE_GROUP;
+   opt->size = 0;
+   opt->cap = 0;
+
+   struct { int num; const char *name, *title, *desc; SANE_Range *range; }
+      enhance [] =
+      {
+      { OPT_BRIGHTNESS, SANE_NAME_BRIGHTNESS, SANE_TITLE_BRIGHTNESS,
+        SANE_DESC_BRIGHTNESS, &s->enhance_range },
+      { OPT_CONTRAST, SANE_NAME_CONTRAST, SANE_TITLE_CONTRAST,
+        SANE_DESC_CONTRAST, &s->enhance_range },
+      { OPT_THRESHOLD, SANE_NAME_THRESHOLD, SANE_TITLE_THRESHOLD,
+        SANE_DESC_THRESHOLD, &s->threshold_range },
+      };
+
+   for (const auto &e : enhance)
+      {
+      opt = &s->opt [e.num];
+      opt->name = e.name;
+      opt->title = e.title;
+      opt->desc = e.desc;
+      opt->type = SANE_TYPE_INT;
+      opt->constraint_type = SANE_CONSTRAINT_RANGE;
+      opt->constraint.range = e.range;
       }
 
    // the names, titles and descriptions the fujitsu back end gives
@@ -460,6 +504,7 @@ static void init_values (Scanner *s)
    s->tl_x = s->tl_y = 0;
    s->br_x = s->page_width;
    s->br_y = s->page_height;
+   s->brightness = s->contrast = s->threshold = 0;
    s->ald = false;
    s->compress = COMPRESS_NONE;
    s->compress_arg = 0;
@@ -721,7 +766,7 @@ static QByteArray pack (const Scanner *s, const QImage &picture,
             default:
                /* a set bit is black. Halftone is sent as line art for
                   now, since nothing yet looks at the difference */
-               if (qGray (in [x]) < 128)
+               if (qGray (in [x]) < (s->threshold ? s->threshold : 128))
                   line [x / 8] |= 0x80 >> (x % 8);
                break;
             }
@@ -1160,6 +1205,15 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
       case OPT_PAGE_HEIGHT:
          *word = UNITS_TO_FIXED (s->page_height);
          break;
+      case OPT_BRIGHTNESS:
+         *word = s->brightness;
+         break;
+      case OPT_CONTRAST:
+         *word = s->contrast;
+         break;
+      case OPT_THRESHOLD:
+         *word = s->threshold;
+         break;
       case OPT_ALD:
          *word = s->ald;
          break;
@@ -1226,6 +1280,18 @@ static SANE_Status set_option (Scanner *s, SANE_Int option, void *val,
 
       /* these say which options apply, or how big a page will be, but
          the fujitsu back end only says to reload for ald */
+      case OPT_BRIGHTNESS:
+         s->brightness = word;
+         return SANE_STATUS_GOOD;
+
+      case OPT_CONTRAST:
+         s->contrast = word;
+         return SANE_STATUS_GOOD;
+
+      case OPT_THRESHOLD:
+         s->threshold = word;
+         return SANE_STATUS_GOOD;
+
       case OPT_ALD:
          s->ald = word;
          *info |= SANE_INFO_RELOAD_OPTIONS;
