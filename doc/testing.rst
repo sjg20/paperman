@@ -108,9 +108,49 @@ work as they do on an fi-8170, awkward parts included:
    the box the sheet went through in, with the sheet upright in the middle
    of it on a black ground.
 
+``buffermode`` and ``stop-feed``
+   With buffer mode on, the feeder takes sheets from the hopper four ahead
+   of the one being read, and a cancel sends those through unscanned.
+   ``stop-feed`` stops the feeder but keeps what it has taken, and the
+   batch ends once those have been read.
+
+A test can also have things go wrong, with ``Fakescan::addFault()``, at a
+given sheet and side, either when the side starts or part-way down it: a
+jam or double feed, the cover opening, a frame which ends early or has
+nothing in it, a spoilt JPEG, a scanner which stays busy and takes its
+time saying so, and one which stops answering. The scanner then stays as
+a real one would until ``Fakescan::clear()``, which is the person at the
+scanner clearing the paper path. ``Fakescan::press()`` presses a button
+on it, and ``Fakescan::log()`` gives what paperman asked of it, which
+also shows if paperman ever made two calls on it at once.
+
+A person has half a minute to clear a jam, and a test does not want to
+wait that long, so ``TestFakescan`` makes paperman's waits for the
+scanner shorter with ``Paperscan::setTimeScale()``.
+
 The tests of the scanner in ``TestFakescan`` show how to drive it, and its
-tests of paperman scanning into a stack check that the pages it finds
-the size of are stored at the size of the sheet.
+tests of paperman scanning into a stack check what paperman does with the
+pages it sends, including when something goes wrong.
+
+Driving it by hand
+~~~~~~~~~~~~~~~~~~
+
+The fake scanner can be used from paperman itself, or any other SANE
+front end, through a directory:
+
+.. code:: bash
+
+   scripts/fakescan.sh /tmp/fs ./paperman
+   scripts/fakescan.sh /tmp/fs scanimage -d fakefujitsu:fi-8170:00001 \
+      --source "ADF Duplex" --batch
+
+This gives libsane a configuration which lists only the fake scanner.
+Put pictures of sheets in ``/tmp/fs/hopper``: ``page.png`` is the front of
+a sheet and ``page.back.png``, if there is one, its back. They are fed in
+order of name and moved to ``/tmp/fs/fed`` as they are taken. A picture is
+taken to be at the resolution it says, or at 300dpi if it says less than
+100dpi, which is usually a default. ``touch /tmp/fs/press-scan`` presses
+the Scan button.
 
 Code Coverage
 -------------

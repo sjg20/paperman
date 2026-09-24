@@ -8,7 +8,18 @@
    libsane's dll back end loads the library with dlopen(), inside the
    front end's own process. Opening the same file again hands back the
    same copy of it, so a test which does that and looks these up with
-   dlsym() is talking to the scanner the front end has open */
+   dlsym() is talking to the scanner the front end has open.
+
+   A person can drive it too, through a directory named by FAKESCAN_DIR,
+   which scripts/fakescan.sh sets up:
+
+      hopper/     pictures of sheets, fed in order of name: page.png is
+                  the front of a sheet and page.back.png, if there is one,
+                  its back. Each goes to fed/ as it is taken
+      press-scan  press the Scan button, and likewise press-email
+
+   A picture is taken to be at the resolution it says, or at 300dpi if
+   it says less than 100dpi, which is usually a default */
 
 #ifndef FAKESCAN_H
 #define FAKESCAN_H
