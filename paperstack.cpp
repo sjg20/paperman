@@ -1883,6 +1883,20 @@ Paperscan::~Paperscan ()
    nowhere for half an hour */
 #define BUSY_WAIT_MS (5 * 1000)
 
+/* the waits above, scaled so that a test need not sit through them */
+static double time_scale = 1.0;
+
+static int scaled (int ms)
+   {
+   return qMax (1, (int)(ms * time_scale));
+   }
+
+
+void Paperscan::setTimeScale (double scale)
+   {
+   time_scale = scale;
+   }
+
 bool Paperscan::isMisfeed (SANE_Status status)
    {
    return status == SANE_STATUS_JAMMED || status == SANE_STATUS_COVER_OPEN;
@@ -1937,7 +1951,7 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
    takeResume ();      // anything asked for before now was about the last page
    emit scanWaiting (true);
    waited.start ();
-   while (!isCancelled () && waited.elapsed () < RESUME_WAIT_MS)
+   while (!isCancelled () && waited.elapsed () < scaled (RESUME_WAIT_MS))
       {
       /* say what is wanted, and keep saying it with the time left, so
          that a scan waiting on the user never looks like a scan that
@@ -1945,9 +1959,9 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
       emit scanProblem (tr ("%1: clear the scanner, then press Scan here "
                             "or on the scanner to carry on, or Stop to "
                             "end the scan (%2s)").arg (why)
-                        .arg ((RESUME_WAIT_MS - waited.elapsed () + 999)
-                              / 1000));
-      msleep (RESUME_POLL_MS);
+                        .arg ((scaled (RESUME_WAIT_MS) - waited.elapsed ()
+                               + 999) / 1000));
+      msleep (scaled (RESUME_POLL_MS));
 
       /* the scanner's own button is not always within reach, and a
          back end which cannot report its buttons leaves it as the only
@@ -1993,13 +2007,14 @@ SANE_Status Paperscan::startPage (void)
 
    busy.start ();
    for (busy_count = 0; status == SANE_STATUS_DEVICE_BUSY
-                        && busy_count < 30 && busy.elapsed () < BUSY_WAIT_MS
+                        && busy_count < 30
+                        && busy.elapsed () < scaled (BUSY_WAIT_MS)
                         && !isCancelled ();
         busy_count++)
       {
       if (busy_count)
          {
-         usleep (10000);
+         usleep (scaled (10) * 1000);
          // Check for double-feed while waiting
          if (_scanner->checkDoubleFeed ())
             emit doubleFeedDetected ();
