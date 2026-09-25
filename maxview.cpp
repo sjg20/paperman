@@ -565,12 +565,14 @@ static void usage (void)
    printf ("   --sane-debug LEVEL  how much the scanner back ends say,\n");
    printf ("                       1 to 35; 15 shows every command and\n");
    printf ("                       what the scanner answered\n");
+#ifdef Q_OS_LINUX   // the fake scanner is a SANE back end
    printf ("   --fake-scanner DIR  offer a fake Fujitsu scanner beside the real\n");
    printf ("                       ones, fed from pictures put in DIR/hopper:\n");
    printf ("                       page.png is the front of a sheet and\n");
    printf ("                       page.back.png its back, and touching\n");
    printf ("                       DIR/press-scan presses its Scan button\n");
    printf ("                       (the same as PAPERMAN_FAKE_SCANNER=DIR)\n");
+#endif
    printf ("   --server URL|NAME   attach a paperman-server, by URL or by the\n");
    printf ("                       name of one listed in client.conf\n");
    printf ("                       (~/.config/paperman/client.conf, whose\n");
