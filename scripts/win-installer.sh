@@ -1,5 +1,7 @@
 #!/bin/bash
 # Build the Windows installer, packaging/windows/paperman-setup-VERSION.exe
+# or, in an MSYS2 CLANGARM64 shell, paperman-setup-VERSION-arm64.exe for
+# Windows on Arm
 #
 # Run it in an MSYS2 MINGW64 shell once paperman.exe has been built, or
 # have make do both:
@@ -15,6 +17,12 @@ set -e
 
 stage=dist/paperman
 version=$(sed -n 's/.*CONFIG_version_str "\(.*\)".*/\1/p' config.h)
+
+# the installer is for the machine the MSYS2 shell builds for
+case "${MSYSTEM_CARCH:-x86_64}" in
+   aarch64) arch=arm64 name=paperman-setup-$version-arm64.exe ;;
+   *)       arch=x64 name=paperman-setup-$version.exe ;;
+esac
 
 # where Inno Setup goes, for everyone or for just the one user, with its
 # major version in the name of the directory
@@ -47,7 +55,7 @@ scripts/win-stage.sh "$stage"
 
 # Inno Setup is a Windows program, so give it a Windows path, and stop
 # MSYS2 taking its /D switches for paths and turning them into others
-MSYS2_ARG_CONV_EXCL='*' "$iscc" "/DStageDir=$(cygpath -w "$PWD/$stage")" "/DAppVersion=$version" \
-   packaging/windows/paperman.iss
+MSYS2_ARG_CONV_EXCL='*' "$iscc" "/DStageDir=$(cygpath -w "$PWD/$stage")" \
+   "/DAppVersion=$version" "/DArch=$arch" packaging/windows/paperman.iss
 
-echo "built packaging/windows/paperman-setup-$version.exe"
+echo "built packaging/windows/$name"

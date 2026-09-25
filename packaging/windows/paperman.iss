@@ -4,6 +4,10 @@
 ;
 ;    iscc /DStageDir=..\..\dist\paperman /DAppVersion=1.3.1 paperman.iss
 ;
+; with /DArch=arm64 added for a build for Windows on Arm, which makes a
+; separate installer. The x64 one also installs there, and runs under
+; emulation
+;
 ; StageDir is what scripts/win-stage.sh gathered: the program and every
 ; library it needs. The installer asks for no more rights than the user
 ; already has, so it lands in the user's own programs folder and needs no
@@ -16,6 +20,9 @@
 #ifndef StageDir
   #define StageDir "..\..\dist\paperman"
 #endif
+#ifndef Arch
+  #define Arch "x64"
+#endif
 
 [Setup]
 AppName=Paperman
@@ -25,13 +32,19 @@ AppPublisherURL=https://github.com/sjg20/paperman
 DefaultDirName={autopf}\Paperman
 DefaultGroupName=Paperman
 UninstallDisplayIcon={app}\bin\paperman.exe
-OutputBaseFilename=paperman-setup-{#AppVersion}
 OutputDir=.
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+#if Arch == "arm64"
+OutputBaseFilename=paperman-setup-{#AppVersion}-arm64
+ArchitecturesAllowed=arm64
+ArchitecturesInstallIn64BitMode=arm64
+#else
+OutputBaseFilename=paperman-setup-{#AppVersion}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+#endif
 ; Qt 6 needs Windows 10 1809 or later; say so rather than install a
 ; program which does not start
 MinVersion=10.0.17763

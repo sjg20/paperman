@@ -89,6 +89,58 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  windows-installer-arm64:
+    name: Build the Windows on Arm installer and add it to the release
+    runs-on: windows-11-arm
+    needs: build-deb
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          update: true
+          install: >-
+            make
+            mingw-w64-clang-aarch64-cc
+            mingw-w64-clang-aarch64-llvm-tools
+            mingw-w64-clang-aarch64-pkgconf
+            mingw-w64-clang-aarch64-qt6-base
+            mingw-w64-clang-aarch64-qt6-scxml
+            mingw-w64-clang-aarch64-poppler-qt6
+            mingw-w64-clang-aarch64-podofo
+            mingw-w64-clang-aarch64-libtiff
+            mingw-w64-clang-aarch64-libjpeg-turbo
+            mingw-w64-clang-aarch64-zlib
+            mingw-w64-clang-aarch64-poppler
+
+      - name: Build the app
+        run: qmake6 paperman.pro -o Makefile.win && make -f Makefile.win -j$(nproc)
+
+      # the Arm image may not have Chocolatey, so fetch Inno Setup itself
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $f = "$env:RUNNER_TEMP\innosetup.exe"
+          Invoke-WebRequest -OutFile $f `
+             https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe
+          Start-Process $f -Wait -ArgumentList `
+             '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER'
+
+      - name: Build the installer
+        run: scripts/win-installer.sh
+
+      - name: Add it to the release
+        shell: pwsh
+        run: gh release upload $env:GITHUB_REF_NAME (Get-Item packaging/windows/paperman-setup-*-arm64.exe)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   ppa-upload:
     name: Sign and upload to Launchpad PPA
     runs-on: ubuntu-24.04
