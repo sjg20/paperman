@@ -48,19 +48,18 @@ What the Workflow Does
    builds a binary ``.deb`` with ``dpkg-buildpackage``, then creates a GitHub
    Release with the ``.deb`` attached.
 
-**windows-installer** — Build the Windows installer
-   Builds the app in an MSYS2 MinGW64 shell, runs
-   ``scripts/win-installer.sh`` to gather it together with the libraries
-   it needs and build ``packaging/windows/paperman.iss`` with Inno Setup,
-   and adds the resulting ``paperman-setup-VERSION.exe`` to the release.
-   It waits for **build-deb**, which is what creates the release to add
-   it to.
-
-**windows-installer-arm64** — Build the Windows on Arm installer
-   The same, natively on a Windows on Arm runner in an MSYS2 CLANGARM64
-   shell, giving ``paperman-setup-VERSION-arm64.exe``.  The x64
-   installer also installs on Windows on Arm and runs under emulation,
-   but more slowly.
+**windows-installer** — Build the Windows installers
+   Builds the app in an MSYS2 shell, runs ``scripts/win-stage.sh`` to
+   gather it together with the libraries it needs, builds
+   ``packaging/windows/paperman.iss`` with Inno Setup and adds the
+   resulting installer to the release.  It runs twice: in MinGW64 for
+   ``paperman-setup-VERSION.exe``, and natively on a Windows on Arm
+   runner in CLANGARM64 for ``paperman-setup-VERSION-arm64.exe``.  The
+   x64 installer also installs on Windows on Arm, but runs more slowly
+   there, under emulation.  Once SignPath is set up it signs the program
+   and then the installer, each waiting for an approver; see
+   :doc:`code-signing`.  It waits for **build-deb**, which is what
+   creates the release to add it to.
 
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures

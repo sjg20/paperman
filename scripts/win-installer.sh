@@ -12,8 +12,16 @@
 # Setup, which must be installed: 'winget install JRSoftware.InnoSetup'
 # or 'choco install innosetup'. Set ISCC to its compiler if it is
 # somewhere else.
+#
+# With --staged it uses what is already in dist/paperman rather than
+# staging it again, for a release, which signs paperman.exe in between
 
 set -e
+
+staged=
+if [ "$1" = "--staged" ]; then
+   staged=1
+fi
 
 stage=dist/paperman
 version=$(sed -n 's/.*CONFIG_version_str "\(.*\)".*/\1/p' config.h)
@@ -45,13 +53,15 @@ fi
 
 # the tests are built as a console program, so that their output is not
 # lost, and that is not what anyone wants to install
-if objdump -p paperman.exe | grep -q "Subsystem.*CUI"; then
+if [ -z "$staged" ] && objdump -p paperman.exe | grep -q "Subsystem.*CUI"; then
    echo "paperman.exe is built for the tests: build it again without" >&2
    echo "CONFIG+=test" >&2
    exit 1
 fi
 
-scripts/win-stage.sh "$stage"
+if [ -z "$staged" ]; then
+   scripts/win-stage.sh "$stage"
+fi
 
 # Inno Setup is a Windows program, so give it a Windows path, and stop
 # MSYS2 taking its /D switches for paths and turning them into others

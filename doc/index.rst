@@ -36,6 +36,7 @@ Paperman
    develop
    build
    releasing
+   code-signing
    ppa
    testing
    claude-setup-nginx

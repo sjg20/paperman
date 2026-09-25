@@ -24,9 +24,20 @@
   #define Arch "x64"
 #endif
 
+; the four-part version Windows shows, as paperman.exe has it
+#define FileVersion AppVersion + ".0"
+
 [Setup]
 AppName=Paperman
 AppVersion={#AppVersion}
+; what the installer itself says it is, under Properties; code signing
+; checks these against what it expects before signing
+VersionInfoVersion={#FileVersion}
+VersionInfoProductName=Paperman
+VersionInfoProductVersion={#FileVersion}
+VersionInfoProductTextVersion={#FileVersion}
+VersionInfoDescription=Paperman installer
+VersionInfoCompany=Simon Glass
 AppPublisher=Simon Glass
 AppPublisherURL=https://github.com/sjg20/paperman
 DefaultDirName={autopf}\Paperman

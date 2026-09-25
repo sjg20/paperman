@@ -319,6 +319,22 @@ manager (TWAINDSM.dll, installed with any current driver) is used; set
 `PAPERMAN_TWAIN_LEGACY=1` to fall back to the twain_32.dll shipped with
 Windows.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io),
+certificate by [SignPath Foundation](https://signpath.org).
+
+Only the Windows program and installer which this project builds are
+signed, by its release workflow, once an approver approves each
+release. Committers, reviewers and approvers: Simon Glass
+([@sjg20](https://github.com/sjg20)).
+
+This program will not transfer any information to other networked
+systems unless specifically requested by the user or the person
+installing or operating it.
+
+See [the full policy](doc/code-signing.rst) for how releases are signed.
+
 ## Testing
 
 Paperman includes a comprehensive test suite to verify functionality. Tests are built
