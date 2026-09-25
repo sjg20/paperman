@@ -24,7 +24,7 @@ AppPublisher=Simon Glass
 AppPublisherURL=https://github.com/sjg20/paperman
 DefaultDirName={autopf}\Paperman
 DefaultGroupName=Paperman
-UninstallDisplayIcon={app}\paperman.exe
+UninstallDisplayIcon={app}\bin\paperman.exe
 OutputBaseFilename=paperman-setup-{#AppVersion}
 OutputDir=.
 Compression=lzma2/max
@@ -47,9 +47,9 @@ Name: associate; Description: "Open .max files with Paperman"; \
 Source: "{#StageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{group}\Paperman"; Filename: "{app}\paperman.exe"
+Name: "{group}\Paperman"; Filename: "{app}\bin\paperman.exe"
 Name: "{group}\Uninstall Paperman"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Paperman"; Filename: "{app}\paperman.exe"; Tasks: desktopicon
+Name: "{autodesktop}\Paperman"; Filename: "{app}\bin\paperman.exe"; Tasks: desktopicon
 
 [Registry]
 ; a stack of scanned pages, which is what paperman keeps its pages in
@@ -60,12 +60,12 @@ Root: HKA; Subkey: "Software\Classes\Paperman.Stack"; ValueType: string; \
    ValueName: ""; ValueData: "Paperman stack"; \
    Flags: uninsdeletekey; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Paperman.Stack\DefaultIcon"; \
-   ValueType: string; ValueName: ""; ValueData: "{app}\paperman.exe,0"; \
+   ValueType: string; ValueName: ""; ValueData: "{app}\bin\paperman.exe,0"; \
    Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Paperman.Stack\shell\open\command"; \
    ValueType: string; ValueName: ""; \
-   ValueData: """{app}\paperman.exe"" ""%1"""; Tasks: associate
+   ValueData: """{app}\bin\paperman.exe"" ""%1"""; Tasks: associate
 
 [Run]
-Filename: "{app}\paperman.exe"; Description: "Start Paperman"; \
+Filename: "{app}\bin\paperman.exe"; Description: "Start Paperman"; \
    Flags: nowait postinstall skipifsilent

@@ -12,6 +12,10 @@
 # libraries each binary asks for are followed here, and any that live
 # with the toolchain are copied in beside it. A library from outside the
 # toolchain is part of Windows and is already on the machine.
+#
+# The directory is laid out as the toolchain is, with the program and its
+# libraries in bin, since some of them find their own files from where
+# they are: OpenSSL looks for its modules in ../lib/ossl-modules
 
 set -e
 
@@ -24,13 +28,15 @@ if [ ! -f paperman.exe ]; then
    exit 1
 fi
 
+bin=$dir/bin
+
 rm -rf "$dir"
-mkdir -p "$dir"
+mkdir -p "$bin"
 
 # The build keeps its debug information, for reading a crash, which is
 # almost all of the program: 121MB of 124MB. Ship it without; the one
 # in the build directory keeps it
-strip -o "$dir"/paperman.exe paperman.exe
+strip -o "$bin"/paperman.exe paperman.exe
 
 # the libraries a binary asks for, by name
 dll_names () {
@@ -51,7 +57,7 @@ copy_deps () {
             esac
             seen="$seen$name "
             if [ -f "$prefix/bin/$name" ]; then
-               cp -u "$prefix/bin/$name" "$dir"/
+               cp -u "$prefix/bin/$name" "$bin"/
                next+=("$prefix/bin/$name")
             fi
          done
@@ -67,15 +73,23 @@ if [ -z "$deploy" ]; then
    exit 1
 fi
 "$deploy" --release --no-translations --no-system-d3d-compiler \
-   --no-opengl-sw --compiler-runtime "$dir/paperman.exe"
+   --no-opengl-sw --compiler-runtime "$bin/paperman.exe"
+
+# PoDoFo loads OpenSSL's legacy provider as soon as it is itself loaded,
+# and without it paperman does not start at all: Windows says that the
+# application was unable to start correctly (0xc0000142)
+if [ -d "$prefix/lib/ossl-modules" ]; then
+   mkdir -p "$dir/lib/ossl-modules"
+   cp "$prefix"/lib/ossl-modules/*.dll "$dir/lib/ossl-modules"/
+fi
 
 # everything else, including what the plugins themselves need
-copy_deps "$dir"/paperman.exe $(find "$dir" -name '*.dll')
+copy_deps "$bin"/paperman.exe $(find "$dir" -name '*.dll')
 
 cat > "$dir"/README.txt <<'EOF'
 Paperman - an electronic filing cabinet: scan, print, stack, arrange
 
-Run paperman.exe to start.
+Run bin\paperman.exe to start.
 
 Scanners are reached through their TWAIN driver, so install the driver
 which came with the scanner and paperman will offer it.
