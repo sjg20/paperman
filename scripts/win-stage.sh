@@ -99,6 +99,18 @@ they are not: tesseract, to read the text of a page, and exiftool, to
 keep the details a JPEG carries when a page is changed.
 EOF
 
+# Check that it starts as it will on a machine without MSYS2, with only
+# Windows to find libraries in, since a library missing from here, or one
+# which cannot find its own files, is found in the toolchain otherwise
+windir=$(cygpath -u "$SYSTEMROOT")
+help=$(cd "$bin" && PATH="$windir/System32:$windir" ./paperman.exe -h 2>&1 \
+       || true)
+if ! grep -q -- "--server" <<< "$help"; then
+   echo "the staged paperman.exe does not start:" >&2
+   echo "$help" >&2
+   exit 1
+fi
+
 echo "staged in $dir:"
 du -sh "$dir"
 ls "$dir" | head -20
