@@ -97,7 +97,11 @@ That leaves ``packaging/windows/paperman-setup-VERSION.exe``.  It must be
 a build without ``CONFIG+=test``, which makes a console program for the
 tests.  On the way it gathers the program and every library it needs in
 ``dist/paperman``, which can also be copied to another machine and run as
-it is; ``scripts/win-stage.sh`` does just that part.
+it is, as ``bin\paperman.exe``; ``scripts/win-stage.sh`` does just that
+part.  It is laid out as MSYS2 is, with the program and its libraries in
+``bin``, since OpenSSL finds its modules from where it is, in
+``lib/ossl-modules``; PoDoFo loads one of those as it starts, and
+without it paperman does not start at all.
 
 The installer asks for no more rights than the user has, so it installs
 into the user's own programs folder without an administrator; there is a
