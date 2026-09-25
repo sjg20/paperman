@@ -66,14 +66,17 @@ copy_deps () {
    done
 }
 
-# Qt's libraries, plugins and compiler runtime
+# Qt's libraries, plugins and compiler runtime, and the platform plugin
+# which draws nothing, which --scan, -o, -q and the other modes without
+# a window run on
 deploy=$(command -v windeployqt6 || command -v windeployqt || true)
 if [ -z "$deploy" ]; then
    echo "no windeployqt: install mingw-w64-x86_64-qt6-base" >&2
    exit 1
 fi
 "$deploy" --release --no-translations --no-system-d3d-compiler \
-   --no-opengl-sw --compiler-runtime "$bin/paperman.exe"
+   --no-opengl-sw --compiler-runtime --include-plugins qoffscreen \
+   "$bin/paperman.exe"
 
 # PoDoFo loads OpenSSL's legacy provider as soon as it is itself loaded,
 # and without it paperman does not start at all: Windows says that the
@@ -108,6 +111,20 @@ help=$(cd "$bin" && PATH="$windir/System32:$windir" ./paperman.exe -h 2>&1 \
 if ! grep -q -- "--server" <<< "$help"; then
    echo "the staged paperman.exe does not start:" >&2
    echo "$help" >&2
+   exit 1
+fi
+
+# and that the modes without a window start, on the platform plugin which
+# draws nothing: search an empty directory, which has no index. Without
+# the plugin paperman shows an error box and waits, hence the timeout
+empty=$(mktemp -d)
+wait=$(command -v timeout)   # not the one in System32, which only waits
+search=$(cd "$bin" && PATH="$windir/System32:$windir" "$wait" 60 \
+         ./paperman.exe -q nothing "$(cygpath -w "$empty")" 2>&1 || true)
+rmdir "$empty"
+if ! grep -q "No search index" <<< "$search"; then
+   echo "the staged paperman.exe does not start without a window:" >&2
+   echo "$search" >&2
    exit 1
 fi
 
