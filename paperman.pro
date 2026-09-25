@@ -396,6 +396,11 @@ win32 {
     QMAKE_TARGET_DESCRIPTION = Paperman
     QMAKE_TARGET_COMPANY = Simon Glass
     QMAKE_TARGET_COPYRIGHT = Copyright (C) Simon Glass, GPL-2
+
+    # 'make installer' builds the installer for what was just built
+    installer.commands = cd $$PWD && scripts/win-installer.sh
+    installer.depends = $(DESTDIR_TARGET)
+    QMAKE_EXTRA_TARGETS += installer
 }
 
 QT += xml

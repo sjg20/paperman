@@ -1,4 +1,6 @@
-; Installer for paperman on Windows, built with Inno Setup:
+; Installer for paperman on Windows, built with Inno Setup by
+; scripts/win-installer.sh, or 'make -f Makefile.win installer', which
+; runs:
 ;
 ;    iscc /DStageDir=..\..\dist\paperman /DAppVersion=1.3.1 paperman.iss
 ;
