@@ -45,84 +45,97 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   windows-installer:
-    name: Build the Windows installer and add it to the release
-    runs-on: windows-latest
+    name: Build the Windows ${{ matrix.arch }} installer and add it to the release
+    runs-on: ${{ matrix.runner }}
     needs: build-deb
     permissions:
       contents: write
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            msystem: MINGW64
+            pkg: mingw-w64-x86_64
+          # native, rather than the x64 one under emulation
+          - arch: arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            pkg: mingw-w64-clang-aarch64
     defaults:
       run:
         shell: msys2 {0}
+    # Signing is done by SignPath once the repository has the variable
+    # SIGNPATH_ORGANIZATION_ID and the secret SIGNPATH_API_TOKEN; until
+    # then the installer is built unsigned. See doc/code-signing.rst
+    env:
+      SIGN: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: ${{ matrix.msystem }}
           update: true
           install: >-
             make
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-qt6-base
-            mingw-w64-x86_64-qt6-scxml
-            mingw-w64-x86_64-poppler-qt6
-            mingw-w64-x86_64-podofo
-            mingw-w64-x86_64-libtiff
-            mingw-w64-x86_64-libjpeg-turbo
-            mingw-w64-x86_64-zlib
-            mingw-w64-x86_64-poppler
+            ${{ matrix.pkg }}-cc
+            ${{ matrix.pkg }}-pkgconf
+            ${{ matrix.pkg }}-qt6-base
+            ${{ matrix.pkg }}-qt6-scxml
+            ${{ matrix.pkg }}-poppler-qt6
+            ${{ matrix.pkg }}-podofo
+            ${{ matrix.pkg }}-libtiff
+            ${{ matrix.pkg }}-libjpeg-turbo
+            ${{ matrix.pkg }}-zlib
+            ${{ matrix.pkg }}-poppler
+
+      # the Clang toolchain keeps objdump and strip here
+      - name: Install the LLVM tools
+        if: matrix.arch == 'arm64'
+        run: pacman -S --noconfirm ${{ matrix.pkg }}-llvm-tools
 
       - name: Build the app
         run: qmake6 paperman.pro -o Makefile.win && make -f Makefile.win -j$(nproc)
 
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup --no-progress -y
+      - name: Gather what it needs
+        run: scripts/win-stage.sh
 
-      - name: Build the installer
-        run: scripts/win-installer.sh
+      # the four-part version Windows shows, which signing checks
+      - name: Find the version
+        id: version
+        run: echo "version=$(sed -n 's/.*CONFIG_version_str "\(.*\)".*/\1/p' config.h).0" >> $GITHUB_OUTPUT
 
-      - name: Add it to the release
-        shell: pwsh
-        run: gh release upload $env:GITHUB_REF_NAME (Get-Item packaging/windows/paperman-setup-*.exe)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  windows-installer-arm64:
-    name: Build the Windows on Arm installer and add it to the release
-    runs-on: windows-11-arm
-    needs: build-deb
-    permissions:
-      contents: write
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: msys2/setup-msys2@v2
+      - name: Upload the program to be signed
+        if: env.SIGN == 'true'
+        id: unsigned-exe
+        uses: actions/upload-artifact@v7
         with:
-          msystem: CLANGARM64
-          update: true
-          install: >-
-            make
-            mingw-w64-clang-aarch64-cc
-            mingw-w64-clang-aarch64-llvm-tools
-            mingw-w64-clang-aarch64-pkgconf
-            mingw-w64-clang-aarch64-qt6-base
-            mingw-w64-clang-aarch64-qt6-scxml
-            mingw-w64-clang-aarch64-poppler-qt6
-            mingw-w64-clang-aarch64-podofo
-            mingw-w64-clang-aarch64-libtiff
-            mingw-w64-clang-aarch64-libjpeg-turbo
-            mingw-w64-clang-aarch64-zlib
-            mingw-w64-clang-aarch64-poppler
+          name: unsigned-exe-${{ matrix.arch }}
+          path: dist/paperman/bin/paperman.exe
 
-      - name: Build the app
-        run: qmake6 paperman.pro -o Makefile.win && make -f Makefile.win -j$(nproc)
+      # someone has to approve each request in SignPath, so allow an hour
+      - name: Sign the program
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'paperman' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+          artifact-configuration-slug: paperman-exe
+          github-artifact-id: ${{ steps.unsigned-exe.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed-exe
 
-      # the Arm image may not have Chocolatey, so fetch Inno Setup itself
+      - name: Put the signed program in place
+        if: env.SIGN == 'true'
+        run: cp signed-exe/paperman.exe dist/paperman/bin/paperman.exe
+
+      # fetch it rather than use Chocolatey, which the Arm image may lack;
+      # it is an x86 program, which Windows on Arm runs under emulation
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -133,11 +146,38 @@ jobs:
              '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER'
 
       - name: Build the installer
-        run: scripts/win-installer.sh
+        run: scripts/win-installer.sh --staged
+
+      - name: Upload the installer to be signed
+        if: env.SIGN == 'true'
+        id: unsigned-installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-installer-${{ matrix.arch }}
+          path: packaging/windows/paperman-setup-*.exe
+
+      - name: Sign the installer
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'paperman' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed-installer
+
+      - name: Put the signed installer in place
+        if: env.SIGN == 'true'
+        run: cp signed-installer/paperman-setup-*.exe packaging/windows/
 
       - name: Add it to the release
         shell: pwsh
-        run: gh release upload $env:GITHUB_REF_NAME (Get-Item packaging/windows/paperman-setup-*-arm64.exe)
+        run: gh release upload $env:GITHUB_REF_NAME (Get-Item packaging/windows/paperman-setup-*.exe)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

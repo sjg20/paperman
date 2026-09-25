@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration 'paperman-exe': signs paperman.exe,
+     uploaded by the release workflow as a GitHub artifact, which is a ZIP
+     archive. It signs only a program which says it is this version of
+     Paperman; the workflow passes the version, as Windows shows it -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" default-value="0.0.0.0" />
+  </parameters>
+  <zip-file>
+    <pe-file path="paperman.exe" product-name="Paperman"
+             product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>
