@@ -32,6 +32,9 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Qt 6 needs Windows 10 1809 or later; say so rather than install a
+; program which does not start
+MinVersion=10.0.17763
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 DisableProgramGroupPage=yes
