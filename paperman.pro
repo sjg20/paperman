@@ -383,6 +383,19 @@ win32 {
     # keep the executable next to the sources rather than in debug/release
     CONFIG -= debug_and_release
     DESTDIR = .
+
+    # what Windows shows of the program: its icon, in Explorer and on the
+    # shortcuts and files the installer makes, and its details, under
+    # Properties. qmake writes the resource file from these. The version
+    # comes from config.h, so that it is kept in one place
+    RC_ICONS = app/windows/runner/resources/app_icon.ico
+    CONFIG_H = $$cat($$PWD/config.h, lines)
+    VERSION_LINE = $$find(CONFIG_H, CONFIG_version_str)
+    VERSION = $$replace(VERSION_LINE, '.*"(.*)".*', \\1)
+    QMAKE_TARGET_PRODUCT = Paperman
+    QMAKE_TARGET_DESCRIPTION = Paperman
+    QMAKE_TARGET_COMPANY = Simon Glass
+    QMAKE_TARGET_COPYRIGHT = Copyright (C) Simon Glass, GPL-2
 }
 
 QT += xml
