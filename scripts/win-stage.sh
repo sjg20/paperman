@@ -26,7 +26,11 @@ fi
 
 rm -rf "$dir"
 mkdir -p "$dir"
-cp paperman.exe "$dir"/
+
+# The build keeps its debug information, for reading a crash, which is
+# almost all of the program: 121MB of 124MB. Ship it without; the one
+# in the build directory keeps it
+strip -o "$dir"/paperman.exe paperman.exe
 
 # the libraries a binary asks for, by name
 dll_names () {
