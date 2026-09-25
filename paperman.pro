@@ -384,6 +384,10 @@ win32 {
     CONFIG -= debug_and_release
     DESTDIR = .
 
+    # clock_gettime() is in winpthreads, which GCC links anyway but the
+    # Clang toolchain, as used for Windows on Arm, does not
+    LIBS += -lpthread
+
     # what Windows shows of the program: its icon, in Explorer and on the
     # shortcuts and files the installer makes, and its details, under
     # Properties. qmake writes the resource file from these. The version
