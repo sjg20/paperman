@@ -3,7 +3,6 @@ LANGUAGE = C++
 QT += widgets
 QT += printsupport
 QT += network
-QT += testlib
 QT += sql
 QT += concurrent
 
@@ -306,6 +305,9 @@ linux {
 }
 
 test {
+   # only the tests use this; it also makes a console program on Windows,
+   # which opens a console window beside paperman's own
+   QT += testlib
    SOURCES += test/test_utils.cpp \
       test/test.cpp \
       test/suite.cpp \
