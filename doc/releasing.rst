@@ -52,9 +52,15 @@ What the Workflow Does
    Builds the app in an MSYS2 MinGW64 shell, runs
    ``scripts/win-installer.sh`` to gather it together with the libraries
    it needs and build ``packaging/windows/paperman.iss`` with Inno Setup,
-   and adds the
-   resulting ``paperman-setup-VERSION.exe`` to the release.  It waits for
-   **build-deb**, which is what creates the release to add it to.
+   and adds the resulting ``paperman-setup-VERSION.exe`` to the release.
+   It waits for **build-deb**, which is what creates the release to add
+   it to.
+
+**windows-installer-arm64** — Build the Windows on Arm installer
+   The same, natively on a Windows on Arm runner in an MSYS2 CLANGARM64
+   shell, giving ``paperman-setup-VERSION-arm64.exe``.  The x64
+   installer also installs on Windows on Arm and runs under emulation,
+   but more slowly.
 
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures
@@ -93,7 +99,9 @@ and with `Inno Setup <https://jrsoftware.org/isinfo.php>`_ installed
    qmake6 paperman.pro -o Makefile.win
    make -f Makefile.win -j$(nproc) installer
 
-That leaves ``packaging/windows/paperman-setup-VERSION.exe``.  It must be
+That leaves ``packaging/windows/paperman-setup-VERSION.exe``, or
+``paperman-setup-VERSION-arm64.exe`` when built in a CLANGARM64 shell on
+Windows on Arm.  It must be
 a build without ``CONFIG+=test``, which makes a console program for the
 tests.  On the way it gathers the program and every library it needs in
 ``dist/paperman``, which can also be copied to another machine and run as
