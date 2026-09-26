@@ -55,6 +55,79 @@ Other Options
 ``-h, --help``
    Display usage information.
 
+Scanning
+--------
+
+``--scan`` scans into a repository without the window, with the settings
+saved from the scan panel (see :doc:`scanning`). Progress goes to stdout
+and the exit code is 0 if at least one page was scanned.
+
+.. code:: bash
+
+   paperman --scan --repo ~/paper --dir inbox --pages 2 --set mode=Color
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Option
+     - Description
+   * - ``--repo DIR``
+     - Repository to scan into (default: the first configured). A
+       directory given here is used for that scan only, which suits a
+       test scan into a throwaway directory
+   * - ``--dir SUBDIR``
+     - Directory within the repository, which must exist (default: its
+       top)
+   * - ``--device NAME``
+     - Scanner, e.g. ``fujitsu:fi-8950:1933`` or, on Windows,
+       ``twain:PaperStream IP fi-8950`` (default: the last one used)
+   * - ``--pages N``
+     - Stop after N sides (default: when the feeder is empty)
+   * - ``--set NAME=VALUE``
+     - Set a scanner option by its SANE name, e.g. ``resolution=200`` or
+       ``source="ADF Duplex"``; may be repeated
+   * - ``--auto-colour``
+     - Store pages without colour as grey, or mono if they have no
+       shading either
+   * - ``--sideways SIDE``
+     - Sheets are fed sideways with the top of the page at the ``left``
+       or ``right``: turn them upright
+
+Before every scan Paperman turns on the fast-transfer settings a back end
+offers (``buffermode=On``, and ``compression=JPEG`` in colour), which a
+Fujitsu scanner on USB needs to run at full speed. ``--set`` overrides
+either.
+
+Diagnostics
+-----------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Option
+     - Description
+   * - ``--log FILE``
+     - Append everything normally written to stderr to FILE: Qt's
+       messages, the scanner back end's debugging and the dialogs shown,
+       with diagnostics a normal run keeps quiet
+   * - ``--sane-debug LEVEL``
+     - How much the SANE back ends say, 1 to 35; 15 shows every command
+       and what the scanner answered
+   * - ``--kind FILE``
+     - Show what the auto-colour test makes of each page of a stack
+   * - ``-l``, ``--list FILE``
+     - List the pages of a stack with their size, depth and compressed
+       size
+   * - ``--snap DIR``
+     - Save a snapshot of the window every second into DIR, to set what
+       was on screen against a log (X11 only); ``--clean-snaps`` first
+       empties DIR
+   * - ``--fake-scanner DIR``
+     - Linux only: offer a fake Fujitsu scanner fed from pictures in
+       ``DIR/hopper`` (see :doc:`testing`)
+
 Parallel PDF-to-max Conversion
 ------------------------------
 

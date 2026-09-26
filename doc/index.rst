@@ -14,6 +14,7 @@ Paperman
    :maxdepth: 2
    :caption: User Guide
 
+   scanning
    cli
    server
    api
