@@ -74,6 +74,9 @@ private slots:
    //! The scan panel starts with colour at 200dpi on a first run only
    void testPscanFirstPreset();
 
+   //! libsane is pointed at the SANE in a Mac package
+   void testBundledSane();
+
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
 
