@@ -80,11 +80,20 @@ void TestDesktopUi::testStacksGetRoom()
 
    setupShown(&me, model, repo_ind);
 
-   Desktopview *view = me.getDesktop()->getView();
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QList<int> sizes = desktop->sizes();
 
+   qDebug() << "panes" << sizes << "window" << me.width();
    QVERIFY2(view->viewport()->width() > me.width() * 2 / 5,
             qPrintable(QString("the stacks have %1 of %2 pixels")
                        .arg(view->viewport()->width()).arg(me.width())));
+
+   // and the page pane enough to show a page beside its list of pages
+   QCOMPARE(sizes.size(), 3);
+   QVERIFY2(sizes[2] > me.width() / 3,
+            qPrintable(QString("the page pane has %1 of %2 pixels")
+                       .arg(sizes[2]).arg(me.width())));
 }
 
 /* With no size saved, the window should take most of the screen, however
