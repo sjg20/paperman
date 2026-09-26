@@ -730,8 +730,8 @@ int main (int argc, char *argv[])
    {
    /* When running tests, point the settings at a scratch directory so
       that they cannot read or modify the user's real configuration.
-      This covers both QSettings (via XDG_CONFIG_HOME) and the xml
-      config in ~/.maxview (via HOME). The QTemporaryDir is static so
+      This covers both QSettings (via XDG_CONFIG_HOME, or on macOS
+      CFFIXED_USER_HOME) and the xml config in ~/.maxview (via HOME). The QTemporaryDir is static so
       the directory is removed when the process exits.
 
       Also point SANE at the scratch directory: with no dll.conf there,
@@ -748,6 +748,11 @@ int main (int argc, char *argv[])
          qputenv ("XDG_CONFIG_HOME",
                   (test_home.path () + "/.config").toLocal8Bit ());
          qputenv ("SANE_CONFIG_DIR", test_home.path ().toLocal8Bit ());
+         /* macOS takes no notice of either: its preferences, which
+            QSettings uses, and the directories QStandardPaths gives,
+            come from the home directory Apple's libraries see, which
+            this moves */
+         qputenv ("CFFIXED_USER_HOME", test_home.path ().toLocal8Bit ());
          break;
          }
 
