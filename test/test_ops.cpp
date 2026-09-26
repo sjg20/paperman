@@ -843,6 +843,32 @@ void TestOps::testOfferRepository()
    qs.remove("offeredRepository");
 }
 
+void TestOps::testCreateDirThroughSymlink()
+{
+#ifdef Q_OS_WIN
+   QSKIP("QFile::link() makes a shortcut on Windows, not a symlink");
+#endif
+   Mainwindow me;
+
+   /* reach the repository through a symlink, as a temporary directory on
+      macOS is, under /var, which is a symlink to /private/var */
+   auto path = setupRepo();
+   QTemporaryDir links;
+   QString link = links.path() + "/repo";
+
+   QVERIFY(QFile::link(path, link));
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(link);
+   Q_ASSERT(!err);
+
+   QString newDirPath = link + "/subdir";
+   QModelIndex dirIndex;
+   bool ok = desktop->newDir(newDirPath, dirIndex);
+   QCOMPARE(ok, true);
+   QVERIFY(QDir(path + "/subdir").exists());
+   QVERIFY(desktop->findDir(newDirPath).isValid());
+}
+
 void TestOps::testCreateDirInNewParent()
 {
    Mainwindow me;

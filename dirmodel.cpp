@@ -1085,6 +1085,14 @@ QModelIndex Dirmodel::index (const QString &in_path, int) const
          return findPath (i, _item [i], path.mid(dir.length () + 1));
          }
       }
+
+   /* a repository's directory is kept canonical, so a path which goes
+      through a symlink, such as one under /var on macOS, only matches once
+      it is resolved too */
+   QString canon = QFileInfo (path).canonicalFilePath ();
+
+   if (!canon.isEmpty () && canon != path)
+      return index (canon);
    return QModelIndex ();
    }
 

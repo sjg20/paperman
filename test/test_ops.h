@@ -61,6 +61,9 @@ private slots:
    //! Somewhere to keep papers is offered once, when there is nowhere
    void testOfferRepository();
 
+   //! Test creating a dir in a repository reached through a symlink
+   void testCreateDirThroughSymlink();
+
    //! Test creating a dir inside a directory not in the cache
    void testCreateDirInNewParent();
 
