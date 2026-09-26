@@ -84,7 +84,10 @@ QString Test::setupRepo(bool add_files)
       Q_ASSERT(touch(dst + "/main/one/ofile2"));
    }
 
-   return _tempDir->path();
+   /* paperman keeps a repository's directory canonical, so give the
+      path in that form for tests to compare with; on macOS a temporary
+      directory is under /var, which is a symlink to /private/var */
+   return QDir(_tempDir->path()).canonicalPath();
 }
 
 QString Test::setupRepoWithExtra()

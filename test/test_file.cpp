@@ -684,15 +684,20 @@ void TestFile::testTransformPage()
          QVERIFY(!fresh.getPreviewPixmap(3, pixmap, false));
          QImage pgrey =
             pixmap.toImage().convertToFormat(QImage::Format_Grayscale8);
+
+         /* text shrunk to a twenty-fourth is mostly light grey, and how
+            much of it falls below half way varies with Qt's scaling:
+            from 40 pixels on Linux to 1 on macOS. So count what is
+            clearly inked, some 800 pixels on each */
          int pdark = 0;
          for (int y = 0; y < pgrey.height(); y++) {
             const uchar *p = pgrey.constScanLine(y);
             for (int x = 0; x < pgrey.width(); x++)
-               if (p[x] < 128)
+               if (p[x] < 192)
                   pdark++;
          }
          qDebug() << "preview size" << pixmap.size() << "dark" << pdark;
-         QVERIFY(pdark > 20);
+         QVERIFY(pdark > 200);
 
          /* the preview of a 1-bit page holds greyscale, so text scaled
             down to a twenty-fourth comes out as a range of greys, not

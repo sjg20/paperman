@@ -39,9 +39,11 @@ void TestDesktopUi::setupShown(Mainwindow *me, Desktopmodel *&model,
    repo_ind = model->index(0, 0, QModelIndex());
    QVERIFY(repo_ind.isValid());
 
-   // Show the window so that items have real positions and can be
-   // clicked, as a user would
-   me->resize(1024, 768);
+   /* Show the window so that items have real positions and can be
+      clicked, as a user would. How much of it the stacks get depends on
+      the platform's fonts and style: on macOS at 1024 wide only the
+      first stack is in view */
+   me->resize(1600, 1000);
    me->show();
    QVERIFY(QTest::qWaitForWindowExposed(me));
    QTest::qWait(50);
