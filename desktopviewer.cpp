@@ -274,7 +274,7 @@ err_info *Desktopviewer::cancelPaperstack (Desk *maxdesk, file_info *f)
 bool Desktopviewer::checkerr (err_info *err)
    {
    if (err)
-      QMessageBox::warning (0, "Maxview", err->errstr);
+      QMessageBox::warning (0, "Paperman", err->errstr);
    return err != NULL;
    }
 

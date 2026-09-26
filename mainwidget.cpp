@@ -195,7 +195,7 @@ void Mainwidget::saveSettings (void)
 bool Mainwidget::complain(err_info *err)
 {
    if (err)
-      warn ("Maxview", err->errstr);
+      warn ("Paperman", err->errstr);
 
    return err != nullptr;
 }

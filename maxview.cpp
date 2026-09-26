@@ -509,10 +509,10 @@ static void migrateSettings (void)
 
 static void usage (void)
    {
-   printf ("maxview - An electronic filing cabinet: scan, print, stack, arrange\n\n");
-   printf ("(C) 2011 Simon Glass, chch-kiwi@users.sourceforge.net, v%s\n\n",
+   printf ("paperman - An electronic filing cabinet: scan, print, stack, arrange\n\n");
+   printf ("Copyright (C) 2005-2026 Simon Glass, v%s\n\n",
            CONFIG_version_str);
-   printf ("Usage:  maxview <opts>  <dir/file>\n\n");
+   printf ("Usage:  paperman <opts>  <dir/file>\n\n");
    printf ("   -p|--pdf        convert given file to .pdf\n");
    printf ("   -m|--max        convert given file to .max\n");
    printf ("   -j|--jpeg       convert given file to .jpg\n");

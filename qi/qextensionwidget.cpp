@@ -57,7 +57,7 @@ QExtensionWidget::QExtensionWidget(QWidget* parent,const char* name,
 {
     setObjectName(name);
     setModal(modal);
-  setWindowTitle(tr("MaxView - Options"));
+  setWindowTitle(tr("Paperman - Options"));
   mMetricSystem = QIN::Millimetre;
   mFilenameGenerationChanged = false;
   initWidget();

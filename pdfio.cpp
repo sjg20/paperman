@@ -210,13 +210,13 @@ err_info *Pdfio::create (void)
 #ifdef PODOFO_1X
       PdfMetadata &meta = _doc->GetMetadata ();
 
-      meta.SetCreator (PdfString ("Maxview - manage your paper"));
+      meta.SetCreator (PdfString ("Paperman - manage your paper"));
       meta.SetAuthor (PdfString ("Simon Glass"));
       meta.SetTitle (PdfString (""));
       meta.SetSubject (PdfString (""));
       meta.SetKeywords (std::vector<std::string> {"sep", "sep"});
 #else
-      _doc->GetInfo()->SetCreator ( PdfString("Maxview - manage your paper") );
+      _doc->GetInfo()->SetCreator ( PdfString("Paperman - manage your paper") );
       _doc->GetInfo()->SetAuthor  ( PdfString("Simon Glass") );
       _doc->GetInfo()->SetTitle   ( PdfString("") );
       _doc->GetInfo()->SetSubject ( PdfString("") );
