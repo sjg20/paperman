@@ -21,6 +21,9 @@ public:
    using Suite::Suite;
 
 private slots:
+   //! The stacks get a good share of the window on a first run
+   void testStacksGetRoom();
+
    //! Test that clicking a stack selects it and clicking space deselects
    void testClickSelectsStack();
 
