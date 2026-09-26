@@ -84,7 +84,7 @@ static const char *err_msg [ERR_count] =
    "PDF creation error: '%s'",
    "File '%s' is not open",
    "OCR engine '%s' not present or broken (Error: %s)",
-   "PDF preview features require the poppler-qt4 library - please install this, see config.h and rebuild maxview",
+   "PDF preview features require the poppler-qt6 or poppler-qt5 library - please install it and rebuild paperman",
    "Cannot close file '%s'",
    "Cannot add file '%s' to zip file",
    "Transfer file '%s' corrupt on line %d",

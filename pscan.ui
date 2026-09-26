@@ -163,7 +163,7 @@ Use Ctrl-F or F4 to quickly access this field</string>
          <item>
           <widget class="QPushButton" name="config">
            <property name="toolTip">
-            <string>Change maxview options</string>
+            <string>Change Paperman options</string>
            </property>
            <property name="text">
             <string>Config</string>

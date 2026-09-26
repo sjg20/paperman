@@ -250,7 +250,7 @@ void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
       msg.append (":\n");
       foreach (const err_info &err, err_list)
          msg.append (QString ("%1\n").arg (err.errstr));
-      QMessageBox::warning (0, "Maxview", msg);
+      QMessageBox::warning (0, "Paperman", msg);
       }
 
    if (!serverError.isEmpty())
@@ -413,7 +413,7 @@ void Mainwindow::welcome ()
    {
    if (!_welcome_shown)
       {
-      statusBar()->showMessage (tr ("Welcome to Maxview, a scanning and filing application to help you manage your paper mountain"), 5000);
+      statusBar()->showMessage (tr ("Welcome to Paperman, a scanning and filing application to help you manage your paper mountain"), 5000);
       _welcome_shown = true;
       }
    }

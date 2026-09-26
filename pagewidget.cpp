@@ -1211,7 +1211,7 @@ void Pagewidget::ocrPage (void)
    if (_image.isNull ())
 //    if (!_model || !_index.isValid ()
       {
-      QMessageBox::warning (0, "Maxview",
+      QMessageBox::warning (0, "Paperman",
          tr ("Please select a page to OCR"));
       return;
       }
