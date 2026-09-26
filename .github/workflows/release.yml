@@ -181,6 +181,70 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  macos-package:
+    name: Build the macOS ${{ matrix.arch }} package and add it to the release
+    runs-on: ${{ matrix.runner }}
+    needs: build-deb
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    env:
+      POPPLER: '26.09.0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the dependencies
+        run: |
+          brew install qt podofo libtiff jpeg-turbo libusb pkgconf cmake \
+             ninja openjpeg little-cms2 fontconfig autoconf automake \
+             libtool gettext autoconf-archive
+          echo "$(brew --prefix qt)/bin" >> $GITHUB_PATH
+
+      # Homebrew's Poppler has no Qt bindings
+      - name: Build Poppler with its Qt bindings
+        run: |
+          curl -sSLO https://poppler.freedesktop.org/poppler-$POPPLER.tar.xz
+          tar xf poppler-$POPPLER.tar.xz
+          cmake -S poppler-$POPPLER -B pbuild -G Ninja \
+             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/poppler \
+             -DCMAKE_PREFIX_PATH="$(brew --prefix qt);$(brew --prefix)" \
+             -DENABLE_QT5=OFF -DENABLE_GLIB=OFF -DENABLE_NSS3=OFF \
+             -DENABLE_GPGME=OFF -DENABLE_LIBCURL=OFF -DENABLE_BOOST=OFF \
+             -DENABLE_HARFBUZZ=OFF -DBUILD_QT6_TESTS=OFF \
+             -DBUILD_CPP_TESTS=OFF -DBUILD_MANUAL_TESTS=OFF
+          ninja -C pbuild install
+
+      # the SANE the package carries: Homebrew's does not know the fi-8950
+      - name: Build SANE
+        run: |
+          git clone -q -b all-work https://gitlab.com/sjg20/backends.git sane
+          cd sane
+          ./autogen.sh
+          ./configure --prefix=$HOME/sane BACKENDS="fujitsu finet" \
+             --disable-locking --without-snmp --without-avahi \
+             --disable-nls --without-usb-record-replay \
+             CPPFLAGS=-I$(brew --prefix)/include LDFLAGS=-L$(brew --prefix)/lib
+          make -j$(sysctl -n hw.ncpu)
+          make install
+
+      - name: Build the app and package it
+        run: |
+          export PKG_CONFIG_PATH=$HOME/sane/lib/pkgconfig:$HOME/poppler/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig
+          qmake paperman.pro -o Makefile
+          make -f Makefile -j$(sysctl -n hw.ncpu)
+          SANE_PREFIX=$HOME/sane scripts/mac-package.sh
+
+      - name: Add it to the release
+        run: gh release upload $GITHUB_REF_NAME dist/Paperman-*.dmg
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   ppa-upload:
     name: Sign and upload to Launchpad PPA
     runs-on: ubuntu-24.04

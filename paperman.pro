@@ -384,6 +384,14 @@ macx {
     # a Poppler built with CMake is found through the search path, so
     # add the directory it is in
     QMAKE_RPATHDIR += $$system(pkg-config --variable=libdir poppler-qt6)
+
+    # what macOS shows of the application: its icon, name and version,
+    # which qmake puts in Info.plist. The version comes from config.h
+    ICON = packaging/macos/paperman.icns
+    QMAKE_TARGET_BUNDLE_PREFIX = io.github.sjg20
+    CONFIG_H = $$cat($$PWD/config.h, lines)
+    VERSION_LINE = $$find(CONFIG_H, CONFIG_version_str)
+    VERSION = $$replace(VERSION_LINE, '.*"(.*)".*', \\1)
 }
 
 win32 {
