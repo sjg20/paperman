@@ -196,6 +196,7 @@ jobs:
             runner: macos-15-intel
     env:
       POPPLER: '26.09.0'
+      SIGN: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -232,6 +233,18 @@ jobs:
              CPPFLAGS=-I$(brew --prefix)/include LDFLAGS=-L$(brew --prefix)/lib
           make -j$(sysctl -n hw.ncpu)
           make install
+
+      # Signed with the Developer ID, and notarised, once the repository has
+      # the secrets; see scripts/mac-sign-setup.sh. Otherwise ad hoc
+      - name: Get ready to sign
+        if: env.SIGN == 'true'
+        run: scripts/mac-sign-setup.sh
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
 
       - name: Build the app and package it
         run: |

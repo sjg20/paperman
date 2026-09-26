@@ -15,6 +15,12 @@
 # from outside macOS itself, is copied into Contents/Frameworks and asked
 # for there instead, and the whole is signed ad hoc, which is all Apple
 # Silicon needs to run it.
+#
+# To sign it for others to open without a warning, set MACOS_SIGN_IDENTITY
+# to a Developer ID Application identity in the keychain. Then to have
+# Apple notarise it, set NOTARY_PROFILE to a profile stored with
+# 'xcrun notarytool store-credentials', or NOTARY_KEY_FILE, NOTARY_KEY_ID
+# and NOTARY_ISSUER_ID to an App Store Connect API key.
 
 set -e
 
@@ -138,14 +144,20 @@ done
 
 # Changing a library spoils its signature, so sign everything again: what
 # is inside first, then the bundle, which signs the program. The program
-# cannot be signed on its own while what it holds is not
+# cannot be signed on its own while what it holds is not. A Developer ID
+# signature is made with the hardened runtime, which notarising needs
+sign=(-s -)
+if [ -n "$MACOS_SIGN_IDENTITY" ]; then
+   sign=(-s "$MACOS_SIGN_IDENTITY" --options runtime --timestamp)
+fi
 for f in $(machos); do
    case "$f" in
       "$app/Contents/MacOS/"*) ;;
-      *) codesign --force -s - "$f" ;;
+      *) codesign --force "${sign[@]}" "$f" ;;
    esac
 done
-codesign --force -s - "$app"
+codesign --force "${sign[@]}" "$app"
+codesign --verify --deep --strict "$app"
 
 # Check that nothing is still asked for from outside the bundle and macOS,
 # and that it starts without anything else to hand: a library missing
@@ -203,6 +215,32 @@ dmg=$dist/Paperman-$version-$arch.dmg
 hdiutil create -quiet -volname Paperman -srcfolder "$dist/dmg" -ov \
    -format UDZO "$dmg"
 rm -rf "$dist/dmg"
+
+# Have Apple notarise it, and staple the ticket to the image so that it
+# opens without a warning even offline
+notary=()
+if [ -n "$NOTARY_PROFILE" ]; then
+   notary=(--keychain-profile "$NOTARY_PROFILE")
+elif [ -n "$NOTARY_KEY_FILE" ]; then
+   notary=(--key "$NOTARY_KEY_FILE" --key-id "$NOTARY_KEY_ID" \
+           --issuer "$NOTARY_ISSUER_ID")
+fi
+if [ -n "$MACOS_SIGN_IDENTITY" ]; then
+   codesign --force -s "$MACOS_SIGN_IDENTITY" --timestamp "$dmg"
+   if [ ${#notary[@]} -gt 0 ]; then
+      out=$(xcrun notarytool submit "$dmg" "${notary[@]}" --wait 2>&1) || true
+      echo "$out"
+      # it can finish without failing when Apple has turned it down
+      if ! grep -q "status: Accepted" <<< "$out"; then
+         id=$(sed -n 's/^ *id: //p' <<< "$out" | head -1)
+         [ -n "$id" ] && xcrun notarytool log "$id" "${notary[@]}" >&2
+         echo "Apple did not notarise $dmg" >&2
+         exit 1
+      fi
+      xcrun stapler staple "$dmg"
+      spctl --assess --type open --context context:primary-signature -v "$dmg"
+   fi
+fi
 
 echo "built $dmg"
 du -sh "$app" "$dmg"
