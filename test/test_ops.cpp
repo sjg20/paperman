@@ -1,4 +1,5 @@
 #include <QDate>
+#include <QMessageBox>
 #include <QPrinter>
 #include <QtTest/QtTest>
 #include <QDir>
@@ -793,6 +794,53 @@ void TestOps::testCreateDir()
    // Check that we can find the directory through the widget
    QModelIndex foundIndex = desktop->findDir(newDirPath);
    QCOMPARE(foundIndex.isValid(), true);
+}
+
+void TestOps::testOfferRepository()
+{
+   QSettings qs;
+
+   qs.remove("offeredRepository");
+   QTemporaryDir tmp;
+   QString dir = QDir(tmp.path()).canonicalPath() + "/Paperman";
+
+   QVERIFY(Mainwindow::defaultRepository().endsWith("/Paperman"));
+   {
+      Mainwindow me;
+
+      // one can be added at any time from the File menu
+      QVERIFY(me.findChild<QAction *>("actionAddRepository"));
+
+      // with nowhere to keep papers, take the folder offered
+      QVERIFY(me.needsRepository());
+      QTimer::singleShot(0, [] {
+         auto *box = qobject_cast<QMessageBox *>(
+            QApplication::activeModalWidget());
+         QVERIFY(box);
+         for (QAbstractButton *button : box->buttons())
+            if (button->text() == "Use this folder")
+               button->click();
+      });
+      me.offerRepository(dir);
+      QVERIFY(QDir(dir).exists());
+      QVERIFY(!me.needsRepository());
+      QVERIFY(me.getDesktop()->findDir(dir).isValid());
+   }
+
+   // it is only asked once, whatever the answer
+   Mainwindow again;
+   bool asked = false;
+
+   QVERIFY(again.needsRepository());
+   QTimer::singleShot(0, [&asked] {
+      if (QWidget *box = QApplication::activeModalWidget()) {
+         asked = true;
+         box->close();
+      }
+   });
+   again.offerRepository(dir);
+   QVERIFY(!asked);
+   qs.remove("offeredRepository");
 }
 
 void TestOps::testCreateDirInNewParent()

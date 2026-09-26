@@ -24,8 +24,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QtGui>
 #include <QDir>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QScreen>
 #include <QSettings>
+#include <QStandardPaths>
 #include <qvariant.h>
 
 #include "utils.h"
@@ -374,6 +376,7 @@ void Mainwindow::runGui(QApplication& app, QStringList args,
     me = new Mainwindow();
 
     me->startup(args, serverUrl);
+    me->offerRepository();
     app.exec();
 
     me->shutdown();
@@ -476,6 +479,61 @@ void Mainwindow::on_actionAbout_triggered(bool)
 void Mainwindow::on_actionSearch_triggered(bool)
 {
    getDesktop()->activateSearch();
+}
+
+QString Mainwindow::defaultRepository (void)
+   {
+   return QStandardPaths::writableLocation (QStandardPaths::DocumentsLocation)
+          + "/Paperman";
+   }
+
+bool Mainwindow::needsRepository (void)
+   {
+   return !_desktop->getDirmodel ()->rowCount (QModelIndex ());
+   }
+
+void Mainwindow::offerRepository (const QString &dir)
+   {
+   QSettings qs;
+
+   if (!needsRepository () || qs.value ("offeredRepository").toBool ())
+      return;
+   qs.setValue ("offeredRepository", true);
+
+   QMessageBox box (QMessageBox::Question, "Paperman",
+                    tr ("Paperman keeps papers in folders called "
+                        "repositories, and has none yet.\n\n"
+                        "Keep them in %1?")
+                       .arg (QDir::toNativeSeparators (dir)),
+                    QMessageBox::NoButton, this);
+   box.setInformativeText (tr ("Another can be added at any time with "
+                               "File > Add repository."));
+   QPushButton *use = box.addButton (tr ("Use this folder"),
+                                     QMessageBox::AcceptRole);
+   QPushButton *other = box.addButton (tr ("Choose another..."),
+                                       QMessageBox::ActionRole);
+   box.addButton (tr ("Not now"), QMessageBox::RejectRole);
+   box.setDefaultButton (use);
+   box.exec ();
+
+   if (box.clickedButton () == use)
+      {
+      if (!QDir ().mkpath (dir))
+         {
+         QMessageBox::warning (this, "Paperman",
+                               tr ("Cannot make the folder %1")
+                                  .arg (QDir::toNativeSeparators (dir)));
+         return;
+         }
+      _desktop->getModel ()->addRepository (dir);
+      }
+   else if (box.clickedButton () == other)
+      _desktop->slotAddRepository ();
+   }
+
+void Mainwindow::on_actionAddRepository_triggered(bool)
+{
+   _desktop->slotAddRepository();
 }
 
 void Mainwindow::on_actionDownloads_triggered(bool)
