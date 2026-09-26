@@ -306,6 +306,14 @@ protected:
    /** change the view mode of the widget */
    void setMode (e_mode mode);
 
+   /** Give the list of pages and the preview their first-run shares for a
+       mode which has no sizes saved. The shares wait for a width if there
+       is none yet */
+   void defaultSplit (e_mode mode);
+
+   //! apply a first-run share which was waiting for a width
+   void resizeEvent (QResizeEvent *event) override;
+
    /** \returns the name of a mode, for the log */
    static const char *modeStr (e_mode mode);
 
@@ -448,6 +456,7 @@ private:
    QSplitter *_splitter;      //!< the splitter between page selector and preview
    QFrame *_textframe;        //!< frame containing text information
    e_mode _mode;              //!< which mode we are in (selection or move)
+   bool _split_pending;       //!< a first-run share waits for a width
    QString _settings_base;    //!< base string for saving window settings
    bool _modified;            //!< true if we have modified the current stack
    bool _scanning;            //!< are we scanning?

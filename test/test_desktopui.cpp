@@ -2,6 +2,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
+#include <QSplitter>
 #include <QSettings>
 #include <QToolButton>
 #include <QtTest/QtTest>
@@ -92,6 +93,66 @@ void TestDesktopUi::testStacksGetRoom()
    QVERIFY2(sizes[2] > me.width() / 3,
             qPrintable(QString("the page pane has %1 of %2 pixels")
                        .arg(sizes[2]).arg(me.width())));
+}
+
+/* Each of the page pane's views has its own first-run layout: selecting,
+   the stacks get most of the room and the pane shows a column of pages
+   beside a large preview; moving pages about, the pane gets more, with a
+   grid of pages beside a smaller preview; watching them scanned, it gets
+   most of the window and shows only pages */
+void TestDesktopUi::testFirstRunViews()
+{
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop();
+
+   /* a window the size of a real one, so that no pane is held at its
+      least width, which depends on the fonts to hand: in a small one the
+      preview's is more than its share, and varies from one machine to
+      the next */
+   QVERIFY(!desktop->addDir(setupRepo()));
+   me.resize(1600, 1000);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Pagewidget *page = desktop->getPagewidget();
+   QSplitter *split = page->findChild<QSplitter *>("pages");
+   QVERIFY(split);
+
+   /* the preview's share is a range, since the list of pages beside it
+      is held at its least width when that is more than its share */
+   struct {
+      const char *tool;
+      int stacks, pane;    // share of the window, per cent, give or take
+      int least, most;     // the preview's share of the pane, per cent
+   } view[] = {
+      { "moveMode", 34, 54, 35, 45 },
+      { "scanMode", 14, 74, 0, 0 },
+      { "selectMode", 45, 43, 70, 85 },
+   };
+
+   for (const auto &v : view) {
+      QToolButton *tool = page->findChild<QToolButton *>(v.tool);
+      QVERIFY(tool);
+      tool->click();
+      QCoreApplication::processEvents();
+
+      QList<int> sizes = desktop->sizes();
+      QList<int> inner = split->sizes();
+      int w = desktop->width();
+      int iw = inner[0] + inner[1];
+
+      qDebug() << v.tool << "panes" << sizes << "page pane" << inner;
+      QVERIFY2(qAbs(sizes[1] * 100 / w - v.stacks) <= 3
+               && qAbs(sizes[2] * 100 / w - v.pane) <= 3,
+               qPrintable(QString("%1: panes %2 %3 of %4").arg(v.tool)
+                          .arg(sizes[1]).arg(sizes[2]).arg(w)));
+      int preview = inner[1] * 100 / qMax(iw, 1);
+
+      QVERIFY2(preview >= v.least && preview <= v.most,
+               qPrintable(QString("%1: preview %2 of %3").arg(v.tool)
+                          .arg(inner[1]).arg(iw)));
+   }
 }
 
 /* With no size saved, the window should take most of the screen, however
