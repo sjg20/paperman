@@ -55,6 +55,13 @@ int test_run(int, char **in_argv, QApplication *,
    }
    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
                       settings_dir.path());
+#ifdef Q_OS_MACOS
+   /* the native settings on macOS are preferences, kept by a service
+      which takes no notice of setPath(), so use files there instead */
+   QSettings::setDefaultFormat(QSettings::IniFormat);
+   QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                      settings_dir.path());
+#endif
 
    /* Likewise keep them away from the user's scanners: libsane is told
     * about the fake one in test/fakescan and nothing else. This has to
