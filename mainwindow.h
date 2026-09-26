@@ -65,6 +65,19 @@ public:
    //! Shut down, saving settings
    void shutdown();
 
+   /** \returns the folder offered for papers when there is nowhere to
+       keep them: Paperman in the user's documents folder */
+   static QString defaultRepository (void);
+
+   //! \returns true if there are no repositories, nor any server
+   bool needsRepository (void);
+
+   /** Offer the user somewhere to keep papers if there is nowhere yet.
+       This is asked once, however the user answers
+
+       \param dir   folder to offer */
+   void offerRepository (const QString &dir = defaultRepository ());
+
    // Run the GUI with the given arguments
    static void runGui(QApplication& app, QStringList args,
                       const QString& serverUrl = QString());
@@ -108,6 +121,7 @@ public slots:
     virtual void on_actionOptionsm_triggered(bool);
     virtual void on_actionSearch_triggered(bool);
     virtual void on_actionDownloads_triggered(bool);
+    virtual void on_actionAddRepository_triggered(bool);
     virtual void on_actionDocuments_triggered(bool);
     virtual void on_actionDirectory_triggered(bool);
     void on_actionFullScreen_triggered(bool);

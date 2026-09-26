@@ -273,6 +273,10 @@ signals:
    void itemSelected (const QModelIndex &);
 
 public slots:
+   /** Ask the user for a directory and add it to the list of repositories.
+      Supports undo */
+   void slotAddRepository ();
+
    void slotPopupMenu (QModelIndex &index);
 
    /** handle an item being clicked
@@ -382,10 +386,6 @@ private slots:
 
    //! add to the list of recent directories
    void addToRecent (void);
-
-   /** Ask the user for a directory and add it to the list of repositories.
-      Supports undo */
-   void slotAddRepository ();
 
    //! Remove the selected respository. Supported undo.
    void slotRemoveRepository ();

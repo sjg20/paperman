@@ -134,6 +134,8 @@
      <addaction name="actionDocuments"/>
      <addaction name="actionDirectory"/>
     </widget>
+    <addaction name="actionAddRepository"/>
+    <addaction name="separator"/>
     <addaction name="actionOptionsm"/>
     <addaction name="menuImport"/>
     <addaction name="actionPrint"/>
@@ -574,6 +576,14 @@
    </property>
    <property name="shortcut">
     <string>Alt+Shift+W</string>
+   </property>
+  </action>
+  <action name="actionAddRepository">
+   <property name="text">
+    <string>Add repository...</string>
+   </property>
+   <property name="toolTip">
+    <string>Add a folder to keep papers in</string>
    </property>
   </action>
   <action name="actionDocuments">

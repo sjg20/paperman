@@ -58,6 +58,9 @@ private slots:
    //! Test creating a dir
    void testCreateDir();
 
+   //! Somewhere to keep papers is offered once, when there is nowhere
+   void testOfferRepository();
+
    //! Test creating a dir inside a directory not in the cache
    void testCreateDirInNewParent();
 
