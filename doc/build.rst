@@ -139,3 +139,54 @@ Output Locations
    app/build/app/outputs/bundle/release/app-release.aab  Android App Bundle
    app/build/linux/x64/release/bundle/paperman           Linux Flutter binary
    doc/_build/html/                                      Documentation
+
+Windows
+-------
+
+Paperman builds on Windows with the MSYS2 toolchain, which is also what
+CI uses. In a MINGW64 shell (CLANGARM64 on Windows on Arm):
+
+.. code:: bash
+
+   pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
+       mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
+       mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
+       mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo
+   qmake6 paperman.pro -o Makefile.win
+   make -f Makefile.win -j$(nproc)
+
+With `Inno Setup <https://jrsoftware.org/isinfo.php>`_ installed,
+``make -f Makefile.win installer`` also builds the installer; see
+:doc:`releasing`. Scanners are reached through TWAIN rather than SANE,
+by ``win32/twainsane.cpp``.
+
+macOS
+-----
+
+Paperman builds on macOS with Qt 6 and Homebrew. Homebrew's Poppler has
+no Qt bindings, so Poppler is built separately:
+
+.. code:: bash
+
+   brew install pkgconf podofo libtiff jpeg-turbo sane-backends cmake \
+       ninja openjpeg little-cms2 fontconfig
+   # Qt 6 from qt.io, or with aqtinstall:
+   #    aqt install-qt mac desktop 6.11.3 clang_64 -m qtscxml -O ~/Qt
+   curl -LO https://poppler.freedesktop.org/poppler-26.09.0.tar.xz
+   tar xf poppler-26.09.0.tar.xz
+   cmake -S poppler-26.09.0 -B pbuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
+       -DCMAKE_INSTALL_PREFIX=$HOME/poppler \
+       -DCMAKE_PREFIX_PATH="$HOME/Qt/6.11.3/macos;$(brew --prefix)" \
+       -DENABLE_QT5=OFF -DENABLE_GLIB=OFF -DENABLE_NSS3=OFF \
+       -DENABLE_GPGME=OFF -DENABLE_LIBCURL=OFF -DENABLE_BOOST=OFF \
+       -DENABLE_HARFBUZZ=OFF
+   ninja -C pbuild install
+   export PKG_CONFIG_PATH=$HOME/poppler/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig
+   ~/Qt/6.11.3/macos/bin/qmake6 paperman.pro -o Makefile
+   make -f Makefile
+
+That makes ``paperman.app``; a build with ``CONFIG+=test`` makes a plain
+``paperman`` instead, for the tests. Use ``make -f Makefile``, since the
+``GNUmakefile`` builds the other programs too. On an Intel Mac with the
+latest macOS, Homebrew has no ready-built packages, so each needs
+``brew install --build-from-source``.

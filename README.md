@@ -2,10 +2,17 @@
 
 # Paper Manager
 
-This program provides a viewer for image files such as pdf, jpeg and
-its own variant of PaperPort's .max file format.
+Paperman is an electronic filing cabinet: it scans paper into stacks of
+pages and lets you view, arrange, annotate, print, search and send them.
+It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
+format, and runs on Linux, Windows and macOS.
 
-See the INSTALL file for installation instructions.
+On Ubuntu, install it from the PPA (`ppa:sjg1/ppa`). Windows installers
+come with releases from the next one on, and until then from the
+artifacts of the latest [CI run](https://github.com/sjg20/paperman/actions/workflows/ci.yml)
+on master. See the
+[installation guide](https://paperman.readthedocs.io/en/latest/install.html)
+for the rest, including macOS.
 
 Full documentation is available at https://paperman.readthedocs.io
 
@@ -29,6 +36,16 @@ Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
 - email files as PDF via Gmail (Ctrl+Shift+E, paste with Ctrl+V)
 - copy files as PDF to the clipboard (Ctrl+C, paste anywhere)
 - full undo/redo
+- fast scanning from sheet-fed scanners, through SANE on Linux and macOS
+  and TWAIN on Windows, with presets; pages cut to the sheet and
+  straightened, colourless pages stored as grey or mono, blank pages left
+  out, sheets fed sideways turned upright, and a misfeed or jam waiting to
+  be cleared without losing pages (see the
+  [scanning guide](https://paperman.readthedocs.io/en/latest/scanning.html))
+- scanning from the command line (`--scan`)
+- OCR with full-text search
+- a search server whose repositories the desktop can show and change over
+  the network
 
 
 new in 0.4:
@@ -112,6 +129,23 @@ new in 1.3.1
 * support Ubuntu oracular
 * update build scripts to work on 24.04 host
 * more tweaks to the findFolders() feature
+
+new since 1.3.3 (not yet released)
+
+* runs on Windows (10 and 11, x64 and Arm, with an installer) and macOS
+* a TWAIN back end for scanners on Windows
+* scanning: auto size and straightening by the scanner, auto colour,
+  blank-page detection in colour, sideways feeding, a Long size for
+  sheets longer than Legal, recovery from misfeeds and jams, Stop keeping
+  the sheets already fed, and much faster transfer from Fujitsu scanners
+* scanning from the command line, with `--log` and `--sane-debug` for
+  finding out what went wrong
+* unfolding scanned booklets into their pages
+* working with repositories on a paperman server: browsing, opening,
+  changing and scanning into them, with changes shown as they happen
+* a first run which offers somewhere to keep papers and lays the window
+  out to suit the screen
+* a fake Fujitsu scanner for testing without paper (Linux)
 
 ## Command-line usage
 
@@ -290,8 +324,17 @@ see doc/testing.rst for what it can do.
 
 ## Windows
 
-Paperman builds on Windows with the MSYS2 MinGW64 toolchain, which is
-also what the CI job uses. In a MINGW64 shell:
+There is an installer for x64 PCs (`paperman-setup-VERSION.exe`) and one
+for Windows on Arm (`paperman-setup-VERSION-arm64.exe`), with each release
+from the next one on, and built by every CI run meanwhile; it needs
+Windows 10 version 1809 or later, and no administrator. To scan, install
+the scanner's 64-bit TWAIN driver: for the Ricoh fi-series that is
+PaperStream IP (TWAIN x64), a separate download from the 32-bit one.
+Sign out and back in after installing it, since PaperStream only sets the
+scanner up for TWAIN when the user logs in.
+
+To build it, use the MSYS2 MinGW64 toolchain, which is also what the CI
+job uses. In a MINGW64 shell:
 
 ```
 pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
@@ -299,15 +342,17 @@ pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
     mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
     mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
     mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
-qmake6 paperman.pro
-make
+qmake6 paperman.pro -o Makefile.win
+make -f Makefile.win
 ```
 
+`make -f Makefile.win installer` builds the installer too, with Inno
+Setup installed.
+
 Scanners are driven through TWAIN rather than SANE: every TWAIN data
-source installed on the machine (for the Ricoh fi-series that is the
-PaperStream IP TWAIN driver) appears in the device list. The TWAIN back
-end lives in win32/twainsane.cpp
-and presents the same options as SANE's fujitsu backend.
+source installed on the machine appears in the device list. The TWAIN
+back end lives in win32/twainsane.cpp and presents the same options as
+SANE's fujitsu backend.
 
 When bringing up a new scanner, run paperman from a shell with
 `PAPERMAN_TWAIN_DEBUG=1` set: it logs every TWAIN operation and the
@@ -346,7 +391,9 @@ make -f Makefile
 That makes `paperman.app`; a build with `CONFIG+=test` makes a plain
 `paperman` instead, for the tests. Use `make -f Makefile`, since the
 GNUmakefile in the repository builds the other programs too. Scanners
-are reached through SANE, as on Linux, from Homebrew's sane-backends.
+are reached through SANE, as on Linux, from Homebrew's sane-backends;
+a scanner too recent for that release, such as the fi-8950, needs a
+newer SANE built from source.
 On an Intel Mac, Homebrew has no ready-built packages for the latest
 macOS, so `brew install` needs `--build-from-source`.
 
