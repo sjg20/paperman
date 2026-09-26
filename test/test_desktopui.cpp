@@ -66,6 +66,25 @@ void TestDesktopUi::clickItem(Desktopview *view, int row,
                      rect.center());
 }
 
+/* The stacks are what the window is for, so on a first run, with no
+   saved sizes, they must get a good share of it. The page pane's toolbar
+   used to set its minimum width, which with the larger buttons of macOS
+   was over half the window, leaving the stacks a strip */
+void TestDesktopUi::testStacksGetRoom()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopview *view = me.getDesktop()->getView();
+
+   QVERIFY2(view->viewport()->width() > me.width() * 2 / 5,
+            qPrintable(QString("the stacks have %1 of %2 pixels")
+                       .arg(view->viewport()->width()).arg(me.width())));
+}
+
 void TestDesktopUi::testClickSelectsStack()
 {
    QModelIndex repo_ind;

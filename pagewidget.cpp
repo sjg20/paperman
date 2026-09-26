@@ -97,6 +97,12 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
 
 //    checkSubsystem (xmlConfig->intValue("DISPLAY_SUBSYSTEM"));
    _tools = new Pagetools (this);
+   /* don't let the toolbar's many buttons set a minimum width for the
+      page pane, as the desktop's toolbar does not: with the larger
+      buttons of macOS they came to over half the window on a first run,
+      squeezing the stacks, which are what the window is for, into a
+      strip. The toolbar just clips if space is really short */
+   _tools->setSizePolicy (QSizePolicy::Ignored, QSizePolicy::Fixed);
    _delayed_update = false;
    connect (_tools->zoomFit, SIGNAL (clicked ()), this, SLOT (slotZoomFit ()));
    connect (_tools->zoomOrig, SIGNAL (clicked ()), this, SLOT (slotZoomOrig ()));
@@ -408,6 +414,7 @@ void Pagewidget::checkSubsystem (int new_subsys)
          _area = new MyScrollArea (this);
          QVBoxLayout *layout = new QVBoxLayout ();
          _tools = new Pagetools (this);
+         _tools->setSizePolicy (QSizePolicy::Ignored, QSizePolicy::Fixed);
          layout->addWidget (_tools);
          layout->addWidget (_area);
          setLayout (layout);
