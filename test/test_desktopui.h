@@ -24,6 +24,9 @@ private slots:
    //! The stacks get a good share of the window on a first run
    void testStacksGetRoom();
 
+   //! With no size saved, the window takes most of the screen
+   void testFirstWindowFitsScreen();
+
    //! Test that clicking a stack selects it and clicking space deselects
    void testClickSelectsStack();
 

@@ -1,6 +1,8 @@
 #include <QClipboard>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QScreen>
+#include <QSettings>
 #include <QToolButton>
 #include <QtTest/QtTest>
 
@@ -81,6 +83,20 @@ void TestDesktopUi::testStacksGetRoom()
    QVERIFY2(view->viewport()->width() > me.width() * 2 / 5,
             qPrintable(QString("the stacks have %1 of %2 pixels")
                        .arg(view->viewport()->width()).arg(me.width())));
+}
+
+/* With no size saved, the window should take most of the screen, however
+   big it is, rather than a size fixed in the form which suits none */
+void TestDesktopUi::testFirstWindowFitsScreen()
+{
+   QSettings().remove("mainwindow/geometry");
+   Mainwindow me;
+   QRect avail = me.screen()->availableGeometry();
+
+   qDebug() << "window" << me.geometry() << "screen" << avail;
+   QVERIFY(me.width() > avail.width() * 2 / 3);
+   QVERIFY(me.height() > avail.height() * 2 / 3);
+   QVERIFY(me.width() <= avail.width() && me.height() <= avail.height());
 }
 
 void TestDesktopUi::testClickSelectsStack()

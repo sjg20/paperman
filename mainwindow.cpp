@@ -88,7 +88,18 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
 
    utilInit(qs.value("files/group").toString());
 
-   restoreGeometry(qs.value("mainwindow/geometry").toByteArray());
+   /* On a first run there is no size saved, and the one in the form,
+      874 x 821, suits no screen: on a large one it leaves most of it
+      empty and on a small one it goes behind the task bar. Take most of
+      the screen instead, leaving a margin so that the window still looks
+      like one */
+   if (!restoreGeometry(qs.value("mainwindow/geometry").toByteArray()))
+      {
+      QRect avail = screen()->availableGeometry();
+
+      resize(avail.size() * 4 / 5);
+      move(avail.center() - rect().center());
+      }
    restoreState(qs.value("mainwindow/state").toByteArray());
    bool dir_filter = qs.value("mainwindow/dir_filter").toBool();
    actionDirFilter->setChecked(dir_filter);
