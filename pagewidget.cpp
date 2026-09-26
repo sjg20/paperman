@@ -89,6 +89,7 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
    _subsys = SUBSYS_pixmap;
    _settings_base = base;
    _mode = Mode_none;
+   _split_pending = false;
    _modelconv = modelconv;
    _scanning = false;
    _model = 0;
@@ -152,6 +153,7 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
 
    QVBoxLayout *layout = new QVBoxLayout (this);
    _splitter = new QSplitter (this);
+   _splitter->setObjectName ("pages");   // the list of pages and preview
    layout->addWidget (_tools);
    layout->addWidget (_stack, 1);
    setLayout (layout);
@@ -327,6 +329,8 @@ void Pagewidget::setMode (e_mode mode)
       QList<int> size;
       if (getSettingsSizes (QString ("%1pagewidget/").arg (str), size))
          _splitter->setSizes (size);
+      else
+         defaultSplit (_mode);
 
       _ocr_split->setOrientation (qs.value (str + "ocr_horiz").toBool ()
          ? Qt::Horizontal : Qt::Vertical);
@@ -342,12 +346,41 @@ void Pagewidget::setMode (e_mode mode)
       slotNewScale (dscale, false);
 
       // set the pages window scale
-      int scale = qs.value (str + "pages_scale", 24).toInt ();
+      /* on a first run, show the pages larger where they are the
+         point: moving them about, and more so watching them scanned */
+      int scale = qs.value (str + "pages_scale", _mode == Mode_scan ? 7
+                            : _mode == Mode_move ? 22 : 24).toInt ();
       scale = qMax (scale, 1);
       scale = qMin (scale, 224);
 
       slotNewScale (scale);
       }
+   }
+
+
+void Pagewidget::defaultSplit (e_mode mode)
+   {
+   /* the list's share of the width: selecting, a column of pages beside
+      a large preview; moving pages about, a grid of them beside a smaller
+      one; scanning, only the list, which is what is watched */
+   int list = mode == Mode_scan ? 100 : mode == Mode_move ? 60 : 19;
+   int w = _splitter->width ();
+
+   _split_pending = false;
+   if (list == 100)
+      _splitter->setSizes ({1, 0});
+   else if (w > 0)
+      _splitter->setSizes ({w * list / 100, w * (100 - list) / 100});
+   else
+      _split_pending = true;
+   }
+
+
+void Pagewidget::resizeEvent (QResizeEvent *event)
+   {
+   QWidget::resizeEvent (event);
+   if (_split_pending && _splitter->width () > 0)
+      defaultSplit (_mode);
    }
 
 

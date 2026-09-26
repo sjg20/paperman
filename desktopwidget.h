@@ -255,6 +255,12 @@ protected:
        is one to share */
    void showEvent (QShowEvent *event) override;
 
+   /** Share out the width between the panes as suits a mode which has no
+       sizes saved, now or once there is a width
+
+      \param mode   Pagewidget::e_mode */
+   void defaultSizes (int mode);
+
    // Return the cache
    TreeItem *ensureCache();
 
@@ -531,9 +537,9 @@ private:
    QModelIndex doNewDir(const QString& name, QString& path);
 
 private:
-   /** true until the panes have been given their first-run sizes, when
-      there were none saved */
-   bool _default_sizes;
+   /** the mode whose first-run sizes the panes are waiting to be given,
+       once there is a width to share, or -1 if none */
+   int _default_mode;
 
    /** this is the model for the directories tree */
    Dirmodel *_model;

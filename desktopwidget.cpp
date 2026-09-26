@@ -250,9 +250,11 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    QList<int> size;
 
-   _default_sizes = !getSettingsSizes ("desktopwidget/", size);
-   if (!_default_sizes)
+   _default_mode = -1;
+   if (getSettingsSizes ("desktopwidget/", size))
       setSizes (size);
+   else
+      _default_mode = Pagewidget::Mode_select;
 
    connect (_view, SIGNAL (popupMenu (QModelIndex &)),
          this, SLOT (slotPopupMenu (QModelIndex &)));
@@ -272,19 +274,33 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 void Desktopwidget::showEvent (QShowEvent *event)
    {
    QSplitter::showEvent (event);
+   if (_default_mode != -1)
+      defaultSizes (_default_mode);
+   }
 
-   /* On a first run, give the stacks most of the room, and leave the
-      page pane enough to show a page whole beside its list of pages.
-      This waits until now since, before the splitter has a width, the
-      sizes given are not shared out as asked: the first panes get their
-      least and the last all the rest */
-   if (_default_sizes && count () == 3 && width () > 0)
-      {
-      int w = width ();
 
+/* On a first run, give the stacks most of the room when selecting, and
+   leave the page pane enough to show a page whole beside its list of
+   pages. When moving pages about, the pages are the point, so give them
+   more of it, and when watching them scanned, most of it.
+
+   This waits until there is a width: before the splitter has one, the
+   sizes given are not shared out as asked, but the first panes get their
+   least and the last all the rest */
+void Desktopwidget::defaultSizes (int mode)
+   {
+   int w = width ();
+
+   _default_mode = mode;
+   if (count () != 3 || w <= 0)
+      return;
+   _default_mode = -1;
+   if (mode == Pagewidget::Mode_move)
+      setSizes ({w * 12 / 100, w * 34 / 100, w * 54 / 100});
+   else if (mode == Pagewidget::Mode_scan)
+      setSizes ({w * 12 / 100, w * 14 / 100, w * 74 / 100});
+   else
       setSizes ({w * 12 / 100, w * 45 / 100, w * 43 / 100});
-      _default_sizes = false;
-      }
    }
 
 
@@ -558,6 +574,8 @@ void Desktopwidget::slotModeChanging (int new_mode, int old_mode)
 
       if (getSettingsSizes (str, size))
          setSizes (size);
+      else
+         defaultSizes (new_mode);
       }
    }
 

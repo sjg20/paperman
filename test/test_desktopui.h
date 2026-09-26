@@ -24,6 +24,9 @@ private slots:
    //! The stacks get a good share of the window on a first run
    void testStacksGetRoom();
 
+   //! Each view of the page pane has its own first-run layout
+   void testFirstRunViews();
+
    //! With no size saved, the window takes most of the screen
    void testFirstWindowFitsScreen();
 
