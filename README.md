@@ -319,6 +319,37 @@ manager (TWAINDSM.dll, installed with any current driver) is used; set
 `PAPERMAN_TWAIN_LEGACY=1` to fall back to the twain_32.dll shipped with
 Windows.
 
+## macOS
+
+Paperman builds on macOS with Qt 6 and Homebrew. Homebrew's Poppler has
+no Qt bindings, so Poppler is built separately:
+
+```
+brew install pkgconf podofo libtiff jpeg-turbo sane-backends cmake ninja \
+    openjpeg little-cms2 fontconfig
+# Qt 6 from qt.io, or with aqtinstall:
+#    aqt install-qt mac desktop 6.11.3 clang_64 -m qtscxml -O ~/Qt
+curl -LO https://poppler.freedesktop.org/poppler-26.09.0.tar.xz
+tar xf poppler-26.09.0.tar.xz
+cmake -S poppler-26.09.0 -B pbuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=$HOME/poppler \
+    -DCMAKE_PREFIX_PATH="$HOME/Qt/6.11.3/macos;$(brew --prefix)" \
+    -DENABLE_QT5=OFF -DENABLE_GLIB=OFF -DENABLE_NSS3=OFF \
+    -DENABLE_GPGME=OFF -DENABLE_LIBCURL=OFF -DENABLE_BOOST=OFF \
+    -DENABLE_HARFBUZZ=OFF
+ninja -C pbuild install
+export PKG_CONFIG_PATH=$HOME/poppler/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig
+~/Qt/6.11.3/macos/bin/qmake6 paperman.pro -o Makefile
+make -f Makefile
+```
+
+That makes `paperman.app`; a build with `CONFIG+=test` makes a plain
+`paperman` instead, for the tests. Use `make -f Makefile`, since the
+GNUmakefile in the repository builds the other programs too. Scanners
+are reached through SANE, as on Linux, from Homebrew's sane-backends.
+On an Intel Mac, Homebrew has no ready-built packages for the latest
+macOS, so `brew install` needs `--build-from-source`.
+
 ## Code signing policy
 
 Free code signing provided by [SignPath.io](https://about.signpath.io),
