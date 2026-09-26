@@ -250,13 +250,9 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    QList<int> size;
 
-   if (!getSettingsSizes ("desktopwidget/", size))
-      {
-      size.append (200);
-      size.append (1000);
-      size.append (400);
-      }
-   setSizes (size);
+   _default_sizes = !getSettingsSizes ("desktopwidget/", size);
+   if (!_default_sizes)
+      setSizes (size);
 
    connect (_view, SIGNAL (popupMenu (QModelIndex &)),
          this, SLOT (slotPopupMenu (QModelIndex &)));
@@ -272,6 +268,25 @@ Desktopwidget::Desktopwidget (QWidget *parent)
       for the moment, we do another scroll 1 second after starting up */
    QTimer::singleShot(1000, _view, SLOT (scrollToLast()));
    }
+
+void Desktopwidget::showEvent (QShowEvent *event)
+   {
+   QSplitter::showEvent (event);
+
+   /* On a first run, give the stacks most of the room, and leave the
+      page pane enough to show a page whole beside its list of pages.
+      This waits until now since, before the splitter has a width, the
+      sizes given are not shared out as asked: the first panes get their
+      least and the last all the rest */
+   if (_default_sizes && count () == 3 && width () > 0)
+      {
+      int w = width ();
+
+      setSizes ({w * 12 / 100, w * 45 / 100, w * 43 / 100});
+      _default_sizes = false;
+      }
+   }
+
 
 void Desktopwidget::createPage(void)
    {

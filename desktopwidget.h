@@ -251,6 +251,10 @@ public:
 protected:
    //bool eventFilter (QObject *watched_object, QEvent *e);
 
+   /** On a first run, share the width out between the panes once there
+       is one to share */
+   void showEvent (QShowEvent *event) override;
+
    // Return the cache
    TreeItem *ensureCache();
 
@@ -527,6 +531,10 @@ private:
    QModelIndex doNewDir(const QString& name, QString& path);
 
 private:
+   /** true until the panes have been given their first-run sizes, when
+      there were none saved */
+   bool _default_sizes;
+
    /** this is the model for the directories tree */
    Dirmodel *_model;
 
