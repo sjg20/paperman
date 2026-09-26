@@ -356,6 +356,9 @@ test {
     # a GUI-subsystem executable has no stdout on Windows, so the test
     # results would be lost
     win32: CONFIG += console
+    # the tests and the scripts which make their files run ./paperman,
+    # which on macOS would otherwise be inside paperman.app
+    macx: CONFIG -= app_bundle
 }
 
 # tif_fax3sm.c   - causes tifflib to break
@@ -371,6 +374,17 @@ test {
 UI_DIR = .ui
 MOC_DIR = .moc
 OBJECTS_DIR = .obj
+
+macx {
+    # Homebrew keeps its libraries under its own prefix, which qmake does
+    # not search, and has no Poppler with the Qt bindings, which is built
+    # separately; pkg-config finds them all
+    CONFIG += link_pkgconfig
+    PKGCONFIG += libpodofo poppler-qt6 sane-backends libtiff-4 libjpeg
+    # a Poppler built with CMake is found through the search path, so
+    # add the directory it is in
+    QMAKE_RPATHDIR += $$system(pkg-config --variable=libdir poppler-qt6)
+}
 
 win32 {
     # MSYS2 lays the headers out under the toolchain prefix; qmake does not
