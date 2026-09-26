@@ -1689,6 +1689,7 @@ void QScanDialog::slotPreviewSize(QRect rect)
 void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
 {
   double tlx,tly,brx,bry;
+  bool turned = false;
 
   // Changing the page size below reloads the scanner options and rebuilds the
   // preview, which can re-enter this slot with a stale size and undo the scan
@@ -1710,7 +1711,8 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
        window: hand it over the other way round. Without this a page
        longer than the paper width is cut off at the foot, and on a back
        end that only trims the length there is nothing to put it back */
-    if (xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS"))
+    turned = xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS");
+    if (turned)
       setPageSize (sca->height (), sca->width ());
     else
       setPageSize (sca->width (), sca->height ());
@@ -1740,6 +1742,17 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
   tly = sca->tly();
   brx = sca->brx();
   bry = sca->bry();
+
+  /* The size's window is worked out for the page upright, as a part of
+     the scanner's range: A5 is 148/210 of it across once the page is
+     210mm wide. Turned round, that part is no longer the page, and the
+     window comes out square, cutting off everything past the page's
+     width. The page size now is the page, so the window is all of it */
+  if (turned && tlx >= 0.0)
+  {
+    tlx = tly = 0.0;
+    brx = bry = 1.0;
+  }
 //change scrollbar options
   mpTlxOption->slotSetPercentValue(tlx);
   mpTlyOption->slotSetPercentValue(tly);

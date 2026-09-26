@@ -523,6 +523,25 @@ void TestQscanner::testPscanPaperSideways()
              "fed sideways, the scan should be shorter than upright");
    QVERIFY2 (sideways_x >= upright_x - 2.0,
              "fed sideways, the scan should be no narrower than upright");
+
+   /* A page narrow enough to go across the scanner either way, such as
+      A5, has to be scanned whole when fed sideways: across, its height,
+      not the square the upright window turned round would give, which
+      cut the foot off every page */
+   int a5 = -1;
+
+   for (int i = 0; !pv->getSizeName (i).isEmpty (); i++)
+      if (pv->getSizeName (i).startsWith ("A5"))
+         a5 = i;
+   QVERIFY (a5 != -1);
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 2);
+   pscan.selectPreviewSize (a5);
+   sideways_x = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ()));
+   sideways_y = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ()));
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+   QVERIFY2 (qAbs (sideways_x - 210) < 2.0 && qAbs (sideways_y - 148) < 2.0,
+             qPrintable (QString ("A5 fed sideways gives a window %1 x %2mm")
+                         .arg (sideways_x).arg (sideways_y)));
 }
 
 
