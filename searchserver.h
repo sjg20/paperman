@@ -132,6 +132,12 @@ public:
     void stop();
 
     /**
+     * Get how many clients have an event stream open, so that one can
+     * tell when a new stream is in place to hear a change
+     */
+    int eventClientCount() const { return _eventClients.size(); }
+
+    /**
      * Get the port the server is listening on
      */
     quint16 port() const { return _port; }

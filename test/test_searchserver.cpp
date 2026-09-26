@@ -2075,7 +2075,8 @@ void TestSearchServer::testRemoteEvents()
     RemoteBackend listener(url);
     QSignalSpy spy(&listener, &RemoteBackend::stackEvent);
     listener.subscribeEvents(repo);
-    QTest::qWait(200);   // let the stream connect
+    // a change made before the stream is in place is not heard
+    QTRY_COMPARE(server.eventClientCount(), 1);
 
     // a change made by a different client arrives as an event
     RemoteBackend actor(url);
@@ -2115,6 +2116,10 @@ void TestSearchServer::testRemoteEvents()
     QVERIFY(parent.isValid());
     QVERIFY(model.index("testfile.max", parent).isValid());
 
+    /* the desktop opens its own stream to the server as it shows the
+       directory, and does so in the background: rename before it is in
+       place and the desktop never hears of it */
+    QTRY_COMPARE(server.eventClientCount(), 2);
     QVERIFY(actor.renameStack(repo, "testfile.max", newName));
     /* wait for the event to arrive and the queued refresh to run */
     bool renamed = false;
