@@ -753,11 +753,11 @@ void Desktopwidget::renameDir ()
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
    if (_model->findIndex(src_ind) != -1)
       {
-      QMessageBox::warning (0, "Maxview", "You cannot rename a root directory");
+      QMessageBox::warning (0, "Paperman", "You cannot rename a root directory");
       return;
       }
    QString text = QInputDialog::getText(
-            this, "Maxview", "Enter new directory name:", QLineEdit::Normal,
+            this, "Paperman", "Enter new directory name:", QLineEdit::Normal,
             oldName, &ok);
    if ( ok && !text.isEmpty() && text != oldName)
       {
@@ -772,7 +772,7 @@ void Desktopwidget::renameDir ()
          _model->refresh(src_parent);
 //          _dir->refreshItemRename (text);  // indicates current item has new children
       else
-         QMessageBox::warning (0, "Maxview", "Could not rename directory");
+         QMessageBox::warning (0, "Paperman", "Could not rename directory");
       }
    }
 
@@ -888,7 +888,7 @@ void Desktopwidget::deleteDir ()
 
    ok = QMessageBox::question(
             this,
-            tr("Confirmation -- maxview"),
+            tr("Confirmation -- Paperman"),
             tr("Do you want to delete directory %1 (which contains %2)?")
                .arg (path).arg (str),
             QMessageBox::Ok, QMessageBox::Cancel);
@@ -901,7 +901,7 @@ void Desktopwidget::deleteDir ()
       qDebug () << "remove dir" << _model->filePath(src_ind);
       err = _model->rmdir(src_ind);
       if (err)
-          QMessageBox::warning (0, "Maxview", err->errstr);
+          QMessageBox::warning (0, "Paperman", err->errstr);
       }
 #endif
    }
@@ -1038,14 +1038,14 @@ void Desktopwidget::newDir ()
    bool ok;
 
    QString text = QInputDialog::getText(
-            this, "Maxview", "Enter new subdirectory name:", QLineEdit::Normal,
+            this, "Paperman", "Enter new subdirectory name:", QLineEdit::Normal,
             QString(), &ok);
    if (ok && !text.isEmpty()) {
       QString path;
 
       QModelIndex new_ind = doNewDir(text, path);
       if (new_ind == QModelIndex())
-         QMessageBox::warning(0, "Maxview",
+         QMessageBox::warning(0, "Paperman",
                               QString("Could not make directory %1").arg(path));
    }
 }
@@ -1076,7 +1076,7 @@ bool Desktopwidget::newDir(const QString& dir_path, QModelIndex& index)
    Operation op("Creating directory", 0, this);
    QModelIndex src_ind = _model->mkdir(parent_ind, dirname, &op);
    if (src_ind == QModelIndex()) {
-      QMessageBox::warning(0, "Maxview", "Could not make directory " +
+      QMessageBox::warning(0, "Paperman", "Could not make directory " +
                            parent.path() + "/" + dirname);
       return false;
    }
@@ -1629,7 +1629,7 @@ void Desktopwidget::doDeleteStacks(bool confirm)
    if (confirm) {
       ok = QMessageBox::question(
                this,
-               tr("Confirmation -- maxview"),
+               tr("Confirmation -- Paperman"),
                tr("Do you want to delete %n stack(s)?", "", list.size ()),
                QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
    }
@@ -1653,7 +1653,7 @@ void Desktopwidget::doUnstackStacks(bool confirm)
    if (list.size () > 1 && confirm)
       ok = QMessageBox::question(
             this,
-            tr("Confirmation -- maxview"),
+            tr("Confirmation -- Paperman"),
             tr("Do you want to unstack %n stack(s)?", "", list.size ()),
             QMessageBox::Ok, QMessageBox::Cancel);
    if (ok == QMessageBox::Ok)

@@ -63,7 +63,7 @@ PreviewWidget::PreviewWidget(QWidget *parent, const char *name,Qt::WindowFlags f
               :QWidget(parent,f)
 {
   setObjectName(name);
-  setWindowTitle(tr("MaxView - Preview"));
+  setWindowTitle(tr("Paperman - Preview"));
   mImageVectorIndex = -1;
   mTemplateVectorIndex = -1;
   mpCurrentItem = 0;

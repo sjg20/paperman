@@ -280,7 +280,7 @@ QIN::Status QScanDialog::initDialog()
   slotImageInfo();
   connect(mpScanner,SIGNAL(signalReloadParams()),this,SLOT(slotImageInfo()));
   connect(mpScanner,SIGNAL(signalInfoInexact(int)),this,SLOT(slotInfoInexact(int)));
-  caption_string = "MaxView - ";
+  caption_string = "Paperman - ";
   caption_string += xmlConfig->stringValue("LAST_DEVICE_VENDOR",QString());
   caption_string += " ";
   caption_string += xmlConfig->stringValue("LAST_DEVICE_MODEL",QString());

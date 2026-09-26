@@ -71,7 +71,7 @@ QScannerSetupDlg::QScannerSetupDlg(QScanner *sc, QWidget *parent,
   mpScanner = sc;
   mpScanDialog = 0;
   mQueryType = -1;
-  setWindowTitle(QString(tr("Welcome to MaxView ")));
+  setWindowTitle(QString(tr("Welcome to Paperman ")));
   mpLastItem = 0L;
 //  initConfig();
   initScanner();
@@ -635,7 +635,7 @@ void QScannerSetupDlg::initConfig()
   xmlConfig->setVersion(VERSION);
   xmlConfig->setFilePath(QDir::homePath()+
                      "/.maxview/qmaxview_config.xml");
-  xmlConfig->setCreator("MaxView");
+  xmlConfig->setCreator("Paperman");
 */
   xmlConfig->setStringValue("CURVE_SAVE_PATH", QDir::homePath());
   xmlConfig->setStringValue("CURVE_OPEN_PATH", QDir::homePath());

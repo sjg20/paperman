@@ -1125,7 +1125,7 @@ err_info *Desktopmodel::scanCommitPages (QModelIndex &ind, int del_count,
 bool Desktopmodel::checkerr (err_info *err)
    {
    if (err)
-      QMessageBox::warning (0, "Maxview", err->errstr);
+      QMessageBox::warning (0, "Paperman", err->errstr);
    return err != NULL;
    }
 
@@ -1303,7 +1303,7 @@ bool Desktopmodel::checkScanStack (QModelIndexList &list, QModelIndex parent)
       scanning to, stop it */
    if (_scan_desk == desk)
       {
-      QMessageBox::warning (0, "Maxview", tr ("Sorry, you cannot do this while scanning"));
+      QMessageBox::warning (0, "Paperman", tr ("Sorry, you cannot do this while scanning"));
       return false;
       }
 /*

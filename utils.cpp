@@ -812,7 +812,7 @@ err_info *util_buildZip (QString &zip, const QStringList &fnamelist)
          return err_make (ERRFN, ERR_cannot_add_file_to_zip1, qPrintable (fname));
       }
       
-   uz.setArchiveComment("This archive has been created by Maxview using OSDaB Zip (http://osdab.sourceforge.net/).");
+   uz.setArchiveComment("This archive has been created by Paperman using OSDaB Zip (http://osdab.sourceforge.net/).");
    if (uz.closeArchive () != Zip::Ok)
       return err_make (ERRFN, ERR_cannot_close_file1, qPrintable (zip));
    return NULL;

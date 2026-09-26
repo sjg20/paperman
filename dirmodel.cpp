@@ -597,7 +597,7 @@ bool Dirmodel::dropMimeData(const QMimeData *data, Qt::DropAction,
 
       ok = QMessageBox::question(
          0,
-         tr("Confirmation -- maxview"),
+         tr("Confirmation -- Paperman"),
          tr("Do you want to move %n directory(s)?", "", urls.size ()),
          QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
       if (!ok)

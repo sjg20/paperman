@@ -124,7 +124,7 @@ void Printopt::load ()
    textFont->setFont (_fontEdit);
 
    _printer->setFullPage (!_shrinkFit);
-   _printer->setCreator ("Maxview");
+   _printer->setCreator ("Paperman");
    if (_duplexMode != -1)
 #ifdef USE_DUPLEX
       _printer->setDuplex ((QPrinter::DuplexMode)_duplexMode);
