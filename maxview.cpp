@@ -69,6 +69,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "op.h"
 #include "utils.h"
 #include "fakescanner.h"
+#include "qscanner.h"
 #include "searchindex.h"
 #include "test/test.h"
 
@@ -1071,6 +1072,12 @@ int main (int argc, char *argv[])
       return 1;
       }
    QApplication app (argc, argv, useGUI);
+
+#ifdef Q_OS_MACOS
+   // a Mac package carries its own SANE
+   if (op_type != 't')
+      QScanner::useBundledSane (QCoreApplication::applicationDirPath ());
+#endif
 
    /* keep a note in the log of anything the user is told in a dialog */
    utilLogDialogs (&app);

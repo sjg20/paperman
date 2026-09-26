@@ -65,6 +65,20 @@ public:
 
 	QScanner();
 	~QScanner();
+
+  /** Point libsane at the back ends and configuration packed into the
+      application bundle, when it is run from one: a Mac package carries
+      its own SANE, whose install directory is not on the machine. The
+      back ends are in Contents/PlugIns/sane and the configuration in
+      Contents/Resources/sane.d.
+
+      This must come before anything asks libsane for a scanner, since it
+      reads both when it starts.
+
+      \param exe_dir   directory holding the program, Contents/MacOS in a
+                       bundle
+      \returns true if the bundle has SANE and libsane now looks there */
+  static bool useBundledSane(const QString &exe_dir);
   static void qis_authorization(SANE_String_Const resource,
                        SANE_Char username[SANE_MAX_USERNAME_LEN],
                        SANE_Char password[SANE_MAX_PASSWORD_LEN]);  /**  */

@@ -980,6 +980,38 @@ void TestQscanner::testPscanFirstPreset()
 }
 
 
+/* A Mac package carries its own SANE, and libsane is pointed at it when
+   paperman runs from the bundle; a program not in one is left alone */
+void TestQscanner::testBundledSane()
+{
+   QByteArray conf = qgetenv("SANE_CONFIG_DIR");
+   QByteArray path = qgetenv("LD_LIBRARY_PATH");
+   auto restore = qScopeGuard([&] {
+      qputenv("SANE_CONFIG_DIR", conf);
+      qputenv("LD_LIBRARY_PATH", path);
+   });
+   QTemporaryDir tmp;
+   QString contents = tmp.path() + "/Paperman.app/Contents";
+
+   QVERIFY(QDir().mkpath(contents + "/MacOS"));
+   QVERIFY(!QScanner::useBundledSane(contents + "/MacOS"));
+   QCOMPARE(qgetenv("SANE_CONFIG_DIR"), conf);
+
+   QVERIFY(QDir().mkpath(contents + "/PlugIns/sane"));
+   QVERIFY(QDir().mkpath(contents + "/Resources/sane.d"));
+   QFile dll(contents + "/Resources/sane.d/dll.conf");
+   QVERIFY(dll.open(QIODevice::WriteOnly));
+   dll.close();
+
+   qputenv("LD_LIBRARY_PATH", "/somewhere");
+   QVERIFY(QScanner::useBundledSane(contents + "/MacOS"));
+   QCOMPARE(QString::fromLocal8Bit(qgetenv("SANE_CONFIG_DIR")),
+            contents + "/Resources/sane.d");
+   QCOMPARE(QString::fromLocal8Bit(qgetenv("LD_LIBRARY_PATH")),
+            contents + "/PlugIns/sane:/somewhere");
+}
+
+
 void TestQscanner::testPscanLong()
 {
    ensureXmlConfig ();

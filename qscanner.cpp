@@ -14,6 +14,8 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QDir>
+#include <QFile>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QTextStream>
@@ -103,6 +105,27 @@ bool QScanner::isInit()
 {
   return mInitOk;
 }
+bool QScanner::useBundledSane(const QString &exe_dir)
+{
+  QString backends = QDir::cleanPath(exe_dir + "/../PlugIns/sane");
+  QString conf = QDir::cleanPath(exe_dir + "/../Resources/sane.d");
+
+  if (!QFile::exists(conf + "/dll.conf") || !QDir(backends).exists())
+    return false;
+
+  /* only the bundle's, so that a SANE installed on the machine for some
+     other program is not mixed in with it */
+  qputenv("SANE_CONFIG_DIR", conf.toLocal8Bit());
+
+  // the dll back end looks along LD_LIBRARY_PATH for back ends, on macOS too
+  QByteArray path = qgetenv("LD_LIBRARY_PATH");
+
+  qputenv("LD_LIBRARY_PATH", backends.toLocal8Bit()
+                             + (path.isEmpty() ? "" : ":" + path));
+  return true;
+}
+
+
 /**Initializes the scanner with a call to sane_init(). If this action
   * was successfull, true is returned, otherwise false.
   * Call saneStatus() to get the exact error.
