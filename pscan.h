@@ -200,6 +200,9 @@ private:
     /** select a preset item, numbered from 0 */
     void presetSelect(int item);
 
+    //! \returns the preset to start with on a first run, and on Reset
+    int defaultPreset(void);
+
     /** set whether a particular preset item is enabled or not */
     void presetSetEnabled(enum Preset::preset_item_t index, bool enabled);
 

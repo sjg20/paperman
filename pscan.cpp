@@ -348,7 +348,23 @@ void Pscan::setMainwidget(Mainwidget *main)
 {
     _main = main;
    _folders->setMainwidget(main);
-    presetSelect(0);
+
+   /* Start from the default preset only the first time, when no scanner
+      has been chosen: after that the scanner has the settings last used,
+      which are kept */
+   if (!xmlConfig || xmlConfig->stringValue("LAST_DEVICE").isEmpty())
+      presetSelect(defaultPreset());
+}
+
+
+/* The preset the panel starts with on a first run, and goes back to on
+   Reset: the second when there is one, which of the standard ones is
+   colour at 200dpi. Most papers have some colour on them, a letterhead or
+   a signature, and at 200dpi they are read as easily and take far less
+   room than at 300 */
+int Pscan::defaultPreset(void)
+{
+   return _presets.size() > 1 ? 1 : 0;
 }
 
 
@@ -514,7 +530,7 @@ void Pscan::contrastChanged(int contrast)
 void Pscan::reset_clicked()
 {
    if (_presets.size()) {
-      presetSelect(0);
+      presetSelect(defaultPreset());
    } else if (_scanDialog) {
       _scanDialog->setFormat (QScanner::mono, false);
       _scanDialog->setExposure (128);

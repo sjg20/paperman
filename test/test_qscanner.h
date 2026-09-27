@@ -71,6 +71,9 @@ private slots:
    //! A scan without the window, with no scanner, does not wait on a dialog
    void testHeadlessNoScanner();
 
+   //! The scan panel starts with colour at 200dpi on a first run only
+   void testPscanFirstPreset();
+
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
 
