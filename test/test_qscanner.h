@@ -79,6 +79,7 @@ private slots:
 
    //! Auto is a mode of the scan panel, which presets keep
    void testPscanAutoMode();
+   void testPscanPresetSettings();
 
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();

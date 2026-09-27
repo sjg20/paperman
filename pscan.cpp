@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QMessageBox>
 #include <QProcess>
 #include <QScrollBar>
@@ -42,7 +43,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 Preset::Preset(QString name, QScanner::format_t format, int dpi, bool duplex,
                bool auto_colour)
     : _name(name), _format(format), _auto(auto_colour), _dpi(dpi),
-      _duplex(duplex), _valid(true)
+      _duplex(duplex), _feed(Any), _autosize(Any), _deskew(Any),
+      _bright(Any), _contrast(Any), _valid(true)
 {
 }
 
@@ -52,8 +54,16 @@ Preset::~Preset()
 
 bool Preset::matches(Preset &other)
 {
+   auto same = [](int mine, int theirs) {
+      return mine == Any || mine == theirs;
+   };
+
    return other._valid && _format == other._format && _auto == other._auto &&
-         _dpi == other._dpi && _duplex == other._duplex;
+         _dpi == other._dpi && _duplex == other._duplex &&
+         (_size.isEmpty() || _size == other._size) &&
+         same(_feed, other._feed) && same(_autosize, other._autosize) &&
+         same(_deskew, other._deskew) && same(_bright, other._bright) &&
+         same(_contrast, other._contrast);
 }
 
 /*
@@ -95,6 +105,7 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(dither, QScanner::dither);
     format->setId(colour, QScanner::colour);
     format->setId(autoMode, AutoId);
+    _chosen = -1;
 
     _folders = new Folderlist(folderName, this);
 
@@ -151,6 +162,17 @@ void Pscan::readSettings()
          fmt = formats[format];
 
       Preset preset(name, fmt, dpi, duplex, auto_colour);
+
+      // what a preset saved before these were kept does not have
+      auto opt = [&qs](const char *key) {
+         return qs.contains(key) ? qs.value(key).toInt() : (int)Preset::Any;
+      };
+      preset._size = qs.value("size").toString();
+      preset._feed = opt("feed");
+      preset._autosize = opt("autosize");
+      preset._deskew = opt("deskew");
+      preset._bright = opt("bright");
+      preset._contrast = opt("contrast");
       presetAdd(preset);
       }
    qs.endArray();
@@ -162,12 +184,15 @@ void Pscan::readSettings()
                         true));
    }
    preset->addItem ("Add preset...");
+   preset->addItem ("Update preset");
+   preset->addItem ("Rename preset...");
    preset->addItem ("Delete preset...");
 
    // Add a custom one which cannot be selected, but shows when the settings
    // don't match any item
    preset->addItem ("<custom>");
    presetSetEnabled(Preset::custom, false);
+   presetMenuUpdate();
 }
 
 /*
@@ -260,6 +285,19 @@ void Pscan::saveSettings()
       qs.setValue("format", preset._auto ? "auto" : formats[preset._format]);
       qs.setValue("dpi", preset._dpi);
       qs.setValue("duplex", preset._duplex);
+
+      // only the settings the preset has, so that the rest stay unset
+      auto opt = [&qs](const char *key, int value) {
+         if (value != Preset::Any)
+            qs.setValue(key, value);
+      };
+      if (!preset._size.isEmpty())
+         qs.setValue("size", preset._size);
+      opt("feed", preset._feed);
+      opt("autosize", preset._autosize);
+      opt("deskew", preset._deskew);
+      opt("bright", preset._bright);
+      opt("contrast", preset._contrast);
       }
    qs.endArray();
    }
@@ -444,6 +482,8 @@ void Pscan::autosize_clicked()
    /* the size the user chose may no longer apply, and where it still
       does it is now the most a page can be rather than what it is */
    updateAutoSize ();
+   if (_do_preset_check)
+      presetCheck();
 }
 
 
@@ -457,6 +497,8 @@ void Pscan::deskew_clicked()
 
    // the scanner decides the size of a page now
    updateAutoSize ();
+   if (_do_preset_check)
+      presetCheck();
 }
 
 
@@ -478,6 +520,8 @@ void Pscan::sideways_activated(int how)
 
    // the long size is only for sheets fed upright
    updateAutoSize ();
+   if (_do_preset_check)
+      presetCheck();
 }
 
 
@@ -530,7 +574,8 @@ void Pscan::brightChanged(int bright)
        _ctl->setExposure (bright);
     else
        _ctl->setBrightness (bright);
-//   _ctl->reloadOptions ();
+    if (_do_preset_check)
+       presetCheck();
 }
 
 
@@ -540,7 +585,8 @@ void Pscan::contrastChanged(int contrast)
        return;
     if (_ctl->format () != QScanner::mono)
        _ctl->setContrast (contrast);
-//   _ctl->reloadOptions ();
+    if (_do_preset_check)
+       presetCheck();
 }
 
 
@@ -636,8 +682,10 @@ void Pscan::size_activated( int id)
       if (other == name)
          {
          _ctl->setSize (i);
-         return;
+         break;
          }
+   if (_do_preset_check)
+      presetCheck();
 }
 
 
@@ -850,7 +898,40 @@ void Pscan::presetSelect(int item)
                               xmlConfig->boolValue ("SCAN_USE_JPEG"));
 
    setupBright ();
+   pre = presetResolve(pre);
+
+   /* The rest, as though clicked, in the
+      order they depend on each other: the feed and whether the scanner
+      cuts the page decide which sizes are offered, Long among them */
+   if (pre._feed != Preset::Any && pre._feed < sideways->count()) {
+      sideways->setCurrentIndex(pre._feed);
+      sideways_activated(pre._feed);
+   }
+   if (pre._autosize != Preset::Any && _ctl->hasAutoSize()) {
+      autosize->setChecked(pre._autosize);
+      autosize_clicked();
+   }
+   if (pre._deskew != Preset::Any && _ctl->hasDeskewCrop()) {
+      deskew->setChecked(pre._deskew);
+      deskew_clicked();
+   }
+   int row = pre._size.isEmpty() ? -1 : pageSize->findText(pre._size);
+   if (row != -1) {
+      pageSize->setCurrentIndex(row);
+      size_activated(row);
+   }
+   if (pre._bright != Preset::Any) {
+      bright->setValue(pre._bright);
+      brightChanged(pre._bright);
+   }
+   if (pre._contrast != Preset::Any && contrast->isEnabled()) {
+      contrast->setValue(pre._contrast);
+      contrastChanged(pre._contrast);
+   }
+
+   _chosen = item;
    _do_preset_check = true;
+   presetCheck();
 }
 
 void Pscan::on_preset_activated( int item )
@@ -859,9 +940,12 @@ void Pscan::on_preset_activated( int item )
       presetSelect(item);
    else if (item == (int)_presets.size() + Preset::add)
       presetAddUser();
+   else if (item == (int)_presets.size() + Preset::update)
+      presetUpdateUser();
+   else if (item == (int)_presets.size() + Preset::rename)
+      presetRenameUser();
    else if (item == (int)_presets.size() + Preset::delete_it)
       presetDeleteUser();
-   presetSetEnabled(Preset::delete_it, presetLocate() >= 0);
 }
 
 void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
@@ -885,6 +969,18 @@ Preset Pscan::presetCreate(QString name)
                  format == QScanner::colour && xmlConfig
                     && xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
 
+   /* and the rest of what the panel shows, leaving out what the scanner
+      does not have */
+   preset._size = pageSize->currentText();
+   preset._feed = sideways->currentIndex();
+   if (_ctl->hasAutoSize())
+      preset._autosize = autosize->isChecked();
+   if (_ctl->hasDeskewCrop())
+      preset._deskew = deskew->isChecked();
+   preset._bright = bright->value();
+   if (contrast->isEnabled())
+      preset._contrast = contrast->value();
+
    preset._valid = !dpiy || dpix == dpiy;
 
    return preset;
@@ -897,20 +993,121 @@ int Pscan::presetLocate()
 
    Preset to_find = presetCreate("");
 
+   // where two are the same, keep to the one chosen
+   if (_chosen >= 0 && _chosen < (int)_presets.size()
+       && presetResolve(_presets[_chosen]).matches(to_find))
+      return _chosen;
+
    for (uint i = 0; i < _presets.size(); i++) {
-      if (_presets[i].matches(to_find))
+      if (presetResolve(_presets[i]).matches(to_find))
          return i;
    }
 
    return -1;
 }
 
+
+/* A preset without one of the settings, as the standard ones are and those
+   saved before they were kept, means the usual one: the usual paper size,
+   fed upright, without auto-size or straightening, and the brightness and
+   contrast in the middle of the scanner's range. Those are only known
+   from the scanner, so a setting stays Any while they are not */
+Preset Pscan::presetResolve(const Preset &pre)
+{
+   Preset res = pre;
+   int min, max;
+
+   if (res._size.isEmpty())
+      res._size = _ctl->sizeName(_default_papersize_id);
+   if (res._feed == Preset::Any)
+      res._feed = 0;
+   if (res._autosize == Preset::Any && _ctl->hasAutoSize())
+      res._autosize = 0;
+   if (res._deskew == Preset::Any && _ctl->hasDeskewCrop())
+      res._deskew = 0;
+   if (_ctl->present()) {
+      bool mono = res._format == QScanner::mono;
+
+      if (res._bright == Preset::Any
+          && (mono ? _ctl->exposureRange(&min, &max)
+                   : _ctl->brightnessRange(&min, &max)))
+         res._bright = (min + max) / 2;
+      if (res._contrast == Preset::Any && !mono
+          && _ctl->contrastRange(&min, &max))
+         res._contrast = (min + max) / 2;
+   }
+
+   return res;
+}
+
 void Pscan::presetCheck()
 {
    int item = presetLocate();
 
+   if (item >= 0)
+      _chosen = item;
    preset->setCurrentIndex(item >= 0 ? item : _presets.size() + Preset::custom);
-   presetSetEnabled(Preset::delete_it, item >= 0);
+   presetMenuUpdate();
+}
+
+
+/* Update, Rename and Delete act on the preset last chosen, which is still
+   the one to update once the settings are changed from it */
+void Pscan::presetMenuUpdate()
+{
+   bool have = _chosen >= 0 && _chosen < (int)_presets.size();
+
+   preset->setItemText(_presets.size() + Preset::update, have
+         ? QString("Update '%1'").arg(_presets[_chosen]._name)
+         : QString("Update preset"));
+   presetSetEnabled(Preset::update, have);
+   presetSetEnabled(Preset::rename, have);
+   presetSetEnabled(Preset::delete_it, have);
+}
+
+
+void Pscan::presetUpdateUser()
+{
+   if (!_ctl->present() || _chosen < 0 || _chosen >= (int)_presets.size())
+      return;
+
+   Preset now = presetCreate(_presets[_chosen]._name);
+
+   if (!now._valid) {
+      QMessageBox msg;
+      msg.setText("A preset cannot have different horizontal and vertical "
+                  "resolutions");
+      msg.exec();
+      presetCheck();
+      return;
+   }
+   _presets[_chosen] = now;
+   saveSettings();
+   presetCheck();
+}
+
+
+void Pscan::presetRenameUser()
+{
+   if (_chosen < 0 || _chosen >= (int)_presets.size())
+      return;
+
+   bool ok;
+   QString name = QInputDialog::getText(this, "Rename preset", "Name:",
+                                        QLineEdit::Normal,
+                                        _presets[_chosen]._name, &ok);
+   if (ok && !name.trimmed().isEmpty())
+      presetRename(_chosen, name.trimmed());
+   presetCheck();
+}
+
+
+void Pscan::presetRename(int item, const QString &name)
+{
+   _presets[item]._name = name;
+   preset->setItemText(item, name);
+   saveSettings();
+   presetMenuUpdate();
 }
 
 void Pscan::presetAddUser()
@@ -957,10 +1154,10 @@ QString Pscan::presetAddNamed(const QString &name)
    Preset to_create = presetCreate(name);
 
    preset->insertItem(_presets.size(), to_create._name);
-   preset->setCurrentIndex(_presets.size());
-
+   _chosen = _presets.size();
    _presets.push_back(to_create);
    saveSettings();
+   presetCheck();
 
    return QString();
 }
@@ -969,11 +1166,10 @@ void Pscan::presetDeleteUser()
 {
    int item;
 
-   // We know that the current settings must match the item the user wants to
-   // delete, unless the current item is <custom>, in which case the option is
-   // disabled and we should not get here
-   item = presetLocate();
-   Q_ASSERT(item >= 0 && item < (int)_presets.size());
+   // the preset last chosen, which the settings may have been changed from
+   item = _chosen;
+   if (item < 0 || item >= (int)_presets.size())
+      return;
 
    QMessageBox msg;
    msg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
@@ -989,6 +1185,7 @@ void Pscan::presetDelete(int item)
 {
    _presets.erase(_presets.begin() + item);
    preset->removeItem(item);
+   _chosen = -1;
    presetCheck();
    saveSettings();
 }

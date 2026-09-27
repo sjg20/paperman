@@ -1091,6 +1091,117 @@ void TestQscanner::testPscanAutoMode()
 }
 
 
+/* A preset keeps the paper size, feed, auto-size, straightening,
+   brightness and contrast, and can be updated from the panel and renamed.
+   One without them means the usual ones */
+void TestQscanner::testPscanPresetSettings()
+{
+   ensureXmlConfig();
+   int was_sideways = xmlConfig->intValue("SCAN_SIDEWAYS");
+   QSettings qs;
+   qs.remove("preset");
+   auto restore = qScopeGuard([&] {
+      xmlConfig->setIntValue("SCAN_SIDEWAYS", was_sideways);
+      qs.remove("preset");
+   });
+   xmlConfig->setIntValue("SCAN_SIDEWAYS", 0);
+
+   const char *dev = testDevice();
+
+   if (!dev)
+      QSKIP(NO_SCANNER);
+   QScanner scanner;
+
+   scanner.setDeviceName(dev);
+   QVERIFY(scanner.openDevice());
+   QString size, usual;
+   int bright, min, max;
+   {
+      QScanDialog dialog(&scanner, 0);
+      Pscan pscan;
+
+      pscan.setScanDialog(&dialog);
+      pscan.scannerChanged(&scanner);
+      pscan.setPreviewWidget(dialog.getPreview());
+      bool has_auto = dialog.hasAutoSize();
+
+      /* the standard presets have none of these, so choosing one gives
+         the usual ones */
+      pscan.presetSelect(0);
+      QCOMPARE(pscan._chosen, 0);
+      QVERIFY(pscan._presets[0]._size.isEmpty());
+      usual = pscan.pageSize->currentText();
+      QCOMPARE(usual, dialog.getPreview()->getSizeName(
+                         pscan._default_papersize_id));
+      QVERIFY(scanner.getRangeExposure(&min, &max));
+      QCOMPARE(pscan.bright->value(), (min + max) / 2);
+      if (has_auto)
+         QVERIFY(!pscan.autosize->isChecked());
+      int update = pscan._presets.size() + Preset::update;
+      QCOMPARE(pscan.preset->itemText(update),
+               QString("Update 'Monochrome 300dpi duplex'"));
+
+      // so any other is not that preset, though it is still the one to update
+      int custom = pscan._presets.size() + Preset::custom;
+      int row = pscan.pageSize->currentIndex() ? 0 : 1;
+      size = pscan.pageSize->itemText(row);
+      pscan.pageSize->setCurrentIndex(row);
+      pscan.size_activated(row);
+      QCOMPARE(pscan.preset->currentIndex(), custom);
+      QCOMPARE(pscan._chosen, 0);
+      QCOMPARE(pscan.preset->itemText(update),
+               QString("Update 'Monochrome 300dpi duplex'"));
+      bright = pscan.bright->value() + 10;
+      pscan.bright->setValue(bright);
+      pscan.brightChanged(bright);
+      if (has_auto) {
+         pscan.autosize->setChecked(true);
+         pscan.autosize_clicked();
+      }
+      QCOMPARE(pscan.preset->currentIndex(), custom);
+
+      // Update gives the preset what the panel has now
+      pscan.presetUpdateUser();
+      QCOMPARE(pscan._presets[0]._size, size);
+      QCOMPARE(pscan._presets[0]._bright, bright);
+      QCOMPARE(pscan._presets[0]._feed, 0);
+      if (has_auto)
+         QCOMPARE(pscan._presets[0]._autosize, 1);
+      QCOMPARE(pscan.preset->currentIndex(), 0);
+
+      // choosing another puts the usual ones back, and this one its own
+      pscan.presetSelect(1);
+      QCOMPARE(pscan.pageSize->currentText(), usual);
+      if (has_auto)
+         QVERIFY(!pscan.autosize->isChecked());
+      pscan.presetSelect(0);
+      QCOMPARE(pscan.pageSize->currentText(), size);
+      QCOMPARE(pscan.bright->value(), bright);
+      if (has_auto)
+         QVERIFY(pscan.autosize->isChecked());
+      QCOMPARE(pscan.preset->currentIndex(), 0);
+
+      pscan.presetRename(0, "Letters");
+      QCOMPARE(pscan.preset->itemText(0), QString("Letters"));
+      QCOMPARE(pscan.preset->itemText(update), QString("Update 'Letters'"));
+   }
+
+   // they are saved, and a preset without them still has none
+   {
+      Pscan pscan;
+
+      QCOMPARE(pscan._presets.size(), 2u);
+      QCOMPARE(pscan._presets[0]._name, QString("Letters"));
+      QCOMPARE(pscan._presets[0]._size, size);
+      QCOMPARE(pscan._presets[0]._bright, bright);
+      QCOMPARE(pscan._presets[0]._feed, 0);
+      QVERIFY(pscan._presets[1]._size.isEmpty());
+      QCOMPARE((int)pscan._presets[1]._bright, (int)Preset::Any);
+      QCOMPARE((int)pscan._presets[1]._autosize, (int)Preset::Any);
+   }
+}
+
+
 void TestQscanner::testPscanLong()
 {
    ensureXmlConfig ();

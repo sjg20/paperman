@@ -48,8 +48,18 @@ Stack name, Page name and Folder
    you type, and Enter scans straight into the match.
 
 Presets
-   Keep a set of scan settings (mode, DPI and duplex) under a name. Ctrl-1
-   to Ctrl-6 select the first six.
+   Keep a set of scan settings under a name: the mode, DPI and duplex,
+   and also the size, feed, Auto size, Straighten, brightness and
+   contrast. Ctrl-1 to Ctrl-5 select the first five. The list names the
+   preset the panel matches, or shows ``<custom>`` when it matches none.
+
+   To change a preset, choose it, set the panel as wanted and pick
+   **Update '<name>'** from the list; **Rename preset...** gives it
+   another name and **Delete preset...** removes it. **Add preset...**
+   keeps the panel's settings as a new one. The standard presets, and any
+   kept by an earlier Paperman, have only the mode, DPI and duplex: for
+   the rest they give the usual paper size, fed upright, with Auto size
+   and Straighten off and the brightness and contrast in the middle.
 
 Mono, Dither, Grey, Colour and Auto
    The kind of image to scan. **Auto** scans in colour and stores each
