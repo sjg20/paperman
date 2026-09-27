@@ -27,6 +27,35 @@ Pre-built ``.deb`` packages for a range of Debian and Ubuntu releases are
 available from the `latest GitHub Release
 <https://github.com/sjg20/paperman/releases/latest>`_.
 
+AppImage
+--------
+
+For other Linux distributions, releases from the next one on have an
+AppImage, which runs without being installed:
+
+``Paperman-VERSION-x86_64.AppImage``
+   for most PCs
+
+``Paperman-VERSION-aarch64.AppImage``
+   for 64-bit Arm machines
+
+It needs a Linux at least as recent as Debian 12, Ubuntu 24.04 or
+Fedora 37. Download it, make it executable and run it:
+
+.. code:: bash
+
+   chmod +x Paperman-*.AppImage
+   ./Paperman-*.AppImage
+
+The AppImage carries Qt and the other libraries Paperman uses, but not
+SANE: it uses the scanner back ends installed on the machine, as other
+scanning programs do, so install SANE from the distribution
+(``libsane1`` on Debian and Ubuntu, ``sane-backends`` on Fedora and Arch)
+and check that ``scanimage -L`` lists the scanner. For reading the text
+of pages, install ``tesseract`` too. Until the next release, the
+AppImages are artifacts of the latest `CI run
+<https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master.
+
 Search server
 -------------
 

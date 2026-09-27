@@ -14,11 +14,11 @@ app for Android and iPhone, for finding and reading papers from a phone
 or tablet. See the
 [introduction](https://paperman.readthedocs.io/en/latest/introduction.html).
 
-On Ubuntu, install it from the PPA (`ppa:sjg1/ppa`). Windows installers
-and macOS disk images come with releases from the next one on, and until
-then from the artifacts of the latest
-[CI run](https://github.com/sjg20/paperman/actions/workflows/ci.yml) on
-master. See the
+On Ubuntu, install it from the PPA (`ppa:sjg1/ppa`). Windows installers,
+macOS disk images and a Linux AppImage, for other distributions, come
+with releases from the next one on, and until then from the artifacts of
+the latest [CI run](https://github.com/sjg20/paperman/actions/workflows/ci.yml)
+on master. See the
 [installation guide](https://paperman.readthedocs.io/en/latest/install.html).
 
 Full documentation is available at https://paperman.readthedocs.io
@@ -143,6 +143,8 @@ new since 1.3.3 (not yet released)
 
 * runs on Windows (10 and 11, x64 and Arm, with an installer) and macOS
   (Apple Silicon and Intel, with a disk image)
+* an AppImage for Linux distributions other than Ubuntu (x86_64 and
+  aarch64), which uses the machine's SANE
 * a TWAIN back end for scanners on Windows
 * scanning: auto size and straightening by the scanner, auto colour,
   blank-page detection in colour, sideways feeding, a Long size for
