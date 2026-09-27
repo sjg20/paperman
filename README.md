@@ -201,7 +201,7 @@ feeder is empty.
 `page-height=355.6`, with fixed-point values in their units) and can be
 repeated. `--auto-colour` stores pages that turn out to have no colour
 as greyscale, or as mono when they have no shading either, as the
-Auto colour box in the scan window does. Progress is printed on stdout
+Auto mode in the scan window does. Progress is printed on stdout
 and the exit code is 0 if at least one page was scanned. For example,
 to scan two pages in colour into the 'inbox' directory of the
 repository in ~/paper:
