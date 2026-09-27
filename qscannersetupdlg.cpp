@@ -20,6 +20,7 @@
 //s #include "qsanestatusmessage.h"
 //s #include "qscandialog.h"
 #include "qscannersetupdlg.h"
+#include "utils.h"
 #include "qscanner.h"
 #include "qxmlconfig.h"
 #include <QScreen>
@@ -462,6 +463,13 @@ void QScannerSetupDlg::showEvent(QShowEvent * e)
 void QScannerSetupDlg::createContents(bool intcall)
 {
   int i;
+
+  /* Without the window there is no one to choose from the list, nor to be
+     told that it is empty, and a message box would wait for ever for
+     someone to close it. A scan from the command line uses the scanner it
+     is given, or says that it cannot */
+  if (utilHeadless())
+    return;
   setCursor(Qt::WaitCursor);
   clearList();
   if(mQueryType < 0)
@@ -907,10 +915,13 @@ void QScannerSetupDlg::initScanner()
   	if(mpScanner->isInit())
       return;
   }
-  QMessageBox::critical(nullptr,tr("Initialisation failed"),
-               tr("<center>A call to sane_init() failed.</center><br>"
-	                "<center>Press Quit to quit QuiteInsane.</center>"),
-               QMessageBox::Ok);
+  QString msg = tr("A call to sane_init() failed, so no scanner can be used.");
+
+  if (utilHeadless())
+    fprintf(stderr, "%s\n", qPrintable(msg));
+  else
+    QMessageBox::critical(nullptr, tr("Initialisation failed"), msg,
+                          QMessageBox::Ok);
   slotQuit();
 }
 

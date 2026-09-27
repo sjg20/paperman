@@ -68,6 +68,9 @@ private slots:
    //! Scan is offered again while a scan waits for a misfeed to be cleared
    void testPscanResume();
 
+   //! A scan without the window, with no scanner, does not wait on a dialog
+   void testHeadlessNoScanner();
+
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
 
