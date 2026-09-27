@@ -4,11 +4,27 @@ Introduction
 Paperman is an electronic filing cabinet: it scans paper into stacks of
 pages, and lets you view, arrange, annotate, print, search and send them.
 It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
-format. It runs on Linux, Windows and macOS.
+format.
 
-It also includes a search server with a REST API for querying paper
-repositories, which the desktop can work with over the network, and a
-Flutter mobile app for browsing and viewing documents on Android and iOS.
+Paperman has three parts:
+
+The desktop program
+   for scanning, filing and working with papers, on Linux, Windows and
+   macOS (see :doc:`install` and :doc:`scanning`)
+
+The search server, ``paperman-server``
+   which serves repositories over the network, with a REST API, so that
+   they can be reached from elsewhere: the desktop program shows a
+   server's repositories beside its own and can change them, and the
+   apps browse them (see :doc:`server` and :doc:`api`)
+
+The Android and iPhone app
+   for finding and reading papers from a phone or tablet, from a
+   server's repositories, with a full-text search and each document
+   shown as a PDF (see :doc:`app`)
+
+So papers can be scanned at a desk, kept on one machine running the
+server, and found from anywhere.
 
 .. image:: 1.jpeg
    :width: 30%
@@ -43,7 +59,8 @@ Features
 - Search server with REST API, whose repositories the desktop can show and
   change, with changes made elsewhere shown as they happen (see
   :doc:`server`)
-- Mobile app with offline demo mode (see :doc:`app`)
+- Android and iPhone app for browsing, searching and reading a server's
+  repositories, with an offline demo mode (see :doc:`app`)
 - Email files as PDF via Gmail (see `Emailing files`_)
 - Linux, Windows (x64 and Arm) and macOS
 

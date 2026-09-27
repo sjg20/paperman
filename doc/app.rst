@@ -1,7 +1,8 @@
 Paperman Mobile App
 ====================
 
-A Flutter app for browsing and viewing documents on a paperman server.
+A Flutter app for Android and iPhone for browsing and viewing documents
+on a paperman server.
 
 Overview
 --------
@@ -153,6 +154,22 @@ the current date as the build date. The outputs are:
 -  ``app/build/linux/x64/release/bundle/paperman``
 
 To build just one target, use ``make app-apk`` or ``make app-linux``.
+
+iPhone and iPad
+~~~~~~~~~~~~~~~
+
+The app for iOS is built on a Mac with Xcode, CocoaPods and the Flutter
+SDK. With the device connected, and trusted, and a development team chosen
+under **Signing & Capabilities** in ``app/ios/Runner.xcworkspace``:
+
+.. code:: bash
+
+   cd app
+   flutter build ios --release
+   flutter install
+
+``flutter run --release`` builds and installs it in one step, and
+``flutter build ipa`` makes an archive for TestFlight or the App Store.
 
 Project Structure
 -----------------

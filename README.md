@@ -5,7 +5,14 @@
 Paperman is an electronic filing cabinet: it scans paper into stacks of
 pages and lets you view, arrange, annotate, print, search and send them.
 It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
-format, and runs on Linux, Windows and macOS.
+format.
+
+It has three parts: the desktop program, for Linux, Windows and macOS; a
+search server, `paperman-server`, which serves repositories over the
+network to the desktop program on other machines and to the app; and an
+app for Android and iPhone, for finding and reading papers from a phone
+or tablet. See the
+[introduction](https://paperman.readthedocs.io/en/latest/introduction.html).
 
 On Ubuntu, install it from the PPA (`ppa:sjg1/ppa`). Windows installers
 and macOS disk images come with releases from the next one on, and until
@@ -46,6 +53,8 @@ Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
 - OCR with full-text search
 - a search server whose repositories the desktop can show and change over
   the network
+- an app for Android and iPhone, for browsing, searching and reading the
+  server's repositories
 
 
 new in 0.4:
