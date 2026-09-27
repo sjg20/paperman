@@ -27,6 +27,35 @@ Pre-built ``.deb`` packages for a range of Debian and Ubuntu releases are
 available from the `latest GitHub Release
 <https://github.com/sjg20/paperman/releases/latest>`_.
 
+Search server
+-------------
+
+``paperman-server`` serves repositories to the desktop program on other
+machines and to the Android and iPhone app. It is built from source, on
+the machine which holds the papers, alongside the desktop program; see
+:doc:`server` to build and run it, :doc:`systemd` to run it as a service
+and :doc:`deployment` to put it behind HTTPS so that it can be reached
+from outside.
+
+Android and iPhone app
+----------------------
+
+The app reaches papers through a search server, so set one up first.
+
+Android
+   The app for Android, ``app-release.apk``, is an artifact of each `CI
+   run <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_
+   (``paperman-apk``). Copy it to the phone and open it there, allowing
+   it to be installed from that source when asked.
+
+iPhone and iPad
+   The app is built with Xcode on a Mac and installed on the device from
+   there; see :doc:`app`.
+
+In the app, enter the server's address, and a user and password if the
+server asks for them. Without a server, the demo mode shows some sample
+papers.
+
 Windows
 -------
 

@@ -15,13 +15,12 @@ to query the paper repository without direct filesystem access.
 Building
 --------
 
-The server requires Qt 5 (or Qt 4 with reduced functionality) and is
-built using qmake:
+The server is built with Qt 5 or Qt 6, using qmake:
 
 .. code:: bash
 
-   qmake paperman-server.pro
-   make
+   qmake6 paperman-server.pro -o server.mk
+   make -f server.mk
 
 This will produce the ``paperman-server`` executable.
 
@@ -192,19 +191,20 @@ messages:
 
 Common HTTP status codes: - ``200 OK`` - Request successful -
 ``400 Bad Request`` - Missing or invalid parameters - ``404 Not Found``
-- Endpoint not found - ``405 Method Not Allowed`` - Only GET requests
-are supported
+- Endpoint not found - ``405 Method Not Allowed`` - The method is not
+supported by the endpoint
 
 Security Notes
 --------------
 
-1. The server only provides read-only access to the repository
+1. The ``/v1/`` API can change the repository as well as read it, for
+   the desktop program (see :doc:`api`)
 2. All file paths are relative to the repository root to prevent
    directory traversal
-3. No authentication is currently implemented - use firewall rules or
-   reverse proxy for access control
-4. Consider running behind a reverse proxy (nginx, Apache) for
-   production use
+3. Set up users (see `Authentication`_) before letting anything but
+   the local machine reach the server
+4. Run it behind a reverse proxy (nginx, Apache) with HTTPS for use
+   from outside (see :doc:`deployment`)
 
 Integration Examples
 --------------------
