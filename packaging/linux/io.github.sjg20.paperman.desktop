@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Paperman
+GenericName=Document Scanner
+Comment=Scan, file, view and print paper documents
+Exec=paperman
+Icon=io.github.sjg20.paperman
+Terminal=false
+Categories=Office;Graphics;Scanning;
+Keywords=scan;scanner;document;filing;PDF;PaperPort;
