@@ -11,6 +11,7 @@
 #include "pagewidget.h"
 #include <QListView>
 #include <QElapsedTimer>
+#include <QProcess>
 #include <QTemporaryDir>
 #include "qscanner.h"
 #include "filemax.h"
@@ -899,6 +900,52 @@ void TestQscanner::testPscanMaxSize()
    with the scanner ending the page at the foot of the sheet. That is
    only offered while the scanner is doing that, since otherwise every
    page would be the whole length of the window */
+/* A scan from the command line with no scanner to be had must say so and
+   stop, not wait on a message box which there is no one to close: in CI,
+   and on a Mac with no scanner, --scan hung there. Run paperman as it is
+   run, with a fresh configuration and a libsane which finds nothing */
+void TestQscanner::testHeadlessNoScanner()
+{
+#ifdef Q_OS_WIN
+   /* its settings are in the registry, which another paperman would
+      share, and its TWAIN scanners cannot be hidden from it */
+   QSKIP("cannot give a second paperman settings of its own on Windows");
+#endif
+   QTemporaryDir tmp;
+   QString home = tmp.path() + "/home";
+
+   QVERIFY(QDir().mkpath(home));
+   QVERIFY(QDir().mkpath(tmp.path() + "/sane"));
+   QVERIFY(QDir().mkpath(tmp.path() + "/repo/inbox"));
+
+   // everything else as it is, so that it finds what it needs to run
+   QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+   env.insert("HOME", home);
+   env.insert("XDG_CONFIG_HOME", home + "/.config");
+   env.insert("CFFIXED_USER_HOME", home);   // macOS's settings
+   env.insert("QT_QPA_PLATFORM", "offscreen");
+   env.insert("SANE_CONFIG_DIR", tmp.path() + "/sane");
+
+   QProcess proc;
+   proc.setProcessEnvironment(env);
+   proc.setProcessChannelMode(QProcess::MergedChannels);
+   proc.start(QCoreApplication::applicationFilePath(),
+              {"--scan", "--repo", tmp.path() + "/repo", "--dir", "inbox",
+               "--device", "nosuch:scanner", "--pages", "1"});
+   QVERIFY(proc.waitForStarted());
+   bool done = proc.waitForFinished(30000);
+
+   if (!done) {
+      proc.kill();
+      proc.waitForFinished();
+   }
+   QByteArray out = proc.readAll();
+   QVERIFY2(done, qPrintable("paperman --scan did not finish:\n" + out));
+   QVERIFY(proc.exitCode() != 0);
+   QVERIFY2(out.contains("No scanner selected"), out.constData());
+}
+
+
 void TestQscanner::testPscanLong()
 {
    ensureXmlConfig ();
