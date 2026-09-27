@@ -145,6 +145,7 @@ HEADERS += desktopwidget.h \
    epeglite.h \
         options.h \
         pscan.h \
+        scancontrol.h \
         mainwindow.h \
  pagetools.h \
  dirmodel.h \
@@ -238,6 +239,7 @@ SOURCES += desktopwidget.cpp \
    epeglite.cpp \
         options.cpp \
         pscan.cpp \
+        scancontrol.cpp \
         mainwindow.cpp \
  pagetools.cpp \
  dirmodel.cpp \

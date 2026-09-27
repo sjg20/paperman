@@ -198,9 +198,7 @@ void Pscan::init()
     res->addItem ("400");
     res->addItem ("Other");
 
-    _scanner = 0;
-    _scanDialog = 0;
-    _preview = 0;
+    _ctl = &_real;
     _waiting = false;
 
     _do_preset_check = false;
@@ -292,10 +290,10 @@ void Pscan::applyPageSize (void)
 {
    QString name = pageSize->currentText ();
 
-   if (!_preview || name.isEmpty ())
+   if (name.isEmpty ())
       return;
-   for (int i = 0; !_preview->getSizeName (i).isEmpty (); i++)
-      if (_preview->getSizeName (i) == name)
+   for (int i = 0; !_ctl->sizeName (i).isEmpty (); i++)
+      if (_ctl->sizeName (i) == name)
       {
          if (i != 1)
             selectPreviewSize (i);
@@ -305,10 +303,23 @@ void Pscan::applyPageSize (void)
 
 void Pscan::scannerChanged (QScanner *scanner)
 {
-    _scanner = scanner;
+   _real.setScanner (scanner);
+   refresh ();
+}
 
-//     qDebug () << "Pscan::scannerChanged";
-    bool disabled = _scanner == 0;
+
+void Pscan::setControl (ScanControl *ctl)
+{
+   _ctl = ctl ? ctl : &_real;
+   loadSizes ();
+   updateDeskew ();
+   refresh ();
+}
+
+
+void Pscan::refresh (void)
+{
+    bool disabled = !_ctl->present ();
 
     adf->setDisabled(disabled);
     duplex->setDisabled(disabled);
@@ -319,22 +330,22 @@ void Pscan::scannerChanged (QScanner *scanner)
     colour->setDisabled(disabled);
     if (disabled)
         return;
-    setWindowTitle (_scanner->vendor () + " " + _scanner->model () + ": " + _scanner->name ());
+    setWindowTitle (_ctl->title ());
 
-    int adf_type = _scanner->adfType();
+    int adf_type = _ctl->adfType();
 
     adf->setDisabled(adf_type == 0);
-    adf->setChecked(_scanner->useAdf ());
+    adf->setChecked(_ctl->useAdf ());
 
-    duplex->setChecked(_scanner->duplex ());
-    int dpix = _scanner->xResolutionDpi ();
-    int dpiy = _scanner->yResolutionDpi ();
+    duplex->setChecked(_ctl->duplex ());
+    int dpix = _ctl->xDpi ();
+    int dpiy = _ctl->yDpi ();
     if ((dpix == dpiy || !dpiy)
          && (dpix == 200 || dpix == 300 || dpix == 400))
          res->setCurrentIndex (dpix / 100 - 2);
     else
          res->setCurrentIndex(3);
-    QScanner::format_t f = _scanner->format ();
+    QScanner::format_t f = _ctl->format ();
 
     /* Auto scans in colour, so a colour scanner is Auto when paperman is to
        decide each page's colour */
@@ -399,8 +410,7 @@ void Pscan::on_format_idClicked( int id)
 
    if (xmlConfig)
       xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", id == AutoId);
-   if (_scanDialog)
-      _scanDialog->setFormat (format, xmlConfig->boolValue ("SCAN_USE_JPEG"));
+   _ctl->setFormat (format, xmlConfig && xmlConfig->boolValue ("SCAN_USE_JPEG"));
 }
 
 
@@ -413,20 +423,19 @@ void Pscan::pendingDone()
 
 void Pscan::adf_clicked()
 {
-   _scanDialog->setAdf (adf->isChecked ());
+   _ctl->setAdf (adf->isChecked ());
 }
 
 
 void Pscan::duplex_clicked()
 {
-   _scanDialog->setDuplex (duplex->isChecked ());
+   _ctl->setDuplex (duplex->isChecked ());
 }
 
 
 void Pscan::autosize_clicked()
 {
-   if (_scanDialog)
-      _scanDialog->setAutoSize (autosize->isChecked ());
+   _ctl->setAutoSize (autosize->isChecked ());
 
    /* the size the user chose may no longer apply, and where it still
       does it is now the most a page can be rather than what it is */
@@ -440,8 +449,7 @@ void Pscan::autosize_clicked()
    it on */
 void Pscan::deskew_clicked()
 {
-   if (_scanDialog)
-      _scanDialog->setDeskewCrop (deskew->isChecked ());
+   _ctl->setDeskewCrop (deskew->isChecked ());
 
    // the scanner decides the size of a page now
    updateAutoSize ();
@@ -450,11 +458,11 @@ void Pscan::deskew_clicked()
 
 void Pscan::updateDeskew (void)
 {
-   bool has = _scanDialog && _scanDialog->hasDeskewCrop ();
+   bool has = _ctl->hasDeskewCrop ();
 
    deskew->setVisible (has);
    if (has)
-      deskew->setChecked (_scanDialog->deskewCrop ());
+      deskew->setChecked (_ctl->deskewCrop ());
 }
 
 
@@ -471,16 +479,15 @@ void Pscan::sideways_activated(int how)
 
 void Pscan::updateAutoSize (void)
 {
-   bool has = _scanDialog && _scanDialog->hasAutoSize ();
-   bool deskewing = _scanDialog && _scanDialog->hasDeskewCrop ()
-         && _scanDialog->deskewCrop ();
+   bool has = _ctl->hasAutoSize ();
+   bool deskewing = _ctl->hasDeskewCrop () && _ctl->deskewCrop ();
 
    autosize->setVisible (has);
 
    /* with the scanner cutting each page down to the sheet, the size
       the user chose is the window it scans within: a page comes out at
       that size or smaller, never larger, so say so */
-   bool cutting = deskewing || (has && _scanDialog->autoSize ());
+   bool cutting = deskewing || (has && _ctl->autoSize ());
 
    sizeLabel->setText (cutting ? tr ("Max size") : tr ("Size"));
 
@@ -491,9 +498,9 @@ void Pscan::updateAutoSize (void)
       the window is still the most a page can be, and it is the setting
       to reach for when one comes out short */
    if (has)
-      autosize->setChecked (_scanDialog->autoSize ());
+      autosize->setChecked (_ctl->autoSize ());
    pageSize->setDisabled (has && autosize->isChecked ()
-                          && _scanDialog->autoSizeTrimsWidth ());
+                          && _ctl->autoSizeTrimsWidth ());
    updateLongSize (cutting);
 
    /* grey the label with the box it belongs to, so that a size which
@@ -507,29 +514,29 @@ void Pscan::res_activated( int id)
     static int dpi_lookup [] = {200, 300, 400};
 
     if (id < 3)
-      _scanDialog->setDpi (dpi_lookup [id]);
+      _ctl->setDpi (dpi_lookup [id]);
 }
 
 
 void Pscan::brightChanged(int bright)
 {
-    if (!_scanDialog)
+    if (!_ctl->present ())
        return;
-    if (_scanner->format () == QScanner::mono)
-       _scanDialog->setExposure (bright);
+    if (_ctl->format () == QScanner::mono)
+       _ctl->setExposure (bright);
     else
-       _scanDialog->setBrightness (bright);
-//   _scanner->reloadOptions ();
+       _ctl->setBrightness (bright);
+//   _ctl->reloadOptions ();
 }
 
 
 void Pscan::contrastChanged(int contrast)
 {
-    if (!_scanDialog)
+    if (!_ctl->present ())
        return;
-    if (_scanner->format () != QScanner::mono)
-       _scanDialog->setContrast (contrast);
-//   _scanner->reloadOptions ();
+    if (_ctl->format () != QScanner::mono)
+       _ctl->setContrast (contrast);
+//   _ctl->reloadOptions ();
 }
 
 
@@ -537,14 +544,14 @@ void Pscan::reset_clicked()
 {
    if (_presets.size()) {
       presetSelect(defaultPreset());
-   } else if (_scanDialog) {
-      _scanDialog->setFormat (QScanner::mono, false);
-      _scanDialog->setExposure (128);
-      _scanDialog->setAdf (true);
-      _scanDialog->setDuplex (false);
-      _scanDialog->setDpi (300);
+   } else if (_ctl->present ()) {
+      _ctl->setFormat (QScanner::mono, false);
+      _ctl->setExposure (128);
+      _ctl->setAdf (true);
+      _ctl->setDuplex (false);
+      _ctl->setDpi (300);
    }
-   _preview->setSize(_default_papersize_id);
+   _ctl->setSize(_default_papersize_id);
    pageSize->setCurrentIndex(_default_papersize_id);
    presetCheck();
 }
@@ -621,10 +628,10 @@ void Pscan::size_activated( int id)
    QString name = pageSize->itemText (id);
    QString other;
 
-   for (int i = 0; !(other = _preview->getSizeName (i)).isEmpty (); i++)
+   for (int i = 0; !(other = _ctl->sizeName (i)).isEmpty (); i++)
       if (other == name)
          {
-         _preview->setSize (i);
+         _ctl->setSize (i);
          return;
          }
 }
@@ -642,14 +649,14 @@ void Pscan::size_activated( int id)
                     of the sheet */
 void Pscan::updateLongSize (bool cutting)
 {
-   int id = _preview ? _preview->getPreDefLong () : -1;
+   int id = _ctl->sizeLong ();
    bool sideways = xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS");
    bool offer = cutting && !sideways && id != -1;
    int row = _long_name.isEmpty () ? -1 : pageSize->findText (_long_name);
 
    if (offer && row == -1)
       {
-      _long_name = _preview->getSizeName (id);
+      _long_name = _ctl->sizeName (id);
       pageSize->addItem (_long_name);
       }
    else if (!offer && row != -1)
@@ -665,13 +672,23 @@ void Pscan::updateLongSize (bool cutting)
 
 void Pscan::setPreviewWidget( PreviewWidget *widget )
 {
+   _real.setPreview (widget);
+   loadSizes ();
+}
+
+
+/* Fill the size list from the sizes the scanner offers, choosing the
+   usual one for where we are */
+void Pscan::loadSizes (void)
+{
    QString name;
    int i = 0;
 
    pageSize->clear ();
-   _papersize_a4 = widget->getPreDefA4();
-   _papersize_letter = widget->getPreDefLetter();
-   _papersize_legal = widget->getPreDefLegal();
+   _long_name.clear ();
+   _papersize_a4 = _ctl->sizeA4();
+   _papersize_letter = _ctl->sizeLetter();
+   _papersize_legal = _ctl->sizeLegal();
    _default_papersize_id = _papersize_a4;
 
    QProcess paperconf;
@@ -691,28 +708,24 @@ void Pscan::setPreviewWidget( PreviewWidget *widget )
    }
 
    // the long size is added by updateLongSize(), when it is of use
-   int long_id = widget->getPreDefLong ();
+   int long_id = _ctl->sizeLong ();
 
    do
    {
-      name = widget->getSizeName (i);
+      name = _ctl->sizeName (i);
       if (!name.isEmpty() && i != long_id)
          pageSize->addItem (name);
       i++;
    } while (!name.isEmpty());
-   _preview = widget;
    if (_default_papersize_id != -1)
-   {
-//      _preview->setSize (_a4_id);
       pageSize->setCurrentIndex (_default_papersize_id);
-   }
    updateAutoSize ();
 }
 
 
 void Pscan::setScanDialog( QScanDialog *dialog )
 {
-   _scanDialog = dialog;
+   _real.setDialog (dialog);
    updateDeskew ();
    updateAutoSize ();
 }
@@ -734,14 +747,14 @@ void Pscan::setupBright()
 {
     int exp, min, max;
 
-    if (_scanner && _scanner->format () == QScanner::mono)
+    if (_ctl->present() && _ctl->format () == QScanner::mono)
     {
         bright->setTitle ("Exposure");
         contrast->setEnabled (false);
-        exp = _scanner->getExposure ();
+        exp = _ctl->exposure ();
         if (exp != -1)
            bright->setValue (exp);
-        if (_scanner->getRangeExposure (&min, &max))
+        if (_ctl->exposureRange (&min, &max))
            bright->setRange (min, max);
     }
     else
@@ -750,17 +763,17 @@ void Pscan::setupBright()
         contrast->setTitle ("Contrast");
         contrast->setEnabled (true);
 
-        if (_scanner)
+        if (_ctl->present())
         {
-            exp = _scanner->getBrightness ();
+            exp = _ctl->brightness ();
             if (exp != -1)
                bright->setValue (exp);
-            exp = _scanner->getContrast ();
+            exp = _ctl->contrast ();
             if (exp != -1)
                contrast->setValue (exp);
-            if (_scanner->getRangeBrightness (&min, &max))
+            if (_ctl->brightnessRange (&min, &max))
                bright->setRange (min, max);
-            if (_scanner->getRangeContrast (&min, &max))
+            if (_ctl->contrastRange (&min, &max))
                contrast->setRange (min, max);
         }
     }
@@ -784,7 +797,7 @@ void Pscan::options_clicked()
 
 void Pscan::on_config_clicked()
 {
-   _scanDialog->slotShowOptionsWidget ();
+   _ctl->showOptions ();
 }
 
 
@@ -815,23 +828,20 @@ void Pscan::presetSelect(int item)
    _do_preset_check = false;
 
    duplex->setChecked(pre._duplex);
-   if (_scanDialog)
-      _scanDialog->setDuplex (pre._duplex);
+   _ctl->setDuplex (pre._duplex);
 
    if (pre._dpi == 200 || pre._dpi == 300 || pre._dpi == 400)
       res->setCurrentIndex (pre._dpi / 100 - 2);
    else
       res->setCurrentIndex(3);
-   if (_scanDialog)
-      _scanDialog->setDpi (pre._dpi);
+   _ctl->setDpi (pre._dpi);
 
    QAbstractButton *b = pre._auto ? autoMode : format->button(pre._format);
    if (b)
       b->setChecked(true);
    if (xmlConfig)
       xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", pre._auto);
-   if (_scanDialog)
-      _scanDialog->setFormat (pre._format,
+   _ctl->setFormat (pre._format,
                               xmlConfig->boolValue ("SCAN_USE_JPEG"));
 
    setupBright ();
@@ -862,11 +872,11 @@ void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
 
 Preset Pscan::presetCreate(QString name)
 {
-   int dpix = _scanner->xResolutionDpi ();
-   int dpiy = _scanner->yResolutionDpi ();
+   int dpix = _ctl->xDpi ();
+   int dpiy = _ctl->yDpi ();
 
-   QScanner::format_t format = _scanner->format();
-   Preset preset(name, format, dpix, _scanner->duplex(),
+   QScanner::format_t format = _ctl->format();
+   Preset preset(name, format, dpix, _ctl->duplex(),
                  format == QScanner::colour && xmlConfig
                     && xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
 
@@ -877,7 +887,7 @@ Preset Pscan::presetCreate(QString name)
 
 int Pscan::presetLocate()
 {
-   if (!_scanner)
+   if (!_ctl->present())
       return -1;
 
    Preset to_find = presetCreate("");
@@ -900,7 +910,7 @@ void Pscan::presetCheck()
 
 void Pscan::presetAddUser()
 {
-   if (!_scanner)
+   if (!_ctl->present())
       return;
 
    Presetadd add;
@@ -915,31 +925,39 @@ void Pscan::presetAddUser()
    if (!add.exec())
       return;
 
-   if (add.name->text().isEmpty()) {
+   QString error = presetAddNamed(add.name->text());
+
+   if (!error.isEmpty()) {
       QMessageBox msg;
-      msg.setText("The name cannot be empty");
+      msg.setText(error);
       msg.exec();
-      return;
+      presetCheck();
    }
+}
+
+
+QString Pscan::presetAddNamed(const QString &name)
+{
+   if (!_ctl->present())
+      return "There is no scanner to take the settings from";
+   if (name.isEmpty())
+      return "The name cannot be empty";
 
    int existing = presetLocate();
 
-   if (existing != -1) {
-      QMessageBox msg;
-      msg.setText(QString("An existing preset has the same settings (%1)")
-                  .arg(_presets[existing]._name));
-      msg.exec();
-      presetCheck();
-      return;
-   }
+   if (existing != -1)
+      return QString("An existing preset has the same settings (%1)")
+            .arg(_presets[existing]._name);
 
-   Preset to_create = presetCreate(add.name->text());
+   Preset to_create = presetCreate(name);
 
    preset->insertItem(_presets.size(), to_create._name);
    preset->setCurrentIndex(_presets.size());
 
    _presets.push_back(to_create);
    saveSettings();
+
+   return QString();
 }
 
 void Pscan::presetDeleteUser()
@@ -955,11 +973,15 @@ void Pscan::presetDeleteUser()
    QMessageBox msg;
    msg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
    msg.setText(QString("Delete preset %1?").arg(_presets[item]._name));
-   if (msg.exec() != QMessageBox::Ok) {
+   if (msg.exec() == QMessageBox::Ok)
+      presetDelete(item);
+   else
       presetCheck();
-      return;
-   }
+}
 
+
+void Pscan::presetDelete(int item)
+{
    _presets.erase(_presets.begin() + item);
    preset->removeItem(item);
    presetCheck();
@@ -1004,13 +1026,13 @@ void Pscan::presetShortcut5()
 
 void Pscan::selectPreviewSize(int previewId)
 {
-   if (!_preview || previewId == -1)
+   if (previewId == -1)
       return;
 
    // Capture the name before setSize(), which may rebuild the preview's
    // size list and shift the indices out from under us
-   QString name = _preview->getSizeName(previewId);
-   _preview->setSize(previewId);
+   QString name = _ctl->sizeName(previewId);
+   _ctl->setSize(previewId);
 
    // Mirror the choice in our own combo by name, since its index does not
    // line up with the preview's rebuilt list
@@ -1021,25 +1043,22 @@ void Pscan::selectPreviewSize(int previewId)
 
 void Pscan::selectA4()
 {
-   selectPreviewSize(_preview ? _preview->getPreDefA4() : -1);
+   selectPreviewSize(_ctl->sizeA4());
 }
 
 void Pscan::toggleLetter()
 {
-   if (!_preview)
-      return;
-
    // Fetch the current indices rather than the values cached when the
    // dialog was built: applying a size rebuilds the preview's size list, so
    // the cached indices go stale after the first toggle and a later toggle
    // would otherwise send the wrong size to the scanner
-   int letter = _preview->getPreDefLetter();
-   int legal = _preview->getPreDefLegal();
+   int letter = _ctl->sizeLetter();
+   int legal = _ctl->sizeLegal();
    if (letter == -1 || legal == -1)
       return;
 
    // Decide the target from what the user currently sees, comparing by name
-   bool on_legal = pageSize->currentText() == _preview->getSizeName(legal);
+   bool on_legal = pageSize->currentText() == _ctl->sizeName(legal);
    selectPreviewSize(on_legal ? letter : legal);
 }
 

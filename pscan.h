@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTableView>
 #include "ui_presetadd.h"
 #include "ui_pscan.h"
+#include "scancontrol.h"
 
 class QStandardItemModel;
 class Folderlist;
@@ -105,7 +106,15 @@ public:
       window the scanner happens to be holding */
    void applyPageSize (void);
 
+   /** Work through another control of the scanner, such as a test's, or
+       with nullptr go back to the program's own */
+   void setControl (ScanControl *ctl);
+
+   /** Show the scanner's settings, now that they may have changed */
+   void refresh (void);
+
 public slots:
+    /** Show a new scanner's settings, or with nullptr, that there is none */
     virtual void scannerChanged( QScanner * scanner );
 
     /** Show and set the Auto-size box to match the scanner's option */
@@ -162,15 +171,18 @@ protected:
     void reject();
 
 protected:
-    PreviewWidget *_preview;
-    QScanner *_scanner;
     Mainwidget *_main;
+
+    //! the scanner, its option dialog and its preview, as far as we have them
+    QScanControl _real;
+
+    //! what the panel works through: _real, unless a test gives its own
+    ScanControl *_ctl;
 
     // selected papersize element from PreviewWidget::predefs[], either
     // A4 or US letter, depending on what paperconf' says
     int _default_papersize_id;
 
-    QScanDialog *_scanDialog;
     std::vector<Preset> _presets;
 
     // true to check the preset combbox to see an item matches current settings
@@ -223,8 +235,19 @@ private:
     /** allow the user to add a new preset */
     void presetAddUser();
 
+    /** add a preset with the panel's settings
+
+       \returns an empty string if done, else why not */
+    QString presetAddNamed(const QString &name);
+
     /** allow the user to delete a preset */
     void presetDeleteUser();
+
+    /** delete a preset, numbered from 0 */
+    void presetDelete(int item);
+
+    //! fill the size list from the sizes the scanner offers
+    void loadSizes (void);
 
     /** Select a preset using a shortcut; item is numbered from 1 */
     void presetShortcut(uint item);
