@@ -374,6 +374,10 @@ void Pscan::setMainwidget(Mainwidget *main)
       which are kept */
    if (!xmlConfig || xmlConfig->stringValue("LAST_DEVICE").isEmpty())
       presetSelect(defaultPreset());
+
+   // either way, the list shows the preset the panel matches from now on
+   _do_preset_check = true;
+   presetCheck();
 }
 
 
