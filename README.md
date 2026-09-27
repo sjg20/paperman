@@ -8,11 +8,11 @@ It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
 format, and runs on Linux, Windows and macOS.
 
 On Ubuntu, install it from the PPA (`ppa:sjg1/ppa`). Windows installers
-come with releases from the next one on, and until then from the
-artifacts of the latest [CI run](https://github.com/sjg20/paperman/actions/workflows/ci.yml)
-on master. See the
-[installation guide](https://paperman.readthedocs.io/en/latest/install.html)
-for the rest, including macOS.
+and macOS disk images come with releases from the next one on, and until
+then from the artifacts of the latest
+[CI run](https://github.com/sjg20/paperman/actions/workflows/ci.yml) on
+master. See the
+[installation guide](https://paperman.readthedocs.io/en/latest/install.html).
 
 Full documentation is available at https://paperman.readthedocs.io
 
@@ -133,6 +133,7 @@ new in 1.3.1
 new since 1.3.3 (not yet released)
 
 * runs on Windows (10 and 11, x64 and Arm, with an installer) and macOS
+  (Apple Silicon and Intel, with a disk image)
 * a TWAIN back end for scanners on Windows
 * scanning: auto size and straightening by the scanner, auto colour,
   blank-page detection in colour, sideways feeding, a Long size for
@@ -365,6 +366,12 @@ manager (TWAINDSM.dll, installed with any current driver) is used; set
 Windows.
 
 ## macOS
+
+There is a disk image for Apple Silicon (`Paperman-VERSION-arm64.dmg`) and
+one for Intel Macs (`Paperman-VERSION-x86_64.dmg`), with each release from
+the next one on, and built by every CI run meanwhile. It carries its own
+SANE, with the fujitsu and finet back ends from the fork which knows the
+fi-8950; `scripts/mac-package.sh` makes it from a built `paperman.app`.
 
 Paperman builds on macOS with Qt 6 and Homebrew. Homebrew's Poppler has
 no Qt bindings, so Poppler is built separately:
