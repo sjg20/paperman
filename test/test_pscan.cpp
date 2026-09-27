@@ -206,6 +206,30 @@ void TestPscan::testPresetEdit()
    }
 }
 
+void TestPscan::testBrightShown()
+{
+   // outside the range the sliders start with
+   {
+      FakeControl fake;
+      Pscan pscan;
+
+      fake._exposure = 200;
+      attach(pscan, fake);
+      QCOMPARE(pscan.bright->value(), 200);
+   }
+   {
+      FakeControl fake;
+      Pscan pscan;
+
+      fake._format = QScanner::grey;
+      fake._bright = -50;
+      fake._contrast = 60;
+      attach(pscan, fake);
+      QCOMPARE(pscan.bright->value(), -50);
+      QCOMPARE(pscan.contrast->value(), 60);
+   }
+}
+
 void TestPscan::testReset()
 {
    FakeControl fake;

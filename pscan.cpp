@@ -755,11 +755,12 @@ void Pscan::setupBright()
     {
         bright->setTitle ("Exposure");
         contrast->setEnabled (false);
+        // the range first, else the value is held to the one before
+        if (_ctl->exposureRange (&min, &max))
+           bright->setRange (min, max);
         exp = _ctl->exposure ();
         if (exp != -1)
            bright->setValue (exp);
-        if (_ctl->exposureRange (&min, &max))
-           bright->setRange (min, max);
     }
     else
     {
@@ -769,16 +770,16 @@ void Pscan::setupBright()
 
         if (_ctl->present())
         {
+            if (_ctl->brightnessRange (&min, &max))
+               bright->setRange (min, max);
+            if (_ctl->contrastRange (&min, &max))
+               contrast->setRange (min, max);
             exp = _ctl->brightness ();
             if (exp != -1)
                bright->setValue (exp);
             exp = _ctl->contrast ();
             if (exp != -1)
                contrast->setValue (exp);
-            if (_ctl->brightnessRange (&min, &max))
-               bright->setRange (min, max);
-            if (_ctl->contrastRange (&min, &max))
-               contrast->setRange (min, max);
         }
     }
 }
