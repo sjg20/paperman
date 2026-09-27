@@ -79,8 +79,7 @@ void TestPscan::testLaterStartFollowsPanel()
 
    pscan.grey->click();
    QCOMPARE(fake._format, QScanner::grey);
-   // the list stays on the mono preset after a restart
-   // QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
+   QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
 
    pscan.mono->click();
    QCOMPARE(pscan.preset->currentIndex(), 0);
@@ -231,8 +230,7 @@ void TestPscan::testNoScanner()
 
    QVERIFY(!pscan.mono->isEnabled());
    QVERIFY(!pscan.res->isEnabled());
-   // the list shows the first preset after a restart, whatever the panel
-   // QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
+   QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
    QVERIFY(!pscan.presetAddNamed("Nothing").isEmpty());
    QCOMPARE(pscan._presets.size(), 2u);
 }
