@@ -29,6 +29,9 @@ private slots:
    //! Add and Delete, and when Delete can be picked
    void testPresetEdit();
 
+   //! the panel shows the scanner's exposure, brightness and contrast
+   void testBrightShown();
+
    //! Reset goes back to the default preset
    void testReset();
 
