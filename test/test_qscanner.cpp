@@ -946,6 +946,40 @@ void TestQscanner::testHeadlessNoScanner()
 }
 
 
+/* On a first run, with no scanner chosen yet, the scan panel starts with
+   the default preset, colour at 200dpi; after that it keeps the settings
+   last used rather than resetting them every time */
+void TestQscanner::testPscanFirstPreset()
+{
+   ensureXmlConfig();
+   QString last = xmlConfig->stringValue("LAST_DEVICE");
+   auto restore = qScopeGuard([&] {
+      xmlConfig->setStringValue("LAST_DEVICE", last);
+   });
+
+   xmlConfig->setStringValue("LAST_DEVICE", "");
+   {
+      Pscan pscan;
+
+      pscan.setMainwidget(nullptr);
+      QCOMPARE(pscan.format->checkedId(), (int)QScanner::colour);
+      QCOMPARE(pscan.res->currentText().toInt(), 200);
+   }
+
+   // with a scanner chosen before, what the panel shows is left alone
+   xmlConfig->setStringValue("LAST_DEVICE", "some:scanner");
+   {
+      Pscan pscan;
+
+      pscan.presetSelect(0);
+      pscan.res->setCurrentIndex(2);   // 400dpi, which no preset has
+      pscan.setMainwidget(nullptr);
+      QCOMPARE(pscan.format->checkedId(), (int)QScanner::mono);
+      QCOMPARE(pscan.res->currentText().toInt(), 400);
+   }
+}
+
+
 void TestQscanner::testPscanLong()
 {
    ensureXmlConfig ();
