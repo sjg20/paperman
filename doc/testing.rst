@@ -162,6 +162,31 @@ script, which gives libsane a configuration listing only the fake:
    scripts/fakescan.sh /tmp/fs scanimage -d fakefujitsu:fi-8170:00001 \
       --source "ADF Duplex" --batch
 
+The Scan Panel Without a Scanner
+--------------------------------
+
+The scan panel reaches the scanner through a ``ScanControl``
+(``scancontrol.h``): what the panel shows and sets, and the paper sizes on
+offer. The ``TestPscan`` suite gives the panel a ``FakeControl``
+(``test/fakecontrol.h``) instead, which just holds the settings, so the
+panel's own behaviour, such as which preset the list shows, is tested on
+every platform with no scanner, fake or real:
+
+.. code:: c++
+
+   FakeControl fake;
+   Pscan pscan;
+
+   fake.changed = [&pscan] { pscan.refresh(); };
+   pscan.setMainwidget(nullptr);
+   pscan.setControl(&fake);
+
+   pscan.grey->click();
+   QCOMPARE(fake._format, QScanner::grey);
+
+``changed`` is called whenever a setting changes, as the main window
+refreshes the panel when the scanner says an option has changed.
+
 Code Coverage
 -------------
 

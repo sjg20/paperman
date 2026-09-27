@@ -12,6 +12,7 @@
 #include "test_ops.h"
 #include "test_pageinfo.h"
 #include "test_pagewidget.h"
+#include "test_pscan.h"
 #include "test_qscanner.h"
 #include "test_utils.h"
 #include "test_searchserver.h"
@@ -30,6 +31,7 @@ static TestDirview TEST_DIRVIEW("dirview");
 static TestFile TEST_FILE("file");
 static TestPageinfo TEST_PAGEINFO("pageinfo");
 static TestPagewidget TEST_PAGEWIDGET("pagewidget");
+static TestPscan TEST_PSCAN("pscan");
 static TestQscanner TEST_QSCANNER("qscanner");
 static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");

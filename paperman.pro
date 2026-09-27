@@ -320,6 +320,7 @@ test {
       test/test_ops.cpp \
       test/test_pageinfo.cpp \
       test/test_pagewidget.cpp \
+      test/test_pscan.cpp \
       test/test_qscanner.cpp \
       test/test_searchserver.cpp \
       test/test_ocrsearch.cpp \
@@ -339,6 +340,8 @@ test {
       test/test_ops.h \
       test/test_pageinfo.h \
       test/test_pagewidget.h \
+      test/fakecontrol.h \
+      test/test_pscan.h \
       test/test_qscanner.h \
       test/test_utils.h \
       test/test_searchserver.h \

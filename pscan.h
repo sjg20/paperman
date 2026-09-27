@@ -67,6 +67,7 @@ public:
 class Pscan : public QDialog, public Ui::Pscan
 {
     friend class TestQscanner;
+    friend class TestPscan;
 
     Q_OBJECT
 
