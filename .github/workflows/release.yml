@@ -258,6 +258,45 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  appimage:
+    name: Build the Linux ${{ matrix.arch }} AppImage and add it to the release
+    runs-on: ${{ matrix.runner }}
+    needs: build-deb
+    permissions:
+      contents: write
+    # built on the oldest Linux it is to run on, since it needs the C
+    # library it was built with or a later one
+    container: debian:12
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      # libsane-dev brings the SANE which the AppImage is checked against
+      - name: Install the dependencies
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
+            libqt6sql6-sqlite qt6-scxml-dev libqt6statemachine6 \
+            qt6-gtk-platformtheme libpoppler-qt6-dev libpodofo-dev libtiff-dev libsane-dev \
+            libjpeg-dev zlib1g-dev pkg-config file curl gh
+
+      - name: Build the app and the AppImage
+        run: scripts/appimage.sh
+
+      - name: Add it to the release
+        run: |
+          gh release upload "$GITHUB_REF_NAME" dist/Paperman-*.AppImage \
+            -R "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   ppa-upload:
     name: Sign and upload to Launchpad PPA
     runs-on: ubuntu-24.04

@@ -300,6 +300,41 @@ jobs:
           name: paperman-macos-${{ matrix.arch }}
           path: dist/Paperman-*.dmg
 
+  appimage:
+    name: Linux ${{ matrix.arch }} AppImage
+    runs-on: ${{ matrix.runner }}
+    # built on the oldest Linux it is to run on, since it needs the C
+    # library it was built with or a later one
+    container: debian:12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      # libsane-dev brings the SANE which the AppImage is checked against
+      - name: Install the dependencies
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
+            libqt6sql6-sqlite qt6-scxml-dev libqt6statemachine6 \
+            qt6-gtk-platformtheme libpoppler-qt6-dev libpodofo-dev libtiff-dev libsane-dev \
+            libjpeg-dev zlib1g-dev pkg-config file curl
+
+      - name: Build the app and the AppImage
+        run: scripts/appimage.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paperman-appimage-${{ matrix.arch }}
+          path: dist/Paperman-*.AppImage
+
   flutter:
     name: Flutter app + widget tests
     runs-on: ubuntu-24.04

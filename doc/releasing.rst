@@ -2,10 +2,10 @@ Releasing
 =========
 
 Paperman uses a GitHub Actions workflow to automate releases.  Pushing a
-version tag triggers three jobs: one builds a ``.deb`` package and
-publishes a GitHub Release, one builds the Windows installer and adds it
-to that release, and one signs and uploads source packages to the
-Launchpad PPA.
+version tag triggers the jobs below: one builds a ``.deb`` package and
+publishes a GitHub Release, others build the Windows installers, the
+macOS disk images and the Linux AppImages and add them to that release,
+and one signs and uploads source packages to the Launchpad PPA.
 
 Release Checklist
 -----------------
@@ -68,6 +68,13 @@ What the Workflow Does
    and ``Paperman-VERSION-x86_64.dmg``, which it adds to the release.
    With the secrets below it signs them with the Developer ID and has
    Apple notarise them; otherwise they are signed ad hoc.
+
+**appimage** — Build the Linux AppImages
+   Builds the app with Qt 6 in a Debian 12 container, the oldest Linux the
+   AppImage is to run on, and runs ``scripts/appimage.sh`` to make
+   ``Paperman-VERSION-x86_64.AppImage`` and
+   ``Paperman-VERSION-aarch64.AppImage``, on an x86 and an Arm runner,
+   which it adds to the release.
 
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures
