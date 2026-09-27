@@ -306,6 +306,13 @@ linux {
     PRE_TARGETDEPS += test/fakescan/libsane-fakefujitsu.so.1
 }
 
+# 'make appimage' builds an AppImage, with a build of its own without the
+# tests, in build-appimage, and the Qt this is built with
+linux {
+    appimage.commands = QMAKE=$(QMAKE) $$PWD/scripts/appimage.sh
+    QMAKE_EXTRA_TARGETS += appimage
+}
+
 test {
    # only the tests use this; it also makes a console program on Windows,
    # which opens a console window beside paperman's own

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.sjg20.paperman</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>Paperman</name>
+  <summary>Electronic filing cabinet: scan, print, stack, arrange</summary>
+  <description>
+    <p>
+      Paperman scans paper straight into stacks of pages, filed in folders,
+      which can be viewed, arranged, printed and searched.
+    </p>
+    <ul>
+      <li>Quickly scan and file paper, from sheet-fed document scanners</li>
+      <li>Read and write PaperPort .max files, and PDF</li>
+      <li>Stack, arrange and name scanned paper</li>
+      <li>Search the text of scanned pages</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.sjg20.paperman.desktop</launchable>
+  <url type="homepage">https://github.com/sjg20/paperman</url>
+  <url type="bugtracker">https://github.com/sjg20/paperman/issues</url>
+  <developer id="io.github.sjg20">
+    <name>Simon Glass</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>paperman</binary>
+  </provides>
+</component>

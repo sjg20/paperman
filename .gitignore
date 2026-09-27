@@ -46,4 +46,5 @@ install-*
 /server.mk
 .stamp
 build-coverage/
+build-appimage/
 /test/fakescan/libsane-fakefujitsu.so*

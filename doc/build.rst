@@ -140,6 +140,30 @@ Output Locations
    app/build/linux/x64/release/bundle/paperman           Linux Flutter binary
    doc/_build/html/                                      Documentation
 
+AppImage
+--------
+
+``make appimage`` makes ``dist/Paperman-VERSION-ARCH.AppImage``, using
+`linuxdeploy <https://github.com/linuxdeploy/linuxdeploy>`_, which
+``scripts/appimage.sh`` fetches the first time. It builds paperman
+afresh with Qt 6 in ``build-appimage``, without the tests. An AppImage
+runs only on a Linux with the C library it was built with or a later one,
+so one built on a recent Linux is only of use there; the release builds
+it on Debian 12, in a container:
+
+.. code:: bash
+
+   docker run --rm -v $PWD:/src -w /src debian:12 bash -c '
+      apt-get update && apt-get install -y build-essential qmake6 \
+         qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite qt6-scxml-dev \
+         libqt6statemachine6 qt6-gtk-platformtheme libpoppler-qt6-dev libpodofo-dev libtiff-dev \
+         libsane-dev libjpeg-dev zlib1g-dev pkg-config file curl
+      scripts/appimage.sh'
+
+SANE is left out, so that paperman uses the machine's own scanner back
+ends; the script checks that the AppImage starts and that it loads the
+machine's fujitsu back end.
+
 Windows
 -------
 
