@@ -39,8 +39,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "sliderspin.h"
 #include "qi/previewwidget.h"
 
-Preset::Preset(QString name, QScanner::format_t format, int dpi, bool duplex)
-    : _name(name), _format(format), _dpi(dpi), _duplex(duplex), _valid(true)
+Preset::Preset(QString name, QScanner::format_t format, int dpi, bool duplex,
+               bool auto_colour)
+    : _name(name), _format(format), _auto(auto_colour), _dpi(dpi),
+      _duplex(duplex), _valid(true)
 {
 }
 
@@ -50,8 +52,8 @@ Preset::~Preset()
 
 bool Preset::matches(Preset &other)
 {
-   return other._valid && _format == other._format && _dpi == other._dpi &&
-         _duplex == other._duplex;
+   return other._valid && _format == other._format && _auto == other._auto &&
+         _dpi == other._dpi && _duplex == other._duplex;
 }
 
 /*
@@ -76,11 +78,9 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     autosize->hide ();
     connect(deskew, SIGNAL(clicked()), this, SLOT(deskew_clicked()));
     deskew->hide ();
-    connect(autocolour, SIGNAL(clicked()), this, SLOT(autocolour_clicked()));
     connect(sideways, SIGNAL(activated(int)), this, SLOT(sideways_activated(int)));
     if (xmlConfig)
        {
-       autocolour->setChecked (xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
        sideways->setCurrentIndex (xmlConfig->intValue ("SCAN_SIDEWAYS"));
        }
     connect(adf, SIGNAL(clicked()), this, SLOT(adf_clicked()));
@@ -94,6 +94,7 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(grey, QScanner::grey);
     format->setId(dither, QScanner::dither);
     format->setId(colour, QScanner::colour);
+    format->setId(autoMode, AutoId);
 
     _folders = new Folderlist(folderName, this);
 
@@ -142,11 +143,14 @@ void Pscan::readSettings()
       uint dpi = qs.value("dpi").toInt();
       bool duplex = qs.value("duplex").toBool();
       QScanner::format_t fmt = QScanner::mono;
+      bool auto_colour = format == "auto";   // scanned in colour
 
-      if (format.contains(format))
+      if (auto_colour)
+         fmt = QScanner::colour;
+      else if (formats.contains(format))
          fmt = formats[format];
 
-      Preset preset(name, fmt, dpi, duplex);
+      Preset preset(name, fmt, dpi, duplex, auto_colour);
       presetAdd(preset);
       }
    qs.endArray();
@@ -154,7 +158,8 @@ void Pscan::readSettings()
    if (!size) {
        // Create some standard ones
        presetAdd(Preset("Monochrome 300dpi duplex", QScanner::mono, 300, true));
-       presetAdd(Preset("Colour 200dpi duplex", QScanner::colour, 200, true));
+       presetAdd(Preset("Auto 200dpi duplex", QScanner::colour, 200, true,
+                        true));
    }
    preset->addItem ("Add preset...");
    preset->addItem ("Delete preset...");
@@ -254,7 +259,7 @@ void Pscan::saveSettings()
 
       qs.setArrayIndex(i);
       qs.setValue("name", preset._name);
-      qs.setValue("format", formats[preset._format]);
+      qs.setValue("format", preset._auto ? "auto" : formats[preset._format]);
       qs.setValue("dpi", preset._dpi);
       qs.setValue("duplex", preset._duplex);
       }
@@ -331,7 +336,11 @@ void Pscan::scannerChanged (QScanner *scanner)
          res->setCurrentIndex(3);
     QScanner::format_t f = _scanner->format ();
 
-    QAbstractButton *b = format->button(f);
+    /* Auto scans in colour, so a colour scanner is Auto when paperman is to
+       decide each page's colour */
+    QAbstractButton *b = f == QScanner::colour && xmlConfig
+          && xmlConfig->boolValue ("SCAN_AUTO_COLOUR")
+       ? autoMode : format->button(f);
 
     if (b)
         b->setChecked(true);
@@ -382,8 +391,14 @@ void Pscan::settings_clicked()
 
 void Pscan::on_format_idClicked( int id)
 {
-   QScanner::format_t format = (QScanner::format_t)id;
+   /* Auto scans in colour, and paperman decides from the pixels whether
+      each page needs it, so that is a setting of ours rather than one of
+      the scanner's */
+   QScanner::format_t format = id == AutoId ? QScanner::colour
+                                            : (QScanner::format_t)id;
 
+   if (xmlConfig)
+      xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", id == AutoId);
    if (_scanDialog)
       _scanDialog->setFormat (format, xmlConfig->boolValue ("SCAN_USE_JPEG"));
 }
@@ -440,15 +455,6 @@ void Pscan::updateDeskew (void)
    deskew->setVisible (has);
    if (has)
       deskew->setChecked (_scanDialog->deskewCrop ());
-}
-
-
-/* paperman does this itself, from the pixels, so it is a setting of ours
-   rather than one of the scanner's */
-void Pscan::autocolour_clicked()
-{
-   if (xmlConfig)
-      xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", autocolour->isChecked ());
 }
 
 
@@ -819,9 +825,11 @@ void Pscan::presetSelect(int item)
    if (_scanDialog)
       _scanDialog->setDpi (pre._dpi);
 
-   QAbstractButton *b = format->button(pre._format);
+   QAbstractButton *b = pre._auto ? autoMode : format->button(pre._format);
    if (b)
       b->setChecked(true);
+   if (xmlConfig)
+      xmlConfig->setBoolValue ("SCAN_AUTO_COLOUR", pre._auto);
    if (_scanDialog)
       _scanDialog->setFormat (pre._format,
                               xmlConfig->boolValue ("SCAN_USE_JPEG"));
@@ -857,7 +865,10 @@ Preset Pscan::presetCreate(QString name)
    int dpix = _scanner->xResolutionDpi ();
    int dpiy = _scanner->yResolutionDpi ();
 
-   Preset preset(name, _scanner->format(),  dpix, _scanner->duplex());
+   QScanner::format_t format = _scanner->format();
+   Preset preset(name, format, dpix, _scanner->duplex(),
+                 format == QScanner::colour && xmlConfig
+                    && xmlConfig->boolValue ("SCAN_AUTO_COLOUR"));
 
    preset._valid = !dpiy || dpix == dpiy;
 

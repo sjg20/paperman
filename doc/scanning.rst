@@ -48,17 +48,15 @@ Stack name, Page name and Folder
    you type, and Enter scans straight into the match.
 
 Presets
-   Keep a set of scan settings under a name. Ctrl-1 to Ctrl-6 select the
-   first six.
+   Keep a set of scan settings (mode, DPI and duplex) under a name. Ctrl-1
+   to Ctrl-6 select the first six.
 
-Mono, Dither, Grey and Colour
-   The kind of image to scan.
-
-Auto colour
-   When scanning in colour, store each page with no colour on it as grey,
-   and one with no shading either as mono, so that a stack of letters
-   takes little space while a page with a coloured logo, a photo or a note
-   in coloured pen stays in colour.
+Mono, Dither, Grey, Colour and Auto
+   The kind of image to scan. **Auto** scans in colour and stores each
+   page with no colour on it as grey, and one with no shading either as
+   mono, so that a stack of letters takes little space while a page with
+   a coloured logo, a photo or a note in coloured pen stays in colour. On
+   a first run the panel starts with the **Auto 200dpi duplex** preset.
 
 ADF and Duplex
    Feed sheets from the document feeder, and scan both sides of each.

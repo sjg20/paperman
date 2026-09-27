@@ -77,6 +77,9 @@ private slots:
    //! libsane is pointed at the SANE in a Mac package
    void testBundledSane();
 
+   //! Auto is a mode of the scan panel, which presets keep
+   void testPscanAutoMode();
+
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
 

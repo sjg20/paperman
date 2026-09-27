@@ -409,7 +409,7 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
      </item>
      <item>
       <layout class="QGridLayout" name="gridLayout">
-       <item row="1" column="0">
+       <item row="0" column="2">
         <widget class="QRadioButton" name="grey">
          <property name="toolTip">
           <string>Select greyscale scanning</string>
@@ -448,13 +448,26 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
          </attribute>
         </widget>
        </item>
-       <item row="1" column="1">
+       <item row="0" column="3">
         <widget class="QRadioButton" name="colour">
          <property name="toolTip">
           <string>Select colour scanning</string>
          </property>
          <property name="text">
           <string>Colour</string>
+         </property>
+         <attribute name="buttonGroup">
+          <string notr="true">format</string>
+         </attribute>
+        </widget>
+       </item>
+       <item row="0" column="4">
+        <widget class="QRadioButton" name="autoMode">
+         <property name="toolTip">
+          <string>Scan in colour, and store each page with no colour as grey, or as mono if it has no shading either</string>
+         </property>
+         <property name="text">
+          <string>Auto</string>
          </property>
          <attribute name="buttonGroup">
           <string notr="true">format</string>
@@ -504,16 +517,6 @@ Use Ctrl-1 to Ctrl-6 to select the first 6 presets</string>
            </property>
            <property name="text">
             <string>Straighten</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="autocolour">
-           <property name="toolTip">
-            <string>When scanning in colour, store pages that have no colour as grey, or as mono if they have no shading either</string>
-           </property>
-           <property name="text">
-            <string>Auto colour</string>
            </property>
           </widget>
          </item>

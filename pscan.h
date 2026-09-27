@@ -31,7 +31,8 @@ class Folderlist;
 class Preset
 {
 public:
-    Preset(QString name, QScanner::format_t format, int dpi, bool duplex);
+    Preset(QString name, QScanner::format_t format, int dpi, bool duplex,
+           bool auto_colour = false);
     ~Preset();
 
     /** returns true if the other preset matches this one, ignoring name */
@@ -47,6 +48,7 @@ public:
 
     QString _name;
     QScanner::format_t _format;
+    bool _auto;   // scan in colour, storing pages without it as grey or mono
     int _dpi;     // x & y dots-per-inch must be the same
     bool _duplex;
     bool _valid;  // preset is valid
@@ -68,6 +70,10 @@ class Pscan : public QDialog, public Ui::Pscan
     Q_OBJECT
 
 public:
+    /* the Auto button's id among the modes, which are otherwise the
+       scanner's formats */
+    enum { AutoId = 100 };
+
     Pscan(QWidget* parent = 0, const char* name = 0, bool modal = false, Qt::WindowFlags fl = Qt::WindowFlags());
     ~Pscan();
 
@@ -119,7 +125,6 @@ public slots:
     virtual void duplex_clicked();
     virtual void autosize_clicked();
     virtual void deskew_clicked();
-    virtual void autocolour_clicked();
     virtual void sideways_activated(int how);
     virtual void res_activated( int id );
     virtual void brightChanged( int bright );

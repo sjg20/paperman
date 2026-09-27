@@ -12,6 +12,7 @@
 #include <QListView>
 #include <QElapsedTimer>
 #include <QProcess>
+#include <QSettings>
 #include <QTemporaryDir>
 #include "qscanner.h"
 #include "filemax.h"
@@ -947,7 +948,7 @@ void TestQscanner::testHeadlessNoScanner()
 
 
 /* On a first run, with no scanner chosen yet, the scan panel starts with
-   the default preset, colour at 200dpi; after that it keeps the settings
+   the default preset, auto at 200dpi; after that it keeps the settings
    last used rather than resetting them every time */
 void TestQscanner::testPscanFirstPreset()
 {
@@ -962,7 +963,7 @@ void TestQscanner::testPscanFirstPreset()
       Pscan pscan;
 
       pscan.setMainwidget(nullptr);
-      QCOMPARE(pscan.format->checkedId(), (int)QScanner::colour);
+      QCOMPARE(pscan.format->checkedId(), (int)Pscan::AutoId);
       QCOMPARE(pscan.res->currentText().toInt(), 200);
    }
 
@@ -1009,6 +1010,84 @@ void TestQscanner::testBundledSane()
             contents + "/Resources/sane.d");
    QCOMPARE(QString::fromLocal8Bit(qgetenv("LD_LIBRARY_PATH")),
             contents + "/PlugIns/sane:/somewhere");
+}
+
+
+/* Auto is one of the modes: it scans in colour, with paperman storing
+   each page without colour as grey or mono, and presets keep it */
+void TestQscanner::testPscanAutoMode()
+{
+   ensureXmlConfig();
+   bool was = xmlConfig->boolValue("SCAN_AUTO_COLOUR");
+   QSettings qs;
+   auto restore = qScopeGuard([&] {
+      xmlConfig->setBoolValue("SCAN_AUTO_COLOUR", was);
+      qs.remove("preset");
+   });
+
+   // choosing it asks for colour pages to be judged, and others do not
+   {
+      Pscan pscan;
+
+      pscan.on_format_idClicked(Pscan::AutoId);
+      QVERIFY(xmlConfig->boolValue("SCAN_AUTO_COLOUR"));
+      pscan.on_format_idClicked(QScanner::colour);
+      QVERIFY(!xmlConfig->boolValue("SCAN_AUTO_COLOUR"));
+
+      // the standard presets have it, and choosing that one sets it
+      int item = pscan.preset->findText("Auto 200dpi duplex");
+      QVERIFY(item != -1);
+      pscan.presetSelect(item);
+      QVERIFY(pscan.autoMode->isChecked());
+      QVERIFY(xmlConfig->boolValue("SCAN_AUTO_COLOUR"));
+      pscan.presetSelect(0);
+      QVERIFY(!pscan.autoMode->isChecked());
+      QVERIFY(!xmlConfig->boolValue("SCAN_AUTO_COLOUR"));
+   }
+
+   // a preset saved as auto comes back as auto, and one in colour does not
+   qs.beginWriteArray("preset");
+   qs.setArrayIndex(0);
+   qs.setValue("name", "Mine");
+   qs.setValue("format", "auto");
+   qs.setValue("dpi", 300);
+   qs.setValue("duplex", false);
+   qs.setArrayIndex(1);
+   qs.setValue("name", "Theirs");
+   qs.setValue("format", "colour");
+   qs.setValue("dpi", 300);
+   qs.setValue("duplex", false);
+   qs.endArray();
+   {
+      Pscan pscan;
+
+      QCOMPARE(pscan._presets.size(), 2u);
+      QVERIFY(pscan._presets[0]._auto);
+      QCOMPARE(pscan._presets[0]._format, QScanner::colour);
+      QVERIFY(!pscan._presets[1]._auto);
+      QVERIFY(!pscan._presets[0].matches(pscan._presets[1]));
+   }
+
+   // a scanner in colour shows as Auto when paperman is to judge the pages
+   const char *dev = testDevice();
+
+   if (!dev)
+      return;
+   QScanner scanner;
+
+   scanner.setDeviceName(dev);
+   QVERIFY(scanner.openDevice());
+   scanner.setFormat(QScanner::colour);
+   for (bool judge : {true, false}) {
+      xmlConfig->setBoolValue("SCAN_AUTO_COLOUR", judge);
+      QScanDialog dialog(&scanner, 0);
+      Pscan pscan;
+
+      pscan.setScanDialog(&dialog);
+      pscan.scannerChanged(&scanner);
+      QCOMPARE(pscan.format->checkedId(),
+               judge ? (int)Pscan::AutoId : (int)QScanner::colour);
+   }
 }
 
 
