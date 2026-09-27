@@ -26,7 +26,10 @@ private slots:
    //! choosing a preset sets the scanner, from the list or a shortcut
    void testPresetSelect();
 
-   //! Add and Delete, and when Delete can be picked
+   //! an old preset gives the usual settings for those it lacks
+   void testOldPresetGivesUsual();
+
+   //! Add, Update, Rename and Delete, and which of them can be picked
    void testPresetEdit();
 
    //! the panel shows the scanner's exposure, brightness and contrast

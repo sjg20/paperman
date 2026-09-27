@@ -67,6 +67,23 @@ static bool enabled(Pscan &pscan, int count, Preset::preset_item_t index)
    return model->item(count + index)->isEnabled();
 }
 
+static void chooseSize(Pscan &pscan, const QString &prefix)
+{
+   for (int row = 0; row < pscan.pageSize->count(); row++)
+      if (pscan.pageSize->itemText(row).startsWith(prefix)) {
+         pscan.pageSize->setCurrentIndex(row);
+         pscan.size_activated(row);
+         return;
+      }
+   QFAIL(qPrintable("no size " + prefix));
+}
+
+static void setBright(Pscan &pscan, int value)
+{
+   pscan.bright->setValue(value);
+   pscan.brightChanged(value);
+}
+
 void TestPscan::testLaterStartFollowsPanel()
 {
    FakeControl fake;
@@ -93,6 +110,7 @@ void TestPscan::testPresetFollowsPanel()
    attach(pscan, fake);
    choose(pscan, 0);
    QCOMPARE(pscan.preset->currentIndex(), 0);
+   QString usual = pscan.pageSize->currentText();
 
    // each change, and how to put it back
    struct Change {
@@ -105,6 +123,18 @@ void TestPscan::testPresetFollowsPanel()
               [&] { pscan.res->setCurrentIndex(1); pscan.res_activated(1); }},
       {"duplex", [&] { pscan.duplex->click(); },
                  [&] { pscan.duplex->click(); }},
+      {"size", [&] { chooseSize(pscan, "A5"); },
+               [&] { chooseSize(pscan, usual); }},
+      {"feed", [&] { pscan.sideways->setCurrentIndex(1);
+                     pscan.sideways_activated(1); },
+               [&] { pscan.sideways->setCurrentIndex(0);
+                     pscan.sideways_activated(0); }},
+      {"auto-size", [&] { pscan.autosize->click(); },
+                    [&] { pscan.autosize->click(); }},
+      {"straighten", [&] { pscan.deskew->click(); },
+                     [&] { pscan.deskew->click(); }},
+      {"exposure", [&] { setBright(pscan, 60); },
+                   [&] { setBright(pscan, 127); }},
    };
 
    for (auto &change : changes) {
@@ -147,19 +177,63 @@ void TestPscan::testPresetSelect()
    QVERIFY(!xmlConfig->boolValue("SCAN_AUTO_COLOUR"));
    QCOMPARE(pscan.preset->currentIndex(), 0);
 
-   // one of our own
+   // one of our own, with all of the settings
    pscan.grey->click();
    pscan.duplex->click();
-   QCOMPARE(pscan.presetAddNamed("Grey"), QString());
+   chooseSize(pscan, "A5");
+   pscan.autosize->click();
+   pscan.deskew->click();
+   setBright(pscan, 40);
+   pscan.contrast->setValue(-20);
+   pscan.contrastChanged(-20);
+   QCOMPARE(pscan.presetAddNamed("Everything"), QString());
 
    choose(pscan, 0);
    QCOMPARE(fake._format, QScanner::mono);
    QVERIFY(fake._duplex);
+   QVERIFY(!fake._autosize);
+   QVERIFY(!fake._deskew);
 
    choose(pscan, 2);
    QCOMPARE(fake._format, QScanner::grey);
    QVERIFY(!fake._duplex);
+   QVERIFY(fake.size().startsWith("A5"));
+   QVERIFY(pscan.pageSize->currentText().startsWith("A5"));
+   QVERIFY(fake._autosize);
+   QVERIFY(fake._deskew);
+   QCOMPARE(fake._bright, 40);
+   QCOMPARE(fake._contrast, -20);
    QCOMPARE(pscan.preset->currentIndex(), 2);
+}
+
+void TestPscan::testOldPresetGivesUsual()
+{
+   FakeControl fake;
+   Pscan pscan;
+
+   attach(pscan, fake);
+   QString usual = pscan.pageSize->currentText();
+
+   pscan.autosize->click();
+   chooseSize(pscan, "A5");
+   setBright(pscan, 60);
+   QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
+
+   // the standard presets have none of these
+   choose(pscan, 0);
+   QVERIFY(!fake._autosize);
+   QVERIFY(!pscan.autosize->isChecked());
+   QCOMPARE(pscan.pageSize->currentText(), usual);
+   QCOMPARE(fake._exposure, 127);
+   QCOMPARE(pscan.preset->currentIndex(), 0);
+
+   // in colour, brightness and contrast
+   fake._bright = 50;
+   fake._contrast = 50;
+   choose(pscan, 1);
+   QCOMPARE(fake._bright, 0);
+   QCOMPARE(fake._contrast, 0);
+   QCOMPARE(pscan.preset->currentIndex(), 1);
 }
 
 void TestPscan::testPresetEdit()
@@ -172,33 +246,62 @@ void TestPscan::testPresetEdit()
 
    int count = pscan._presets.size();
    QVERIFY(enabled(pscan, count, Preset::add));
+   QVERIFY(enabled(pscan, count, Preset::update));
+   QVERIFY(enabled(pscan, count, Preset::rename));
    QVERIFY(enabled(pscan, count, Preset::delete_it));
    QVERIFY(!enabled(pscan, count, Preset::custom));
+   QCOMPARE(pscan.preset->itemText(count + Preset::update),
+            QString("Update 'Monochrome 300dpi duplex'"));
 
    // Add
    pscan.grey->click();
+   chooseSize(pscan, "A5");
    QVERIFY(!pscan.presetAddNamed("").isEmpty());
    QCOMPARE(pscan.presetAddNamed("Grey"), QString());
    QCOMPARE(pscan._presets.size(), 3u);
    QCOMPARE(pscan.preset->itemText(2), QString("Grey"));
    QCOMPARE(pscan.preset->currentIndex(), 2);
+   QCOMPARE(pscan._chosen, 2);
+   QCOMPARE(pscan.preset->itemText(3 + Preset::update),
+            QString("Update 'Grey'"));
    QVERIFY(pscan.presetAddNamed("Again").contains("Grey"));
    QCOMPARE(pscan._presets.size(), 3u);
 
-   // it is saved
+   // Update keeps its place, though the panel was changed away from it
+   setBright(pscan, 90);
+   QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
+   pscan.presetUpdateUser();
+   QCOMPARE(pscan._presets.size(), 3u);
+   QCOMPARE(pscan._presets[2]._bright, 90);
+   QCOMPARE(pscan.preset->currentIndex(), 2);
+
+   // Rename
+   pscan.presetRename(2, "Receipts");
+   QCOMPARE(pscan.preset->itemText(2), QString("Receipts"));
+   QCOMPARE(pscan.preset->itemText(3 + Preset::update),
+            QString("Update 'Receipts'"));
+
+   // it is all saved
    {
       Pscan again;
 
       QCOMPARE(again._presets.size(), 3u);
-      QCOMPARE(again._presets[2]._name, QString("Grey"));
+      QCOMPARE(again._presets[2]._name, QString("Receipts"));
       QCOMPARE(again._presets[2]._format, QScanner::grey);
+      QCOMPARE(again._presets[2]._bright, 90);
+      QVERIFY(again._presets[2]._size.startsWith("A5"));
    }
 
-   // Delete, after which the panel matches none
+   // Delete, after which the panel matches none and nothing is chosen
    pscan.presetDelete(2);
    QCOMPARE(pscan._presets.size(), 2u);
+   QCOMPARE(pscan._chosen, -1);
    QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
+   QVERIFY(!enabled(pscan, 2, Preset::update));
+   QVERIFY(!enabled(pscan, 2, Preset::rename));
    QVERIFY(!enabled(pscan, 2, Preset::delete_it));
+   QCOMPARE(pscan.preset->itemText(2 + Preset::update),
+            QString("Update preset"));
    {
       Pscan again;
 
@@ -237,11 +340,13 @@ void TestPscan::testReset()
 
    attach(pscan, fake);
    choose(pscan, 0);
+   chooseSize(pscan, "A5");
 
    pscan.reset_clicked();
    QCOMPARE(pscan.preset->currentIndex(), pscan.defaultPreset());
    QCOMPARE(fake._format, QScanner::colour);
    QCOMPARE(fake._dpi, 200);
+   QVERIFY(!pscan.pageSize->currentText().startsWith("A5"));
 }
 
 void TestPscan::testNoScanner()

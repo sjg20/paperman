@@ -21,6 +21,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <climits>
 #include <QTableView>
 #include "ui_presetadd.h"
 #include "ui_pscan.h"
@@ -36,22 +37,41 @@ public:
            bool auto_colour = false);
     ~Preset();
 
-    /** returns true if the other preset matches this one, ignoring name */
+    /** returns true if the other preset, with every setting given, is
+        one this preset would give, ignoring name: a setting this one has
+        as Any, which Pscan::presetResolve() could not find, may be
+        anything */
     bool matches(Preset &other);
 
     // extra items in the presets combobox, after the real presets. The value
     // indicates how far it is past _presents.size()
     enum preset_item_t {
        add = 0,
+       update,    // update the preset last chosen with the settings now
+       rename,
        delete_it,
        custom,    // "<custom>" item
     };
+
+    //! a setting a preset does not have, and so leaves as it is
+    enum { Any = INT_MIN };
 
     QString _name;
     QScanner::format_t _format;
     bool _auto;   // scan in colour, storing pages without it as grey or mono
     int _dpi;     // x & y dots-per-inch must be the same
     bool _duplex;
+
+    /* Settings a preset need not have, taken as the usual ones when it
+       has not (see Pscan::presetResolve()): the standard presets have
+       none, nor do those saved before these were kept */
+    QString _size;   // paper size, by name, empty for any
+    int _feed;       // index in Feed: upright or which way sideways
+    int _autosize;   // 0 or 1
+    int _deskew;     // 0 or 1
+    int _bright;     // brightness, or exposure in mono
+    int _contrast;
+
     bool _valid;  // preset is valid
 };
 
@@ -189,6 +209,10 @@ protected:
     // true to check the preset combbox to see an item matches current settings
     bool _do_preset_check;
 
+    /* the preset last chosen, which Update, Rename and Delete act on, or
+       -1 if none */
+    int _chosen;
+
     //! name of the long size in our list, when it has been added
     QString _long_name;
 
@@ -227,6 +251,10 @@ private:
     /** return the preset which matches the current settings, or -1 if none */
     int presetLocate();
 
+    /** \returns the preset with each setting it does not have given as
+        the usual one */
+    Preset presetResolve(const Preset &pre);
+
     /** Fill in a Preset object with the current settings, returns true if OK */
     Preset presetCreate(QString name);
 
@@ -246,6 +274,19 @@ private:
 
     /** delete a preset, numbered from 0 */
     void presetDelete(int item);
+
+    /** set the chosen preset to the settings now in the panel */
+    void presetUpdateUser();
+
+    /** allow the user to rename the chosen preset */
+    void presetRenameUser();
+
+    /** rename a preset, numbered from 0 */
+    void presetRename(int item, const QString &name);
+
+    /** name the Update item after the chosen preset, and enable the items
+        which act on it */
+    void presetMenuUpdate();
 
     //! fill the size list from the sizes the scanner offers
     void loadSizes (void);
