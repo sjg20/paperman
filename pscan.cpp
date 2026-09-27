@@ -936,7 +936,9 @@ void Pscan::presetSelect(int item)
 
 void Pscan::on_preset_activated( int item )
 {
-   if (item < (int)_presets.size())
+   bool menu = item >= (int)_presets.size();
+
+   if (!menu)
       presetSelect(item);
    else if (item == (int)_presets.size() + Preset::add)
       presetAddUser();
@@ -946,6 +948,10 @@ void Pscan::on_preset_activated( int item )
       presetRenameUser();
    else if (item == (int)_presets.size() + Preset::delete_it)
       presetDeleteUser();
+
+   // show the preset rather than the menu item, whatever became of it
+   if (menu)
+      presetCheck();
 }
 
 void Pscan::presetSetEnabled(enum Preset::preset_item_t index, bool enabled)
@@ -1133,7 +1139,6 @@ void Pscan::presetAddUser()
       QMessageBox msg;
       msg.setText(error);
       msg.exec();
-      presetCheck();
    }
 }
 
@@ -1176,8 +1181,6 @@ void Pscan::presetDeleteUser()
    msg.setText(QString("Delete preset %1?").arg(_presets[item]._name));
    if (msg.exec() == QMessageBox::Ok)
       presetDelete(item);
-   else
-      presetCheck();
 }
 
 
