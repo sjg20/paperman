@@ -309,6 +309,28 @@ void TestPscan::testPresetEdit()
    }
 }
 
+void TestPscan::testPresetMenu()
+{
+   FakeControl fake;
+   Pscan pscan;
+
+   attach(pscan, fake);
+   choose(pscan, 0);
+   setBright(pscan, 90);
+
+   // Update, as though picked from the list
+   int update = pscan._presets.size() + Preset::update;
+   choose(pscan, update);
+   QCOMPARE(pscan._presets[0]._bright, 90);
+   QCOMPARE(pscan.preset->currentIndex(), 0);
+
+   // with the scanner gone there is nothing to update from
+   fake._present = false;
+   pscan.refresh();
+   choose(pscan, update);
+   QCOMPARE(pscan.preset->currentIndex(), custom(pscan));
+}
+
 void TestPscan::testBrightShown()
 {
    // outside the range the sliders start with

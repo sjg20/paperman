@@ -35,6 +35,9 @@ private slots:
    //! the panel shows the scanner's exposure, brightness and contrast
    void testBrightShown();
 
+   //! picking an item from the list shows a preset afterwards, not the item
+   void testPresetMenu();
+
    //! Reset goes back to the default preset
    void testReset();
 
