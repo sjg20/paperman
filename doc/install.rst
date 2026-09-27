@@ -56,8 +56,27 @@ To scan, install the scanner's 64-bit TWAIN driver; see :doc:`scanning`.
 macOS
 -----
 
-There is no package for macOS yet. Paperman builds and runs there, on
-Intel and Apple Silicon Macs, from source: see :doc:`build`.
+Releases from the next one on have a disk image for each kind of Mac:
+
+``Paperman-VERSION-arm64.dmg``
+   for Apple Silicon (M1 and later)
+
+``Paperman-VERSION-x86_64.dmg``
+   for Intel Macs
+
+Open it and drag **Paperman** to **Applications**. Everything it needs is
+inside, including the scanner back ends for the Ricoh fi-series, so there
+is nothing else to install; other scanners SANE supports can be used by
+building from source. Until the next release, the disk images are
+artifacts of the latest `CI run
+<https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master.
+
+If macOS says it cannot verify the developer, open it with a right-click
+and **Open** the first time, or allow it in **System Settings > Privacy &
+Security**. Releases which are signed and notarised by Apple open without
+this.
+
+Paperman also builds from source on macOS: see :doc:`build`.
 
 Building from Source
 --------------------

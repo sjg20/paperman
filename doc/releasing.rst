@@ -61,6 +61,14 @@ What the Workflow Does
    :doc:`code-signing`.  It waits for **build-deb**, which is what
    creates the release to add it to.
 
+**macos-package** — Build the macOS disk images
+   Builds Poppler with its Qt bindings, SANE from the fork's
+   ``all-work`` branch and the app, on a runner for each kind of Mac, and
+   runs ``scripts/mac-package.sh`` to make ``Paperman-VERSION-arm64.dmg``
+   and ``Paperman-VERSION-x86_64.dmg``, which it adds to the release.
+   With the secrets below it signs them with the Developer ID and has
+   Apple notarise them; otherwise they are signed ad hoc.
+
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures
    ``gpg-agent`` for non-interactive signing and sets up ``dput``, then runs
@@ -85,6 +93,26 @@ The PPA job needs two secrets configured in the GitHub repository settings
 
 Without these secrets the PPA job fails, but the ``.deb`` / GitHub Release
 job still succeeds independently.
+
+The macOS job signs and notarises its disk images only when the
+repository also has:
+
+``MACOS_CERT_P12``
+   A Developer ID Application certificate with its private key, exported
+   from Keychain Access as a ``.p12`` and base64-encoded
+   (``base64 -i cert.p12``)
+
+``MACOS_CERT_PASSWORD``
+   The password the ``.p12`` was exported with
+
+``NOTARY_KEY``, ``NOTARY_KEY_ID``, ``NOTARY_ISSUER_ID``
+   An App Store Connect API key with the Developer role: the ``.p8``'s
+   contents, its key ID and the issuer ID
+
+The CI workflow signs pushes to master the same way, but not pull
+requests. To sign on a Mac by hand, set ``MACOS_SIGN_IDENTITY`` to the
+identity and ``NOTARY_PROFILE`` to a profile stored with ``xcrun
+notarytool store-credentials`` before running ``scripts/mac-package.sh``.
 
 Building the Windows Installer by Hand
 --------------------------------------
