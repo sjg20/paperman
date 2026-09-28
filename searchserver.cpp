@@ -2646,6 +2646,11 @@ QString SearchServer::convertToPdf(const QString &fullPath,
     }
 
     int pageCount = srcFile->pagecount();
+    if (pageCount <= 0) {
+        qWarning() << "SearchServer: No pages to convert in" << fullPath;
+        delete srcFile;
+        return QString();
+    }
     qDebug() << "SearchServer: Converting" << fullPath << "to PDF,"
              << pageCount << "pages";
     _convertProgress[fullPath] = {0, pageCount};

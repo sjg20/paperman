@@ -5875,7 +5875,8 @@ err_info *Filemax::removePages (QBitArray &pages,
       /* not qWarning(): this file has a warning() of its own, which
          the Qt one expands into */
       fprintf (stderr, "removePages: asked to remove %d pages from a "
-               "stack of %d, removed %d\n", count, _pages.size (), upto);
+               "stack of %d, removed %d\n", count, (int)_pages.size (),
+               upto);
       count = upto;
       }
    _pages = dest_pages;
