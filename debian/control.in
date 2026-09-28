@@ -2,14 +2,14 @@ Source: paperman
 Section: graphics
 Priority: optional
 Maintainer: Simon Glass <sjg@chromium.org>
-Build-Depends: debhelper-compat (= 13), autotools-dev, qt5-qmake, cmake, libtiff-dev, qtbase5-dev-tools, libsane-dev, libpoppler-qt5-dev, cmake, libpodofo-dev, imagemagick, tesseract-ocr, tesseract-ocr-eng
+Build-Depends: debhelper-compat (= 13), qmake6, qt6-base-dev, qt6-base-dev-tools, qt6-scxml-dev, libpoppler-qt6-dev, libpodofo-dev, libtiff-dev, libjpeg-dev, zlib1g-dev, libsane-dev, imagemagick, tesseract-ocr, tesseract-ocr-eng
 Standards-Version: 4.6.2
 Homepage: https://github.com/sjg20/paperman
 
 Package: paperman
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: tesseract-ocr
+Depends: ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins, libqt6sql6-sqlite
+Recommends: tesseract-ocr, qt6-gtk-platformtheme
 Description: Electronic filing cabinet: scan, print, stack, arrange
  Paperman allows you to:
    - Quickly scan and file paper into your computer

@@ -2,8 +2,21 @@
 
 DEB_UPSTREAM_VERSION=$(shell dpkg-parsechangelog | sed -rne 's,^Version: ([0-9]:)*([^-]+).*,\2,p')
 
+# Qt 6 where the build dependencies bring it, as control.in does, else
+# Qt 5, as the control files for releases without Poppler's Qt 6 bindings
+# do. debhelper's own qmake6 build system is not in Debian 12, so the
+# Makefile is made here, as that would make it
+QMAKE := $(shell command -v qmake6 || echo qmake)
+export QT_SELECT = qt5
+
 %:
 	dh $@
+
+override_dh_auto_configure:
+	$(QMAKE) -makefile -nocache paperman.pro -o Makefile \
+		"QMAKE_CFLAGS_RELEASE=$(CFLAGS) $(CPPFLAGS)" \
+		"QMAKE_CXXFLAGS_RELEASE=$(CXXFLAGS) $(CPPFLAGS)" \
+		"QMAKE_LFLAGS_RELEASE=$(LDFLAGS)" "QMAKE_STRIP=:" PREFIX=/usr
 
 override_dh_auto_clean:
 	[ -f Makefile ] && dh_auto_clean -- -f Makefile || true

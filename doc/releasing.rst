@@ -44,7 +44,7 @@ What the Workflow Does
 ----------------------
 
 **build-deb** — Build ``.deb`` and create GitHub Release
-   Installs Qt5/C++ build dependencies and Debian packaging tools, generates
+   Installs Qt 6 build dependencies and Debian packaging tools, generates
    ``debian/changelog``, ``control`` and ``rules`` from the ``.in`` templates,
    builds a binary ``.deb`` with ``dpkg-buildpackage``, then creates a GitHub
    Release with the ``.deb`` attached.
