@@ -1085,6 +1085,8 @@ int main (int argc, char *argv[])
 
    /* keep a note in the log of anything the user is told in a dialog */
    utilLogDialogs (&app);
+   utilFollowColourScheme ();
+   utilLogLook ();
 
    QTranslator translator;
    (void)translator.load("maxview_en");
