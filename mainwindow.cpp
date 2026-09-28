@@ -509,7 +509,6 @@ void Mainwindow::offerRepository (const QString &dir)
 
    if (!needsRepository () || qs.value ("offeredRepository").toBool ())
       return;
-   qs.setValue ("offeredRepository", true);
 
    QMessageBox box (QMessageBox::Question, "Paperman",
                     tr ("Paperman keeps papers in folders called "
@@ -526,6 +525,10 @@ void Mainwindow::offerRepository (const QString &dir)
    box.addButton (tr ("Not now"), QMessageBox::RejectRole);
    box.setDefaultButton (use);
    box.exec ();
+
+   /* only once answered, so that a first run which ends with the question
+      still up, killed or crashed, asks again */
+   qs.setValue ("offeredRepository", true);
 
    if (box.clickedButton () == use)
       {
