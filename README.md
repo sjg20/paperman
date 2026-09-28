@@ -16,10 +16,10 @@ or tablet. See the
 
 On Ubuntu, install it from the PPA (`ppa:sjg1/ppa`). On most Linux
 distributions it is also a [snap](https://snapcraft.io/paperman)
-(`sudo snap install paperman --edge` until the next release). Windows
-installers, macOS disk images and a Linux AppImage, for other
-distributions, come with releases from the next one on, and until then
-from the artifacts of the latest
+(`sudo snap install paperman`). Windows installers, macOS disk images
+and a Linux AppImage, for other distributions, come with each
+[release](https://github.com/sjg20/paperman/releases/latest), and to try
+something not yet released, from the artifacts of the latest
 [CI run](https://github.com/sjg20/paperman/actions/workflows/ci.yml) on
 master. See the
 [installation guide](https://paperman.readthedocs.io/en/latest/install.html).
@@ -142,7 +142,7 @@ new in 1.3.1
 * update build scripts to work on 24.04 host
 * more tweaks to the findFolders() feature
 
-new since 1.3.3 (not yet released)
+new in 1.4.0
 
 * runs on Windows (10 and 11, x64 and Arm, with an installer) and macOS
   (Apple Silicon and Intel, with a disk image)
@@ -160,6 +160,10 @@ new since 1.3.3 (not yet released)
 * unfolding scanned booklets into their pages
 * working with repositories on a paperman server: browsing, opening,
   changing and scanning into them, with changes shown as they happen
+* scan modes Mono, Dither, Grey, Colour and Auto, and presets which keep
+  the paper size, feed, auto size, straightening, brightness and contrast
+  too, and which can be updated and renamed
+* dark icons and colours following the desktop's dark theme
 * a first run which offers somewhere to keep papers and lays the window
   out to suit the screen
 * a fake Fujitsu scanner for testing without paper (Linux)
@@ -343,7 +347,7 @@ see doc/testing.rst for what it can do.
 
 There is an installer for x64 PCs (`paperman-setup-VERSION.exe`) and one
 for Windows on Arm (`paperman-setup-VERSION-arm64.exe`), with each release
-from the next one on, and built by every CI run meanwhile; it needs
+from 1.4.0 on, and built by every CI run; it needs
 Windows 10 version 1809 or later, and no administrator. To scan, install
 the scanner's 64-bit TWAIN driver: for the Ricoh fi-series that is
 PaperStream IP (TWAIN x64), a separate download from the 32-bit one.
@@ -385,7 +389,7 @@ Windows.
 
 There is a disk image for Apple Silicon (`Paperman-VERSION-arm64.dmg`) and
 one for Intel Macs (`Paperman-VERSION-x86_64.dmg`), with each release from
-the next one on, and built by every CI run meanwhile. It carries its own
+1.4.0 on, and built by every CI run. It carries its own
 SANE, with the fujitsu and finet back ends from the fork which knows the
 fi-8950; `scripts/mac-package.sh` makes it from a built `paperman.app`.
 

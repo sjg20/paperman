@@ -2,7 +2,7 @@
 ; scripts/win-installer.sh, or 'make -f Makefile.win installer', which
 ; runs:
 ;
-;    iscc /DStageDir=..\..\dist\paperman /DAppVersion=1.3.1 paperman.iss
+;    iscc /DStageDir=..\..\dist\paperman /DAppVersion=1.4.0 paperman.iss
 ;
 ; with /DArch=arm64 added for a build for Windows on Arm, which makes a
 ; separate installer. The x64 one also installs there, and runs under

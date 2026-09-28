@@ -29,7 +29,7 @@ Release <https://github.com/sjg20/paperman/releases/latest>`_.
 AppImage
 --------
 
-For other Linux distributions, releases from the next one on have an
+For other Linux distributions, each release, from 1.4.0 on, has an
 AppImage, which runs without being installed:
 
 ``Paperman-VERSION-x86_64.AppImage``
@@ -51,26 +51,26 @@ SANE: it uses the scanner back ends installed on the machine, as other
 scanning programs do, so install SANE from the distribution
 (``libsane1`` on Debian and Ubuntu, ``sane-backends`` on Fedora and Arch)
 and check that ``scanimage -L`` lists the scanner. For reading the text
-of pages, install ``tesseract`` too. Until the next release, the
-AppImages are artifacts of the latest `CI run
-<https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master.
+of pages, install ``tesseract`` too. To try something not yet released,
+the latest `CI run
+<https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master
+has AppImages as artifacts.
 
 Snap
 ----
 
 Paperman is also in the `Snap Store <https://snapcraft.io/paperman>`_,
 from which it installs on most Linux distributions and keeps itself up
-to date. Until a release puts it in the stable channel, take it from the
-edge channel:
+to date:
 
 .. code:: bash
 
-   sudo snap install paperman --edge
+   sudo snap install paperman
    sudo snap connect paperman:raw-usb
    sudo snap connect paperman:cups-control
 
-Once it is in the stable channel it can also be installed from Ubuntu's
-App Centre and the other software centres which offer snaps.
+It can also be installed from Ubuntu's App Centre and the other software
+centres which offer snaps.
 
 The second command lets it reach a USB scanner and the third lets it
 print to the machine's printers: a snap is kept away from the machine's
@@ -128,7 +128,7 @@ Windows
 -------
 
 Paperman runs on Windows 10 (version 1809 or later) and Windows 11.
-Releases from the next one on have two installers:
+Each release, from 1.4.0 on, has two installers:
 
 ``paperman-setup-VERSION.exe``
    for ordinary (x64) PCs
@@ -142,8 +142,8 @@ shortcut and ``.max`` files opening in it. It can be installed for
 everyone on the machine instead from the choice at the start. Every
 change to the code also has installers built for it, as artifacts of its
 `CI run <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on
-GitHub, which is where to get one until the next release, or to try
-something before it is released.
+GitHub, which is where to get one to try something before it is
+released.
 
 Until the releases are signed, Windows warns that it protected the PC
 from an unrecognised app: choose **More info** and then **Run anyway**.
@@ -153,7 +153,7 @@ To scan, install the scanner's 64-bit TWAIN driver; see :doc:`scanning`.
 macOS
 -----
 
-Releases from the next one on have a disk image for each kind of Mac:
+Each release, from 1.4.0 on, has a disk image for each kind of Mac:
 
 ``Paperman-VERSION-arm64.dmg``
    for Apple Silicon (M1 and later)
@@ -164,9 +164,9 @@ Releases from the next one on have a disk image for each kind of Mac:
 Open it and drag **Paperman** to **Applications**. Everything it needs is
 inside, including the scanner back ends for the Ricoh fi-series, so there
 is nothing else to install; other scanners SANE supports can be used by
-building from source. Until the next release, the disk images are
-artifacts of the latest `CI run
-<https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master.
+building from source. To try something not yet released, the latest
+`CI run <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on
+master has disk images as artifacts.
 
 If macOS says it cannot verify the developer, open it with a right-click
 and **Open** the first time, or allow it in **System Settings > Privacy &
