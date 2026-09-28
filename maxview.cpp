@@ -938,6 +938,10 @@ int main (int argc, char *argv[])
                return 1;
                }
             setvbuf (stderr, NULL, _IOLBF, 0);
+
+            /* a Qt built to log to the systemd journal, as KDE's is,
+               sends its messages there rather than to a file */
+            qputenv ("QT_FORCE_STDERR_LOGGING", "1");
             fprintf (stderr, "\n=== paperman %s ===\n",
                      qPrintable (QDateTime::currentDateTime ()
                                  .toString ("yyyy-MM-dd hh:mm:ss")));
