@@ -332,7 +332,10 @@ static int jpeg_crop_blocks (const byte *data, int size, int lo, int hi,
    jvirt_barray_ptr *dst_coef;
    unsigned char *buf = NULL;
    unsigned long buf_size = 0;
-   int ci, unit, x_off, width, result = -1;
+   int ci, unit, x_off, width;
+
+   // set after setjmp() and read after a longjmp() back to it
+   volatile int result = -1;
 
    /* the error handler must be in place before either object is made,
       since making one already reports through it */
@@ -591,6 +594,23 @@ static void term_destination (j_compress_ptr cinfo)
    }
 
 
+/* Take the colour from each of a row of 32-bit pixels, for a JPEG. This
+   is kept out of jpeg_encode(), whose locals a longjmp() may spoil
+
+   \param out    row of 3-byte pixels to fill
+   \param in     row of 32-bit pixels
+   \param count  number of pixels */
+static void jpeg_rgb_from_32 (byte *out, const uint32_t *in, int count)
+   {
+   for (; count > 0; count--, in++, out += 3)
+      {
+      out [2] = *in;
+      out [1] = *in >> 8;
+      out [0] = *in >> 16;
+      }
+   }
+
+
 void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
             int bpp, int line_bytes, int quality, int valid_width)
    {
@@ -661,19 +681,7 @@ void jpeg_encode (byte *image, cpoint *tile_size, byte *outbuff, int *size,
        ptr = &image [cinfo.next_scanline * row_stride];
 
        if (bpp == 32)
-          {
-          int i;
-          uint32_t *in;
-          byte *out;
-
-          for (i = valid, in = (unsigned *)ptr, out = buff; i != 0;
-               i--, in++, out += 3)
-             {
-             out [2] = *in;
-             out [1] = *in >> 8;
-             out [0] = *in >> 16;
-             }
-          }
+          jpeg_rgb_from_32 (buff, (const uint32_t *)ptr, valid);
        else
           memcpy (buff, ptr, valid * out_bpp);
 
