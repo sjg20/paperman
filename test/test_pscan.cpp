@@ -385,3 +385,41 @@ void TestPscan::testNoScanner()
    QVERIFY(!pscan.presetAddNamed("Nothing").isEmpty());
    QCOMPARE(pscan._presets.size(), 2u);
 }
+
+void TestPscan::testPresetBeforeScanner()
+{
+   FakeControl fake;
+   Pscan pscan;
+
+   /* A first run, with no scanner chosen yet, starts with the default
+      preset, before the scanner is chosen and opened */
+   xmlConfig->setStringValue("LAST_DEVICE", "");
+   fake._present = false;
+   attach(pscan, fake);
+   QCOMPARE(pscan.preset->currentIndex(), pscan.defaultPreset());
+
+   /* the scanner opens as it was made, which is no preset, and is shown
+      before it can be set, as the program opens the scanner before
+      making the dialog which sets it */
+   fake._present = true;
+   fake._settable = false;
+   fake._format = QScanner::mono;
+   fake._dpi = 600;
+   fake._duplex = false;
+   pscan.refresh();
+   QCOMPARE(fake._dpi, 600);
+   QCOMPARE(pscan.preset->currentIndex(), pscan.defaultPreset());
+
+   // once it can be set, it is given the preset
+   fake._settable = true;
+   pscan.refresh();
+   QCOMPARE(fake._format, QScanner::colour);
+   QCOMPARE(fake._dpi, 200);
+   QVERIFY(fake._duplex);
+   QCOMPARE(pscan.preset->currentIndex(), pscan.defaultPreset());
+
+   // and only the once: after that, the scanner is left as it is set
+   fake._dpi = 300;
+   pscan.refresh();
+   QCOMPARE(fake._dpi, 300);
+}

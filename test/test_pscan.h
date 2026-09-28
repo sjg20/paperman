@@ -43,6 +43,9 @@ private slots:
 
    //! with no scanner, nothing matches and nothing can be changed
    void testNoScanner();
+
+   //! a preset chosen before there is a scanner is given to it once opened
+   void testPresetBeforeScanner();
 };
 
 #endif // TEST_PSCAN_H

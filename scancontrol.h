@@ -49,6 +49,9 @@ public:
    //! true once a scanner is open, without which the rest are of no use
    virtual bool present() = 0;
 
+   //! true once the settings can be changed as well as read
+   virtual bool settable() = 0;
+
    //! the vendor, model and name, for the panel's title
    virtual QString title() = 0;
 
@@ -122,6 +125,7 @@ public:
    void setPreview(PreviewWidget *preview) { _preview = preview; }
 
    bool present() override;
+   bool settable() override;
    QString title() override;
    int adfType() override;
    bool useAdf() override;
