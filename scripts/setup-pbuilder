@@ -3,8 +3,8 @@
 # ARCHS="i386 amd64"
 ARCHS="amd64"
 #UDISTS="hardy jaunty karmic lucid maverick"
-UDISTS="bionic focal jammy noble oracular plucky questing"
-DISTS="buster bullseye bookworm trixie"
+UDISTS="jammy noble resolute"
+DISTS="bookworm trixie"
 
 # ln: failed to create hard link
 # https://bugs.launchpad.net/ubuntu/+source/pbuilder/+bug/1408594

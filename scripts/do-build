@@ -19,7 +19,8 @@ mkdir -p $ALLDIR $SRCDIR
 chmod 777 $RESULTDIR
 
 DISTLIST=$(ls -d /var/cache/pbuilder/*.cow)
-SKIP_DISTS="buster"
+# chroots left from releases which are no longer supported
+SKIP_DISTS="buster bullseye bionic focal oracular plucky questing"
 
 # Clean build artifacts so dpkg-source does not choke on untracked files
 make clean 2>/dev/null || true
@@ -34,7 +35,7 @@ sudo rm -f ../${PROJECT}_*.dsc ../${PROJECT}_*.debian.tar.* \
 
 ./scripts/make_tar
 
-UDISTS="focal jammy noble questing"
+UDISTS="jammy noble resolute"
 
 # --- Phase 1: generate source packages sequentially ---
 echo "=== Phase 1: generating source packages ==="

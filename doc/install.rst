@@ -15,17 +15,16 @@ On Ubuntu, the easiest way to install Paperman is from the PPA:
 This provides pre-built packages for the following Ubuntu releases:
 
 - Bionic (18.04 LTS)
-- Focal (20.04 LTS)
 - Jammy (22.04 LTS)
 - Noble (24.04 LTS)
-- Questing (25.10)
+- Resolute (26.04 LTS)
 
 Pre-built .deb Packages
 -----------------------
 
-Pre-built ``.deb`` packages for a range of Debian and Ubuntu releases are
-available from the `latest GitHub Release
-<https://github.com/sjg20/paperman/releases/latest>`_.
+Pre-built ``.deb`` packages for Debian 12 (bookworm) and 13 (trixie), and
+Ubuntu 22.04, 24.04 and 26.04, are available from the `latest GitHub
+Release <https://github.com/sjg20/paperman/releases/latest>`_.
 
 AppImage
 --------
