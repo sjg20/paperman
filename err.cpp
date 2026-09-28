@@ -78,7 +78,8 @@ static const char *err_msg [ERR_count] =
    "Invalid annot block data",
    "Could not find tesseract: please install package tesseract-ocr (cmd: %s, error: %s)",
    "Not available for this file type",
-   "There is no valid directory to scan into",
+   "There is no folder to scan into: choose one, or add a repository "
+      "with File > Add repository",
    "Cannot open document '%s' as it is locked",
    "Cannot find any pages in source document '%s'",
    "PDF creation error: '%s'",
