@@ -13,15 +13,19 @@ Release Checklist
 
 1. Update the version and changelog entry at the top of
    ``debian/changelog.in``.  The first line sets the version used for
-   tagging, packaging and uploading — everything else is derived from it.
+   tagging, packaging and uploading.
 
-2. Commit and push the changelog update.
+2. Set the same version in ``CONFIG_version_str`` in ``config.h``, which
+   is what the program reports and what the Windows installers, macOS
+   disk images, AppImages and snaps are named and versioned by.
 
-3. Build ``.deb`` packages locally for all target distros::
+3. Commit and push the changes.
+
+4. Build ``.deb`` packages locally for all target distros::
 
       scripts/do-build
 
-4. Create the tag, push it and upload the ``.deb`` files::
+5. Create the tag, push it and upload the ``.deb`` files::
 
       make release
 
