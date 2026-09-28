@@ -1081,6 +1081,16 @@ int main (int argc, char *argv[])
    // a Mac package carries its own SANE
    if (op_type != 't')
       QScanner::useBundledSane (QCoreApplication::applicationDirPath ());
+#elif defined(Q_OS_LINUX)
+   /* so does a snap, which cannot reach the machine's. Its configuration
+      cannot be changed, so the user may put their own, such as the
+      address of a network scanner, in the snap's directory for them */
+   QString snap = qEnvironmentVariable ("SNAP");
+
+   if (op_type != 't' && !snap.isEmpty ())
+      QScanner::useSaneIn (snap + "/usr/lib/sane", snap + "/etc/sane.d",
+                           qEnvironmentVariable ("SNAP_USER_COMMON")
+                              + "/sane.d");
 #endif
 
    /* keep a note in the log of anything the user is told in a dialog */

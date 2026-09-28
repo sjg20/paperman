@@ -107,15 +107,22 @@ bool QScanner::isInit()
 }
 bool QScanner::useBundledSane(const QString &exe_dir)
 {
-  QString backends = QDir::cleanPath(exe_dir + "/../PlugIns/sane");
-  QString conf = QDir::cleanPath(exe_dir + "/../Resources/sane.d");
+  return useSaneIn(QDir::cleanPath(exe_dir + "/../PlugIns/sane"),
+                   QDir::cleanPath(exe_dir + "/../Resources/sane.d"));
+}
 
+
+bool QScanner::useSaneIn(const QString &backends, const QString &conf,
+                         const QString &user)
+{
   if (!QFile::exists(conf + "/dll.conf") || !QDir(backends).exists())
     return false;
 
   /* only the bundle's, so that a SANE installed on the machine for some
-     other program is not mixed in with it */
-  qputenv("SANE_CONFIG_DIR", conf.toLocal8Bit());
+     other program is not mixed in with it, after the user's own: libsane
+     takes each file from the first directory which has it */
+  qputenv("SANE_CONFIG_DIR", (user.isEmpty() ? conf : user + ":" + conf)
+                             .toLocal8Bit());
 
   // the dll back end looks along LD_LIBRARY_PATH for back ends, on macOS too
   QByteArray path = qgetenv("LD_LIBRARY_PATH");

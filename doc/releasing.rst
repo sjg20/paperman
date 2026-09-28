@@ -4,8 +4,9 @@ Releasing
 Paperman uses a GitHub Actions workflow to automate releases.  Pushing a
 version tag triggers the jobs below: one builds a ``.deb`` package and
 publishes a GitHub Release, others build the Windows installers, the
-macOS disk images and the Linux AppImages and add them to that release,
-and one signs and uploads source packages to the Launchpad PPA.
+macOS disk images, the Linux AppImages and the snaps and add them to that
+release, and one signs and uploads source packages to the Launchpad PPA.
+The snaps also go to the Snap Store.
 
 Release Checklist
 -----------------
@@ -76,6 +77,12 @@ What the Workflow Does
    ``Paperman-VERSION-aarch64.AppImage``, on an x86 and an Arm runner,
    which it adds to the release.
 
+**snap** — Build the snaps and publish them
+   Builds the snap from ``snap/snapcraft.yaml`` with snapcraft, on an x86
+   and an Arm runner, and adds ``paperman_VERSION_amd64.snap`` and
+   ``paperman_VERSION_arm64.snap`` to the release. With the secret below
+   it also releases them to the ``stable`` channel of the Snap Store.
+
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures
    ``gpg-agent`` for non-interactive signing and sets up ``dput``, then runs
@@ -120,6 +127,23 @@ The CI workflow signs pushes to master the same way, but not pull
 requests. To sign on a Mac by hand, set ``MACOS_SIGN_IDENTITY`` to the
 identity and ``NOTARY_PROFILE`` to a profile stored with ``xcrun
 notarytool store-credentials`` before running ``scripts/mac-package.sh``.
+
+The snap job publishes to the Snap Store only when the repository has:
+
+``SNAPCRAFT_STORE_CREDENTIALS``
+   Credentials for the account which has registered the name
+   ``paperman`` (``snapcraft register paperman``), made with:
+
+   .. code:: bash
+
+      snapcraft export-login --snaps=paperman \
+         --acls package_access,package_push,package_update,package_release \
+         credentials.txt
+
+   and pasted in from ``credentials.txt``. Until the store has reviewed
+   it, the snap's ``raw-usb`` connection must be made by hand; ask for it
+   to be connected automatically on the Snapcraft forum, since it is how a
+   scanning program reaches its scanner.
 
 Building the Windows Installer by Hand
 --------------------------------------

@@ -297,6 +297,42 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  snap:
+    name: Build the ${{ matrix.arch }} snap, add it to the release and publish it
+    runs-on: ${{ matrix.runner }}
+    needs: build-deb
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      PUBLISH: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: snapcore/action-build@v1
+        id: snap
+
+      - name: Add it to the release
+        run: gh release upload "$GITHUB_REF_NAME" "${{ steps.snap.outputs.snap }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # to the Snap Store, once the repository has the credentials; see
+      # doc/releasing.rst
+      - uses: snapcore/action-publish@v1
+        if: env.PUBLISH == 'true'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: ${{ steps.snap.outputs.snap }}
+          release: stable
+
   ppa-upload:
     name: Sign and upload to Launchpad PPA
     runs-on: ubuntu-24.04

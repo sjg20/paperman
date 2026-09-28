@@ -1,0 +1,232 @@
+# Paperman as a snap. Build it with 'snapcraft pack' at the top of the
+# source; see doc/build.rst
+#
+# Qt 6 comes from KDE's runtime through the kde-neon-6 extension. What the
+# runtime lacks is built or staged here: Poppler with its Qt 6 bindings,
+# SANE, PoDoFo and tesseract.
+#
+# A strictly confined snap cannot load the machine's SANE back ends, so
+# it carries its own, from the fork which knows the newest Ricoh scanners,
+# as the Mac package does; paperman points libsane at them when it runs
+# as a snap. A USB scanner is reached through the raw-usb interface, which
+# is not connected until the user connects it:
+#
+#    sudo snap connect paperman:raw-usb
+#
+# and likewise cups-control, to print to the machine's printers.
+#
+# Configuration of the user's own for a back end, such as finet.conf with
+# the address of a network scanner, goes in ~/snap/paperman/common/sane.d
+
+name: paperman
+title: Paperman
+base: core24
+adopt-info: paperman
+summary: Electronic filing cabinet - scan, print, stack, arrange
+description: |
+  Paperman is an electronic filing cabinet: it scans paper into stacks of
+  pages, filed in folders, and lets you view, arrange, annotate, print,
+  search and send them. It reads and writes PDF, JPEG and its own variant
+  of PaperPort's .max format.
+
+  **Scanning**, fast, from sheet-fed document scanners such as the Ricoh
+  (formerly Fujitsu) fi-series, with presets:
+
+  - pages cut to the sheet, and straightened, by the scanner
+  - pages without colour stored as grey or mono, while a page with a
+    coloured mark or note on it stays in colour
+  - blank pages found and left out
+  - sheets fed sideways turned upright, and sheets longer than any paper
+    size, such as receipts, scanned whole
+  - a misfeed or jam waits to be cleared, and loses no pages
+
+  **Filing**:
+
+  - a simple view of stacks and pages, with previews
+  - move pages in and out of stacks, and stacks between folders
+  - print stacks and pages, including their annotations
+  - convert to and from PDF, JPEG and TIFF, and unfold scanned booklets
+  - read the text of pages (OCR) and search it
+  - email or copy files as PDF
+  - full undo and redo
+
+  Paperman's search server can keep papers on another machine, which the
+  desktop shows beside its own, and which an Android or iPhone app can
+  browse.
+
+  **Setting up**: to scan from a USB scanner, and to print to the
+  machine's printers, connect the snap to them:
+
+      sudo snap connect paperman:raw-usb
+      sudo snap connect paperman:cups-control
+
+  A network scanner which is not found by searching the network can be
+  named in a file of the back end's configuration, in
+  ~/snap/paperman/common/sane.d, such as finet.conf with the address of a
+  Ricoh fi-series scanner. See https://paperman.readthedocs.io
+license: GPL-2.0-or-later
+website: https://github.com/sjg20/paperman
+source-code: https://github.com/sjg20/paperman
+issues: https://github.com/sjg20/paperman/issues
+contact: https://github.com/sjg20/paperman/issues
+grade: stable
+confinement: strict
+
+# the icon the store and software centres show; the desktop gets its own
+icon: app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  paperman:
+    command: usr/bin/paperman
+    extensions: [kde-neon-6]
+    desktop: usr/share/applications/io.github.sjg20.paperman.desktop
+    common-id: io.github.sjg20.paperman
+    plugs: &plugs
+      - home
+      - removable-media
+      - network
+      - avahi-observe
+      - raw-usb
+      - hardware-observe
+      # printing, through the machine's CUPS, as Firefox does: the store
+      # does not take this with cups, which reaches the CUPS snap instead
+      - cups-control
+    environment: &env
+      TESSDATA_PREFIX: $SNAP/usr/share/tesseract-ocr/5/tessdata
+
+  # SANE's own tools, to see what the snap's SANE makes of the scanners
+  scanimage:
+    command: usr/bin/scanimage
+    extensions: [kde-neon-6]
+    plugs: *plugs
+    environment:
+      SANE_CONFIG_DIR: $SNAP_USER_COMMON/sane.d:$SNAP/etc/sane.d
+      LD_LIBRARY_PATH: $SNAP/usr/lib/sane:$SNAP/usr/lib:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+
+parts:
+  # Poppler with its Qt 6 bindings, which KDE's runtime does not have
+  poppler:
+    plugin: cmake
+    source: https://poppler.freedesktop.org/poppler-26.09.0.tar.xz
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DENABLE_QT5=OFF
+      - -DENABLE_QT6=ON
+      - -DENABLE_GLIB=OFF
+      - -DENABLE_CPP=OFF
+      - -DENABLE_NSS3=OFF
+      - -DENABLE_GPGME=OFF
+      - -DENABLE_LIBCURL=OFF
+      - -DENABLE_BOOST=OFF
+      - -DENABLE_UTILS=OFF
+      - -DBUILD_GTK_TESTS=OFF
+      - -DBUILD_QT6_TESTS=OFF
+      - -DBUILD_CPP_TESTS=OFF
+      - -DBUILD_MANUAL_TESTS=OFF
+    build-packages:
+      - libfreetype-dev
+      - libfontconfig-dev
+      - libjpeg-dev
+      - libopenjp2-7-dev
+      - liblcms2-dev
+      - libpng-dev
+      - libtiff-dev
+      - zlib1g-dev
+    stage-packages:
+      - libopenjp2-7
+      - liblcms2-2
+    prime:
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/cmake
+
+  # SANE, from the fork, with the back ends for document scanners, those
+  # for the commonest flatbeds and multi-function printers, and eSCL,
+  # which most network ones from the last few years speak
+  sane:
+    plugin: nil
+    source: https://gitlab.com/sjg20/backends.git
+    source-branch: all-work
+    build-packages:
+      - autoconf
+      - autoconf-archive
+      - automake
+      - autopoint
+      - gettext
+      - libtool
+      - pkg-config
+      - python3
+      - libusb-1.0-0-dev
+      - libjpeg-dev
+      - libtiff-dev
+      - libpng-dev
+      - libxml2-dev
+      - libavahi-client-dev
+      - libcurl4-openssl-dev
+    stage-packages:
+      - libusb-1.0-0
+      - libavahi-client3
+      - libcurl4t64
+      - libxml2
+    override-build: |
+      ./autogen.sh
+      ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc \
+         --localstatedir=/var --disable-locking --disable-nls \
+         --without-snmp \
+         BACKENDS="fujitsu finet canon_dr avision kodak kodakaio kvs1025 \
+            kvs20xx kvs40xx epson2 epsonds escl genesys plustek xerox_mfp \
+            net"
+      make -j$CRAFT_PARALLEL_BUILD_COUNT
+      make install DESTDIR=$CRAFT_PART_INSTALL
+      # list just the back ends built, so that libsane looks for no others
+      ls $CRAFT_PART_INSTALL/usr/lib/sane/libsane-*.so.1 | \
+         sed 's|.*/libsane-\(.*\)\.so\.1|\1|' | grep -vx dll \
+         > $CRAFT_PART_INSTALL/etc/sane.d/dll.conf
+    prime:
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/*.la
+      - -usr/lib/sane/*.la
+      - -usr/share/man
+      - -usr/share/doc
+
+  paperman:
+    after: [poppler, sane]
+    plugin: nil
+    source: .
+    build-packages:
+      - libpodofo-dev
+      - libtiff-dev
+      - libjpeg-dev
+      - zlib1g-dev
+    stage-packages:
+      - libpodofo0.9.8t64
+      - tesseract-ocr
+      - tesseract-ocr-eng
+    override-build: |
+      craftctl set version=$(sed -n 's/.*CONFIG_version_str "\(.*\)".*/\1/p' config.h)
+      # SANE and Poppler as built above, for the fake scanner's back end,
+      # which paperman.pro builds as a project of its own, as well
+      export CPATH=$CRAFT_STAGE/usr/include
+      export LIBRARY_PATH=$CRAFT_STAGE/usr/lib
+      qmake6 paperman.pro -o Makefile \
+         "INCLUDEPATH+=$CRAFT_STAGE/usr/include/poppler/qt6" \
+         "QMAKE_LFLAGS+=-Wl,-rpath-link,$CRAFT_STAGE/usr/lib"
+      make -f Makefile -j$CRAFT_PARALLEL_BUILD_COUNT paperman
+      id=io.github.sjg20.paperman
+      install -D -m 755 paperman $CRAFT_PART_INSTALL/usr/bin/paperman
+      install -D -m 644 packaging/linux/$id.desktop \
+         $CRAFT_PART_INSTALL/usr/share/applications/$id.desktop
+      sed -i "s|^Icon=.*|Icon=\${SNAP}/usr/share/icons/hicolor/256x256/apps/$id.png|" \
+         $CRAFT_PART_INSTALL/usr/share/applications/$id.desktop
+      install -D -m 644 packaging/linux/$id.metainfo.xml \
+         $CRAFT_PART_INSTALL/usr/share/metainfo/$id.metainfo.xml
+      install -D -m 644 \
+         app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png \
+         $CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/$id.png

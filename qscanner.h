@@ -79,6 +79,20 @@ public:
                        bundle
       \returns true if the bundle has SANE and libsane now looks there */
   static bool useBundledSane(const QString &exe_dir);
+
+  /** Point libsane at back ends and configuration of the program's own,
+      as useBundledSane() does for a Mac bundle: a snap carries its own
+      SANE too, since it cannot reach the machine's.
+
+      \param backends  directory holding the back ends
+      \param conf      directory holding dll.conf and the back ends'
+                       configuration
+      \param user      directory in which the user may put configuration
+                       of their own, such as a network scanner's address,
+                       to be taken before that in conf, or empty for none
+      \returns true if both are there and libsane now looks there */
+  static bool useSaneIn(const QString &backends, const QString &conf,
+                        const QString &user = QString());
   static void qis_authorization(SANE_String_Const resource,
                        SANE_Char username[SANE_MAX_USERNAME_LEN],
                        SANE_Char password[SANE_MAX_PASSWORD_LEN]);  /**  */
