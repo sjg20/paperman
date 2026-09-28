@@ -56,6 +56,46 @@ of pages, install ``tesseract`` too. Until the next release, the
 AppImages are artifacts of the latest `CI run
 <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master.
 
+Snap
+----
+
+Paperman is also in the `Snap Store <https://snapcraft.io/paperman>`_,
+from which it installs on most Linux distributions and keeps itself up
+to date. Until a release puts it in the stable channel, take it from the
+edge channel:
+
+.. code:: bash
+
+   sudo snap install paperman --edge
+   sudo snap connect paperman:raw-usb
+   sudo snap connect paperman:cups-control
+
+Once it is in the stable channel it can also be installed from Ubuntu's
+App Centre and the other software centres which offer snaps.
+
+The second command lets it reach a USB scanner and the third lets it
+print to the machine's printers: a snap is kept away from the machine's
+devices until it is allowed to use them. Without the third, it can only
+print to a PDF file.
+
+A network scanner needs nothing more if it can be found by looking on
+the network. If not, give its address to the scanner's back end in a
+file of your own, which the snap reads before its own, in
+``~/snap/paperman/common/sane.d``. For a Ricoh fi-series scanner, for
+example, put its address in ``finet.conf`` there:
+
+.. code:: bash
+
+   mkdir -p ~/snap/paperman/common/sane.d
+   echo 192.168.1.50 > ~/snap/paperman/common/sane.d/finet.conf
+
+The snap carries its own SANE, with the scanner back ends from the same
+fork as the macOS package, which know the newest Ricoh fi-series
+scanners; it cannot use the SANE installed on the machine. To see what it
+makes of the scanners, run ``paperman.scanimage -L``. The snap reaches
+files in your home folder, and those on removable media once
+``sudo snap connect paperman:removable-media`` is run.
+
 Search server
 -------------
 

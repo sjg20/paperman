@@ -164,6 +164,24 @@ SANE is left out, so that paperman uses the machine's own scanner back
 ends; the script checks that the AppImage starts and that it loads the
 machine's fujitsu back end.
 
+Snap
+----
+
+``snap/snapcraft.yaml`` builds the snap: run ``snapcraft pack`` at the top
+of a clean checkout (snapcraft copies in the whole directory) and it
+builds in an LXD container, making ``paperman_VERSION_ARCH.snap``. Qt 6
+comes from KDE's runtime, through the ``kde-neon-6`` extension, and
+Poppler with its Qt bindings and SANE, from the fork's ``all-work``
+branch, are built as parts. To try it:
+
+.. code:: bash
+
+   sudo snap install --dangerous paperman_*.snap
+   sudo snap connect paperman:raw-usb
+
+When run as a snap, paperman points libsane at the snap's back ends and
+configuration, with ``QScanner::useSaneIn()``.
+
 Windows
 -------
 

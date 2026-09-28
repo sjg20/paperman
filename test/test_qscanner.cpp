@@ -1010,6 +1010,17 @@ void TestQscanner::testBundledSane()
             contents + "/Resources/sane.d");
    QCOMPARE(QString::fromLocal8Bit(qgetenv("LD_LIBRARY_PATH")),
             contents + "/PlugIns/sane:/somewhere");
+
+   /* a snap's, with the user's own configuration first, which libsane
+      takes a file from when it has one */
+   qputenv("LD_LIBRARY_PATH", "");
+   QVERIFY(QScanner::useSaneIn(contents + "/PlugIns/sane",
+                               contents + "/Resources/sane.d",
+                               tmp.path() + "/user"));
+   QCOMPARE(QString::fromLocal8Bit(qgetenv("SANE_CONFIG_DIR")),
+            tmp.path() + "/user:" + contents + "/Resources/sane.d");
+   QCOMPARE(QString::fromLocal8Bit(qgetenv("LD_LIBRARY_PATH")),
+            contents + "/PlugIns/sane");
 }
 
 
