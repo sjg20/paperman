@@ -35,6 +35,13 @@ bool QScanControl::present()
    return _scanner != nullptr;
 }
 
+/* the scanner is opened before its option dialog is made, which is what
+   changes the settings */
+bool QScanControl::settable()
+{
+   return _scanner && _dialog;
+}
+
 QString QScanControl::title()
 {
    return _scanner ? _scanner->vendor() + " " + _scanner->model() + ": "

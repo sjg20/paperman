@@ -21,6 +21,7 @@ class FakeControl : public ScanControl
 {
 public:
    bool _present = true;
+   bool _settable = true;   // as well as present
    QScanner::format_t _format = QScanner::mono;
    int _dpi = 300;
    bool _adf = true;
@@ -43,6 +44,7 @@ public:
                          "Letter (8.5x11 inches)", "Long"};
 
    bool present() override { return _present; }
+   bool settable() override { return _present && _settable; }
    QString title() override { return "Fake scanner"; }
    int adfType() override { return 1; }
    bool useAdf() override { return _adf; }

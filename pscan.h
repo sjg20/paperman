@@ -213,6 +213,10 @@ protected:
        -1 if none */
     int _chosen;
 
+    /* a preset chosen while there was no scanner, to give to the scanner
+       once there is one, or -1 if none */
+    int _pending;
+
     //! name of the long size in our list, when it has been added
     QString _long_name;
 

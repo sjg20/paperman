@@ -106,6 +106,7 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
     format->setId(colour, QScanner::colour);
     format->setId(autoMode, AutoId);
     _chosen = -1;
+    _pending = -1;
 
     _folders = new Folderlist(folderName, this);
 
@@ -396,7 +397,16 @@ void Pscan::refresh (void)
     setupBright ();
     updateDeskew ();
     updateAutoSize ();
-    if (_do_preset_check)
+
+    // the preset chosen before there was a scanner to give it to
+    if (_pending >= 0 && _pending < (int)_presets.size() && _ctl->settable())
+       {
+       int item = _pending;
+
+       _pending = -1;
+       presetSelect (item);
+       }
+    else if (_do_preset_check)
        presetCheck();
     _folders->checkFolders();
 }
@@ -780,6 +790,10 @@ void Pscan::setScanDialog( QScanDialog *dialog )
    _real.setDialog (dialog);
    updateDeskew ();
    updateAutoSize ();
+
+   // which is what the scanner is set through, and so the time to do so
+   if (_pending >= 0)
+      refresh ();
 }
 
 
@@ -878,6 +892,10 @@ void Pscan::presetSelect(int item)
 {
    Preset pre = _presets[item];
 
+   /* with no scanner, or none yet to be set, only the panel can be set:
+      keep the preset to give to the scanner when it can be, as on a
+      first run */
+   _pending = _ctl->settable() ? -1 : item;
    _do_preset_check = false;
 
    duplex->setChecked(pre._duplex);
@@ -1049,6 +1067,10 @@ Preset Pscan::presetResolve(const Preset &pre)
 void Pscan::presetCheck()
 {
    int item = presetLocate();
+
+   // with no scanner yet, the panel is the preset waiting for one
+   if (item < 0 && _pending >= 0 && _pending < (int)_presets.size())
+      item = _pending;
 
    if (item >= 0)
       _chosen = item;
