@@ -268,6 +268,16 @@ void utilLogBuild (const char *when);
     \param app   the application whose dialogs to watch */
 void utilLogDialogs (QCoreApplication *app);
 
+/** Write to the log how the program looks, with the style, the colour
+    scheme the desktop asks for and the colours in use, which decide
+    whether the dark icons are used */
+void utilLogLook (void);
+
+/** Use dark colours when the desktop asks for them but the colours Qt
+    has chosen are light, as when a GTK theme cannot be found, as in a
+    snap. The dark icons follow from the colours */
+void utilFollowColourScheme (void);
+
 /** Diagnostics which are only of interest when something is being
     investigated: the view changing, errors as they are created. These are
     quiet unless --log is used, so that a normal run says nothing */

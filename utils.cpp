@@ -49,8 +49,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QFileInfo>
 #include <QImage>
 #ifndef QT_NO_WIDGETS
+#include <QApplication>
 #include <QMessageBox>
 #include <QStyle>
+#include <QStyleFactory>
+#include <QStyleHints>
 #endif
 #include <QMimeData>
 #include <QMutex>
@@ -1852,6 +1855,62 @@ void utilUpdateIcons(QWidget *widget)
          continue;
       btn->setIcon(darkIcon(btn->icon()));
    }
+}
+#endif
+
+
+#ifndef QT_NO_WIDGETS
+void utilLogLook (void)
+{
+   if (!logBuild ().isDebugEnabled ())
+      return;
+
+   QPalette pal = QGuiApplication::palette ();
+   QString scheme = "unknown";
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+   switch (QGuiApplication::styleHints ()->colorScheme ())
+      {
+      case Qt::ColorScheme::Dark: scheme = "dark"; break;
+      case Qt::ColorScheme::Light: scheme = "light"; break;
+      default: break;
+      }
+#endif
+   qCDebug (logBuild).noquote ()
+      << QString ("look: Qt %1, style %2, platform theme '%3', "
+                  "desktop asks for %4, window %5, text %6, %7 icons")
+         .arg (qVersion ())
+         .arg (QApplication::style () ? QApplication::style ()->objectName ()
+                                      : QString ("none"))
+         .arg (qEnvironmentVariable ("QT_QPA_PLATFORMTHEME"))
+         .arg (scheme)
+         .arg (pal.color (QPalette::Window).name ())
+         .arg (pal.color (QPalette::WindowText).name ())
+         .arg (utilIsDarkMode () ? "dark" : "light");
+}
+
+
+void utilFollowColourScheme (void)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+   if (QGuiApplication::styleHints ()->colorScheme () != Qt::ColorScheme::Dark
+       || utilIsDarkMode ())
+      return;
+
+   /* Fusion's own colours follow the scheme the desktop asks for, so
+      take those in place of what the platform theme gave */
+   QStyle *fusion = QStyleFactory::create ("Fusion");
+
+   if (fusion)
+      {
+      QPalette dark = fusion->standardPalette ();
+
+      if (dark.color (QPalette::WindowText).lightness ()
+          > dark.color (QPalette::Window).lightness ())
+         QApplication::setPalette (dark);
+      delete fusion;
+      }
+#endif
 }
 #endif
 
