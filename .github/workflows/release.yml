@@ -367,7 +367,7 @@ jobs:
           [ppa]
           fqdn = ppa.launchpad.net
           method = ftp
-          incoming = ~sjg20/ubuntu/ppa/
+          incoming = ~sjg1/ubuntu/ppa/
           login = anonymous
           allow_unsigned_uploads = 0
           EOF
