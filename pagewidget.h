@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QStackedWidget>
 
 
+class File;
 class QAbstractModelIndex;
 class QImage;
 class QPixmap;
@@ -409,6 +410,14 @@ private:
    /** update the ocr text editor with text from the current page */
    void updateOcrText (void);
 
+public slots:
+   /** a page has been read in the background; show its text if it is
+       the page being shown
+
+      \param file     the stack
+      \param pagenum  the page, from 0 */
+   void slotPageRead (File *file, int pagenum);
+
 private:
    QScrollArea *_page;
    const QAbstractItemModel *_model;   // model containing the stacks
@@ -465,6 +474,10 @@ private:
    QSplitter *_ocr_split;     //!< ocr / image splitter
    QTextEdit *_ocr_edit;      //!< OCR text editor
    Ui_Ocrbar *_ocr_bar;       //!< OCR toolbar
+
+   /** the OCR editor shows the words read from the page, rather than
+       the stack's OCR annotation, so it is not saved as the annotation */
+   bool _ocr_page = false;
    bool _committing;          //!< true if currently committing a stack
    };
 

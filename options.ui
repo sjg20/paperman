@@ -34,6 +34,16 @@
           </widget>
          </item>
          <item>
+          <widget class="QCheckBox" name="readText">
+           <property name="toolTip">
+            <string>Read the text of each page after scanning, so that it can be searched and copied</string>
+           </property>
+           <property name="text">
+            <string>Read the text of scanned pages (OCR)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <layout class="QHBoxLayout">
            <item>
             <widget class="QCheckBox" name="limit">

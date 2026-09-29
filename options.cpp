@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSettings>
 
 #include "appearance.h"
+#include "ocrreader.h"
 #include "options.h"
 
 #include <qvariant.h>
@@ -96,6 +97,7 @@ void Options::init()
    int stack_val = xmlConfig->intValue("SCAN_STACK_COUNT");
 
    jpeg->setChecked (xmlConfig->boolValue ("SCAN_USE_JPEG"));
+   readText->setChecked (OcrReader::enabled ());
 
    single->setRange (1, 999);
    limit->setChecked (single_val > 0);
@@ -130,6 +132,7 @@ void Options::init()
 void Options::ok_clicked()
 {
    xmlConfig->setBoolValue("SCAN_USE_JPEG" ,jpeg->isChecked ());
+   OcrReader::setEnabled (readText->isChecked ());
 
    int single_val = limit->isChecked () ? single->value () : 0;
    int stack_val = stackLimit->isChecked () ? stackCount->value () : 0;

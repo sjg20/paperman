@@ -451,6 +451,9 @@ private slots:
    //! delete selected stacks
    void deleteStacks (void);
 
+   //! read the text of the selected stacks' pages, in the background
+   void readText (void);
+
    //! unstack selected stacks
    void unstackStacks (void);
 
@@ -588,6 +591,7 @@ private:
    QAction *_act_duplicate_max, *_act_duplicate_pdf, *_act_duplicate_tiff;
    QAction *_act_duplicate_odd, *_act_duplicate_even;
    QAction *_act_duplicate_jpeg, *_act_move;
+   QAction *_act_read_text;
    QAction *_act_unfold_booklet;
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
    QAction *_act_copy;

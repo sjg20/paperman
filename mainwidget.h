@@ -35,6 +35,7 @@ class Desktopwidget;
 class Desk;
 class Filepage;
 class Mainwindow;
+class OcrReader;
 class Options;
 class PPage;
 class Pagewidget;
@@ -119,6 +120,9 @@ public:
    /** as for warn(), but for information */
    void inform (const QString &title, const QString &msg);
    Pagewidget *getPage (void) { return _page; }
+
+   //! the reader which reads the text of stacks' pages in the background
+   OcrReader *ocrReader (void) { return _ocr_reader; }
    Mainwindow *getMainwindow() { return _mainwindow; }
 
 //p    Desktopviewer *getViewer (void) { return _viewer; }
@@ -463,6 +467,9 @@ private:
 
    /** the current options dialogue */
    Options *_options;
+
+   //! reads the text of stacks' pages in the background
+   OcrReader *_ocr_reader;
 
    PreviewWidget *_preview;
 
