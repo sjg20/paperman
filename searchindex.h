@@ -24,6 +24,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __searchindex_h
 #define __searchindex_h
 
+#include <functional>
+
 #include <QString>
 #include <QSqlDatabase>
 #include <QList>
@@ -89,7 +91,39 @@ public:
     * \return          error, or NULL if successful
     */
    err_info *search(const QString &query, QList<SearchResult> &results,
-                    int maxResults = 100);
+                    int maxResults = 100, const QString &underDir = QString());
+
+   /** Turn text typed by the user into a query for search()
+    *
+    * Each word must appear on the page, and the last may be the start of
+    * a longer word, since it may still be being typed. Nothing typed is
+    * taken as query syntax, so any text is a valid query
+    *
+    * \param text     what the user typed
+    * \return         the query, empty if there are no words in @p text
+    */
+   static QString matchQuery(const QString &text);
+
+   /** Reports progress while bringing the index up to date
+    *
+    * \param done   how many stacks have been looked at
+    * \param total  how many there are
+    * \return false to stop
+    */
+   typedef std::function<bool (int done, int total)> Progress;
+
+   /** Bring the index up to date with the stacks in a directory
+    *
+    * Each stack's pages are indexed from the text kept with them: what
+    * OCR read, or for a PDF, its text. A stack is only read if it has
+    * changed since it was last indexed, so this is quick once done, and
+    * stacks which have gone are dropped from the index
+    *
+    * \param dirPath   directory to look through, with its subdirectories
+    * \param progress  reports progress, or nullptr
+    * \return          error, or NULL if successful
+    */
+   err_info *sync(const QString &dirPath, const Progress &progress = nullptr);
 
    /** Check if index is open and ready
     *
@@ -108,6 +142,7 @@ public:
 
 private:
    QSqlDatabase _db;       //!< SQLite database connection
+   QString _connection;    //!< the name of the connection, unique to this
    QString _indexPath;     //!< Path to the .paperindex file
    QString _dirPath;       //!< Directory being indexed
 

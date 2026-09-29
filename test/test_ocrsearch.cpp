@@ -503,3 +503,112 @@ void TestOcrSearch::testReaderStackGone()
    QCOMPARE(read.count(), 0);
    QVERIFY(!reader.isBusy());
 }
+
+
+void TestOcrSearch::testMatchQuery()
+{
+   QCOMPARE(SearchIndex::matchQuery(""), QString());
+   QCOMPARE(SearchIndex::matchQuery("  "), QString());
+   QCOMPARE(SearchIndex::matchQuery("tax"), QString("\"tax\"*"));
+   QCOMPARE(SearchIndex::matchQuery(" rates  notice "),
+            QString("\"rates\" \"notice\"*"));
+   QCOMPARE(SearchIndex::matchQuery("say \"hi\""),
+            QString("\"say\" \"\"\"hi\"\"\"*"));
+
+   // text which is query syntax is searched for, not obeyed
+   QTemporaryDir tmp;
+   SearchIndex index;
+   QVERIFY(!index.init(tmp.path()));
+   QVERIFY(!index.addPage(tmp.path() + "/a.max", "a.max", 0,
+                          "it can't be a-b OR NEAR(x)"));
+   for (const char *text : {"can't", "a-b", "OR", "NEAR(x)", "\"", "*", "^"}) {
+      QList<SearchResult> results;
+      err_info *err = index.search(SearchIndex::matchQuery(text), results);
+      QVERIFY2(!err, err ? err->errstr : text);
+   }
+   QList<SearchResult> results;
+   QVERIFY(!index.search(SearchIndex::matchQuery("can"), results));
+   QCOMPARE(results.size(), 1);
+}
+
+
+// what OCR read from a page, as a line of text
+static OcrPage pageSaying(const QString &text)
+{
+   OcrPage ocr;
+   int i = 0;
+
+   ocr.size = QSize(100, 100);
+   for (const QString &word : text.split(' '))
+      ocr.words << OcrWord{QRect(i * 10, 0, 8, 8), word, 90, 0, 0}, i++;
+   return ocr;
+}
+
+
+static QStringList found(SearchIndex &index, const QString &text,
+                         const QString &under = QString())
+{
+   QList<SearchResult> results;
+   QStringList out;
+
+   if (index.search(SearchIndex::matchQuery(text), results, 100, under))
+      return QStringList("error");
+   for (const SearchResult &res : results)
+      out << QString("%1:%2").arg(res.filename).arg(res.pagenum);
+   out.sort();
+   return out;
+}
+
+
+void TestOcrSearch::testIndexSync()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+   QVERIFY(QDir(dir).mkdir("sub"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "sub/b.max"));
+   {
+      Filemax a(dir, "a.max", nullptr);
+      QVERIFY(!a.load());
+      QVERIFY(!a.putPageOcr(0, pageSaying("invoice for apples")));
+      Filemax b(dir + "sub/", "b.max", nullptr);
+      QVERIFY(!b.load());
+      QVERIFY(!b.putPageOcr(2, pageSaying("banana invoice")));
+   }
+
+   SearchIndex index;
+   QVERIFY(!index.init(dir));
+   int calls = 0;
+   QVERIFY(!index.sync(dir, [&calls](int done, int total) {
+      calls++;
+      return done <= total;
+   }));
+   QCOMPARE(calls, 2);
+   QCOMPARE(found(index, "invoice"), QStringList({"a.max:0", "b.max:2"}));
+   QCOMPARE(found(index, "invoice", dir + "sub"), QStringList({"b.max:2"}));
+   QCOMPARE(found(index, "appl"), QStringList({"a.max:0"}));
+
+   // a stack whose text changes is indexed again
+   {
+      Filemax a(dir, "a.max", nullptr);
+      QVERIFY(!a.load());
+      QVERIFY(!a.putPageOcr(0, pageSaying("pears")));
+   }
+   QFile file(dir + "a.max");
+   QVERIFY(file.open(QIODevice::ReadWrite));
+   QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(10),
+                            QFileDevice::FileModificationTime));
+   file.close();
+   QVERIFY(!index.sync(dir));
+   QCOMPARE(found(index, "apples"), QStringList());
+   QCOMPARE(found(index, "pears"), QStringList({"a.max:0"}));
+
+   // one which goes is dropped, and the index survives being reopened
+   QVERIFY(QFile::remove(dir + "sub/b.max"));
+   index.close();
+   SearchIndex again;
+   QVERIFY(!again.init(dir));
+   QVERIFY(!again.sync(dir));
+   QCOMPARE(found(again, "invoice"), QStringList());
+   QCOMPARE(found(again, "pears"), QStringList({"a.max:0"}));
+}
