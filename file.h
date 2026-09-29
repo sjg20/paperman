@@ -58,6 +58,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 
 
+class OcrPage;
 class QTextStream;
 
 class Desk;
@@ -308,6 +309,22 @@ public:
    virtual err_info *putEnvelope (QStringList &env) = 0;
 
    virtual err_info *getPageText (int pagenum, QString &str) = 0;
+
+   /** what was read from a page by OCR, kept with the page
+
+      \param pagenum  the page, from 0
+      \param page     returns what was read, empty if the page has not
+                      been read
+      \returns error, or NULL if ok; a file type which cannot keep it
+               returns an error */
+   virtual err_info *getPageOcr (int pagenum, OcrPage &page);
+
+   /** keep what was read from a page by OCR with the page
+
+      \param pagenum  the page, from 0
+      \param page     what was read, or an empty page to forget it
+      \returns error, or NULL if ok */
+   virtual err_info *putPageOcr (int pagenum, const OcrPage &page);
 
    /** gets the total size of a file in bytes. this should include data not
        yet flushed to the filesystem */

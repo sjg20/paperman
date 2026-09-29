@@ -42,6 +42,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #endif
 #include "err.h"
 #include "file.h"
+#include "ocrpage.h"
 #include "filejpeg.h"
 #include "imageadjust.h"
 #include "filemax.h"
@@ -881,6 +882,18 @@ err_info *File::not_impl (void)
    }
 
 
+err_info *File::getPageOcr (int, OcrPage &)
+   {
+   return not_impl ();
+   }
+
+
+err_info *File::putPageOcr (int, const OcrPage &)
+   {
+   return not_impl ();
+   }
+
+
 err_info *File::addPageJpeg (const QByteArray &, int, int, bool)
    {
    return not_impl ();
@@ -1191,6 +1204,9 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
    // we may generate fewer pages than we receive
    int out_page_count = 0;
 
+   // the pages which were read by OCR, as (from, to) page numbers
+   QList<QPair<int, int>> ocr_pages;
+
    load();
    for (pagenum = first_page; pagenum <= last_page; pagenum++)
       {
@@ -1215,11 +1231,28 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
          continue;
 
       CALL (addImageAsPage (fnew, image, bpp, out_page_count));
+      ocr_pages << qMakePair (pagenum, out_page_count);
       out_page_count++;
       op.incProgress (1);
       }
    fnew->flush ();
    fnew->load ();
+
+   /* bring along what was read from each page, where both files can keep
+      it; a page which was not read, or a file which cannot keep it, is
+      simply left for OCR to read again */
+   for (const QPair<int, int> &pair : ocr_pages)
+      {
+      OcrPage ocr;
+
+      if (getPageOcr (pair.first, ocr) || ocr.isEmpty ())
+         continue;
+
+      err_info *err = fnew->putPageOcr (pair.second, ocr);
+
+      if (err && err->errnum != ERR_no_available_for_this_file_type)
+         return err;
+      }
    return NULL;
    }
 

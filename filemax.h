@@ -139,6 +139,7 @@ typedef struct page_info
    int have_roswell; // true if the following fields are valid
    int image;
    int noti1, noti2, title, text;
+   int ocr;             //!< Paperman's OCR chunk, with the page's words
    QDateTime timestamp;
 
    QString titlestr;     //!< page title
@@ -185,6 +186,8 @@ public:
    virtual err_info *putEnvelope (QStringList &env);
 
    virtual err_info *getPageText (int pagenum, QString &str);
+   err_info *getPageOcr (int pagenum, OcrPage &page) override;
+   err_info *putPageOcr (int pagenum, const OcrPage &page) override;
 
    virtual int getSize (void);
 
@@ -619,6 +622,9 @@ private:
    err_info *create_roswell (page_info &page);
 
    err_info *create_title (page_info &page);
+
+   //! create or update a page's OCR chunk, holding what was read from it
+   err_info *create_ocr (page_info &page, const QByteArray &data);
 
    err_info *page_add (int chunkid, const QString &titlestr,
             page_info *&pagep);

@@ -59,6 +59,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "desk.h"
 #include "filemax.h"
+#include "ocrpage.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -91,6 +92,9 @@ static int debug_level = 0;
 /** current version of max file - note that is 'our' version; legacy max files
 don't have this value */
 #define MAX_VERSION 1
+
+// marks the position of a page's OCR chunk in its roswell chunk: "OCR1"
+#define ROSWELL_OCR_MAGIC 0x3152434f
 
 
 /*
@@ -348,6 +352,18 @@ enum
    POS_roswell_noti2     = 0xce,
    POS_roswell_text      = 0xd2,
 
+   /* Paperman's own, near the end of the roswell chunk: the position of
+      the page's OCR chunk, after a marker word. A PaperPort page which
+      Paperman has not rewritten keeps whatever PaperPort put there, even
+      once the file's header is Paperman's, so the marker says that the
+      position is Paperman's */
+   POS_roswell_ocr_magic = 0x198,
+   POS_roswell_ocr       = 0x19c,
+
+   // within Paperman's OCR chunk: the length of the data, then the data
+   POS_ocr_size          = 0x20,
+   POS_ocr_data          = 0x24,
+
    POSn_roswell_timestamp = 0x20,   // page timestamp
 
    /* chunk types */
@@ -360,6 +376,7 @@ enum
    CT_bermuda,         // bermuda chunk
    CT_annot,           // annotation chunk
    CT_env,             // envelope chunk
+   CT_ocr,             // Paperman's OCR chunk: a page's words, with boxes
 
    /* part types */
    PT_colourmap = 0,
@@ -402,7 +419,8 @@ enum
    CHUNKF_roswell = 0x4000,    // chunk contains roswell data
    CHUNKF_bermuda = 0x8000,    // chunk contains bermuda data
    CHUNKF_annot   = 0x8002,    // chunk contains annot data
-   CHUNKF_env     = 0x8004     // chunk contains envelope data
+   CHUNKF_env     = 0x8004,    // chunk contains envelope data
+   CHUNKF_ocr     = 0x8010     // Paperman's own: a page's OCR words
    };
 
 
@@ -576,6 +594,7 @@ static const char *chunk_namestr (int type)
       case CT_bermuda  : return "Bermuda";
       case CT_annot    : return "Annot";
       case CT_env      : return "Envelope";
+      case CT_ocr      : return "Ocr";
       default :
          sprintf (str, "t%-4x:", type);
          return str;
@@ -2151,6 +2170,10 @@ err_info *Filemax::read_chunk (chunk_info &chunk, int pos)
          chunk.type = CT_env;
          break;
 
+      case CHUNKF_ocr :
+         chunk.type = CT_ocr;
+         break;
+
       default :
          chunk.type = CT_unknown;
          break;
@@ -2388,6 +2411,12 @@ err_info *Filemax::page_read_roswell (page_info &page)
    page.noti2 = getword (page.roswell + POS_roswell_noti2);
    page.text = getword (page.roswell + POS_roswell_text);
    page.title = getword (page.roswell + POS_roswell_title);
+
+   // only Paperman writes an OCR chunk
+   page.ocr = 0;
+   if (_version >= 1
+       && getword (page.roswell + POS_roswell_ocr_magic) == ROSWELL_OCR_MAGIC)
+      page.ocr = getword (page.roswell + POS_roswell_ocr);
    page.timestamp = _timestamp;
    if (_version >= 1)
       page.timestamp.setSecsSinceEpoch(getword (page.roswell + POSn_roswell_timestamp));
@@ -4794,6 +4823,13 @@ static void write_roswell (byte *buf, page_info &page)
    data [0x42 / 2] = page.image;
    data [0x42 / 2 + 1] = page.image >> 16;
    idata [0x8c / 4] = page.title;
+
+   /* the text PaperPort read from the page, which stacking and unstacking
+      carry with the page, and Paperman's OCR chunk */
+   data [0xd2 / 2] = page.text;
+   data [0xd2 / 2 + 1] = page.text >> 16;
+   idata [POS_roswell_ocr_magic / 4] = ROSWELL_OCR_MAGIC;
+   idata [POS_roswell_ocr / 4] = page.ocr;
    }
 
 
@@ -4982,6 +5018,7 @@ void Filemax::page_init (page_info &page)
    page.chunkid = page.roswell = 0;
    page.have_roswell = false;
    page.image = page.noti1 = page.noti2 = page.title = page.text = 0;
+   page.ocr = 0;
    page.title_loaded = page.title_saved = false;
    }
 
@@ -5239,6 +5276,28 @@ err_info *Filemax::create_title (page_info &page)
    return NULL;
    }
 
+
+err_info *Filemax::create_ocr (page_info &page, const QByteArray &data)
+   {
+   chunk_info chunk;
+   byte *buf;
+
+   chunk_init (chunk);
+   chunk.chunkid = page.chunkid;
+   chunk.type = CT_ocr;
+   chunk.size = ALIGN_CHUNK (POS_ocr_data + data.size ());
+   chunk.textflag = 0;
+   chunk.flags = CHUNKF_ocr;
+   chunk.titletype = 0;
+   CALL (alloc_chunk_buf (chunk, &buf));
+   add_generic_chunk_header (chunk, buf);
+   *(unsigned *)(buf + POS_ocr_size) = data.size ();
+   memcpy (buf + POS_ocr_data, data.constData (), data.size ());
+   CALL (insert_chunk (chunk, &page.ocr));
+   return NULL;
+   }
+
+
 err_info *Filemax::page_add (int chunkid, const QString &titlestr,
           page_info *&pagep)
    {
@@ -5402,6 +5461,7 @@ err_info *Filemax::merge_chunks (Filemax *src,
    CALL (merge_chunk (src, srcpage.image, &dstpage.image));
    CALL (merge_chunk (src, srcpage.title, &dstpage.title));
    CALL (merge_chunk (src, srcpage.text, &dstpage.text));
+   CALL (merge_chunk (src, srcpage.ocr, &dstpage.ocr));
    return NULL;
    }
 
@@ -5413,6 +5473,7 @@ err_info *Filemax::free_page (page_info &page)
    CALL (remove_chunknum (page.image));
    CALL (remove_chunknum (page.title));
    CALL (remove_chunknum (page.text));
+   CALL (remove_chunknum (page.ocr));
    return NULL;
    }
 
@@ -5423,6 +5484,7 @@ err_info *Filemax::restore_page (page_info &page)
    CALL (restore_chunknum (page.image));
    CALL (restore_chunknum (page.title));
    CALL (restore_chunknum (page.text));
+   CALL (restore_chunknum (page.ocr));
 
    return NULL;
    }
@@ -5873,6 +5935,106 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
       }
    str = ba.constData ();
    return NULL;
+   }
+
+
+err_info *Filemax::getPageOcr (int pagenum, OcrPage &out)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   page_info *page;
+   chunk_info *chunk;
+   bool temp;
+
+   out = OcrPage ();
+
+   /* a stack held a page at a time has no OCR chunk of its own: the
+      words travel in each page's file, so ask that */
+   if (isSparse ())
+      {
+      Filemax *max;
+
+      CALL (child (pagenum, max));
+      return max->getPageOcr (0, out);
+      }
+
+   // closed again however this returns, so the file is not held open
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (find_page (pagenum, page));
+   if (!page->have_roswell && page->roswell)
+      CALL (page_read_roswell (*page));
+   if (!page->ocr)
+      return NULL;
+   CALL (chunk_find (page->ocr, chunk, &temp));
+
+   err_info *err = NULL;
+   int size = 0;
+
+   if (chunk->type != CT_ocr)
+      err = err_make (ERRFN, ERR_chunk_at_pos_not_found1, page->ocr);
+   else
+      err = getworde (chunk->start + POS_ocr_size, &size);
+   if (!err && (size < 0 || size > chunk->size - POS_ocr_data))
+      err = err_make (ERRFN, ERR_chunk_at_pos_not_found1, page->ocr);
+
+   QByteArray ba;
+
+   if (!err)
+      {
+      ba.resize (size);
+      err = max_read_data (chunk->start + POS_ocr_data, (byte *)ba.data (),
+                           size);
+      }
+   if (temp)
+      {
+      chunk_free (*chunk);
+      mem_free (CV &chunk);
+      }
+   if (err)
+      return err;
+
+   // a page read by a later version of Paperman is left unread
+   OcrPage::fromBytes (ba, out);
+   return NULL;
+   }
+
+
+err_info *Filemax::putPageOcr (int pagenum, const OcrPage &ocr)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   page_info *page;
+
+   /* nothing is written to a stack held a page at a time: its words are
+      kept by the server, and the page fetched again */
+   if (isSparse ())
+      return not_impl ();
+
+   load ();
+
+   // dropping the old chunk reads it in first
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (ensure_all_chunks ());
+   CALL (find_page (pagenum, page));
+   if (!page->have_roswell && page->roswell)
+      CALL (page_read_roswell (*page));
+   if (ocr.isEmpty ())
+      {
+      if (!page->ocr)
+         return NULL;
+      CALL (remove_chunknum (page->ocr));
+      page->ocr = 0;
+      }
+   else
+      {
+      CALL (create_ocr (*page, ocr.toBytes ()));
+      }
+   CALL (create_roswell (*page));
+   return flush ();
    }
 
 
@@ -6452,6 +6614,20 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
    load ();
    CALL (find_page (pagenum, info));
    CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
+
+   /* the words' boxes no longer match the page, so drop them; the page
+      is read again the right way up */
+   if (!info->have_roswell && info->roswell)
+      CALL (page_read_roswell (*info));
+   if (info->ocr)
+      {
+      Open open (this);
+
+      CALL (open.err ());
+      CALL (ensure_all_chunks ());
+      CALL (remove_chunknum (info->ocr));
+      info->ocr = 0;
+      }
 
    /* mono images are decoded with the width padded to a multiple of 32,
       so crop back to the real page size to avoid the padding columns
