@@ -42,7 +42,6 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QImage>
 #include <QProcess>
 #include <QTemporaryDir>
-#include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QThread>
@@ -65,6 +64,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "filemax.h"
 #include "maxview.h"
 #include "ocr.h"
+#include "ocrpage.h"
 #include "paperstack.h"
 #include "op.h"
 #include "utils.h"
@@ -150,111 +150,57 @@ static err_info *batch_ocr_directory(const QString &dirPath)
          continue;
          }
 
-      // Check if file already has OCR text
-      QString existing_ocr;
-      err = file->getAnnot(File::Annot_ocr, existing_ocr);
-      if (!err && !existing_ocr.isEmpty())
-         {
-         // File already has OCR text - index it without re-OCRing
-         printf("  Indexing existing OCR text (%d chars)\n",
-                (int)existing_ocr.length());
-
-         if (searchIndex.isOpen())
-            {
-            // Parse the existing OCR text to extract per-page content
-            // Format: "text\n\n--- Page N ---\n\ntext..."
-            QStringList parts = existing_ocr.split(QRegularExpression("\n\n--- Page \\d+ ---\n\n"));
-
-            for (int page = 0; page < parts.size(); page++)
-               {
-               QString page_text = parts[page].trimmed();
-               if (!page_text.isEmpty())
-                  {
-                  err = searchIndex.addPage(filePath, fileName, page, page_text);
-                  if (err)
-                     fprintf(stderr, "  WARNING: Failed to index page %d: %s\n",
-                            page, err->errstr);
-                  }
-               }
-
-            printf("  SUCCESS: Indexed %d pages from existing OCR\n", (int)parts.size());
-            processed++;
-            }
-         else
-            {
-            skipped++;
-            }
-
-         delete file;
-         continue;
-         }
-
-      // No existing OCR text - process each page
+      /* read each page not yet read, keeping its words with it, and
+         index the text of every page */
       int page_count = file->pagecount();
-      QString all_text;
-      int pages_with_text = 0;
+      int pages_read = 0, pages_with_text = 0;
 
       for (int page = 0; page < page_count; page++)
          {
-         // Get the page image
-         QImage qimage;
-         QSize size, trueSize;
-         int bpp;
+         OcrPage words;
 
-         err = file->getImage(page, false, qimage, size, trueSize, bpp, false);
-
-         if (err || qimage.isNull())
+         err = file->getPageOcr(page, words);
+         if (!err && words.isEmpty())
             {
-            if (err)
-               fprintf(stderr, "  WARNING: Failed to get image for page %d: %s\n",
-                      page, err->errstr);
+            QImage qimage;
+            QSize size, trueSize;
+            int bpp;
+
+            err = file->getImage(page, false, qimage, size, trueSize, bpp,
+                                 false);
+            if (!err && !qimage.isNull())
+               err = ocr->imageToPage(qimage, words);
+            if (!err)
+               err = file->putPageOcr(page, words);
+            if (!err)
+               pages_read++;
+            }
+         if (err)
+            {
+            fprintf(stderr, "  WARNING: Failed to read page %d: %s\n",
+                    page + 1, err->errstr);
             continue;
             }
 
-         // Run OCR on the page
-         QString page_text;
-         err = ocr->imageToText(qimage, page_text);
+         QString page_text = words.text();
 
-         if (!err && !page_text.isEmpty())
+         if (page_text.isEmpty())
+            continue;
+         pages_with_text++;
+         if (searchIndex.isOpen())
             {
-            // Add to combined text for annotation
-            if (page > 0)
-               all_text += "\n\n--- Page " + QString::number(page + 1) + " ---\n\n";
-            all_text += page_text;
-
-            // Add to search index (one entry per page)
-            if (searchIndex.isOpen())
-               {
-               err = searchIndex.addPage(filePath, fileName, page, page_text);
-               if (err)
-                  fprintf(stderr, "  WARNING: Failed to index page %d: %s\n",
-                         page, err->errstr);
-               }
-
-            pages_with_text++;
+            err = searchIndex.addPage(filePath, fileName, page, page_text);
+            if (err)
+               fprintf(stderr, "  WARNING: Failed to index page %d: %s\n",
+                       page + 1, err->errstr);
             }
          }
 
-      // Save OCR text if we got any
-      if (!all_text.isEmpty())
+      if (pages_with_text)
          {
-         QHash<int, QString> updates;
-         updates[File::Annot_ocr] = all_text;
-         err = file->putAnnot(updates);
-
-         if (!err)
-            {
-            file->flush();
-            printf("  SUCCESS: Extracted %d characters from %d pages\n",
-                   (int)all_text.length(), pages_with_text);
-            processed++;
-            }
-         else
-            {
-            fprintf(stderr, "  ERROR: Failed to save OCR text: %s\n",
-                   err->errstr);
-            errors++;
-            }
+         printf("  SUCCESS: Read %d of %d pages, %d with text\n", pages_read,
+                page_count, pages_with_text);
+         processed++;
          }
       else
          {
