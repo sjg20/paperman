@@ -68,6 +68,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desk.h"
 #include "mainwidget.h"
 #include "ocrreader.h"
+#include "searchindex.h"
 #include "mainwindow.h"
 #include "maxview.h"
 #include "pagewidget.h"
@@ -952,6 +953,18 @@ void Desktopwidget::searchInFolders()
    ui.stackName->setText(_search_text);
    ui.stackName->setSelection(0, _search_text.size());
 
+   auto setMode = [&ui] (bool by_text) {
+      ui.label->setText(by_text ? tr("Words:") : tr("Stack name:"));
+      ui.stackName->setToolTip(by_text
+         ? tr("Enter words to look for on the stacks' pages; the last may "
+              "be the start of a word")
+         : tr("Enter the name of the stack to search for; partial matches "
+              "are allowed"));
+   };
+   ui.byText->setChecked(_search_by_text);
+   setMode(_search_by_text);
+   connect(ui.byText, &QRadioButton::toggled, &diag, setMode);
+
    QModelIndex index = _dir->menuGetModelIndex ();
    QModelIndex src_ind = _dir_proxy->mapToSource(index);
    QString path = _model->filePath(src_ind);
@@ -964,8 +977,85 @@ void Desktopwidget::searchInFolders()
    }
 
    _search_text = ui.stackName->text();
+   _search_by_text = ui.byText->isChecked();
+   if (_search_by_text) {
+      int count = startTextSearch(path, _search_text);
+
+      if (count >= 0)
+         specialView(tr("Showing %n stack(s) with '%1' on a page", "", count)
+                     .arg(_search_text));
+      else
+         _toolbar->setFilterEnabled(true);
+      return;
+   }
    startSearch(path, _search_text);
    specialView("Showing the results of folder search");
+}
+
+int Desktopwidget::startTextSearch(const QString& path, const QString& text)
+{
+   QModelIndex root = getRootIndex();
+   QString root_path = _model->data(root, Dirmodel::FilePathRole).toString();
+
+   // the index is kept on this computer, next to the stacks
+   if (!QFileInfo(root_path).isDir()) {
+      QMessageBox::information(this, tr("Search -- Paperman"),
+         tr("Text on the pages can only be searched for in folders on "
+            "this computer"));
+      return -1;
+   }
+
+   QString query = SearchIndex::matchQuery(text);
+   SearchIndex index;
+   QList<SearchResult> results;
+   err_info *err = index.init(root_path);
+
+   if (!err && !query.isEmpty()) {
+      Operation op(tr("Indexing text"), 0, this);
+
+      err = index.sync(path, [&op](int done, int total) {
+         op.setCount(total);
+         return !op.setProgress(done);
+      });
+      if (!err)
+         err = index.search(query, results, 1000, path);
+   }
+   if (_main->complain(err))
+      return -1;
+
+   /* list each stack once, in the order of its best page, and turn it to
+      that page */
+   QString dir = QDir(path).absolutePath() + "/";
+   QStringList matches;
+   QHash<QString, int> pages;
+
+   for (const SearchResult& res : results) {
+      if (pages.contains(res.filepath) || !res.filepath.startsWith(dir))
+         continue;
+      pages.insert(res.filepath, res.pagenum);
+      matches << res.filepath.mid(dir.size());
+   }
+
+   _contents_proxy->setFilterFixedString("");
+   QModelIndex sind = _contents->finishFileSearch(path, root_path, matches,
+                                                  _view->getMeasure());
+   for (int row = 0; row < _contents->rowCount(sind); row++) {
+      QModelIndex ind = _contents->index(row, 0, sind);
+      File *f = _contents->getFile(ind);
+      QString pathname = f ? QFileInfo(f->pathname()).absoluteFilePath()
+                           : QString();
+
+      if (pages.contains(pathname))
+         _contents->showAtPage(ind, pages.value(pathname));
+   }
+
+   QModelIndex ind = sind;
+   _modelconv->indexToProxy(ind.model(), ind);
+   _view->setRootIndex(ind);
+   _view->setFocus();
+   _view->scrollToTop();
+
+   return matches.size();
 }
 
 void Desktopwidget::specialView(const QString& prompt)

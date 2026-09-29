@@ -1187,6 +1187,13 @@ public:
        stack's pages are for its server to read */
    bool keepsOcr (File *f) const;
 
+   /** show a stack turned to a page, reading it first if it has not been,
+       so that its preview is made, as for a stack found by a search
+
+      \param ind      model index of stack
+      \param pagenum  0-based page number */
+   void showAtPage (const QModelIndex &ind, int pagenum);
+
    /** what OCR has read from a page of a stack
 
       \param ind      model index of stack

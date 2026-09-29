@@ -14,6 +14,7 @@
 #include "desktopundo.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
+#include "ocrpage.h"
 #include "dirmodel.h"
 #include "filemax.h"
 #include "utils.h"
@@ -537,6 +538,61 @@ void TestDesktopUi::testSearchAndLocate()
    QModelIndex sel = view->getSelectedListSource()[0];
    QCOMPARE(model->data(sel, Desktopmodel::Role_filename).toString(),
             "findme.max");
+}
+
+// Keep some words with a page of a stack, as OCR would
+static void sayOnPage(const QString &dir, const QString &fname, int pagenum,
+                      const QString &text)
+{
+   Filemax max(dir, fname, nullptr);
+   QVERIFY(!max.load());
+
+   OcrPage ocr;
+   int i = 0;
+   ocr.size = QSize(100, 100);
+   for (const QString &word : text.split(' '))
+      ocr.words << OcrWord{QRect(10 * i++, 0, 8, 8), word, 90, 0, 0};
+   QVERIFY(!max.putPageOcr(pagenum, ocr));
+}
+
+void TestDesktopUi::testTextSearch()
+{
+   Mainwindow me;
+
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/findme.max"));
+   sayOnPage(path + "/main/one/", "findme.max", 3, "quarterly rates notice");
+   sayOnPage(path + "/", "testfile.max", 0, "water rates");
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+
+   // the stack with all the words is found, turned to the page with them
+   QCOMPARE(desktop->startTextSearch(path, "rates noti"), 1);
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QModelIndex ind = itemIndex(view, 0);
+   QCOMPARE(view->model()->data(ind, Qt::DisplayRole).toString(), "findme");
+   QCOMPARE(view->model()->data(ind, Desktopmodel::Role_pagenum).toInt(), 3);
+   QVERIFY(QFile::exists(path + "/.paperindex"));
+
+   // a word on both is found on both
+   QCOMPARE(desktop->startTextSearch(path, "rates"), 2);
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   // only under the folder searched
+   QCOMPARE(desktop->startTextSearch(path + "/main", "rates"), 1);
+
+   // and nothing is found for words on no page
+   QCOMPARE(desktop->startTextSearch(path, "zebra"), 0);
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 0);
 }
 
 void TestDesktopUi::testSearchEscapeReturns()
