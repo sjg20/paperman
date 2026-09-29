@@ -35,6 +35,15 @@ private slots:
 
    //! tesseract reads a page's words, with where each is
    void testOcrPageTesseract();
+
+   //! the background reader reads each page not yet read, once
+   void testReaderReadsPages();
+
+   //! a page which moves while it is read has its words stored with it
+   void testReaderPageMoves();
+
+   //! a stack which goes away while a page is read is let go
+   void testReaderStackGone();
 };
 
 #endif // TEST_OCRSEARCH_H
