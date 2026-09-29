@@ -627,11 +627,7 @@ void Desktopwidget::addAction (QAction *&act, const char *text, const char *slot
       act->setShortcut (tr (shortcut.toLatin1()));
    if (image)
       {
-      QIcon icon;
-      QString str = utilIconPath() + image;
-
-      icon.addPixmap (QPixmap(str), QIcon::Normal, QIcon::Off);
-      act->setIcon (icon);
+      act->setIcon (utilIcon (image));
 //       act->setIconSize(QSize(24, 24));
       act->setAutoRepeat (true);
       }
@@ -1901,7 +1897,7 @@ Toolbar::Toolbar(QWidget* parent, Qt::WindowFlags fl)
    : QFrame(parent, fl)
 {
    setupUi(this);
-   utilUpdateIcons(this);
+   utilSetIcons(this);
 
    // When ESC is pressed, clear the field
    QStateMachine *machine = new QStateMachine(this);

@@ -37,7 +37,7 @@ Pagetools::Pagetools(QWidget* parent, Qt::WindowFlags fl)
     : QFrame(parent,fl)
 {
     setupUi(this);
-    utilUpdateIcons(this);
+    utilSetIcons(this);
 
     init();
 }

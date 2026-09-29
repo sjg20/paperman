@@ -25,7 +25,7 @@ Qt5/C++ dependencies (desktop app + server):
 
    sudo apt-get install -y \
      build-essential qt5-qmake qtbase5-dev qtbase5-dev-tools \
-     libqt5sql5-sqlite libpoppler-qt5-dev libpodofo-dev \
+     libqt5sql5-sqlite libqt5svg5-dev libpoppler-qt5-dev libpodofo-dev \
      libtiff-dev libjpeg-dev libsane-dev zlib1g-dev \
      imagemagick tesseract-ocr tesseract-ocr-eng
 
@@ -36,7 +36,7 @@ Qt6/C++ dependencies (alternative to Qt5):
    sudo apt-get install -y \
      build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
      libqt6sql6-sqlite libpoppler-qt6-dev libpodofo-dev \
-     qt6-scxml-dev libqt6statemachine6 \
+     qt6-scxml-dev libqt6statemachine6 qt6-svg-dev \
      libtiff-dev libjpeg-dev libsane-dev zlib1g-dev \
      imagemagick tesseract-ocr tesseract-ocr-eng
 

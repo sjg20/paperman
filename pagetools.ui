@@ -33,9 +33,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/pointer.xpm</normaloff>:/images/images/pointer.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>pointer</string>
        </property>
        <property name="iconSize">
         <size>
@@ -62,9 +61,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/hand.xpm</normaloff>:/images/images/hand.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>hand</string>
        </property>
        <property name="iconSize">
         <size>
@@ -88,9 +86,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/scanmode.xpm</normaloff>:/images/images/scanmode.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>scanmode</string>
        </property>
        <property name="iconSize">
         <size>
@@ -114,9 +111,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/info.xpm</normaloff>:/images/images/info.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>info</string>
        </property>
        <property name="iconSize">
         <size>
@@ -156,9 +152,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/document-save.xpm</normaloff>:/images/images/document-save.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>document-save</string>
        </property>
        <property name="iconSize">
         <size>
@@ -176,9 +171,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/document-revert.xpm</normaloff>:/images/images/document-revert.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>document-revert</string>
        </property>
        <property name="iconSize">
         <size>
@@ -196,9 +190,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/rleft.xpm</normaloff>:/images/images/rleft.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>rleft</string>
        </property>
        <property name="iconSize">
         <size>
@@ -216,9 +209,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/rright.xpm</normaloff>:/images/images/rright.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>rright</string>
        </property>
        <property name="iconSize">
         <size>
@@ -236,9 +228,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/hflip.xpm</normaloff>:/images/images/hflip.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>hflip</string>
        </property>
        <property name="iconSize">
         <size>
@@ -256,9 +247,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/vflip.xpm</normaloff>:/images/images/vflip.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>vflip</string>
        </property>
        <property name="iconSize">
         <size>
@@ -289,9 +279,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/zoom-best-fit.xpm</normaloff>:/images/images/zoom-best-fit.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>zoom-best-fit</string>
        </property>
        <property name="iconSize">
         <size>
@@ -309,9 +298,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/zoom-original.xpm</normaloff>:/images/images/zoom-original.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>zoom-original</string>
        </property>
        <property name="iconSize">
         <size>
@@ -360,9 +348,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/zoom-out.xpm</normaloff>:/images/images/zoom-out.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>zoom-out</string>
        </property>
        <property name="iconSize">
         <size>
@@ -389,9 +376,8 @@
        <property name="text">
         <string>...</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/zoom-in.xpm</normaloff>:/images/images/zoom-in.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>zoom-in</string>
        </property>
        <property name="iconSize">
         <size>

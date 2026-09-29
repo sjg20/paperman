@@ -177,7 +177,15 @@ void File::setup (void)
    _title_maxsize = QSize (-1, -1);
    _pagename_maxsize = QSize (-1, -1);
    if (!unknown)
-      unknown = new QPixmap (":images/images/unknown.xpm");
+      {
+#ifndef QT_NO_WIDGETS
+      unknown = new QPixmap (utilIconPixmap ("unknown", 64));
+#else
+      // the server has no icons, and never shows this
+      unknown = new QPixmap (64, 64);
+      unknown->fill (Qt::lightGray);
+#endif
+      }
 //    Q_ASSERT (!_no_access.isNull ());
    Q_ASSERT (!unknown->isNull ());
    _order = -1;

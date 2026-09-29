@@ -66,9 +66,8 @@
        <property name="autoFillBackground">
         <bool>false</bool>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/pprev.xpm</normaloff>:/images/images/pprev.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>pprev</string>
        </property>
        <property name="iconSize">
         <size>
@@ -95,9 +94,8 @@
        <property name="autoFillBackground">
         <bool>false</bool>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/pnext.xpm</normaloff>:/images/images/pnext.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>pnext</string>
        </property>
        <property name="iconSize">
         <size>
@@ -124,9 +122,8 @@
        <property name="autoFillBackground">
         <bool>false</bool>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/prev.xpm</normaloff>:/images/images/prev.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>prev</string>
        </property>
        <property name="iconSize">
         <size>
@@ -153,9 +150,8 @@
        <property name="autoFillBackground">
         <bool>false</bool>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/next.xpm</normaloff>:/images/images/next.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>next</string>
        </property>
        <property name="iconSize">
         <size>
@@ -179,9 +175,8 @@
        <property name="toolTip">
         <string>Rotate each page in the stack left</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/rleft.xpm</normaloff>:/images/images/rleft.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>rleft</string>
        </property>
        <property name="iconSize">
         <size>
@@ -202,9 +197,8 @@
        <property name="toolTip">
         <string>Rotate each page in the stack right</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/rright.xpm</normaloff>:/images/images/rright.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>rright</string>
        </property>
        <property name="iconSize">
         <size>
@@ -225,9 +219,8 @@
        <property name="toolTip">
         <string>Flip each page in the stack horizontally</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/hflip.xpm</normaloff>:/images/images/hflip.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>hflip</string>
        </property>
        <property name="iconSize">
         <size>
@@ -248,9 +241,8 @@
        <property name="toolTip">
         <string>Flip each page in the stack vertically</string>
        </property>
-       <property name="icon">
-        <iconset resource="maxview.qrc">
-         <normaloff>:/images/images/vflip.xpm</normaloff>:/images/images/vflip.xpm</iconset>
+       <property name="paperIcon" stdset="0">
+        <string>vflip</string>
        </property>
        <property name="iconSize">
         <size>

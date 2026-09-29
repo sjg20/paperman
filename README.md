@@ -359,7 +359,7 @@ job uses. In a MINGW64 shell:
 
 ```
 pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
-    mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
+    mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml mingw-w64-x86_64-qt6-svg \
     mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
     mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
     mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
@@ -423,6 +423,13 @@ a scanner too recent for that release, such as the fi-8950, needs a
 newer SANE built from source.
 On an Intel Mac, Homebrew has no ready-built packages for the latest
 macOS, so `brew install` needs `--build-from-source`.
+
+## Icons
+
+The icons are from [Tabler Icons](https://tabler.io/icons) (MIT licence,
+see images/icons/LICENSE.tabler), with the scanner icons drawn to match.
+They are SVGs, in images/icons, drawn in the theme's text colour, so the
+same icon suits a light or a dark theme.
 
 ## Code signing policy
 

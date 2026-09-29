@@ -23,7 +23,9 @@ extern "C" {
 #include "test_utils.h"
 #include "../mainwindow.h"
 #include <QAbstractScrollArea>
+#include <QAction>
 #include <QApplication>
+#include <QDirIterator>
 #include <QLineEdit>
 #include <QTextEdit>
 
@@ -803,4 +805,95 @@ void TestUtils::testWindowFollowsPalette ()
                                   .name ())));
       }
    QVERIFY (checked > 0);
+}
+
+
+//! the colour of the icon's strongest pixel, which is its lines' colour
+static QColor iconColour (const QImage &image)
+{
+   QColor best;
+
+   for (int y = 0; y < image.height (); y++)
+      for (int x = 0; x < image.width (); x++)
+         {
+         QColor c = image.pixelColor (x, y);
+
+         if (!best.isValid () || c.alpha () > best.alpha ())
+            best = c;
+         }
+   return best;
+}
+
+void TestUtils::testIcons ()
+{
+   QPalette was = QApplication::palette ();
+   auto restore = qScopeGuard ([&] { QApplication::setPalette (was); });
+   QPalette light = was, dark = was;
+
+   light.setColor (QPalette::WindowText, QColor ("#202020"));
+   dark.setColor (QPalette::WindowText, QColor ("#e0e0e0"));
+
+   // every icon in the resources draws, in the text colour of the palette
+   QStringList names;
+   QDirIterator it (":/images/images/icons", {"*.svg"});
+
+   while (it.hasNext ())
+      names << QFileInfo (it.next ()).baseName ();
+   QVERIFY (names.size () >= 32);
+   for (const QString &name : names)
+      {
+      bool status = name == "pagekeep" || name == "pageremove"
+                    || name == "pageblank";
+
+      QApplication::setPalette (light);
+      QImage l = utilIcon (name).pixmap (24, 24).toImage ();
+      QApplication::setPalette (dark);
+      QImage d = utilIcon (name).pixmap (24, 24).toImage ();
+
+      QVERIFY2 (!l.isNull () && iconColour (l).alpha () == 255,
+                qPrintable (name + " draws nothing"));
+      if (status)
+         {
+         // these keep their own colour, whatever the theme
+         QCOMPARE (iconColour (l).name (), iconColour (d).name ());
+         }
+      else
+         {
+         QCOMPARE (iconColour (l).name (), QString ("#202020"));
+         QCOMPARE (iconColour (d).name (), QString ("#e0e0e0"));
+         }
+      }
+
+   /* one icon changes with the palette as it is shown, as when the
+      theme changes while Paperman runs */
+   QIcon print = utilIcon ("print");
+
+   QApplication::setPalette (light);
+   QCOMPARE (iconColour (print.pixmap (24, 24).toImage ()).name (),
+             QString ("#202020"));
+   QApplication::setPalette (dark);
+   QCOMPARE (iconColour (print.pixmap (24, 24).toImage ()).name (),
+             QString ("#e0e0e0"));
+
+   // disabled, it takes the palette's disabled text colour
+   dark.setColor (QPalette::Disabled, QPalette::WindowText, QColor ("#707070"));
+   QApplication::setPalette (dark);
+   QCOMPARE (iconColour (print.pixmap (QSize (24, 24), QIcon::Disabled)
+                         .toImage ()).name (), QString ("#707070"));
+
+   // the actions get the icons which the .ui files name
+   Mainwindow me;
+   int named = 0;
+
+   for (QAction *act : me.findChildren<QAction *> ())
+      {
+      QString name = act->property ("paperIcon").toString ();
+
+      if (name.isEmpty ())
+         continue;
+      named++;
+      QVERIFY2 (names.contains (name), qPrintable ("no icon " + name));
+      QVERIFY2 (!act->icon ().isNull (), qPrintable (name + " not set"));
+      }
+   QVERIFY (named >= 13);
 }

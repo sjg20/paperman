@@ -151,9 +151,8 @@
    <addaction name="actionPscan"/>
   </widget>
   <action name="actionPrint">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/print.xpm</normaloff>:/images/images/print.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>print</string>
    </property>
    <property name="text">
     <string>Print</string>
@@ -240,9 +239,8 @@
    </property>
   </action>
   <action name="actionSwap">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/swap.xpm</normaloff>:/images/images/swap.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>swap</string>
    </property>
    <property name="text">
     <string>Swap</string>
@@ -252,9 +250,8 @@
    </property>
   </action>
   <action name="actionPrev">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/prev.xpm</normaloff>:/images/images/prev.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>prev</string>
    </property>
    <property name="text">
     <string>Prev</string>
@@ -267,9 +264,8 @@
    </property>
   </action>
   <action name="actionNext">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/next.xpm</normaloff>:/images/images/next.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>next</string>
    </property>
    <property name="text">
     <string>Next</string>
@@ -282,9 +278,8 @@
    </property>
   </action>
   <action name="actionPprev">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/pprev.xpm</normaloff>:/images/images/pprev.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>pprev</string>
    </property>
    <property name="text">
     <string>pprev</string>
@@ -297,9 +292,8 @@
    </property>
   </action>
   <action name="actionPnext">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/pnext.xpm</normaloff>:/images/images/pnext.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>pnext</string>
    </property>
    <property name="text">
     <string>pnext</string>
@@ -312,9 +306,8 @@
    </property>
   </action>
   <action name="actionOptions">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/options.xpm</normaloff>:/images/images/options.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>options</string>
    </property>
    <property name="text">
     <string>options</string>
@@ -332,9 +325,8 @@
    </property>
   </action>
   <action name="actionScango">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/scan-go.xpm</normaloff>:/images/images/scan-go.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>scan-go</string>
    </property>
    <property name="text">
     <string>scango</string>
@@ -350,9 +342,8 @@
    </property>
   </action>
   <action name="actionPscan">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/scan.xpm</normaloff>:/images/images/scan.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>scan</string>
    </property>
    <property name="text">
     <string>pscan</string>
@@ -368,9 +359,8 @@
    </property>
   </action>
   <action name="actionRleft">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/rleft.xpm</normaloff>:/images/images/rleft.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>rleft</string>
    </property>
    <property name="text">
     <string>rleft</string>
@@ -389,9 +379,8 @@
    </property>
   </action>
   <action name="actionRright">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/rright.xpm</normaloff>:/images/images/rright.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>rright</string>
    </property>
    <property name="text">
     <string>rright</string>
@@ -407,9 +396,8 @@
    </property>
   </action>
   <action name="actionHflip">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/hflip.xpm</normaloff>:/images/images/hflip.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>hflip</string>
    </property>
    <property name="text">
     <string>hflip</string>
@@ -419,9 +407,8 @@
    </property>
   </action>
   <action name="actionVflip">
-   <property name="icon">
-    <iconset resource="maxview.qrc">
-     <normaloff>:/images/images/vflip.xpm</normaloff>:/images/images/vflip.xpm</iconset>
+   <property name="paperIcon" stdset="0">
+    <string>vflip</string>
    </property>
    <property name="text">
     <string>vflip</string>

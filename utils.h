@@ -493,25 +493,34 @@ int utilImageDepth(const QImage &image);
 QImage utilReduceDepth(QImage &image, int target_depth);
 
 #ifndef QT_NO_WIDGETS
+#include <QIcon>
+#include <QPixmap>
+
 class QWidget;
 
-/** update all action icons in a widget to use the correct theme
+/** One of Paperman's icons, from images/icons, drawn in the theme's text
+ *  colour as it is shown, so that it suits the theme, light or dark
  *
- * Scans all QActions owned by the widget and inverts icon pixmaps
- * when a dark desktop theme is detected.
+ * @param name   the icon's name, its file name without .svg */
+QIcon utilIcon (const QString &name);
+
+/** One of Paperman's icons as a pixmap, drawn in the theme's colours as
+ *  they are now
  *
- * @param widget   widget whose actions should be updated */
-void utilUpdateIcons(QWidget *widget);
+ * @param name   the icon's name
+ * @param size   its width and height, in pixels */
+QPixmap utilIconPixmap (const QString &name, int size);
+
+/** Give each action and button in a widget the icon its 'paperIcon'
+ *  property names, which the .ui files set in place of an icon
+ *
+ * @param widget   the widget, whose children are looked through */
+void utilSetIcons (QWidget *widget);
 #endif
 
 /** check whether the current desktop theme is dark
  *
  * @return true if the window text is brighter than the window background */
 bool utilIsDarkMode(void);
-
-/** return the resource path prefix for icons
- *
- * @return ":/images/images/dark/" in dark mode, ":/images/images/" otherwise */
-QString utilIconPath(void);
 
 #endif

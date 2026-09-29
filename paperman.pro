@@ -5,6 +5,8 @@ QT += printsupport
 QT += network
 QT += sql
 QT += concurrent
+# to draw the icons, which are SVGs in the theme's colours
+QT += svg
 
 unix:target.path = usr/bin
 target.files = paperman
