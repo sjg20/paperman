@@ -1878,7 +1878,9 @@ void utilLogLook (void)
 #endif
    qCDebug (logBuild).noquote ()
       << QString ("look: Qt %1, style %2, platform theme '%3', "
-                  "desktop asks for %4, window %5, text %6, %7 icons")
+                  "desktop asks for %4, window %5, text %6, %7 icons, "
+                  "base %8, base text %9, text edit base %10, "
+                  "line edit base %11")
          .arg (qVersion ())
          .arg (QApplication::style () ? QApplication::style ()->objectName ()
                                       : QString ("none"))
@@ -1886,7 +1888,13 @@ void utilLogLook (void)
          .arg (scheme)
          .arg (pal.color (QPalette::Window).name ())
          .arg (pal.color (QPalette::WindowText).name ())
-         .arg (utilIsDarkMode () ? "dark" : "light");
+         .arg (utilIsDarkMode () ? "dark" : "light")
+         .arg (pal.color (QPalette::Base).name ())
+         .arg (pal.color (QPalette::Text).name ())
+         .arg (QApplication::palette ("QTextEdit").color (QPalette::Base)
+               .name ())
+         .arg (QApplication::palette ("QLineEdit").color (QPalette::Base)
+               .name ());
 }
 
 
