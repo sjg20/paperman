@@ -18,6 +18,7 @@
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
+#include "ocrpage.h"
 
 #include "op.h"
 #include "paperstack.h"
@@ -1015,6 +1016,173 @@ void TestFile::testRemoveRestorePages()
    // the restored page still decodes to the same image
    QVERIFY(!max.getImage(0, false, restored, size, trueSize, bpp, false));
    QCOMPARE(restored.size(), before.size());
+}
+
+
+/* A page read by OCR, with a word naming it so that each page's can be
+   told apart */
+static OcrPage ocrFor(const QString &name)
+{
+   OcrPage ocr;
+
+   ocr.size = QSize(2480, 3508);
+   ocr.words << OcrWord{QRect(100, 200, 300, 40), name, 91, 0, 0}
+             << OcrWord{QRect(420, 200, 180, 40), "caf\u00e9", 88, 0, 0};
+   return ocr;
+}
+
+
+static QString ocrWord(File *f, int pagenum)
+{
+   OcrPage ocr;
+   err_info *err = f->getPageOcr(pagenum, ocr);
+
+   if (err)
+      return QString("error: %1").arg(err->errstr);
+   return ocr.isEmpty() ? QString() : ocr.words[0].text;
+}
+
+
+void TestFile::testMaxOcr()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   int count;
+
+   // each page keeps its own, and a new file sees it
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+      count = max.pagecount();
+      QVERIFY(count >= 3);
+      QCOMPARE(ocrWord(&max, 0), QString());
+
+      // looking leaves the file closed, so that it can be moved
+      QVERIFY(!max._fin);
+
+      for (int i = 0; i < count; i++)
+         QVERIFY(!max.putPageOcr(i, ocrFor(QString("page%1").arg(i))));
+   }
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+      OcrPage ocr;
+      QVERIFY(!max.getPageOcr(1, ocr));
+      QCOMPARE(ocr, ocrFor("page1"));
+
+      // it can be read again, larger, and then forgotten
+      OcrPage big = ocrFor("again");
+      for (int i = 0; i < 200; i++)
+         big.words << OcrWord{QRect(i, i, 10, 10), "word", 50, 1, 1};
+      QVERIFY(!max.putPageOcr(2, big));
+      QVERIFY(!max.getPageOcr(2, ocr));
+      QCOMPARE(ocr, big);
+      err_info *err = max.putPageOcr(2, OcrPage());
+      QVERIFY2(!err, err ? err->errstr : "");
+      QCOMPARE(ocrWord(&max, 2), QString());
+      QCOMPARE(ocrWord(&max, 1), QString("page1"));
+      QVERIFY(!max.putPageOcr(2, ocrFor("page2")));
+   }
+
+   /* the link to the text PaperPort read from a page survives its
+      page record being rewritten; no fixture has such text, so link
+      to the image chunk, which is enough to follow the link itself */
+   int text_pos;
+   {
+      QTemporaryDir other;
+      QVERIFY(!copyFixture("testfile.max", other.path()).isEmpty());
+      const QString odir = other.path() + "/";
+      page_info *page;
+      {
+         Filemax max(odir, "testfile.max", nullptr);
+         QVERIFY(!max.load());
+         QVERIFY(!max.ensure_all_chunks());
+         QVERIFY(!max.find_page(0, page));
+         text_pos = page->image;
+         page->text = text_pos;
+         QVERIFY(!max.create_roswell(*page));
+         QVERIFY(!max.flush());
+      }
+      {
+         Filemax max(odir, "testfile.max", nullptr);
+         QVERIFY(!max.load());
+         QVERIFY(!max.putPageOcr(0, ocrFor("linked")));
+      }
+      Filemax max(odir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.ensure_all_chunks());
+      QVERIFY(!max.find_page(0, page));
+      if (!page->have_roswell)
+         QVERIFY(!max.page_read_roswell(*page));
+      QCOMPARE(page->text, text_pos);
+      QCOMPARE(ocrWord(&max, 0), QString("linked"));
+   }
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   // deleting a page and undoing it brings its words back with it
+   {
+      QBitArray pages(count);
+      pages.setBit(0);
+      QByteArray del_info;
+      int del_count = 1;
+
+      QVERIFY(!max.removePages(pages, del_info, del_count));
+      QCOMPARE(ocrWord(&max, 0), QString("page1"));
+      QVERIFY(!max.restorePages(pages, del_info, del_count));
+      QCOMPARE(ocrWord(&max, 0), QString("page0"));
+      QCOMPARE(ocrWord(&max, 1), QString("page1"));
+   }
+
+   // unstacking a page takes its words to the new stack
+   Filemax *dest = new Filemax(dir, "unstacked.max", nullptr);
+   QVERIFY(!dest->create());
+   QVERIFY(!max.unstackPages(1, 1, true, dest));
+   QCOMPARE(max.pagecount(), count - 1);
+   QCOMPARE(ocrWord(&max, 1), QString("page2"));
+   QVERIFY(!dest->load());
+   QCOMPARE(ocrWord(dest, 0), QString("page1"));
+
+   // and stacking it back brings them along
+   QVERIFY(!max.stackStack(dest));
+   QCOMPARE(max.pagecount(), count);
+   delete dest;
+
+   QStringList words;
+   for (int i = 0; i < count; i++)
+      words << ocrWord(&max, i);
+   QStringList sorted = words;
+   sorted.sort();
+   QStringList expect;
+   for (int i = 0; i < count; i++)
+      expect << QString("page%1").arg(i);
+   QCOMPARE(sorted, expect);
+
+   // turning a page drops its words, since their boxes no longer fit
+   QVERIFY(!max.transformPage(0, File::Transform_rotate90));
+   words[0].clear();
+   for (int i = 0; i < count; i++)
+      QCOMPARE(ocrWord(&max, i), words[i]);
+
+   // a copy keeps them, and one which cannot is still made
+   Operation op("Copy", 0, 0);
+   File *copy = File::createFile(dir, "copy.max", nullptr, File::Type_max);
+   QVERIFY(!copy->create());
+   QVERIFY(!max.copyTo(copy, 3, op, false));
+   QCOMPARE(copy->pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(ocrWord(copy, i), words[i]);
+   delete copy;
+
+   File *pdf = File::createFile(dir, "copy.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!pdf->create());
+   QVERIFY(!max.copyTo(pdf, 3, op, false));
+   QCOMPARE(pdf->pagecount(), count);
+   delete pdf;
 }
 
 
@@ -2429,6 +2597,51 @@ void TestFile::testSparseStack()
    QVERIFY(sp->reload() == nullptr);
    QVERIFY(sp->getPageText(3, text) == nullptr);
    QCOMPARE(text, QString("text of page 4"));
+
+   delete sp;
+   delete src;
+}
+
+
+void TestFile::testSparseOcr()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+   Filemax *src = new Filemax(dir, "testfile.max", nullptr);
+   QVERIFY(src->load() == nullptr);
+   QVERIFY(!src->putPageOcr(1, ocrFor("second")));
+   QVERIFY(!src->flush());
+
+   /* the page read and one not read have arrived; a third has not */
+   const QString pageDir = tmp.path() + "/stack.d";
+   QVERIFY(QDir().mkpath(pageDir));
+   QVERIFY(writePageFile(src, 0, pageDir) == nullptr);
+   QVERIFY(writePageFile(src, 1, pageDir) == nullptr);
+   writeInfo(src, pageDir, false);
+
+   Filemax *sp = new Filemax(dir, "stack.max", nullptr);
+   sp->setPageDir(pageDir);
+   QVERIFY(sp->load() == nullptr);
+
+   // the words come from the page's own file
+   OcrPage ocr;
+   QVERIFY(!sp->getPageOcr(1, ocr));
+   QCOMPARE(ocr, ocrFor("second"));
+   QVERIFY(!sp->getPageOcr(0, ocr));
+   QVERIFY(ocr.isEmpty());
+
+   // a page which has not arrived says so, rather than that it was not read
+   err_info *err = sp->getPageOcr(2, ocr);
+   QVERIFY(err != nullptr);
+   QCOMPARE(err->errnum, (int)ERR_file_not_loaded_yet1);
+
+   // and nothing is written to the stack, nor to the page's file
+   QVERIFY(sp->putPageOcr(0, ocrFor("nope")) != nullptr);
+   QVERIFY(!sp->getPageOcr(0, ocr));
+   QVERIFY(ocr.isEmpty());
 
    delete sp;
    delete src;

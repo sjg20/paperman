@@ -157,6 +157,13 @@ private slots:
    //! that have arrived, and "not loaded yet" for the ones that have not
    void testSparseStack();
 
+   //! what OCR read from a page stays with it through each page operation
+   void testMaxOcr();
+
+   //! a stack held a page at a time gives each page's words from that
+   //! page's own file, and is never written to
+   void testSparseOcr();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
