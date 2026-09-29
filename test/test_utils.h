@@ -51,6 +51,9 @@ private slots:
 
    //! whitenBackground() cleans a dingy scan without losing the text
    void testImageAdjustWhiten();
+
+   //! the main window's views and text boxes take the theme's colours
+   void testWindowFollowsPalette();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);
