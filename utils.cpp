@@ -54,6 +54,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QStyle>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QHash>
+#include <QIconEngine>
+#include <QPainter>
+#include <QSvgRenderer>
 #endif
 #include <QMimeData>
 #include <QMutex>
@@ -1793,68 +1797,114 @@ QImage utilReduceDepth(QImage &image, int target_depth)
 
 #ifndef QT_NO_WIDGETS
 
-/* Icon filenames used in the UI files and code */
-static const char *icon_names[] = {
-   "print", "swap", "prev", "next", "pprev", "pnext", "options",
-   "scan-go", "scan", "rleft", "rright", "hflip", "vflip",
-   "pointer", "hand", "scanmode", "info", "document-save",
-   "document-revert", "zoom-best-fit", "zoom-original", "zoom-out",
-   "zoom-in", "locate", "unknown", "no_access", "left", "right",
-   "pages", "pageblank", "pagekeep", "pageremove",
-   NULL
+/* Paperman's icons are SVGs, in images/icons, drawn in 'currentColor' for
+   the lines and in fixed colours only where the colour means something,
+   as for the page status marks. This draws one with 'currentColor' taken
+   from the palette, so that it follows the theme, light or dark, and the
+   mode: greyed when disabled, and in the highlight's text colour when
+   selected, sharp at any size and screen scale.
+
+   A button asks for its icon every time it is painted, so each pixmap is
+   kept once drawn, by its size and colour: an icon is drawn once for each
+   size it is shown at and each colour it is shown in, and after that
+   showing it costs no more than a bitmap's would */
+class SvgIconEngine : public QIconEngine
+{
+public:
+   explicit SvgIconEngine (const QString &path)
+      {
+      QFile file (path);
+
+      if (file.open (QIODevice::ReadOnly))
+         _svg = file.readAll ();
+      }
+
+   void paint (QPainter *painter, const QRect &rect, QIcon::Mode mode,
+               QIcon::State state) override
+      {
+      qreal ratio = painter->device ()
+            ? painter->device ()->devicePixelRatioF () : 1.0;
+      QPixmap pm = pixmap (rect.size () * ratio, mode, state);
+
+      pm.setDevicePixelRatio (ratio);
+      painter->drawPixmap (rect, pm);
+      }
+
+   QPixmap pixmap (const QSize &size, QIcon::Mode mode,
+                   QIcon::State) override
+      {
+      QColor colour = colourFor (mode);
+      QString key = QString ("%1x%2 %3").arg (size.width ())
+                       .arg (size.height ()).arg (colour.name ());
+      auto it = _drawn.constFind (key);
+
+      if (it != _drawn.constEnd ())
+         return *it;
+
+      QByteArray svg = _svg;
+      QSvgRenderer renderer (svg.replace ("currentColor",
+                                          colour.name ().toLatin1 ()));
+      QPixmap pixmap (size);
+
+      pixmap.fill (Qt::transparent);
+      QPainter painter (&pixmap);
+      renderer.render (&painter, QRectF (QPointF (0, 0), size));
+      painter.end ();
+      _drawn.insert (key, pixmap);
+      return pixmap;
+      }
+
+   QIconEngine *clone () const override
+      {
+      return new SvgIconEngine (*this);
+      }
+
+private:
+   static QColor colourFor (QIcon::Mode mode)
+      {
+      QPalette pal = QGuiApplication::palette ();
+
+      if (mode == QIcon::Disabled)
+         return pal.color (QPalette::Disabled, QPalette::WindowText);
+      if (mode == QIcon::Selected)
+         return pal.color (QPalette::HighlightedText);
+      return pal.color (QPalette::WindowText);
+      }
+
+   QByteArray _svg;
+   QHash<QString, QPixmap> _drawn;   // what has been drawn, by size and colour
 };
 
 
-static QIcon darkIcon(const QIcon &icon)
+QIcon utilIcon (const QString &name)
 {
-   QString dark = QStringLiteral(":/images/images/dark/");
-
-   /* Compare the icon's pixmap against each known light icon to find
-      which one it is, then load the dark version */
-   QPixmap orig = icon.pixmap(48);
-
-   if (orig.isNull())
-      return icon;
-
-   QImage origImg = orig.toImage();
-
-   for (const char **p = icon_names; *p; p++) {
-      QString lightPath = QStringLiteral(":/images/images/") + *p + ".xpm";
-      QPixmap lightPix(lightPath);
-
-      if (lightPix.isNull())
-         continue;
-      if (lightPix.toImage() == origImg) {
-         QString darkPath = dark + *p + ".xpm";
-         QPixmap darkPix(darkPath);
-
-         if (!darkPix.isNull())
-            return QIcon(darkPix);
-      }
-   }
-
-   return icon;
+   return QIcon (new SvgIconEngine (":/images/images/icons/" + name
+                                    + ".svg"));
 }
 
 
-void utilUpdateIcons(QWidget *widget)
+QPixmap utilIconPixmap (const QString &name, int size)
 {
-   if (!utilIsDarkMode())
-      return;
+   return utilIcon (name).pixmap (size, size);
+}
 
-   /* Replace icons on all actions with their dark variants */
-   for (QAction *act : widget->findChildren<QAction *>()) {
-      if (act->icon().isNull() || act->isSeparator())
-         continue;
-      act->setIcon(darkIcon(act->icon()));
-   }
 
-   /* Handle tool buttons that have icons set directly */
-   for (QAbstractButton *btn : widget->findChildren<QAbstractButton *>()) {
-      if (btn->icon().isNull())
-         continue;
-      btn->setIcon(darkIcon(btn->icon()));
-   }
+void utilSetIcons (QWidget *widget)
+{
+   for (QAction *act : widget->findChildren<QAction *> ())
+      {
+      QString name = act->property ("paperIcon").toString ();
+
+      if (!name.isEmpty ())
+         act->setIcon (utilIcon (name));
+      }
+   for (QAbstractButton *btn : widget->findChildren<QAbstractButton *> ())
+      {
+      QString name = btn->property ("paperIcon").toString ();
+
+      if (!name.isEmpty ())
+         btn->setIcon (utilIcon (name));
+      }
 }
 #endif
 
@@ -1930,13 +1980,4 @@ bool utilIsDarkMode(void)
    int fg = pal.color(QPalette::WindowText).lightness();
 
    return fg > bg;
-}
-
-
-QString utilIconPath(void)
-{
-   if (utilIsDarkMode())
-      return QStringLiteral(":/images/images/dark/");
-
-   return QStringLiteral(":/images/images/");
 }

@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             build-essential \
-            qt5-qmake qtbase5-dev qtbase5-dev-tools libqt5sql5-sqlite \
+            qt5-qmake qtbase5-dev qtbase5-dev-tools libqt5sql5-sqlite libqt5svg5-dev \
             libpoppler-qt5-dev libpodofo-dev \
             libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
             imagemagick tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl \
@@ -59,7 +59,7 @@ jobs:
             build-essential \
             qmake6 qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite \
             libpoppler-qt6-dev libpodofo-dev \
-            qt6-scxml-dev libqt6statemachine6 \
+            qt6-scxml-dev libqt6statemachine6 qt6-svg-dev \
             libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
             imagemagick tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl \
             python3-reportlab python3-pil python3-numpy \
@@ -105,6 +105,7 @@ jobs:
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-qt6-base
             mingw-w64-x86_64-qt6-scxml
+            mingw-w64-x86_64-qt6-svg
             mingw-w64-x86_64-poppler-qt6
             mingw-w64-x86_64-podofo
             mingw-w64-x86_64-libtiff
@@ -175,6 +176,7 @@ jobs:
             mingw-w64-clang-aarch64-pkgconf
             mingw-w64-clang-aarch64-qt6-base
             mingw-w64-clang-aarch64-qt6-scxml
+            mingw-w64-clang-aarch64-qt6-svg
             mingw-w64-clang-aarch64-poppler-qt6
             mingw-w64-clang-aarch64-podofo
             mingw-w64-clang-aarch64-libtiff
@@ -323,7 +325,7 @@ jobs:
           apt-get update -qq
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
-            libqt6sql6-sqlite qt6-scxml-dev libqt6statemachine6 \
+            libqt6sql6-sqlite qt6-scxml-dev libqt6statemachine6 qt6-svg-dev \
             qt6-gtk-platformtheme libpoppler-qt6-dev libpodofo-dev libtiff-dev libsane-dev \
             libjpeg-dev zlib1g-dev pkg-config file curl
 

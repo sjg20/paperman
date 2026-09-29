@@ -82,9 +82,9 @@ Pagedelegate::Pagedelegate (QObject *parent)
       : QAbstractItemDelegate (parent)
    {
    // get the images we need
-   _icon_remove = QPixmap (":/images/images/pageremove.xpm");
-   _icon_keep = QPixmap (":/images/images/pagekeep.xpm");
-   _icon_blank = QPixmap (":/images/images/pageblank.xpm");
+   _icon_remove = utilIconPixmap ("pageremove", 18);
+   _icon_keep = utilIconPixmap ("pagekeep", 18);
+   _icon_blank = utilIconPixmap ("pageblank", 18);
    }
 
 

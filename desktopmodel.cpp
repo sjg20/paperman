@@ -111,8 +111,8 @@ Desktopmodel::Desktopmodel(QObject *parent)
                this, SLOT (aboutToQuit ()));
    if (!_unknown)
       {
-      _no_access = QPixmap (":images/images/no_access.xpm");
-      _unknown = QPixmap (":images/images/unknown.xpm");
+      _no_access = utilIconPixmap ("no_access", 64);
+      _unknown = utilIconPixmap ("unknown", 64);
       Q_ASSERT (!_no_access.isNull ());
       Q_ASSERT (!_unknown.isNull ());
       }

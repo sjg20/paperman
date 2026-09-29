@@ -155,7 +155,7 @@ it on Debian 12, in a container:
 
    docker run --rm -v $PWD:/src -w /src debian:12 bash -c '
       apt-get update && apt-get install -y build-essential qmake6 \
-         qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite qt6-scxml-dev \
+         qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite qt6-scxml-dev qt6-svg-dev \
          libqt6statemachine6 qt6-gtk-platformtheme libpoppler-qt6-dev libpodofo-dev libtiff-dev \
          libsane-dev libjpeg-dev zlib1g-dev pkg-config file curl
       scripts/appimage.sh'
@@ -192,6 +192,7 @@ CI uses. In a MINGW64 shell (CLANGARM64 on Windows on Arm):
 
    pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
        mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
+       mingw-w64-x86_64-qt6-svg \
        mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
        mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo
    qmake6 paperman.pro -o Makefile.win

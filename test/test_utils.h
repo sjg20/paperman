@@ -54,6 +54,9 @@ private slots:
 
    //! the main window's views and text boxes take the theme's colours
    void testWindowFollowsPalette();
+
+   //! each icon draws, in the palette's text colour, or its own for status
+   void testIcons();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);

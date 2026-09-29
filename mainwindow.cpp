@@ -79,7 +79,7 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _operations = 0;
    _label = 0;
    setupUi(this);
-   utilUpdateIcons(this);
+   utilSetIcons(this);
    init();
    _welcome_shown = false;
    _desktop = _main->getDesktop ();

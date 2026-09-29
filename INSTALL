@@ -25,8 +25,9 @@ Building on Debian / Ubuntu
 
 Paperman is built with Qt 6 and qmake. It needs:
 
-- Qt 6: qmake6, qt6-base-dev, qt6-base-dev-tools, qt6-scxml-dev and
-  libqt6sql6-sqlite (SQLite is used for the search index)
+- Qt 6: qmake6, qt6-base-dev, qt6-base-dev-tools, qt6-scxml-dev,
+  qt6-svg-dev (for the icons) and libqt6sql6-sqlite (SQLite is used for
+  the search index)
 - libpoppler-qt6-dev, for showing PDFs
 - libpodofo-dev, for writing PDFs (0.9, 0.10 and 1.x all work)
 - libsane-dev, for scanning
@@ -43,8 +44,8 @@ and, when it runs:
 To install all of these:
 
    sudo apt install build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
-      qt6-scxml-dev libqt6sql6-sqlite libpoppler-qt6-dev libpodofo-dev \
-      libsane-dev libtiff-dev libjpeg-dev zlib1g-dev \
+      qt6-scxml-dev qt6-svg-dev libqt6sql6-sqlite libpoppler-qt6-dev \
+      libpodofo-dev libsane-dev libtiff-dev libjpeg-dev zlib1g-dev \
       tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl
 
 or run 'scripts/setup.sh --qt', which also installs what the tests use.

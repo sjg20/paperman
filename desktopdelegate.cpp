@@ -128,9 +128,9 @@ Desktopdelegate::Desktopdelegate (Desktopmodelconv *modelconv, QObject * parent)
    connect (_timer, SIGNAL(timeout()), this, SLOT(autoRepeatTimeout()));
    if (!pleft)
       {
-      pleft = new QPixmap (":/images/images/left.xpm");
-      pright = new QPixmap (":/images/images/right.xpm");
-      pages = new QPixmap (":/images/images/pages.xpm");
+      pleft = new QPixmap (utilIconPixmap ("left", 14));
+      pright = new QPixmap (utilIconPixmap ("right", 14));
+      pages = new QPixmap (utilIconPixmap ("pages", 48));
       }
    }
 
