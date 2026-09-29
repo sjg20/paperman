@@ -18,7 +18,10 @@
 #include "filemax.h"
 #include "fileother.h"
 #include "filepdf.h"
+#include "imageadjust.h"
 #include "ocrpage.h"
+
+#include "pdfio.h"   // for Poppler, for Qt 5 or 6
 
 #include "op.h"
 #include "paperstack.h"
@@ -1182,6 +1185,94 @@ void TestFile::testMaxOcr()
    QVERIFY(!pdf->create());
    QVERIFY(!max.copyTo(pdf, 3, op, false));
    QCOMPARE(pdf->pagecount(), count);
+   delete pdf;
+}
+
+
+void TestFile::testPdfTextLayer()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+
+   // words in any script, one of them at a known place
+   OcrPage ocr;
+   ocr.size = image.size();
+   ocr.words << OcrWord{QRect(100, 200, 300, 50), "Invoice", 90, 0, 0}
+             << OcrWord{QRect(450, 200, 200, 50), "caf\u00e9", 90, 0, 0}
+             << OcrWord{QRect(100, 300, 200, 50), "\u65e5\u672c", 90, 1, 0};
+   QVERIFY(!max.putPageOcr(0, ocr));
+
+   File *pdf = File::createFile(dir, "out.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!pdf->create());
+   Operation op("Convert", 0, 0);
+   QVERIFY(!max.copyTo(pdf, 3, op, false));
+   delete pdf;
+
+   // read it afresh, as another program would
+   pdf = File::createFile(dir, "out.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!pdf->load());
+   QString text;
+   QVERIFY(!pdf->getPageText(0, text));
+   QVERIFY2(text.contains("Invoice"), qPrintable(text));
+   QVERIFY2(text.contains("caf\u00e9"), qPrintable(text));
+   QVERIFY2(text.contains("\u65e5\u672c"), qPrintable(text));
+
+   // a page which was not read has no text
+   QVERIFY(!pdf->getPageText(1, text));
+   QCOMPARE(text.trimmed(), QString());
+
+   /* the page is still shown straight from its image, rather than being
+      rendered, since the text is invisible */
+   QSize pdf_size, true_size;
+   int image_size, compressed;
+   QDateTime stamp;
+   QVERIFY(!pdf->getImageInfo(0, pdf_size, true_size, bpp, image_size,
+                              compressed, stamp));
+   QCOMPARE(pdf_size, image.size());
+   delete pdf;
+
+   // and each word is over its place on the page
+   std::unique_ptr<Poppler::Document> doc(
+      Poppler::Document::load(dir + "out.pdf"));
+   QVERIFY(doc);
+   std::unique_ptr<Poppler::Page> page(doc->page(0));
+   QSizeF points = page->pageSizeF();
+   double scale = qMin(points.width() / image.width(),
+                       points.height() / image.height());
+   bool found = false;
+   for (auto &box : page->textList()) {
+      if (box->text() != "Invoice")
+         continue;
+      QRectF rect = box->boundingBox();
+      QVERIFY2(qAbs(rect.left() - 100 * scale) < 2, qPrintable(
+                  QString::number(rect.left())));
+      QVERIFY2(qAbs(rect.width() - 300 * scale) < 2, qPrintable(
+                  QString::number(rect.width())));
+      /* Poppler measures down from the top, and adds a descent below
+         the word; the image is at the bottom of the page */
+      double top = points.height() - (image.height() - 200) * scale;
+      QVERIFY2(qAbs(rect.top() - top) < 2, qPrintable(
+                  QString::number(rect.top())));
+      found = true;
+   }
+   QVERIFY(found);
+
+   // an adjusted copy keeps the words too
+   pdf = File::createFile(dir, "adjusted.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!pdf->create());
+   QVERIFY(!max.copyToAdjusted(pdf, op, ImageAdjust::Adjust_whiten));
+   QVERIFY(!pdf->getPageText(0, text));
+   QVERIFY2(text.contains("Invoice"), qPrintable(text));
    delete pdf;
 }
 

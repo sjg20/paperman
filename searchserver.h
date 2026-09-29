@@ -96,6 +96,7 @@ struct PendingExtraction {
 class SearchServer : public QTcpServer
 {
     Q_OBJECT
+    friend class TestSearchServer;
 
 public:
     /**

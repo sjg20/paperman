@@ -2913,6 +2913,7 @@ QString SearchServer::convertToPdf(const QString &fullPath,
     struct PageData {
         QImage image;
         int bpp;
+        OcrPage ocr;    // the words read from the page, for a text layer
     };
     QVector<PageData> pages(pageCount);
 
@@ -2949,7 +2950,9 @@ QString SearchServer::convertToPdf(const QString &fullPath,
             bpp = image.depth();
         }
 
-        pages[p] = {image, bpp};
+        OcrPage ocr;
+        srcFile->getPageOcr(p, ocr);
+        pages[p] = {image, bpp, ocr};
         _convertProgress[fullPath].currentPage = p + 1;
     }
 
@@ -2998,7 +3001,7 @@ QString SearchServer::convertToPdf(const QString &fullPath,
         fp.addData(img.width(), img.height(), img.depth(),
                    stride, pageName, false, false, p, ba, ba.size());
 
-        if (pdfio->addPage(&fp)) {
+        if (pdfio->addPage(&fp) || pdfio->addTextLayer(0, pages[p].ocr)) {
             failed.storeRelease(1);
             delete pdfio;
             return;
@@ -3186,6 +3189,11 @@ QString SearchServer::convertPageWithFile(const QString &fullPath, int page,
         fp.compress();
         err = pdfio.addPage(&fp);
     }
+
+    // make the page's words searchable
+    OcrPage ocr;
+    if (!err && !srcFile->getPageOcr(page - 1, ocr))
+        err = pdfio.addTextLayer(0, ocr);
     if (err) {
         qWarning() << "SearchServer: Failed to add page" << page
                    << "to PDF";

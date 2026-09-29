@@ -164,6 +164,9 @@ private slots:
    //! page's own file, and is never written to
    void testSparseOcr();
 
+   //! a PDF made from a stack has its pages' words as searchable text
+   void testPdfTextLayer();
+
 private:
    //! Copy a file from test/files into destDir; returns full path
    QString copyFixture(const QString &name, const QString &destDir);
