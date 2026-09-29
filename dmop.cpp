@@ -1230,6 +1230,17 @@ bool Desktopmodel::keepsOcr (File *f) const
    }
 
 
+void Desktopmodel::showAtPage (const QModelIndex &ind, int pagenum)
+   {
+   File *f = getFile (ind);
+
+   // a stack not read yet has no pages, and is not turned to one
+   if (f && !f->valid ())
+      buildItem (ind);
+   setData (ind, pagenum, Role_pagenum);
+   }
+
+
 void Desktopmodel::getPageOcr (const QModelIndex &ind, int pagenum,
                                OcrPage &page)
    {

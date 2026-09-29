@@ -515,6 +515,16 @@ private:
     */
    void startSearch(const QString& path, const QString& match);
 
+   /**
+    * @brief start a search for stacks with some text on their pages,
+    *        through dirs and subdirs. Each stack found is turned to the
+    *        page which best matches
+    * @param path    Full path to directory to search
+    * @param text    Words to look for, as the user typed them
+    * @return the number of stacks found
+    */
+   int startTextSearch(const QString& path, const QString& text);
+
    //! Update the view to indicate that it is in a search/import mode
    void specialView(const QString& prompt);
 
@@ -613,6 +623,9 @@ private:
 
    // Text used for a recursive folder search
    QString _search_text;
+
+   //! the last search looked for text on the pages, not stack names
+   bool _search_by_text = false;
 
    bool _showing_imports;
 

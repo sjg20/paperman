@@ -78,6 +78,9 @@ private slots:
    //! Test searching folders for a stack and locating its folder
    void testSearchAndLocate();
 
+   //! Test searching for text on the stacks' pages
+   void testTextSearch();
+
    //! Test that the Escape key leaves search mode
    void testSearchEscapeReturns();
 
