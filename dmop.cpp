@@ -1167,26 +1167,35 @@ err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
    if (remote)
       {
       Desk *desk = f->desk ();
+      QByteArray words;
 
       if (!remote->ocrPage (desk->repoName (), remoteStackPath (desk, f),
-                            pagenum + 1, &text))
+                            pagenum + 1, &text, &words))
          return err_make (ERRFN, ERR_remote_op_failed2, "ocr",
                           qPrintable (remote->lastError ()));
 
       /* a stack held a page at a time fetches the page again, which
-         now carries the text */
+         now carries what was read */
       if (sparseFor (f, remote, desk))
          return remoteStackChanged (ind, QList<int> () << pagenum);
 
-      /* the server stored the text in the stack's ocr annotation;
-         mirror it onto the parsed cached copy */
+      /* the server kept the page's words with it, or else stored the
+         text in the stack's ocr annotation; mirror it onto the parsed
+         cached copy */
       if (f->remoteChecked ())
          {
-         QHash<int, QString> updates;
+         OcrPage page;
 
-         updates [File::Annot_ocr] = text;
-         f->putAnnot (updates);
-         f->flush ();
+         if (!words.isEmpty () && OcrPage::fromBytes (words, page))
+            f->putPageOcr (pagenum, page);
+         else
+            {
+            QHash<int, QString> updates;
+
+            updates [File::Annot_ocr] = text;
+            f->putAnnot (updates);
+            f->flush ();
+            }
          }
       return NULL;
       }
