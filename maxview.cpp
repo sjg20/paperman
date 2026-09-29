@@ -150,8 +150,7 @@ static err_info *batch_ocr_directory(const QString &dirPath)
          continue;
          }
 
-      /* read each page not yet read, keeping its words with it, and
-         index the text of every page */
+      // read each page not yet read, keeping its words with it
       int page_count = file->pagecount();
       int pages_read = 0, pages_with_text = 0;
 
@@ -182,18 +181,8 @@ static err_info *batch_ocr_directory(const QString &dirPath)
             continue;
             }
 
-         QString page_text = words.text();
-
-         if (page_text.isEmpty())
-            continue;
-         pages_with_text++;
-         if (searchIndex.isOpen())
-            {
-            err = searchIndex.addPage(filePath, fileName, page, page_text);
-            if (err)
-               fprintf(stderr, "  WARNING: Failed to index page %d: %s\n",
-                       page + 1, err->errstr);
-            }
+         if (!words.isEmpty())
+            pages_with_text++;
          }
 
       if (pages_with_text)
@@ -217,8 +206,13 @@ static err_info *batch_ocr_directory(const QString &dirPath)
    printf("Skipped:         %d\n", skipped);
    printf("Errors:          %d\n", errors);
 
+   // index what was read, along with anything else not yet indexed
    if (searchIndex.isOpen())
       {
+      err = searchIndex.sync(dirPath);
+      if (err)
+         fprintf(stderr, "Warning: Could not index the text: %s\n",
+                 err->errstr);
       printf("\nSearch index created: %s\n", qPrintable(searchIndex.indexPath()));
       printf("Use --search <query> to search the indexed text\n");
       }

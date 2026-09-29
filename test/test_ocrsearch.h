@@ -44,6 +44,12 @@ private slots:
 
    //! a stack which goes away while a page is read is let go
    void testReaderStackGone();
+
+   //! what the user types is always a valid query, matching word starts
+   void testMatchQuery();
+
+   //! the index follows the stacks as their text changes and they go
+   void testIndexSync();
 };
 
 #endif // TEST_OCRSEARCH_H
