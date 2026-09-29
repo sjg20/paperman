@@ -9,6 +9,10 @@
 #include "searchindex.h"
 #include "ocr.h"
 #include "ocrpage.h"
+#include "ocrreader.h"
+#include "filemax.h"
+#include <QBitArray>
+#include <QSignalSpy>
 #include <QFont>
 #include <QImage>
 #include <QPainter>
@@ -338,4 +342,164 @@ void TestOcrSearch::testOcrPageTesseract()
    QString plain;
    QVERIFY (!ocr->imageToText (image, plain));
    QCOMPARE (plain, text);
+}
+
+
+/* Copy the test stack into a directory and open it */
+static Filemax *openStack(const QString &src, QTemporaryDir &tmp)
+{
+   if (!QFile::copy(src + "/testfile.max", tmp.path() + "/testfile.max"))
+      return nullptr;
+
+   Filemax *max = new Filemax(tmp.path() + "/", "testfile.max", nullptr);
+
+   if (max->load()) {
+      delete max;
+      return nullptr;
+   }
+   return max;
+}
+
+
+// a word naming an image by its pixels
+static QString imageName(const QImage &image)
+{
+   return QString("p%1").arg(qHashBits(image.constBits(),
+                                       image.sizeInBytes()));
+}
+
+
+/* An engine which names each page by its pixels, so that what is stored
+   can be matched to the page it came from */
+static QString fakeRead(QImage &image, OcrPage &page)
+{
+   page = OcrPage();
+   page.size = image.size();
+   page.words << OcrWord{QRect(1, 2, 3, 4), imageName(image), 90, 0, 0};
+   return QString();
+}
+
+
+static QString pageWord(File *f, int pagenum)
+{
+   OcrPage ocr;
+
+   if (f->getPageOcr(pagenum, ocr) || ocr.isEmpty())
+      return QString();
+   return ocr.words[0].text;
+}
+
+
+static QString pixelsWord(File *f, int pagenum)
+{
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+
+   if (f->getImage(pagenum, false, image, size, trueSize, bpp, false))
+      return QString();
+   return imageName(image);
+}
+
+
+void TestOcrSearch::testReaderReadsPages()
+{
+   QTemporaryDir tmp;
+   QScopedPointer<Filemax> max(openStack(testSrc, tmp));
+   QVERIFY(max);
+   int count = max->pagecount();
+
+   // one page has been read already, and is left alone
+   OcrPage done;
+   done.size = QSize(10, 10);
+   done.words << OcrWord{QRect(), "already", 100, 0, 0};
+   QVERIFY(!max->putPageOcr(1, done));
+
+   OcrReader reader;
+   QAtomicInt calls = 0;
+   reader.setEngine([&calls](QImage &image, OcrPage &page) {
+      calls++;
+      return fakeRead(image, page);
+   });
+   QSignalSpy read(&reader, &OcrReader::pageRead);
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   reader.addFile(max.data());
+   QVERIFY(reader.isBusy());
+   QVERIFY(idle.wait(10000));
+   QVERIFY(!reader.isBusy());
+   QCOMPARE(int(calls), count - 1);
+   QCOMPARE(read.count(), count - 1);
+
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(max.data(), i),
+               i == 1 ? QString("already") : pixelsWord(max.data(), i));
+
+   // queueing it again reads nothing more
+   reader.addFile(max.data());
+   QVERIFY(idle.count() == 2 || idle.wait(10000));
+   QCOMPARE(int(calls), count - 1);
+}
+
+
+void TestOcrSearch::testReaderPageMoves()
+{
+   QTemporaryDir tmp;
+   QScopedPointer<Filemax> max(openStack(testSrc, tmp));
+   QVERIFY(max);
+   int count = max->pagecount();
+   QVERIFY(count >= 2);
+
+   /* delete the first page while it is being read, so that the page now
+      first is not the one which was read */
+   OcrReader reader;
+   QSemaphore started, go;
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      started.release();
+      go.acquire();
+      return fakeRead(image, page);
+   });
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   reader.addFile(max.data());
+   QVERIFY(started.tryAcquire(1, 10000));
+
+   QBitArray pages(count);
+   pages.setBit(0);
+   QByteArray del_info;
+   int del_count = 1;
+   QVERIFY(!max->removePages(pages, del_info, del_count));
+   go.release(count * 2);
+
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(max->pagecount(), count - 1);
+   for (int i = 0; i < count - 1; i++)
+      QCOMPARE(pageWord(max.data(), i), pixelsWord(max.data(), i));
+}
+
+
+void TestOcrSearch::testReaderStackGone()
+{
+   QTemporaryDir tmp;
+   Filemax *max = openStack(testSrc, tmp);
+   QVERIFY(max);
+
+   OcrReader reader;
+   QSemaphore started, go;
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      started.release();
+      go.acquire();
+      return fakeRead(image, page);
+   });
+   QSignalSpy read(&reader, &OcrReader::pageRead);
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   reader.addFile(max);
+   QVERIFY(started.tryAcquire(1, 10000));
+   delete max;
+   go.release(100);
+
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(read.count(), 0);
+   QVERIFY(!reader.isBusy());
 }
