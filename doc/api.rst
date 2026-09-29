@@ -783,9 +783,15 @@ repository allowlist is enforced.  Every response carries
 
 ``/pages/{n}/ocr``
    Renders 1-based page ``n``, runs the server's OCR engine
-   (tesseract) over it, stores the text in the stack's ``ocr``
-   annotation and returns ``{"text"}``.  ``501`` when no engine is
-   installed on the server.
+   (tesseract) over it and returns ``{"text"}``.  A ``.max`` stack keeps
+   the page's words, with where each is, with the page, and the reply
+   also has them as ``"words"``: ``{"v": 1, "w", "h", "words": [[left,
+   top, width, height, conf, line, para, text], ...]}``, in the image's
+   pixels.  Other stacks have the text stored in their ``ocr``
+   annotation.  ``501`` when no engine is installed on the server.
+
+PDFs which the server makes of a stack or a page have the words read
+from each page as an invisible layer of text, so they can be searched.
 
 Whole-file downloads via ``/file`` carry an ``ETag`` header (size and
 mtime).  A request with ``If-None-Match`` returns ``304 Not Modified``
