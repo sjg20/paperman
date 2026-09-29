@@ -20,6 +20,8 @@
 #include "../file.h"
 #include "../filemax.h"
 #include "../measure.h"
+#include "../ocrpage.h"
+#include "../op.h"
 #include "../remotebackend.h"
 #include "../searchserver.h"
 #include "../userstore.h"
@@ -2262,6 +2264,91 @@ void TestSearchServer::testRemoteOcr()
 
     // and mirrored onto the cached copy
     QVERIFY(model.getAnnot(stack, File::Annot_ocr).contains("HELLO"));
+
+    server.stop();
+}
+
+void TestSearchServer::testRemoteOcrMax()
+{
+    /* a .max stack keeps the words read from a page with the page, on
+       the server and in the cached copy, leaving its annotation alone */
+    if (QStandardPaths::findExecutable("tesseract").isEmpty())
+        QSKIP("tesseract is not installed");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    {
+        QImage image(500, 140, QImage::Format_RGB32);
+        image.fill(Qt::white);
+        QPainter paint(&image);
+        paint.setPen(Qt::black);
+        QFont font;
+        font.setPointSize(40);
+        paint.setFont(font);
+        paint.drawText(image.rect(), Qt::AlignCenter, "HELLO WORLD");
+        paint.end();
+
+        QVERIFY(image.save(dir + "readme.jpg", "JPG"));
+
+        File *jpg = File::createFile(dir, "readme.jpg", nullptr,
+                                     File::Type_jpeg);
+        File *max = File::createFile(dir, "readme.max", nullptr,
+                                     File::Type_max);
+        QVERIFY(!jpg->load());
+        QVERIFY(!max->create());
+        Operation op("Convert", 0, 0);
+        QVERIFY(!jpg->copyTo(max, 3, op));
+        delete max;
+        delete jpg;
+        QVERIFY(QFile::remove(dir + "readme.jpg"));
+    }
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("readme.max", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(!model.ensureContent(stack));
+
+    QString text;
+    err_info *e = model.ocrPage(stack, 0, text);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QVERIFY2(text.contains("HELLO"), qPrintable(text));
+
+    // the server's stack keeps the page's words, not an annotation
+    {
+        Filemax max(dir, "readme.max", nullptr);
+        QVERIFY(!max.load());
+        OcrPage words;
+        QVERIFY(!max.getPageOcr(0, words));
+        QCOMPARE(words.text(), text);
+        QVERIFY(!words.words[0].box.isEmpty());
+    }
+    QCOMPARE(serverAnnot(dir, "readme.max", File::Annot_ocr), QString());
+
+    // and so does the cached copy
+    OcrPage cached;
+    model.getPageOcr(stack, 0, cached);
+    QCOMPARE(cached.text(), text);
 
     server.stop();
 }

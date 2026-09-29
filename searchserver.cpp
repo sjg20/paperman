@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include "ocr.h"
+#include "ocrpage.h"
 #include "searchserver.h"
 #include "localbackend.h"
 #include "serverlog.h"
@@ -1597,13 +1598,23 @@ QByteArray SearchServer::handleOcrPage(const QString &path,
     err = file->getImage(page - 1, false, image, size, trueSize, bpp,
                          false);
 
-    QString text;
+    OcrPage words;
     if (!err)
-        err = ocr->imageToText(image, text);
+        err = ocr->imageToPage(image, words);
+    QString text = words.text();
 
-    /* store the text the way the GUI does, in the stack's ocr
-       annotation, so search and the annotations pane see it */
+    /* keep the page's words with it, as the desktop does; a stack which
+       cannot keeps the text in its ocr annotation instead, so search and
+       the annotations pane see it */
+    bool kept = false;
     if (!err) {
+        err = file->putPageOcr(page - 1, words);
+        if (err && err->errnum == ERR_no_available_for_this_file_type)
+            err = nullptr;
+        else
+            kept = !err;
+    }
+    if (!err && !kept) {
         QHash<int, QString> updates;
         updates[File::Annot_ocr] = text;
         err = file->putAnnot(updates);
@@ -1625,6 +1636,8 @@ QByteArray SearchServer::handleOcrPage(const QString &path,
     QJsonObject out;
     out["success"] = true;
     out["text"] = text;
+    if (kept)
+        out["words"] = QJsonDocument::fromJson(words.toBytes()).object();
     return buildHttpResponse(200, "OK", "application/json",
                              QString::fromUtf8(QJsonDocument(out).toJson(
                                  QJsonDocument::Compact)));

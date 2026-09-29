@@ -198,10 +198,13 @@ public:
                     QString *etag, bool overwrite = false);
 
     /** Run the server's OCR engine over 1-based page @p page of a
-     *  stack.  The server stores the text in the stack's ocr
-     *  annotation and returns it in @p text. */
+     *  stack.  The server keeps the page's words with the page, or
+     *  where the stack cannot, stores the text in the stack's ocr
+     *  annotation.  It returns the text in @p text and, if it kept
+     *  them, the words in @p words, as OcrPage::toBytes() gives them;
+     *  otherwise @p words is empty. */
     bool ocrPage(const QString &repo, const QString &path, int page,
-                 QString *text);
+                 QString *text, QByteArray *words = nullptr);
 
     /** Open (and keep open) the server's event stream for @p repo.
      *  Each change made by another client is emitted as stackEvent();

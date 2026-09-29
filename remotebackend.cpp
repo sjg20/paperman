@@ -572,7 +572,7 @@ bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
 
 
 bool RemoteBackend::ocrPage(const QString &repo, const QString &path,
-                            int page, QString *text)
+                            int page, QString *text, QByteArray *words)
 {
    QJsonObject reply;
 
@@ -581,6 +581,12 @@ bool RemoteBackend::ocrPage(const QString &repo, const QString &path,
       return false;
    if (text)
       *text = reply.value("text").toString();
+   if (words) {
+      QJsonObject obj = reply.value("words").toObject();
+
+      *words = obj.isEmpty() ? QByteArray()
+               : QJsonDocument(obj).toJson(QJsonDocument::Compact);
+   }
    return true;
 }
 

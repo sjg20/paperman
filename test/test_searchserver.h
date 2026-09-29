@@ -115,6 +115,9 @@ private slots:
    //! page only when the view asks for it; the whole file never comes
    void testDesktopRemotePages();
 
+   //! OCR of a remote .max stack keeps the page's words with the page
+   void testRemoteOcrMax();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);
