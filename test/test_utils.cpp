@@ -21,6 +21,11 @@ extern "C" {
 #include "test.h"
 
 #include "test_utils.h"
+#include "../mainwindow.h"
+#include <QAbstractScrollArea>
+#include <QApplication>
+#include <QLineEdit>
+#include <QTextEdit>
 
 /* the time a scan took, as the end-of-scan message shows it */
 
@@ -765,4 +770,37 @@ void TestUtils::testJpegCrop()
          QVERIFY2 (now.pixel (x, y) == was.pixel (x + at, y),
                    qPrintable (QString ("pixel %1,%2 changed").arg (x)
                                .arg (y)));
+}
+
+
+void TestUtils::testWindowFollowsPalette ()
+{
+   QPalette was = QApplication::palette ();
+   auto restore = qScopeGuard ([&] { QApplication::setPalette (was); });
+   QPalette dark = was;
+
+   dark.setColor (QPalette::Window, QColor ("#323232"));
+   dark.setColor (QPalette::Base, QColor ("#242424"));
+   dark.setColor (QPalette::Text, QColor ("#f0f0f0"));
+   QApplication::setPalette (dark);
+
+   /* A colour fixed in a form passes down to everything inside that
+      widget, as the main widget's white did to the OCR box, the page
+      preview and the zoom box, whatever the theme */
+   Mainwindow me;
+   int checked = 0;
+
+   for (QWidget *w : me.findChildren<QWidget *> ())
+      {
+      if (!qobject_cast<QTextEdit *> (w) && !qobject_cast<QLineEdit *> (w))
+         continue;
+      checked++;
+      QVERIFY2 (w->palette ().color (QPalette::Base) == QColor ("#242424"),
+                qPrintable (QString ("%1 %2 has base %3")
+                            .arg (w->metaObject ()->className ())
+                            .arg (w->objectName ())
+                            .arg (w->palette ().color (QPalette::Base)
+                                  .name ())));
+      }
+   QVERIFY (checked > 0);
 }
