@@ -67,6 +67,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "op.h"
 #include "desk.h"
 #include "mainwidget.h"
+#include "ocrreader.h"
 #include "mainwindow.h"
 #include "maxview.h"
 #include "pagewidget.h"
@@ -355,6 +356,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_unstack_all, "&Unstack all", SLOT(unstackStacks ()), "Ctrl+U");
    addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
    addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
+   addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "");
 
    addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
    addAction (_act_duplicate_max, "as &Max", SLOT (duplicateMax ()), "Ctrl+Shift+D");
@@ -1243,6 +1245,7 @@ void Desktopwidget::updateActions()
    _act_delete->setEnabled (at_least_one);
    _act_rename_stack->setEnabled (at_least_one);
    _act_rename_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
+   _act_read_text->setEnabled (at_least_one);
    _act_duplicate_page->setEnabled (at_least_one);
    _act_duplicate_max->setEnabled (at_least_one);
    _act_duplicate_pdf->setEnabled (at_least_one);
@@ -1280,6 +1283,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    context_menu->addAction (_act_delete);
    context_menu->addAction (_act_rename_stack);
    context_menu->addAction (_act_rename_page);
+   context_menu->addAction (_act_read_text);
 
    QMenu *submenu = context_menu->addMenu (tr ("&Duplicate..."));
    submenu->addAction (_act_duplicate_page);
@@ -1632,6 +1636,28 @@ void Desktopwidget::doDeleteStacks(bool confirm)
    if (ok)
       _contents->trashStacks(list, _view->rootIndexSource());
 }
+
+void Desktopwidget::readText (void)
+   {
+   OcrReader *reader = Mainwidget::singleton ()->ocrReader ();
+   int count = 0;
+
+   for (const QModelIndex &ind : _view->getSelectedListSource ())
+      {
+      File *f = _contents->getFile (ind);
+
+      if (_contents->keepsOcr (f))
+         {
+         reader->addFile (f);
+         count++;
+         }
+      }
+   if (!count)
+      QMessageBox::information (this, tr ("Read text -- Paperman"),
+         tr ("Only Paperman's own (.max) stacks on this computer can keep "
+             "the text read from their pages"));
+   }
+
 
 void Desktopwidget::deleteStacks (void)
 {

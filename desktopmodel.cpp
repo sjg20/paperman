@@ -873,7 +873,7 @@ err_info *Desktopmodel::cancelScan (void)
    }
 
 
-err_info *Desktopmodel::confirmScan (QString *fname)
+err_info *Desktopmodel::confirmScan (QString *fname, File **filep)
    {
 //    qDebug () << "Desktopmodel::confirmScan";
    Q_ASSERT (_scan_desk && _scan_file);
@@ -889,6 +889,8 @@ err_info *Desktopmodel::confirmScan (QString *fname)
 
    if (fname)
       *fname = _scan_file->filename ();
+   if (filep)
+      *filep = _scan_file;
    QModelIndex ind = index (_scan_file->filename (), _scan_parent);
 
 // this comment might not be relevant since Desktopmodel was enhanced to have multiple maxdesks:

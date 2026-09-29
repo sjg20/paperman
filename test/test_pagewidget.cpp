@@ -1,4 +1,6 @@
 #include <QLineEdit>
+#include <QSignalSpy>
+#include <QTextEdit>
 #include <QToolButton>
 #include <QtTest/QtTest>
 
@@ -9,6 +11,8 @@
 #include "desktopwidget.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "ocrpage.h"
+#include "ocrreader.h"
 #include "pagemodel.h"
 #include "pageview.h"
 #include "pagewidget.h"
@@ -498,4 +502,67 @@ void TestPagewidget::testScanPreviewReshape()
    // the preview stands for the page at the current page size
    QCOMPARE(pi._size, pm->_pagesize);
    pm->endingScan();
+}
+
+void TestPagewidget::testPageOcrShown()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *file = model->getFile(ind);
+   QVERIFY(file);
+   QVERIFY(model->keepsOcr(file));
+
+   // nothing has been read, so the stack's annotation is shown
+   QTextEdit *edit = page->_ocr_edit;
+   QVERIFY(!edit->isReadOnly());
+   QCOMPARE(edit->toPlainText(), QString());
+
+   /* read the stack's first two pages with an engine which names each
+      page, as Read text does */
+   Mainwidget *main = Mainwidget::singleton();
+   OcrReader *reader = main->ocrReader();
+   reader->setEngine([](QImage &image, OcrPage &ocr) {
+      ocr = OcrPage();
+      ocr.size = image.size();
+      ocr.words << OcrWord{QRect(0, 0, 10, 10), "page", 90, 0, 0}
+                << OcrWord{QRect(0, 20, 10, 10),
+                           QString::number(image.width()), 90, 1, 0};
+      return QString();
+   });
+   QSignalSpy idle(reader, &OcrReader::idle);
+   QVERIFY(QMetaObject::invokeMethod(main->getDesktop(), "readText"));
+   QVERIFY(idle.wait(20000));
+
+   // the page being shown has its text shown as soon as it is read
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!file->getImage(0, false, image, size, trueSize, bpp, false));
+   QString expect = QString("page\n%1").arg(image.width());
+   QCOMPARE(edit->toPlainText(), expect);
+   QVERIFY(edit->isReadOnly());
+
+   // saving the stack's attributes leaves its OCR annotation alone
+   QLineEdit *author = page->findChild<QLineEdit *>("author");
+   QToolButton *save = page->findChild<QToolButton *>("save");
+   QVERIFY(author && save);
+   QTest::keyClicks(author, "Fred");
+   QTest::mouseClick(save, Qt::LeftButton);
+   QCOMPARE(model->data(ind, Desktopmodel::Role_ocr).toString(), QString());
+
+   // a page which has not been read shows the annotation again
+   QVERIFY(!file->putPageOcr(1, OcrPage()));
+   Pageview *pageview = page->findChild<Pageview *>();
+   QRect rect = pageview->visualRect(pageview->model()->index(1, 0));
+   QTest::mouseClick(pageview->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     rect.center());
+   QCOMPARE(page->getCurrentPage(), 1);
+   QVERIFY(!edit->isReadOnly());
+   QCOMPARE(edit->toPlainText(), QString());
 }

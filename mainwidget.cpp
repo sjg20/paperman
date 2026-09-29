@@ -71,6 +71,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "pagewidget.h"
 #include "printopt.h"
 #include "pscan.h"
+#include "ocrreader.h"
 #include "resource.h"
 #include "utils.h"
 #include "ui_printopt.h"
@@ -113,6 +114,7 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _scanDialog = 0;
    _pscan = 0;
    _options = 0;
+   _ocr_reader = new OcrReader (this);
    _scanning = false;
    _scan_waiting = false;
    _scan_ok = false;
@@ -127,6 +129,11 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
 
    addWidget (_desktop);
    addWidget (_page);
+
+   // show a page's text once it has been read
+   connect (_ocr_reader, &OcrReader::pageRead, _page, &Pagewidget::slotPageRead);
+   connect (_ocr_reader, &OcrReader::pageRead, _desktop->getPagewidget (),
+            &Pagewidget::slotPageRead);
    _contents = _desktop->getModel ();
    _view = _desktop->getView ();
 
@@ -772,7 +779,12 @@ void Mainwidget::slotStackConfirm (void)
    if (!_scan_cancelling)
       {
       QString fname;
-      err_info *err = _contents->confirmScan (&fname);
+      File *file = nullptr;
+      err_info *err = _contents->confirmScan (&fname, &file);
+
+      // read the text of the new pages, once the scan is out of the way
+      if (!err && OcrReader::enabled () && _contents->keepsOcr (file))
+         _ocr_reader->addFile (file);
 
       //FIXME: should we cancel in this case?
       if (err)

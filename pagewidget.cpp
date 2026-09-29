@@ -58,6 +58,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "pageview.h"
 #include "pagewidget.h"
 #include "utils.h"
+#include "ocrpage.h"
 #include "ui_ocrbar.h"
 #include "ui_pageattr.h"
 
@@ -1080,7 +1081,8 @@ void Pagewidget::commit (void)
    _pagemodel->updateAnnot (File::Annot_title, _pageattr->title->text ());
    _pagemodel->updateAnnot (File::Annot_keywords, _pageattr->keywords->text ());
    _pagemodel->updateAnnot (File::Annot_notes, _pageattr->notes->toPlainText());
-   _pagemodel->updateAnnot (File::Annot_ocr, _ocr_edit->toPlainText());
+   if (!_ocr_page)
+      _pagemodel->updateAnnot (File::Annot_ocr, _ocr_edit->toPlainText());
    Mainwidget::singleton()->complain(_pagemodel->commit());
    updatePagetools ();
    }
@@ -1130,14 +1132,45 @@ void Pagewidget::updateAttr (void)
 
 void Pagewidget::updateOcrText (void)
    {
-   _ocr_edit->blockSignals (true);
-   if (_index.isValid ())
+   OcrPage page;
+
+   /* show the words read from the page where it has them; otherwise the
+      stack's OCR annotation, which can be edited */
+   if (_index.isValid () && _pagenum >= 0)
       {
-      _ocr_edit->setText (_model->data (_index, Desktopmodel::Role_ocr).toString ());
+      Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+      QModelIndex sindex = _index;
+
+      _modelconv->indexToSource (_model, sindex);
+      if (contents && sindex.isValid ())
+         contents->getPageOcr (sindex, _pagenum, page);
       }
+
+   _ocr_page = !page.isEmpty ();
+   _ocr_edit->blockSignals (true);
+   if (_ocr_page)
+      _ocr_edit->setPlainText (page.text ());
+   else if (_index.isValid ())
+      _ocr_edit->setText (_model->data (_index, Desktopmodel::Role_ocr).toString ());
    else
       _ocr_edit->clear ();
+   _ocr_edit->setReadOnly (_ocr_page);
+   _ocr_bar->clear->setEnabled (!_ocr_page);
    _ocr_edit->blockSignals (false);
+   }
+
+
+void Pagewidget::slotPageRead (File *file, int pagenum)
+   {
+   if (pagenum != _pagenum || !_index.isValid ())
+      return;
+
+   Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+   QModelIndex sindex = _index;
+
+   _modelconv->indexToSource (_model, sindex);
+   if (contents && sindex.isValid () && contents->getFile (sindex) == file)
+      updateOcrText ();
    }
 
 
@@ -1229,8 +1262,13 @@ void Pagewidget::ocrPage (void)
          {
          err_info *err = contents->ocrPage (sindex, _pagenum, str);
 
+         // a local stack keeps the page's words, so show them
          if (!Mainwidget::singleton()->complain(err))
-            _ocr_edit->setText (str);
+            {
+            updateOcrText ();
+            if (!_ocr_page)
+               _ocr_edit->setText (str);
+            }
          return;
          }
       }

@@ -52,6 +52,9 @@ private slots:
    //! Test the scan preview keeps its bands when the page's shape changes
    void testScanPreviewReshape();
 
+   //! Test the OCR pane shows the words read from each page
+   void testPageOcrShown();
+
 private:
    /** Open the 5-page test stack in the page view of a shown
        Mainwindow

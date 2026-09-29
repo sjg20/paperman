@@ -33,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QImage>
 
 
+class OcrPage;
 class QFontMetrics;
 
 class Desk;
@@ -941,8 +942,9 @@ public:
 
    /** confirm and save the pending scan
     *
-    *  \param fname  if non-null, returns the filename of the scanned stack */
-   err_info *confirmScan (QString *fname = nullptr);
+    *  \param fname  if non-null, returns the filename of the scanned stack
+    *  \param filep  if non-null, returns the scanned stack */
+   err_info *confirmScan (QString *fname = nullptr, File **filep = nullptr);
 
    /** cancel and remove the pending scan */
    err_info *cancelScan (void);
@@ -1179,6 +1181,19 @@ public:
       \param text     returns the recognised text
       \returns error, or NULL if ok */
    err_info *ocrPage (const QModelIndex &ind, int pagenum, QString &text);
+
+   /** whether a stack keeps what OCR reads from its pages, so that the
+       background reader can read it: a local .max stack. A remote
+       stack's pages are for its server to read */
+   bool keepsOcr (File *f) const;
+
+   /** what OCR has read from a page of a stack
+
+      \param ind      model index of stack
+      \param pagenum  0-based page number
+      \param page     returns what was read, empty if the page has not
+                      been read or the stack cannot keep it */
+   void getPageOcr (const QModelIndex &ind, int pagenum, OcrPage &page);
 
    /** Make sure a stack's page content is available locally.  For a
        local desk this is a no-op (buildItem() already loads files as

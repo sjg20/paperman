@@ -46,6 +46,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desk.h"
 #include "file.h"
 #include "ocr.h"
+#include "ocrpage.h"
 #include <QDir>
 
 #include "op.h"
@@ -1202,7 +1203,34 @@ err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
 
    if (!ocr)
       return err;
-   return ocr->imageToText (image, text);
+
+   // keep the page's words with it, where the stack can
+   OcrPage page;
+
+   CALL (ocr->imageToPage (image, page));
+   text = page.text ();
+   if (keepsOcr (f))
+      CALL (f->putPageOcr (pagenum, page));
+   return NULL;
+   }
+
+
+bool Desktopmodel::keepsOcr (File *f) const
+   {
+   return f && f->type () == File::Type_max && !remoteForFile (f);
+   }
+
+
+void Desktopmodel::getPageOcr (const QModelIndex &ind, int pagenum,
+                               OcrPage &page)
+   {
+   File *f = getFile (ind);
+
+   page = OcrPage ();
+   /* a remote stack may not have been fetched yet, nor this page of it;
+      the page view asks from the GUI thread, which may wait for it */
+   if (f && !ensureContent (ind) && !ensurePage (ind, pagenum))
+      f->getPageOcr (pagenum, page);
    }
 
 
