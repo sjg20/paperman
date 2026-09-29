@@ -7,6 +7,12 @@
 
 #include "err.h"
 #include "searchindex.h"
+#include "ocr.h"
+#include "ocrpage.h"
+#include <QFont>
+#include <QImage>
+#include <QPainter>
+#include <QStandardPaths>
 
 void TestOcrSearch::testOcrIndexing()
 {
@@ -236,4 +242,100 @@ void TestOcrSearch::testRealDocument()
    QCOMPARE(results.size(), 0);  // Should find no results
 
    qDebug() << "Real document test passed - tested multi-page indexing and searching";
+}
+
+
+void TestOcrSearch::testOcrPageFromTsv()
+{
+   /* two paragraphs, the first of two lines, the second in another
+      block; an empty word and the rows above word level are left out */
+   QByteArray tsv =
+      "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n"
+      "1\t1\t0\t0\t0\t0\t0\t0\t1000\t800\t-1\t\n"
+      "2\t1\t1\t0\t0\t0\t10\t10\t500\t100\t-1\t\n"
+      "5\t1\t1\t1\t1\t1\t10\t10\t80\t20\t96.5\tInvoice\n"
+      "5\t1\t1\t1\t1\t2\t100\t10\t60\t20\t91\t12345\n"
+      "5\t1\t1\t1\t2\t1\t10\t40\t70\t20\t88\tDue\n"
+      "5\t1\t1\t1\t2\t2\t90\t40\t30\t20\t12\t \n"
+      "5\t1\t2\t1\t1\t1\t10\t200\t90\t20\t95\tThanks\n";
+   OcrPage page;
+
+   QVERIFY (OcrPage::fromTsv (tsv, QSize (1000, 800), page));
+   QCOMPARE (page.size, QSize (1000, 800));
+   QCOMPARE (page.words.size (), 4);
+   QCOMPARE (page.words[0].box, QRect (10, 10, 80, 20));
+   QCOMPARE (page.words[0].conf, 97);
+   QCOMPARE (page.text (), QString ("Invoice 12345\nDue\n\nThanks"));
+   QCOMPARE (page.words[2].line, 1);
+   QCOMPARE (page.words[3].para, 1);
+
+   QVERIFY (!OcrPage::fromTsv ("not tesseract", QSize (), page));
+}
+
+void TestOcrSearch::testOcrPageBytes()
+{
+   OcrPage page, back;
+
+   page.size = QSize (2480, 3508);
+   page.words.append ({QRect (100, 200, 300, 40), "Grüße", 93, 0, 0});
+   page.words.append ({QRect (420, 200, 180, 40), "東京", 81, 0, 0});
+   page.words.append ({QRect (100, 260, 260, 40), "Łódź", 77, 1, 0});
+
+   QByteArray data = page.toBytes ();
+   QVERIFY (!data.isEmpty ());
+   QVERIFY (OcrPage::fromBytes (data, back));
+   QCOMPARE (back, page);
+   QCOMPARE (back.text (), QString ("Grüße 東京\nŁódź"));
+
+   // nothing is kept for a page with no words
+   QVERIFY (OcrPage ().toBytes ().isEmpty ());
+   QVERIFY (!OcrPage::fromBytes ("{not json", back));
+   QVERIFY (back.isEmpty ());
+}
+
+void TestOcrSearch::testOcrPageTesseract()
+{
+   if (QStandardPaths::findExecutable ("tesseract").isEmpty ())
+      QSKIP ("tesseract is not installed");
+
+   // a page at 300dpi with two lines of large, clear type
+   QImage image (1240, 700, QImage::Format_RGB32);
+   image.fill (Qt::white);
+   QPainter painter (&image);
+   QFont font ("DejaVu Sans");
+   font.setPixelSize (60);
+   painter.setFont (font);
+   painter.setPen (Qt::black);
+   painter.drawText (100, 200, "Invoice number 4821");
+   painter.drawText (100, 400, "Payment due Friday");
+   painter.end ();
+
+   err_info *err = nullptr;
+   Ocr *ocr = Ocr::getOcr (err);
+   QVERIFY (ocr && !err);
+
+   OcrPage page;
+   QVERIFY (!ocr->imageToPage (image, page));
+   QCOMPARE (page.size, image.size ());
+   QString text = page.text ();
+   QVERIFY2 (text.contains ("Invoice") && text.contains ("4821")
+             && text.contains ("Friday"), qPrintable (text));
+   QVERIFY2 (text.contains ('\n'), qPrintable (text));
+
+   // each word is where it was drawn: the first line near y 150-200
+   for (const OcrWord &word : page.words)
+      if (word.text == "Invoice")
+         {
+         QVERIFY2 (word.box.top () > 120 && word.box.bottom () < 220,
+                   qPrintable (QString ("box %1,%2 %3x%4")
+                               .arg (word.box.x ()).arg (word.box.y ())
+                               .arg (word.box.width ())
+                               .arg (word.box.height ())));
+         QVERIFY (word.box.left () >= 90 && word.box.left () < 130);
+         }
+
+   // imageToText() gives the same text
+   QString plain;
+   QVERIFY (!ocr->imageToText (image, plain));
+   QCOMPARE (plain, text);
 }

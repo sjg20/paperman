@@ -26,6 +26,15 @@ private slots:
 
    //! Test with realistic sample document text
    void testRealDocument();
+
+   //! the words, lines and paragraphs read from tesseract's TSV output
+   void testOcrPageFromTsv();
+
+   //! a page's words are kept and read back, in any script
+   void testOcrPageBytes();
+
+   //! tesseract reads a page's words, with where each is
+   void testOcrPageTesseract();
 };
 
 #endif // TEST_OCRSEARCH_H

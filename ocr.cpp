@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "config.h"
 
 #include "ocr.h"
+#include "ocrpage.h"
 #include "ocromni.h"
 #include "ocrtess.h"
 
@@ -88,3 +89,24 @@ Ocr *Ocr::getOcr (err_info *&err)
    }
 
 
+err_info *Ocr::imageToPage (QImage &image, OcrPage &page)
+   {
+   QString text;
+   int line = 0, para = 0;
+
+   CALL (imageToText (image, text));
+   page = OcrPage ();
+   page.size = image.size ();
+   for (const QString &row : text.split ('\n'))
+      {
+      QString str = row.trimmed ();
+
+      if (str.isEmpty ())
+         {
+         para++;
+         continue;
+         }
+      page.words.append ({QRect (), str, 100, line++, para});
+      }
+   return NULL;
+   }

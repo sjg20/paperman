@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include "ocrtess.h"
+#include "ocrpage.h"
 
 
 
@@ -68,6 +69,16 @@ err_info *Ocrtess::init (void)
 
 err_info *Ocrtess::imageToText (QImage &image, QString &text)
    {
+   OcrPage page;
+
+   CALL (imageToPage (image, page));
+   text = page.text ();
+   return NULL;
+   }
+
+
+err_info *Ocrtess::imageToPage (QImage &image, OcrPage &page)
+   {
    // this function should really use tesseract as a library
 
    QString exe = tesseractPath ();
@@ -75,18 +86,19 @@ err_info *Ocrtess::imageToText (QImage &image, QString &text)
       return err_make (ERRFN, ERR_ocr_engine_not_present_or_broken2,
          "tesseract", "tesseract is not on the PATH");
 
-   /* tesseract reads PNG directly and writes <base>.txt, so give it a
-      unique base name in the temporary directory */
+   /* tesseract reads PNG directly and writes <base>.tsv, with a row for
+      each word giving where it is, so give it a unique base name in the
+      temporary directory */
    QTemporaryFile base (QDir::tempPath () + "/maxviewXXXXXX");
    if (!base.open ())
       return err_make (ERRFN, ERR_could_not_make_temporary_file);
    QString tmp = base.fileName () + ".png";
-   QString out = base.fileName () + ".txt";
+   QString out = base.fileName () + ".tsv";
    if (!image.save (tmp, "PNG"))
       return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (tmp));
 
    QProcess proc;
-   proc.start (exe, QStringList () << tmp << base.fileName ());
+   proc.start (exe, QStringList () << tmp << base.fileName () << "tsv");
    bool ok = proc.waitForFinished (-1) && proc.exitStatus () == QProcess::NormalExit
              && proc.exitCode () == 0;
    QFile::remove (tmp);
@@ -101,10 +113,12 @@ err_info *Ocrtess::imageToText (QImage &image, QString &text)
    if (!file.open (QIODevice::ReadOnly))
       return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (out));
 
-   QByteArray ba = file.readAll ();
+   QByteArray tsv = file.readAll ();
    file.close ();
    QFile::remove (out);
-   text = QString::fromUtf8 (ba);
+   if (!OcrPage::fromTsv (tsv, image.size (), page))
+      return err_make (ERRFN, ERR_tesseract_not_present2, qPrintable (exe),
+                       "its output could not be read");
    return NULL;
    }
 

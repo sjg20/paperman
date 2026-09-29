@@ -34,6 +34,9 @@ public:
    /** convert an image to text */
    err_info *imageToText (QImage &image, QString &text);
 
+   //! the words, with their boxes, from tesseract's TSV output
+   err_info *imageToPage (QImage &image, OcrPage &page) override;
+
    err_info *init (void);
    };
 

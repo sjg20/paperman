@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define __ocr_h
 
 
+class OcrPage;
 class QImage;
 class QString;
 
@@ -57,6 +58,17 @@ public:
 
    /** convert an image to text */
    virtual err_info *imageToText (QImage &image, QString &text) = 0;
+
+   /** read an image's words, with where each is
+
+      An engine which cannot say where the words are gives each line of
+      its text as a word with an empty box, so the page's text is right
+      but a PDF has no text layer for it
+
+      \param image   the page
+      \param page    returns what was read
+      \returns error, or NULL if ok */
+   virtual err_info *imageToPage (QImage &image, OcrPage &page);
 
    virtual err_info *init (void) = 0;
 
