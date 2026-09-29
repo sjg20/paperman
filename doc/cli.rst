@@ -44,10 +44,12 @@ Other Options
    Compute MD5 checksums for all files in a directory.
 
 ``-o, --ocr <dir>``
-   Run OCR on all .max files in a directory (recursive).
+   Run OCR on all .max files in a directory (recursive). Each page not
+   already read is read, and its words are kept with the page, then the
+   text is indexed in ``.paperindex`` in the directory.
 
 ``-q, --search <query>``
-   Search the OCR index for a query string.
+   Search the OCR index for a query string, in SQLite's FTS5 syntax.
 
 ``-t, --test``
    Run the built-in unit tests.

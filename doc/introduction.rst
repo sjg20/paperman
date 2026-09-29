@@ -55,7 +55,10 @@ Features
 
 - PDF, JPEG and TIFF conversion
 - Unfolding scanned booklets into their pages
-- OCR engine with full-text search
+- OCR with full-text search: scanned pages are read in the background
+  (tesseract), each page's text is shown beside it, stacks can be found by
+  the words on their pages, and the PDFs Paperman makes can be searched
+  and their text copied (see `Reading the text of pages`_)
 - Search server with REST API, whose repositories the desktop can show and
   change, with changes made elsewhere shown as they happen (see
   :doc:`server`)
@@ -63,6 +66,31 @@ Features
   repositories, with an offline demo mode (see :doc:`app`)
 - Email files as PDF via Gmail (see `Emailing files`_)
 - Linux, Windows (x64 and Arm) and macOS
+
+Reading the text of pages
+-------------------------
+
+Once a scan is saved, Paperman reads the text of its pages in the
+background with tesseract, which must be installed and on the ``PATH``.
+Each page keeps its words, with where each one is, in the stack's
+``.max`` file, so they go with the page when it is stacked, unstacked,
+deleted or copied. The option "Read the text of scanned pages (OCR)" in
+the scan settings turns this off, and the "Read text (OCR)" stack action
+reads stacks scanned before, or with it off.
+
+In the page view, the OCR pane shows the text of the page being shown.
+Turning a page drops its text, which is then read again the right way up.
+
+To find a stack by what is written on it, use Edit > Search, choose
+"Text on the pages" and type some words: the stacks with all of them are
+shown, best first, each turned to the page which matches best. The last
+word may be the start of a word. The index behind this is kept in
+``.paperindex`` at the top of the repository and is brought up to date
+each time you search.
+
+The PDFs Paperman makes, when duplicating, emailing or copying stacks,
+have the words of each page which has been read as an invisible layer of
+text, so a PDF viewer can search them and select and copy their text.
 
 Emailing files
 --------------
