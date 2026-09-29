@@ -590,6 +590,29 @@ void TestDesktopUi::testTextSearch()
    // only under the folder searched
    QCOMPARE(desktop->startTextSearch(path + "/main", "rates"), 1);
 
+   /* a PDF made from a stack which has been read has the stack's words,
+      and is found with its preview, like any other stack */
+   {
+      Filemax max(path + "/", "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      File *pdf = File::createFile(path + "/main/", "rates.pdf", nullptr,
+                                   File::Type_pdf);
+      QVERIFY(!pdf->create());
+      Operation op("Convert", 0, 0);
+      QVERIFY(!max.copyTo(pdf, 3, op, false));
+      delete pdf;
+   }
+   QCOMPARE(desktop->startTextSearch(path + "/main", "water"), 1);
+   ind = itemIndex(view, 0);
+   QCOMPARE(view->model()->data(ind, Qt::DisplayRole).toString(), "rates.pdf");
+   QPixmap shown = view->model()->data(ind, Desktopmodel::Role_pixmap)
+                      .value<QPixmap>();
+   QVERIFY(!shown.isNull());
+   // the placeholder for a stack which cannot be shown is square
+   QVERIFY2(shown.height() > shown.width(), qPrintable(
+               QString("the PDF is shown as %1x%2, not as a page")
+               .arg(shown.width()).arg(shown.height())));
+
    // and nothing is found for words on no page
    QCOMPARE(desktop->startTextSearch(path, "zebra"), 0);
    QCOMPARE(view->model()->rowCount(view->rootIndex()), 0);

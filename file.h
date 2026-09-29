@@ -157,6 +157,14 @@ public:
 
    static Filepage *createPage (e_type type);
 
+   /** bring along what OCR read from pages, to another file, where both
+       files can keep it; for a PDF this adds a text layer
+
+      \param fnew    the file to copy to, holding the pages
+      \param pages   each page read, as a (from, to) pair of page numbers
+      \returns error, or NULL if ok */
+   err_info *copyOcrTo (File *fnew, const QList<QPair<int, int>> &pages);
+
    err_info *copyTo (File *fnew, int odd_even, Operation &op, bool verbose = false,
                      int first_page = 0, int last_page = -1);
 

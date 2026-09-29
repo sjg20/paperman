@@ -172,6 +172,12 @@ err_info *Filepdf::getPageText (int pagenum, QString &str)
    }
 
 
+err_info *Filepdf::putPageOcr (int pagenum, const OcrPage &page)
+   {
+   return _pdfio->addTextLayer (pagenum, page);
+   }
+
+
 
 
 /** gets the total size of a file in bytes. this should include data not

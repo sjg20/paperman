@@ -118,6 +118,9 @@ private slots:
    //! OCR of a remote .max stack keeps the page's words with the page
    void testRemoteOcrMax();
 
+   //! the PDFs the server makes have the pages' words as searchable text
+   void testPdfTextLayer();
+
 private:
    // HTTP GET returning split header and body
    Response get(const QString &path, int timeoutMs = 5000);

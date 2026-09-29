@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "err.h"
 #include "file.h"
+#include "ocrpage.h"
 #include "pdfio.h"
 #include "utils.h"
 
@@ -121,6 +122,7 @@ static const PdfContentReaderFlags READER_FLAGS =
 Pdfio::Pdfio (const QString &fname)
    {
    _doc = 0;
+   _text_font = nullptr;
 #ifdef CONFIG_use_poppler
    _pop = nullptr;
 #endif
@@ -167,6 +169,7 @@ err_info *Pdfio::open (void)
       {
       delete _doc;
       _doc = 0;
+      _text_font = nullptr;
       }
 #ifdef CONFIG_use_poppler
 #if QT_VERSION >= 0x060000
@@ -193,6 +196,7 @@ err_info *Pdfio::open (void)
       return make_error (eCode);
       }
    _doc = doc;
+   _text_font = nullptr;
 #ifndef CONFIG_use_poppler
    return err_make (ERRFN, ERR_pdf_previewing_requires_poppler);
 #endif
@@ -206,6 +210,7 @@ err_info *Pdfio::create (void)
       {
 //       qDebug () << _pathname;
       _doc = new PdfMemDocument ();
+      _text_font = nullptr;
       //FIXME: put proper fields in here
 #ifdef PODOFO_1X
       PdfMetadata &meta = _doc->GetMetadata ();
@@ -256,6 +261,7 @@ err_info *Pdfio::close (void)
       remove or rename a file which is still open */
    delete _doc;
    _doc = 0;
+   _text_font = nullptr;
 #ifdef CONFIG_use_poppler
    _pop.reset();
 #endif
@@ -471,6 +477,255 @@ err_info *Pdfio::addPageJpeg(const QByteArray &jpegData, int width, int height,
       return make_error (eCode);
       }
 #endif
+   return NULL;
+   }
+
+
+/* The text layer's font has no glyphs: its text is never drawn, only
+   placed, and each character code is its UTF-16 code unit, which the
+   ToUnicode map gives back as it is. Every character is half an em
+   wide, so a word is stretched to its box with Tz. This is what
+   tesseract does in the PDFs it writes */
+static const char *text_cmap =
+   "/CIDInit /ProcSet findresource begin\n"
+   "12 dict begin\n"
+   "begincmap\n"
+   "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n"
+   "/CMapName /Adobe-Identity-UCS def\n"
+   "/CMapType 2 def\n"
+   "1 begincodespacerange\n"
+   "<0000> <FFFF>\n"
+   "endcodespacerange\n"
+   "1 beginbfrange\n"
+   "<0000> <FFFF> <0000>\n"
+   "endbfrange\n"
+   "endcmap\n"
+   "CMapName currentdict /CMap defineresource pop\n"
+   "end\n"
+   "end\n";
+
+// the width of each character, in thousandths of an em
+static const int text_char_width = 500;
+
+#ifdef PODOFO_1X
+static PdfObject *new_object (PdfMemDocument *doc)
+   {
+   return &doc->GetObjects ().CreateDictionaryObject ();
+   }
+
+static PdfObject ref_to (PdfObject *obj)
+   {
+   return PdfObject (obj->GetIndirectReference ());
+   }
+
+static void set_stream (PdfObject *obj, const QByteArray &data)
+   {
+   obj->GetOrCreateStream ().SetData (bufferview (data.constData (),
+                                                  data.size ()));
+   }
+
+static void array_add (PdfArray &array, const PdfObject &obj)
+   {
+   array.Add (obj);
+   }
+#else
+static PdfObject *new_object (PdfMemDocument *doc)
+   {
+   return doc->GetObjects ().CreateObject ();
+   }
+
+static PdfObject ref_to (PdfObject *obj)
+   {
+   return PdfObject (obj->Reference ());
+   }
+
+static void set_stream (PdfObject *obj, const QByteArray &data)
+   {
+   obj->GetStream ()->Set (data.constData (), data.size ());
+   }
+
+static void array_add (PdfArray &array, const PdfObject &obj)
+   {
+   array.push_back (obj);
+   }
+#endif
+
+static PdfObject name_obj (const char *name)
+   {
+   return PdfObject (PdfName (name));
+   }
+
+static PdfObject int_obj (int value)
+   {
+   return PdfObject (static_cast<int64_t> (value));
+   }
+
+
+PdfObject *Pdfio::text_font (void)
+   {
+   if (_text_font)
+      return _text_font;
+
+   PdfObject *cmap = new_object (_doc);
+
+   set_stream (cmap, QByteArray (text_cmap));
+
+   PdfObject *desc = new_object (_doc);
+   PdfDictionary &dd = desc->GetDictionary ();
+   PdfArray bbox;
+
+   for (int val : {0, 0, text_char_width, 1000})
+      array_add (bbox, int_obj (val));
+   dd.AddKey (PdfName ("Type"), name_obj ("FontDescriptor"));
+   dd.AddKey (PdfName ("FontName"), name_obj ("GlyphLessFont"));
+   dd.AddKey (PdfName ("Flags"), int_obj (5));
+   dd.AddKey (PdfName ("FontBBox"), PdfObject (bbox));
+   dd.AddKey (PdfName ("ItalicAngle"), int_obj (0));
+   dd.AddKey (PdfName ("Ascent"), int_obj (1000));
+   dd.AddKey (PdfName ("Descent"), int_obj (0));
+   dd.AddKey (PdfName ("CapHeight"), int_obj (1000));
+   dd.AddKey (PdfName ("StemV"), int_obj (80));
+
+   PdfObject *cid = new_object (_doc);
+   PdfDictionary &cd = cid->GetDictionary ();
+   PdfDictionary info;
+
+   info.AddKey (PdfName ("Registry"), PdfObject (PdfString ("Adobe")));
+   info.AddKey (PdfName ("Ordering"), PdfObject (PdfString ("Identity")));
+   info.AddKey (PdfName ("Supplement"), int_obj (0));
+   cd.AddKey (PdfName ("Type"), name_obj ("Font"));
+   cd.AddKey (PdfName ("Subtype"), name_obj ("CIDFontType2"));
+   cd.AddKey (PdfName ("BaseFont"), name_obj ("GlyphLessFont"));
+   cd.AddKey (PdfName ("CIDSystemInfo"), PdfObject (info));
+   cd.AddKey (PdfName ("FontDescriptor"), ref_to (desc));
+   cd.AddKey (PdfName ("DW"), int_obj (text_char_width));
+   cd.AddKey (PdfName ("CIDToGIDMap"), name_obj ("Identity"));
+
+   PdfObject *font = new_object (_doc);
+   PdfDictionary &fd = font->GetDictionary ();
+   PdfArray descendants;
+
+   array_add (descendants, ref_to (cid));
+   fd.AddKey (PdfName ("Type"), name_obj ("Font"));
+   fd.AddKey (PdfName ("Subtype"), name_obj ("Type0"));
+   fd.AddKey (PdfName ("BaseFont"), name_obj ("GlyphLessFont"));
+   fd.AddKey (PdfName ("Encoding"), name_obj ("Identity-H"));
+   fd.AddKey (PdfName ("DescendantFonts"), PdfObject (descendants));
+   fd.AddKey (PdfName ("ToUnicode"), ref_to (cmap));
+
+   _text_font = font;
+   return font;
+   }
+
+
+// a number for a content stream, which must not use the locale's comma
+static QByteArray pdf_num (double val)
+   {
+   return QByteArray::number (val, 'f', 2);
+   }
+
+
+err_info *Pdfio::addTextLayer (int pagenum, const OcrPage &ocr)
+   {
+   if (ocr.isEmpty () || ocr.size.isEmpty ())
+      return NULL;
+   if (!_doc)
+      CALL (open ());
+   try
+      {
+#ifdef PODOFO_1X
+      PdfPageCollection &pages = _doc->GetPages ();
+
+      if (pagenum < 0 || (unsigned)pagenum >= pages.GetCount ())
+         return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
+               pagenum + 1);
+      PdfPage *page = &pages.GetPageAt (pagenum);
+      Rect rect = page->GetRect ();
+      double left = rect.X, bottom = rect.Y;
+      double width = rect.Width, height = rect.Height;
+#else
+      PdfPage *page = _doc->GetPage (pagenum);
+
+      if (!page)
+         return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
+               pagenum + 1);
+      PdfRect rect = page->GetPageSize ();
+      double left = rect.GetLeft (), bottom = rect.GetBottom ();
+      double width = rect.GetWidth (), height = rect.GetHeight ();
+#endif
+
+      // the words' boxes are for the image the right way up
+#ifdef PODOFO_1X
+      if (get_page_rotation (*page))
+#else
+      if (page->GetRotation ())
+#endif
+         return NULL;
+
+      /* the image fills the page as far as it can, at the bottom left,
+         as draw_scaled() puts it */
+      double scale = qMin (width / ocr.size.width (),
+                           height / ocr.size.height ());
+      QByteArray out = "q\nBT\n3 Tr\n";
+
+      for (const OcrWord &word : ocr.words)
+         {
+         if (word.box.isEmpty () || word.text.isEmpty ())
+            continue;
+
+         double size = word.box.height () * scale;
+         double x = left + word.box.left () * scale;
+         double y = bottom + (ocr.size.height () - word.box.top ()
+                              - word.box.height ()) * scale;
+         double stretch = word.box.width () * scale * 1000
+               / (word.text.size () * text_char_width * size) * 100;
+         QByteArray hex;
+
+         for (QChar ch : word.text)
+            hex += QByteArray::number (ch.unicode (), 16).rightJustified (4, '0');
+         out += "/PmOcr " + pdf_num (size) + " Tf\n"
+                + pdf_num (stretch) + " Tz\n"
+                + "1 0 0 1 " + pdf_num (x) + " " + pdf_num (y) + " Tm\n"
+                + "<" + hex.toUpper () + "> Tj\n";
+         }
+      out += "ET\nQ\n";
+
+      PdfObject *font = text_font ();
+
+#ifdef PODOFO_1X
+#if PODOFO_VERSION_MAJOR >= 1
+      PdfObjectStream &stream =
+            page->GetOrCreateContents ().CreateStreamForAppending ();
+
+      // adding a resource is private in 1.x, so add it to the dictionary
+      PdfDictionary &res = page->GetResources ().GetDictionary ();
+      PdfObject *fonts = res.FindKey ("Font");
+
+      if (!fonts)
+         {
+         res.AddKey (PdfName ("Font"), PdfObject (PdfDictionary ()));
+         fonts = res.FindKey ("Font");
+         }
+      fonts->GetDictionary ().AddKey (PdfName ("PmOcr"), ref_to (font));
+#else
+      PdfObjectStream &stream =
+            page->GetOrCreateContents ().GetStreamForAppending ();
+
+      page->GetOrCreateResources ().AddResource (PdfName ("Font"),
+            PdfName ("PmOcr"), *font);
+#endif
+      stream.SetData (bufferview (out.constData (), out.size ()));
+#else
+      page->GetContentsForAppending ()->GetStream ()->Set (out.constData (),
+                                                           out.size ());
+      page->AddResource (PdfName ("PmOcr"), font->Reference (),
+                         PdfName ("Font"));
+#endif
+      }
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
    return NULL;
    }
 
@@ -798,6 +1053,10 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
    PdfContentStreamReader reader (page, args);
    PdfContent content;
 
+   /* the text render mode: a text layer drawn invisibly (mode 3), as
+      addTextLayer() adds, leaves the page a plain image */
+   int64_t text_mode = 0;
+
    while (image_only && reader.TryReadNext (content))
       {
 #if PODOFO_VERSION_MAJOR >= 1
@@ -814,8 +1073,17 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
       switch (type)
          {
          case PdfContentType::Operator :
-            if (op != PdfOperator::q && op != PdfOperator::Q
-                && op != PdfOperator::cm && op != PdfOperator::Do)
+            if (op == PdfOperator::Tr && stack.GetSize () == 1
+                && stack [0].IsNumber ())
+               text_mode = stack [0].GetNumber ();
+            if (op == PdfOperator::Tj && text_mode != 3)
+               image_only = false;
+            else if (op != PdfOperator::q && op != PdfOperator::Q
+                && op != PdfOperator::cm && op != PdfOperator::Do
+                && op != PdfOperator::BT && op != PdfOperator::ET
+                && op != PdfOperator::Tr && op != PdfOperator::Tf
+                && op != PdfOperator::Tz && op != PdfOperator::Tm
+                && op != PdfOperator::Tj)
                image_only = false;
             if (op == PdfOperator::Do && stack.GetSize () == 1
                 && stack [0].IsName () && image_name.isEmpty ())
@@ -873,7 +1141,8 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
    QList <PdfVariant> stack;
 
 //    qDebug () << "decoding file" << _pathname;
-   QString allowed = ",cm,q,Q,Do,";
+   QString allowed = ",cm,q,Q,Do,BT,ET,Tr,Tf,Tz,Tm,Tj,";
+   long text_mode = 0;  // see the text render mode above
    *str = ',';
    while (ok = token.ReadNext (t, text, var), ok && image_only)
       {
@@ -885,6 +1154,11 @@ const PdfObject *Pdfio::get_image_obj (int pagenum, const PdfDictionary *&dict)
             *s++ = ',';
             *s = '\0';
             if (!allowed.contains (str))
+               image_only = false;
+            if (0 == strcmp (text, "Tr") && stack.size () == 1
+                && stack [0].IsNumber ())
+               text_mode = stack [0].GetNumber ();
+            if (0 == strcmp (text, "Tj") && text_mode != 3)
                image_only = false;
 //             qDebug () << "   keyword" << text << stack.size ();
             if (0 == strcmp (text, "Do") && stack.size () == 1

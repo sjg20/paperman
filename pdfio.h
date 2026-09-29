@@ -64,6 +64,7 @@ namespace PoDoFo
    };
 
 class Filepage;
+class OcrPage;
 
 
 class Pdfio
@@ -150,6 +151,20 @@ public :
       \param count   number of pages */
    err_info *insertPages (Pdfio *from, int start, int count);
 
+   /** add an invisible layer of text to a page, so that its words can be
+       searched for, selected and copied in a PDF viewer
+
+      Each word is placed over where it is on the page's image, which is
+      taken to fill the page as addPage() draws it. A page which has been
+      turned with /Rotate is left alone.
+
+      Use flush() to write the result.
+
+      \param pagenum  page to add to (0-based)
+      \param ocr      the words read from the page's image
+      \returns error, or NULL if ok */
+   err_info *addTextLayer (int pagenum, const OcrPage &ocr);
+
    /** delete pages from a pdf file
 
       \param start   first page to delete
@@ -179,6 +194,11 @@ protected:
 
    const PoDoFo::PdfObject *get_xobject_image (const PoDoFo::PdfReference &ref,
       const PoDoFo::PdfDictionary *&dict);
+
+   /** the font which the text layer uses, created on first use
+
+      \returns the font's object */
+   PoDoFo::PdfObject *text_font (void);
 
    const PoDoFo::PdfObject *get_thumbnail_obj (int pagenum,
          const PoDoFo::PdfDictionary *&dict);
@@ -214,6 +234,9 @@ protected:
 
 private:
    PoDoFo::PdfMemDocument *_doc; //!< document handle
+
+   //! the text layer's font in _doc, or nullptr if not created yet
+   PoDoFo::PdfObject *_text_font = nullptr;
 #ifdef CONFIG_use_poppler
    std::unique_ptr<Poppler::Document> _pop;
 #endif

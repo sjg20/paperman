@@ -84,6 +84,11 @@ public:
 
    virtual err_info *getPageText (int pagenum, QString &str);
 
+   /** adds the words as an invisible layer of text on the page, so the
+       PDF can be searched; they cannot be read back as words, only as
+       the page's text, and the change is written by flush() */
+   err_info *putPageOcr (int pagenum, const OcrPage &page) override;
+
    virtual int getSize (void);
 
    virtual err_info *renamePage (int pagenum, QString &name);

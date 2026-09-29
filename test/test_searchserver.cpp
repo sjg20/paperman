@@ -24,6 +24,7 @@
 #include "../op.h"
 #include "../remotebackend.h"
 #include "../searchserver.h"
+#include "../pdfio.h"
 #include "../userstore.h"
 #include "test.h"
 
@@ -2349,6 +2350,62 @@ void TestSearchServer::testRemoteOcrMax()
     OcrPage cached;
     model.getPageOcr(stack, 0, cached);
     QCOMPARE(cached.text(), text);
+
+    server.stop();
+}
+
+// the text of a PDF's page, as a viewer would find it
+static QString pdfPageText(const QByteArray &pdf, int pagenum)
+{
+   std::unique_ptr<Poppler::Document> doc(Poppler::Document::loadFromData(pdf));
+   if (!doc || pagenum >= doc->numPages())
+      return "no page";
+   std::unique_ptr<Poppler::Page> page(doc->page(pagenum));
+   return page->text(QRectF()).trimmed();
+}
+
+void TestSearchServer::testPdfTextLayer()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    {
+        Filemax max(dir, "testfile.max", nullptr);
+        QVERIFY(!max.load());
+        for (int i = 0; i < 2; i++) {
+            OcrPage ocr;
+            ocr.size = QSize(2000, 3000);
+            ocr.words << OcrWord{QRect(100, 100, 400, 60),
+                                 i ? "beta" : "alpha", 90, 0, 0};
+            QVERIFY(!max.putPageOcr(i, ocr));
+        }
+    }
+    clearCaches();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    /* the whole stack as a PDF; this is too large to fetch here, since
+       the server, in this same process, writes it all before the test
+       can read any, so convert it directly */
+    QString converted = server.convertToPdf(dir + "testfile.max", nullptr);
+    QVERIFY(!converted.isEmpty());
+    QFile file(converted);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QByteArray whole = file.readAll();
+    QCOMPARE(pdfPageText(whole, 0), QString("alpha"));
+    QCOMPARE(pdfPageText(whole, 1), QString("beta"));
+    QCOMPARE(pdfPageText(whole, 2), QString());
+
+    // and one page of it, likewise
+    converted = server.convertPageWithFile(dir + "testfile.max", 2,
+                                           QFileInfo(dir + "testfile.max"));
+    QVERIFY(!converted.isEmpty());
+    QFile page(converted);
+    QVERIFY(page.open(QIODevice::ReadOnly));
+    QCOMPARE(pdfPageText(page.readAll(), 0), QString("beta"));
 
     server.stop();
 }

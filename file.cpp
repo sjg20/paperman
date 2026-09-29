@@ -924,6 +924,9 @@ err_info *File::processPages (File *fnew, Operation &op, page_func func,
 
    // process pages in batches of nthreads to limit memory use
    int out_page_count = 0;
+
+   // the pages which were read by OCR, as (from, to) page numbers
+   QList<QPair<int, int>> ocr_pages;
    for (int start = 0; start < page_count; start += nthreads)
       {
       int end = std::min (start + nthreads, page_count);
@@ -1054,13 +1057,17 @@ err_info *File::processPages (File *fnew, Operation &op, page_func func,
                continue;
             CALL (fnew->addPage (results[i].fp, false));
             }
+         ocr_pages << qMakePair (start + i, out_page_count);
          out_page_count++;
          op.incProgress (1);
          }
       }
 
    fnew->flush ();
-   return NULL;
+
+   // the adjustments leave the words where they were
+   fnew->load ();
+   return copyOcrTo (fnew, ocr_pages);
    }
 #endif  // QT_NO_WIDGETS
 
@@ -1237,11 +1244,17 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
       }
    fnew->flush ();
    fnew->load ();
+   return copyOcrTo (fnew, ocr_pages);
+   }
 
-   /* bring along what was read from each page, where both files can keep
-      it; a page which was not read, or a file which cannot keep it, is
-      simply left for OCR to read again */
-   for (const QPair<int, int> &pair : ocr_pages)
+
+err_info *File::copyOcrTo (File *fnew, const QList<QPair<int, int>> &pages)
+   {
+   /* a page which was not read, or a file which cannot keep what was
+      read, is simply left for OCR to read again */
+   bool kept = false;
+
+   for (const QPair<int, int> &pair : pages)
       {
       OcrPage ocr;
 
@@ -1252,7 +1265,10 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
 
       if (err && err->errnum != ERR_no_available_for_this_file_type)
          return err;
+      kept |= !err;
       }
+   if (kept)
+      CALL (fnew->flush ());
    return NULL;
    }
 
