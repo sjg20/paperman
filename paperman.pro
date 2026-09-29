@@ -169,6 +169,7 @@ HEADERS += desktopwidget.h \
  fileother.h \
  pdfio.h \
  ocrtess.h \
+ ocrpage.h \
  ocromni.h \
  zip.h \
  zip_p.h \
@@ -266,6 +267,7 @@ SOURCES += desktopwidget.cpp \
  fileother.cpp \
  pdfio.cpp \
  ocrtess.cpp \
+ ocrpage.cpp \
  ocromni.cpp \
  zip.cpp \
  senddialog.cpp \
