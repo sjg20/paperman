@@ -1,78 +1,86 @@
 Installation
 ------------
 
-Unpack the code into a fresh directory
+Ready-made packages are the easiest way to install paperman:
 
-You will need these packages:
+- Ubuntu: from the PPA
 
-- libqt5-dev (or libqt4-dev on older distros)
+     sudo add-apt-repository ppa:sjg1/ppa
+     sudo apt install paperman
 
-At least QT4.4 is needed. This is available in various distributions since
-late 2008.
+- most Linux distributions: the snap
 
-- libpoppler-qt5-dev (or libpoppler-qt4-dev on older distros)
+     sudo snap install paperman
 
-Used for PDF preview
+- other Linux distributions: the AppImage, from the releases page
+- Windows (x64 and Arm): the installer, from the releases page
+- macOS (Apple Silicon and Intel): the disk image, from the releases page
 
-- libpodofo-dev
+The releases are at https://github.com/sjg20/paperman/releases and the
+installation guide at https://paperman.readthedocs.io/en/latest/install.html
 
-podofo used to be embedded within the code, but is now available in a
-library. This is used for PDF operations.
 
-- libsane-dev
+Building on Debian / Ubuntu
+---------------------------
 
-This is the sane scanner library.
+Paperman is built with Qt 6 and qmake. It needs:
 
-- libtiff5-dev
+- Qt 6: qmake6, qt6-base-dev, qt6-base-dev-tools, qt6-scxml-dev and
+  libqt6sql6-sqlite (SQLite is used for the search index)
+- libpoppler-qt6-dev, for showing PDFs
+- libpodofo-dev, for writing PDFs (0.9, 0.10 and 1.x all work)
+- libsane-dev, for scanning
+- libtiff-dev, libjpeg-dev and zlib1g-dev
 
-This is the tiff library
+and, when it runs:
 
-- cmake
+- tesseract-ocr, with a language such as tesseract-ocr-eng, to read the
+  text of pages (OCR). Without it paperman works as usual but pages are
+  not read, so they cannot be searched for by their text
+- libimage-exiftool-perl, for keeping titles, notes and text in JPEG
+  stacks
 
-This is needed to build podofo
+To install all of these:
 
-- imagemagick
-- tesseract-ocr
-- tesseract-ocr-eng
+   sudo apt install build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
+      qt6-scxml-dev libqt6sql6-sqlite libpoppler-qt6-dev libpodofo-dev \
+      libsane-dev libtiff-dev libjpeg-dev zlib1g-dev \
+      tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl
 
-These are needed for OCR (Optical Character Recognition).
-
-In summary, to prepare on Debian / Ubuntu with QT5:
-
-   sudo apt-get install qtcreator g++ qtbase5-dev qtchooser qt5-qmake \
-           qtbase5-dev-tools libsane-dev libtiff5-dev cmake libpodofo-dev \
-           imagemagick tesseract-ocr tesseract-ocr-eng libpoppler-qt5-dev
-
-but of you only have QT4, then use:
-
-   sudo apt-get install qtcreator g++ qt4-qmake libqt4-dev libpoppler-qt4-dev \
-      libsane-dev libtiff5-dev cmake libpodofo-dev imagemagick \
-      tesseract-ocr tesseract-ocr-eng
-
-For Red Hat / Centos you will try some other approach similar to the above.
+or run 'scripts/setup.sh --qt', which also installs what the tests use.
+Qt 5 still works on older distributions: 'scripts/setup.sh --qt5' lists
+its packages.
 
 To build:
 
-   cd paperman (if needed)
-   qmake
-   make
+   cd paperman
+   qmake6 paperman.pro -o Makefile
+   make -f Makefile -j$(nproc) paperman
 
-But if you have QT3 installed:
+That makes 'paperman', which you can run in place:
 
-$ qmake -v
-Qmake version: 1.07a (Qt 3.3.8b)
-Qmake is free software from Trolltech ASA.
+   ./paperman
+
+If the tree has been built before with another version of Qt (such as
+Qt 5), run 'make distclean' first: otherwise the old object files are
+linked into the new build and it fails with many undefined references.
+
+A plain 'make' (through GNUmakefile) builds everything: the desktop
+program, the server, the Android and iPhone app and the documentation,
+which needs more tools; see doc/build.rst
+
+To build with the tests and run them:
+
+   qmake6 paperman.pro CONFIG+=test -o Makefile
+   make -f Makefile -j$(nproc) paperman
+   QT_QPA_PLATFORM=offscreen ./paperman -t
+
+For Windows and macOS, see README.md or doc/build.rst
 
 
-then you will need to force QT4:
+Getting started
+---------------
 
-   qmake-qt4
-   make
-
-That should create something called 'paperman'
-
-./paperman
-
-After you run it, right-click in the left window to add a paper repository with
-the 'Add repository' option. This should be the directory containing your
-paper files.
+When paperman first starts it offers a place to keep your papers. To
+add another, right-click in the left pane and choose 'Add repository',
+then pick the directory holding your paper files.
