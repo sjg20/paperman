@@ -173,6 +173,60 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="look">
+      <attribute name="title">
+       <string>Look</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <item>
+          <widget class="QLabel" name="appearanceLabel">
+           <property name="text">
+            <string>Colours</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="appearance">
+           <property name="toolTip">
+            <string>Light or dark: as the desktop is, or always one or the other</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>As the desktop</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Light</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Dark</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="files">
       <attribute name="title">
        <string>Files</string>

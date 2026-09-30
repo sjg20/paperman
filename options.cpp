@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QSettings>
 
+#include "appearance.h"
 #include "options.h"
 
 #include <qvariant.h>
@@ -115,6 +116,9 @@ void Options::init()
 
    group->setText(qs.value("files/group").toString());
 
+   // the entries are in the order of Appearance::e_mode
+   appearance->setCurrentIndex (Appearance::mode ());
+
    connect (threshold, SIGNAL (signalValueChanged(int)), this, SLOT (updateThreshold (int)));
    connect (limit, SIGNAL (toggled(bool)), single, SLOT (setEnabled(bool)));
    connect (stackLimit, SIGNAL (toggled(bool)), stackCount, SLOT (setEnabled(bool)));
@@ -137,6 +141,9 @@ void Options::ok_clicked()
    QSettings qs;
 
    qs.setValue("files/group", group->text());
+
+   if (appearance->currentIndex () != Appearance::mode ())
+      Appearance::setMode ((Appearance::e_mode)appearance->currentIndex ());
 
    close ();
 }

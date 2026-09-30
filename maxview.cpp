@@ -70,6 +70,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "utils.h"
 #include "fakescanner.h"
 #include "qscanner.h"
+#include "appearance.h"
 #include "searchindex.h"
 #include "test/test.h"
 
@@ -1095,7 +1096,9 @@ int main (int argc, char *argv[])
 
    /* keep a note in the log of anything the user is told in a dialog */
    utilLogDialogs (&app);
-   utilFollowColourScheme ();
+
+   // light or dark, as the desktop asks or as the user chose
+   Appearance::apply ();
    utilLogLook ();
 
    QTranslator translator;
