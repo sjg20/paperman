@@ -449,8 +449,8 @@ using the Qt Test framework.
 
 To build paperman with test support enabled:
 
-    qmake "CONFIG+=test" paperman.pro
-    make
+    qmake6 paperman.pro CONFIG+=test -o Makefile
+    make -f Makefile paperman
 
 ### Running Tests
 
@@ -461,31 +461,17 @@ Run all tests:
 This will run all test suites including:
 - **utils** - Utility function tests
 - **ops** - File operation tests (duplicate, stack, unstack, rename, etc.)
+- **file** - Reading and writing each file type
 - **searchserver** - HTTP search server tests
-- **ocrsearch** - OCR indexing and search functionality tests
+- **ocrsearch** - OCR and the search index
 
-### OCR Search Tests
+Run one suite, or one test, by naming its class:
 
-The OCR search test suite (`test/test_ocrsearch.cpp`) includes:
+    env QT_QPA_PLATFORM=offscreen ./paperman -t TestOcrSearch
+    env QT_QPA_PLATFORM=offscreen ./paperman -t TestOcrSearch::testOcrSearch
 
-1. **testOcrIndexing()** - Tests creating a search index and adding OCR text
-2. **testOcrSearch()** - Tests searching indexed text and verifying results
-3. **testReindexing()** - Tests re-indexing existing OCR text
-4. **testSearchNoResults()** - Tests handling of queries with no matches
-
-All tests use temporary directories and clean up after themselves.
-
-### Test Output Example
-
-    ********* Start testing of TestOcrSearch *********
-    PASS   : TestOcrSearch::initTestCase()
-    PASS   : TestOcrSearch::testOcrIndexing()
-    PASS   : TestOcrSearch::testOcrSearch()
-    PASS   : TestOcrSearch::testReindexing()
-    PASS   : TestOcrSearch::testSearchNoResults()
-    PASS   : TestOcrSearch::cleanupTestCase()
-    Totals: 6 passed, 0 failed, 0 skipped, 0 blacklisted
-    ********* Finished testing of TestOcrSearch *********
+The tests which run tesseract are skipped if it is not installed. All tests use
+temporary directories and clean up after themselves.
 
 
 ## Future Features
