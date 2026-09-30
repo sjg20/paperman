@@ -1716,8 +1716,10 @@ const QPalette &utilStylePalette(QStyle *style)
    static qint64 pal_key = -1;
    qint64 key = QGuiApplication::palette().cacheKey();
 
+   /* the application's colours, which may not be the style's own, as
+      when paperman is set to be light or dark whatever the desktop is */
    if (style != pal_style || key != pal_key) {
-      pal = style->standardPalette();
+      pal = QGuiApplication::palette();
       pal_style = style;
       pal_key = key;
    }
@@ -1948,28 +1950,6 @@ void utilLogLook (void)
 }
 
 
-void utilFollowColourScheme (void)
-{
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-   if (QGuiApplication::styleHints ()->colorScheme () != Qt::ColorScheme::Dark
-       || utilIsDarkMode ())
-      return;
-
-   /* Fusion's own colours follow the scheme the desktop asks for, so
-      take those in place of what the platform theme gave */
-   QStyle *fusion = QStyleFactory::create ("Fusion");
-
-   if (fusion)
-      {
-      QPalette dark = fusion->standardPalette ();
-
-      if (dark.color (QPalette::WindowText).lightness ()
-          > dark.color (QPalette::Window).lightness ())
-         QApplication::setPalette (dark);
-      delete fusion;
-      }
-#endif
-}
 #endif
 
 

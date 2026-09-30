@@ -55,6 +55,10 @@ private slots:
    //! the main window's views and text boxes take the theme's colours
    void testWindowFollowsPalette();
 
+   //! paperman can be light or dark whatever the desktop is, and switches
+   //! at once
+   void testAppearance();
+
    //! each icon draws, in the palette's text colour, or its own for status
    void testIcons();
 private:

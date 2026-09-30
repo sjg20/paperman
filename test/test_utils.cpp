@@ -22,6 +22,9 @@ extern "C" {
 
 #include "test_utils.h"
 #include "../mainwindow.h"
+#include "../appearance.h"
+#include "../desktopview.h"
+#include "../desktopwidget.h"
 #include <QAbstractScrollArea>
 #include <QAction>
 #include <QApplication>
@@ -896,4 +899,85 @@ void TestUtils::testIcons ()
       QVERIFY2 (!act->icon ().isNull (), qPrintable (name + " not set"));
       }
    QVERIFY (named >= 13);
+}
+
+
+//! the average lightness of a widget as it is drawn, 0 to 255
+static int drawnLightness (QWidget *widget)
+{
+   QImage image = widget->grab ().toImage ();
+   qint64 total = 0;
+   int count = 0;
+
+   for (int y = 0; y < image.height (); y += 4)
+      for (int x = 0; x < image.width (); x += 4, count++)
+         total += image.pixelColor (x, y).lightness ();
+   return count ? total / count : -1;
+}
+
+void TestUtils::testAppearance ()
+{
+   QCOMPARE (Appearance::modeFromName ("dark"), Appearance::Mode_dark);
+   QCOMPARE (Appearance::modeFromName ("light"), Appearance::Mode_light);
+   QCOMPARE (Appearance::modeFromName ("nonsense"), Appearance::Mode_system);
+   for (int i = 0; i < Appearance::Mode_count; i++)
+      QCOMPARE (Appearance::modeFromName (Appearance::modeName (
+                   (Appearance::e_mode)i)), (Appearance::e_mode)i);
+
+   // the test's desktop is light, and says nothing of what it wants
+   auto restore = qScopeGuard ([] {
+      Appearance::setMode (Appearance::Mode_system); });
+   Appearance::setMode (Appearance::Mode_system);
+   QVERIFY (!utilIsDarkMode ());
+   QString style = Appearance::styleName ();
+   QColor window = QApplication::palette ().color (QPalette::Window);
+
+   Mainwindow me;
+   me.resize (800, 600);
+   me.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&me));
+   QWidget *view = me.getDesktop ()->getView ();
+   int light = drawnLightness (view);
+
+   // dark, at once, with the views and icons following
+   Appearance::setMode (Appearance::Mode_dark);
+   QCOMPARE (Appearance::mode (), Appearance::Mode_dark);
+   QVERIFY (utilIsDarkMode ());
+   QVERIFY (Appearance::instance ()->overriding ());
+   QCOMPARE (Appearance::styleName (), QString ("fusion"));
+   QTest::qWait (20);
+   int dark = drawnLightness (view);
+   QVERIFY2 (dark < light - 40, qPrintable (QString ("%1 then %2")
+                                            .arg (light).arg (dark)));
+   QVERIFY (iconColour (utilIcon ("print").pixmap (24, 24).toImage ())
+               .lightness () > 160);
+   QVERIFY (utilStylePalette (QApplication::style ()).color (
+               QPalette::WindowText).lightness () > 160);
+
+   /* light is how the desktop is already, so it goes back to the
+      desktop's own style and colours */
+   Appearance::setMode (Appearance::Mode_light);
+   QVERIFY (!utilIsDarkMode ());
+   QVERIFY (!Appearance::instance ()->overriding ());
+   QCOMPARE (Appearance::styleName (), style);
+   QCOMPARE (QApplication::palette ().color (QPalette::Window), window);
+   QTest::qWait (20);
+   QVERIFY (qAbs (drawnLightness (view) - light) < 10);
+
+   // as the desktop is
+   Appearance::setMode (Appearance::Mode_dark);
+   Appearance::setMode (Appearance::Mode_system);
+   QVERIFY (!utilIsDarkMode ());
+   QCOMPARE (QApplication::palette ().color (QPalette::Window), window);
+
+   // the colours for each are the right way round, and legible
+   for (bool want_dark : {false, true}) {
+      QPalette pal = Appearance::palette (want_dark);
+      int bg = pal.color (QPalette::Window).lightness ();
+      int fg = pal.color (QPalette::WindowText).lightness ();
+      QCOMPARE (fg > bg, want_dark);
+      QVERIFY (qAbs (fg - bg) > 150);
+      QVERIFY (qAbs (pal.color (QPalette::Text).lightness ()
+                     - pal.color (QPalette::Base).lightness ()) > 150);
+   }
 }

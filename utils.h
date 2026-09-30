@@ -273,11 +273,6 @@ void utilLogDialogs (QCoreApplication *app);
     whether the dark icons are used */
 void utilLogLook (void);
 
-/** Use dark colours when the desktop asks for them but the colours Qt
-    has chosen are light, as when a GTK theme cannot be found, as in a
-    snap. The dark icons follow from the colours */
-void utilFollowColourScheme (void);
-
 /** Diagnostics which are only of interest when something is being
     investigated: the view changing, errors as they are created. These are
     quiet unless --log is used, so that a normal run says nothing */
@@ -435,12 +430,10 @@ class QPalette;
 class QStyle;
 
 #ifndef QT_NO_WIDGETS
-/** the style's standard palette, kept between calls
-
-    QStyle::standardPalette() builds the palette from scratch every time,
-    which is most of the cost of painting an item in the page and desktop
-    views. The result only changes with the style or the application
-    palette, so keep it until one of those does */
+/** the colours for painting items in the page and desktop views: the
+    application's, which are not the style's own when paperman is set to be
+    light or dark whatever the desktop is. They are kept until the style or
+    the application's colours change */
 const QPalette &utilStylePalette(QStyle *style);
 #endif
 

@@ -160,6 +160,7 @@ HEADERS += desktopwidget.h \
  pageview.h \
  pagedelegate.h \
  utils.h \
+ appearance.h \
  ocr.h \
  file.h \
  filemax.h \
@@ -254,6 +255,7 @@ SOURCES += desktopwidget.cpp \
  pageview.cpp \
  pagedelegate.cpp \
  utils.cpp \
+ appearance.cpp \
  ocr.cpp \
  dmop.cpp \
  dmuserop.cpp \
