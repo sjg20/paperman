@@ -53,7 +53,10 @@ Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
   be cleared without losing pages (see the
   [scanning guide](https://paperman.readthedocs.io/en/latest/scanning.html))
 - scanning from the command line (`--scan`)
-- OCR with full-text search
+- OCR with full-text search: scanned pages are read in the background
+  with tesseract, each page's text is shown beside it, stacks can be found
+  by the words on their pages, and the PDFs paperman makes can be searched
+  and their text copied
 - a search server whose repositories the desktop can show and change over
   the network
 - an app for Android and iPhone, for browsing, searching and reading the
@@ -168,6 +171,18 @@ new in 1.4.0
   out to suit the screen
 * a fake Fujitsu scanner for testing without paper (Linux)
 
+new since 1.4.0 (not yet released)
+
+* the text of scanned pages is read in the background (tesseract), and
+  each page keeps its words, with where each is, in its .max file, so
+  they go with the page when it is stacked, unstacked, deleted or copied
+* a 'Read text (OCR)' action for reading stacks scanned before
+* the OCR pane in the page view shows the text of the page being shown
+* searching for stacks by the text on their pages (Edit > Search), each
+  found stack turned to the page which matches best
+* the PDFs paperman makes, and those the server makes, have an invisible
+  layer of text, so they can be searched and their text copied
+
 ## Command-line usage
 
 ### -j <file>
@@ -277,15 +292,17 @@ out empty).
 ### -o <directory> | --ocr <directory>
 
 Recursively process all .max files in a directory, performing OCR (Optical Character
-Recognition) on each page and saving the extracted text. The OCR text is saved both
-within the .max file as an annotation and in a searchable SQLite FTS5 index.
+Recognition) on each page not already read, and index the text of every stack in a
+searchable SQLite FTS5 index. This is the same reading the desktop does in the
+background after a scan, for a whole directory at once.
 
 Features:
 - Processes all .max files recursively in the specified directory
-- Runs Tesseract OCR on each page to extract text
-- Saves OCR text as an annotation in the .max file
-- Builds a full-text search index (.paperindex) for fast searching
-- If a file already has OCR text, it indexes the existing text without re-OCRing
+- Runs Tesseract OCR on each page which has not been read, so an interrupted run
+  carries on where it stopped
+- Keeps each page's words, with where each is, in the .max file
+- Builds a full-text search index (.paperindex) for fast searching, including the
+  text of PDFs
 - Runs in console mode (no GUI required)
 
 Example:
@@ -294,9 +311,9 @@ Example:
 
 This will:
 1. Scan all .max files in /paper/2024 and subdirectories
-2. Run OCR on each page (or use existing OCR text if available)
-3. Save the extracted text in each .max file
-4. Create a searchable index at /paper/2024/.paperindex
+2. Run OCR on each page not yet read
+3. Keep the words of each page in its .max file
+4. Create or update a searchable index at /paper/2024/.paperindex
 
 ### -q <query> [directory] | --search <query> [directory]
 
@@ -328,7 +345,9 @@ This will search the index at /paper/2024/.paperindex and display results like:
 
 If no directory is specified, searches the current directory.
 
-Note: You must run --ocr on a directory first to create the search index.
+Note: You must run --ocr on a directory first to create the search index. The desktop
+keeps its own index, at the top of each repository, up to date each time you search
+from it (Edit > Search, then 'Text on the pages').
 
 ### --fake-scanner DIR
 
