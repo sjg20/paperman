@@ -8,6 +8,7 @@
 #include "err.h"
 #include "searchindex.h"
 #include "ocr.h"
+#include "ocrtess.h"
 #include "ocrpage.h"
 #include "ocrreader.h"
 #include "filemax.h"
@@ -342,6 +343,13 @@ void TestOcrSearch::testOcrPageTesseract()
    QString plain;
    QVERIFY (!ocr->imageToText (image, plain));
    QCOMPARE (plain, text);
+
+   // and so does reading in the background, at low priority on one thread
+   Ocrtess background;
+   background.setBackground (true);
+   OcrPage again;
+   QVERIFY (!background.imageToPage (image, again));
+   QCOMPARE (again.text (), text);
 }
 
 
