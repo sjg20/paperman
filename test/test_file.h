@@ -164,6 +164,10 @@ private slots:
    //! page's own file, and is never written to
    void testSparseOcr();
 
+   //! writing to an older stack, which keeps no page dates, leaves each
+   //! page showing the date it showed before, not 1970
+   void testOldStackDates();
+
    //! a PDF made from a stack has its pages' words as searchable text
    void testPdfTextLayer();
 

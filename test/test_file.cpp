@@ -2737,3 +2737,78 @@ void TestFile::testSparseOcr()
    delete sp;
    delete src;
 }
+
+
+static QList<QDateTime> pageDates(const QString &dir, const QString &fname)
+{
+   Filemax max(dir, fname, nullptr);
+   QList<QDateTime> dates;
+
+   if (max.load())
+      return dates;
+   for (int i = 0; i < max.pagecount(); i++)
+      {
+      QSize size, trueSize;
+      int bpp, bytes, compressed;
+      QDateTime stamp;
+
+      max.getImageInfo(i, size, trueSize, bpp, bytes, compressed, stamp);
+      dates << stamp;
+      }
+   return dates;
+}
+
+
+void TestFile::testOldStackDates()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QString path = copyFixture("testfile.max", tmp.path());
+   QVERIFY(!path.isEmpty());
+
+   /* make it an older stack: version 0, whose page records keep no
+      dates, so that every page shows the date of the file */
+   {
+      QFile f(path);
+      QVERIFY(f.open(QIODevice::ReadWrite));
+      QVERIFY(f.seek(0x20));
+      const char zero[4] = {0, 0, 0, 0};
+      QCOMPARE(f.write(zero, 4), qint64(4));
+   }
+   QList<QDateTime> before = pageDates(dir, "testfile.max");
+   QVERIFY(before.size() > 2);
+   for (const QDateTime &d : before)
+      QCOMPARE(d, before.first());
+
+   // a change to one page writes the file, which makes it a current one
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.putPageOcr(1, ocrFor("one page")));
+      QVERIFY(!max.flush());
+   }
+
+   // every page shows the date it showed, those not changed included
+   QList<QDateTime> after = pageDates(dir, "testfile.max");
+   QCOMPARE(after.size(), before.size());
+   for (int i = 0; i < after.size(); i++)
+      QVERIFY2(after[i] == before[i], qPrintable(
+         QString("page %1: %2, was %3").arg(i + 1)
+            .arg(after[i].toString(Qt::ISODate),
+                 before[i].toString(Qt::ISODate))));
+
+   // and they are kept now, so later writes leave them alone
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.putPageOcr(2, ocrFor("another")));
+      QVERIFY(!max.flush());
+   }
+   QCOMPARE(pageDates(dir, "testfile.max"), before);
+   OcrPage ocr;
+   Filemax check(dir, "testfile.max", nullptr);
+   QVERIFY(!check.load());
+   QVERIFY(!check.getPageOcr(1, ocr));
+   QCOMPARE(ocr, ocrFor("one page"));
+}
