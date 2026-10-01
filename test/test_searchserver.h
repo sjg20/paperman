@@ -39,6 +39,10 @@ private slots:
    //! /repos hides repos the bearer-authed user is not allowed to see
    void testReposFilteredByUser();
 
+   //! users.json is written privately and whole, and a file which
+   //! cannot be read leaves the users as they were
+   void testUserStoreFile();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 

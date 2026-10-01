@@ -9,6 +9,7 @@ License: GPL-2
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QMessageAuthenticationCode>
 #include <QRandomGenerator>
 #include <QStandardPaths>
@@ -130,16 +131,23 @@ UserStore::UserStore(const QString &path)
 
 bool UserStore::load()
 {
-   _users.clear();
-
    QFile f(_path);
-   if (!f.exists())
+   if (!f.exists()) {
+      _users.clear();
       return true;  /* empty store is fine */
+   }
+
+   /* Read into a separate table and only then replace the users: a file
+    * which cannot be read or parsed must leave the store as it was, since
+    * a store with no users turns authentication off */
    if (!f.open(QIODevice::ReadOnly))
       return false;
-   QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-   if (!doc.isObject())
+   QJsonParseError perr;
+   QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &perr);
+   if (perr.error != QJsonParseError::NoError || !doc.isObject())
       return false;
+
+   QHash<QString, User> users;
    QJsonObject obj = doc.object();
    for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
       QString name = it.key();
@@ -151,8 +159,9 @@ bool UserStore::load()
       QJsonArray repos = u.value("repos").toArray();
       for (auto r : repos)
          user.repos << r.toString();
-      _users.insert(name, user);
+      users.insert(name, user);
    }
+   _users = users;
    return true;
 }
 
@@ -175,16 +184,16 @@ bool UserStore::save()
       obj[u.name] = record;
    }
 
-   QFile f(_path);
-   if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+   /* Write a new file and rename it into place, so that a reader (the
+    * running server, say) never sees one half-written.  The hashes are
+    * sensitive even though they are derived, so the file is private
+    * from the start rather than after it is written */
+   QSaveFile f(_path);
+   if (!f.open(QIODevice::WriteOnly))
       return false;
+   f.setPermissions(QFile::ReadOwner | QFile::WriteOwner);
    f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
-   f.close();
-   /* Tighten permissions: hashes are sensitive even though they're
-    * derived. */
-   QFile::setPermissions(_path,
-      QFile::ReadOwner | QFile::WriteOwner);
-   return true;
+   return f.commit();
 }
 
 
