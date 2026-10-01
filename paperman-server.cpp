@@ -59,6 +59,9 @@ void printUsage(const char *progName)
               << "Options:\n"
               << "  -p, --port <port>    Port to listen on (default: 8080)\n"
               << "  -C, --no-cache       Skip building file cache at startup\n"
+              << "  -r, --read-pages <n> Read the pages of every stack in the\n"
+              << "                       background (OCR), n stacks at a time,\n"
+              << "                       keeping the words with the pages\n"
               << "  -h, --help           Show this help message\n"
               << "\n"
               << "Example:\n"
@@ -255,6 +258,7 @@ int main(int argc, char *argv[])
     QString repositoryPath;
     quint16 port = 8080;
     bool skipCache = false;
+    int readWorkers = 0;
 
     for (int i = 1; i < args.size(); i++) {
         if (args[i] == "-h" || args[i] == "--help") {
@@ -276,6 +280,17 @@ int main(int argc, char *argv[])
         }
         else if (args[i] == "-C" || args[i] == "--no-cache") {
             skipCache = true;
+        }
+        else if (args[i] == "-r" || args[i] == "--read-pages") {
+            bool ok = false;
+
+            if (i + 1 < args.size())
+                readWorkers = args[++i].toInt(&ok);
+            if (!ok || readWorkers < 1 || readWorkers > 256) {
+                std::cerr << "Error: --read-pages needs a number of stacks "
+                             "from 1 to 256" << std::endl;
+                return 1;
+            }
         }
         else if (!args[i].startsWith('-')) {
             repositoryPath = args[i];
@@ -310,6 +325,7 @@ int main(int argc, char *argv[])
     std::cout << "Port: " << port << std::endl;
 
     SearchServer server(repositoryPath, port, nullptr, skipCache);
+    server.setReadPages(readWorkers);
     if (!server.start()) {
         std::cerr << "Error: Failed to start server" << std::endl;
         return 1;

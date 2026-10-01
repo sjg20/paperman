@@ -223,6 +223,23 @@ supports.  Auth-free so clients can probe before they have a token.
      "features": []
    }
 
+When the server reads the pages of its stacks (``--read-pages``), a
+``reading`` object shows how far it has got with each repository:
+
+.. code:: json
+
+   "reading": {
+     "papers": {"scanning": false, "pending": 120, "stacks": 4031,
+                "pages": 9233, "written": 3870}
+   }
+
+``scanning`` is true while the server looks through the repository for
+stacks to read, ``pending`` counts the stacks waiting to be read or
+being read, and ``stacks``, ``pages`` and ``written`` count the stacks
+looked at, the pages read and the stacks given words since the server
+started. Each stack given words is announced on the event stream as an
+``annotations`` change.
+
 **Example**:
 
 .. code:: bash

@@ -44,6 +44,9 @@ Options
 ~~~~~~~
 
 -  ``-p, --port <port>`` - Port to listen on (default: 8080)
+-  ``-C, --no-cache`` - Skip building the file cache at startup
+-  ``-r, --read-pages <n>`` - Read the pages of every stack in the
+   background (OCR), ``n`` stacks at a time; see `Reading Pages`_
 -  ``-h, --help`` - Show help message
 
 Example with custom port:
@@ -51,6 +54,39 @@ Example with custom port:
 .. code:: bash
 
    ./paperman-server -p 9000 /home/user/Documents/papers
+
+Reading Pages
+~~~~~~~~~~~~~
+
+With ``--read-pages`` the server reads the pages of every stack in its
+repositories with tesseract, as it has time, and puts the words into the
+stacks, so that the desktop and the server can find a stack by the text
+on its pages. Scans which come in, and stacks which change, are read
+before the rest; otherwise the newest stacks are read first. The trash
+and any hidden folder are left alone.
+
+Each stack is written in one step: the server copies it, puts the words
+into the copy and puts the copy in place of the stack, keeping its mode
+and group. A stack which changes while it is being read is left as it
+is and read again. Pages which already have words are not read again.
+
+The server keeps a record of which stacks it has read, so that a
+restart carries on where it left off and a stack with nothing to read
+is not read again until it changes. The record is kept on the server's
+own disk, not in the repository (which may be on a network filesystem),
+in ``~/.local/share/paperman-server/read-<repo>-<hash>.db``, one per
+repository. Removing it makes the server look at every stack again,
+though without reading pages which already have words.
+
+Tesseract runs at a low priority, one thread to a stack, so ``n`` can
+be about the number of CPU cores which the server can spare. Reading
+takes around a second or two a page per core, so a large repository
+takes some hours at first; ``GET /v1/status`` shows how far it has got.
+With systemd, add the option to the service:
+
+.. code:: ini
+
+   ExecStart=/opt/paperman/paperman-server -p 8081 -r 8 /srv/papers
 
 API Endpoints
 -------------
