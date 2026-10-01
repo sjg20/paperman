@@ -163,7 +163,8 @@ QString SearchIndex::matchQuery(const QString &text)
 
 
 /* the text of a stack's pages: what OCR read from each, or else the
-   text the file itself has, such as a PDF's */
+   text the file itself has, such as a PDF's.  Text which belongs to the
+   whole stack, such as the OCR annotation, goes with the first page */
 static err_info *stackText(const QString &pathname, QStringList &pages)
    {
    QFileInfo fi(pathname);
@@ -183,6 +184,19 @@ static err_info *stackText(const QString &pathname, QStringList &pages)
       else
          file->getPageText(i, text);
       pages << text.trimmed();
+      }
+
+   /* Before pages kept their own words, OCR put what it read into the
+      stack's OCR annotation, and that is still where text typed into the
+      OCR box goes for a page not read.  It does not say which page it
+      came from, so it is found on the first, which is where the stack
+      opens */
+   QString annot;
+   if (!err && !pages.isEmpty() && !file->getAnnot(File::Annot_ocr, annot))
+      {
+      annot = annot.trimmed();
+      if (!annot.isEmpty() && !pages[0].contains(annot))
+         pages[0] = pages[0].isEmpty() ? annot : pages[0] + "\n" + annot;
       }
    delete file;
    return err;

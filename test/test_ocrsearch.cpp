@@ -612,3 +612,54 @@ void TestOcrSearch::testIndexSync()
    QCOMPARE(found(again, "invoice"), QStringList());
    QCOMPARE(found(again, "pears"), QStringList({"a.max:0"}));
 }
+
+
+/* Give a stack an OCR annotation, as the OCR button did before pages
+   kept their own words */
+static void annotate(const QString &dir, const QString &fname,
+                     const QString &text)
+{
+   Filemax max(dir, fname, nullptr);
+   QHash<int, QString> updates;
+
+   QVERIFY(!max.load());
+   updates[File::Annot_ocr] = text;
+   QVERIFY(!max.putAnnot(updates));
+   QVERIFY(!max.flush());
+}
+
+
+void TestOcrSearch::testIndexOcrAnnotation()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+   for (const char *name : {"a.max", "b.max", "c.max"})
+      QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + name));
+
+   // only an annotation: found on the first page
+   annotate(dir, "a.max", "quarterly water bill");
+
+   // an annotation and a page with its own words: each found where it is
+   annotate(dir, "b.max", "receipt");
+   {
+      Filemax b(dir, "b.max", nullptr);
+      QVERIFY(!b.load());
+      QVERIFY(!b.putPageOcr(2, pageSaying("banana")));
+   }
+
+   // the annotation says what the first page says: found once
+   annotate(dir, "c.max", "apple pie");
+   {
+      Filemax c(dir, "c.max", nullptr);
+      QVERIFY(!c.load());
+      QVERIFY(!c.putPageOcr(0, pageSaying("apple pie")));
+   }
+
+   SearchIndex index;
+   QVERIFY(!index.init(dir));
+   QVERIFY(!index.sync(dir));
+   QCOMPARE(found(index, "water"), QStringList({"a.max:0"}));
+   QCOMPARE(found(index, "receipt"), QStringList({"b.max:0"}));
+   QCOMPARE(found(index, "banana"), QStringList({"b.max:2"}));
+   QCOMPARE(found(index, "apple"), QStringList({"c.max:0"}));
+}
