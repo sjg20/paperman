@@ -25,6 +25,7 @@
 #include "../remotebackend.h"
 #include "../searchserver.h"
 #include "../pdfio.h"
+#include "../tokenstore.h"
 #include "../userstore.h"
 #include "test.h"
 
@@ -2733,4 +2734,104 @@ void TestSearchServer::testUsersFollowFile()
     }
     QVERIFY(get("/repos").header.contains("401"));
     QVERIFY(login("alice", "n3wer").ok());
+}
+
+
+void TestSearchServer::testLoginsSurviveRestart()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+    QString cfgDir = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server";
+    QFile::remove(cfgDir + "/users.json");
+    QFile::remove(cfgDir + "/tokens.json");
+    {
+        UserStore store;
+        QVERIFY(store.addUser("alice", "s3cret"));
+        QVERIFY(store.addUser("bob", "hunter2"));
+        QVERIFY(store.save());
+    }
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    createTestFiles(tmpDir.path());
+
+    auto loginToken = [this](const char *user, const char *password) {
+        auto resp = postJson("/v1/auth/login",
+                             QString(R"({"user":"%1","password":"%2"})")
+                                 .arg(user, password).toUtf8());
+        return QJsonDocument::fromJson(resp.body).object()
+                   .value("token").toString();
+    };
+
+    QString alice, bob;
+    {
+        SearchServer server(tmpDir.path(), PORT);
+        QVERIFY(server.start());
+        QTest::qWait(100);
+        alice = loginToken("alice", "s3cret");
+        bob = loginToken("bob", "hunter2");
+        QVERIFY(!alice.isEmpty() && !bob.isEmpty());
+        QVERIFY(getWithBearer("/repos", alice).ok());
+        server.stop();
+    }
+
+    /* the file keeps the logins but not the tokens themselves, and only
+       the owner can read it */
+    QString tokensFile = cfgDir + "/tokens.json";
+    QFile f(tokensFile);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QByteArray stored = f.readAll();
+    f.close();
+    QVERIFY(!stored.contains(alice.toLatin1()));
+    QVERIFY(!stored.contains(bob.toLatin1()));
+#ifndef Q_OS_WIN    // see testUserStoreFile()
+    QVERIFY(!(QFile::permissions(tokensFile)
+              & (QFileDevice::ReadGroup | QFileDevice::ReadOther)));
+#endif
+
+    // a new server, as after a restart, still knows both
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QVERIFY(getWithBearer("/repos", alice).ok());
+    QVERIFY(getWithBearer("/repos", bob).ok());
+
+    // a new password ends the user's logins, without a restart
+    {
+        UserStore store;
+        QVERIFY(store.setPassword("alice", "n3wer"));
+        QVERIFY(store.save());
+    }
+    QVERIFY(getWithBearer("/repos", alice).header.contains("401"));
+    QVERIFY(getWithBearer("/repos", bob).ok());
+    QString again = loginToken("alice", "n3wer");
+    QVERIFY(getWithBearer("/repos", again).ok());
+
+    // and so does deleting the user
+    {
+        UserStore store;
+        QVERIFY(store.delUser("bob"));
+        QVERIFY(store.save());
+    }
+    QVERIFY(getWithBearer("/repos", bob).header.contains("401"));
+    QVERIFY(getWithBearer("/repos", again).ok());
+
+    /* a token which has run out is refused, and dropped from the file
+       when it is next read */
+    {
+        TokenStore store(tokensFile);
+        QString old = store.mint("alice", -1, "stamp");
+        QVERIFY(store.lookup(old).isEmpty());
+        QString live = store.mint("alice", 1, "stamp");
+        TokenStore reread(tokensFile);
+        QString stamp;
+        QCOMPARE(reread.lookup(live, &stamp), QString("alice"));
+        QCOMPARE(stamp, QString("stamp"));
+        QVERIFY(reread.lookup(old).isEmpty());
+    }
 }

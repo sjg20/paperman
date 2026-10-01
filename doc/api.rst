@@ -138,9 +138,13 @@ Then pass the token in subsequent requests:
 
    curl -H "Authorization: Bearer <token>" http://localhost:8080/repos
 
-Tokens are held in memory and invalidated on server restart (default
-TTL: 30 days).  ``X-API-Key`` continues to work in parallel and bypasses
-per-user repo gating.
+Tokens last 30 days and survive a restart of the server: they are kept
+in ``tokens.json`` beside ``users.json``, readable only by the server's
+user, which holds a SHA-256 hash of each token rather than the token
+itself.  Changing a user's password with ``passwd``, or deleting the user,
+ends that user's logins at once; other users stay logged in.
+``X-API-Key`` continues to work in parallel and bypasses per-user repo
+gating.
 
 Common Response Format
 ----------------------
@@ -251,8 +255,8 @@ Exchange a username and password for a bearer token.  See the
      "expiry": "2026-07-01T12:34:56"
    }
 
-**Errors**: 400 (missing fields), 401 (bad credentials).  Tokens are
-held in memory and lost on server restart.
+**Errors**: 400 (missing fields), 401 (bad credentials).  Tokens
+survive a restart of the server, but not a change of the user's password.
 
 --------------
 
