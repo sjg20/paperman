@@ -43,6 +43,9 @@ jobs:
       - name: Run page-fetch integration test
         run: scripts/test_page_fetch.sh
 
+      - name: Run server smoke test
+        run: scripts/test_server_smoke.sh
+
       - name: Run parallel conversion test
         run: scripts/test_parallel.sh
 
@@ -82,6 +85,9 @@ jobs:
 
       - name: Run page-fetch integration test
         run: scripts/test_page_fetch.sh
+
+      - name: Run server smoke test
+        run: scripts/test_server_smoke.sh
 
       - name: Run parallel conversion test
         run: scripts/test_parallel.sh
