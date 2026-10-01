@@ -117,8 +117,11 @@ Top-level keys are user names.  Each record has:
    list means "all repositories".
 -  ``admin`` — reserved for future use; currently ignored.
 
-The server reads the file once at startup, so out-of-band edits require
-a restart to take effect.
+The server reads the file again whenever it changes, so ``useradd``,
+``passwd``, ``userdel`` and edits by hand take effect at the next request,
+without a restart.  A file which cannot be read is reported in the log
+and ignored: the server keeps the users it read before, rather than
+taking a broken file as having no users and turning authentication off.
 
 To obtain a bearer token, POST to ``/v1/auth/login``:
 

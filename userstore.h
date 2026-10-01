@@ -5,6 +5,7 @@ License: GPL-2
 #ifndef USERSTORE_H
 #define USERSTORE_H
 
+#include <QDateTime>
 #include <QHash>
 #include <QString>
 #include <QStringList>
@@ -50,6 +51,13 @@ public:
     /** Persist the in-memory state to disk.  Returns true on success. */
     bool save();
 
+    /** Read the file again if it has changed since it was last read,
+     *  judged by its size and modification time, so that a running
+     *  server follows useradd, passwd and userdel without a restart.
+     *  A file which cannot be read leaves the users as they were.
+     *  Returns true if the users were read again. */
+    bool reloadIfChanged();
+
     /** Number of registered users. */
     int count() const { return _users.size(); }
 
@@ -91,8 +99,14 @@ public:
                                const QString &storedHash);
 
 private:
+    /** Note how the file looks now, for reloadIfChanged() */
+    void noteFile();
+
     QString _path;
     QHash<QString, User> _users;
+    bool _fileExists = false;    //!< as last read
+    qint64 _fileSize = -1;
+    QDateTime _fileTime;
 };
 
 #endif // USERSTORE_H

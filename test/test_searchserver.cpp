@@ -2673,3 +2673,64 @@ void TestSearchServer::testUserStoreFile()
     QVERIFY(store.load());
     QCOMPARE(store.count(), 0);
 }
+
+
+void TestSearchServer::testUsersFollowFile()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+    QString cfgFile = QStandardPaths::writableLocation(
+                          QStandardPaths::GenericConfigLocation)
+                      + "/paperman-server/users.json";
+    QFile::remove(cfgFile);
+    {
+        UserStore store;
+        QVERIFY(store.addUser("alice", "s3cret"));
+        QVERIFY(store.save());
+    }
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    createTestFiles(tmpDir.path());
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    auto login = [this](const char *user, const char *password) {
+        return postJson("/v1/auth/login",
+                        QString(R"({"user":"%1","password":"%2"})")
+                            .arg(user, password).toUtf8());
+    };
+    QVERIFY(login("alice", "s3cret").ok());
+    QVERIFY(login("bob", "hunter2").header.contains("401"));
+
+    // a user added while the server runs can log in at once
+    {
+        UserStore store;
+        QVERIFY(store.addUser("bob", "hunter2"));
+        QVERIFY(store.save());
+    }
+    QVERIFY(login("bob", "hunter2").ok());
+
+    // a password changed while it runs: the new one works, the old not
+    {
+        UserStore store;
+        QVERIFY(store.setPassword("alice", "n3wer"));
+        QVERIFY(store.save());
+    }
+    QVERIFY(login("alice", "s3cret").header.contains("401"));
+    QVERIFY(login("alice", "n3wer").ok());
+
+    /* a file which cannot be read leaves the users as they were, rather
+       than opening the server to anyone */
+    {
+        QFile f(cfgFile);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.write("{ not json");
+    }
+    QVERIFY(get("/repos").header.contains("401"));
+    QVERIFY(login("alice", "n3wer").ok());
+}

@@ -6,6 +6,8 @@ License: GPL-2
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QDebug>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -129,8 +131,42 @@ UserStore::UserStore(const QString &path)
 }
 
 
+void UserStore::noteFile()
+{
+   QFileInfo fi(_path);
+
+   _fileExists = fi.exists();
+   _fileSize = _fileExists ? fi.size() : -1;
+   _fileTime = _fileExists ? fi.lastModified() : QDateTime();
+}
+
+
+bool UserStore::reloadIfChanged()
+{
+   QFileInfo fi(_path);
+   bool exists = fi.exists();
+
+   if (exists == _fileExists
+       && (!exists || (fi.size() == _fileSize
+                       && fi.lastModified() == _fileTime)))
+      return false;
+
+   if (!load()) {
+      /* keep the users we have, and do not try again until the file
+         changes once more */
+      noteFile();
+      qWarning() << "UserStore: cannot read" << _path
+                 << "- keeping the users read before";
+      return false;
+   }
+   return true;
+}
+
+
 bool UserStore::load()
 {
+   noteFile();
+
    QFile f(_path);
    if (!f.exists()) {
       _users.clear();
@@ -193,7 +229,10 @@ bool UserStore::save()
       return false;
    f.setPermissions(QFile::ReadOwner | QFile::WriteOwner);
    f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
-   return f.commit();
+   if (!f.commit())
+      return false;
+   noteFile();
+   return true;
 }
 
 
