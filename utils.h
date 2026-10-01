@@ -450,10 +450,12 @@ const QPalette &utilStylePalette(QStyle *style);
     \returns true on success */
 bool utilRenameFile(const QString &from, const QString &to, QString *error);
 
-/** replace a file with another, retrying briefly as for utilRenameFile()
+/** replace a file with another in one step, retrying briefly as for
+    utilRenameFile(): at every moment the file is either the old one or
+    the new one, so a crash cannot lose it
 
-    \param from   existing path
-    \param to     path to replace; any existing file is removed first
+    \param from   existing path, on the same filesystem as @to
+    \param to     path to replace, which need not exist
     \param error  returns the error string on failure
     \returns true on success */
 bool utilReplaceFile(const QString &from, const QString &to, QString *error);

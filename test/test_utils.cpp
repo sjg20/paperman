@@ -981,3 +981,59 @@ void TestUtils::testAppearance ()
                      - pal.color (QPalette::Base).lightness ()) > 150);
    }
 }
+
+
+static QByteArray contents(const QString &path)
+{
+   QFile f(path);
+
+   return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("<missing>");
+}
+
+
+static void writeFile(const QString &path, const QByteArray &data)
+{
+   QFile f(path);
+
+   QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+   f.write(data);
+}
+
+
+void TestUtils::testReplaceFile()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString to = tmp.path() + "/stack.max";
+   const QString from = tmp.path() + "/.stack.max.new";
+   QString error;
+
+   // in place of an existing file
+   writeFile(to, "old");
+   writeFile(from, "new");
+   QVERIFY(utilReplaceFile(from, to, &error));
+   QCOMPARE(contents(to), QByteArray("new"));
+   QVERIFY(!QFile::exists(from));
+
+   // where there is no file yet
+   QVERIFY(QFile::remove(to));
+   writeFile(from, "first");
+   QVERIFY(utilReplaceFile(from, to, &error));
+   QCOMPARE(contents(to), QByteArray("first"));
+
+   // nothing to put in place: the file is left as it is
+   QVERIFY(!utilReplaceFile(tmp.path() + "/nosuch", to, &error));
+   QVERIFY(!error.isEmpty());
+   QCOMPARE(contents(to), QByteArray("first"));
+
+#ifndef Q_OS_WIN
+   /* the file is replaced, not removed and then renamed: something
+      which had the old one open still reads the old one */
+   writeFile(from, "second");
+   QFile held(to);
+   QVERIFY(held.open(QIODevice::ReadOnly));
+   QVERIFY(utilReplaceFile(from, to, &error));
+   QCOMPARE(held.readAll(), QByteArray("first"));
+   QCOMPARE(contents(to), QByteArray("second"));
+#endif
+}
