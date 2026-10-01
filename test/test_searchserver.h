@@ -43,6 +43,10 @@ private slots:
    //! cannot be read leaves the users as they were
    void testUserStoreFile();
 
+   //! A running server follows useradd, passwd and a broken users.json
+   //! without a restart
+   void testUsersFollowFile();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 

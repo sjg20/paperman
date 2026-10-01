@@ -485,6 +485,13 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                       const QHash<QString, QString> &params,
                                       QTcpSocket *client)
 {
+    /* Follow changes to the users file (useradd, passwd, userdel) as
+     * they are made, rather than at the next restart.  This comes first:
+     * logging in checks the passwords, and isAuthEnabled() depends on
+     * there being users. */
+    if (_users.reloadIfChanged())
+        qInfo() << "SearchServer: read" << _users.filePath() << "again";
+
     /* Logging in must work without a token, so handle it before the auth
        check below.  Other POST routes fall through and are dispatched
        after authentication. */
