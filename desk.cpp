@@ -129,8 +129,7 @@ Desk::~Desk ()
    if (_dir != QString() && _do_writeDesk && (!_isRemote || _dirty)
        && !writeDesk ())
       printf ("couldn't write maxdesk.ini\n");
-   while (!_files.isEmpty ())
-      delete _files.takeFirst ();
+   clear ();
    }
 
 
@@ -151,7 +150,12 @@ void Desk::setup ()
 
 void Desk::clear (void)
    {
-   _files.clear ();
+   /* the desk owns its files: dropping the pointers without deleting
+      them leaks each one, and a file which holds its stack open, such as
+      a PDF, keeps it open for good, so that it cannot be deleted or
+      renamed on Windows */
+   while (!_files.isEmpty ())
+      delete _files.takeFirst ();
    }
 
 
