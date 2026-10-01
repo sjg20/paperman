@@ -209,11 +209,60 @@ bool SearchServer::start()
 
     qDebug() << "SearchServer: Listening on port" << _port;
     qDebug() << "SearchServer: Repository root:" << _rootPath;
+    startReaders();
     return true;
+}
+
+
+void SearchServer::startReaders()
+{
+    if (_readWorkers <= 0 || !_readers.isEmpty())
+        return;
+
+    /* the record of what has been read lives on this machine: the
+       repository may be on a network filesystem, where SQLite cannot rely
+       on locking.  The path is part of the name, so two repositories with
+       the same name do not share one */
+    QString dir = QStandardPaths::writableLocation(
+                      QStandardPaths::GenericDataLocation)
+                  + "/paperman-server";
+
+    for (const QString &root : _rootPaths) {
+        QString name = QFileInfo(root).fileName();
+        QString hash = QString::fromLatin1(QCryptographicHash::hash(
+            root.toUtf8(), QCryptographicHash::Sha256).toHex().left(8));
+        QString record = QString("%1/read-%2-%3.db").arg(dir, name, hash);
+        auto *reader = new RepoReader(root, record, _readWorkers, this);
+        QString error;
+
+        if (_readEngine)
+            reader->setEngine(_readEngine);
+        connect(reader, &RepoReader::stackRead, this,
+                [this, name](const QString &relPath, int pages) {
+                    qInfo() << "SearchServer: read" << pages << "pages of"
+                            << relPath;
+                    notifyStackEvent(name, "annotations", relPath, "",
+                                     QString());
+                });
+        if (!reader->start(&error)) {
+            qWarning() << "SearchServer: cannot read the pages of" << root
+                       << ":" << error;
+            delete reader;
+            continue;
+        }
+        qInfo() << "SearchServer: reading the pages of" << root << "with"
+                << _readWorkers << "workers";
+        _readers.insert(name, reader);
+    }
 }
 
 void SearchServer::stop()
 {
+    /* the pages being read finish, but nothing more is written: a stack
+       is either as it was or has all the words read from it */
+    qDeleteAll(_readers);
+    _readers.clear();
+
     // Kill any in-flight gs processes
     for (auto it = _pendingExtractions.begin();
          it != _pendingExtractions.end(); ++it) {
@@ -626,6 +675,26 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         QJsonArray features;
         features.append("pages");
         obj["features"] = features;
+
+        /* how far the server has got reading the pages of each
+           repository, when it reads them */
+        if (!_readers.isEmpty()) {
+            QJsonObject reading;
+
+            for (auto it = _readers.constBegin(); it != _readers.constEnd();
+                 ++it) {
+                RepoReader::Status st = (*it)->status();
+                QJsonObject r;
+
+                r["scanning"] = st.scanning;
+                r["pending"] = st.pending;
+                r["stacks"] = st.stacks;
+                r["pages"] = st.pages;
+                r["written"] = st.written;
+                reading[it.key()] = r;
+            }
+            obj["reading"] = reading;
+        }
         QJsonDocument doc(obj);
         return buildHttpResponse(200, "OK", "application/json",
                                  QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
@@ -2154,6 +2223,17 @@ void SearchServer::notifyStackEvent(const QString &repoName,
                                     const QString &name,
                                     const QString &clientId)
 {
+    /* A stack which has changed or arrived, such as a new scan, is read
+       before the rest.  A rename, unstack and so on also names the new
+       stack; the reader ignores anything which is not a stack */
+    if (RepoReader *reader = _readers.value(repoName)) {
+        reader->stackChanged(path);
+        if (!name.isEmpty()) {
+            QString dir = QFileInfo(path).path();
+            reader->stackChanged(dir == "." ? name : dir + "/" + name);
+        }
+    }
+
     if (_eventClients.isEmpty())
         return;
 

@@ -2835,3 +2835,84 @@ void TestSearchServer::testLoginsSurviveRestart()
         QVERIFY(reread.lookup(old).isEmpty());
     }
 }
+
+
+void TestSearchServer::testServerReadsPages()
+{
+    // the record of what was read goes in the redirected data directory
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+
+    // no users, as other tests here may leave, so no logging in
+    QFile::remove(QStandardPaths::writableLocation(
+                      QStandardPaths::GenericConfigLocation)
+                  + "/paperman-server/users.json");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+
+    auto calls = std::make_shared<std::atomic<int>>(0);
+    RepoReader::Engine engine = [calls](QImage &, OcrPage &page) {
+        page.size = QSize(100, 100);
+        page.words << OcrWord{QRect(0, 0, 10, 10),
+                              QString("read%1").arg(++*calls), 90, 0, 0};
+        return QString();
+    };
+
+    auto readingStatus = [this, repo]() {
+        auto resp = get("/v1/status");
+        return QJsonDocument::fromJson(resp.body).object()
+                   .value("reading").toObject().value(repo).toObject();
+    };
+    auto allRead = [](const QString &path) {
+        Filemax max(QFileInfo(path).absolutePath() + "/",
+                    QFileInfo(path).fileName(), nullptr);
+        if (max.load() || !max.pagecount())
+            return false;
+        for (int i = 0; i < max.pagecount(); i++) {
+            OcrPage page;
+            if (max.getPageOcr(i, page) || page.isEmpty())
+                return false;
+        }
+        return true;
+    };
+
+    SearchServer server(tmpDir.path(), PORT);
+    server.setReadPages(1, engine);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    // the stack in the repository is read, and the status says so
+    QTRY_VERIFY_WITH_TIMEOUT(readingStatus().value("written").toInt() == 1,
+                             15000);
+    QJsonObject st = readingStatus();
+    QCOMPARE(st.value("pending").toInt(), 0);
+    QVERIFY(st.value("pages").toInt() > 1);
+    QVERIFY(allRead(dir + "testfile.max"));
+
+    // a stack uploaded, as a scan is, is read without waiting for a pass
+    QFile src(testSrc + "/testfile.max");
+    QVERIFY(src.open(QIODevice::ReadOnly));
+    RemoteBackend backend(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QString finalName, etag;
+    QVERIFY2(backend.uploadFile(repo, "scan.max", src.readAll(), &finalName,
+                                &etag),
+             qPrintable(backend.lastError()));
+    QTRY_VERIFY_WITH_TIMEOUT(readingStatus().value("written").toInt() == 2,
+                             15000);
+    QVERIFY(allRead(dir + finalName));
+
+    // a server not asked to read pages says nothing about reading
+    server.stop();
+    SearchServer plain(tmpDir.path(), PORT);
+    QVERIFY(plain.start());
+    QVERIFY(get("/v1/status").ok());
+    QVERIFY(!QJsonDocument::fromJson(get("/v1/status").body).object()
+                 .contains("reading"));
+    plain.stop();
+}

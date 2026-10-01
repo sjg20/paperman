@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "backend.h"
 #include "cachedfile.h"
 #include "localbackend.h"
+#include "reporeader.h"
 #include "tokenstore.h"
 #include "userstore.h"
 
@@ -152,6 +153,17 @@ public:
      * Get list of repository paths
      */
     QStringList repositories() const { return _rootPaths; }
+
+    /** Read the pages of every stack in the repositories in the
+     *  background, @p workers stacks at a time, keeping the words with
+     *  the pages (see RepoReader).  0, the default, reads nothing.  Call
+     *  before start(); @p engine replaces tesseract, for testing. */
+    void setReadPages(int workers,
+                      const RepoReader::Engine &engine = RepoReader::Engine())
+    {
+        _readWorkers = workers;
+        _readEngine = engine;
+    }
 
 protected:
     /**
@@ -647,6 +659,13 @@ private:
     QList<QTcpSocket*> _clients;  //!< Connected clients
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     UserStore _users;       //!< Per-user account store
+    int _readWorkers = 0;            //!< see setReadPages()
+    RepoReader::Engine _readEngine;
+    QHash<QString, RepoReader *> _readers;  //!< by repository name
+
+    /** Start a reader for each repository, if asked to */
+    void startReaders();
+
     TokenStore _tokens{TokenStore::defaultPath()};  //!< Bearer tokens, kept
                             //!< across restarts
 

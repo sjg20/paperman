@@ -51,6 +51,11 @@ private slots:
    //! password or the user being deleted; the token file holds no tokens
    void testLoginsSurviveRestart();
 
+   //! A server told to read pages reads its repository's stacks in the
+   //! background, says how far it has got, and reads a stack uploaded to
+   //! it straight away
+   void testServerReadsPages();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
