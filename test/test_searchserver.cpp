@@ -2628,3 +2628,48 @@ void TestSearchServer::testDesktopRemotePages()
     QVERIFY(!QFile::exists(pageDir + "/page-2.max"));
     QVERIFY(!QFile::exists(whole));
 }
+
+
+void TestSearchServer::testUserStoreFile()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString path = tmp.path() + "/users.json";
+
+    {
+        UserStore store(path);
+        QVERIFY(store.addUser("alice", "s3cret"));
+        QVERIFY(store.save());
+    }
+
+    /* only the owner can read the hashes, and no temporary file is left.
+       Windows reports permissions from the read-only flag rather than
+       the file's ACL, so there is nothing to check there; the file is
+       under the user's profile, which is private already */
+#ifndef Q_OS_WIN
+    QFileDevice::Permissions perms = QFile::permissions(path);
+    QVERIFY(perms & QFileDevice::ReadOwner);
+    QVERIFY(!(perms & (QFileDevice::ReadGroup | QFileDevice::ReadOther)));
+#endif
+    QCOMPARE(QDir(tmp.path()).entryList(QDir::Files),
+             QStringList() << "users.json");
+
+    UserStore store(path);
+    QVERIFY(store.load());
+    QVERIFY(store.verify("alice", "s3cret"));
+
+    /* a file caught half-written, or broken by hand, is not taken as
+       having no users, which would turn authentication off */
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write("{\"alice\": {\"hash\": \"pbkdf2");
+    f.close();
+    QVERIFY(!store.load());
+    QCOMPARE(store.count(), 1);
+    QVERIFY(store.verify("alice", "s3cret"));
+
+    // a file which is gone does mean no users
+    QVERIFY(QFile::remove(path));
+    QVERIFY(store.load());
+    QCOMPARE(store.count(), 0);
+}
