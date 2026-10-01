@@ -84,7 +84,10 @@ Turning a page drops its text, which is then read again the right way up.
 To find a stack by what is written on it, use Edit > Search, choose
 "Text on the pages" and type some words: the stacks with all of them are
 shown, best first, each turned to the page which matches best. The last
-word may be the start of a word. The index behind this is kept in
+word may be the start of a word. Text which OCR put into a stack's OCR
+annotation, as it did before pages kept their own words, and text typed
+there, is found too, on the stack's first page. The index behind this is
+kept in
 ``.paperindex`` at the top of the repository and is brought up to date
 each time you search.
 

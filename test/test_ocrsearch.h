@@ -50,6 +50,10 @@ private slots:
 
    //! the index follows the stacks as their text changes and they go
    void testIndexSync();
+
+   //! text in a stack's OCR annotation, where OCR used to put it, is
+   //! found on the stack's first page
+   void testIndexOcrAnnotation();
 };
 
 #endif // TEST_OCRSEARCH_H
