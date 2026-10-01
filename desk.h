@@ -128,6 +128,7 @@ public:
    //! destructor
    ~Desk ();
 
+   //! remove and delete every file on the desk
    void clear (void);
 
    /**

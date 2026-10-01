@@ -1747,7 +1747,13 @@ void Desktopmodel::clearAll (QModelIndex &parent)
    Desk *desk = getDesk (parent);
 
    beginRemoveRows (parent, 0, desk->fileCount () - 1);
-   desk->clear ();
+      {
+      /* as in internalRemoveRows(): this deletes the files, and the
+         render thread may be decoding a page from one of them */
+      QMutexLocker locker (&_imageMutex);
+
+      desk->clear ();
+      }
    desk->updateRowCount ();
    endRemoveRows ();
    }
