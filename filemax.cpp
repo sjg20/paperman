@@ -5434,6 +5434,26 @@ err_info *Filemax::flush (void)
    CALL (open.err ());
    ensure_all_chunks ();
 
+   /* An older file (version 0, PaperPort's or an early Paperman's)
+      keeps no date in its page records, so each page shows the date of
+      the file.  The header written below makes it a current file, whose
+      page dates are read from the records, and a record not rewritten
+      here would then give whatever an old one has in that place, often
+      nothing, which is 1970.  So rewrite every record with the date its
+      page shows now, reading it while the file still counts as old */
+   if (_version == 0)
+      {
+      for (page_info &page : _pages)
+         {
+         if (!page.roswell)
+            continue;
+         if (!page.have_roswell)
+            CALL (page_read_roswell (page));
+         CALL (create_roswell (page));
+         }
+      _version = MAX_VERSION;
+      }
+
    // write back any changed page titles
    CALL (flush_pages ());
 
