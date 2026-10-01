@@ -22,6 +22,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#pragma once
+
 #include "ocr.h"
 
 

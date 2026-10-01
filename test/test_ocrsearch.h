@@ -54,6 +54,19 @@ private slots:
    //! text in a stack's OCR annotation, where OCR used to put it, is
    //! found on the stack's first page
    void testIndexOcrAnnotation();
+
+   //! the server's reader reads the unread pages of every stack in a
+   //! repository but the hidden ones, and puts the words in each in one
+   //! step, keeping the stack's permissions
+   void testRepoReaderReads();
+
+   //! what has been read, or found to have nothing on it, is not read
+   //! again until it changes, even after a restart
+   void testRepoReaderResumes();
+
+   //! a stack which changes while it is being read is read again as it
+   //! is now, and one which arrives is read at once
+   void testRepoReaderChanges();
 };
 
 #endif // TEST_OCRSEARCH_H

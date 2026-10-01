@@ -4,6 +4,7 @@ LANGUAGE = C++
 QT += network
 QT += gui
 QT += concurrent
+QT += sql
 
 CONFIG += qt warn_on console
 CONFIG -= app_bundle
@@ -34,6 +35,7 @@ HEADERS += builddate.h \
     searchserver.h \
     serverlog.h \
     tokenstore.h \
+    reporeader.h \
     userstore.h \
     file.h \
     filemax.h \
@@ -58,6 +60,7 @@ SOURCES += searchserver.cpp \
     localbackend.cpp \
     serverlog.cpp \
     tokenstore.cpp \
+    reporeader.cpp \
     userstore.cpp \
     paperman-server.cpp \
     file.cpp \
