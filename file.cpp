@@ -63,6 +63,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #endif
 
 
+#ifndef QT_NO_WIDGETS
 /** encode a QImage as a greyscale JPEG using libjpeg directly
  *
  * Qt's JPEG encoder always produces RGB output even for greyscale data.
@@ -117,6 +118,7 @@ static QByteArray encodeGreyJpeg (const QImage &image, int quality)
    jpeg_destroy_compress (&cinfo);
    return result;
    }
+#endif
 
 
 
