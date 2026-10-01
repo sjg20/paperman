@@ -47,6 +47,10 @@ private slots:
    //! without a restart
    void testUsersFollowFile();
 
+   //! A login survives a restart of the server, but not a change of
+   //! password or the user being deleted; the token file holds no tokens
+   void testLoginsSurviveRestart();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 

@@ -481,6 +481,17 @@ void SearchServer::parseRequest(const QString &request, QString &method,
     }
 }
 
+QString SearchServer::loginStamp(const QString &user) const
+{
+    const UserStore::User *u = _users.lookup(user);
+
+    if (!u)
+        return QString();
+    return QString::fromLatin1(QCryptographicHash::hash(
+               u->hash.toUtf8(), QCryptographicHash::Sha256).toHex().left(16));
+}
+
+
 QByteArray SearchServer::handleRequest(const QString &method, const QString &path,
                                       const QHash<QString, QString> &params,
                                       QTcpSocket *client)
@@ -517,7 +528,18 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         } else {
             QString token = params.value("__bearer_token__");
             if (!token.isEmpty()) {
-                authedUser = _tokens.lookup(token);
+                QString stamp;
+
+                authedUser = _tokens.lookup(token, &stamp);
+
+                /* Tokens outlive a restart, so a restart no longer ends
+                   them: a password changed, or a user deleted, since the
+                   token was issued does */
+                if (!authedUser.isEmpty()
+                    && stamp != loginStamp(authedUser)) {
+                    _tokens.revoke(token);
+                    authedUser.clear();
+                }
                 if (!authedUser.isEmpty())
                     authOk = true;
             }
@@ -864,12 +886,12 @@ QByteArray SearchServer::handleAuthLogin(const QHash<QString, QString> &params)
                                      "Invalid credentials"));
     }
 
-    QString token = _tokens.mint(user);
+    QString token = _tokens.mint(user, 30, loginStamp(user));
 
     QJsonObject out;
     out["token"] = token;
     out["user"]  = user;
-    /* TTL is fixed at 30 days in TokenStore::mint default; report it
+    /* TTL is fixed at 30 days, as passed to mint() above; report it
      * back so clients can refresh ahead of expiry without a hard-coded
      * constant on their side. */
     out["expiry"] = QDateTime::currentDateTime().addDays(30)

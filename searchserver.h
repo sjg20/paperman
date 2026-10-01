@@ -647,7 +647,13 @@ private:
     QList<QTcpSocket*> _clients;  //!< Connected clients
     QString _apiKey;        //!< API key for authentication (from PAPERMAN_API_KEY env var)
     UserStore _users;       //!< Per-user account store
-    TokenStore _tokens;     //!< In-memory bearer tokens
+    TokenStore _tokens{TokenStore::defaultPath()};  //!< Bearer tokens, kept
+                            //!< across restarts
+
+    /** What ties a token to the password a user had when it was issued:
+     *  a fingerprint of the stored hash, which a new password (with its
+     *  fresh salt) changes.  Empty for a user who does not exist. */
+    QString loginStamp(const QString &user) const;
     std::unique_ptr<LocalBackend> _backend;  //!< Data-source (owns the file cache)
     QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
     QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path
