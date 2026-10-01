@@ -183,13 +183,16 @@ void File::setup (void)
 #ifndef QT_NO_WIDGETS
       unknown = new QPixmap (utilIconPixmap ("unknown", 64));
 #else
-      // the server has no icons, and never shows this
-      unknown = new QPixmap (64, 64);
-      unknown->fill (Qt::lightGray);
+      /* the server has no icons and never shows this.  It runs with a
+         QCoreApplication, which can hold a null pixmap but not draw
+         one: a pixmap with a size aborts with "QGuiApplication
+         required", and every File is set up here */
+      unknown = new QPixmap ();
 #endif
       }
-//    Q_ASSERT (!_no_access.isNull ());
+#ifndef QT_NO_WIDGETS
    Q_ASSERT (!unknown->isNull ());
+#endif
    _order = -1;
    _annot_loaded = false;
    _env_loaded = false;
