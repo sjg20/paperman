@@ -38,5 +38,14 @@ public:
    err_info *imageToPage (QImage &image, OcrPage &page) override;
 
    err_info *init (void);
+
+   /** Run tesseract as background work: at low priority, where the
+       system can lower it, and on one thread, since several readers
+       each running a thread per core only get in each other's way.
+       OCR that someone is waiting for should not use this */
+   void setBackground (bool background) { _background = background; }
+
+private:
+   bool _background = false;
    };
 

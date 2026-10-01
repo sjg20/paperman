@@ -98,7 +98,24 @@ err_info *Ocrtess::imageToPage (QImage &image, OcrPage &page)
       return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (tmp));
 
    QProcess proc;
-   proc.start (exe, QStringList () << tmp << base.fileName () << "tsv");
+   QString program = exe;
+   QStringList args = QStringList () << tmp << base.fileName () << "tsv";
+
+   if (_background)
+      {
+      QProcessEnvironment env = QProcessEnvironment::systemEnvironment ();
+
+      env.insert ("OMP_THREAD_LIMIT", "1");
+      proc.setProcessEnvironment (env);
+
+      QString nice = QStandardPaths::findExecutable ("nice");
+      if (!nice.isEmpty ())
+         {
+         args = QStringList () << "-n" << "15" << exe << args;
+         program = nice;
+         }
+      }
+   proc.start (program, args);
    bool ok = proc.waitForFinished (-1) && proc.exitStatus () == QProcess::NormalExit
              && proc.exitCode () == 0;
    QFile::remove (tmp);
