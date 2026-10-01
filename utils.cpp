@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #ifndef _WIN32
 #include <grp.h>
@@ -1686,15 +1687,38 @@ bool utilRenameFile(const QString &from, const QString &to, QString *error)
 
 bool utilReplaceFile(const QString &from, const QString &to, QString *error)
 {
-   QFile old(to);
-
+   /* Replace in one step, so that whatever happens the file is either
+      the old one or the new one: removing it first and then renaming
+      leaves a moment when it does not exist, and a crash then loses it.
+      Windows refuses while the file is open, as for utilRenameFile(), so
+      keep trying for a while */
    for (int i = 0; i < RENAME_RETRIES; i++) {
-      if (!old.exists() || old.remove())
-         return utilRenameFile(from, to, error);
+#ifdef _WIN32
+      if (MoveFileExW(reinterpret_cast<const wchar_t *>(
+                         QDir::toNativeSeparators(from).utf16()),
+                      reinterpret_cast<const wchar_t *>(
+                         QDir::toNativeSeparators(to).utf16()),
+                      MOVEFILE_REPLACE_EXISTING))
+         return true;
+#else
+      if (!::rename(QFile::encodeName(from).constData(),
+                    QFile::encodeName(to).constData()))
+         return true;
+      if (errno != EBUSY)
+         break;
+#endif
+      if (!QFile::exists(from))
+         break;
       QThread::msleep(50);
    }
-   if (error)
-      *error = QString("cannot remove %1: %2").arg(to, old.errorString());
+   if (error) {
+#ifdef _WIN32
+      *error = QString("cannot replace %1: error %2").arg(to)
+                  .arg(GetLastError());
+#else
+      *error = QString("cannot replace %1: %2").arg(to, strerror(errno));
+#endif
+   }
    return false;
 }
 

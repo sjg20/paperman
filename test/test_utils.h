@@ -61,6 +61,10 @@ private slots:
 
    //! each icon draws, in the palette's text colour, or its own for status
    void testIcons();
+
+   //! utilReplaceFile() puts a file in place of another, or where there
+   //! is none, and leaves the original alone when it cannot
+   void testReplaceFile();
 private:
    // Create files in a temporary directory structure used for testing
    void createDirStructure(QTemporaryDir& tmp);
