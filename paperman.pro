@@ -345,6 +345,7 @@ test {
       searchserver.cpp \
       serverlog.cpp \
       tokenstore.cpp \
+      reporeader.cpp \
       userstore.cpp
 
    HEADERS += test/suite.h \
@@ -369,6 +370,7 @@ test {
       searchserver.h \
       serverlog.h \
       tokenstore.h \
+      reporeader.h \
       userstore.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST

@@ -11,6 +11,7 @@
 #include "ocrtess.h"
 #include "ocrpage.h"
 #include "ocrreader.h"
+#include "reporeader.h"
 #include "filemax.h"
 #include <QBitArray>
 #include <QSignalSpy>
@@ -670,4 +671,245 @@ void TestOcrSearch::testIndexOcrAnnotation()
    QCOMPARE(found(index, "receipt"), QStringList({"b.max:0"}));
    QCOMPARE(found(index, "banana"), QStringList({"b.max:2"}));
    QCOMPARE(found(index, "apple"), QStringList({"c.max:0"}));
+}
+
+
+/* A repository to read: two stacks, one in a folder, and two which are
+   not to be read, one in the trash and one hidden */
+static QString makeRepo(QTemporaryDir &tmp)
+{
+   QString repo = tmp.path() + "/repo";
+
+   for (const char *dir : {"sub", ".maxview-trash"})
+      if (!QDir().mkpath(repo + "/" + dir))
+         return QString();
+   for (const char *name : {"a.max", "sub/b.max", ".maxview-trash/c.max",
+                            "sub/.hidden.max"})
+      if (!QFile::copy(Test::testSrc + "/testfile.max",
+                       repo + "/" + name))
+         return QString();
+   return repo;
+}
+
+
+/* The words on each page of a stack, or "-" for a page with none */
+static QStringList wordsOf(const QString &path)
+{
+   QFileInfo fi(path);
+   Filemax max(fi.absolutePath() + "/", fi.fileName(), nullptr);
+   QStringList out;
+
+   if (max.load())
+      return QStringList("error");
+   for (int i = 0; i < max.pagecount(); i++)
+      {
+      OcrPage page;
+
+      max.getPageOcr(i, page);
+      out << (page.isEmpty() ? QString("-") : page.text());
+      }
+   return out;
+}
+
+
+/* An engine which says which call it is, without tesseract */
+struct CountingEngine
+   {
+   std::shared_ptr<std::atomic<int>> calls
+         = std::make_shared<std::atomic<int>>(0);
+   bool blank = false;
+
+   RepoReader::Engine engine() const
+      {
+      auto c = calls;
+      bool b = blank;
+
+      return [c, b](QImage &, OcrPage &page)
+         {
+         int n = ++*c;
+
+         if (!b)
+            page = pageSaying(QString("read%1").arg(n));
+         return QString();
+         };
+      }
+   };
+
+
+static bool runReader(RepoReader &reader)
+{
+   QSignalSpy idle(&reader, &RepoReader::idle);
+   QString error;
+
+   if (!reader.start(&error))
+      {
+      qWarning() << error;
+      return false;
+      }
+   for (int i = 0; i < 200 && !(idle.count() && reader.isIdle()); i++)
+      idle.wait(50);
+   return reader.isIdle();
+}
+
+
+void TestOcrSearch::testRepoReaderReads()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   QString repo = makeRepo(tmp);
+   QVERIFY(!repo.isEmpty());
+   const int pages = wordsOf(repo + "/a.max").size();
+   QVERIFY(pages > 1);
+
+#ifndef Q_OS_WIN
+   QVERIFY(QFile::setPermissions(repo + "/a.max", QFile::ReadOwner
+                                 | QFile::WriteOwner | QFile::ReadGroup));
+#endif
+   QFile::Permissions perms = QFile::permissions(repo + "/a.max");
+
+   CountingEngine counting;
+   RepoReader reader(repo, tmp.path() + "/read.db", 2);
+   reader.setEngine(counting.engine());
+   reader.setRescanInterval(0);
+   QSignalSpy read(&reader, &RepoReader::stackRead);
+   QVERIFY(runReader(reader));
+
+   // every page of the two stacks in the repository is read
+   QCOMPARE(*counting.calls, 2 * pages);
+   QCOMPARE(read.count(), 2);
+   for (const char *name : {"a.max", "sub/b.max"})
+      {
+      QStringList words = wordsOf(repo + "/" + name);
+
+      QCOMPARE(words.size(), pages);
+      QVERIFY2(!words.contains("-"), qPrintable(words.join(", ")));
+      QVERIFY(words.first().startsWith("read"));
+      }
+
+   // the trash and hidden stacks are left alone
+   QVERIFY(!wordsOf(repo + "/.maxview-trash/c.max").contains("read1"));
+   QCOMPARE(wordsOf(repo + "/.maxview-trash/c.max"),
+            QStringList(QVector<QString>(pages, "-").toList()));
+   QCOMPARE(wordsOf(repo + "/sub/.hidden.max"),
+            QStringList(QVector<QString>(pages, "-").toList()));
+
+   // nothing is left behind, and the stack keeps its permissions
+   QDirIterator it(repo, QStringList() << "*.reading",
+                   QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
+   QVERIFY2(!it.hasNext(), qPrintable(it.hasNext() ? it.next() : ""));
+   QCOMPARE(QFile::permissions(repo + "/a.max"), perms);
+
+   RepoReader::Status status = reader.status();
+   QCOMPARE(status.stacks, 2);
+   QCOMPARE(status.written, 2);
+   QCOMPARE(status.pages, 2 * pages);
+   QCOMPARE(status.pending, 0);
+}
+
+
+void TestOcrSearch::testRepoReaderResumes()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   QString repo = makeRepo(tmp);
+   QVERIFY(!repo.isEmpty());
+   QString db = tmp.path() + "/read.db";
+
+   // stacks with nothing on them to read
+   CountingEngine blank;
+   blank.blank = true;
+   {
+      RepoReader reader(repo, db, 2);
+      reader.setEngine(blank.engine());
+      reader.setRescanInterval(0);
+      QVERIFY(runReader(reader));
+   }
+   int first = *blank.calls;
+   QVERIFY(first > 0);
+   QVERIFY(wordsOf(repo + "/a.max").contains("-"));
+
+   // a restart reads nothing again, though nothing was found
+   {
+      RepoReader reader(repo, db, 2);
+      reader.setEngine(blank.engine());
+      reader.setRescanInterval(0);
+      QVERIFY(runReader(reader));
+      QCOMPARE(reader.status().stacks, 0);
+   }
+   QCOMPARE(*blank.calls, first);
+
+   // until a stack changes: then that one is read
+   {
+      Filemax max(repo + "/", "a.max", nullptr);
+      QHash<int, QString> updates;
+
+      QVERIFY(!max.load());
+      updates[File::Annot_author] = "someone";
+      QVERIFY(!max.putAnnot(updates));
+      QVERIFY(!max.flush());
+   }
+   CountingEngine counting;
+   {
+      RepoReader reader(repo, db, 2);
+      reader.setEngine(counting.engine());
+      reader.setRescanInterval(0);
+      QVERIFY(runReader(reader));
+      QCOMPARE(reader.status().stacks, 1);
+   }
+   QCOMPARE(*counting.calls, wordsOf(repo + "/a.max").size());
+   QVERIFY(!wordsOf(repo + "/a.max").contains("-"));
+   QVERIFY(wordsOf(repo + "/sub/b.max").contains("-"));
+}
+
+
+void TestOcrSearch::testRepoReaderChanges()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   QString repo = tmp.path() + "/repo";
+   QVERIFY(QDir().mkpath(repo));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", repo + "/a.max"));
+   const int pages = wordsOf(repo + "/a.max").size();
+
+   /* the stack changes while its first page is being read, as when
+      someone edits it meanwhile: what was read is not written over the
+      change, and the stack is read again */
+   auto calls = std::make_shared<std::atomic<int>>(0);
+   QString path = repo + "/a.max";
+   RepoReader::Engine touching = [calls, path](QImage &, OcrPage &page) {
+      if (++*calls == 1)
+         {
+         QFile f(path);
+         f.open(QIODevice::ReadWrite);
+         f.setFileTime(QDateTime::currentDateTime().addSecs(-3600),
+                       QFileDevice::FileModificationTime);
+         }
+      page = pageSaying(QString("read%1").arg(int(*calls)));
+      return QString();
+   };
+
+   RepoReader reader(repo, tmp.path() + "/read.db", 1);
+   reader.setEngine(touching);
+   reader.setRescanInterval(0);
+   QSignalSpy read(&reader, &RepoReader::stackRead);
+   QVERIFY(runReader(reader));
+   QCOMPARE(int(*calls), 2 * pages);
+   QCOMPARE(read.count(), 1);
+   QCOMPARE(reader.status().written, 1);
+   QStringList words = wordsOf(path);
+   QVERIFY2(!words.contains("-"), qPrintable(words.join(", ")));
+   QCOMPARE(words.first(), QString("read%1").arg(pages + 1));
+
+   // a stack which arrives is read without waiting for another pass
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", repo + "/new.max"));
+   QSignalSpy idle(&reader, &RepoReader::idle);
+   reader.stackChanged("new.max");
+   QTRY_VERIFY_WITH_TIMEOUT(reader.isIdle() && read.count() == 2, 10000);
+   QVERIFY(!wordsOf(repo + "/new.max").contains("-"));
+
+   // a hidden or vanished stack, or not a stack, is ignored
+   reader.stackChanged(".maxview-trash/x.max");
+   reader.stackChanged("gone.max");
+   reader.stackChanged("notes.txt");
+   QVERIFY(reader.isIdle());
 }
