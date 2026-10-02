@@ -18,6 +18,8 @@
 #include <QFont>
 #include <QImage>
 #include <QPainter>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QStandardPaths>
 
 void TestOcrSearch::testOcrIndexing()
@@ -671,6 +673,57 @@ void TestOcrSearch::testIndexOcrAnnotation()
    QCOMPARE(found(index, "receipt"), QStringList({"b.max:0"}));
    QCOMPARE(found(index, "banana"), QStringList({"b.max:2"}));
    QCOMPARE(found(index, "apple"), QStringList({"c.max:0"}));
+}
+
+
+/* Run SQL on an index directly, as another program might */
+static void execIndex(const QString &dir, const QStringList &sqls)
+{
+   {
+      QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "rawindex");
+      db.setDatabaseName(dir + ".paperindex");
+      QVERIFY(db.open());
+      QSqlQuery query(db);
+      for (const QString &sql : sqls)
+         QVERIFY2(query.exec(sql), qPrintable(sql));
+   }
+   QSqlDatabase::removeDatabase("rawindex");
+}
+
+
+void TestOcrSearch::testIndexVersion()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+   annotate(dir, "a.max", "quarterly water bill");
+
+   {
+      SearchIndex index;
+      QVERIFY(!index.init(dir));
+      QVERIFY(!index.sync(dir));
+      QCOMPARE(found(index, "water"), QStringList({"a.max:0"}));
+   }
+
+   // an index of this version is not built again: what it lacks stays
+   // lacking until the stack changes
+   execIndex(dir, {"DELETE FROM ocr_index"});
+   {
+      SearchIndex index;
+      QVERIFY(!index.init(dir));
+      QVERIFY(!index.sync(dir));
+      QCOMPARE(found(index, "water"), QStringList());
+   }
+
+   // but one built by an older version, without the annotation, is built
+   // again, though the stack has not changed
+   execIndex(dir, {"PRAGMA user_version = 0"});
+   {
+      SearchIndex index;
+      QVERIFY(!index.init(dir));
+      QVERIFY(!index.sync(dir));
+      QCOMPARE(found(index, "water"), QStringList({"a.max:0"}));
+   }
 }
 
 

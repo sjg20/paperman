@@ -20,6 +20,14 @@ License: GPL-2
 #include "file.h"
 #include "ocrpage.h"
 
+/* The version of what the index holds, kept as the database's
+   user_version.  Raise it when stackText() finds text it did not before,
+   so that an index built before then is built again:
+
+   1  each page's words, or a file's own text (an index with no version)
+   2  also the stack's OCR annotation, on the first page */
+#define INDEX_VERSION   2
+
 SearchIndex::SearchIndex()
    {
    }
@@ -86,6 +94,22 @@ err_info *SearchIndex::createTable()
       {
       QString error = query.lastError().text();
       return err_make(ERRFN, ERR_sql_error1, qPrintable(error));
+      }
+
+   /* An index built by an older version lacks text which stackText() now
+      finds, but sync() only looks again at a stack which changes.  Forget
+      everything, so that the next sync() reads every stack again */
+   if (!query.exec("PRAGMA user_version") || !query.next())
+      return err_make(ERRFN, ERR_sql_error1,
+                      qPrintable(query.lastError().text()));
+   if (query.value(0).toInt() < INDEX_VERSION)
+      {
+      if (!query.exec("DELETE FROM ocr_index")
+          || !query.exec("DELETE FROM files")
+          || !query.exec(QString("PRAGMA user_version = %1")
+                         .arg(INDEX_VERSION)))
+         return err_make(ERRFN, ERR_sql_error1,
+                         qPrintable(query.lastError().text()));
       }
 
    return nullptr;

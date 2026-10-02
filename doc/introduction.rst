@@ -87,9 +87,10 @@ shown, best first, each turned to the page which matches best. The last
 word may be the start of a word. Text which OCR put into a stack's OCR
 annotation, as it did before pages kept their own words, and text typed
 there, is found too, on the stack's first page. The index behind this is
-kept in
-``.paperindex`` at the top of the repository and is brought up to date
-each time you search.
+kept in ``.paperindex`` at the top of the repository and is brought up to
+date each time you search. When a new version of Paperman finds text
+which an older one did not, it builds the index again the first time you
+search, which can take a while in a large repository.
 
 The PDFs Paperman makes, when duplicating, emailing or copying stacks,
 have the words of each page which has been read as an invisible layer of
