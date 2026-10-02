@@ -55,6 +55,10 @@ private slots:
    //! found on the stack's first page
    void testIndexOcrAnnotation();
 
+   //! an index built by an older version, which lacks text now found,
+   //! is built again
+   void testIndexVersion();
+
    //! the server's reader reads the unread pages of every stack in a
    //! repository but the hidden ones, and puts the words in each in one
    //! step, keeping the stack's permissions
