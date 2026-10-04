@@ -51,6 +51,10 @@ private slots:
    //! the index follows the stacks as their text changes and they go
    void testIndexSync();
 
+   //! an index kept away from the stacks can be searched while it is
+   //! being written, and brought up to date a stack at a time
+   void testIndexElsewhere();
+
    //! text in a stack's OCR annotation, where OCR used to put it, is
    //! found on the stack's first page
    void testIndexOcrAnnotation();

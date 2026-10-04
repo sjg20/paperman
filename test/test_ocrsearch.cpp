@@ -633,6 +633,72 @@ void TestOcrSearch::testIndexSync()
 }
 
 
+/* Give a stack's first page some words, as a change made since it was
+   indexed */
+static void say(const QString &dir, const QString &fname, const QString &text,
+                int ageSecs = 0)
+{
+   {
+      Filemax max(dir, fname, nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.putPageOcr(0, pageSaying(text)));
+   }
+   QFile file(dir + fname);
+   QVERIFY(file.open(QIODevice::ReadWrite));
+   QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(ageSecs),
+                            QFileDevice::FileModificationTime));
+}
+
+
+void TestOcrSearch::testIndexElsewhere()
+{
+   QTemporaryDir tmp, local;
+   QString dir = tmp.path() + "/";
+   QString indexPath = local.path() + "/index.db";
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "b.max"));
+   say(dir, "a.max", "invoice for apples");
+
+   // the index is kept where asked, not with the stacks
+   SearchIndex writer;
+   QVERIFY(!writer.init(dir, indexPath));
+   QVERIFY(!writer.sync(dir));
+   QVERIFY(QFile::exists(indexPath));
+   QVERIFY(!QFile::exists(dir + ".paperindex"));
+
+   // another connection searches it, which with a write-ahead log need
+   // not wait for the first to finish writing
+   SearchIndex reader;
+   QVERIFY(!reader.init(dir, indexPath));
+   QCOMPARE(found(reader, "invoice"), QStringList({"a.max:0"}));
+   {
+      QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "rawindex");
+      db.setDatabaseName(indexPath);
+      QVERIFY(db.open());
+      QSqlQuery query(db);
+      QVERIFY(query.exec("PRAGMA journal_mode") && query.next());
+      QCOMPARE(query.value(0).toString(), QString("wal"));
+   }
+   QSqlDatabase::removeDatabase("rawindex");
+
+   // one stack is brought up to date, leaving the rest as they are
+   say(dir, "a.max", "pears", 10);
+   say(dir, "b.max", "banana", 10);
+   QVERIFY(!writer.syncStack(dir + "a.max"));
+   QCOMPARE(found(reader, "pears"), QStringList({"a.max:0"}));
+   QCOMPARE(found(reader, "invoice"), QStringList());
+   QCOMPARE(found(reader, "banana"), QStringList());
+
+   // one which is unchanged is not read again; one which goes is dropped
+   QVERIFY(!writer.syncStack(dir + "a.max"));
+   QVERIFY(QFile::remove(dir + "a.max"));
+   QVERIFY(!writer.syncStack(dir + "a.max"));
+   QCOMPARE(found(reader, "pears"), QStringList());
+   QVERIFY(!writer.syncStack(dir + "b.max"));
+   QCOMPARE(found(reader, "banana"), QStringList({"b.max:0"}));
+}
+
+
 /* Give a stack an OCR annotation, as the OCR button did before pages
    kept their own words */
 static void annotate(const QString &dir, const QString &fname,
