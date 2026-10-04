@@ -49,6 +49,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QPair>
 #include <QPoint>
 #include <QPixmap>
+
+#include <optional>
 #include <QRect>
 #include <QSize>
 #include <QStringList>
@@ -644,7 +646,21 @@ protected:
    int _pagenum;        //!< current page visible
 //   int _pagecount;      //!< number of pages
    int _size;       //!< file size
-   QPixmap _pixmap;     //!< preview image for this file
+   /** the preview image for this file, made when first wanted: under
+       Qt 5 a QPixmap cannot even be made empty on a thread other than
+       the main one without a GUI application, which the server lacks,
+       yet the server reads stacks on worker threads */
+   std::optional<QPixmap> _pixmap;
+
+   /** the preview image for this file, made if need be; only for the
+    *  main thread */
+   QPixmap &previewPixmap (void)
+      {
+      if (!_pixmap)
+         _pixmap.emplace ();
+      return *_pixmap;
+      }
+
    QSize _preview_maxsize;     //!< max preview size for file (this is the preview pixmap)
    QSize _title_maxsize;     //!< max pixel size for file (stack) title
    QSize _pagename_maxsize;     //!< max pixel size for all page titles

@@ -6842,11 +6842,12 @@ QPixmap Filemax::pixmap (bool recalc)
    if (recalc) {
       err = ensure_open();
       if (!err) {
-         err = getPreviewPixmap (_pagenum, _pixmap, false);
-         _pixmap = _pixmap.copy ();
+         err = getPreviewPixmap (_pagenum, previewPixmap (), false);
+         previewPixmap () = previewPixmap ().copy ();
          ensure_closed();
       }
    }
 
-   return err || _pixmap.isNull () ? unknownPixmap () : _pixmap;
+   return err || previewPixmap ().isNull () ? unknownPixmap ()
+      : previewPixmap ();
 }

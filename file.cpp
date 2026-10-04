@@ -179,21 +179,6 @@ void File::setup (void)
    _preview_maxsize = QSize (-1, -1);
    _title_maxsize = QSize (-1, -1);
    _pagename_maxsize = QSize (-1, -1);
-   if (!unknown)
-      {
-#ifndef QT_NO_WIDGETS
-      unknown = new QPixmap (utilIconPixmap ("unknown", 64));
-#else
-      /* the server has no icons and never shows this.  It runs with a
-         QCoreApplication, which can hold a null pixmap but not draw
-         one: a pixmap with a size aborts with "QGuiApplication
-         required", and every File is set up here */
-      unknown = new QPixmap ();
-#endif
-      }
-#ifndef QT_NO_WIDGETS
-   Q_ASSERT (!unknown->isNull ());
-#endif
    _order = -1;
    _annot_loaded = false;
    _env_loaded = false;
@@ -201,8 +186,24 @@ void File::setup (void)
    }
 
 
+/* This is made when first wanted, not when a File is: the server makes
+   Files on worker threads, where under Qt 5 even a null pixmap cannot be
+   made without a GUI application */
 QPixmap File::unknownPixmap (void)
    {
+   if (!unknown)
+      {
+#ifndef QT_NO_WIDGETS
+      unknown = new QPixmap (utilIconPixmap ("unknown", 64));
+      Q_ASSERT (!unknown->isNull ());
+#else
+      /* the server has no icons and never shows this.  It runs with a
+         QCoreApplication, which can hold a null pixmap but not draw
+         one: a pixmap with a size aborts with "QGuiApplication
+         required" */
+      unknown = new QPixmap ();
+#endif
+      }
    return *unknown;
    }
 
