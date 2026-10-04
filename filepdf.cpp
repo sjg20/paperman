@@ -247,8 +247,9 @@ QPixmap Filepdf::pixmap (bool recalc)
    err_info *err = NULL;
 
    if (recalc)
-      err = getPreviewPixmap (_pagenum, _pixmap, false);
-   return err || _pixmap.isNull () ? unknownPixmap () : _pixmap;
+      err = getPreviewPixmap (_pagenum, previewPixmap (), false);
+   return err || previewPixmap ().isNull () ? unknownPixmap ()
+      : previewPixmap ();
    }
 
 
