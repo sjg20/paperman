@@ -59,6 +59,8 @@ void printUsage(const char *progName)
               << "Options:\n"
               << "  -p, --port <port>    Port to listen on (default: 8080)\n"
               << "  -C, --no-cache       Skip building file cache at startup\n"
+              << "  -i, --index          Keep an index of the text on the pages,\n"
+              << "                       so that clients can search it\n"
               << "  -r, --read-pages <n> Read the pages of every stack in the\n"
               << "                       background (OCR), n stacks at a time,\n"
               << "                       keeping the words with the pages\n"
@@ -259,6 +261,7 @@ int main(int argc, char *argv[])
     quint16 port = 8080;
     bool skipCache = false;
     int readWorkers = 0;
+    bool textIndex = false;
 
     for (int i = 1; i < args.size(); i++) {
         if (args[i] == "-h" || args[i] == "--help") {
@@ -280,6 +283,9 @@ int main(int argc, char *argv[])
         }
         else if (args[i] == "-C" || args[i] == "--no-cache") {
             skipCache = true;
+        }
+        else if (args[i] == "-i" || args[i] == "--index") {
+            textIndex = true;
         }
         else if (args[i] == "-r" || args[i] == "--read-pages") {
             bool ok = false;
@@ -326,6 +332,7 @@ int main(int argc, char *argv[])
 
     SearchServer server(repositoryPath, port, nullptr, skipCache);
     server.setReadPages(readWorkers);
+    server.setTextIndex(textIndex);
     if (!server.start()) {
         std::cerr << "Error: Failed to start server" << std::endl;
         return 1;

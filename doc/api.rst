@@ -240,6 +240,22 @@ looked at, the pages read and the stacks given words since the server
 started. Each stack given words is announced on the event stream as an
 ``annotations`` change.
 
+When the server indexes the text on the pages (``--index``), an
+``indexing`` object shows how far it has got:
+
+.. code:: json
+
+   "indexing": {
+     "papers": {"syncing": true, "ready": false, "done": 12000,
+                "total": 49661}
+   }
+
+``syncing`` is true while the server looks through the repository for
+stacks which have changed, ``done`` and ``total`` count the stacks
+looked at so far and to look at, and ``ready`` is true once it has
+looked through the whole repository.  Such a server lists
+``textSearch`` in ``features``; see *Text Search (v1)* below.
+
 **Example**:
 
 .. code:: bash
@@ -889,6 +905,44 @@ Together these let a client lay a stack out from ``/info`` alone (the
 desktop draws its thumbnails from ``/thumbnail``) and fetch each page
 only when it is shown.  Opening the stack above and viewing its first
 ten pages costs about 1 MB rather than 75 MB.
+
+9. Text Search (v1)
+~~~~~~~~~~~~~~~~~~~
+
+A server started with ``--index`` keeps an index of the text on the
+pages of its stacks (what OCR read, or a PDF's own text) and lists
+``textSearch`` in the ``features`` array of ``GET /v1/status``.
+
+**Endpoint**: ``GET /v1/repos/{repo}/search?text=...``
+
+**Parameters**:
+
+-  ``text`` (required): the words to find, as a user types them.  Each
+   word must be on the page; the last may be the start of a longer
+   word.  Nothing in it is taken as query syntax
+-  ``path`` (optional): a folder in the repository to search in,
+   including its subfolders
+-  ``max`` (optional): the most stacks to return, 100 by default and
+   at most 1000
+
+The stacks with all the words on a page, best first, each once, at
+the page (1-based) which matches best, with the words around the match
+(each match in ``<b>`` and ``</b>``):
+
+.. code:: json
+
+   {
+     "success": true,
+     "complete": true,
+     "results": [
+       {"path": "bills/water.max", "page": 3,
+        "snippet": "...quarterly <b>water</b> bill for the..."}
+     ]
+   }
+
+``complete`` is false while the index is first being built, when it may
+lack some stacks.  The trash and hidden folders are left out.  A
+repository the server does not index is a 404.
 
 --------------
 

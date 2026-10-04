@@ -45,6 +45,8 @@ Options
 
 -  ``-p, --port <port>`` - Port to listen on (default: 8080)
 -  ``-C, --no-cache`` - Skip building the file cache at startup
+-  ``-i, --index`` - Keep an index of the text on the pages, so that
+   clients can search it; see `Searching Text`_
 -  ``-r, --read-pages <n>`` - Read the pages of every stack in the
    background (OCR), ``n`` stacks at a time; see `Reading Pages`_
 -  ``-h, --help`` - Show help message
@@ -86,7 +88,30 @@ With systemd, add the option to the service:
 
 .. code:: ini
 
-   ExecStart=/opt/paperman/paperman-server -p 8081 -r 8 /srv/papers
+   ExecStart=/opt/paperman/paperman-server -p 8081 -i -r 8 /srv/papers
+
+Searching Text
+~~~~~~~~~~~~~~
+
+With ``--index`` the server keeps an index of the text on the pages of
+every stack in its repositories, as the desktop does for a folder on
+the computer it runs on, so that a client can find a stack in a remote
+repository by what is written on it (see the API's *Text Search*). The
+text is what OCR read from each page, whether the desktop or the server
+read it, or a PDF's own text. The trash and hidden folders are left out.
+
+The index is kept on the server's own disk, in
+``~/.local/share/paperman-server/index-<repo>-<hash>.db``, one per
+repository, and brought up to date on a thread of its own: the whole
+repository when the server starts and every 15 minutes after that, and
+a stack at once when it is changed through the server or the server has
+read its pages. Building the index first means reading every stack, so
+takes a while for a large repository, though it can be searched
+meanwhile; after that, only stacks which have changed are read.
+Removing the file makes the server build it afresh.
+
+Together with ``--read-pages`` this lets clients search the text of
+stacks which nobody has opened.
 
 API Endpoints
 -------------
