@@ -346,6 +346,7 @@ test {
       serverlog.cpp \
       tokenstore.cpp \
       reporeader.cpp \
+      repoindex.cpp \
       userstore.cpp
 
    HEADERS += test/suite.h \
@@ -371,6 +372,7 @@ test {
       serverlog.h \
       tokenstore.h \
       reporeader.h \
+      repoindex.h \
       userstore.h
 
     QMAKE_CXXFLAGS += -DENABLE_TEST

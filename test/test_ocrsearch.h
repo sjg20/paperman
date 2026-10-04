@@ -55,6 +55,10 @@ private slots:
    //! being written, and brought up to date a stack at a time
    void testIndexElsewhere();
 
+   //! the server's index of a repository is built on a thread of its
+   //! own, kept up to date as stacks change, and searched meanwhile
+   void testRepoIndex();
+
    //! text in a stack's OCR annotation, where OCR used to put it, is
    //! found on the stack's first page
    void testIndexOcrAnnotation();
