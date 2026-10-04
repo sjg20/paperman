@@ -36,6 +36,8 @@ HEADERS += builddate.h \
     serverlog.h \
     tokenstore.h \
     reporeader.h \
+    repoindex.h \
+    searchindex.h \
     userstore.h \
     file.h \
     filemax.h \
@@ -61,6 +63,8 @@ SOURCES += searchserver.cpp \
     serverlog.cpp \
     tokenstore.cpp \
     reporeader.cpp \
+    repoindex.cpp \
+    searchindex.cpp \
     userstore.cpp \
     paperman-server.cpp \
     file.cpp \

@@ -12,6 +12,7 @@
 #include "ocrpage.h"
 #include "ocrreader.h"
 #include "reporeader.h"
+#include "repoindex.h"
 #include "filemax.h"
 #include <QBitArray>
 #include <QSignalSpy>
@@ -696,6 +697,77 @@ void TestOcrSearch::testIndexElsewhere()
    QCOMPARE(found(reader, "pears"), QStringList());
    QVERIFY(!writer.syncStack(dir + "b.max"));
    QCOMPARE(found(reader, "banana"), QStringList({"b.max:0"}));
+}
+
+
+/* the stacks a RepoIndex finds, as path:page, in order of path */
+static QStringList hitsOf(RepoIndex &index, const QString &text,
+                          const QString &underDir = QString())
+{
+   QList<RepoIndex::Hit> hits;
+   QString error;
+   QStringList out;
+
+   if (!index.search(text, underDir, 100, hits, &error))
+      return {"error: " + error};
+   for (const RepoIndex::Hit &hit : hits)
+      out << QString("%1:%2").arg(hit.path).arg(hit.page);
+   out.sort();
+   return out;
+}
+
+
+void TestOcrSearch::testRepoIndex()
+{
+   QTemporaryDir tmp, local;
+   QString repo = tmp.path() + "/";
+   QVERIFY(QDir(repo).mkpath("sub"));
+   QVERIFY(QDir(repo).mkpath(".maxview-trash"));
+   for (const char *name : {"a.max", "sub/b.max", ".maxview-trash/c.max"})
+      QVERIFY(QFile::copy(testSrc + "/testfile.max", repo + name));
+   say(repo, "a.max", "invoice for apples");
+   say(repo + "sub/", "b.max", "banana invoice");
+   say(repo + ".maxview-trash/", "c.max", "invoice in the trash");
+
+   RepoIndex index(tmp.path(), local.path() + "/index.db");
+   QSignalSpy synced(&index, &RepoIndex::synced);
+   index.setRescanInterval(0);
+   QString error;
+   QVERIFY2(index.start(&error), qPrintable(error));
+   QVERIFY(synced.wait(10000));
+
+   RepoIndex::Status st = index.status();
+   QVERIFY(st.ready);
+   QVERIFY(!st.syncing);
+   QCOMPARE(st.total, 2);
+
+   // the trash is left out, and a search can be limited to a folder
+   QCOMPARE(hitsOf(index, "invoice"), QStringList({"a.max:0", "sub/b.max:0"}));
+   QCOMPARE(hitsOf(index, "invoice", "sub"), QStringList({"sub/b.max:0"}));
+   QCOMPARE(hitsOf(index, "appl"), QStringList({"a.max:0"}));
+   QCOMPARE(hitsOf(index, "  "), QStringList());
+
+   QList<RepoIndex::Hit> hits;
+   QVERIFY(index.search("apples", QString(), 10, hits));
+   QCOMPARE(hits.size(), 1);
+   QVERIFY(hits[0].snippet.contains("<b>apples</b>"));
+
+   // a stack which changes is indexed again without waiting for a look
+   // through the whole repository, and one which goes is dropped
+   say(repo, "a.max", "pears", 10);
+   index.stackChanged("a.max");
+   QTRY_COMPARE(hitsOf(index, "pears"), QStringList({"a.max:0"}));
+   QCOMPARE(hitsOf(index, "apples"), QStringList());
+   QVERIFY(QFile::remove(repo + "sub/b.max"));
+   index.stackChanged("sub/b.max");
+   QTRY_COMPARE(hitsOf(index, "banana"), QStringList());
+   QCOMPARE(synced.size(), 1);
+
+   // what is indexed is kept
+   index.stop();
+   RepoIndex again(tmp.path(), local.path() + "/index.db");
+   QVERIFY(again.start());
+   QCOMPARE(hitsOf(again, "pears"), QStringList({"a.max:0"}));
 }
 
 
