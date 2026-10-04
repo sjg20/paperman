@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "backend.h"
 #include "cachedfile.h"
 #include "localbackend.h"
+#include "repoindex.h"
 #include "reporeader.h"
 #include "tokenstore.h"
 #include "userstore.h"
@@ -164,6 +165,11 @@ public:
         _readWorkers = workers;
         _readEngine = engine;
     }
+
+    /** Keep an index of the text on the pages of every stack in the
+     *  repositories, so that clients can search it (see RepoIndex).
+     *  Call before start() */
+    void setTextIndex(bool on) { _textIndex = on; }
 
 protected:
     /**
@@ -663,8 +669,27 @@ private:
     RepoReader::Engine _readEngine;
     QHash<QString, RepoReader *> _readers;  //!< by repository name
 
+    bool _textIndex = false;         //!< see setTextIndex()
+    QHash<QString, RepoIndex *> _indexes;   //!< by repository name
+
     /** Start a reader for each repository, if asked to */
     void startReaders();
+
+    /** Start an index for each repository, if asked to */
+    void startIndexes();
+
+    /** Path to a file of the server's own about a repository, on this
+     *  computer's disk, e.g. "read" gives read-<name>-<hash>.db */
+    static QString dataFile(const QString &kind, const QString &root);
+
+    /** A stack (repo-relative path) has changed, arrived or gone: have
+     *  it read and indexed again */
+    void touchStack(const QString &repoName, const QString &relPath);
+
+    /** GET /v1/repos/{repo}/search: the stacks with some text on a page */
+    QByteArray handleTextSearch(const QString &path,
+                                const QHash<QString, QString> &params,
+                                const QString &authedUser);
 
     TokenStore _tokens{TokenStore::defaultPath()};  //!< Bearer tokens, kept
                             //!< across restarts

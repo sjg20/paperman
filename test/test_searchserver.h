@@ -56,6 +56,10 @@ private slots:
    //! it straight away
    void testServerReadsPages();
 
+   //! the server keeps an index of the text on the pages of its stacks,
+   //! up to date as they change, and clients can search it
+   void testServerSearchesText();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 

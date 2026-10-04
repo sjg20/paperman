@@ -2916,3 +2916,108 @@ void TestSearchServer::testServerReadsPages()
                  .contains("reading"));
     plain.stop();
 }
+
+
+void TestSearchServer::testServerSearchesText()
+{
+    // the index goes in the redirected data directory
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+
+    // no users, as other tests here may leave, so no logging in
+    QFile::remove(QStandardPaths::writableLocation(
+                      QStandardPaths::GenericConfigLocation)
+                  + "/paperman-server/users.json");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(QDir(dir).mkdir("sub"));
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "sub/b.max"));
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "c.max"));
+    auto say = [](const QString &path, int pagenum, const QString &text) {
+        Filemax max(QFileInfo(path).absolutePath() + "/",
+                    QFileInfo(path).fileName(), nullptr);
+        OcrPage page;
+        page.size = QSize(100, 100);
+        for (const QString &word : text.split(' '))
+            page.words << OcrWord{QRect(0, 0, 10, 10), word, 90, 0, 0};
+        return !max.load() && !max.putPageOcr(pagenum, page);
+    };
+    QVERIFY(say(dir + "a.max", 0, "invoice for apples"));
+    QVERIFY(say(dir + "sub/b.max", 2, "banana invoice"));
+
+    auto search = [this, repo](const QString &query) {
+        auto resp = get(QString("/v1/repos/%1/search?%2").arg(repo, query));
+        QJsonObject obj = QJsonDocument::fromJson(resp.body).object();
+        QStringList found;
+
+        for (const QJsonValue &v : obj.value("results").toArray())
+            found << QString("%1:%2").arg(v["path"].toString())
+                         .arg(v["page"].toInt());
+        found.sort();
+        return found;
+    };
+    auto status = [this]() {
+        return QJsonDocument::fromJson(get("/v1/status").body).object();
+    };
+
+    SearchServer server(tmpDir.path(), PORT);
+    server.setTextIndex(true);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    // the server says it can search, and how far it has got indexing
+    QVERIFY(status().value("features").toArray().contains("textSearch"));
+    QTRY_VERIFY_WITH_TIMEOUT(status().value("indexing").toObject()
+                                 .value(repo).toObject().value("ready")
+                                 .toBool(), 15000);
+    QCOMPARE(status().value("indexing").toObject().value(repo).toObject()
+                 .value("total").toInt(), 3);
+
+    auto resp = get(QString("/v1/repos/%1/search?text=invoice").arg(repo));
+    QVERIFY2(resp.ok(), qPrintable(resp.header));
+    QJsonObject obj = QJsonDocument::fromJson(resp.body).object();
+    QVERIFY(obj.value("complete").toBool());
+    QVERIFY(obj.value("results").toArray().at(0).toObject().value("snippet")
+                .toString().contains("<b>"));
+
+    QCOMPARE(search("text=invoice"), QStringList({"a.max:1", "sub/b.max:3"}));
+    QCOMPARE(search("text=invoice&path=sub"), QStringList({"sub/b.max:3"}));
+    QCOMPARE(search("text=invoice&max=1").size(), 1);
+    QCOMPARE(search("text=app"), QStringList({"a.max:1"}));
+    QCOMPARE(search("text=nothing%20here"), QStringList());
+    QVERIFY(get(QString("/v1/repos/%1/search?text=x&path=../etc")
+                    .arg(repo)).header.contains("400"));
+    QVERIFY(get("/v1/repos/nosuchrepo/search?text=x").header.contains("404"));
+
+    // a stack changed, moved or stacked through the server is indexed
+    // again at once
+    QString base = QString("/v1/repos/%1/stacks/").arg(repo);
+    QVERIFY(say(dir + "c.max", 1, "cherry"));
+    QVERIFY(postJson(base + "c.max/annotations",
+                     R"({"keywords":"fruit"})").header.contains("200"));
+    QTRY_COMPARE(search("text=cherry"), QStringList({"c.max:2"}));
+
+    QVERIFY(postJson(base + "a.max/move",
+                     R"({"destDir":"sub"})").header.contains("200"));
+    QTRY_COMPARE(search("text=apples"), QStringList({"sub/a.max:1"}));
+
+    QVERIFY(postJson(base + "sub/b.max/stack",
+                     R"({"sources":["c.max"]})").header.contains("200"));
+    QTRY_COMPARE(search("text=cherry"), QStringList({"sub/b.max:7"}));
+
+    // a server not asked to index says nothing about searching
+    server.stop();
+    SearchServer plain(tmpDir.path(), PORT);
+    QVERIFY(plain.start());
+    QVERIFY(!status().value("features").toArray().contains("textSearch"));
+    QVERIFY(!status().contains("indexing"));
+    QVERIFY(get(QString("/v1/repos/%1/search?text=invoice").arg(repo))
+                .header.contains("404"));
+    plain.stop();
+}

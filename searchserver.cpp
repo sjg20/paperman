@@ -209,8 +209,51 @@ bool SearchServer::start()
 
     qDebug() << "SearchServer: Listening on port" << _port;
     qDebug() << "SearchServer: Repository root:" << _rootPath;
+    startIndexes();
     startReaders();
     return true;
+}
+
+
+QString SearchServer::dataFile(const QString &kind, const QString &root)
+{
+    /* this lives on this machine: the repository may be on a network
+       filesystem, where SQLite cannot rely on locking.  The path is part
+       of the name, so two repositories with the same name do not share
+       one */
+    QString dir = QStandardPaths::writableLocation(
+                      QStandardPaths::GenericDataLocation)
+                  + "/paperman-server";
+    QString hash = QString::fromLatin1(QCryptographicHash::hash(
+        root.toUtf8(), QCryptographicHash::Sha256).toHex().left(8));
+
+    return QString("%1/%2-%3-%4.db").arg(dir, kind,
+                                         QFileInfo(root).fileName(), hash);
+}
+
+
+void SearchServer::startIndexes()
+{
+    if (!_textIndex || !_indexes.isEmpty())
+        return;
+
+    for (const QString &root : _rootPaths) {
+        QString name = QFileInfo(root).fileName();
+        auto *index = new RepoIndex(root, dataFile("index", root), this);
+        QString error;
+
+        if (!index->start(&error)) {
+            qWarning() << "SearchServer: cannot index the text of" << root
+                       << ":" << error;
+            delete index;
+            continue;
+        }
+        connect(index, &RepoIndex::synced, this, [root]() {
+            qInfo() << "SearchServer: indexed the text of" << root;
+        });
+        qInfo() << "SearchServer: indexing the text of" << root;
+        _indexes.insert(name, index);
+    }
 }
 
 
@@ -219,20 +262,10 @@ void SearchServer::startReaders()
     if (_readWorkers <= 0 || !_readers.isEmpty())
         return;
 
-    /* the record of what has been read lives on this machine: the
-       repository may be on a network filesystem, where SQLite cannot rely
-       on locking.  The path is part of the name, so two repositories with
-       the same name do not share one */
-    QString dir = QStandardPaths::writableLocation(
-                      QStandardPaths::GenericDataLocation)
-                  + "/paperman-server";
-
     for (const QString &root : _rootPaths) {
         QString name = QFileInfo(root).fileName();
-        QString hash = QString::fromLatin1(QCryptographicHash::hash(
-            root.toUtf8(), QCryptographicHash::Sha256).toHex().left(8));
-        QString record = QString("%1/read-%2-%3.db").arg(dir, name, hash);
-        auto *reader = new RepoReader(root, record, _readWorkers, this);
+        auto *reader = new RepoReader(root, dataFile("read", root),
+                                      _readWorkers, this);
         QString error;
 
         if (_readEngine)
@@ -262,6 +295,8 @@ void SearchServer::stop()
        is either as it was or has all the words read from it */
     qDeleteAll(_readers);
     _readers.clear();
+    qDeleteAll(_indexes);
+    _indexes.clear();
 
     // Kill any in-flight gs processes
     for (auto it = _pendingExtractions.begin();
@@ -674,7 +709,28 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                     a time rather than as a whole file */
         QJsonArray features;
         features.append("pages");
+        if (!_indexes.isEmpty())
+            features.append("textSearch");
         obj["features"] = features;
+
+        /* how far the server has got indexing the text of each
+           repository, when it does */
+        if (!_indexes.isEmpty()) {
+            QJsonObject indexing;
+
+            for (auto it = _indexes.constBegin(); it != _indexes.constEnd();
+                 ++it) {
+                RepoIndex::Status st = (*it)->status();
+                QJsonObject r;
+
+                r["syncing"] = st.syncing;
+                r["ready"] = st.ready;
+                r["done"] = st.done;
+                r["total"] = st.total;
+                indexing[it.key()] = r;
+            }
+            obj["indexing"] = indexing;
+        }
 
         /* how far the server has got reading the pages of each
            repository, when it reads them */
@@ -921,6 +977,10 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     }
     else if (path.startsWith("/v1/repos/") && path.endsWith("/events")) {
         return handleEvents(path, params, authedUser, client);
+    }
+    else if (path.startsWith("/v1/repos/") && path.endsWith("/search")
+             && !path.contains("/stacks/")) {
+        return handleTextSearch(path, params, authedUser);
     }
     else {
         return buildHttpResponse(404, "Not Found", "text/plain",
@@ -2090,6 +2150,7 @@ QByteArray SearchServer::handleStack(const QString &path,
         if (err)
             break;
         QFile::remove(src.fullPath);
+        touchStack(src.repoName, src.filePath);
         dest->setPagenum(qMin(nextInsert, dest->pagecount()));
     }
     if (!err)
@@ -2177,6 +2238,69 @@ QByteArray SearchServer::handleUpload(const QString &path,
                                  QJsonDocument::Compact)));
 }
 
+QByteArray SearchServer::handleTextSearch(const QString &path,
+                                          const QHash<QString, QString> &params,
+                                          const QString &authedUser)
+{
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/search").size());
+    QString repoName = QUrl::fromPercentEncoding(rest.toUtf8());
+
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    RepoIndex *index = _indexes.value(repoName);
+    if (!index)
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "No text index for repository: "
+                                     + repoName));
+
+    QString dir = params.value("path");
+    while (dir.endsWith('/'))
+        dir.chop(1);
+    if (dir.startsWith('/') || dir.split('/').contains(".."))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "", "Invalid path"));
+
+    bool ok;
+    int max = params.value("max").toInt(&ok);
+    if (!ok || max < 1)
+        max = 100;
+    max = qMin(max, 1000);
+
+    QList<RepoIndex::Hit> hits;
+    QString error;
+    if (!index->search(params.value("text"), dir, max, hits, &error))
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", error));
+
+    QJsonArray results;
+    for (const RepoIndex::Hit &hit : hits) {
+        QJsonObject r;
+
+        r["path"] = hit.path;
+        r["page"] = hit.page + 1;   // 1-based, as /pages/{n}
+        r["snippet"] = hit.snippet;
+        results.append(r);
+    }
+
+    QJsonObject out;
+    out["success"] = true;
+    out["results"] = results;
+    // false while the index is first being built, so may lack stacks
+    out["complete"] = index->status().ready;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+
 QByteArray SearchServer::handleEvents(const QString &path,
                                       const QHash<QString, QString> &params,
                                       const QString &authedUser,
@@ -2218,20 +2342,31 @@ QByteArray SearchServer::handleEvents(const QString &path,
     return QByteArray();
 }
 
+void SearchServer::touchStack(const QString &repoName,
+                              const QString &relPath)
+{
+    /* A stack which has changed or arrived, such as a new scan, is read
+       before the rest; each ignores anything which is not a stack */
+    if (RepoReader *reader = _readers.value(repoName))
+        reader->stackChanged(relPath);
+    if (RepoIndex *index = _indexes.value(repoName))
+        index->stackChanged(relPath);
+}
+
+
 void SearchServer::notifyStackEvent(const QString &repoName,
                                     const QString &op, const QString &path,
                                     const QString &name,
                                     const QString &clientId)
 {
-    /* A stack which has changed or arrived, such as a new scan, is read
-       before the rest.  A rename, unstack and so on also names the new
-       stack; the reader ignores anything which is not a stack */
-    if (RepoReader *reader = _readers.value(repoName)) {
-        reader->stackChanged(path);
-        if (!name.isEmpty()) {
-            QString dir = QFileInfo(path).path();
-            reader->stackChanged(dir == "." ? name : dir + "/" + name);
-        }
+    /* A move also gives the stack's new path, and a rename, unstack and
+       so on the name of a stack in the same folder */
+    touchStack(repoName, path);
+    if (!name.isEmpty()) {
+        QString dir = QFileInfo(path).path();
+
+        touchStack(repoName,
+                   op == "move" || dir == "." ? name : dir + "/" + name);
     }
 
     if (_eventClients.isEmpty())

@@ -8,7 +8,8 @@
 # tests and aborts the real server.  This catches that.
 #
 # The server also reads the stack's pages with tesseract (--read-pages),
-# on worker threads, where such a thing crashes rather than aborts.
+# on worker threads, where such a thing crashes rather than aborts, and
+# indexes the text on them (--index), on a thread of its own.
 #
 # Requires: paperman-server binary, curl, test/files (scripts/make_test_files.py)
 
@@ -33,7 +34,7 @@ trap 'kill $SERVER_PID 2>/dev/null; rm -rf "$TMPDIR" "$TMPDIR.data"' EXIT
 cp "$ROOT_DIR/test/files/testfile.max" "$ROOT_DIR/test/files/testpdf.pdf" "$TMPDIR/"
 
 # the record of the pages read goes here, not in the user's own
-XDG_DATA_HOME="$TMPDIR.data" "$SERVER" -p "$PORT" -r 1 "$TMPDIR" \
+XDG_DATA_HOME="$TMPDIR.data" "$SERVER" -p "$PORT" -r 1 -i "$TMPDIR" \
     > "$TMPDIR.log" 2>&1 &
 SERVER_PID=$!
 for i in $(seq 1 50); do
@@ -61,6 +62,7 @@ check "max thumbnail"  "/thumbnail?repo=$REPO&path=testfile.max&page=1&size=smal
 check "max page 2"     "/thumbnail?repo=$REPO&path=testfile.max&page=2&size=medium"
 check "pdf thumbnail"  "/thumbnail?repo=$REPO&path=testpdf.pdf&page=1&size=small"
 check "max as pdf"     "/file?repo=$REPO&path=testfile.max&type=pdf"
+check "text search"    "/v1/repos/$REPO/search?text=the"
 
 # the stack's pages are read and the words put into it
 if command -v tesseract >/dev/null; then
@@ -76,6 +78,16 @@ if command -v tesseract >/dev/null; then
     curl -sf "http://localhost:$PORT/v1/status" | grep -q '"written":1' \
         || die "the pages were not read"
     echo "ok: read pages"
+
+    # and what was read can be searched for
+    SEARCH="http://localhost:$PORT/v1/repos/$REPO/search?text=group"
+    for i in $(seq 1 20); do
+        curl -sf "$SEARCH" | grep -q '"path":"testfile.max"' && break
+        sleep 0.5
+    done
+    curl -sf "$SEARCH" | grep -q '"path":"testfile.max"' \
+        || die "the words read were not found"
+    echo "ok: search pages"
 else
     echo "skip: read pages (no tesseract)"
 fi
