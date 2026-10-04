@@ -4,6 +4,8 @@ License: GPL-2
  Copyright (C) 2025 Simon Glass, chch-kiwi@users.sourceforge.net
 */
 
+#include <atomic>
+
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QDir>
@@ -28,6 +30,9 @@ License: GPL-2
    2  also the stack's OCR annotation, on the first page */
 #define INDEX_VERSION   2
 
+/* how many stacks sync() looks at between commits */
+#define SYNC_BATCH      200
+
 SearchIndex::SearchIndex()
    {
    }
@@ -39,6 +44,11 @@ SearchIndex::~SearchIndex()
 
 err_info *SearchIndex::init(const QString &dirPath)
    {
+   return init(dirPath, QString());
+   }
+
+err_info *SearchIndex::init(const QString &dirPath, const QString &indexPath)
+   {
    _dirPath = dirPath;
 
    // Ensure directory path ends with /
@@ -46,10 +56,11 @@ err_info *SearchIndex::init(const QString &dirPath)
    if (!dir.endsWith('/'))
       dir += '/';
 
-   _indexPath = dir + ".paperindex";
+   _indexPath = indexPath.isEmpty() ? dir + ".paperindex" : indexPath;
 
-   // Open/create SQLite database, on a connection of our own
-   static int count;
+   // Open/create SQLite database, on a connection of our own, which may
+   // be on any thread
+   static std::atomic<int> count;
 
    _connection = QString("paperindex-%1").arg(++count);
    _db = QSqlDatabase::addDatabase("QSQLITE", _connection);
@@ -59,6 +70,22 @@ err_info *SearchIndex::init(const QString &dirPath)
       {
       return err_make(ERRFN, ERR_cannot_open_file1,
                      qPrintable(_indexPath));
+      }
+
+   /* An index on this computer's own disk can be searched while another
+      connection brings it up to date: with a write-ahead log, readers
+      see what was last committed and do not wait for the writer.  This
+      needs memory shared between the connections, so it is not for an
+      index kept next to the stacks, which may be on a network
+      filesystem */
+   if (!indexPath.isEmpty())
+      {
+      QSqlQuery query(_db);
+
+      if (!query.exec("PRAGMA journal_mode = WAL")
+          || !query.exec("PRAGMA busy_timeout = 10000"))
+         return err_make(ERRFN, ERR_sql_error1,
+                         qPrintable(query.lastError().text()));
       }
 
    // Create FTS5 table if it doesn't exist
@@ -227,6 +254,65 @@ static err_info *stackText(const QString &pathname, QStringList &pages)
    }
 
 
+void SearchIndex::indexStack(const QString &path, qint64 mtime, qint64 size)
+   {
+   QStringList pages;
+   QSqlQuery query(_db);
+
+   removeFile(path);
+   if (!stackText(path, pages))
+      for (int i = 0; i < pages.size(); i++)
+         if (!pages[i].isEmpty())
+            addPage(path, QFileInfo(path).fileName(), i, pages[i]);
+
+   // a stack which cannot be read is not looked at again until it changes
+   query.prepare("INSERT OR REPLACE INTO files (filepath, mtime, size) "
+                 "VALUES (?, ?, ?)");
+   query.addBindValue(path);
+   query.addBindValue(mtime);
+   query.addBindValue(size);
+   query.exec();
+   }
+
+
+err_info *SearchIndex::syncStack(const QString &path)
+   {
+   if (!_db.isOpen())
+      return err_make(ERRFN, ERR_index_not_open);
+
+   QFileInfo fi(path);
+   QString pathname = fi.absoluteFilePath();
+   QSqlQuery query(_db);
+
+   query.prepare("SELECT mtime, size FROM files WHERE filepath = ?");
+   query.addBindValue(pathname);
+   if (!query.exec())
+      return err_make(ERRFN, ERR_sql_error1,
+                      qPrintable(query.lastError().text()));
+   bool known = query.next();
+   qint64 mtime = fi.lastModified().toMSecsSinceEpoch();
+
+   _db.transaction();
+   if (!fi.isFile())
+      {
+      if (known)
+         {
+         removeFile(pathname);
+         query.prepare("DELETE FROM files WHERE filepath = ?");
+         query.addBindValue(pathname);
+         query.exec();
+         }
+      }
+   else if (!known || query.value(0).toLongLong() != mtime
+            || query.value(1).toLongLong() != fi.size())
+      {
+      indexStack(pathname, mtime, fi.size());
+      }
+   _db.commit();
+   return nullptr;
+   }
+
+
 err_info *SearchIndex::sync(const QString &dirPath, const Progress &progress)
    {
    if (!_db.isOpen())
@@ -281,26 +367,20 @@ err_info *SearchIndex::sync(const QString &dirPath, const Progress &progress)
          }
       else
          {
-         QStringList pages;
-
          known.remove(path);
-         removeFile(path);
-         if (!stackText(path, pages))
-            for (int i = 0; i < pages.size(); i++)
-               if (!pages[i].isEmpty())
-                  addPage(path, fi.fileName(), i, pages[i]);
-
-         // a stack which cannot be read is not looked at again until it changes
-         query.prepare("INSERT OR REPLACE INTO files (filepath, mtime, size) "
-                       "VALUES (?, ?, ?)");
-         query.addBindValue(path);
-         query.addBindValue(stamp.first);
-         query.addBindValue(stamp.second);
-         query.exec();
+         indexStack(path, stamp.first, stamp.second);
          }
       if (progress && !progress(done + 1, paths.size()))
          break;
       done++;
+
+      /* commit now and then, so that what is done is kept if this is
+         stopped, and can be searched by another connection meanwhile */
+      if (!(done % SYNC_BATCH))
+         {
+         _db.commit();
+         _db.transaction();
+         }
       }
 
    // drop the stacks which have gone

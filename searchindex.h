@@ -65,6 +65,18 @@ public:
     */
    err_info *init(const QString &dirPath);
 
+   /** Initialize a search index for a directory, kept elsewhere
+    *
+    * The index is kept at @p indexPath rather than in the directory.  It
+    * must be on this computer's own disk: it is opened so that it can be
+    * searched on one connection while another brings it up to date
+    *
+    * \param dirPath    Directory containing .max files
+    * \param indexPath  Path to the index database
+    * \return           error, or NULL if successful
+    */
+   err_info *init(const QString &dirPath, const QString &indexPath);
+
    /** Add or update OCR text for a file/page in the index
     *
     * \param filepath  Full path to the .max file
@@ -125,6 +137,16 @@ public:
     */
    err_info *sync(const QString &dirPath, const Progress &progress = nullptr);
 
+   /** Bring the index up to date with one stack
+    *
+    * The stack is read if it has changed since it was last indexed, and
+    * dropped from the index if it has gone
+    *
+    * \param path  the stack's pathname
+    * \return      error, or NULL if successful
+    */
+   err_info *syncStack(const QString &path);
+
    /** Check if index is open and ready
     *
     * \return true if index is initialized
@@ -148,6 +170,9 @@ private:
 
    /** Create the FTS5 table if it doesn't exist */
    err_info *createTable();
+
+   /** Index a stack's text afresh, recording its time and size */
+   void indexStack(const QString &path, qint64 mtime, qint64 size);
    };
 
 #endif
