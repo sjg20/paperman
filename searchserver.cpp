@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "ocr.h"
 #include "ocrpage.h"
+#include "op.h"
 #include "searchserver.h"
 #include "localbackend.h"
 #include "serverlog.h"
@@ -683,6 +684,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 return handleStack(path, params, authedUser);
             if (path.endsWith("/duplicate"))
                 return handleDuplicate(path, params, authedUser);
+            if (path.endsWith("/unfold"))
+                return handleUnfold(path, params, authedUser);
             if (path.endsWith("/upload"))
                 return handleUpload(path, params, authedUser);
         }
@@ -709,6 +712,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                     a time rather than as a whole file */
         QJsonArray features;
         features.append("pages");
+        features.append("convert");
         if (!_indexes.isEmpty())
             features.append("textSearch");
         obj["features"] = features;
@@ -2398,6 +2402,128 @@ void SearchServer::notifyStackEvent(const QString &repoName,
     }
 }
 
+QByteArray SearchServer::convertStack(const StackTarget &target,
+                                      const QString &typeName, int oddEven,
+                                      const QHash<QString, QString> &params)
+{
+    QFileInfo fi(target.fullPath);
+    File::e_type type = typeName.isEmpty()
+                            ? File::typeFromName(fi.fileName())
+                            : File::typeFromName("x." + typeName);
+    QString ext = File::typeExt(type);
+
+    if (type == File::Type_other || ext.isEmpty() || oddEven < 1
+        || oddEven > 3)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot convert to " + typeName));
+
+    QString dir = fi.absolutePath() + "/";
+    QString uniq = uniqueNameIn(fi.absolutePath(),
+                                fi.completeBaseName() + "_copy", ext);
+    if (uniq.isEmpty())
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "No unique name available"));
+
+    File *src = File::createFile(dir, fi.fileName(), nullptr,
+                                 File::typeFromName(fi.fileName()));
+    File *dest = File::createFile(dir, uniq, nullptr, type);
+    err_info *err = src && dest ? src->load() : nullptr;
+
+    if (!src || !dest)
+        err = err_make(ERRFN, ERR_cannot_open_file1,
+                       qPrintable(target.fullPath));
+    if (!err)
+        err = dest->create();
+    if (!err) {
+        Operation op(QString(), src->pagecount(), nullptr);
+
+        err = src->copyTo(dest, oddEven, op);
+    }
+    QString msg = err ? QString(err->errstr) : QString();
+    int pages = dest && !err ? dest->pagecount() : 0;
+
+    delete src;
+    delete dest;
+    if (err || !pages) {
+        QFile::remove(dir + uniq);
+        return buildHttpResponse(err ? 500 : 400,
+                                 err ? "Internal Server Error"
+                                     : "Bad Request",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     err ? msg : QString("No pages")));
+    }
+
+    _log.log(ServerLog::ServeFile, target.filePath + " -> " + uniq);
+    notifyStackEvent(target.repoName, "duplicate", target.filePath, uniq,
+                     params.value("__client_id__"));
+    QJsonObject out;
+    out["success"] = true;
+    out["name"] = uniq;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+
+QByteArray SearchServer::handleUnfold(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/unfold", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed unfold path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QFileInfo fi(target.fullPath);
+    QString dir = fi.absolutePath() + "/";
+    QString uniq = uniqueNameIn(fi.absolutePath(),
+                                fi.completeBaseName() + "_unfold", ".max");
+    if (uniq.isEmpty())
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "No unique name available"));
+
+    File *src = File::createFile(dir, fi.fileName(), nullptr,
+                                 File::typeFromName(fi.fileName()));
+    File *made = nullptr;
+    err_info *err = src ? src->load()
+                        : err_make(ERRFN, ERR_cannot_open_file1,
+                                   qPrintable(target.fullPath));
+    if (!err) {
+        Operation op(QString(), 2 * src->pagecount(), nullptr);
+
+        err = src->unfoldBookletTo(dir + uniq, op, made);
+    }
+    QString msg = err ? QString(err->errstr) : QString();
+
+    delete made;
+    delete src;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", msg));
+
+    _log.log(ServerLog::ServeFile, target.filePath + " -> " + uniq);
+    notifyStackEvent(target.repoName, "duplicate", target.filePath, uniq,
+                     params.value("__client_id__"));
+    QJsonObject out;
+    out["success"] = true;
+    out["name"] = uniq;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+
 QByteArray SearchServer::handleDuplicate(const QString &path,
                                          const QHash<QString, QString> &params,
                                          const QString &authedUser)
@@ -2413,6 +2539,15 @@ QByteArray SearchServer::handleDuplicate(const QString &path,
                                          target);
     if (!fail.isEmpty())
         return fail;
+
+    /* a conversion, or a copy of some of the pages, is made from the
+       stack's pages; otherwise the file is copied as it is */
+    QJsonObject obj;
+    parseJsonBody(params, &obj);
+    QString typeName = obj.value("type").toString();
+    int oddEven = obj.value("oddEven").toInt(3);
+    if (!typeName.isEmpty() || oddEven != 3)
+        return convertStack(target, typeName, oddEven, params);
 
     QFileInfo fi(target.fullPath);
     QString uniq = uniqueNameIn(fi.absolutePath(), fi.completeBaseName(),

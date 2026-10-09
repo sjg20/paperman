@@ -813,7 +813,18 @@ repository allowlist is enforced.  Every response carries
 
 ``/duplicate``
    Copies the stack's file within its directory under a fresh name.
-   Returns ``{"name"}``.
+   With a body of ``{"type", "oddEven"}``, it instead makes a new stack
+   of that type (``pdf``, ``max`` or ``jpeg``; the stack's own type if
+   absent) from the odd (``1``), even (``2``) or all (``3``) pages,
+   beside the original and named after it with ``_copy``.  Returns
+   ``{"name"}``.
+
+``/unfold``
+   Unfolds a booklet: each page is split down the middle and the halves
+   put in reading order, in a new ``.max`` stack beside it, named after
+   it with ``_unfold``.  Returns ``{"name"}``.
+
+A server which does these lists ``convert`` in ``features``.
 
 ``/upload``
    The raw request body is the whole file's bytes (e.g. a stack
