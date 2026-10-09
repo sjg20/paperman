@@ -30,6 +30,8 @@
 #include "test.h"
 
 #include <QApplication>
+#include <QMimeData>
+#include <QClipboard>
 #include <QBuffer>
 #include <QFont>
 #include <QImage>
@@ -3188,4 +3190,106 @@ void TestSearchServer::testRemoteTextSearch()
     err_info *e = model.findText(root, root, "invoice", &meas, found, count);
     QVERIFY(e);
     QVERIFY2(QString(e->errstr).contains("No text index"), e->errstr);
+}
+
+
+/* the number of pages of a stack in a server's repository, -1 if none */
+static int serverPages(const QString &dir, const QString &fname)
+{
+    File *f = File::createFile(dir, fname, nullptr, File::typeFromName(fname));
+    int count = f && !f->load() ? f->pagecount() : -1;
+
+    delete f;
+    return count;
+}
+
+void TestSearchServer::testRemoteConvert()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+    QCOMPARE(serverPages(dir, "a.max"), 5);
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QVERIFY(parent.isValid());
+    auto stackA = [&] { return model.index("a.max", parent); };
+    QVERIFY(stackA().isValid());
+
+    // converted to a PDF, on the server, beside the original
+    QModelIndexList list {stackA()};
+    QStringList names;
+    err_info *e = model.opDuplicateStacks(list, parent, names,
+                                          File::Type_pdf, 3);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QCOMPARE(names, QStringList({"a_copy.pdf"}));
+    QCOMPARE(serverPages(dir, "a_copy.pdf"), 5);
+    QVERIFY(model.index("a_copy.pdf", parent).isValid());
+
+    // its odd pages, as a .max
+    list = {stackA()};
+    names.clear();
+    e = model.opDuplicateStacks(list, parent, names, File::Type_max, 1);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QCOMPARE(names, QStringList({"a_copy.max"}));
+    QCOMPARE(serverPages(dir, "a_copy.max"), 3);
+
+    // and again: the server gives the new stack a name of its own
+    list = {stackA()};
+    names.clear();
+    e = model.opDuplicateStacks(list, parent, names, File::Type_max, 2);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QCOMPARE(names.size(), 1);
+    QVERIFY(names[0] != "a_copy.max");
+    QCOMPARE(serverPages(dir, names[0]), 2);
+
+    // unfolded as a booklet, each page becoming two
+    list = {stackA()};
+    names.clear();
+    e = model.opUnfoldBooklets(list, parent, names);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QCOMPARE(names, QStringList({"a_unfold.max"}));
+    QCOMPARE(serverPages(dir, "a_unfold.max"), 10);
+
+    // a new stack opens from the copy kept in the cache
+    QModelIndex unfold = model.index("a_unfold.max", parent);
+    QVERIFY(unfold.isValid());
+    QVERIFY(!model.ensureContent(unfold));
+    QCOMPARE(model.getFile(unfold)->pagecount(), 10);
+
+    // copied to the clipboard, as a PDF and as it is
+    for (File::e_type type : {File::Type_pdf, File::Type_other}) {
+        list = {stackA()};
+        QApplication::clipboard()->clear();
+        e = model.opCopyFiles(parent, list, type);
+        QVERIFY2(!e, e ? e->errstr : "");
+
+        const QMimeData *mime = QApplication::clipboard()->mimeData();
+        QVERIFY(mime && mime->urls().size() == 1);
+        QFileInfo fi(mime->urls()[0].toLocalFile());
+        QVERIFY2(fi.exists(), qPrintable(fi.filePath()));
+        QCOMPARE(fi.suffix(), type == File::Type_pdf ? QString("pdf")
+                                                     : QString("max"));
+        QCOMPARE(serverPages(fi.absolutePath() + "/", fi.fileName()), 5);
+        QFile::remove(fi.filePath());
+    }
 }

@@ -350,14 +350,49 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
    RemoteBackend *remote = rdesk
          ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;
 
+   /* a conversion, or a copy of some of the pages, needs the pages, so
+      it is made here from a copy of the stack and uploaded */
+   if (remote && (type != File::Type_other || odd_even != 3))
+      {
+      QString dir = QDir::tempPath () + "/";
+      Operation op (QString (tr ("Convert to %1")).arg (File::typeName (type)),
+                    listPagecount (list), 0);
+
+      foreach (ind, list)
+         {
+         File *copy, *made;
+
+         f = getFile (ind);
+         err = remoteWorkCopy (rdesk, remote, f, copy);
+         if (err)
+            break;
+
+         QString ext = File::typeExt (type);
+         QString uniq = util_findNextFilename (f->leaf () + "_copy", dir, ext);
+
+         err = copy->duplicateToDesk (0, type, uniq, odd_even, op, made);
+         dropWorkCopy (copy);
+         if (!err && !made)
+            err = err_make (ERRFN, ERR_cannot_find_any_pages_in_source_document1,
+                            qPrintable (f->filename ()));
+         if (!err)
+            {
+            err = uploadNewStack (rdesk, remote, made,
+                                  f->leaf () + "_copy" + ext, f, fnew);
+            dropWorkCopy (made);
+            }
+         if (err)
+            break;
+         flist << fnew;
+         namelist << fnew->filename ();
+         }
+      insertRows (flist, parent);
+      return err;
+      }
+
    if (remote)
       {
-      /* only a plain copy is available remotely; conversions need
-         the pages, which live on the server */
-      if (type != File::Type_other)
-         return err_make (ERRFN, ERR_remote_op_failed2, "convert",
-                          "not supported for a remote stack");
-
+      // a plain copy is made by the server, without fetching the stack
       foreach (ind, list)
          {
          f = getFile (ind);
@@ -412,6 +447,45 @@ err_info *Desktopmodel::opUnfoldBooklets (QModelIndexList &list,
 
    // each booklet page splits into two, so the work is twice the page count
    Operation op (tr ("Unfold booklet"), 2 * listPagecount (list), 0);
+   Desk *rdesk = getDesk (parent);
+   RemoteBackend *remote = rdesk
+         ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;
+
+   /* a remote booklet is unfolded here, from a copy of it, and the new
+      stack uploaded beside it */
+   if (remote)
+      {
+      QString dir = QDir::tempPath () + "/";
+
+      foreach (ind, list)
+         {
+         File *copy, *made;
+
+         f = getFile (ind);
+         err = remoteWorkCopy (rdesk, remote, f, copy);
+         if (err)
+            break;
+
+         QString uniq = util_findNextFilename (f->leaf () + "_unfold", dir,
+                                               ".max");
+
+         err = copy->unfoldBookletTo (dir + uniq + ".max", op, made);
+         dropWorkCopy (copy);
+         if (!err)
+            {
+            err = uploadNewStack (rdesk, remote, made,
+                                  f->leaf () + "_unfold.max", f, fnew);
+            dropWorkCopy (made);
+            }
+         if (err)
+            break;
+         flist << fnew;
+         namelist << fnew->filename ();
+         }
+      insertRows (flist, parent);
+      return err;
+      }
+
    foreach (ind, list)
       {
       f = getFile (ind);
@@ -1377,6 +1451,87 @@ void Desktopmodel::getPageOcr (const QModelIndex &ind, int pagenum,
    }
 
 
+err_info *Desktopmodel::remoteWorkCopy (Desk *desk, RemoteBackend *remote,
+                                         File *f, File *&copy)
+   {
+   QString dir = QDir::tempPath () + "/";
+   QString name = util_findNextFilename (f->leaf (), dir, f->ext ())
+                  + f->ext ();
+
+   copy = nullptr;
+   if (!remote->downloadFile (desk->repoName (), remoteStackPath (desk, f),
+                              dir + name))
+      return err_make (ERRFN, ERR_remote_fetch_failed1,
+                       qPrintable (remote->lastError ()));
+   copy = File::createFile (dir, name, nullptr, File::typeFromName (name));
+
+   err_info *err = copy ? copy->load ()
+         : err_make (ERRFN, ERR_cannot_open_file1, qPrintable (dir + name));
+
+   if (err)
+      {
+      dropWorkCopy (copy);
+      copy = nullptr;
+      }
+   return err;
+   }
+
+
+void Desktopmodel::dropWorkCopy (File *copy)
+   {
+   if (!copy)
+      return;
+
+   QString pathname = copy->pathname ();
+
+   delete copy;
+   QFile::remove (pathname);
+   }
+
+
+err_info *Desktopmodel::uploadNewStack (Desk *desk, RemoteBackend *remote,
+      File *made, const QString &name, File *near, File *&fnew)
+   {
+   QFile in (made->pathname ());
+
+   fnew = nullptr;
+   if (!in.open (QIODevice::ReadOnly))
+      return err_make (ERRFN, ERR_cannot_open_file1,
+                       qPrintable (made->pathname ()));
+   QByteArray bytes = in.readAll ();
+   in.close ();
+
+   QString dirRel = remoteRelDir (desk, desk->dir ());
+   QString finalName, etag;
+
+   if (!remote->uploadFile (desk->repoName (),
+                            dirRel.isEmpty () ? name : dirRel + "/" + name,
+                            bytes, &finalName, &etag))
+      return err_make (ERRFN, ERR_remote_op_failed2, "upload",
+                       qPrintable (remote->lastError ()));
+
+   fnew = desk->createFile (desk->dir (),
+                            finalName.isEmpty () ? name : finalName);
+
+   /* the bytes are here already, so keep them as the server's copy, with
+      its validator, rather than fetching them back */
+   QString cached = fnew->pathname ();
+
+   QDir ().mkpath (QFileInfo (cached).absolutePath ());
+   QFile::remove (cached);
+   if (QFile::copy (made->pathname (), cached) && !etag.isEmpty ())
+      {
+      QFile ef (cached + ".etag");
+
+      if (ef.open (QIODevice::WriteOnly))
+         ef.write (etag.toUtf8 ());
+      }
+   desk->newFile (fnew, near);
+   refreshRemoteThumbnail (desk, remote, fnew);
+   return NULL;
+   }
+
+
 err_info *Desktopmodel::uploadScanStack (File *f)
    {
    Desk *desk = f->desk ();
@@ -1682,10 +1837,24 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
    {
       File *f = getFile (ind);
       File *fnew;
+      File *copy = nullptr;
+
+      /* a remote stack may not be here, or only some of its pages, so
+         work from a copy of the whole of it */
+      if (RemoteBackend *remote = remoteForFile (f))
+         {
+         CALL (remoteWorkCopy (f->desk (), remote, f, copy));
+         tmp_list << copy->pathname ();
+         if (type != File::Type_other)
+            f = copy;
+         }
 
       // if just copying, then get the filename
       if (type == File::Type_other)
-         fname_list << f->pathname ();
+         {
+         fname_list << (copy ? copy->pathname () : f->pathname ());
+         delete copy;   // the file stays, until it has been sent
+         }
 
       // else convert this file into a temporary one of the right type
       else
@@ -1694,7 +1863,11 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
 
          QString ext = File::typeExt (type);
          uniq = util_findNextFilename (f->leaf (), dir, ext);
-         CALL (f->duplicateToDesk (0, type, uniq, 3, op, fnew));
+         err_info *err = f->duplicateToDesk (0, type, uniq, 3, op, fnew);
+
+         if (copy)
+            dropWorkCopy (copy);
+         CALL (err);
          fname_list << uniq;
          tmp_list << uniq;
       }

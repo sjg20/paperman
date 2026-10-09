@@ -1090,6 +1090,25 @@ private:
     *  the repo root itself comes back as "". */
    QString remoteRelDir(Desk *desk, QString dir) const;
 
+   /** Download a remote stack whole, to a file of its own in the
+    *  temporary directory, as a copy to work on here: to convert it, or
+    *  to send it.  The caller drops it with dropWorkCopy(). */
+   err_info *remoteWorkCopy(Desk *desk, class RemoteBackend *remote,
+                            File *f, File *&copy);
+
+   //! delete a copy from remoteWorkCopy(), and its file
+   static void dropWorkCopy(File *copy);
+
+   /** Upload a stack made here into a remote desk, as @p name, or the
+    *  name the server gives it if that is taken, and add it to the desk
+    *  beside @p near.  The made stack's bytes are kept in the cache as
+    *  the server's copy.
+    *
+    *  @param fnew  returns the new stack in the desk */
+   err_info *uploadNewStack(Desk *desk, class RemoteBackend *remote,
+                            File *made, const QString &name, File *near,
+                            File *&fnew);
+
    /** Push a freshly-scanned stack's cached file to the server.  On a
     *  name clash the server picks a new name and the file object is
     *  renamed to match.  The server's validator is recorded so the

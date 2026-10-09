@@ -67,6 +67,10 @@ private slots:
    //! the desktop searches the text of a remote repository's stacks
    void testRemoteTextSearch();
 
+   //! a remote stack can be converted, have some of its pages copied,
+   //! be unfolded as a booklet, and be copied to the clipboard
+   void testRemoteConvert();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
