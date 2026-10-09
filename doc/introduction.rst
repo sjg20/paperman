@@ -76,7 +76,9 @@ Each page keeps its words, with where each one is, in the stack's
 ``.max`` file, so they go with the page when it is stacked, unstacked,
 deleted or copied. The option "Read the text of scanned pages (OCR)" in
 the scan settings turns this off, and the "Read text (OCR)" stack action
-reads stacks scanned before, or with it off.
+reads stacks scanned before, or with it off. For a stack on a server, it
+asks the server to read the stack next, which needs a server run with
+``--read-pages`` (see :doc:`server`).
 
 In the page view, the OCR pane shows the text of the page being shown.
 Turning a page drops its text, which is then read again the right way up.

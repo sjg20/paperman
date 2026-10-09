@@ -686,6 +686,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 return handleDuplicate(path, params, authedUser);
             if (path.endsWith("/unfold"))
                 return handleUnfold(path, params, authedUser);
+            if (path.endsWith("/read") && path.contains("/stacks/"))
+                return handleRead(path, params, authedUser);
             if (path.endsWith("/upload"))
                 return handleUpload(path, params, authedUser);
         }
@@ -715,6 +717,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         features.append("convert");
         if (!_indexes.isEmpty())
             features.append("textSearch");
+        if (!_readers.isEmpty())
+            features.append("readPages");
         obj["features"] = features;
 
         /* how far the server has got indexing the text of each
@@ -2401,6 +2405,39 @@ void SearchServer::notifyStackEvent(const QString &repoName,
         }
     }
 }
+
+QByteArray SearchServer::handleRead(const QString &path,
+                                    const QHash<QString, QString> &params,
+                                    const QString &authedUser)
+{
+    UNUSED(params);
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/read", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed read path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    RepoReader *reader = _readers.value(target.repoName);
+    if (!reader)
+        return buildHttpResponse(501, "Not Implemented", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "The server does not read pages; run "
+                                     "it with --read-pages"));
+
+    // read it before the others; its pages already read are left alone
+    reader->stackChanged(target.filePath);
+    QJsonObject out;
+    out["success"] = true;
+    return buildHttpResponse(202, "Accepted", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
 
 QByteArray SearchServer::convertStack(const StackTarget &target,
                                       const QString &typeName, int oddEven,

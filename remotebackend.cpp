@@ -419,6 +419,12 @@ bool RemoteBackend::postStackOp(const QString &repo, const QString &path,
 }
 
 
+bool RemoteBackend::readStack(const QString &repo, const QString &path)
+{
+   return postStackOp(repo, path, "/read", QJsonObject(), nullptr);
+}
+
+
 bool RemoteBackend::renameStack(const QString &repo, const QString &path,
                                 QString &newName, bool autoRename)
 {

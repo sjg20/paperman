@@ -3327,3 +3327,87 @@ void TestSearchServer::testRemoteConvert()
     QCOMPARE(names.size(), 1);
     QCOMPARE(serverPages(dir, names[0]), 10);
 }
+
+
+void TestSearchServer::testRemoteReadStack()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+    QFile::remove(QStandardPaths::writableLocation(
+                      QStandardPaths::GenericConfigLocation)
+                  + "/paperman-server/users.json");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+
+    RepoReader::Engine engine = [](QImage &, OcrPage &page) {
+        page.size = QSize(100, 100);
+        page.words << OcrWord{QRect(0, 0, 10, 10), "read", 90, 0, 0};
+        return QString();
+    };
+    auto written = [this, repo]() {
+        auto resp = get("/v1/status");
+        return QJsonDocument::fromJson(resp.body).object()
+                   .value("reading").toObject().value(repo).toObject()
+                   .value("written").toInt();
+    };
+    auto firstRead = [](const QString &path) {
+        Filemax max(QFileInfo(path).absolutePath() + "/",
+                    QFileInfo(path).fileName(), nullptr);
+        OcrPage page;
+        return !max.load() && !max.getPageOcr(0, page) && !page.isEmpty();
+    };
+
+    SearchServer server(tmpDir.path(), PORT);
+    server.setReadPages(1, engine);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QTRY_VERIFY_WITH_TIMEOUT(written() == 1, 15000);
+
+    Dirmodel dirmodel;
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    /* a stack put straight into the repository is not read until the
+       reader next looks through it, a quarter of an hour on */
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "b.max"));
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex b = model.index("b.max", parent);
+    QVERIFY(b.isValid());
+    QTest::qWait(300);
+    QVERIFY(!firstRead(dir + "b.max"));
+
+    // asked, the server reads it now
+    err_info *e = model.askServerToRead(b);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QTRY_VERIFY_WITH_TIMEOUT(written() == 2, 15000);
+    QVERIFY(firstRead(dir + "b.max"));
+
+    // a server which reads nothing says so
+    server.stop();
+    SearchServer plain(tmpDir.path(), PORT);
+    QVERIFY(plain.start());
+    auto stopPlain = qScopeGuard([&] { plain.stop(); });
+
+    /* the desk may have been refreshed as the first server went, so find
+       the stack again */
+    parent = model.showDir(root, root, &meas);
+    b = model.index("b.max", parent);
+    QVERIFY(b.isValid());
+    e = model.askServerToRead(b);
+    QVERIFY(e);
+    QVERIFY2(QString(e->errstr).contains("--read-pages"), e->errstr);
+}

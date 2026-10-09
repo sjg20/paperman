@@ -1213,6 +1213,14 @@ public:
        stack's pages are for its server to read */
    bool keepsOcr (File *f) const;
 
+   /** ask the server holding a remote stack to read its pages which have
+       not been read, before its other stacks
+
+      \param ind  model index of the stack
+      \returns error, or NULL if ok: an error if the stack is not remote,
+               or its server does not read pages */
+   err_info *askServerToRead (const QModelIndex &ind);
+
    /** show a stack turned to a page, reading it first if it has not been,
        so that its preview is made, as for a stack found by a search
 

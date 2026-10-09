@@ -1693,6 +1693,7 @@ void Desktopwidget::readText (void)
    {
    OcrReader *reader = Mainwidget::singleton ()->ocrReader ();
    int count = 0;
+   err_info *err = NULL;
 
    for (const QModelIndex &ind : _view->getSelectedListSource ())
       {
@@ -1703,11 +1704,22 @@ void Desktopwidget::readText (void)
          reader->addFile (f);
          count++;
          }
+
+      // a remote stack is read by its server, which is asked to do it next
+      else if (f && f->desk () && f->desk ()->isRemote ())
+         {
+         err = _contents->askServerToRead (ind);
+         if (err)
+            break;
+         count++;
+         }
       }
-   if (!count)
+   if (err)
+      _main->complain (err);
+   else if (!count)
       QMessageBox::information (this, tr ("Read text -- Paperman"),
-         tr ("Only Paperman's own (.max) stacks on this computer can keep "
-             "the text read from their pages"));
+         tr ("Only Paperman's own (.max) stacks can keep the text read "
+             "from their pages"));
    }
 
 

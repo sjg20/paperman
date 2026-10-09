@@ -116,6 +116,15 @@ public:
      *  "convert" feature), so convertStack() and unfoldStack() work. */
     bool hasConvert() const { return _features.contains(QStringLiteral("convert")); }
 
+    /** True if the server reads the pages of its stacks in the
+     *  background (the "readPages" feature), so readStack() works. */
+    bool hasReadPages() const { return _features.contains(QStringLiteral("readPages")); }
+
+    /** Ask the server to read the pages of a stack which have not been
+     *  read, before its other stacks.  It returns at once; the words
+     *  arrive with the stack once read, as a change to it. */
+    bool readStack(const QString &repo, const QString &path);
+
     /** The bearer token currently in use (empty if not authenticated). */
     QString bearerToken() const { return _token; }
 

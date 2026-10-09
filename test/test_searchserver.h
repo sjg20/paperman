@@ -71,6 +71,9 @@ private slots:
    //! be unfolded as a booklet, and be copied to the clipboard
    void testRemoteConvert();
 
+   //! the desktop can ask a server to read a stack's pages next
+   void testRemoteReadStack();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
