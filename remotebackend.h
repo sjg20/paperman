@@ -84,6 +84,34 @@ public:
      *  Without it a stack has to be fetched whole. */
     bool hasPageRoutes() const { return _features.contains(QStringLiteral("pages")); }
 
+    /** True if the server keeps an index of the text on its stacks'
+     *  pages and can search it (the "textSearch" feature). */
+    bool hasTextSearch() const { return _features.contains(QStringLiteral("textSearch")); }
+
+    //! a stack found by searchText()
+    struct TextHit
+       {
+       QString path;       //!< the stack, relative to the repository
+       int page = 0;       //!< the page which best matches, from 0
+       QString snippet;    //!< the text around the words, as HTML
+       };
+
+    /** Search the text on the pages of a repository's stacks, through
+     *  the server's index.
+     *
+     *  @param repo      the repository
+     *  @param text      the words, as the user typed them
+     *  @param dir       the folder to look in, relative to the
+     *                   repository, with its subfolders; empty for all
+     *  @param maxHits   the most stacks to return
+     *  @param hits      returns each stack found once, best first
+     *  @param complete  if non-null, returns false while the server is
+     *                   still building its index, so may lack stacks
+     *  @return true on success; lastError() says why not */
+    bool searchText(const QString &repo, const QString &text,
+                    const QString &dir, int maxHits, QList<TextHit> &hits,
+                    bool *complete = nullptr);
+
     /** The bearer token currently in use (empty if not authenticated). */
     QString bearerToken() const { return _token; }
 
