@@ -111,7 +111,8 @@ meanwhile; after that, only stacks which have changed are read.
 Removing the file makes the server build it afresh.
 
 Together with ``--read-pages`` this lets clients search the text of
-stacks which nobody has opened.
+stacks which nobody has opened. The desktop uses it for Edit > Search,
+"Text on the pages", in a remote repository.
 
 API Endpoints
 -------------

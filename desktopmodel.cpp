@@ -1550,7 +1550,8 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
 void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
                                             RemoteBackend *backend,
                                             const QString &repoName,
-                                            const QString &dirInRepo)
+                                            const QString &dirInRepo,
+                                            bool atPage)
 {
    if (!backend)
       return;
@@ -1580,8 +1581,8 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
        * File::getPreviewPixmap on the server side would match
        * exactly, but it needs QImage plumbing (the server uses
        * QCoreApplication, no QPixmap support) — deferred. */
-      quint64 t = backend->fetchThumbnailAsync(repoName, path,
-                                               /*page=*/1,
+      int page = atPage ? qMax(f->pagenum(), 0) + 1 : 1;
+      quint64 t = backend->fetchThumbnailAsync(repoName, path, page,
                                                /*size=*/"small");
       _pendingThumbnails.insert(t, f);
    }
@@ -1663,7 +1664,8 @@ QModelIndex Desktopmodel::indexForFile(File *file) const
 
 QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
                                            const QStringList& matches,
-                                           Measure *meas)
+                                           Measure *meas,
+                                           const QHash<QString, int> &pages)
 {
    Desk *desk;
 
@@ -1706,9 +1708,19 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
    }
    _subdirs = true;
 
-   // a remote repository's stacks have their thumbnails from the server
-   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend()))
-      scheduleRemoteThumbnails(desk, remote, desk->repoName(), QString());
+   /* a remote repository's stacks have their thumbnails from the server,
+      of the page each is turned to.  Their pages are not known until they
+      are fetched, so the model cannot turn them; set the page directly */
+   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend())) {
+      for (File *f : desk->files()) {
+         auto it = pages.constFind(remoteStackPath(desk, f));
+
+         if (it != pages.constEnd())
+            f->setPagenum(it.value());
+      }
+      scheduleRemoteThumbnails(desk, remote, desk->repoName(), QString(),
+                               true);
+   }
 
    // no pending list at present
    _pending_scan_list.clear ();

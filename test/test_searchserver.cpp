@@ -3092,3 +3092,100 @@ void TestSearchServer::testRemoteSearchDesk()
     QCOMPARE(f->pagecount(), 5);
 }
 
+/* the stacks in a search's desk, as name:page, sorted */
+static QStringList foundStacks(Desktopmodel &model, const QModelIndex &found)
+{
+    QStringList out;
+
+    for (int row = 0; row < model.rowCount(found); row++) {
+        QModelIndex ind = model.index(row, 0, found);
+
+        out << QString("%1:%2")
+                   .arg(model.data(ind, Desktopmodel::Role_filename).toString())
+                   .arg(model.getFile(ind)->pagenum());
+    }
+    out.sort();
+    return out;
+}
+
+void TestSearchServer::testRemoteTextSearch()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+    QFile::remove(QStandardPaths::writableLocation(
+                      QStandardPaths::GenericConfigLocation)
+                  + "/paperman-server/users.json");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(makeTextRepo(dir));
+
+    SearchServer server(tmpDir.path(), PORT);
+    server.setTextIndex(true);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QVERIFY(model.showDir(root, root, &meas).isValid());
+
+    // the whole repository, once the server has built its index
+    QModelIndex found;
+    int count = 0;
+    bool complete = false;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        !model.findText(root, root, "invoice", &meas, found, count, nullptr,
+                        &complete) && complete && count == 2, 15000);
+    QCOMPARE(foundStacks(model, found), QStringList({"a.max:0", "b.max:2"}));
+
+    /* a stack found in a subfolder is fetched from its own place, and
+       opens at the page which matched */
+    QModelIndex b;
+    for (int row = 0; row < model.rowCount(found); row++)
+        if (model.data(model.index(row, 0, found), Desktopmodel::Role_filename)
+                .toString() == "b.max")
+            b = model.index(row, 0, found);
+    QVERIFY(b.isValid());
+    File *f = model.getFile(b);
+    QVERIFY2(f->pathname().endsWith("/" + repo + "/sub/b.max"),
+             qPrintable(f->pathname()));
+    QVERIFY(!model.ensureContent(b));
+    QCOMPARE(f->pagecount(), 5);
+    QCOMPARE(model.data(b, Desktopmodel::Role_pagenum).toInt(), 2);
+
+    // only in a folder
+    QVERIFY(!model.findText(root + "/sub", root, "invoice", &meas, found,
+                            count));
+    QCOMPARE(foundStacks(model, found), QStringList({"b.max:2"}));
+
+    // nothing, and an empty search
+    QVERIFY(!model.findText(root, root, "zebra", &meas, found, count));
+    QCOMPARE(count, 0);
+    QVERIFY(!model.findText(root, root, "  ", &meas, found, count));
+    QCOMPARE(count, 0);
+
+    // a server which does not index its text says so
+    server.stop();
+    SearchServer plain(tmpDir.path(), PORT);
+    QVERIFY(plain.start());
+    auto stopPlain = qScopeGuard([&] { plain.stop(); });
+    err_info *e = model.findText(root, root, "invoice", &meas, found, count);
+    QVERIFY(e);
+    QVERIFY2(QString(e->errstr).contains("No text index"), e->errstr);
+}

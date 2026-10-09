@@ -521,9 +521,12 @@ private:
     *        page which best matches
     * @param path    Full path to directory to search
     * @param text    Words to look for, as the user typed them
-    * @return the number of stacks found
+    * @param complete  if non-null, returns false when a server is still
+    *                  building its index, so some stacks may be missing
+    * @return the number of stacks found, or -1 on error
     */
-   int startTextSearch(const QString& path, const QString& text);
+   int startTextSearch(const QString& path, const QString& text,
+                       bool *complete = nullptr);
 
    //! Update the view to indicate that it is in a search/import mode
    void specialView(const QString& prompt);

@@ -64,6 +64,9 @@ private slots:
    //! folders, and they work as in their own folders
    void testRemoteSearchDesk();
 
+   //! the desktop searches the text of a remote repository's stacks
+   void testRemoteTextSearch();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
