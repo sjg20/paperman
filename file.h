@@ -207,6 +207,16 @@ public:
       \returns error, or NULL if none */
    err_info *unfoldBooklet (Operation &op, File *&fnew);
 
+   /** unfold a booklet, as unfoldBooklet() does, into a new .max file
+
+      \param pathname  the new file
+      \param op        operation for progress tracking
+      \param fnew      returns the new file
+      \param desk      the desk the new file is for, or nullptr
+      \returns error, or NULL if none */
+   err_info *unfoldBookletTo (const QString &pathname, Operation &op,
+                              File *&fnew, Desk *desk = nullptr);
+
 #ifndef QT_NO_WIDGETS
    /** copy pages to a new file, applying an image adjustment to each page
 
