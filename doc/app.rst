@@ -22,7 +22,8 @@ Features
    directory
 -  **View** documents as PDF (server converts .max, .jpg, .tiff on the fly)
 -  **Multiple repositories** with a switcher in the toolbar
--  **HTTP Basic Auth** for servers behind nginx authentication
+-  **Logging in** to a server with accounts of its own, or **HTTP Basic
+   Auth** for servers behind nginx authentication
 -  **Demo mode** for trying the app without a server (for Play Store
    reviewers)
 -  **Dark mode** follows the system theme
@@ -250,10 +251,13 @@ Local URL
 
 Authentication
    When a username is configured, ``_basicAuth`` produces a Base64-encoded
-   ``Authorization: Basic`` header.  The ``_headers`` getter attaches this
-   header (plus ``Accept: application/json``) to every request.  The public
-   ``basicAuth`` getter lets widgets such as ``FileTile`` pass the same
-   credentials to ``CachedNetworkImage``.
+   ``Authorization: Basic`` header, for a server behind a proxy which asks
+   for it.  A server with accounts of its own answers 401 to that, and
+   ``_get()`` then logs in with ``POST /v1/auth/login`` and sends the token
+   it gives as ``Authorization: Bearer`` from then on.  The ``authHeader``
+   getter gives whichever is in use; the ``_headers`` getter attaches it
+   (plus ``Accept: application/json``) to every request, and widgets such
+   as ``FileTile`` pass it to ``CachedNetworkImage``.
 
 ``_getJson()`` helper
    Performs a GET request, checks for 401 and other error codes, parses the

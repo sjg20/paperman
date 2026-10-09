@@ -39,8 +39,8 @@ class FileTile extends StatelessWidget {
             width: 48, height: 48, fit: BoxFit.cover)
         : CachedNetworkImage(
             imageUrl: thumbUrl.toString(),
-            httpHeaders: api.basicAuth != null
-                ? {'Authorization': api.basicAuth!}
+            httpHeaders: api.authHeader != null
+                ? {'Authorization': api.authHeader!}
                 : {},
             fit: BoxFit.cover,
             placeholder:
