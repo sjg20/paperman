@@ -245,6 +245,24 @@ class ApiService {
     return SearchResult.fromJson(json);
   }
 
+  /// Search the text on the pages of a repository's stacks, through the
+  /// server's index.  The server must be run with --index.
+  Future<TextSearchResult> searchText({
+    required String repo,
+    required String text,
+    String? path,
+    int max = 100,
+  }) async {
+    if (_isDemo) return DemoData.searchText(text: text);
+    final params = <String, String>{'text': text, 'max': max.toString()};
+    if (path != null && path.isNotEmpty) params['path'] = path;
+    final json = await _getJson(
+      '/v1/repos/${Uri.encodeComponent(repo)}/search',
+      params,
+    );
+    return TextSearchResult.fromJson(json);
+  }
+
   /// Build a plain URL (no embedded credentials). Auth is handled
   /// via headers instead.
   Uri _buildUri(String endpoint, Map<String, String> params) {

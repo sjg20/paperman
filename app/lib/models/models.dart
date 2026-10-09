@@ -103,3 +103,46 @@ class SearchResult {
     );
   }
 }
+
+/// A stack found by searching the text on its pages
+class TextHit {
+  /// the stack, relative to the repository
+  final String path;
+
+  /// the page which best matches, from 1
+  final int page;
+
+  /// the text around the words, with each word in <b>...</b>
+  final String snippet;
+
+  TextHit({required this.path, required this.page, required this.snippet});
+
+  String get name => path.split('/').last;
+
+  factory TextHit.fromJson(Map<String, dynamic> json) {
+    return TextHit(
+      path: json['path'] as String,
+      page: json['page'] as int? ?? 1,
+      snippet: json['snippet'] as String? ?? '',
+    );
+  }
+}
+
+class TextSearchResult {
+  final List<TextHit> hits;
+
+  /// false while the server is still building its index, so some stacks
+  /// may be missing
+  final bool complete;
+
+  TextSearchResult({required this.hits, this.complete = true});
+
+  factory TextSearchResult.fromJson(Map<String, dynamic> json) {
+    return TextSearchResult(
+      hits: (json['results'] as List<dynamic>? ?? [])
+          .map((r) => TextHit.fromJson(r as Map<String, dynamic>))
+          .toList(),
+      complete: json['complete'] as bool? ?? true,
+    );
+  }
+}

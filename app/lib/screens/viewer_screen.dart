@@ -16,11 +16,15 @@ class ViewerScreen extends StatefulWidget {
   final String fileName;
   final String? repo;
 
+  /// the page to open at, from 1, such as the one a search found
+  final int initialPage;
+
   const ViewerScreen({
     super.key,
     required this.filePath,
     required this.fileName,
     this.repo,
+    this.initialPage = 1,
   });
 
   /// Return the range of 0-based indices that overlap [viewportTop]
@@ -148,12 +152,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
 
     if (!mounted) return;
+    // open at the page asked for, once it has arrived
+    final start = widget.initialPage.clamp(1, pageCount < 1 ? 1 : pageCount);
     setState(() {
       _totalPages = pageCount;
+      _currentPage = start;
       _loading = false;
     });
 
-    _prefetchAround(1);
+    if (start > 1) _scrubTarget = start;
+    _prefetchAround(start);
   }
 
   /// Start fetching [page] if not already loaded or in progress.

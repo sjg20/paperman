@@ -86,6 +86,22 @@ class DemoData {
     return SearchResult(count: matches.length, results: matches);
   }
 
+  /// The demo stacks have no text, so a search of their text looks at
+  /// their names, as if each name were written on its first page.
+  static TextSearchResult searchText({required String text}) {
+    final words = text.toLowerCase().split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty);
+    final hits = <TextHit>[];
+    for (final entry in _assets.keys) {
+      final name = entry.split('/').last;
+      final lower = name.toLowerCase();
+      if (words.isNotEmpty && words.every(lower.contains)) {
+        hits.add(TextHit(path: entry, page: 1, snippet: name));
+      }
+    }
+    return TextSearchResult(hits: hits);
+  }
+
   static String thumbnailAsset(String path) =>
       _thumbnails[path] ?? 'assets/demo/thumb_summary.jpg';
 
