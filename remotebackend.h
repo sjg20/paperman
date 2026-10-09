@@ -269,6 +269,12 @@ public:
      *  @p refreshed, if non-null, is set true when new bytes were
      *  written (so any parsed state is stale) and false when the
      *  existing copy was already current. */
+    /** Download a whole file of a repository to @p dest, outside the
+     *  cache, as a copy to work on which nothing else is reading.
+     *  @return true on success; lastError() says why not */
+    bool downloadFile(const QString &repo, const QString &relPath,
+                      const QString &dest);
+
     QString ensureCachedFile(const QString &repo, const QString &relPath,
                              bool *refreshed = nullptr);
 
