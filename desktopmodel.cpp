@@ -2225,13 +2225,13 @@ void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
    if (!f)
       return;
 
-      {
-      QMutexLocker locker (&_imageMutex);
+   // hold the lock while the stack is read, but not while it is shown
+   QMutexLocker locker (&_imageMutex);
 
-      if (f->reload ())
-         return;
-      f->setValid (true);
-      }
+   if (f->reload ())
+      return;
+   f->setValid (true);
+   locker.unlock ();
    f->setRemoteChecked (true);
 
    _minor_change = true;
@@ -2259,11 +2259,11 @@ void Desktopmodel::onPageReady (quint64 token, const QString &pagePath)
    if (!max)
       return;
 
-      {
-      QMutexLocker locker (&_imageMutex);
+   // likewise, while the stack is told of the page
+   QMutexLocker locker (&_imageMutex);
 
-      max->pageArrived (pagenum);
-      }
+   max->pageArrived (pagenum);
+   locker.unlock ();
    _minor_change = true;
    buildItem (ind);
    _minor_change = false;
