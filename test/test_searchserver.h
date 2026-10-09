@@ -74,6 +74,9 @@ private slots:
    //! the desktop can ask a server to read a stack's pages next
    void testRemoteReadStack();
 
+   //! the desktop refuses a server too old or too new for it, saying why
+   void testServerTooOldOrNew();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
