@@ -11,6 +11,7 @@ class ApiService {
   String? _localBaseUrl;
   String? _username;
   String? _password;
+  String? _token;
   http.Client? _localClient;
 
   ApiService({required String baseUrl, String? username, String? password})
@@ -44,6 +45,7 @@ class ApiService {
     }
     _username = username;
     _password = password;
+    _token = null;
   }
 
   /// Create an HTTP client that accepts TLS certificates for [host].
@@ -103,12 +105,45 @@ class ApiService {
     return http.Client();
   }
 
-  Future<http.Response> _get(Uri uri) {
+  /// GET [uri], logging in first if the server has accounts of its own
+  /// and asks for credentials.
+  Future<http.Response> _get(Uri uri) async {
     final client = createClient();
-    return client.get(uri, headers: _headers);
+    var response = await client.get(uri, headers: _headers);
+
+    if (response.statusCode == 401 && await _login()) {
+      response = await client.get(uri, headers: _headers);
+    }
+    return response;
   }
 
-  String? get basicAuth => _basicAuth;
+  /// The Authorization header to send: the token from logging in to a
+  /// server with accounts of its own, or else the username and password
+  /// for a server behind a proxy which asks for them.
+  String? get authHeader =>
+      _token != null ? 'Bearer $_token' : _basicAuth;
+
+  /// Log in to a server which has accounts of its own, with the username
+  /// and password, keeping the token it gives for later requests.
+  /// Returns true if it gave one.
+  Future<bool> _login() async {
+    if (_isDemo || _username == null || _username!.isEmpty) return false;
+    final uri = Uri.parse('$_baseUrl/v1/auth/login');
+    try {
+      final response = await createClient().post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user': _username, 'password': _password ?? ''}),
+      );
+      if (response.statusCode != 200) return false;
+      final token = (jsonDecode(response.body) as Map<String, dynamic>)['token'];
+      if (token is! String || token.isEmpty) return false;
+      _token = token;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   String? get _basicAuth {
     if (_username != null && _username!.isNotEmpty) {
@@ -122,7 +157,7 @@ class ApiService {
 
   Map<String, String> get _headers {
     final headers = <String, String>{'Accept': 'application/json'};
-    final auth = _basicAuth;
+    final auth = authHeader;
     if (auth != null) {
       headers['Authorization'] = auth;
     }
@@ -289,7 +324,7 @@ class ApiService {
     final uri = Uri.parse('$_baseUrl/file').replace(queryParameters: params);
 
     final request = http.Request('GET', uri);
-    final auth = _basicAuth;
+    final auth = authHeader;
     if (auth != null) {
       request.headers['Authorization'] = auth;
     }
@@ -366,7 +401,7 @@ class ApiService {
         Uri.parse('$_baseUrl/file').replace(queryParameters: params);
 
     final request = http.Request('GET', uri);
-    final auth = _basicAuth;
+    final auth = authHeader;
     if (auth != null) {
       request.headers['Authorization'] = auth;
     }
