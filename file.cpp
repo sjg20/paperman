@@ -53,9 +53,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "maxview.h"
 #endif
 #include "mem.h"
-#ifndef QT_NO_WIDGETS
 #include "op.h"
-#endif
 #include "utils.h"
 
 
@@ -64,7 +62,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #endif
 
 
-#ifndef QT_NO_WIDGETS
 /** encode a QImage as a greyscale JPEG using libjpeg directly
  *
  * Qt's JPEG encoder always produces RGB output even for greyscale data.
@@ -119,7 +116,6 @@ static QByteArray encodeGreyJpeg (const QImage &image, int quality)
    jpeg_destroy_compress (&cinfo);
    return result;
    }
-#endif
 
 
 
@@ -1196,6 +1192,7 @@ err_info *File::copyToAdjusted (File *fnew, Operation &op,
    return NULL;
    }
 #endif  // QT_NO_WIDGETS
+#endif
 
 
 err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
@@ -1360,6 +1357,7 @@ QVector<QPair<int, bool> > File::bookletOrder (int numImages)
    }
 
 
+#ifndef QT_NO_WIDGETS
 err_info *File::unfoldBooklet (Operation &op, File *&fnew)
    {
    Desk *desk = _desk;
@@ -1372,6 +1370,7 @@ err_info *File::unfoldBooklet (Operation &op, File *&fnew)
    desk->newFile (fnew, this, 1);
    return NULL;
    }
+#endif
 
 
 err_info *File::unfoldBookletTo (const QString &pathname, Operation &op,
@@ -1437,7 +1436,6 @@ err_info *File::unfoldBookletTo (const QString &pathname, Operation &op,
    fnew->load ();
    return NULL;
    }
-#endif
 
 bool File::decodePageNumber (const QString &fname, QString &base, int &pagenum,
                              QString &ext)
