@@ -35,6 +35,7 @@ Paperman
    :caption: Development
 
    develop
+   client-server
    build
    releasing
    code-signing
