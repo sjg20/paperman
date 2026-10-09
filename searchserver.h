@@ -443,6 +443,17 @@ private:
      * "jpeg"), of the odd (1), even (2) or all (3) pages, beside it (see
      * convertStack()).  Returns {name}.
      */
+    /**
+     * POST /v1/repos/{repo}/stacks/{path}/read
+     *
+     * Ask the background reader to read the pages of a stack which have
+     * not been read, before the other stacks.  Returns 202 at once;
+     * 501 when the server does not read pages.
+     */
+    QByteArray handleRead(const QString &path,
+                          const QHash<QString, QString> &params,
+                          const QString &authedUser);
+
     QByteArray handleDuplicate(const QString &path,
                                const QHash<QString, QString> &params,
                                const QString &authedUser);

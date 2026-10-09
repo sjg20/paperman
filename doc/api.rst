@@ -841,6 +841,13 @@ A server which does these lists ``convert`` in ``features``.
    pixels.  Other stacks have the text stored in their ``ocr``
    annotation.  ``501`` when no engine is installed on the server.
 
+``/read``
+   Asks the server's background reader (``--read-pages``) to read the
+   pages of the stack which have not been read, before its other
+   stacks, and returns ``202`` at once; the words arrive as a change to
+   the stack.  ``501`` when the server does not read pages.  Such a
+   server lists ``readPages`` in ``features``.
+
 PDFs which the server makes of a stack or a page have the words read
 from each page as an invisible layer of text, so they can be searched.
 

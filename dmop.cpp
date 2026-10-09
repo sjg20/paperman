@@ -1371,6 +1371,23 @@ err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
    }
 
 
+err_info *Desktopmodel::askServerToRead (const QModelIndex &ind)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      return err_make (ERRFN, ERR_remote_op_failed2, "read",
+                       "the stack is not on a server");
+   Desk *desk = f->desk ();
+
+   if (!remote->readStack (desk->repoName (), remoteStackPath (desk, f)))
+      return err_make (ERRFN, ERR_remote_op_failed2, "read",
+                       qPrintable (remote->lastError ()));
+   return NULL;
+   }
+
+
 bool Desktopmodel::keepsOcr (File *f) const
    {
    return f && f->type () == File::Type_max && !remoteForFile (f);

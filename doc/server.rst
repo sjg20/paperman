@@ -64,8 +64,9 @@ With ``--read-pages`` the server reads the pages of every stack in its
 repositories with tesseract, as it has time, and puts the words into the
 stacks, so that the desktop and the server can find a stack by the text
 on its pages. Scans which come in, and stacks which change, are read
-before the rest; otherwise the newest stacks are read first. The trash
-and any hidden folder are left alone.
+before the rest, as are stacks which the desktop's "Read text (OCR)" asks
+for; otherwise the newest stacks are read first. The trash and any
+hidden folder are left alone.
 
 Each stack is written in one step: the server copies it, puts the words
 into the copy and puts the copy in place of the stack, keeping its mode
