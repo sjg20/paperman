@@ -1368,10 +1368,22 @@ err_info *File::unfoldBooklet (Operation &op, File *&fnew)
    QString uniq = desk->findNextFilename (_leaf + "_unfold", QString (), ext);
    QString dir = desk->dir ();
 
+   CALL (unfoldBookletTo (dir + uniq + ext, op, fnew, desk));
+   desk->newFile (fnew, this, 1);
+   return NULL;
+   }
+
+
+err_info *File::unfoldBookletTo (const QString &pathname, Operation &op,
+                                 File *&fnew, Desk *desk)
+   {
+   e_type type = Type_max;
+   QFileInfo fi (pathname);
+
    CALL (load ());
    int numImages = pagecount ();
 
-   fnew = createFile (dir, uniq + ext, desk, type);
+   fnew = createFile (fi.absolutePath () + "/", fi.fileName (), desk, type);
    if (!fnew)
       return not_impl ();
    CALL (fnew->create ());
@@ -1423,7 +1435,6 @@ err_info *File::unfoldBooklet (Operation &op, File *&fnew)
       }
    fnew->flush ();
    fnew->load ();
-   desk->newFile (fnew, this, 1);
    return NULL;
    }
 #endif
