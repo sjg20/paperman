@@ -19,7 +19,7 @@ Features
 -  **Browse** directories with thumbnails, breadcrumb navigation and
    pull-to-refresh
 -  **Search** documents across the whole repository or within the current
-   directory
+   directory, by name or by the text on their pages
 -  **View** documents as PDF (server converts .max, .jpg, .tiff on the fly)
 -  **Multiple repositories** with a switcher in the toolbar
 -  **Logging in** to a server with accounts of its own, or **HTTP Basic
@@ -319,6 +319,14 @@ runs across the whole repository.  Results are displayed in a
 ``ListView.builder`` of ``FileTile`` widgets with ``showFullPath: true``
 so the user can see where each match lives.  Tapping a result pushes
 ``ViewerScreen``.
+
+Within a repository, a choice between "Names" and "Text on the pages"
+searches the text instead, through the server's index
+(``GET /v1/repos/{repo}/search``, which needs a server run with
+``--index``).  Each stack found shows its folder, the page which matched
+best and the words around the match, and opens at that page
+(``ViewerScreen``'s ``initialPage``).  While the server is still building
+its index, the count says that some stacks may be missing.
 
 ViewerScreen
 ~~~~~~~~~~~~
