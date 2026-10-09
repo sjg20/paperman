@@ -252,8 +252,19 @@ err_info *SearchIndex::sync(const QString &dirPath, const Progress &progress)
    QDirIterator it(dir, QStringList() << "*.max" << "*.pdf", QDir::Files,
                    QDirIterator::Subdirectories);
 
+   /* leave out the trash and anything else hidden; the iterator does not
+      do it everywhere, since a name starting with a dot is not hidden on
+      Windows */
    while (it.hasNext())
-      paths << it.next();
+      {
+      QString path = it.next();
+      bool hidden = false;
+
+      for (const QString &part : path.mid (dir.size ()).split ('/'))
+         hidden |= part.startsWith ('.');
+      if (!hidden)
+         paths << path;
+      }
 
    _db.transaction();
    int done = 0;
