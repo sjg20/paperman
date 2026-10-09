@@ -419,12 +419,29 @@ private:
                             const QHash<QString, QString> &params,
                             const QString &authedUser);
 
+    /** Make a stack of another type, or of some of the pages, from a
+     *  stack, beside it, named after it with _copy; for /duplicate */
+    QByteArray convertStack(const StackTarget &target,
+                            const QString &typeName, int oddEven,
+                            const QHash<QString, QString> &params);
+
+    /**
+     * POST /v1/repos/{repo}/stacks/{path}/unfold
+     *
+     * Unfold a booklet into a new .max stack beside it, each page split
+     * into two in reading order.  Returns {name}.
+     */
+    QByteArray handleUnfold(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser);
+
     /**
      * Handle POST /v1/repos/{repo}/stacks/{path}/duplicate
      *
-     * Body {}.  Copies the stack's file within its directory under a
-     * fresh name and returns {name}.  Format conversion is not
-     * supported here yet.
+     * Body {} copies the stack's file within its directory under a fresh
+     * name; {type, oddEven} makes a stack of that type ("pdf", "max",
+     * "jpeg"), of the odd (1), even (2) or all (3) pages, beside it (see
+     * convertStack()).  Returns {name}.
      */
     QByteArray handleDuplicate(const QString &path,
                                const QHash<QString, QString> &params,
