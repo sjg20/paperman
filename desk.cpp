@@ -369,7 +369,9 @@ File *Desk::createFile (const QString &dir, const QString fname)
     * unknown (no server id), fall back to the Fileother stub. */
    if (_isRemote)
       {
-      QString cacheDir = remoteCacheDir ();
+      /* the stack's own folder, which is not the desk's when the desk
+         holds the stacks a search found */
+      QString cacheDir = remoteCacheDirFor (dir);
       if (cacheDir.isEmpty ())
          return File::createFile (dir, fname, this, File::Type_other);
       QDir ().mkpath (cacheDir);
@@ -407,12 +409,24 @@ QString Desk::remoteRelDir (void) const
 
 QString Desk::remoteCacheDir (void)
    {
+   return remoteCacheDirFor (_dir);
+   }
+
+
+QString Desk::remoteCacheDirFor (const QString &dir)
+   {
    RemoteBackend *remote = dynamic_cast<RemoteBackend *> (_backend);
 
    if (!remote)
       return QString ();
 
-   return remote->cacheDirFor (_repoName, remoteRelDir ());
+   QString rel = dir;
+
+   if (rel.startsWith (_rootDir))
+      rel = rel.mid (_rootDir.length ());
+   while (rel.endsWith ('/'))
+      rel.chop (1);
+   return remote->cacheDirFor (_repoName, rel);
    }
 
 

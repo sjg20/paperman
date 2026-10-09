@@ -186,6 +186,11 @@ public:
     *  remote (no trailing slash), or empty when there is none */
    QString remoteCacheDir (void);
 
+   /** Local cache directory for the files of a folder of the remote
+    *  repository, given as a desk directory would be (no trailing
+    *  slash), or empty when there is none */
+   QString remoteCacheDirFor (const QString &dir);
+
    /** The desk's directory relative to the repository root, with no
     *  surrounding slashes ("" for the root itself) */
    QString remoteRelDir (void) const;

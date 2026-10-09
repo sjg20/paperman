@@ -3021,3 +3021,74 @@ void TestSearchServer::testServerSearchesText()
                 .header.contains("404"));
     plain.stop();
 }
+
+
+/* a repository of three stacks, two of them with text: a.max, sub/b.max
+   (whose third page has the words) and c.max */
+static bool makeTextRepo(const QString &dir)
+{
+    auto say = [](const QString &path, int pagenum, const QString &text) {
+        Filemax max(QFileInfo(path).absolutePath() + "/",
+                    QFileInfo(path).fileName(), nullptr);
+        OcrPage page;
+        page.size = QSize(100, 100);
+        for (const QString &word : text.split(' '))
+            page.words << OcrWord{QRect(0, 0, 10, 10), word, 90, 0, 0};
+        return !max.load() && !max.putPageOcr(pagenum, page);
+    };
+
+    return QDir(dir).mkdir("sub")
+           && QFile::copy(Suite::testSrc + "/testfile.max", dir + "a.max")
+           && QFile::copy(Suite::testSrc + "/testfile.max", dir + "sub/b.max")
+           && QFile::copy(Suite::testSrc + "/testfile.max", dir + "c.max")
+           && say(dir + "a.max", 0, "invoice for apples")
+           && say(dir + "sub/b.max", 2, "banana invoice");
+}
+
+void TestSearchServer::testRemoteSearchDesk()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(makeTextRepo(dir));
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err),
+             err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QVERIFY(model.showDir(root, root, &meas).isValid());
+
+    /* a search's desk holds stacks from several folders: each is fetched
+       from its own place, and works as in its folder */
+    QModelIndex found = model.finishFileSearch(root, root,
+                                               {"a.max", "sub/b.max"}, &meas);
+    QCOMPARE(model.rowCount(found), 2);
+
+    QModelIndex b;
+    for (int row = 0; row < model.rowCount(found); row++)
+        if (model.data(model.index(row, 0, found), Desktopmodel::Role_filename)
+                .toString() == "b.max")
+            b = model.index(row, 0, found);
+    QVERIFY(b.isValid());
+    File *f = model.getFile(b);
+    QVERIFY2(f->pathname().endsWith("/" + repo + "/sub/b.max"),
+             qPrintable(f->pathname()));
+    QVERIFY(!model.ensureContent(b));
+    QCOMPARE(f->pagecount(), 5);
+}
+
