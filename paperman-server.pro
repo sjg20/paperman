@@ -45,6 +45,7 @@ HEADERS += builddate.h \
     filepdf.h \
     fileother.h \
     utils.h \
+    op.h \
     pdfio.h \
     err.h \
     mem.h \
@@ -73,6 +74,7 @@ SOURCES += searchserver.cpp \
     filepdf.cpp \
     fileother.cpp \
     utils.cpp \
+    op.cpp \
     pdfio.cpp \
     err.cpp \
     mem.cpp \
