@@ -27,7 +27,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 class QWidget;
 
 
-#include "qprogressdialog.h"
+#include <QObject>
+#include <QString>
 
 
 class Operation : public QObject
@@ -62,7 +63,7 @@ public:
     * @brief Set the widget to advise of operation progress
     * @param receiver  Widget to receive signals
     */
-   static void setReceiver(QWidget *receiver);
+   static void setReceiver(QObject *receiver);
 
    /** @brief State of the operation */
    enum state_t {

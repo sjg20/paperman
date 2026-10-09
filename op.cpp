@@ -24,12 +24,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 
 #include "err.h"
-#include "qapplication.h"
+#include <QCoreApplication>
 
 #include "op.h"
 
 //! the widget which needs to know about operation progress
-static QWidget *receiver;
+static QObject *receiver;
 
 Operation::Operation (QString name, int count, QWidget *parent)
    {
@@ -64,7 +64,7 @@ bool Operation::setProgress (int upto)
    int pc = int ((float)upto / _maximum * 100);
 
    emit operationProgress(running, pc, QString());
-   qApp->processEvents ();
+   QCoreApplication::processEvents ();
 
    return false;
    }
@@ -78,7 +78,7 @@ bool Operation::incProgress (int by)
    }
    
 
-void Operation::setReceiver(QWidget *widget)
+void Operation::setReceiver(QObject *widget)
    {
    receiver = widget;
    }
