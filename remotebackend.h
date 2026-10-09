@@ -112,6 +112,10 @@ public:
                     const QString &dir, int maxHits, QList<TextHit> &hits,
                     bool *complete = nullptr);
 
+    /** True if the server converts and unfolds stacks itself (the
+     *  "convert" feature), so convertStack() and unfoldStack() work. */
+    bool hasConvert() const { return _features.contains(QStringLiteral("convert")); }
+
     /** The bearer token currently in use (empty if not authenticated). */
     QString bearerToken() const { return _token; }
 
@@ -214,6 +218,23 @@ public:
      *  returned in @p newName. */
     bool duplicateStack(const QString &repo, const QString &path,
                         QString *newName);
+
+    /** Make a stack of another type, and of some of the pages, from a
+     *  stack, beside it on the server, named after it with _copy.
+     *  Needs hasConvert().
+     *
+     *  @param type     the type's extension, such as "pdf"
+     *  @param oddEven  1 for the odd pages, 2 for the even, 3 for all
+     *  @param newName  returns the new stack's name */
+    bool convertStack(const QString &repo, const QString &path,
+                      const QString &type, int oddEven, QString *newName);
+
+    /** Unfold a booklet into a new .max stack beside it on the server,
+     *  each page split into two in reading order.  Needs hasConvert().
+     *
+     *  @param newName  returns the new stack's name */
+    bool unfoldStack(const QString &repo, const QString &path,
+                     QString *newName);
 
     /** Upload a whole file's bytes to the server at @p path (e.g. a
      *  stack scanned into a remote desk).  The server never

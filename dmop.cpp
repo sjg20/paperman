@@ -350,8 +350,39 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
    RemoteBackend *remote = rdesk
          ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;
 
-   /* a conversion, or a copy of some of the pages, needs the pages, so
-      it is made here from a copy of the stack and uploaded */
+   /* a conversion, or a copy of some of the pages, needs the pages; a
+      server which converts does it in place, without the stack coming
+      here */
+   if (remote && (type != File::Type_other || odd_even != 3)
+       && remote->hasConvert ())
+      {
+      QString ext = type == File::Type_other ? QString ()
+                    : File::typeExt (type).mid (1);
+
+      foreach (ind, list)
+         {
+         QString name;
+
+         f = getFile (ind);
+         if (!remote->convertStack (rdesk->repoName (),
+                                    remoteStackPath (rdesk, f), ext,
+                                    odd_even, &name))
+            {
+            err = err_make (ERRFN, ERR_remote_op_failed2, "convert",
+                            qPrintable (remote->lastError ()));
+            break;
+            }
+         fnew = rdesk->createFile (rdesk->dir (), name);
+         rdesk->newFile (fnew, f);
+         refreshRemoteThumbnail (rdesk, remote, fnew);
+         flist << fnew;
+         namelist << name;
+         }
+      insertRows (flist, parent);
+      return err;
+      }
+
+   /* otherwise it is made here, from a copy of the stack, and uploaded */
    if (remote && (type != File::Type_other || odd_even != 3))
       {
       QString dir = QDir::tempPath () + "/";
@@ -451,8 +482,33 @@ err_info *Desktopmodel::opUnfoldBooklets (QModelIndexList &list,
    RemoteBackend *remote = rdesk
          ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;
 
-   /* a remote booklet is unfolded here, from a copy of it, and the new
-      stack uploaded beside it */
+   // a server which converts unfolds a booklet in place
+   if (remote && remote->hasConvert ())
+      {
+      foreach (ind, list)
+         {
+         QString name;
+
+         f = getFile (ind);
+         if (!remote->unfoldStack (rdesk->repoName (),
+                                   remoteStackPath (rdesk, f), &name))
+            {
+            err = err_make (ERRFN, ERR_remote_op_failed2, "unfold",
+                            qPrintable (remote->lastError ()));
+            break;
+            }
+         fnew = rdesk->createFile (rdesk->dir (), name);
+         rdesk->newFile (fnew, f);
+         refreshRemoteThumbnail (rdesk, remote, fnew);
+         flist << fnew;
+         namelist << name;
+         }
+      insertRows (flist, parent);
+      return err;
+      }
+
+   /* otherwise a remote booklet is unfolded here, from a copy of it, and
+      the new stack uploaded beside it */
    if (remote)
       {
       QString dir = QDir::tempPath () + "/";
