@@ -1064,9 +1064,12 @@ private:
        it is remote, or none */
    void useRootBackend(Desk *desk);
 
+   /** fetch the thumbnails of a remote desk's stacks, of their first
+       page, or with @p atPage, of the page each is turned to */
    void scheduleRemoteThumbnails(Desk *desk, class RemoteBackend *backend,
                                  const QString &repoName,
-                                 const QString &dirInRepo);
+                                 const QString &dirInRepo,
+                                 bool atPage = false);
 
    /** Return the QModelIndex for an arbitrary File*; QModelIndex()
     *  if the file isn't in any of our desks. */
@@ -1428,10 +1431,36 @@ public:
     * @param rootPath  Path to top-level repository directory (without ("/")
     * @param matches   List of file paths to add, relative to dirPath
     * @param meas      Measurer for text
+    * @param pages     For a remote repository, the page to turn each
+    *                  stack to, by its path in the repository
     * @return  Desktopmodel of the desk to display
     */
    QModelIndex finishFileSearch(QString dirPath, QString rootPath,
-                                const QStringList& matches, Measure *meas);
+                                const QStringList& matches, Measure *meas,
+                                const QHash<QString, int> &pages = {});
+
+   /** find the stacks in a folder, or its subfolders, with some words
+       on their pages, and show them as a search's results, best first,
+       each turned to the page which matches best.
+
+       A local repository's index is kept next to its stacks and is
+       brought up to date first; a remote one is searched by its server
+
+      \param path      the folder to look in (without "/")
+      \param rootPath  the repository's top folder (without "/")
+      \param text      the words, as the user typed them
+      \param meas      measurer for text
+      \param found     returns the desk of the stacks found
+      \param count     returns how many were found
+      \param op        shows progress as a local index is brought up to
+                       date, or nullptr
+      \param complete  if non-null, returns false when a server is still
+                       building its index, so some stacks may be missing
+      \returns error, or NULL if ok */
+   err_info *findText (const QString &path, const QString &rootPath,
+                       const QString &text, Measure *meas,
+                       QModelIndex &found, int &count,
+                       Operation *op = nullptr, bool *complete = nullptr);
 
 public slots:
    /** advises the model of the current context index (default item for

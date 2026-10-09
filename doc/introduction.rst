@@ -92,6 +92,11 @@ date each time you search. When a new version of Paperman finds text
 which an older one did not, it builds the index again the first time you
 search, which can take a while in a large repository.
 
+A repository on a server is searched the same way, by the server, which
+must be run with ``--index`` (see :doc:`server`). While the server is
+still building its index, the search says that some stacks may be
+missing.
+
 The PDFs Paperman makes, when duplicating, emailing or copying stacks,
 have the words of each page which has been read as an invisible layer of
 text, so a PDF viewer can search them and select and copy their text.

@@ -47,6 +47,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "file.h"
 #include "ocr.h"
 #include "ocrpage.h"
+#include "dirmodel.h"
+#include "searchindex.h"
 #include <QDir>
 
 #include "op.h"
@@ -1242,6 +1244,112 @@ err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
 bool Desktopmodel::keepsOcr (File *f) const
    {
    return f && f->type () == File::Type_max && !remoteForFile (f);
+   }
+
+
+err_info *Desktopmodel::findText (const QString &path,
+      const QString &rootPath, const QString &text, Measure *meas,
+      QModelIndex &found, int &count, Operation *op, bool *complete)
+   {
+   QString root = rootPath;
+
+   while (root.endsWith ('/'))
+      root.chop (1);
+
+   // the folder searched, relative to the repository
+   QString dirRel = path;
+
+   if (dirRel.startsWith (root))
+      dirRel = dirRel.mid (root.length ());
+   while (dirRel.startsWith ('/'))
+      dirRel.remove (0, 1);
+   while (dirRel.endsWith ('/'))
+      dirRel.chop (1);
+
+   RemoteBackend *remote = _dirmodel ? dynamic_cast<RemoteBackend *> (
+         _dirmodel->backendForRoot (root)) : nullptr;
+   QString query = SearchIndex::matchQuery (text);
+   QStringList matches;          // relative to the folder searched
+   QHash<QString, int> pages;    // by the stack's path in the repository
+   QString prefix = dirRel.isEmpty () ? QString () : dirRel + "/";
+
+   if (complete)
+      *complete = true;
+   count = 0;
+   if (remote)
+      {
+      QList<RemoteBackend::TextHit> hits;
+
+      if (!query.isEmpty () && !remote->searchText (QFileInfo (root).fileName (),
+                           text, dirRel, 1000, hits, complete))
+         return err_make (ERRFN, ERR_remote_op_failed2, "search",
+               qPrintable (remote->hasTextSearch () ? remote->lastError ()
+                  : tr ("the server does not search the text on the pages; "
+                        "it needs a newer paperman-server, run with "
+                        "--index")));
+      for (const RemoteBackend::TextHit &hit : hits)
+         if (!pages.contains (hit.path) && hit.path.startsWith (prefix))
+            {
+            pages.insert (hit.path, hit.page);
+            matches << hit.path.mid (prefix.length ());
+            }
+      }
+   else
+      {
+      // a local repository keeps its index at the top, next to the stacks
+      if (!QFileInfo (root).isDir ())
+         return err_make (ERRFN, ERR_remote_op_failed2, "search",
+               qPrintable (tr ("cannot search the text in %1").arg (root)));
+
+      SearchIndex index;
+      QList<SearchResult> results;
+
+      CALL (index.init (root));
+      if (!query.isEmpty ())
+         {
+         CALL (index.sync (path, [op] (int done, int total) {
+            if (!op)
+               return true;
+            op->setCount (total);
+            return !op->setProgress (done);
+            }));
+         CALL (index.search (query, results, 1000, path));
+         }
+
+      QString top = QDir (root).absolutePath () + "/";
+      QString dir = QDir (path).absolutePath () + "/";
+
+      for (const SearchResult &res : results)
+         {
+         QString rel = res.filepath.mid (top.length ());
+
+         if (pages.contains (rel) || !res.filepath.startsWith (dir))
+            continue;
+         pages.insert (rel, res.pagenum);
+         matches << res.filepath.mid (dir.length ());
+         }
+      }
+
+   found = finishFileSearch (path, rootPath, matches, meas, pages);
+
+   // a local stack is read, which makes its preview, and turned to its page
+   if (!remote)
+      {
+      QString top = QDir (root).absolutePath () + "/";
+
+      for (int row = 0; row < rowCount (found); row++)
+         {
+         QModelIndex ind = index (row, 0, found);
+         File *f = getFile (ind);
+         QString rel = f ? QFileInfo (f->pathname ()).absoluteFilePath ()
+                              .mid (top.length ()) : QString ();
+
+         if (pages.contains (rel))
+            showAtPage (ind, pages.value (rel));
+         }
+      }
+   count = matches.size ();
+   return NULL;
    }
 
 
