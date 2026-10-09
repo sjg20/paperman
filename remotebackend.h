@@ -79,6 +79,18 @@ public:
      *  fetched it or setServerInfo() has been called. */
     QStringList features() const { return _features; }
 
+    /** The API version /v1/status gave, such as "1"; empty until
+     *  serverId() has fetched it. */
+    QString apiVersion() const { return _apiVersion; }
+
+    /** The newest major API version this client speaks; a server with a
+     *  newer one may have changed what it expects, so it is not used. */
+    static const int kApiVersion = 1;
+
+    /** True if the server answered, but has no /v1/status: a server
+     *  from before the /v1 API, which arrived in paperman-server 1.4.0 */
+    bool lacksV1Api() const { return _lacksV1; }
+
     /** True if the server serves a stack a page at a time (the "pages"
      *  feature): /info for its structure and /pages/{n} for one page.
      *  Without it a stack has to be fetched whole. */
@@ -425,6 +437,8 @@ private:
     QString _token;
     QString _serverId;
     QStringList _features;   //!< from /v1/status
+    QString _apiVersion;     //!< from /v1/status
+    bool _lacksV1 = false;   //!< see lacksV1Api()
     QString _clientId;
     QString _lastError;
     QNetworkAccessManager *_nam;

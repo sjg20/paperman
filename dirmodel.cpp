@@ -707,6 +707,32 @@ static QString loadCachedToken(const QString &serverId)
 }
 
 
+bool Dirmodel::serverUsable(const RemoteBackend &probe, const QUrl &baseUrl,
+                            QString *errorOut)
+{
+   /* A server from before 1.4.0 has no /v1 routes, which the desktop
+      uses for everything but listing; one with a newer major version of
+      the API may expect something else of a client */
+   if (probe.lacksV1Api()) {
+      if (errorOut)
+         *errorOut = tr("the server at %1 is too old for this version of "
+                        "Paperman, which needs paperman-server 1.4.0 or "
+                        "later").arg(baseUrl.toString());
+      return false;
+   }
+   if (probe.apiVersion().section('.', 0, 0).toInt()
+       > RemoteBackend::kApiVersion) {
+      if (errorOut)
+         *errorOut = tr("the server at %1 is newer than this version of "
+                        "Paperman can use (it speaks version %2 of the "
+                        "protocol); please update Paperman")
+                        .arg(baseUrl.toString(), probe.apiVersion());
+      return false;
+   }
+   return true;
+}
+
+
 bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
 {
    /* Tag the stats object with this server's URL so the toolbar
@@ -722,6 +748,10 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
    RemoteBackend probe(baseUrl);
    probe.setStats(stats());
    QString serverId = probe.serverId();
+
+   if (!serverUsable(probe, baseUrl, errorOut))
+      return false;
+
    QString token = loadCachedToken(serverId);
    if (!token.isEmpty())
       probe.setBearerToken(token);
@@ -797,6 +827,8 @@ bool Dirmodel::loginToServer(const QUrl &baseUrl, const QString &user,
 {
    RemoteBackend probe(baseUrl);
    QString serverId = probe.serverId();
+   if (!serverUsable(probe, baseUrl, errorOut))
+      return false;
    if (serverId.isEmpty()) {
       if (errorOut)
          *errorOut = probe.lastError().isEmpty()

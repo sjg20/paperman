@@ -3,6 +3,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTcpSocket>
+#include <QTcpServer>
 #include <QTemporaryDir>
 #include <QDir>
 #include <QFile>
@@ -3410,4 +3411,70 @@ void TestSearchServer::testRemoteReadStack()
     e = model.askServerToRead(b);
     QVERIFY(e);
     QVERIFY2(QString(e->errstr).contains("--read-pages"), e->errstr);
+}
+
+
+/* A stand-in server which answers each request from a table of paths, so
+   that a server of another version can be imitated */
+class StubServer : public QTcpServer
+{
+public:
+    // the status and the body to send for each path, without the query
+    QHash<QString, QPair<int, QByteArray>> replies;
+
+    StubServer()
+    {
+        connect(this, &QTcpServer::newConnection, this, [this]() {
+            while (QTcpSocket *sock = nextPendingConnection()) {
+                connect(sock, &QTcpSocket::readyRead, sock, [this, sock]() {
+                    QByteArray req = sock->readAll();
+                    QString path = QString::fromLatin1(req.split(' ').value(1))
+                                       .section('?', 0, 0);
+                    auto it = replies.constFind(path);
+                    int status = it == replies.constEnd() ? 404
+                                                         : it.value().first;
+                    QByteArray body = it == replies.constEnd()
+                                          ? QByteArray("Not Found")
+                                          : it.value().second;
+                    sock->write("HTTP/1.1 " + QByteArray::number(status)
+                                + " X\r\nContent-Length: "
+                                + QByteArray::number(body.size())
+                                + "\r\nConnection: close\r\n\r\n" + body);
+                    sock->disconnectFromHost();
+                });
+                connect(sock, &QTcpSocket::disconnected, sock,
+                        &QObject::deleteLater);
+            }
+        });
+    }
+};
+
+void TestSearchServer::testServerTooOldOrNew()
+{
+    StubServer stub;
+    QVERIFY(stub.listen(QHostAddress::LocalHost));
+    QUrl url(QString("http://localhost:%1").arg(stub.serverPort()));
+
+    // an old server lists its repositories, but has no /v1
+    stub.replies["/repos"] = {200, R"({"repositories":[{"name":"papers"}]})"};
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY(!dirmodel.addRemoteRepository(url, &err));
+    QVERIFY2(err.contains("too old") && err.contains("1.4.0"),
+             qPrintable(err));
+    QVERIFY(!dirmodel.loginToServer(url, "user", "pass", &err));
+    QVERIFY2(err.contains("too old"), qPrintable(err));
+
+    // a newer one speaks another version of the protocol
+    stub.replies["/v1/status"] = {200, R"({"status":"running",
+        "apiVersion":"2","serverId":"abc","features":[]})"};
+    QVERIFY(!dirmodel.addRemoteRepository(url, &err));
+    QVERIFY2(err.contains("newer") && err.contains("version 2"),
+             qPrintable(err));
+
+    // and one of this version is used
+    stub.replies["/v1/status"] = {200, R"({"status":"running",
+        "apiVersion":"1","serverId":"abc","features":[]})"};
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err), qPrintable(err));
 }

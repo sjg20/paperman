@@ -218,6 +218,12 @@ public:
     */
    bool addRemoteRepository(const QUrl &baseUrl, QString *errorOut = nullptr);
 
+   /** whether the desktop can use a server, saying why not in
+    *  @p errorOut: one from before the /v1 API, or with a newer major
+    *  version of it, cannot be used.  @p probe has fetched /v1/status */
+   static bool serverUsable(const class RemoteBackend &probe,
+                            const QUrl &baseUrl, QString *errorOut);
+
    /**
     * @brief Return the Backend that owns @p rootPath, or nullptr if
     *        no top-level repository matches.  Non-owning pointer.

@@ -86,11 +86,17 @@ QString RemoteBackend::serverId()
    if (!_serverId.isEmpty())
       return _serverId;
 
-   QByteArray body = getRequest("/v1/status");
+   int status = 0;
+   QString etag;
+   QByteArray body = waitForReplyFull(startGet("/v1/status"), &status, &etag);
+
+   // a server from before /v1 answers, but does not know the route
+   _lacksV1 = status == 404;
    QJsonDocument doc = QJsonDocument::fromJson(body);
    if (!doc.isObject())
       return QString();
    _serverId = doc.object().value("serverId").toString();
+   _apiVersion = doc.object().value("apiVersion").toString();
    _features.clear();
    const QJsonArray feats = doc.object().value("features").toArray();
    for (const QJsonValue &v : feats)
