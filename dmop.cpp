@@ -1126,11 +1126,26 @@ QString Desktopmodel::remoteRelDir (Desk *desk, QString dir) const
 
 QString Desktopmodel::remoteStackPath (Desk *desk, File *file) const
    {
-   /* desk->dir() and desk->rootDir() are absolute and both end in '/';
-      the stack's path within the repository is the directory below the
-      root plus the filename. */
-   QString dirInRepo = desk->dir ();
+   /* the stack's file is in the backend's cache, at its path within the
+      repository; this holds whichever folder it is in, which is not the
+      desk's when the desk holds the stacks a search found */
+   RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
+   QString cache = remote ? remote->cacheDirFor (desk->repoName (), QString ())
+                          : QString ();
+   QString path = file->pathname ();
+
+   if (!cache.isEmpty () && path.startsWith (cache + "/"))
+      return path.mid (cache.length () + 1);
+
+   /* otherwise it is a stub at its place below the repository's root,
+      or failing that, in the desk's folder.  desk->dir() and
+      desk->rootDir() are absolute and both end in '/' */
    QString root = desk->rootDir ();
+
+   if (!root.isEmpty () && path.startsWith (root))
+      return path.mid (root.length ());
+
+   QString dirInRepo = desk->dir ();
    if (dirInRepo.startsWith (root))
       dirInRepo = dirInRepo.mid (root.length ());
    if (dirInRepo.endsWith ('/'))

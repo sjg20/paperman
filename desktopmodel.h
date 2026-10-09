@@ -1060,6 +1060,10 @@ private:
     *  the provided RemoteBackend.  No-op if @p backend is null.
     *  @p dirInRepo is the file's parent path relative to the repo
     *  root (no trailing slash; empty for the repo root itself). */
+   /** give a search's desk the backend of the repository searched, if
+       it is remote, or none */
+   void useRootBackend(Desk *desk);
+
    void scheduleRemoteThumbnails(Desk *desk, class RemoteBackend *backend,
                                  const QString &repoName,
                                  const QString &dirInRepo);

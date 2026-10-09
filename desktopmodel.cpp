@@ -1568,10 +1568,10 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
    /* follow other clients' changes to this repository */
    backend->subscribeEvents(repoName);
 
+   UNUSED (dirInRepo);
    for (File *f : desk->files()) {
-      QString path = dirInRepo.isEmpty()
-                         ? f->filename()
-                         : dirInRepo + "/" + f->filename();
+      // a search's desk holds stacks from many folders
+      QString path = remoteStackPath(desk, f);
       /* "small" maps to ~150px on the server.  The local desktop
        * grid uses Filemax::getPreviewPixmap which returns the
        * embedded preview (~100-150px); 150 is close enough that
@@ -1687,6 +1687,7 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
       // clear out the previous search, then add the new matches
       clearAll (_subdirs_index);
       desk->advance ();
+      useRootBackend(desk);
       desk->addMatches(dirPath, matches, meas);
       beginInsertRows (_subdirs_index, 0, desk->fileCount () - 1);
       endInsertRows ();
@@ -1696,6 +1697,7 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
       desk = new Desk("" , rootPath, false);
       desk->setDebugLevel (_debug_level);
       desk->advance ();
+      useRootBackend(desk);
       desk->addMatches(dirPath, matches, meas);
       beginInsertRows (QModelIndex (), _desks.size (), _desks.size ());
       _desks << desk;
@@ -1704,10 +1706,32 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
    }
    _subdirs = true;
 
+   // a remote repository's stacks have their thumbnails from the server
+   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend()))
+      scheduleRemoteThumbnails(desk, remote, desk->repoName(), QString());
+
    // no pending list at present
    _pending_scan_list.clear ();
 
    return _subdirs_index;
+}
+
+
+void Desktopmodel::useRootBackend(Desk *desk)
+{
+   /* the stacks of a remote repository come through its backend; the
+      search's desk is used for any repository, and a local one's stacks
+      are read from the disk, so clear it otherwise */
+   RemoteBackend *remote = nullptr;
+   QString rootKey = _rootPath;
+
+   if (rootKey.endsWith('/'))
+      rootKey.chop(1);
+   if (_dirmodel)
+      remote = dynamic_cast<RemoteBackend *>(
+                  _dirmodel->backendForRoot(rootKey));
+   desk->setBackend(remote, remote ? QFileInfo(rootKey).fileName()
+                                   : QString(), remote != nullptr);
 }
 
 QModelIndex Desktopmodel::showFilesIn(const QString& inPath,

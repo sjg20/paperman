@@ -60,6 +60,10 @@ private slots:
    //! up to date as they change, and clients can search it
    void testServerSearchesText();
 
+   //! a search's desk holds a remote repository's stacks, from several
+   //! folders, and they work as in their own folders
+   void testRemoteSearchDesk();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
