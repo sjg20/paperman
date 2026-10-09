@@ -578,6 +578,11 @@ void TestOcrSearch::testIndexSync()
    QVERIFY(QDir(dir).mkdir("sub"));
    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "sub/b.max"));
+
+   // the trash is left out, on any system
+   QVERIFY(QDir(dir).mkdir(".maxview-trash"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       dir + ".maxview-trash/c.max"));
    {
       Filemax a(dir, "a.max", nullptr);
       QVERIFY(!a.load());
@@ -585,6 +590,9 @@ void TestOcrSearch::testIndexSync()
       Filemax b(dir + "sub/", "b.max", nullptr);
       QVERIFY(!b.load());
       QVERIFY(!b.putPageOcr(2, pageSaying("banana invoice")));
+      Filemax c(dir + ".maxview-trash/", "c.max", nullptr);
+      QVERIFY(!c.load());
+      QVERIFY(!c.putPageOcr(0, pageSaying("invoice in the trash")));
    }
 
    SearchIndex index;
