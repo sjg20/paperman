@@ -545,6 +545,35 @@ bool RemoteBackend::duplicateStack(const QString &repo, const QString &path,
 }
 
 
+bool RemoteBackend::convertStack(const QString &repo, const QString &path,
+                                 const QString &type, int oddEven,
+                                 QString *newName)
+{
+   QJsonObject body, reply;
+
+   body["type"] = type;
+   body["oddEven"] = oddEven;
+   if (!postStackOp(repo, path, "/duplicate", body, &reply))
+      return false;
+   if (newName)
+      *newName = reply.value("name").toString();
+   return true;
+}
+
+
+bool RemoteBackend::unfoldStack(const QString &repo, const QString &path,
+                                QString *newName)
+{
+   QJsonObject reply;
+
+   if (!postStackOp(repo, path, "/unfold", QJsonObject(), &reply))
+      return false;
+   if (newName)
+      *newName = reply.value("name").toString();
+   return true;
+}
+
+
 bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
                                const QByteArray &bytes, QString *finalName,
                                QString *etag, bool overwrite)

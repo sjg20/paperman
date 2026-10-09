@@ -3235,6 +3235,12 @@ void TestSearchServer::testRemoteConvert()
     auto stackA = [&] { return model.index("a.max", parent); };
     QVERIFY(stackA().isValid());
 
+    /* the server does the work, so the stack does not come here: only
+       replies and the new stacks' thumbnails do */
+    QVERIFY(dirmodel.stats());
+    dirmodel.stats()->reset();
+    qint64 stackSize = QFileInfo(dir + "a.max").size();
+
     // converted to a PDF, on the server, beside the original
     QModelIndexList list {stackA()};
     QStringList names;
@@ -3269,6 +3275,10 @@ void TestSearchServer::testRemoteConvert()
     QVERIFY2(!e, e ? e->errstr : "");
     QCOMPARE(names, QStringList({"a_unfold.max"}));
     QCOMPARE(serverPages(dir, "a_unfold.max"), 10);
+    QVERIFY2(dirmodel.stats()->bytesReceived() < stackSize / 4,
+             qPrintable(QString("%1 bytes came for a stack of %2")
+                        .arg(dirmodel.stats()->bytesReceived())
+                        .arg(stackSize)));
 
     // a new stack opens from the copy kept in the cache
     QModelIndex unfold = model.index("a_unfold.max", parent);
@@ -3292,4 +3302,28 @@ void TestSearchServer::testRemoteConvert()
         QCOMPARE(serverPages(fi.absolutePath() + "/", fi.fileName()), 5);
         QFile::remove(fi.filePath());
     }
+
+    /* a server which does not convert has the stack converted here and
+       the result uploaded */
+    auto *remote = dynamic_cast<RemoteBackend *>(
+        dirmodel.backendForRoot(root));
+    QVERIFY(remote && remote->hasConvert());
+    QStringList features = remote->features();
+    features.removeAll("convert");
+    remote->setServerInfo(remote->serverId(), features);
+    QVERIFY(!remote->hasConvert());
+
+    list = {stackA()};
+    names.clear();
+    e = model.opDuplicateStacks(list, parent, names, File::Type_pdf, 1);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QCOMPARE(names.size(), 1);
+    QCOMPARE(serverPages(dir, names[0]), 3);
+
+    list = {stackA()};
+    names.clear();
+    e = model.opUnfoldBooklets(list, parent, names);
+    QVERIFY2(!e, e ? e->errstr : "");
+    QCOMPARE(names.size(), 1);
+    QCOMPARE(serverPages(dir, names[0]), 10);
 }
