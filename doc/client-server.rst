@@ -114,6 +114,17 @@ either freezes the window or, through the nested event loop which
 the first action is done, with the code part-way through it. Much of the
 desktop still waits, and the work to stop it goes flow by flow.
 
+Code which must not wait asks ``RemoteBackend`` with a context object and
+a callback, such as ``fetchStatus(context, done)``, and carries on when
+the callback comes with the ``Result``. The callback is dropped if the
+context has gone by then, so a window closed with a request still out is
+safe. The blocking calls remain, for ``paperman-client`` and for code not
+yet changed, and some are built on the asynchronous ones. Attaching a
+server works this way: ``Desktopwidget::addRemoteServer()`` calls back
+once the server's repositories are in the tree, and at startup the window
+opens at once, with each server, including one named by its host with
+``--server``, appearing as it answers.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -144,9 +155,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: connecting, listing a folder, showing a
-  stack and each change still wait for the server on the main thread; see
-  Not Waiting for the Server above.
+- **Waiting for the server**: listing a folder, showing a stack and each
+  change still wait for the server on the main thread; see Not Waiting
+  for the Server above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
