@@ -348,6 +348,12 @@ private slots:
       \param deskind    source model index of that directory path */
    void slotDirChanged (QString &dirPath, QModelIndex &deskind);
 
+   /** a folder on a server has been listed: show the item to scroll to
+       if it is the folder shown, which was empty when it was opened
+
+      \param deskind    source model index of the folder */
+   void slotDeskListed (const QModelIndex &deskind);
+
    /** select a directory and display its contents
 
       \param index      index of directory to select
@@ -557,6 +563,10 @@ private:
    QModelIndex doNewDir(const QString& name, QString& path);
 
 private:
+   /** select and show the item a locate asked for in the desk
+       @p deskind, if any, else scroll to the last item */
+   void scrollToChosen (const QModelIndex &deskind);
+
    /** the mode whose first-run sizes the panes are waiting to be given,
        once there is a width to share, or -1 if none */
    int _default_mode;

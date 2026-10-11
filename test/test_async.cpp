@@ -3,6 +3,7 @@ License: GPL-2
 */
 
 #include <QStandardPaths>
+#include <QtConcurrent>
 #include <QtTest/QtTest>
 
 #include "test.h"
@@ -254,7 +255,92 @@ void TestAsync::testOpenFolder ()
    AsyncCheck check;
 
    openFolder ();
-   CHECK_ASYNC (check, "listing a folder waits for the server");
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testOpenFolderHung ()
+   {
+   connectServer ();
+   _server->setDelay (-1);
+
+   AsyncCheck check;
+   QString path = repoPath () + "/papers";
+
+   _desktop->selectDir (_desktop->getDirIndex (path));
+
+   // the window carries on, with the folder empty for now
+   QTest::qWait (kDelayMs * 2);
+   QVERIFY (!stackIndex ().isValid ());
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testLeaveFolder ()
+   {
+   connectServer ();
+   openFolder ();
+
+   // move the stack, so that the folder's layout has changed
+   QVERIFY (_desktop->getModel ()->setData (stackIndex (), QPoint (432, 210),
+                                            Desktopmodel::Role_position));
+
+   AsyncCheck check;
+
+   // leave the folder, which saves the layout on the server
+   _desktop->selectDir (_desktop->getDirIndex (repoPath ()));
+   QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (serverPath (".paperdesk")),
+                             kDelayMs * 10);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testOtherClient ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+
+   /* another client renames the stack, from a thread of its own so that
+      its waiting is not counted against the desktop's */
+   QUrl url = _server->url ();
+   QString repo = QFileInfo (_repo->path ()).fileName ();
+   QFuture<bool> renamed = QtConcurrent::run ([url, repo] () {
+      RemoteBackend other (url);
+      QString name = "other.max";
+
+      return other.renameStack (repo, "papers/testfile.max", name);
+   });
+
+   // the desktop follows, listing the folder again
+   QTRY_VERIFY_WITH_TIMEOUT (renamed.isFinished (), kDelayMs * 10);
+   QVERIFY (renamed.result ());
+   Desktopmodel *model = _desktop->getModel ();
+   QTRY_VERIFY_WITH_TIMEOUT (stackIndex ().isValid ()
+                             && model->data (stackIndex (),
+                                             Desktopmodel::Role_filename)
+                                   .toString () == "other.max",
+                             kDelayMs * 10);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testLocate ()
+   {
+   connectServer ();
+
+   AsyncCheck check;
+
+   // as locateFolder() does, from a search's results
+   _desktop->_scroll_to = "testfile.max";
+   QTRY_VERIFY (_desktop->getDirIndex (repoPath () + "/papers").isValid ());
+   _desktop->selectDir (_desktop->getDirIndex (repoPath () + "/papers"), true);
+
+   Desktopview *view = _desktop->getView ();
+   QTRY_COMPARE (view->getSelectedItem ().data (Desktopmodel::Role_filename)
+                    .toString (), QString ("testfile.max"));
+   CHECK_ASYNC (check, nullptr);
    }
 
 

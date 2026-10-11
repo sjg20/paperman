@@ -197,6 +197,8 @@ Desktopwidget::Desktopwidget (QWidget *parent)
       this, SIGNAL (undoChanged ()));
    connect (_contents, SIGNAL (dirChanged (QString&, QModelIndex&)),
       this, SLOT (slotDirChanged (QString&, QModelIndex&)));
+   connect (_contents, &Desktopmodel::deskListed,
+            this, &Desktopwidget::slotDeskListed);
    connect (_contents, SIGNAL (beginningScan (const QModelIndex &)),
       this, SLOT (slotBeginningScan (const QModelIndex &)));
    connect (_contents, SIGNAL (endingScan (bool)),
@@ -1205,6 +1207,25 @@ void Desktopwidget::slotDirChanged (QString &dirPath, QModelIndex &deskind)
 
    _view->setRootIndex (ind);
 
+   /* a folder on a server shows once it is listed, when the item is
+      looked for again */
+   if (!_contents->isListing (deskind))
+      scrollToChosen (deskind);
+   }
+
+
+void Desktopwidget::slotDeskListed (const QModelIndex &deskind)
+   {
+   QModelIndex ind = deskind;
+
+   _modelconv->indexToProxy (ind.model (), ind);
+   if (ind == _view->rootIndex ())
+      scrollToChosen (deskind);
+   }
+
+
+void Desktopwidget::scrollToChosen (const QModelIndex &deskind)
+   {
    // ensure that the correct item is displayed
    // the filename of the required item is held in _scroll_to
    QModelIndex scroll_ind = _contents->index (_scroll_to, deskind);

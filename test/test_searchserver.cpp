@@ -1524,7 +1524,7 @@ void TestSearchServer::testDesktopRemoteTransform()
     // show the remote repo's root directory; its files load as stubs
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -1573,7 +1573,7 @@ void TestSearchServer::testDesktopRemoteOpenStack()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -1616,7 +1616,7 @@ void TestSearchServer::testDesktopRemoteOpenStack()
     Desktopmodelconv conv2(&model2);
     model2.setModelConv(&conv2);
     model2.setDirmodel(&dirmodel);
-    QModelIndex parent2 = model2.showDir(root, root, &meas);
+    QModelIndex parent2 = model2.showDir(root, root, &meas, true);
     QVERIFY(parent2.isValid());
     QModelIndex stack2 = model2.index("testfile.max", parent2);
     QVERIFY(stack2.isValid());
@@ -1637,7 +1637,7 @@ void TestSearchServer::testDesktopRemoteOpenStack()
     Desktopmodelconv conv3(&model3);
     model3.setModelConv(&conv3);
     model3.setDirmodel(&dirmodel);
-    QModelIndex parent3 = model3.showDir(root, root, &meas);
+    QModelIndex parent3 = model3.showDir(root, root, &meas, true);
     QVERIFY(parent3.isValid());
     QModelIndex stack3 = model3.index("testfile.max", parent3);
     QVERIFY(stack3.isValid());
@@ -1766,7 +1766,7 @@ void TestSearchServer::testDesktopRemoteSimpleOps()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -1860,7 +1860,7 @@ void TestSearchServer::testDesktopRemoteAnnotations()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -1932,7 +1932,7 @@ void TestSearchServer::testDesktopRemoteStructuralOps()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -2022,7 +2022,7 @@ void TestSearchServer::testDesktopRemoteScan()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     int rowsBefore = model.rowCount(parent);
 
@@ -2122,7 +2122,7 @@ void TestSearchServer::testRemoteEvents()
     model.setDirmodel(&dirmodel);
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QVERIFY(model.index("testfile.max", parent).isValid());
 
@@ -2172,7 +2172,7 @@ void TestSearchServer::testDesktopRemoteSharedPositions()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -2200,7 +2200,7 @@ void TestSearchServer::testDesktopRemoteSharedPositions()
     Desktopmodelconv conv2(&model2);
     model2.setModelConv(&conv2);
     model2.setDirmodel(&dirmodel);
-    QModelIndex parent2 = model2.showDir(root, root, &meas);
+    QModelIndex parent2 = model2.showDir(root, root, &meas, true);
     QVERIFY(parent2.isValid());
     QModelIndex stack2 = model2.index("testfile.max", parent2);
     QVERIFY(stack2.isValid());
@@ -2256,7 +2256,7 @@ void TestSearchServer::testRemoteOcr()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("readme.jpg", parent);
     QVERIFY(stack.isValid());
@@ -2332,7 +2332,7 @@ void TestSearchServer::testRemoteOcrMax()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("readme.max", parent);
     QVERIFY(stack.isValid());
@@ -2586,7 +2586,7 @@ void TestSearchServer::testDesktopRemotePages()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
@@ -3078,7 +3078,7 @@ void TestSearchServer::testRemoteSearchDesk()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QVERIFY(model.showDir(root, root, &meas).isValid());
+    QVERIFY(model.showDir(root, root, &meas, true).isValid());
 
     /* a search's desk holds stacks from several folders: each is fetched
        from its own place, and works as in its folder */
@@ -3150,7 +3150,7 @@ void TestSearchServer::testRemoteTextSearch()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QVERIFY(model.showDir(root, root, &meas).isValid());
+    QVERIFY(model.showDir(root, root, &meas, true).isValid());
 
     // the whole repository, once the server has built its index
     QModelIndex found;
@@ -3235,7 +3235,7 @@ void TestSearchServer::testRemoteConvert()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QVERIFY(parent.isValid());
     auto stackA = [&] { return model.index("a.max", parent); };
     QVERIFY(stackA().isValid());
@@ -3389,7 +3389,7 @@ void TestSearchServer::testRemoteReadStack()
     QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "b.max"));
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QModelIndex b = model.index("b.max", parent);
     QVERIFY(b.isValid());
     QTest::qWait(300);
@@ -3409,7 +3409,7 @@ void TestSearchServer::testRemoteReadStack()
 
     /* the desk may have been refreshed as the first server went, so find
        the stack again */
-    parent = model.showDir(root, root, &meas);
+    parent = model.showDir(root, root, &meas, true);
     b = model.index("b.max", parent);
     QVERIFY(b.isValid());
     e = model.askServerToRead(b);
@@ -3554,7 +3554,7 @@ void TestSearchServer::testRemotePageControls()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
 
@@ -3617,7 +3617,7 @@ void TestSearchServer::testRemotePagesAwaited()
 
     QString root = url.toString() + "/" + repo;
     Measure meas(qApp->style(), QFont());
-    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex parent = model.showDir(root, root, &meas, true);
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
 
