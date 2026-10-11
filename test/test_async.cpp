@@ -525,7 +525,7 @@ void TestAsync::testTrash ()
 
    _desktop->getModel ()->trashStack (stack);
    QTRY_VERIFY (!QFile::exists (serverPath ("testfile.max")));
-   CHECK_ASYNC (check, "moving to the trash waits for the server");
+   CHECK_ASYNC (check, nullptr);
    }
 
 
@@ -547,6 +547,27 @@ void TestAsync::testUndoRename ()
    QVERIFY (!QFile::exists (serverPath ("renamed.max")));
    QCOMPARE (model->data (stackIndex (), Desktopmodel::Role_filename)
                 .toString (), QString ("testfile.max"));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testUndoTrash ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+
+   /* the undo needs the name the stack got in the trash, which only the
+      server's answer gives */
+   model->trashStack (stack);
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QVERIFY (QFile::exists (serverPath ("testfile.max")));
+   QVERIFY (!QFile::exists (_repo->path () + "/.maxview-trash/testfile.max"));
+   QVERIFY (stackIndex ().isValid ());
    CHECK_ASYNC (check, nullptr);
    }
 

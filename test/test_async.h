@@ -92,6 +92,9 @@ private slots:
    //! undoing a rename before the server has answered it
    void testUndoRename ();
 
+   //! undoing a move to the trash before the server has answered it
+   void testUndoTrash ();
+
    //! renaming a page
    void testRenamePage ();
 
