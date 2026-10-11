@@ -133,6 +133,7 @@ private:
 class Pagewidget : public QWidget
    {
    Q_OBJECT
+   friend class TestAsync;
    friend class TestDesktopUi;
    friend class TestPagewidget;
 

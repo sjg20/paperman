@@ -1,0 +1,307 @@
+/*
+License: GPL-2
+*/
+
+#include <QStandardPaths>
+#include <QtTest/QtTest>
+
+#include "test.h"
+
+#include "../desktopmodel.h"
+#include "../desktopview.h"
+#include "../desktopwidget.h"
+#include "../file.h"
+#include "../mainwindow.h"
+#include "../pagemodel.h"
+#include "../pagewidget.h"
+#include "../remotebackend.h"
+
+#include "remoteharness.h"
+#include "test_async.h"
+
+/* Each reply is held back this long, so that waiting for one is
+   plain; it is well over AsyncCheck::kMaxStallMs */
+static const int kDelayMs = 500;
+
+// the port the server listens on, behind the proxy
+static const quint16 kPort = 9877;
+
+/* Check that the stretch of test watched by @check waited for nothing.
+   @why says what still waits, when it is expected to, and what it
+   waited for is logged so the work left is plain */
+#define CHECK_ASYNC(check, why) \
+   do { \
+      if (why) \
+         { \
+         if (!check.ok ()) \
+            qInfo () << "still" << check.report (); \
+         QEXPECT_FAIL ("", why, Continue); \
+         } \
+      QVERIFY2 (check.ok (), qPrintable (check.report ())); \
+   } while (0)
+
+
+TestAsync::TestAsync (QString name) : Suite (name)
+   {
+   }
+
+
+TestAsync::~TestAsync () = default;
+
+
+void TestAsync::initTestCase ()
+   {
+   // keep the page cache and server state out of the user's own
+   QStandardPaths::setTestModeEnabled (true);
+   }
+
+
+void TestAsync::cleanupTestCase ()
+   {
+   QStandardPaths::setTestModeEnabled (false);
+   }
+
+
+void TestAsync::init ()
+   {
+   /* other suites leave users for the server in the test-mode settings,
+      and then the desktop would stop to ask for a login */
+   QFile::remove (QStandardPaths::writableLocation (
+                     QStandardPaths::GenericConfigLocation)
+                  + "/paperman-server/users.json");
+
+   _repo.reset (new QTemporaryDir);
+   QVERIFY (_repo->isValid ());
+   QVERIFY (QDir (_repo->path ()).mkdir ("papers"));
+   QVERIFY (QFile::copy (testSrc + "/testfile.max",
+                         serverPath ("testfile.max")));
+
+   _server.reset (new ServerThread (_repo->path (), kPort));
+   QVERIFY (_server->begin ());
+
+   /* a page cache left by an earlier run would let the desktop show the
+      stack without asking the server */
+   RemoteBackend probe (_server->url ());
+   QVERIFY (!probe.serverId ().isEmpty ());
+   QString repo = QFileInfo (_repo->path ()).fileName ();
+   probe.invalidatePageDir (repo, "papers/testfile.max");
+   probe.invalidateCachedFile (repo, "papers/testfile.max");
+   _server->setDelay (kDelayMs);
+
+   _me.reset (new Mainwindow);
+   _desktop = _me->getDesktop ();
+   _me->resize (1600, 1000);
+   _me->show ();
+   QVERIFY (QTest::qWaitForWindowExposed (_me.get ()));
+   }
+
+
+void TestAsync::cleanup ()
+   {
+   _me.reset ();
+   _desktop = nullptr;
+   _server.reset ();
+   _repo.reset ();
+   }
+
+
+QString TestAsync::serverPath (const QString &fname) const
+   {
+   return _repo->path () + "/papers/" + fname;
+   }
+
+
+void TestAsync::connectServer ()
+   {
+   QCOMPARE (_desktop->addRemoteServer (_server->url ()), QString ());
+   }
+
+
+void TestAsync::openFolder ()
+   {
+   QString repo = QFileInfo (_repo->path ()).fileName ();
+   QString path = _server->url ().toString () + "/" + repo + "/papers";
+
+   QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
+   _desktop->selectDir (_desktop->getDirIndex (path));
+   QTRY_VERIFY (stackIndex ().isValid ());
+   }
+
+
+QModelIndex TestAsync::stackIndex ()
+   {
+   Desktopview *view = _desktop->getView ();
+   QModelIndex ind = view->model ()->index (0, 0, view->rootIndex ());
+
+   if (ind.isValid ())
+      _desktop->getModelconv ()->indexToSource (view->model (), ind);
+   return ind;
+   }
+
+
+void TestAsync::testHarness ()
+   {
+   // a request the main thread waits for is caught, by its path
+      {
+      AsyncCheck check;
+      RemoteBackend client (_server->url ());
+
+      QVERIFY (!client.serverId ().isEmpty ());
+      QVERIFY (!check.ok ());
+      QVERIFY2 (check.report ().contains ("GET /v1/status"),
+                qPrintable (check.report ()));
+      }
+
+   // so is the main thread going without handling events
+      {
+      AsyncCheck check;
+
+      QThread::msleep (AsyncCheck::kMaxStallMs + 100);
+      QVERIFY (!check.ok ());
+      QVERIFY2 (check.report ().contains ("stalled"),
+                qPrintable (check.report ()));
+      }
+
+   // the proxy holds each reply back by the delay set
+   RemoteBackend client (_server->url ());
+   QElapsedTimer timer;
+
+   timer.start ();
+   QVERIFY (!client.serverId ().isEmpty ());
+   QVERIFY (timer.elapsed () >= kDelayMs);
+
+   // and a quiet stretch passes
+   AsyncCheck check;
+
+   QTest::qWait (50);
+   QVERIFY2 (check.ok (), qPrintable (check.report ()));
+   }
+
+
+void TestAsync::testConnect ()
+   {
+   AsyncCheck check;
+
+   connectServer ();
+   CHECK_ASYNC (check, "connecting waits for the server");
+   }
+
+
+void TestAsync::testOpenFolder ()
+   {
+   connectServer ();
+
+   AsyncCheck check;
+
+   openFolder ();
+   CHECK_ASYNC (check, "listing a folder waits for the server");
+   }
+
+
+void TestAsync::testPreviewStack ()
+   {
+   connectServer ();
+   openFolder ();
+
+   // wait for the stack to settle in place, with its thumbnail
+   Desktopmodel *model = _desktop->getModel ();
+   QTRY_VERIFY (!model->data (stackIndex (), Desktopmodel::Role_pixmap)
+                .value<QPixmap> ().isNull ());
+   QTest::qWait (kDelayMs);
+
+   AsyncCheck check;
+   Desktopview *view = _desktop->getView ();
+   QModelIndex ind = view->model ()->index (0, 0, view->rootIndex ());
+   QRect rect = view->visualRect (ind);
+
+   QVERIFY (rect.isValid ());
+   QTest::mouseClick (view->viewport (), Qt::LeftButton, Qt::NoModifier,
+                      rect.center ());
+
+   // the stack's pages are listed, and the first is shown
+   QModelIndex stack = stackIndex ();
+   QTRY_VERIFY2 (model->data (stack, Desktopmodel::Role_message).toString ()
+                 .contains ("Page 1 of 5"),
+                 qPrintable (model->data (stack, Desktopmodel::Role_message)
+                             .toString ()));
+   QTRY_COMPARE (_desktop->_page->_pagemodel->rowCount (QModelIndex ()), 5);
+   CHECK_ASYNC (check, "showing a stack waits for its structure and page");
+   }
+
+
+void TestAsync::testTurnStackPage ()
+   {
+   connectServer ();
+   openFolder ();
+
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+   QTRY_VERIFY (!model->data (stack, Desktopmodel::Role_pixmap)
+                .value<QPixmap> ().isNull ());
+   QImage before = model->data (stack, Desktopmodel::Role_pixmap)
+                      .value<QPixmap> ().toImage ();
+
+   AsyncCheck check;
+
+   QVERIFY (model->setData (stack, 2, Desktopmodel::Role_pagenum));
+   QTRY_VERIFY (model->data (stack, Desktopmodel::Role_pixmap)
+                .value<QPixmap> ().toImage () != before);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testRename ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+
+   _desktop->getModel ()->renameStack (stackIndex (), "renamed");
+   QTRY_VERIFY (QFile::exists (serverPath ("renamed.max")));
+   CHECK_ASYNC (check, "renaming waits for the server");
+   }
+
+
+void TestAsync::testRotate ()
+   {
+   connectServer ();
+   openFolder ();
+
+   auto pageSize = [this] () {
+      File *f = File::createFile (_repo->path () + "/papers/",
+                                  "testfile.max", nullptr, File::Type_max);
+      QSize size, trueSize;
+      int bpp, bytes, compressed;
+      QDateTime stamp;
+
+      if (!f || f->load () || f->getImageInfo (0, size, trueSize, bpp, bytes,
+                                               compressed, stamp))
+         size = QSize ();
+      delete f;
+      return size;
+   };
+   QSize before = pageSize ();
+   QVERIFY (before.isValid ());
+
+   AsyncCheck check;
+
+   _desktop->getModel ()->transformPage (stackIndex (), 0,
+                                         File::Transform_rotate90);
+   QTRY_COMPARE (pageSize (), before.transposed ());
+   CHECK_ASYNC (check, "rotating waits for the server");
+   }
+
+
+void TestAsync::testTrash ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   QModelIndex stack = stackIndex ();
+
+   _desktop->getModel ()->trashStack (stack);
+   QTRY_VERIFY (!QFile::exists (serverPath ("testfile.max")));
+   CHECK_ASYNC (check, "moving to the trash waits for the server");
+   }
