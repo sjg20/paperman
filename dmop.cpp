@@ -629,43 +629,12 @@ err_info *Desktopmodel::opTrashStacks (QModelIndexList &list, QModelIndex parent
 
    if (remote)
       {
-      /* Trash and move-to-dir both become a server-side move; the
-         shared trash is a directory at the repository root.  The undo
-         record keeps the synthetic absolute path so the round-trip
-         through opUntrashStacks() can find it again. */
-      if (dest.isEmpty ())
-         dest = desk->rootDir () + RemoteBackend::trashDirName ();
-      if (!dest.startsWith (desk->rootDir ()))
-         return err_make (ERRFN, ERR_cannot_move_between_repositories);
-      QString destRel = remoteRelDir (desk, dest);
+      auto names = std::make_shared<QStringList> ();
 
-      foreach (ind, list)
-         {
-         if (!ind.isValid ())
-            continue;
-         File *f = getFile (ind);
-         QString stackPath = remoteStackPath (desk, f);
-         QString finalName;
-
-         if (!remote->moveStack (desk->repoName (), stackPath, destRel,
-                                 copy, &finalName))
-            {
-            e = err_make (ERRFN, ERR_remote_op_failed2, "move",
-                          qPrintable (remote->lastError ()));
-            break;
-            }
-         if (!copy)
-            remote->invalidateCachedFile (desk->repoName (), stackPath);
-         del_list << ind;
-         trashlist << finalName;
-         }
-      if (!copy)
-         {
-         sortForDelete (del_list);
-         foreach (ind, del_list)
-            removeRows (ind.row (), 1, parent);
-         }
-      addFilesToDesk (dest, trashlist);
+      e = waitForOp ("trash", [&] (OpDone done) {
+         opTrashStacks (list, parent, names, dest, copy, done);
+      });
+      trashlist = *names;
       return e;
       }
 
@@ -732,57 +701,14 @@ err_info *Desktopmodel::opUntrashStacks (QStringList &trashlist, QModelIndex par
 
    if (remote)
       {
-      /* Reverse of the remote branch in opTrashStacks(): move each
-         file back from the source directory (the trash, unless this
-         was a move-to-dir) into this desk, or for a copy just delete
-         the copy again. */
-      QString srcRel = src.isEmpty ()
-            ? QString (RemoteBackend::trashDirName ())
-            : remoteRelDir (desk, src);
-      QString destRel = remoteRelDir (desk, desk->dir ());
+      auto names = std::make_shared<QStringList> (filenames);
 
-      for (i = 0; i < trashlist.size (); i++)
-         {
-         QString srcPath = srcRel.isEmpty ()
-               ? trashlist [i] : srcRel + "/" + trashlist [i];
-
-         if (copy)
-            {
-            if (!remote->deleteStack (desk->repoName (), srcPath))
-               {
-               e = err_make (ERRFN, ERR_remote_op_failed2, "delete",
-                             qPrintable (remote->lastError ()));
-               break;
-               }
-            remote->invalidateCachedFile (desk->repoName (), srcPath);
-            continue;
-            }
-
-         QString finalName;
-         if (!remote->moveStack (desk->repoName (), srcPath, destRel,
-                                 false, &finalName))
-            {
-            e = err_make (ERRFN, ERR_remote_op_failed2, "move",
-                          qPrintable (remote->lastError ()));
-            break;
-            }
-         remote->invalidateCachedFile (desk->repoName (), srcPath);
-
-         fnew = desk->createFile (desk->dir (), finalName);
-         desk->newFile (fnew);
-         if (pagepos)
-            {
-            fnew->setPos ((*pagepos) [i].pos);
-            fnew->setPagenum ((*pagepos) [i].pagenum);
-            }
-         filenames [i] = finalName;
-         flist << fnew;
-         refreshRemoteThumbnail (desk, remote, fnew);
-         }
-
-      if (!copy)
-         insertRows (flist, parent);
-      removeFilesFromDesk (src, trashlist);
+      e = waitForOp ("untrash", [&] (OpDone done) {
+         opUntrashStacks (trashlist, parent, names,
+                          pagepos ? *pagepos : QList<pagepos_info> (),
+                          pagepos != nullptr, src, copy, done);
+      });
+      filenames = *names;
       return e;
       }
 
@@ -2261,3 +2187,244 @@ void Desktopmodel::stackChangedLater (const QModelIndex &ind,
    }
 
 
+/* A move of stacks on a server to or from the trash (or another folder),
+   one stack at a time, keeping what it needs to finish once the last
+   has gone, since the desks may have changed by then */
+struct Desktopmodel::TrashJob
+   {
+   bool back = false;      //!< moving back from the trash
+   QPointer<RemoteBackend> remote;
+   QString repo;           //!< the repository
+   QString dir;            //!< the desk the stacks are in, or go back to
+   QString src;            //!< the folder they come back from (back)
+   QString dest;           //!< the folder they go to, as a desk path
+   QString destRel;        //!< and relative to the repository
+   QStringList names;      //!< the stacks, by name in their folder
+   QStringList paths;      //!< and by path in the repository
+   bool copy = false;      //!< copy rather than move
+   std::shared_ptr<QStringList> got;  //!< the names each gets
+   QList<pagepos_info> pagepos;       //!< where each goes back to (back)
+   bool havePagepos = false;
+   QStringList done;       //!< the stacks moved so far, by name
+   int next = 0;           //!< the next stack to move
+   OpDone report;          //!< called once all have gone, or one fails
+   };
+
+
+void Desktopmodel::opTrashStacks (const QModelIndexList &list,
+                                  const QModelIndex &parent,
+                                  std::shared_ptr<QStringList> trashlist,
+                                  const QString &dest, bool copy, OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (!remote)
+      {
+      QModelIndexList stacks = list;
+      QString to = dest;
+
+      done (opTrashStacks (stacks, parent, *trashlist, to, copy));
+      return;
+      }
+
+   /* Trash and move-to-dir both become a server-side move; the shared
+      trash is a directory at the repository root */
+   auto job = std::make_shared<TrashJob> ();
+
+   job->dest = dest.isEmpty () ? desk->rootDir () + RemoteBackend::trashDirName ()
+                               : dest;
+   if (!job->dest.startsWith (desk->rootDir ()))
+      {
+      done (err_make (ERRFN, ERR_cannot_move_between_repositories));
+      return;
+      }
+   job->remote = remote;
+   job->repo = desk->repoName ();
+   job->dir = desk->dir ();
+   job->destRel = remoteRelDir (desk, job->dest);
+   job->copy = copy;
+   job->got = trashlist;
+   job->report = done;
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+
+      if (!f)
+         continue;
+      job->names << f->filename ();
+      job->paths << remoteStackPath (desk, f);
+      }
+   trashNext (job);
+   }
+
+
+void Desktopmodel::opUntrashStacks (const QStringList &trashlist,
+                                    const QModelIndex &parent,
+                                    std::shared_ptr<QStringList> filenames,
+                                    const QList<pagepos_info> &pagepos,
+                                    bool havePagepos, const QString &src,
+                                    bool copy, OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (!remote)
+      {
+      QStringList trash = trashlist;
+      QList<pagepos_info> pos = pagepos;
+      QString from = src;
+
+      done (opUntrashStacks (trash, parent, *filenames,
+                             havePagepos ? &pos : nullptr, from, copy));
+      return;
+      }
+
+   /* Reverse of opTrashStacks(): move each file back from the source
+      directory (the trash, unless this was a move-to-dir) into this
+      desk, or for a copy just delete the copy again */
+   auto job = std::make_shared<TrashJob> ();
+   QString srcRel = src.isEmpty () ? QString (RemoteBackend::trashDirName ())
+                                   : remoteRelDir (desk, src);
+
+   job->back = true;
+   job->remote = remote;
+   job->repo = desk->repoName ();
+   job->dir = desk->dir ();
+   job->src = src;
+   job->destRel = remoteRelDir (desk, desk->dir ());
+   job->copy = copy;
+   job->got = filenames;
+   job->pagepos = pagepos;
+   job->havePagepos = havePagepos;
+   job->report = done;
+   job->names = trashlist;
+   for (const QString &name : trashlist)
+      job->paths << (srcRel.isEmpty () ? name : srcRel + "/" + name);
+   trashNext (job);
+   }
+
+
+void Desktopmodel::trashNext (std::shared_ptr<TrashJob> job)
+   {
+   if (!job->remote)
+      return;      // the server has gone, and the desks with it
+   if (job->next == job->paths.size ())
+      {
+      finishTrash (job, NULL);
+      return;
+      }
+
+   int i = job->next++;
+   RemoteBackend *remote = job->remote;
+   QString path = job->paths [i];
+
+   // taking a copy back is just deleting it
+   if (job->back && job->copy)
+      {
+      remote->deleteStack (job->repo, path, this,
+                           [this, job, path] (
+                              const RemoteBackend::Result &result) {
+         if (_closing)
+            return;      // the model is going, with what it showed
+         if (!result.ok)
+            {
+            finishTrash (job, err_make (ERRFN, ERR_remote_op_failed2,
+                                        "delete", qPrintable (result.error)));
+            return;
+            }
+         if (job->remote)
+            job->remote->invalidateCachedFile (job->repo, path);
+         job->done << job->names [job->next - 1];
+         trashNext (job);
+      });
+      return;
+      }
+
+   remote->moveStack (job->repo, path, job->destRel, !job->back && job->copy,
+                      this, [this, job, i, path] (
+                         const RemoteBackend::Result &result) {
+      if (_closing)
+         return;      // the model is going, with what it showed
+      if (!result.ok)
+         {
+         finishTrash (job, err_make (ERRFN, ERR_remote_op_failed2, "move",
+                                     qPrintable (result.error)));
+         return;
+         }
+      QString name = result.json ().value ("name").toString ();
+
+      if (job->remote && (job->back || !job->copy))
+         job->remote->invalidateCachedFile (job->repo, path);
+      if (job->back)
+         {
+         if (i < job->got->size ())
+            (*job->got) [i] = name;
+         }
+      else
+         *job->got << name;
+      job->done << job->names [i];
+      trashNext (job);
+   });
+   }
+
+
+void Desktopmodel::finishTrash (std::shared_ptr<TrashJob> job, err_info *err)
+   {
+   QString dir = job->dir;
+   QModelIndex parent = deskFromDirname (dir);
+   Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+
+   if (!job->back)
+      {
+      /* take the stacks which went out of the desk, and show them where
+         they went, if that desk is loaded */
+      if (desk && !job->copy)
+         {
+         QModelIndexList del_list;
+
+         for (const QString &name : job->done)
+            {
+            QModelIndex ind = index (name, parent);
+
+            if (ind.isValid ())
+               del_list << ind;
+            }
+         sortForDelete (del_list);
+         for (const QModelIndex &ind : del_list)
+            removeRows (ind.row (), 1, parent);
+         }
+      QStringList trashlist = *job->got;
+      addFilesToDesk (job->dest, trashlist);
+      job->report (err);
+      return;
+      }
+
+   /* put back each stack which came back, where it was and at the page
+      it was turned to */
+   QList<File *> flist;
+
+   if (desk && !job->copy)
+      for (int i = 0; i < job->done.size (); i++)
+         {
+         File *fnew = desk->createFile (desk->dir (), (*job->got) [i]);
+
+         desk->newFile (fnew);
+         if (job->havePagepos && i < job->pagepos.size ())
+            {
+            fnew->setPos (job->pagepos [i].pos);
+            fnew->setPagenum (job->pagepos [i].pagenum);
+            }
+         flist << fnew;
+         if (job->remote)
+            refreshRemoteThumbnail (desk, job->remote, fnew);
+         }
+   if (!flist.isEmpty ())
+      insertRows (flist, parent);
+   QString src = job->src;
+   QStringList moved = job->done;
+   removeFilesFromDesk (src, moved);
+   job->report (err);
+   }

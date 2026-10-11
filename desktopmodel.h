@@ -790,6 +790,20 @@ protected:
    void opUpdateAnnot (const QModelIndex &ind,
                        const QHash<int, QString> &updates, OpDone done);
 
+   /** move stacks to the trash or another directory, as the other
+       opTrashStacks() does, putting the names they get in @p trashlist */
+   void opTrashStacks (const QModelIndexList &list, const QModelIndex &parent,
+                       std::shared_ptr<QStringList> trashlist,
+                       const QString &dest, bool copy, OpDone done);
+
+   /** move stacks back from the trash or another directory, as the other
+       opUntrashStacks() does, updating @p filenames */
+   void opUntrashStacks (const QStringList &trashlist,
+                         const QModelIndex &parent,
+                         std::shared_ptr<QStringList> filenames,
+                         const QList<pagepos_info> &pagepos, bool havePagepos,
+                         const QString &src, bool copy, OpDone done);
+
    /** rename a page and move to show that page
 
       \param index   the stack containing the page to rename
@@ -1233,6 +1247,15 @@ private:
     *  server: as remoteStackChanged(), but asking for the structure
     *  rather than waiting for it */
    void stackChangedLater (const QModelIndex &ind, const QList<int> &pages);
+
+   //! a move of stacks to or from the trash, going one at a time
+   struct TrashJob;
+
+   //! move the next stack of @p job, or finish it
+   void trashNext (std::shared_ptr<TrashJob> job);
+
+   //! bring the desks into line with what @p job moved, and report @p err
+   void finishTrash (std::shared_ptr<TrashJob> job, err_info *err);
 
    //! operations waiting their turn; see queueOp()
    QQueue<std::function<void ()> > _ops;

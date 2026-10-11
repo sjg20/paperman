@@ -1350,18 +1350,18 @@ void TestDesktopUi::testRemoteGroupMoveViaUi()
    QVERIFY(desktop->_dir_proxy->dropMimeData(mime, Qt::MoveAction, -1, -1,
                                              dir_ind));
 
-   // the server's files have moved
+   // the server's files have moved, one after another
    QTRY_VERIFY(QFile::exists(path + "/main/testfile.max"));
-   QVERIFY(QFile::exists(path + "/main/testpdf.pdf"));
-   QVERIFY(QFile::exists(path + "/main/colour_plasma.jpg"));
+   QTRY_VERIFY(QFile::exists(path + "/main/testpdf.pdf"));
+   QTRY_VERIFY(QFile::exists(path + "/main/colour_plasma.jpg"));
    QVERIFY(!QFile::exists(path + "/testfile.max"));
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
 
    // one undo moves the whole group back on the server
    me.actionUndo->trigger();
    QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
-   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
-   QVERIFY(QFile::exists(path + "/colour_plasma.jpg"));
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QTRY_VERIFY(QFile::exists(path + "/colour_plasma.jpg"));
    QVERIFY(!QFile::exists(path + "/main/testfile.max"));
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
 

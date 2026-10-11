@@ -85,7 +85,8 @@ UCTrashStacks::UCTrashStacks (Desktopmodel *model,
    QModelIndex ind;
 
    _dir = model->deskToDirname (parent);
-   _filenames = model->listToFilenames (list);
+   _filenames = std::make_shared<QStringList> (model->listToFilenames (list));
+   _trashlist = std::make_shared<QStringList> ();
    _destdir = dir;
    _copy = copy;
    foreach (ind, list)
@@ -98,20 +99,41 @@ UCTrashStacks::UCTrashStacks (Desktopmodel *model,
 
 void UCTrashStacks::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   auto filenames = _filenames;
+   auto trashlist = _trashlist;
+   QString destdir = _destdir;
+   bool copy = _copy;
 
-   _trashlist.clear ();
-   complain (_model->opTrashStacks (list, parent, _trashlist, _destdir, _copy));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (*filenames, parent);
+
+      trashlist->clear ();
+      model->opTrashStacks (list, parent, trashlist, destdir, copy, done);
+   });
    }
 
 
 void UCTrashStacks::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   auto filenames = _filenames;
+   auto trashlist = _trashlist;
+   QList<pagepos_info> files = _files;
+   QString destdir = _destdir;
+   bool copy = _copy;
 
-   complain (_model->opUntrashStacks (_trashlist, parent, _filenames, &_files, 
-         _destdir, _copy));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+
+      model->opUntrashStacks (*trashlist, parent, filenames, files, true,
+                              destdir, copy, done);
+   });
    }
 
 

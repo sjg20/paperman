@@ -96,11 +96,15 @@ public:
          QModelIndexList &list, QModelIndex &parent, QString destdir, bool copy);
    void redo();
    void undo();
-   const QStringList &trashlist () const { return _trashlist; }
+   /** the names the stacks got in the trash, once moved, which for a
+       local desk is at once */
+   const QStringList &trashlist () const { return *_trashlist; }
 private:
    QString _dir;           //!< desk directory
-   QStringList _filenames; //!< the list of filenames to delete
-   QStringList _trashlist; //!< the resulting filenames in the trash
+   //! the list of filenames to delete, updated as they come back
+   std::shared_ptr<QStringList> _filenames;
+   //! the resulting filenames in the trash, once moved
+   std::shared_ptr<QStringList> _trashlist;
    QList<pagepos_info> _files; //!< file information for each file
    QString _destdir;       //!< destination directory ("" for trash)
    bool _copy;             //!< true to copy, else move
