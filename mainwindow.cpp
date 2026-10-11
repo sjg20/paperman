@@ -197,24 +197,15 @@ void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
 
    err_list = desktop->addRepositories(dirs);
 
-   /* Attach the server named on the command line, if any.  A bare name
-      is looked up in client.conf so --server works the same way as it
-      does for paperman-client. */
+   /* Attach the server named on the command line, if any.  This may be
+      a name from client.conf or a host to look for a server on, so
+      --server works the same way as it does for paperman-client. */
    QString serverError;
    QUrl cmdlineUrl;
    if (!serverUrl.isEmpty()) {
-      ServerEntry named;
-      if (ClientConfig::findByName(serverUrl, &named))
-         cmdlineUrl = named.url;
-      else
-         cmdlineUrl = QUrl(serverUrl);
-
-      if (cmdlineUrl.isValid() && !cmdlineUrl.scheme().isEmpty()) {
+      cmdlineUrl = ClientConfig::resolve(serverUrl, &serverError);
+      if (!cmdlineUrl.isEmpty())
          serverError = desktop->addRemoteServer(cmdlineUrl);
-      } else {
-         serverError = QString("invalid URL: %1").arg(serverUrl);
-         cmdlineUrl.clear();
-      }
    }
 
    /* Attach everything else listed in client.conf.  These are best
