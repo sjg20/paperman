@@ -199,6 +199,12 @@ public:
      *  tokens to its own state (e.g. the DirNode being expanded). */
     quint64 browseDirectoryAsync(const QString &repo, const QString &dir);
 
+    /** List a folder without waiting, calling @p done with the listing
+     *  once it has come, unless @p context has gone by then */
+    void browseDirectory(const QString &repo, const QString &dir,
+                         QObject *context,
+                         std::function<void (const DirectoryListing &)> done);
+
     /** Fetch a thumbnail (JPEG bytes) for a single page of a file.
      *  @p size is "small", "medium", or "large" (matches the server's
      *  /thumbnail vocabulary).  Sync: blocks until the server
@@ -308,6 +314,13 @@ public:
                     const QByteArray &bytes, QString *finalName,
                     QString *etag, bool overwrite = false);
 
+    /** Upload a file without waiting, as uploadFile() does.  Once done,
+     *  @p done is called unless @p context has gone; the result's JSON
+     *  gives the file's final "name" and its "etag" */
+    void uploadFile(const QString &repo, const QString &path,
+                    const QByteArray &bytes, bool overwrite,
+                    QObject *context, Done done);
+
     /** Run the server's OCR engine over 1-based page @p page of a
      *  stack.  The server keeps the page's words with the page, or
      *  where the stack cannot, stores the text in the stack's ocr
@@ -369,6 +382,14 @@ public:
      *  (lastError() set). */
     quint64 ensureCachedFileAsync(const QString &repo,
                                   const QString &relPath);
+
+    /** Bring a file's cached copy up to date without waiting, as
+     *  ensureCachedFile() does, calling @p done with its path (empty if
+     *  there is none) once done, unless @p context has gone by then */
+    void ensureCachedFile(const QString &repo, const QString &relPath,
+                          QObject *context,
+                          std::function<void (const QString &cachePath,
+                                              bool refreshed)> done);
 
     /** Forget any cached copy of @p relPath, whether fetched whole
      *  (bytes and validator) or a page at a time (the page directory),
