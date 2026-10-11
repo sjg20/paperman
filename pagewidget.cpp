@@ -656,8 +656,9 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
    _start = start;
    _count = count;
 
-   /* a remote stack may not have been fetched yet; get its content
-      now so the page count below is the real one */
+   /* a remote stack may not have been fetched yet: ask for it, and show
+      it again once it comes (see Desktopmodel::onStackInfoReady()).  The
+      server's listing gave its page count, unless the server is old */
    if (index.isValid ())
       {
       Desktopmodel *contents = _modelconv->getDesktopmodel (model);
@@ -665,7 +666,7 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
 
       _modelconv->indexToSource (model, sindex);
       if (contents && sindex.isValid ())
-         contents->ensureContent (sindex);
+         contents->requestContent (sindex);
       }
 
    int pagecount = model->data (index, Desktopmodel::Role_pagecount).toInt ();
@@ -748,6 +749,16 @@ void Pagewidget::slotPreviewPage (const QModelIndex &ind)
    _pagenum = _start + ind.row ();
    contents = _modelconv->getDesktopmodel (_model);
    _modelconv->indexToSource (_model, sindex);
+
+   /* a page of a remote stack which is not here yet is asked for, and
+      shown once it comes, through Desktopmodel::pageContentChanged() */
+   if (!contents->pageHere (sindex, _pagenum))
+      {
+      if (!contents->requestContent (sindex))
+         contents->requestPage (sindex, _pagenum);
+      updateOcrText ();
+      return;
+      }
    err = contents->getImage (sindex, _pagenum, false,
                   _image, size, scaledSize, bpp);
    if (!err)

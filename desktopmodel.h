@@ -1092,6 +1092,11 @@ public:
    //! true if @p deskind is a folder on a server still being listed
    bool isListing (const QModelIndex &deskind) const;
 
+   /** true if page @p pagenum of the stack @p ind can be read without
+       asking a server for anything: always for a local stack, and for a
+       remote one once its content, or that page of it, is here */
+   bool pageHere (const QModelIndex &ind, int pagenum);
+
 private:
 
    void scheduleRemoteThumbnails(Desk *desk, class RemoteBackend *backend,

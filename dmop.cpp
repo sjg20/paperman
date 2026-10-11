@@ -1540,9 +1540,25 @@ void Desktopmodel::getPageOcr (const QModelIndex &ind, int pagenum,
 
    page = OcrPage ();
    /* a remote stack may not have been fetched yet, nor this page of it;
-      the page view asks from the GUI thread, which may wait for it */
-   if (f && !ensureContent (ind) && !ensurePage (ind, pagenum))
+      the page view asks again once it has */
+   if (f && pageHere (ind, pagenum) && !ensureContent (ind)
+       && !ensurePage (ind, pagenum))
       f->getPageOcr (pagenum, page);
+   }
+
+
+bool Desktopmodel::pageHere (const QModelIndex &ind, int pagenum)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      return true;
+   if (!f->remoteChecked ())
+      return false;
+
+   Filemax *max = sparseFor (f, remote, f->desk ());
+   return !max || max->hasPage (pagenum);
    }
 
 

@@ -2354,7 +2354,14 @@ void TestSearchServer::testRemoteOcrMax()
     }
     QCOMPARE(serverAnnot(dir, "readme.max", File::Annot_ocr), QString());
 
-    // and so does the cached copy
+    /* and so does the cached copy, once the page has come again, which
+       the page view asks for */
+    auto pageHere = [&]() {
+        if (!model.requestContent(stack))
+            model.requestPage(stack, 0);
+        return model.pageHere(stack, 0);
+    };
+    QTRY_VERIFY(pageHere());
     OcrPage cached;
     model.getPageOcr(stack, 0, cached);
     QCOMPARE(cached.text(), text);
