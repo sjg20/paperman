@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDate>
 #include <QDebug>
 #include <QDir>
+#include <QEventLoop>
 #include <QFile>
 #include <QMessageBox>
 #include <QStandardPaths>
@@ -32,6 +33,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "dirmodel.h"
 #include "backend.h"
 #include "backendstats.h"
+#include "blockwatch.h"
 #include "localbackend.h"
 #include "remotebackend.h"
 #include "qmimedata.h"
@@ -733,7 +735,42 @@ bool Dirmodel::serverUsable(const RemoteBackend &probe, const QUrl &baseUrl,
 }
 
 
+/* Wait for an asynchronous request to the server to finish, for a
+   caller which cannot carry on until it has */
+static QString waitFor(const QString &what,
+                       const std::function<void (Dirmodel::Finished)> &start)
+{
+   QString error;
+   bool finished = false;
+   QEventLoop loop;
+
+   start([&](const QString &err) {
+      error = err;
+      finished = true;
+      loop.quit();
+   });
+   if (!finished) {
+      BlockWatch::note(what);
+      loop.exec();
+   }
+   return error;
+}
+
+
 bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
+{
+   QString error = waitFor("connect to " + baseUrl.toString(),
+                           [&](Finished done) {
+      addRemoteRepository(baseUrl, done);
+   });
+
+   if (errorOut)
+      *errorOut = error;
+   return error.isEmpty();
+}
+
+
+void Dirmodel::addRemoteRepository(const QUrl &baseUrl, Finished done)
 {
    /* Tag the stats object with this server's URL so the toolbar
     * widget has something to display.  Last writer wins if the
@@ -745,26 +782,53 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
     * repository list.  Each repo we add then gets its own
     * RemoteBackend instance (with the same token) so each Diritem
     * keeps the simple unique_ptr ownership invariant. */
-   RemoteBackend probe(baseUrl);
-   probe.setStats(stats());
-   QString serverId = probe.serverId();
+   RemoteBackend *probe = new RemoteBackend(baseUrl, this);
+   probe->setStats(stats());
+   auto finish = [probe, done](const QString &error) {
+      probe->deleteLater();
+      done(error);
+   };
 
-   if (!serverUsable(probe, baseUrl, errorOut))
-      return false;
+   probe->fetchStatus(this, [this, probe, baseUrl, finish](
+                               const RemoteBackend::Result &status) {
+      QString error;
+      if (!serverUsable(*probe, baseUrl, &error)) {
+         finish(error);
+         return;
+      }
+      if (!status.ok) {
+         finish(status.error);
+         return;
+      }
 
-   QString token = loadCachedToken(serverId);
-   if (!token.isEmpty())
-      probe.setBearerToken(token);
+      QString serverId = probe->knownServerId();
+      QString token = loadCachedToken(serverId);
+      if (!token.isEmpty())
+         probe->setBearerToken(token);
 
-   QList<RepositoryInfo> repos = probe.listRepositories();
-   if (repos.isEmpty()) {
-      if (errorOut)
-         *errorOut = probe.lastError().isEmpty()
-                         ? QStringLiteral("no repositories returned")
-                         : probe.lastError();
-      return false;
-   }
+      probe->fetchRepositories(this, [this, probe, baseUrl, serverId, token,
+                                      finish](
+                                         const RemoteBackend::Result &result) {
+         QList<RepositoryInfo> repos
+               = RemoteBackend::parseRepositories(result.body);
+         if (repos.isEmpty()) {
+            finish(result.error.isEmpty()
+                       ? QStringLiteral("no repositories returned")
+                       : result.error);
+            return;
+         }
+         addRemoteRepos(baseUrl, serverId, probe->features(), token, repos);
+         finish(QString());
+      });
+   });
+}
 
+
+void Dirmodel::addRemoteRepos(const QUrl &baseUrl, const QString &serverId,
+                              const QStringList &features,
+                              const QString &token,
+                              const QList<RepositoryInfo> &repos)
+{
    for (const RepositoryInfo &r : repos) {
       Diritem *item = new Diritem();
       /* _dir gets a synthetic identifier (URL + repo name) so the
@@ -785,7 +849,7 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       /* Hand on the id and features the probe already fetched, so this
          backend never has to block on /v1/status to work out its cache
          directory, and knows whether stacks come a page at a time. */
-      rb->setServerInfo(serverId, probe.features());
+      rb->setServerInfo(serverId, features);
       if (!token.isEmpty())
          rb->setBearerToken(token);
       connect(rb, &RemoteBackend::browseDirectoryReady,
@@ -818,37 +882,60 @@ bool Dirmodel::addRemoteRepository(const QUrl &baseUrl, QString *errorOut)
       _item.append(item);
       endInsertRows();
    }
-   return true;
 }
 
 
 bool Dirmodel::loginToServer(const QUrl &baseUrl, const QString &user,
                              const QString &password, QString *errorOut)
 {
-   RemoteBackend probe(baseUrl);
-   QString serverId = probe.serverId();
-   if (!serverUsable(probe, baseUrl, errorOut))
-      return false;
-   if (serverId.isEmpty()) {
-      if (errorOut)
-         *errorOut = probe.lastError().isEmpty()
-                         ? QStringLiteral("could not reach server")
-                         : probe.lastError();
-      return false;
-   }
-   if (!probe.login(user, password)) {
-      if (errorOut)
-         *errorOut = probe.lastError().isEmpty()
-                         ? QStringLiteral("login failed")
-                         : probe.lastError();
-      return false;
-   }
-   if (!saveCachedToken(serverId, probe.bearerToken())) {
-      if (errorOut)
-         *errorOut = QStringLiteral("could not write token file");
-      return false;
-   }
-   return true;
+   QString error = waitFor("log in to " + baseUrl.toString(),
+                           [&](Finished done) {
+      loginToServer(baseUrl, user, password, done);
+   });
+
+   if (errorOut)
+      *errorOut = error;
+   return error.isEmpty();
+}
+
+
+void Dirmodel::loginToServer(const QUrl &baseUrl, const QString &user,
+                             const QString &password, Finished done)
+{
+   RemoteBackend *probe = new RemoteBackend(baseUrl, this);
+   auto finish = [probe, done](const QString &error) {
+      probe->deleteLater();
+      done(error);
+   };
+
+   probe->fetchStatus(this, [this, probe, baseUrl, user, password, finish](
+                               const RemoteBackend::Result &status) {
+      QString error;
+      if (!serverUsable(*probe, baseUrl, &error)) {
+         finish(error);
+         return;
+      }
+      QString serverId = probe->knownServerId();
+      if (serverId.isEmpty()) {
+         finish(status.error.isEmpty() ? QStringLiteral("could not reach "
+                                                        "server")
+                                       : status.error);
+         return;
+      }
+      probe->login(user, password, this, [this, probe, serverId, finish](
+                                            const RemoteBackend::Result &r) {
+         if (!r.ok) {
+            finish(r.error.isEmpty() ? QStringLiteral("login failed")
+                                     : r.error);
+            return;
+         }
+         if (!saveCachedToken(serverId, probe->bearerToken())) {
+            finish(QStringLiteral("could not write token file"));
+            return;
+         }
+         finish(QString());
+      });
+   });
 }
 
 
