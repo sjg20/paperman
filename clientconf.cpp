@@ -6,9 +6,16 @@ License: GPL-2
 
 #include <QDir>
 #include <QFile>
+#include <QEventLoop>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QStandardPaths>
 #include <QTextStream>
+#include <QTimer>
 
 
 QString ClientConfig::configPath()
@@ -146,4 +153,156 @@ bool ClientConfig::add(const QUrl &url, const QString &name,
    else
       out << name << " = " << url.toString() << '\n';
    return true;
+}
+
+
+QList<QUrl> ClientConfig::probeCandidates(const QString &arg)
+{
+   QList<QUrl> found;
+
+   /* Anything with a scheme is a URL already.  Look for "://" rather
+      than asking QUrl, which reads "host:8080" as scheme "host". */
+   if (arg.isEmpty() || arg.contains("://"))
+      return found;
+
+   QUrl url("http://" + arg);
+   if (!url.isValid() || url.host().isEmpty() || !url.userInfo().isEmpty()
+       || url.hasQuery() || url.hasFragment()
+       || (!url.path().isEmpty() && url.path() != "/"))
+      return found;
+   url.setPath(QString());
+
+   if (url.port() != -1) {
+      found << url;
+      url.setScheme("https");
+      found << url;
+   } else {
+      url.setPort(8080);
+      found << url;
+      url.setPort(8081);
+      found << url;
+      url.setPort(-1);
+      url.setScheme("https");
+      found << url;
+   }
+   return found;
+}
+
+
+QUrl ClientConfig::probe(const QList<QUrl> &candidates, QString *errorOut,
+                         int timeoutMs)
+{
+   QNetworkAccessManager mgr;
+   QEventLoop loop;
+   QList<QNetworkReply *> replies;
+   QStringList why;   // what went wrong with each, once it has
+   QUrl chosen;
+
+   /* Settle as soon as the most likely candidate still in the running
+      answers; a later one answering first must wait for those ahead of
+      it, which usually fail quickly when nothing is listening, or for
+      the time to run out. */
+   auto settle = [&]() {
+      for (int i = 0; i < candidates.size(); i++) {
+         if (why[i].isNull())
+            return;   // still waiting on this one
+         if (why[i].isEmpty()) {
+            chosen = candidates[i];
+            break;
+         }
+      }
+      loop.quit();
+   };
+
+   for (const QUrl &cand : candidates) {
+      QUrl status = cand;
+      status.setPath("/status");
+      QNetworkRequest req(status);
+      QNetworkReply *reply = mgr.get(req);
+      int idx = replies.size();
+      replies << reply;
+      why << QString();
+
+      QObject::connect(reply, &QNetworkReply::finished, &loop,
+                       [&, reply, idx]() {
+         /* Any HTTP answer means something is listening, so say
+            whether it is a Paperman server rather than how the request
+            failed */
+         QVariant code = reply->attribute(
+                            QNetworkRequest::HttpStatusCodeAttribute);
+         if (!code.isValid()) {
+            why[idx] = reply->errorString();
+         } else {
+            QJsonObject obj = QJsonDocument::fromJson(reply->readAll())
+                                 .object();
+            if (code.toInt() == 200
+                && obj.value("status").toString() == "running")
+               why[idx] = "";
+            else
+               why[idx] = "not a Paperman server";
+         }
+         settle();
+      });
+   }
+
+   if (!candidates.isEmpty()) {
+      QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+      loop.exec();
+   }
+
+   /* Out of time, take the best of those which did answer: one ahead
+      of it may simply be slow to be refused, as on Windows */
+   for (int i = 0; chosen.isEmpty() && i < candidates.size(); i++) {
+      if (!why[i].isNull() && why[i].isEmpty())
+         chosen = candidates[i];
+   }
+
+   /* Leave nothing to call back into this frame once it is gone */
+   for (QNetworkReply *reply : replies) {
+      reply->disconnect();
+      reply->abort();
+   }
+
+   if (chosen.isEmpty() && errorOut) {
+      QStringList tried;
+      QStringList reasons;
+      for (int i = 0; i < candidates.size(); i++) {
+         QString reason = why[i].isNull() ? "no answer" : why[i];
+         tried << QString("%1 (%2)").arg(candidates[i].toString(), reason);
+         reasons << reason;
+      }
+
+      /* An unknown host fails the same way everywhere; say so once */
+      reasons.removeDuplicates();
+      if (reasons.size() == 1 && candidates.size() > 1) {
+         tried.clear();
+         for (const QUrl &cand : candidates)
+            tried << cand.toString();
+         *errorOut = QString("no Paperman server found (%1); tried %2")
+                        .arg(reasons.first(), tried.join(", "));
+      } else {
+         *errorOut = "no Paperman server found; tried " + tried.join(", ");
+      }
+   }
+   return chosen;
+}
+
+
+QUrl ClientConfig::resolve(const QString &arg, QString *errorOut)
+{
+   ServerEntry named;
+   if (findByName(arg, &named))
+      return named.url;
+
+   QList<QUrl> candidates = probeCandidates(arg);
+   if (!candidates.isEmpty())
+      return probe(candidates, errorOut);
+
+   QUrl url(arg);
+   if (url.isValid() && !url.scheme().isEmpty() && !url.host().isEmpty())
+      return url;
+
+   if (errorOut)
+      *errorOut = QString("invalid URL: %1").arg(arg);
+   return QUrl();
 }

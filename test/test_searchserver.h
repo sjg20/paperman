@@ -80,6 +80,9 @@ private slots:
    //! the preview leaves remote pages to arrive rather than spinning
    void testRemotePagesAwaited();
 
+   //! a server named by its host and port is found by asking it
+   void testProbe();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 

@@ -14,6 +14,7 @@
 #include <QStandardPaths>
 
 #include "../backendstats.h"
+#include "../clientconf.h"
 
 #include "../desktopmodel.h"
 #include "../dirmodel.h"
@@ -3553,4 +3554,57 @@ void TestSearchServer::testRemotePagesAwaited()
     QCOMPARE(told, QSet<int>({0, 1, 2, 3, 4}));
     for (int i = 1; i <= 5; i++)
         QVERIFY(QFile::exists(QString("%1/page-%2.max").arg(pageDir).arg(i)));
+}
+
+void TestSearchServer::testProbe()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+
+    // something else that speaks HTTP, and a port with nothing on it
+    StubServer stub;
+    QVERIFY(stub.listen(QHostAddress::LocalHost));
+    QTcpServer gone;
+    QVERIFY(gone.listen(QHostAddress::LocalHost));
+    quint16 closedPort = gone.serverPort();
+    gone.close();
+
+    auto local = [](quint16 port) {
+        // not localhost, which Windows is slow to refuse on ::1 first
+        return QUrl(QString("http://127.0.0.1:%1").arg(port));
+    };
+
+    // a host and port finds the server there
+    QString err;
+    QCOMPARE(ClientConfig::resolve(QString("127.0.0.1:%1").arg(PORT), &err),
+             local(PORT));
+
+    // the first that answers as a Paperman server is the one taken
+    QCOMPARE(ClientConfig::probe({local(closedPort), local(stub.serverPort()),
+                                  local(PORT)}, &err),
+             local(PORT));
+
+    // or, out of time, the first of those that did answer
+    QTcpServer silent;
+    QVERIFY(silent.listen(QHostAddress::LocalHost));
+    QCOMPARE(ClientConfig::probe({local(silent.serverPort()), local(PORT)},
+                                 &err, 500),
+             local(PORT));
+
+    // even when one further down the list answers too
+    stub.replies["/status"] = {200, R"({"status":"running"})"};
+    QCOMPARE(ClientConfig::probe({local(stub.serverPort()), local(PORT)}),
+             local(stub.serverPort()));
+    stub.replies.clear();
+
+    // with none, the error says what was tried and why each failed
+    QVERIFY(ClientConfig::probe({local(closedPort), local(stub.serverPort())},
+                                &err).isEmpty());
+    QVERIFY2(err.contains(local(closedPort).toString())
+             && err.contains(local(stub.serverPort()).toString() + " (")
+             && err.contains("not a Paperman server"), qPrintable(err));
+
+    server.stop();
 }

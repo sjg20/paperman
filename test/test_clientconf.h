@@ -31,6 +31,9 @@ private slots:
 
    //! Trailing slashes and host case do not make a distinct server
    void testSameServer();
+
+   //! A host given without a URL is looked for in the likely places
+   void testProbeCandidates();
 };
 
 #endif // TEST_CLIENTCONF_H

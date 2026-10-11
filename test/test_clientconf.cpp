@@ -179,3 +179,53 @@ void TestClientConf::testSameServer()
    QVERIFY(!ClientConfig::sameServer(QUrl("http://a.example.com"),
                                      QUrl("http://b.example.com")));
 }
+
+
+void TestClientConf::testProbeCandidates()
+{
+   auto urls = [](const QString &arg) {
+      QStringList out;
+      for (const QUrl &url : ClientConfig::probeCandidates(arg))
+         out << url.toString();
+      return out;
+   };
+
+   // a bare host: the default port, the systemd one, then https
+   QCOMPARE(urls("ohau"), QStringList({"http://ohau:8080",
+                                       "http://ohau:8081",
+                                       "https://ohau"}));
+   QCOMPARE(urls("paper.example.com"),
+            QStringList({"http://paper.example.com:8080",
+                         "http://paper.example.com:8081",
+                         "https://paper.example.com"}));
+
+   // a port says where to look, though not which scheme
+   QCOMPARE(urls("ohau:9000"), QStringList({"http://ohau:9000",
+                                            "https://ohau:9000"}));
+   QCOMPARE(urls("ohau:9000/"), QStringList({"http://ohau:9000",
+                                             "https://ohau:9000"}));
+   QCOMPARE(urls("[::1]:9000"), QStringList({"http://[::1]:9000",
+                                             "https://[::1]:9000"}));
+
+   // a URL needs no probing, and some things are not hosts at all
+   QVERIFY(urls("http://ohau:8080").isEmpty());
+   QVERIFY(urls("https://ohau").isEmpty());
+   QVERIFY(urls("").isEmpty());
+   QVERIFY(urls("my office").isEmpty());
+   QVERIFY(urls("ohau/papers").isEmpty());
+   QVERIFY(urls("user@ohau").isEmpty());
+
+   // nothing to probe means nothing found, without waiting
+   QString err;
+   QVERIFY(ClientConfig::probe({}, &err).isEmpty());
+
+   // and resolve() takes a URL as it is, and turns down anything else
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   ConfigFile conf(tmp, "office = http://paper.example.com:8081\n");
+   QCOMPARE(ClientConfig::resolve("office"),
+            QUrl("http://paper.example.com:8081"));
+   QCOMPARE(ClientConfig::resolve("https://ohau"), QUrl("https://ohau"));
+   QVERIFY(ClientConfig::resolve("my office", &err).isEmpty());
+   QCOMPARE(err, QString("invalid URL: my office"));
+}
