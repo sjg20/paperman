@@ -220,7 +220,13 @@ See :doc:`server` for the ``client.conf`` format.
 
 ``add-server <url> [name]``
    Add a server to ``client.conf``, optionally under a friendly name. A
-   server that is already listed is left alone.
+   server that is already listed is left alone. A host (or ``host:port``)
+   can be given instead of a URL, and is looked for as with ``probe``.
+
+``probe <host>``
+   Look for a server on a host and print its URL. A host alone is tried
+   on ports 8080 and 8081, then over https; ``host:port`` is tried on
+   that port over http, then https.
 
 ``login <user>`` / ``logout``
    Log in to the selected server (prompting for the password) and cache
@@ -245,7 +251,8 @@ See :doc:`server` for the ``client.conf`` format.
    Fetch page ``n`` of a stack as a one-page ``.max`` file, to stdout or
    to ``OUT``.
 
-``--server <url-or-name>`` picks the server; without it the client uses
+``--server <url-or-name>`` picks the server, which can also be given as a
+host to look for a server on; without it the client uses
 ``$PAPERMAN_SERVER``, else the first entry in ``client.conf``, else
 ``http://localhost:8080``.
 
