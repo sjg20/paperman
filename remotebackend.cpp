@@ -496,6 +496,93 @@ bool RemoteBackend::postStackOp(const QString &repo, const QString &path,
 }
 
 
+void RemoteBackend::postStackOp(const QString &repo, const QString &path,
+                                const QString &verb, const QJsonObject &body,
+                                QObject *context, Done done)
+{
+   QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + verb;
+   QByteArray data = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+   whenFinished(startPost(endpoint, data), context,
+                [verb, done](const Result &result) {
+      Result out = result;
+      QJsonObject obj = result.json();
+
+      /* the server says why an operation failed, which is more use than
+         the HTTP status */
+      if (!obj.value("success").toBool(false)) {
+         out.ok = false;
+         if (obj.contains("error"))
+            out.error = obj.value("error").toString();
+         else if (out.error.isEmpty())
+            out.error = obj.isEmpty() ? "invalid response from " + verb
+                                      : verb + " failed";
+      }
+      done(out);
+   });
+}
+
+
+void RemoteBackend::renameStack(const QString &repo, const QString &path,
+                                const QString &newName, bool autoRename,
+                                QObject *context, Done done)
+{
+   QJsonObject body;
+   body["newName"]    = newName;
+   body["autoRename"] = autoRename;
+   postStackOp(repo, path, "/rename", body, context, done);
+}
+
+
+void RemoteBackend::renamePage(const QString &repo, const QString &path,
+                               int page, const QString &newName,
+                               QObject *context, Done done)
+{
+   QJsonObject body;
+   body["newName"] = newName;
+   postStackOp(repo, path + "/pages/" + QString::number(page), "/rename",
+               body, context, done);
+}
+
+
+void RemoteBackend::moveStack(const QString &repo, const QString &path,
+                              const QString &destDir, bool copy,
+                              QObject *context, Done done)
+{
+   QJsonObject body;
+   body["destDir"] = destDir;
+   body["copy"]    = copy;
+   postStackOp(repo, path, "/move", body, context, done);
+}
+
+
+void RemoteBackend::deleteStack(const QString &repo, const QString &path,
+                                QObject *context, Done done)
+{
+   postStackOp(repo, path, "/delete", QJsonObject(), context, done);
+}
+
+
+void RemoteBackend::updateAnnotations(const QString &repo,
+                                      const QString &path,
+                                      const QJsonObject &updates,
+                                      QObject *context, Done done)
+{
+   postStackOp(repo, path, "/annotations", updates, context, done);
+}
+
+
+void RemoteBackend::transformPage(const QString &repo, const QString &path,
+                                  int page, const QString &op,
+                                  QObject *context, Done done)
+{
+   QJsonObject body;
+   body["page"] = page;
+   body["op"]   = op;
+   postStackOp(repo, path, "/transform", body, context, done);
+}
+
+
 bool RemoteBackend::readStack(const QString &repo, const QString &path)
 {
    return postStackOp(repo, path, "/read", QJsonObject(), nullptr);
