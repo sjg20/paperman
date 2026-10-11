@@ -38,6 +38,12 @@ and each page the first time it is shown, keeping them in
 ``<path>.d/`` beside where the whole file would go. Against an older
 server the whole file is fetched.
 
+The listing gives each stack's page count (``pages``), which a newer
+server reads from the stack and keeps until the file changes. So a stack
+shows its page controls, and the thumbnail of the page it is turned to,
+before any of it is fetched; turning its page fetches the server's
+thumbnail of the new one until the page itself is here.
+
 Changes
 -------
 
