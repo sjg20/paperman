@@ -206,6 +206,26 @@ DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
 }
 
 
+void RemoteBackend::browseDirectory(const QString &repo, const QString &dir,
+                                    QObject *context,
+                                    std::function<void (const DirectoryListing &)>
+                                       done)
+{
+   /* a connection which answers only for this listing, and goes once it
+      has, or with the context */
+   quint64 token = browseDirectoryAsync(repo, dir);
+   auto conn = std::make_shared<QMetaObject::Connection>();
+   *conn = connect(this, &RemoteBackend::browseDirectoryReady, context,
+                   [token, conn, done](quint64 tok,
+                                       const DirectoryListing &listing) {
+      if (tok != token)
+         return;
+      QObject::disconnect(*conn);
+      done(listing);
+   });
+}
+
+
 quint64 RemoteBackend::browseDirectoryAsync(const QString &repo,
                                             const QString &dir)
 {
@@ -637,6 +657,31 @@ bool RemoteBackend::unfoldStack(const QString &repo, const QString &path,
 }
 
 
+void RemoteBackend::uploadFile(const QString &repo, const QString &path,
+                               const QByteArray &bytes, bool overwrite,
+                               QObject *context, Done done)
+{
+   QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + "/upload";
+   if (overwrite)
+      endpoint += "?overwrite=true";
+
+   whenFinished(startPost(endpoint, bytes, "application/octet-stream"),
+                context, [done](const Result &result) {
+      Result out = result;
+      QJsonObject obj = result.json();
+      if (!obj.value("success").toBool(false)) {
+         out.ok = false;
+         if (out.error.isEmpty())
+            out.error = obj.isEmpty() ? QStringLiteral("invalid upload "
+                                                       "response")
+                                      : obj.value("error").toString("upload "
+                                                                    "failed");
+      }
+      done(out);
+   });
+}
+
+
 bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
                                const QByteArray &bytes, QString *finalName,
                                QString *etag, bool overwrite)
@@ -936,6 +981,26 @@ QString RemoteBackend::storeCachedFile(const QString &cachePath,
    cachedFileReady() when the copy is current.  The reply is handled on
    the thread that owns this object, so the network stack is only ever
    touched from there. */
+void RemoteBackend::ensureCachedFile(const QString &repo,
+                                     const QString &relPath,
+                                     QObject *context,
+                                     std::function<void (const QString &,
+                                                         bool)> done)
+{
+   // as in browseDirectory()
+   quint64 token = ensureCachedFileAsync(repo, relPath);
+   auto conn = std::make_shared<QMetaObject::Connection>();
+   *conn = connect(this, &RemoteBackend::cachedFileReady, context,
+                   [token, conn, done](quint64 tok, const QString &path,
+                                       bool refreshed) {
+      if (tok != token)
+         return;
+      QObject::disconnect(*conn);
+      done(path, refreshed);
+   });
+}
+
+
 quint64 RemoteBackend::ensureCachedFileAsync(const QString &repo,
                                              const QString &relPath)
 {
