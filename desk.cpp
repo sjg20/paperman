@@ -127,7 +127,7 @@ Desk::~Desk ()
    /* a remote desk uploads on write, so only bother when something
       actually changed (flushes cover the normal case anyway) */
    if (_dir != QString() && _do_writeDesk && (!_isRemote || _dirty)
-       && !writeDesk ())
+       && !writeDesk (true))
       printf ("couldn't write maxdesk.ini\n");
    clear ();
    }
@@ -221,31 +221,9 @@ void Desk::addFiles(const QString &dirPath, Measure *meas)
          return;
       }
 
-      if (_isRemote) {
-         /* the server's desk file carries the shared layout; read it
-          * first (validated against the listing) so files take their
-          * shared positions, then add anything it doesn't mention */
+      if (_isRemote)
          fetchRemoteDeskFile();
-         QSet<QString> names;
-         for (const DirectoryEntry &e : listing.entries)
-            if (!e.isDir)
-               names.insert(e.name);
-         readDesk(true, &names);
-      }
-
-      for (const DirectoryEntry &e : listing.entries) {
-         if (e.isDir)
-            continue;
-         addFile(e.name, dirPath, meas);
-      }
-
-      /* tell each stack how many pages it has, so its page controls
-       * can show before any of it is fetched */
-      for (const DirectoryEntry &e : listing.entries) {
-         File *f = e.isDir || !e.pages ? nullptr : findFile(e.name);
-         if (f)
-            f->setListedPagecount(e.pages);
-      }
+      addListing(listing, dirPath, meas);
       updateRowCount();
       return;
    }
@@ -438,35 +416,97 @@ QString Desk::remoteCacheDirFor (const QString &dir)
    }
 
 
+QString Desk::remoteDeskPath (void) const
+   {
+   QString rel = remoteRelDir ();
+
+   return rel.isEmpty () ? QString (DESK_FNAME) : rel + "/" + DESK_FNAME;
+   }
+
+
 void Desk::fetchRemoteDeskFile (void)
    {
    if (!_remote)
       return;
 
-   QString rel = remoteRelDir ();
-   QString path = rel.isEmpty () ? QString (DESK_FNAME)
-                                 : rel + "/" + DESK_FNAME;
-
    /* a failure just means the server has no desk file yet (or is
       unreachable, in which case any cached copy is used) */
-   _remote->ensureCachedFile (_repoName, path);
+   _remote->ensureCachedFile (_repoName, remoteDeskPath ());
    }
 
 
-bool Desk::uploadDeskFile (void)
+/* The uploads of a desk's file: at most one is on its way, and a desk
+   written again meanwhile sends its file again once it has landed */
+struct DeskUploads
+   {
+   bool busy = false;   //!< an upload is on its way
+   bool again = false;  //!< the file has changed since it was sent
+   };
+
+
+/* Upload @fname, the cached copy of the desk file at @path, in the
+   background, then again if it has changed meanwhile.  This touches
+   nothing of the desk, which may be gone by the time the server answers */
+static void uploadInBackground (QPointer<RemoteBackend> remote,
+                                const QString &repo, const QString &path,
+                                const QString &fname,
+                                std::shared_ptr<DeskUploads> uploads)
+   {
+   QFile in (fname);
+
+   if (!remote || !in.open (QIODevice::ReadOnly))
+      {
+      uploads->busy = false;
+      return;
+      }
+   uploads->busy = true;
+   uploads->again = false;
+   remote->uploadFile (repo, path, in.readAll (), /*overwrite=*/true,
+                       remote, [remote, repo, path, fname, uploads] (
+                          const RemoteBackend::Result &result) {
+      if (!result.ok)
+         qInfo () << "Desk: could not upload desk file:" << result.error;
+      else
+         {
+         /* record the validator so the next fetch costs a 304 */
+         QString etag = result.json ().value ("etag").toString ();
+         QFile ef (fname + ".etag");
+
+         if (!etag.isEmpty () && ef.open (QIODevice::WriteOnly))
+            ef.write (etag.toUtf8 ());
+         }
+      uploads->busy = false;
+      if (uploads->again)
+         uploadInBackground (remote, repo, path, fname, uploads);
+   });
+   }
+
+
+bool Desk::uploadDeskFile (bool wait)
    {
    if (!_remote)
       return false;
 
+   QString path = remoteDeskPath ();
    QFile in (remoteCacheDir () + "/" + DESK_FNAME);
+
+   if (!wait)
+      {
+      if (!_uploads)
+         _uploads = std::make_shared<DeskUploads> ();
+      if (_uploads->busy)
+         _uploads->again = true;    // sent once the one on its way lands
+      else
+         uploadInBackground (_remote, _repoName, path, in.fileName (),
+                             _uploads);
+      return true;
+      }
+
    if (!in.open (QIODevice::ReadOnly))
       return false;
    QByteArray bytes = in.readAll ();
    in.close ();
 
-   QString rel = remoteRelDir ();
-   QString path = rel.isEmpty () ? QString (DESK_FNAME)
-                                 : rel + "/" + DESK_FNAME;
    QString etag;
    if (!_remote->uploadFile (_repoName, path, bytes, nullptr, &etag,
                              /*overwrite=*/true))
@@ -600,7 +640,7 @@ void Desk::readDesk (bool read_sizes, const QSet<QString> *allowed)
    }
 
 
-bool Desk::writeDesk (void)
+bool Desk::writeDesk (bool wait)
    {
    QFile file;
    QString fname;
@@ -661,7 +701,7 @@ bool Desk::writeDesk (void)
    if (_isRemote)
       {
       file.close ();
-      return uploadDeskFile ();
+      return uploadDeskFile (wait);
       }
    return true;
    }
@@ -711,6 +751,39 @@ File *Desk::findFile (QString fileName, int &pos)
       pos++;
       }
    return 0;
+   }
+
+
+void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
+                      Measure *meas)
+   {
+   if (_isRemote)
+      {
+      /* the server's desk file carries the shared layout; read it
+       * first (validated against the listing) so files take their
+       * shared positions, then add anything it doesn't mention */
+      QSet<QString> names;
+      for (const DirectoryEntry &e : listing.entries)
+         if (!e.isDir)
+            names.insert (e.name);
+      readDesk (true, &names);
+      }
+
+   for (const DirectoryEntry &e : listing.entries)
+      {
+      if (e.isDir)
+         continue;
+      addFile (e.name, dirPath, meas);
+      }
+
+   /* tell each stack how many pages it has, so its page controls
+    * can show before any of it is fetched */
+   for (const DirectoryEntry &e : listing.entries)
+      {
+      File *f = e.isDir || !e.pages ? nullptr : findFile (e.name);
+      if (f)
+         f->setListedPagecount (e.pages);
+      }
    }
 
 

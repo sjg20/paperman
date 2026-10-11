@@ -2177,14 +2177,15 @@ void TestSearchServer::testDesktopRemoteSharedPositions()
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
 
-    // move the stack; the layout must land on the server at once
+    /* move the stack; the layout must land on the server, without the
+       move waiting for it */
     QPoint target(432, 210);
     QModelIndexList list;
     QList<QPoint> newpos;
     list << stack;
     newpos << target;
     model.opMoveStacks(list, parent, newpos);
-    QVERIFY(QFile::exists(dir + ".paperdesk"));
+    QTRY_VERIFY(QFile::exists(dir + ".paperdesk"));
     {
         QFile pd(dir + ".paperdesk");
         QVERIFY(pd.open(QIODevice::ReadOnly));

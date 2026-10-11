@@ -36,7 +36,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QPointer>
 #include <QSet>
 
+#include "backend.h"
 #include "err.h"
+
+#include <memory>
 
 
 class File;
@@ -137,6 +140,18 @@ public:
     */
    void addFiles(const QString &dirPath, Measure *meas);
 
+   /** Add the files in a backend's listing of a folder which are not
+       already present, placed as a remote desk's file says: the caller
+       has already brought its copy in the cache up to date.  They are
+       not yet rows: updateRowCount() makes them so, once the model is
+       ready for them
+
+       \param listing  the folder's listing
+       \param dirPath  the folder, with a trailing "/"
+       \param meas     measures each file, or nullptr */
+   void addListing(const DirectoryListing &listing, const QString &dirPath,
+                   Measure *meas);
+
    /**
     * @brief Add new filenames to a desk
     * @param dirPath  Common initial path for all matches, with trailing "/"
@@ -160,8 +175,11 @@ public:
 
    /** write the .paperdesk file; for a remote desk this writes the
        cached copy and uploads it to the server so every client sees
-       the same layout */
-   bool writeDesk (void);
+       the same layout
+
+       \param wait   wait for the upload to finish, which only the
+                     desk's own destructor needs to */
+   bool writeDesk (bool wait = false);
 
    // allocate and zero a new file structure
 //    file_info *alloc_file (void);
@@ -195,13 +213,21 @@ public:
     *  surrounding slashes ("" for the root itself) */
    QString remoteRelDir (void) const;
 
+   //! the desk file's path on the server, relative to the repository
+   QString remoteDeskPath (void) const;
+
    /** Fetch the server's copy of the desk file into the cache; a
     *  missing file just means a fresh directory */
    void fetchRemoteDeskFile (void);
 
    /** Upload the cached desk file to the server so other clients see
-    *  this layout */
-   bool uploadDeskFile (void);
+    *  this layout.  Uploads go one at a time, so that a later layout
+    *  cannot be overtaken by an earlier one: one made while another is
+    *  on its way follows it, with whatever the file then holds
+
+       \param wait   wait for it to finish rather than carry on
+       \returns true if the upload worked, or has started */
+   bool uploadDeskFile (bool wait);
 
    /** given a filename, try to make it unique by adding numbers, etc.
 
@@ -663,6 +689,10 @@ private:
    /** The backend as a RemoteBackend, guarded so a desk destroyed
     *  after the backend does not touch a dangling pointer */
    QPointer<class RemoteBackend> _remote;
+
+   /** The state of the uploads of the desk file, shared with each
+    *  upload on its way so that it outlives the desk if need be */
+   std::shared_ptr<struct DeskUploads> _uploads;
    QPoint _pos;        //!< next position for a file to appear
    int _rightMargin;   //!< right margin for items
    int _debug_level;     //!< the debug level to use for max debugging
