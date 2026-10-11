@@ -122,6 +122,15 @@ Desktopmodel::Desktopmodel(QObject *parent)
 
 Desktopmodel::~Desktopmodel()
    {
+   /* A desk on a server saves its layout there as it goes, waiting for
+      the reply.  Whatever runs meanwhile must not reach a desk which is
+      already gone: a reply to an earlier request, or a view asking for a
+      page and getting its reply during the next desk's save */
+   _closing = true;
+   _pendingThumbnails.clear ();
+   _pendingContent.clear ();
+   _pendingPages.clear ();
+
    delete _fm;
    if (!_cloned)
       while (!_desks.isEmpty ())
@@ -1599,6 +1608,8 @@ void Desktopmodel::onRemoteStackEvent(const QString &repo,
                                       const QString &path,
                                       const QString &name)
 {
+   if (_closing)
+      return;
    UNUSED (op);
    UNUSED (name);
    RemoteBackend *remote = qobject_cast<RemoteBackend *>(sender());
@@ -1633,6 +1644,8 @@ void Desktopmodel::onRemoteStackEvent(const QString &repo,
 void Desktopmodel::onThumbnailReady(quint64 token,
                                     const QByteArray &jpegBytes)
 {
+   if (_closing)
+      return;
    auto it = _pendingThumbnails.find(token);
    if (it == _pendingThumbnails.end())
       return;
@@ -2197,6 +2210,8 @@ void Desktopmodel::connectContentSignals (RemoteBackend *remote)
 
 bool Desktopmodel::requestContent (const QModelIndex &ind)
    {
+   if (_closing)
+      return false;
    File *f = getFile (ind);
 
    if (!f)
@@ -2231,6 +2246,8 @@ bool Desktopmodel::requestContent (const QModelIndex &ind)
 
 bool Desktopmodel::requestPage (const QModelIndex &ind, int pagenum)
    {
+   if (_closing)
+      return false;
    File *f = getFile (ind);
 
    if (!f || !f->remoteChecked ())
@@ -2261,6 +2278,8 @@ bool Desktopmodel::requestPage (const QModelIndex &ind, int pagenum)
    fetches when the view asks for it. */
 void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
    {
+   if (_closing)
+      return;
    auto it = _pendingContent.find (token);
 
    if (it == _pendingContent.end ())
@@ -2295,6 +2314,8 @@ void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
    so the view asks for the page again and this time gets it. */
 void Desktopmodel::onPageReady (quint64 token, const QString &pagePath)
    {
+   if (_closing)
+      return;
    auto it = _pendingPages.find (token);
 
    if (it == _pendingPages.end ())
@@ -2331,6 +2352,8 @@ void Desktopmodel::onPageReady (quint64 token, const QString &pagePath)
 void Desktopmodel::onCachedFileReady (quint64 token, const QString &cachePath,
                                       bool refreshed)
    {
+   if (_closing)
+      return;
    auto it = _pendingContent.find (token);
 
    if (it == _pendingContent.end ())

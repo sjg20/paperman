@@ -1668,6 +1668,10 @@ private:
    //! pages being fetched, by request token
    QHash<quint64, QPair<QPersistentModelIndex, int> > _pendingPages;
 
+   /** true once the model is being destroyed, after which it neither
+       asks the server for anything nor acts on what comes back */
+   bool _closing = false;
+
    /** The stack as a page-at-a-time Filemax, if the server serves
     *  pages and the file is a max file: sets its page directory on
     *  first use.  Null otherwise, meaning fetch the whole file. */
