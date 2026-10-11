@@ -16,6 +16,7 @@
 #include "test_qscanner.h"
 #include "test_utils.h"
 #include "test_searchserver.h"
+#include "test_async.h"
 #include "test_clientconf.h"
 #include "test_fakescan.h"
 #include "test_localbackend.h"
@@ -37,6 +38,7 @@ static TestSearchServer TEST_SEARCHSERVER("searchserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
 static TestLocalBackend TEST_LOCALBACKEND("localbackend");
 static TestClientConf TEST_CLIENTCONF("clientconf");
+static TestAsync TEST_ASYNC("async");
 static TestFakescan TEST_FAKESCAN("fakescan");
 
 int test_run(int, char **in_argv, QApplication *,
