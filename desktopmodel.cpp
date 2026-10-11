@@ -2303,6 +2303,10 @@ void Desktopmodel::onPageReady (quint64 token, const QString &pagePath)
    _minor_change = true;
    buildItem (ind);
    _minor_change = false;
+
+   /* a page view showing this stack stopped updating the page while it
+      was on its way, so tell it to draw the page now */
+   emit pageContentChanged (ind, pagenum);
    }
 
 

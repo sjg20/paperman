@@ -3529,13 +3529,20 @@ void TestSearchServer::testRemotePagesAwaited()
 
     /* each page is asked for once, and the update stops to let them
        come, rather than asking again and again without returning */
+    QSignalSpy changed(&model, &Desktopmodel::pageContentChanged);
     pm.nextUpdate();
     QVERIFY(!pm._updateTimer->isActive());
     for (int i = 0; i < 5; i++)
         QVERIFY(model.requestPage(stack, i));   // already on its way
 
+    /* the view is told as each one lands, so it can draw it */
+    QTRY_COMPARE_WITH_TIMEOUT(changed.size(), 5, 5000);
+    QSet<int> told;
+    for (const QList<QVariant> &args : changed) {
+        QCOMPARE(args.at(0).toModelIndex(), stack);
+        told << args.at(1).toInt();
+    }
+    QCOMPARE(told, QSet<int>({0, 1, 2, 3, 4}));
     for (int i = 1; i <= 5; i++)
-        QTRY_VERIFY_WITH_TIMEOUT(
-            QFile::exists(QString("%1/page-%2.max").arg(pageDir).arg(i)),
-            5000);
+        QVERIFY(QFile::exists(QString("%1/page-%2.max").arg(pageDir).arg(i)));
 }
