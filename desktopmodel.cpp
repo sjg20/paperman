@@ -1989,6 +1989,11 @@ QString Desktopmodel::imageInfo (const QModelIndex &ind, int pagenum, bool extra
    QDateTime dt;
    err_info *e;
 
+   /* a remote stack chosen before its structure has come from the
+      server has nothing yet to describe its pages */
+   if (!f->remoteChecked () && remoteForFile (f))
+      return extra ? f->filename () : QString ();
+
    e = f->getImageInfo (pagenum, size, trueSize, bpp, num_bytes, csize, dt);
    if (e)
       return QString (tr ("Error: %1")).arg (e->errstr);
@@ -2030,6 +2035,10 @@ QString Desktopmodel::imageTimestamp (const QModelIndex &ind, int pagenum)
    File *f = getFile (ind);
    err_info *e;
    QDateTime dt;
+
+   // likewise for a remote stack whose structure has not come yet
+   if (!f->remoteChecked () && remoteForFile (f))
+      return QString ();
 
    e = f->getImageInfo (pagenum, size, trueSize, bpp, num_bytes, csize, dt);
    if (e)
