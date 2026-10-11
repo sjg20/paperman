@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDateTime>
 #include <QDebug>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QIcon>
@@ -49,6 +50,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mem.h"
 
 #include "desktopmodel.h"
+#include "blockwatch.h"
 #include "desktopundo.h"
 #include "desk.h"
 #include "file.h"
@@ -510,6 +512,7 @@ bool Desktopmodel::removeDesk (const QString &pathname)
    int item = ind.row ();
 
    beginRemoveRows (ind.parent (), ind.row (), ind.row ());
+   _listing.remove (desk);
    delete desk;
    _desks.removeAt(item);
    endRemoveRows ();
@@ -1463,6 +1466,13 @@ void Desktopmodel::refresh(QModelIndex ind)
 {
    Q_ASSERT(ind.isValid());
    Desk *desk = getDesk(ind);
+
+   // a folder on a server is listed again without waiting
+   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend())) {
+      listRemoteDesk(desk, remote, nullptr, true, false);
+      return;
+   }
+
    beginResetModel();
    desk->refresh();
    endResetModel();
@@ -1483,7 +1493,7 @@ QModelIndex Desktopmodel::refresh(QString dirPath)
 }
 
 QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
-                                  Measure *meas)
+                                  Measure *meas, bool wait)
    {
    QModelIndex ind;
 
@@ -1533,30 +1543,110 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
       }
    }
 
-   // add files that are not in the maxdesk.ini file
-   desk->addFiles(dirPath, meas);
-
-   /* For a remote backend, kick off async thumbnail fetches now that
-    * the desk knows its files.  Local backends still rely on each
-    * File subclass to compute its own pixmap from disk data. */
-   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend())) {
-      /* Compute the file's parent path relative to the repo root.
-       * _rootPath/dirPath both have trailing slashes here. */
-      QString dirInRepo = dirPath;
-      if (dirInRepo.startsWith(_rootPath + "/"))
-         dirInRepo = dirInRepo.mid(_rootPath.length() + 1);
-      else if (dirInRepo.startsWith(_rootPath))
-         dirInRepo = dirInRepo.mid(_rootPath.length());
-      if (dirInRepo.endsWith('/'))
-         dirInRepo.chop(1);
-      scheduleRemoteThumbnails(desk, remote, repoName, dirInRepo);
-   }
+   /* add files that are not in the maxdesk.ini file; a folder on a
+      server is listed without waiting, its files appearing once they
+      come, with thumbnails fetched from the server */
+   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend()))
+      listRemoteDesk(desk, remote, meas, false, wait);
+   else
+      desk->addFiles(dirPath, meas);
 
    // no pending list at present
    _pending_scan_list.clear ();
 
    return ind;
    }
+
+
+void Desktopmodel::listRemoteDesk(Desk *desk, RemoteBackend *remote,
+                                  Measure *meas, bool replace, bool wait)
+{
+   struct Listing {
+      DirectoryListing listing;
+      bool listed = false;    // the listing has come
+      bool deskFile = false;  // and the desk file
+      bool filled = false;    // and the desk has been filled from them
+      QEventLoop *loop = nullptr;
+   };
+   auto state = std::make_shared<Listing>();
+   QString dirPath = desk->dir();
+   QString rel = desk->remoteRelDir();
+
+   auto fill = [this, state, desk, remote, dirPath, rel, meas, replace]() {
+      if (!state->listed || !state->deskFile)
+         return;
+      state->filled = true;
+      if (state->loop)
+         state->loop->quit();
+
+      /* the desk may have gone meanwhile, or another taken its place */
+      int row = _desks.indexOf(desk);
+      if (_closing || row == -1 || desk->dir() != dirPath)
+         return;
+      _listing.remove(desk);
+      QModelIndex ind = index(row, 0, QModelIndex());
+      if (!state->listing.ok) {
+         qInfo() << "Desktopmodel: cannot list" << dirPath << ":"
+                 << state->listing.error;
+         if (!replace)
+            emit deskListed(ind);
+         return;
+      }
+
+      if (replace && desk->rowCount()) {
+         beginRemoveRows(ind, 0, desk->rowCount() - 1);
+         internalRemoveRows(0, desk->rowCount(), ind);
+         desk->updateRowCount();
+         endRemoveRows();
+      }
+
+      /* the files go on the end of the desk, and become rows only once
+         the model has said so */
+      int old = desk->rowCount();
+      desk->addListing(state->listing, dirPath, meas);
+      if (desk->fileCount() > old) {
+         beginInsertRows(ind, old, desk->fileCount() - 1);
+         desk->updateRowCount();
+         endInsertRows();
+      }
+      scheduleRemoteThumbnails(desk, remote, desk->repoName(), rel);
+      if (!replace)
+         emit deskListed(ind);
+   };
+
+   if (!replace)
+      _listing.insert(desk);
+
+   remote->browseDirectory(desk->repoName(), rel, this,
+                           [state, fill](const DirectoryListing &listing) {
+      state->listing = listing;
+      state->listed = true;
+      fill();
+   });
+
+   /* a failure just means the server has no desk file yet (or is
+      unreachable, in which case any cached copy is used) */
+   remote->ensureCachedFile(desk->repoName(), desk->remoteDeskPath(), this,
+                            [state, fill](const QString &, bool) {
+      state->deskFile = true;
+      fill();
+   });
+
+   if (wait && !state->filled) {
+      QEventLoop loop;
+
+      BlockWatch::note("list " + dirPath);
+      state->loop = &loop;
+      loop.exec();
+      state->loop = nullptr;
+   }
+}
+
+
+bool Desktopmodel::isListing(const QModelIndex &deskind) const
+{
+   return deskind.isValid() && _listing.contains(getDesk(deskind));
+}
 
 
 void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
@@ -1635,8 +1725,7 @@ void Desktopmodel::onRemoteStackEvent(const QString &repo,
       QString dir = desk->dir();
       if (dir.endsWith('/'))
          dir.chop(1);
-      refresh(dir);
-      scheduleRemoteThumbnails(desk, remote, repo, dirInRepo);
+      refresh(dir);        // fetches the thumbnails once listed
    }
 }
 

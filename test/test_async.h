@@ -53,6 +53,18 @@ private slots:
    //! opening a folder on the server
    void testOpenFolder ();
 
+   //! opening a folder on a server which never answers
+   void testOpenFolderHung ();
+
+   //! leaving a folder whose layout has changed, which saves it
+   void testLeaveFolder ();
+
+   //! another client changing a stack in the folder shown
+   void testOtherClient ();
+
+   //! locating a stack in a folder not yet listed selects it once it is
+   void testLocate ();
+
    //! showing a stack's pages
    void testPreviewStack ();
 

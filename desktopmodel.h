@@ -996,6 +996,12 @@ public:
          QBitArray &page, bool allow_undo);
 
 signals:
+   /** emitted when a folder on a server has been listed into its desk,
+       the first time it is shown
+
+       \param deskind   the desk */
+   void deskListed (const QModelIndex &deskind);
+
    /** emitted when the image of a page has changed (e.g. it has been
        rotated), so views showing it can redisplay
 
@@ -1066,6 +1072,28 @@ private:
 
    /** fetch the thumbnails of a remote desk's stacks, of their first
        page, or with @p atPage, of the page each is turned to */
+   /** List a folder on a server into its desk without waiting: the
+    *  listing and the desk file are fetched together, and the files
+    *  added as rows once both have come
+    *
+    *  @param desk     the desk, already in the model
+    *  @param remote   its backend
+    *  @param meas     measures each file, or nullptr
+    *  @param replace  take out the desk's files first, once the listing
+    *                  has come, as a refresh does
+    *  @param wait     wait until the files are in */
+   void listRemoteDesk(Desk *desk, class RemoteBackend *remote, Measure *meas,
+                       bool replace, bool wait);
+
+   //! desks of folders on a server still being listed
+   QSet<Desk *> _listing;
+
+public:
+   //! true if @p deskind is a folder on a server still being listed
+   bool isListing (const QModelIndex &deskind) const;
+
+private:
+
    void scheduleRemoteThumbnails(Desk *desk, class RemoteBackend *backend,
                                  const QString &repoName,
                                  const QString &dirInRepo,
@@ -1446,9 +1474,12 @@ public:
       @param dirpath    full path directory to show
       @param rootpath   root directory for this branch of the model
       @param meas       measurer for text
+      @param wait       for a folder on a server, wait until its files
+                        are listed; otherwise they appear once they are
       @returns parent model-index for the items
     */
-   QModelIndex showDir(QString dirPath, QString rootPath, Measure *meas);
+   QModelIndex showDir(QString dirPath, QString rootPath, Measure *meas,
+                       bool wait = false);
 
    /**
     * @brief Refresh the current directory contents
