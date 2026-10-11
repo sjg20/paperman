@@ -156,6 +156,7 @@ File::File (File *orig, Desk *new_desk)
    _ext = orig->_ext;
    _pathname = orig->_pathname;
    _pagenum = orig->_pagenum;
+   _listedPagecount = orig->_listedPagecount;
    _size = orig->_size;
    _preview_maxsize = orig->_preview_maxsize;
    _title_maxsize = orig->_title_maxsize;

@@ -288,8 +288,10 @@ void sizeHintChanged ( const QModelIndex & index ) */
          // note this is very expensive - it reads in all chunks from the stack
          name = index.model ()->data (index, Desktopmodel::Role_pagename_list).toStringList ();
 
-         // work through all pages, getting the size information
-         for (int i = 0; i < measure.pagecount; i++)
+         /* work through all pages, getting the size information; a
+            remote stack knows how many pages it has before it knows
+            their titles */
+         for (int i = 0; i < name.size (); i++)
             {
             QRect rect;
 
