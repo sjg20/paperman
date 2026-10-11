@@ -54,6 +54,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #endif
 
 
+/* PoDoFo 1.x's span.hpp uses std::terminate without including <exception>,
+   which libc++ 23 no longer brings in by other means */
+#include <exception>
 #include "podofo/podofo.h"
 
 
