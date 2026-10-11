@@ -105,6 +105,36 @@ so a newer server works with an older client and the other way about. The
 desktop refuses a server from before the ``/v1`` API (before 1.4.0), and
 one with a newer major version of it, saying which version is needed.
 
+Not Waiting for the Server
+--------------------------
+
+The desktop should never wait for a server on its main thread. A wait
+either freezes the window or, through the nested event loop which
+``RemoteBackend``'s blocking calls spin, lets the user act again before
+the first action is done, with the code part-way through it. Much of the
+desktop still waits, and the work to stop it goes flow by flow.
+
+Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
+reports itself to ``BlockWatch``, naming the request. It notes only waits
+on the main thread, and only while watching. Setting
+``PAPERMAN_BLOCKWATCH`` in the environment makes the desktop log each one,
+which shows what is left in use.
+
+The ``async`` test suite (``test/test_async.cpp``) drives the desktop
+against a server on a thread of its own, behind a proxy which holds each
+reply back for half a second (``test/remoteharness.cpp``). A server on
+the test's own thread would answer from inside any nested event loop, so
+would hide a wait. Around each step an ``AsyncCheck`` collects the
+requests the main thread waited for and the longest time it went without
+handling events, and the step must have neither. A flow which still
+waits is marked as an expected failure, and the test logs what it waited
+for, so the suite is also the list of work left. Making a flow
+asynchronous turns its expected failure into an unexpected pass, which
+fails, so the mark has to come off with the change.
+
+The proxy can also hold replies back for ever, as a hung server would,
+which is for testing the desktop once it no longer waits.
+
 What Remains
 ------------
 
@@ -114,6 +144,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
+- **Waiting for the server**: connecting, listing a folder, showing a
+  stack and each change still wait for the server on the main thread; see
+  Not Waiting for the Server above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
