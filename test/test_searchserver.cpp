@@ -3511,9 +3511,17 @@ void TestSearchServer::testRemotePagesAwaited()
     QModelIndex parent = model.showDir(root, root, &meas);
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
+
+    /* chosen before anything has come, the stack is named in the status
+       line rather than the missing file being reported */
+    QCOMPARE(model.data(stack, Desktopmodel::Role_message).toString(),
+             QString("testfile.max"));
+
     QVERIFY(model.requestContent(stack));
     QTRY_COMPARE_WITH_TIMEOUT(
         model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5, 5000);
+    QVERIFY(model.data(stack, Desktopmodel::Role_message).toString()
+            .contains("Page 1 of 5"));
 
     /* the preview shows the stack, with none of its pages here yet */
     Pagemodel pm(nullptr);
