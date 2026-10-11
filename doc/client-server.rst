@@ -125,6 +125,18 @@ once the server's repositories are in the tree, and at startup the window
 opens at once, with each server, including one named by its host with
 ``--server``, appearing as it answers.
 
+Folders work this way too. Opening a folder on a server puts its desk in
+the model at once, empty, while ``Desktopmodel::listRemoteDesk()`` fetches
+the listing and the desk file together; once both have come the files go
+on the end of the desk and are announced as new rows, and ``deskListed()``
+lets the window select a stack it was asked to locate. A change made by
+another client lists the folder again the same way, swapping the rows only
+once the new listing is in. A desk's layout goes back to the server in the
+background, one upload at a time, so that an earlier layout cannot land
+after a later one; only the final save as the window closes waits. Code
+which needs a folder's files before it can go on, as many tests do, passes
+``wait`` to ``showDir()``.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -155,9 +167,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: listing a folder, showing a stack and each
-  change still wait for the server on the main thread; see Not Waiting
-  for the Server above.
+- **Waiting for the server**: showing a stack and each change still wait
+  for the server on the main thread; see Not Waiting for the Server
+  above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
