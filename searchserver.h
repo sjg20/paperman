@@ -737,6 +737,22 @@ private:
     };
     QHash<QString, ConvertProgress> _convertProgress;  //!< Keyed by source path
 
+    /** How many pages a stack has, as last read from it */
+    struct PageCount {
+        qint64 size;        //!< the file's size when it was read
+        QDateTime modified; //!< and its modification time
+        int pages;
+    };
+    QHash<QString, PageCount> _pageCounts;  //!< Keyed by full path
+
+    /**
+     * Find how many pages the stack at @p fullPath has, reading it only
+     * if it has changed since it was last asked about
+     *
+     * @return the page count, or 0 if the file cannot be read as a stack
+     */
+    int stackPageCount(const QString &fullPath);
+
     /**
      * Handle GET /v1/repos/{repo}/events
      *

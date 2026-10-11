@@ -3481,6 +3481,42 @@ void TestSearchServer::testServerTooOldOrNew()
     QVERIFY2(dirmodel.addRemoteRepository(url, &err), qPrintable(err));
 }
 
+void TestSearchServer::testBrowsePageCount()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QVERIFY(!client.serverId().isEmpty());
+    auto pagesListed = [&]() {
+        DirectoryListing listing = client.browseDirectory(repo, QString());
+        for (const DirectoryEntry &e : listing.entries)
+            if (e.name == "testfile.max")
+                return e.pages;
+        return -1;
+    };
+
+    // the listing gives the stack's page count
+    QCOMPARE(pagesListed(), 5);
+
+    /* a stack which changes is read again: replace it with one of its
+       own pages */
+    client.invalidatePageDir(repo, "testfile.max");
+    QString page3 = client.fetchPage(repo, "testfile.max", 3);
+    QVERIFY(!page3.isEmpty());
+    QString path = tmpDir.path() + "/testfile.max";
+    QVERIFY(QFile::remove(path));
+    QVERIFY(QFile::copy(page3, path));
+    QCOMPARE(pagesListed(), 1);
+}
+
+
 void TestSearchServer::testRemotePagesAwaited()
 {
     QTemporaryDir tmpDir;

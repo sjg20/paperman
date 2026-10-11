@@ -77,6 +77,9 @@ private slots:
    //! the desktop refuses a server too old or too new for it, saying why
    void testServerTooOldOrNew();
 
+   //! the server lists how many pages each stack has
+   void testBrowsePageCount();
+
    //! the preview leaves remote pages to arrive rather than spinning
    void testRemotePagesAwaited();
 
