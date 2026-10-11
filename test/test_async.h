@@ -68,6 +68,12 @@ private slots:
    //! showing a stack's pages
    void testPreviewStack ();
 
+   //! showing another page of a stack, which has not come yet
+   void testPreviewPage ();
+
+   //! showing a stack whose server never answers
+   void testPreviewHung ();
+
    //! turning a stack's page in the folder, before it is fetched
    void testTurnStackPage ();
 
@@ -89,6 +95,9 @@ private:
 
    //! the test stack, as an index in the desktop model
    QModelIndex stackIndex ();
+
+   //! click the test stack, once it has settled in place
+   void clickStack ();
 
    //! the path of a file in the server's folder
    QString serverPath (const QString &fname) const;

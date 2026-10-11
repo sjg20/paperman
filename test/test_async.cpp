@@ -348,14 +348,35 @@ void TestAsync::testPreviewStack ()
    {
    connectServer ();
    openFolder ();
+   QTRY_VERIFY (!_desktop->getModel ()->data (stackIndex (),
+                                             Desktopmodel::Role_pixmap)
+                .value<QPixmap> ().isNull ());
 
+   AsyncCheck check;
+
+   clickStack ();
+
+   // the stack's pages are listed, and the first is shown
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+   QTRY_VERIFY2 (model->data (stack, Desktopmodel::Role_message).toString ()
+                 .contains ("Page 1 of 5"),
+                 qPrintable (model->data (stack, Desktopmodel::Role_message)
+                             .toString ()));
+   QTRY_COMPARE (_desktop->_page->_pagemodel->rowCount (QModelIndex ()), 5);
+   QTRY_VERIFY (!_desktop->_page->_image.isNull ());
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::clickStack ()
+   {
    // wait for the stack to settle in place, with its thumbnail
    Desktopmodel *model = _desktop->getModel ();
    QTRY_VERIFY (!model->data (stackIndex (), Desktopmodel::Role_pixmap)
                 .value<QPixmap> ().isNull ());
    QTest::qWait (kDelayMs);
 
-   AsyncCheck check;
    Desktopview *view = _desktop->getView ();
    QModelIndex ind = view->model ()->index (0, 0, view->rootIndex ());
    QRect rect = view->visualRect (ind);
@@ -363,15 +384,44 @@ void TestAsync::testPreviewStack ()
    QVERIFY (rect.isValid ());
    QTest::mouseClick (view->viewport (), Qt::LeftButton, Qt::NoModifier,
                       rect.center ());
+   }
 
-   // the stack's pages are listed, and the first is shown
-   QModelIndex stack = stackIndex ();
-   QTRY_VERIFY2 (model->data (stack, Desktopmodel::Role_message).toString ()
-                 .contains ("Page 1 of 5"),
-                 qPrintable (model->data (stack, Desktopmodel::Role_message)
-                             .toString ()));
-   QTRY_COMPARE (_desktop->_page->_pagemodel->rowCount (QModelIndex ()), 5);
-   CHECK_ASYNC (check, "showing a stack waits for its structure and page");
+
+void TestAsync::testPreviewPage ()
+   {
+   connectServer ();
+   openFolder ();
+   clickStack ();
+   Pagewidget *page = _desktop->_page;
+   QTRY_VERIFY (!page->_image.isNull ());
+   QImage first = page->_image;
+
+   AsyncCheck check;
+
+   // show the third page, which has not come yet
+   page->slotPreviewPage (page->_pagemodel->index (2, 0, QModelIndex ()));
+   QTRY_VERIFY (page->_pagenum == 2 && page->_image != first);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testPreviewHung ()
+   {
+   connectServer ();
+   openFolder ();
+   QTRY_VERIFY (!_desktop->getModel ()->data (stackIndex (),
+                                             Desktopmodel::Role_pixmap)
+                .value<QPixmap> ().isNull ());
+   _server->setDelay (-1);
+
+   AsyncCheck check;
+
+   clickStack ();
+
+   // the window carries on while the server says nothing
+   QTest::qWait (kDelayMs * 2);
+   QVERIFY (_desktop->_page->_image.isNull ());
+   CHECK_ASYNC (check, nullptr);
    }
 
 

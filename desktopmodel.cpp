@@ -2396,6 +2396,10 @@ void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
    _minor_change = true;
    buildItem (ind);
    _minor_change = false;
+
+   /* a page view showing the stack laid it out before it came, so have
+      it laid out again, and its page shown */
+   emit pageContentChanged (ind, -1);
    }
 
 
@@ -2473,6 +2477,9 @@ void Desktopmodel::onCachedFileReady (quint64 token, const QString &cachePath,
    _minor_change = true;
    buildItem (ind);
    _minor_change = false;
+
+   // as in onStackInfoReady()
+   emit pageContentChanged (ind, -1);
    }
 
 
