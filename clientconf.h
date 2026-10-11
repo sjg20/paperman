@@ -73,6 +73,27 @@ public:
      *  Returns false only on a genuine write error (@p errorOut set). */
     static bool add(const QUrl &url, const QString &name = QString(),
                     QString *errorOut = nullptr, bool *added = nullptr);
+
+    /** The URLs where a server named only by its host might be found,
+     *  most likely first.  A bare host gives the default port 8080, the
+     *  8081 used by the systemd example and then https on its usual
+     *  port; "host:port" gives http and then https on that port.
+     *  Returns an empty list when @p arg is a full URL (or is not a
+     *  host at all), since that names a server outright. */
+    static QList<QUrl> probeCandidates(const QString &arg);
+
+    /** Ask each of @p candidates for its status, all at once, and
+     *  return the first in the list that answers as a Paperman server.
+     *  Returns an empty URL if none does within @p timeoutMs, with
+     *  @p errorOut saying what was tried and what went wrong with each. */
+    static QUrl probe(const QList<QUrl> &candidates,
+                      QString *errorOut = nullptr, int timeoutMs = 3000);
+
+    /** Turn a server named by the user into a URL: the name of a
+     *  configured server, a full URL, or a host (with an optional port)
+     *  to probe.  Returns an empty URL with @p errorOut set if @p arg
+     *  is none of these or no server answers on the host. */
+    static QUrl resolve(const QString &arg, QString *errorOut = nullptr);
 };
 
 #endif // CLIENTCONF_H
