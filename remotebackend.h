@@ -7,10 +7,13 @@ License: GPL-2
 
 #include "backend.h"
 
+#include <QJsonObject>
 #include <QObject>
 #include <QSet>
 #include <QString>
 #include <QUrl>
+
+#include <functional>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -42,9 +45,43 @@ public:
     explicit RemoteBackend(const QUrl &baseUrl, QObject *parent = nullptr);
     ~RemoteBackend() override;
 
+    /** What a request to the server came back with */
+    struct Result
+    {
+        bool ok = false;     //!< true if the request worked
+        QString error;       //!< why not, if it did not
+        int status = 0;      //!< the HTTP status; 0 if none came back
+        QByteArray body;     //!< what the server sent
+
+        //! the body as a JSON object; empty if it is not one
+        QJsonObject json() const;
+    };
+
+    //! called with what a request came back with
+    using Done = std::function<void (const Result &)>;
+
     /** Exchange credentials for a bearer token.  Returns true on
      *  success; on failure, lastError() carries detail. */
     bool login(const QString &user, const QString &password);
+
+    /** Log in without waiting, keeping the token if it works.  @p done
+     *  is called once the server answers, unless @p context has gone;
+     *  the result's error says why a login failed. */
+    void login(const QString &user, const QString &password,
+               QObject *context, Done done);
+
+    /** Fetch /v1/status without waiting, as serverId() does.  Once it
+     *  has come serverId(), features(), apiVersion() and lacksV1Api()
+     *  give what it said, and @p done is called, unless @p context has
+     *  gone. */
+    void fetchStatus(QObject *context, Done done);
+
+    /** Fetch the list of repositories without waiting; read the result
+     *  with parseRepositories() */
+    void fetchRepositories(QObject *context, Done done);
+
+    //! the repositories in the body of a reply to fetchRepositories()
+    static QList<RepositoryInfo> parseRepositories(const QByteArray &body);
 
     /** Fetch /v1/status and return the server's stable UUID.  Empty
      *  string on failure (lastError() set).  Result is cached. */
@@ -65,6 +102,10 @@ public:
      *  that are already in flight.  Each repository gets its own
      *  backend, so pass the id the first one discovered to the rest. */
     void setServerId(const QString &id) { _serverId = id; }
+
+    /** The server's id if it is known, without fetching it: empty
+     *  until serverId() or fetchStatus() has had it from the server */
+    QString knownServerId() const { return _serverId; }
 
     /** Supply the server's id and its advertised features together,
      *  as one backend learns them from /v1/status and hands them to
@@ -403,6 +444,17 @@ private:
     /** Wait for @p reply to finish, spinning an event loop; noted with
      *  BlockWatch, since the desktop should not wait */
     void waitForFinish(QNetworkReply *reply);
+
+    /** Call @p done with what @p reply comes back with once it
+     *  finishes, unless @p context has gone by then */
+    void whenFinished(QNetworkReply *reply, QObject *context, Done done);
+
+    //! take what the server said in reply to /v1/status
+    void takeStatus(int status, const QByteArray &body);
+
+    /** Take the token from a reply to a login, returning why it failed
+     *  if it did; @p httpError is the request's own error, if any */
+    QString takeLogin(const QByteArray &resp, const QString &httpError);
     QByteArray waitForReply(QNetworkReply *reply);
 
     /** waitForReply() variant that also surfaces the HTTP status code
@@ -424,6 +476,10 @@ private:
      *  non-empty, is sent as an If-None-Match header. */
     /** @p timeoutMs overrides the default per-request transfer timeout,
      *  which is far too short for fetching a whole stack. */
+    QNetworkReply *startPost(const QString &path, const QByteArray &body,
+                             const QString &contentType
+                                 = QStringLiteral("application/json"));
+
     QNetworkReply *startGet(const QString &pathAndQuery,
                             const QString &ifNoneMatch = QString(),
                             int timeoutMs = 0);

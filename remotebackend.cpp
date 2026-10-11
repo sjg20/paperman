@@ -52,33 +52,59 @@ bool RemoteBackend::login(const QString &user, const QString &password)
       return false;
    }
 
-   /* A rejected login still carries a body, and postRequest() has
-      already put the HTTP status in _lastError.  Prefer the server's
-      own message ("Invalid credentials") over anything we infer from
-      the missing token, so the user is told what actually went wrong. */
-   QString httpError = _lastError;
+   _lastError = takeLogin(resp, _lastError);
+   return _lastError.isEmpty();
+}
 
+
+void RemoteBackend::login(const QString &user, const QString &password,
+                          QObject *context, Done done)
+{
+   QJsonObject body;
+   body["user"]     = user;
+   body["password"] = password;
+   QByteArray data = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+   whenFinished(startPost("/v1/auth/login", data), context,
+                [this, done](const Result &result) {
+      Result out = result;
+      out.error = result.body.isEmpty()
+          ? (result.error.isEmpty() ? QStringLiteral("empty response from "
+                                                     "/v1/auth/login")
+                                    : result.error)
+          : takeLogin(result.body, result.error);
+      out.ok = out.error.isEmpty();
+      done(out);
+   });
+}
+
+
+QString RemoteBackend::takeLogin(const QByteArray &resp,
+                                 const QString &httpError)
+{
+   /* A rejected login still carries a body, and the request has already
+      given the HTTP status as its error.  Prefer the server's own message
+      ("Invalid credentials") over anything we infer from the missing
+      token, so the user is told what actually went wrong. */
    QJsonDocument doc = QJsonDocument::fromJson(resp);
-   if (!doc.isObject()) {
-      if (httpError.isEmpty())
-         _lastError = "login response is not a JSON object";
-      return false;
-   }
+   if (!doc.isObject())
+      return httpError.isEmpty() ? QStringLiteral("login response is not a "
+                                                  "JSON object")
+                                 : httpError;
 
    QJsonObject obj = doc.object();
    QString token = obj.value("token").toString();
    if (token.isEmpty()) {
       QString serverError = obj.value("error").toString();
       if (!serverError.isEmpty())
-         _lastError = serverError;
-      else if (httpError.isEmpty())
-         _lastError = "login response missing token";
-      return false;
+         return serverError;
+      return httpError.isEmpty() ? QStringLiteral("login response missing "
+                                                  "token")
+                                 : httpError;
    }
 
-   _lastError.clear();
    _token = token;
-   return true;
+   return QString();
 }
 
 
@@ -91,26 +117,53 @@ QString RemoteBackend::serverId()
    QString etag;
    QByteArray body = waitForReplyFull(startGet("/v1/status"), &status, &etag);
 
+   takeStatus(status, body);
+   return _serverId;
+}
+
+
+void RemoteBackend::fetchStatus(QObject *context, Done done)
+{
+   whenFinished(startGet("/v1/status"), context,
+                [this, done](const Result &result) {
+      takeStatus(result.status, result.body);
+      done(result);
+   });
+}
+
+
+void RemoteBackend::takeStatus(int status, const QByteArray &body)
+{
    // a server from before /v1 answers, but does not know the route
    _lacksV1 = status == 404;
    QJsonDocument doc = QJsonDocument::fromJson(body);
    if (!doc.isObject())
-      return QString();
+      return;
    _serverId = doc.object().value("serverId").toString();
    _apiVersion = doc.object().value("apiVersion").toString();
    _features.clear();
    const QJsonArray feats = doc.object().value("features").toArray();
    for (const QJsonValue &v : feats)
       _features.append(v.toString());
-   return _serverId;
 }
 
 
 QList<RepositoryInfo> RemoteBackend::listRepositories()
 {
+   return parseRepositories(getRequest("/repos"));
+}
+
+
+void RemoteBackend::fetchRepositories(QObject *context, Done done)
+{
+   whenFinished(startGet("/repos"), context, done);
+}
+
+
+QList<RepositoryInfo> RemoteBackend::parseRepositories(const QByteArray &body)
+{
    QList<RepositoryInfo> out;
 
-   QByteArray body = getRequest("/repos");
    QJsonDocument doc = QJsonDocument::fromJson(body);
    if (!doc.isObject())
       return out;
@@ -1185,6 +1238,14 @@ QByteArray RemoteBackend::postRequest(const QString &path,
                                       const QByteArray &body,
                                       const QString &contentType)
 {
+   return waitForReply(startPost(path, body, contentType));
+}
+
+
+QNetworkReply *RemoteBackend::startPost(const QString &path,
+                                        const QByteArray &body,
+                                        const QString &contentType)
+{
    QUrl url(_baseUrl);
    int q = path.indexOf('?');
    if (q < 0) {
@@ -1204,13 +1265,45 @@ QByteArray RemoteBackend::postRequest(const QString &path,
    if (_stats) {
       _stats->requestStarted();
       _stats->recordSent(path.toUtf8().size() + body.size());
-      QObject::connect(reply, &QNetworkReply::finished, _stats,
-          [this, reply]() {
-             _stats->recordReceived(reply->bytesAvailable());
-             _stats->requestFinished();
+
+      // tied to the reply, as in startGet()
+      BackendStats *stats = _stats;
+      QObject::connect(reply, &QNetworkReply::finished, reply,
+          [stats, reply]() {
+             stats->recordReceived(reply->bytesAvailable());
+             stats->requestFinished();
           });
    }
-   return waitForReply(reply);
+   return reply;
+}
+
+
+QJsonObject RemoteBackend::Result::json() const
+{
+   return QJsonDocument::fromJson(body).object();
+}
+
+
+void RemoteBackend::whenFinished(QNetworkReply *reply, QObject *context,
+                                 Done done)
+{
+   /* Tie the callback to the context, so that it is dropped if the
+      context goes first; the reply itself goes with this backend */
+   QObject::connect(reply, &QNetworkReply::finished,
+                    context ? context : this, [reply, done]() {
+      Result result;
+
+      result.body = reply->readAll();
+      result.status = reply->attribute(
+                          QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      if (reply->error() != QNetworkReply::NoError)
+         result.error = reply->errorString();
+      else if (result.status >= 400)
+         result.error = QString("HTTP %1").arg(result.status);
+      result.ok = result.error.isEmpty();
+      reply->deleteLater();
+      done(result);
+   });
 }
 
 
