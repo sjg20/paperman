@@ -36,6 +36,7 @@ static void usage(const char *prog)
       "Commands:\n"
       "  servers                    List servers from client.conf\n"
       "  add-server <url> [name]    Add a server to client.conf\n"
+      "  probe <host>               Look for a server on a host\n"
       "  login <user>               Prompt for password, save token\n"
       "  logout                     Forget the saved token\n"
       "  status                     Show server status\n"
@@ -47,9 +48,13 @@ static void usage(const char *prog)
       "  page <repo> <stack> <n> [-o OUT]\n"
       "                             Fetch one page as a one-page .max\n"
       "\n"
-      "--server takes a URL, or the name of a server listed in\n"
-      "client.conf.  With neither, $PAPERMAN_SERVER is used, else the\n"
-      "first server in client.conf, else http://localhost:8080.\n"
+      "--server takes a URL, the name of a server listed in client.conf,\n"
+      "or a host (optionally host:port) to look for a server on.  With\n"
+      "none, $PAPERMAN_SERVER is used, else the first server in\n"
+      "client.conf, else http://localhost:8080.\n"
+      "\n"
+      "A host alone is tried on ports 8080 and 8081, then over https.\n"
+      "add-server and probe take a host in the same way.\n"
       "\n"
       "Servers are listed in ~/.config/paperman/client.conf, one per\n"
       "line as \"Name = URL\" or a bare URL ($PAPERMAN_CONFIG overrides).\n"
@@ -384,13 +389,46 @@ static int cmdServers(const QUrl &selected)
 }
 
 
-static int cmdAddServer(const QString &urlText, const QString &name)
+/* Turn a server named by the user into a URL, saying why not if that
+   fails */
+static QUrl resolveServer(const QString &arg)
 {
-   QUrl url(urlText);
-   if (!url.isValid() || url.scheme().isEmpty()) {
-      std::cerr << "Bad server URL: " << urlText.toStdString() << "\n";
+   QString error;
+   QUrl url = ClientConfig::resolve(arg, &error);
+   if (url.isEmpty())
+      std::cerr << arg.toStdString() << ": " << error.toStdString() << "\n";
+   return url;
+}
+
+
+static int cmdProbe(const QString &arg)
+{
+   /* A URL or a configured name is checked too, rather than taken on
+      trust */
+   QList<QUrl> candidates = ClientConfig::probeCandidates(arg);
+   if (candidates.isEmpty()) {
+      QUrl url = resolveServer(arg);
+      if (url.isEmpty())
+         return 1;
+      candidates << url;
+   }
+
+   QString error;
+   QUrl found = ClientConfig::probe(candidates, &error);
+   if (found.isEmpty()) {
+      std::cerr << arg.toStdString() << ": " << error.toStdString() << "\n";
       return 1;
    }
+   std::cout << found.toString().toStdString() << "\n";
+   return 0;
+}
+
+
+static int cmdAddServer(const QString &urlText, const QString &name)
+{
+   QUrl url = resolveServer(urlText);
+   if (url.isEmpty())
+      return 1;
 
    QString error;
    bool added = false;
@@ -438,37 +476,37 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   /* An explicit --server wins: take it as the name of a configured
-      server if one matches, otherwise as a URL.  Failing that fall back
-      to $PAPERMAN_SERVER, then the first entry in client.conf, then the
-      usual local default. */
-   if (!serverArg.isEmpty()) {
-      ServerEntry entry;
-      if (ClientConfig::findByName(serverArg, &entry))
-         serverUrl = entry.url.toString();
-      else
-         serverUrl = serverArg;
-   } else if (serverUrl.isEmpty()) {
-      QList<ServerEntry> configured = ClientConfig::load();
-      if (!configured.isEmpty())
-         serverUrl = configured.first().url.toString();
-      else
-         serverUrl = "http://localhost:8080";
-   }
-
-   QUrl url(serverUrl);
-   if (!url.isValid() || url.scheme().isEmpty()) {
-      std::cerr << "Bad server URL: " << serverUrl.toStdString() << "\n";
-      return 1;
-   }
-
    QString cmd = rest[0];
-   if (cmd == "servers") {
-      return cmdServers(url);
+
+   /* These name the server to look at themselves */
+   if (cmd == "probe") {
+      if (rest.size() < 2) { usage(argv[0]); return 1; }
+      return cmdProbe(rest[1]);
    }
    if (cmd == "add-server") {
       if (rest.size() < 2) { usage(argv[0]); return 1; }
       return cmdAddServer(rest[1], rest.size() > 2 ? rest[2] : QString());
+   }
+
+   /* An explicit --server wins: take it as the name of a configured
+      server, a URL or a host to look for one on.  Failing that fall
+      back to $PAPERMAN_SERVER, then the first entry in client.conf,
+      then the usual local default. */
+   QUrl url;
+   if (!serverArg.isEmpty() || !serverUrl.isEmpty()) {
+      url = resolveServer(serverArg.isEmpty() ? serverUrl : serverArg);
+      if (url.isEmpty())
+         return 1;
+   } else {
+      QList<ServerEntry> configured = ClientConfig::load();
+      if (!configured.isEmpty())
+         url = configured.first().url;
+      else
+         url = QUrl("http://localhost:8080");
+   }
+
+   if (cmd == "servers") {
+      return cmdServers(url);
    }
    if (cmd == "login") {
       if (rest.size() < 2) { usage(argv[0]); return 1; }
