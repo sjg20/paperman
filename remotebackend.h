@@ -230,6 +230,39 @@ public:
     bool transformPage(const QString &repo, const QString &path,
                        int page, const QString &op);
 
+    /* Operations on a stack which do not wait, each calling @p done once
+       the server has answered, unless @p context has gone by then.  The
+       result is a failure if the server says the operation failed, and
+       its JSON carries what the server sent back, as for the forms which
+       wait: */
+
+    //! rename a stack; the JSON's "name" is the name it got
+    void renameStack(const QString &repo, const QString &path,
+                     const QString &newName, bool autoRename,
+                     QObject *context, Done done);
+
+    //! rename a page, numbered from 1
+    void renamePage(const QString &repo, const QString &path, int page,
+                    const QString &newName, QObject *context, Done done);
+
+    //! move or copy a stack to a folder; the JSON's "name" is its name there
+    void moveStack(const QString &repo, const QString &path,
+                   const QString &destDir, bool copy, QObject *context,
+                   Done done);
+
+    //! delete a stack
+    void deleteStack(const QString &repo, const QString &path,
+                     QObject *context, Done done);
+
+    //! change some of a stack's annotations
+    void updateAnnotations(const QString &repo, const QString &path,
+                           const QJsonObject &updates, QObject *context,
+                           Done done);
+
+    //! transform a page, numbered from 1, or all pages with 0
+    void transformPage(const QString &repo, const QString &path, int page,
+                       const QString &op, QObject *context, Done done);
+
     /** Rename a stack on the server.  On success @p newName holds the
      *  final name the server chose (with autoRename it may differ
      *  from the requested one).  Sync. */
@@ -490,6 +523,12 @@ private:
     bool postStackOp(const QString &repo, const QString &path,
                      const QString &verb, const class QJsonObject &body,
                      class QJsonObject *out);
+
+    /** Post an operation on a stack without waiting, calling @p done
+     *  with a failure unless the server says it worked */
+    void postStackOp(const QString &repo, const QString &path,
+                     const QString &verb, const QJsonObject &body,
+                     QObject *context, Done done);
 
     /** Construct an async GET against pathAndQuery.  Caller takes
      *  responsibility for the returned reply's signals; reply will
