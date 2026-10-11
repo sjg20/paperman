@@ -437,28 +437,33 @@ static bool isAuthError(const QString &message)
 }
 
 
-QString Desktopwidget::addRemoteServer(const QUrl &baseUrl)
+void Desktopwidget::addRemoteServer(const QUrl &baseUrl,
+                         std::function<void (const QString &error)> done)
 {
-   QString error;
-   if (_model->addRemoteRepository(baseUrl, &error))
-      return QString();
+   _model->addRemoteRepository(baseUrl, [this, baseUrl, done](
+                                           const QString &error) {
+      if (!isAuthError(error)) {
+         done(error);
+         return;
+      }
 
-   /* No cached token, or the cached one expired (server restart wipes
-    * the in-memory token store).  Prompt for credentials and retry. */
-   if (isAuthError(error)) {
+      /* No cached token, or the cached one expired (server restart
+       * wipes the in-memory token store).  Prompt for credentials and
+       * retry. */
       QString user, password;
-      if (!promptForCredentials(baseUrl, user, password))
-         return QStringLiteral("login cancelled");
-
-      QString loginErr;
-      if (!_model->loginToServer(baseUrl, user, password, &loginErr))
-         return QString("login failed: %1").arg(loginErr);
-
-      error.clear();
-      if (_model->addRemoteRepository(baseUrl, &error))
-         return QString();
-   }
-   return error.isEmpty() ? QStringLiteral("unknown error") : error;
+      if (!promptForCredentials(baseUrl, user, password)) {
+         done(QStringLiteral("login cancelled"));
+         return;
+      }
+      _model->loginToServer(baseUrl, user, password, [this, baseUrl, done](
+                                                        const QString &err) {
+         if (!err.isEmpty()) {
+            done(QString("login failed: %1").arg(err));
+            return;
+         }
+         _model->addRemoteRepository(baseUrl, done);
+      });
+   });
 }
 
 

@@ -147,6 +147,22 @@ protected slots:
 private:
     void init();
 
+    /** Attach the server named on the command line, if any, and those
+        listed in client.conf, without waiting for them */
+    void connectServers(const QString &serverArg);
+
+    //! attach the servers in client.conf, but @p except
+    void connectConfigured(const QUrl &except);
+
+    //! say that the server named on the command line cannot be used
+    void reportServerError(const QString &server, const QString &error);
+
+    //! a server has been attached: show its first folder if none is shown
+    void serverAttached();
+
+    //! true while there are servers still to attach
+    bool _hasServers = false;
+
     QProgressBar *_progress;
     QLabel *_label;
 
