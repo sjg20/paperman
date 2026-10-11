@@ -442,10 +442,10 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
       painter->setPen (Qt::green);
       painter->drawRect (measure.pagenameRect);
 #endif
-      // draw control area
+      /* draw control area, on the view's own background, as the rest of
+         the item is */
       QRect rect = measure.pagenumRect;
 
-      painter->fillRect (rect, utilStylePalette (style).color(QPalette::Button));
       painter->drawPixmap (rect.x (), rect.y (), *pleft);
       painter->drawPixmap (rect.right () - pright->width (), rect.y (), *pright);
 

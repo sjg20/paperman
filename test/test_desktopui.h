@@ -21,6 +21,9 @@ public:
    using Suite::Suite;
 
 private slots:
+   //! a stack's page number is drawn on the desk's own background
+   void testPageNumberBackground();
+
    //! The stacks get a good share of the window on a first run
    void testStacksGetRoom();
 
