@@ -145,6 +145,20 @@ server. When the structure arrives the model emits ``pageContentChanged()``
 for the whole stack, so that the view lays it out again with its real page
 count, and when a page arrives, for that page, so that it is drawn.
 
+Changes are harder, since each is an undo command whose undo depends on
+what the change did: undoing a move to the trash needs the name the stack
+got there, which only the server's answer gives. So each undo command
+queues its operation with ``Desktopundocmd::queue()``, and
+``Desktopmodel::queueOp()`` runs the operations on a server one at a time,
+each once the one before has finished. An operation finds what it acts on
+by name when it starts, and anything its undo needs goes in a shared
+object the operation fills in, so an undo pressed before the server has
+answered waits its turn and then reverses what the change did. An
+operation on a local desk runs at once, as before. Renaming a stack or a
+page, rotating, changing annotations and moving to the trash (or another
+folder) work this way; each has a form which calls back once done and one
+which waits, for code that cannot go on until it has.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -175,7 +189,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: each change, and printing a remote stack,
+- **Waiting for the server**: the changes which make or remove pages or
+  stacks (deleting pages, unstacking, stacking, duplicating, converting,
+  unfolding), uploads and downloads, printing a remote stack and searching
   still wait for the server on the main thread; see Not Waiting for the
   Server above.
 - **Conversions on the server**: converting a remote stack downloads it
