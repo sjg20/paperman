@@ -77,6 +77,9 @@ private slots:
    //! the desktop refuses a server too old or too new for it, saying why
    void testServerTooOldOrNew();
 
+   //! the preview leaves remote pages to arrive rather than spinning
+   void testRemotePagesAwaited();
+
    //! End-to-end: RemoteBackend login + listRepositories + browseDirectory
    void testRemoteBackendEndToEnd();
 
