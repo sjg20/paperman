@@ -9,6 +9,8 @@ License: GPL-2
 #include <QString>
 #include <QUrl>
 
+#include <functional>
+
 
 /**
  * One server listed in the client configuration file.  @c name is a
@@ -89,11 +91,25 @@ public:
     static QUrl probe(const QList<QUrl> &candidates,
                       QString *errorOut = nullptr, int timeoutMs = 3000);
 
+    //! called with the server found, or with why none was
+    using Found = std::function<void (const QUrl &url, const QString &error)>;
+
+    /** Probe @p candidates as the other probe() does, but without
+     *  waiting: @p done is called once one answers or the time is up,
+     *  unless @p context, which must be given, has gone by then */
+    static void probe(const QList<QUrl> &candidates, QObject *context,
+                      Found done, int timeoutMs = 3000);
+
     /** Turn a server named by the user into a URL: the name of a
      *  configured server, a full URL, or a host (with an optional port)
      *  to probe.  Returns an empty URL with @p errorOut set if @p arg
      *  is none of these or no server answers on the host. */
     static QUrl resolve(const QString &arg, QString *errorOut = nullptr);
+
+    /** Resolve @p arg as the other resolve() does, but without waiting
+     *  for a probe: @p done is called with the URL, later, unless
+     *  @p context has gone by then */
+    static void resolve(const QString &arg, QObject *context, Found done);
 };
 
 #endif // CLIENTCONF_H

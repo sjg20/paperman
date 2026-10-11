@@ -19,6 +19,8 @@ License: GPL-2
 #include <QTextStream>
 #include <QTimer>
 
+#include <memory>
+
 
 QString ClientConfig::configPath()
 {
@@ -191,103 +193,163 @@ QList<QUrl> ClientConfig::probeCandidates(const QString &arg)
 }
 
 
-QUrl ClientConfig::probe(const QList<QUrl> &candidates, QString *errorOut,
-                         int timeoutMs)
+/* Say why no server was found among @candidates, given what went
+   wrong with each (null if it never answered) */
+static QString probeError(const QList<QUrl> &candidates,
+                          const QStringList &why)
 {
-   QNetworkAccessManager mgr;
-   QEventLoop loop;
-   QList<QNetworkReply *> replies;
-   QStringList why;   // what went wrong with each, once it has
-   QUrl chosen;
+   QStringList tried;
+   QStringList reasons;
+   for (int i = 0; i < candidates.size(); i++) {
+      QString reason = why[i].isNull() ? "no answer" : why[i];
+      tried << QString("%1 (%2)").arg(candidates[i].toString(), reason);
+      reasons << reason;
+   }
 
-   /* Settle as soon as the most likely candidate still in the running
-      answers; a later one answering first must wait for those ahead of
-      it, which usually fail quickly when nothing is listening, or for
-      the time to run out. */
-   auto settle = [&]() {
-      for (int i = 0; i < candidates.size(); i++) {
-         if (why[i].isNull())
+   /* An unknown host fails the same way everywhere; say so once */
+   reasons.removeDuplicates();
+   if (reasons.size() == 1 && candidates.size() > 1) {
+      tried.clear();
+      for (const QUrl &cand : candidates)
+         tried << cand.toString();
+      return QString("no Paperman server found (%1); tried %2")
+                .arg(reasons.first(), tried.join(", "));
+   }
+   return "no Paperman server found; tried " + tried.join(", ");
+}
+
+
+void ClientConfig::probe(const QList<QUrl> &candidates, QObject *context,
+                         Found done, int timeoutMs)
+{
+   /* The state of the probe, shared by the replies' callbacks; the
+      manager owns the replies, and goes once the probe settles */
+   struct State
+   {
+      QList<QUrl> candidates;
+      QStringList why;   // what went wrong with each, once it has
+      QNetworkAccessManager *mgr;
+      Found done;
+      bool settled = false;
+   };
+   if (candidates.isEmpty()) {
+      QMetaObject::invokeMethod(context, [done]() {
+         done(QUrl(), probeError({}, {}));
+      }, Qt::QueuedConnection);
+      return;
+   }
+
+   auto state = std::make_shared<State>();
+   state->candidates = candidates;
+   state->mgr = new QNetworkAccessManager(context);
+   state->done = done;
+
+   /* Finish, with the first in the list that answered as a server; if
+      @all, wait for none of those ahead of it, since time is up */
+   auto settle = [state](bool all) {
+      QUrl chosen;
+      for (int i = 0; i < state->candidates.size(); i++) {
+         if (state->why[i].isNull() && !all)
             return;   // still waiting on this one
-         if (why[i].isEmpty()) {
-            chosen = candidates[i];
+         if (!state->why[i].isNull() && state->why[i].isEmpty()) {
+            chosen = state->candidates[i];
             break;
          }
       }
-      loop.quit();
+      if (state->settled)
+         return;
+      state->settled = true;
+
+      /* leave nothing to call back once the probe is done */
+      for (QNetworkReply *reply
+           : state->mgr->findChildren<QNetworkReply *>()) {
+         reply->disconnect();
+         reply->abort();
+      }
+      state->mgr->deleteLater();
+      state->done(chosen, chosen.isEmpty()
+                              ? probeError(state->candidates, state->why)
+                              : QString());
    };
 
    for (const QUrl &cand : candidates) {
       QUrl status = cand;
       status.setPath("/status");
       QNetworkRequest req(status);
-      QNetworkReply *reply = mgr.get(req);
-      int idx = replies.size();
-      replies << reply;
-      why << QString();
+      QNetworkReply *reply = state->mgr->get(req);
+      int idx = state->why.size();
+      state->why << QString();
 
-      QObject::connect(reply, &QNetworkReply::finished, &loop,
-                       [&, reply, idx]() {
+      QObject::connect(reply, &QNetworkReply::finished, state->mgr,
+                       [state, settle, reply, idx]() {
          /* Any HTTP answer means something is listening, so say
             whether it is a Paperman server rather than how the request
             failed */
          QVariant code = reply->attribute(
                             QNetworkRequest::HttpStatusCodeAttribute);
          if (!code.isValid()) {
-            why[idx] = reply->errorString();
+            state->why[idx] = reply->errorString();
          } else {
             QJsonObject obj = QJsonDocument::fromJson(reply->readAll())
                                  .object();
             if (code.toInt() == 200
                 && obj.value("status").toString() == "running")
-               why[idx] = "";
+               state->why[idx] = "";
             else
-               why[idx] = "not a Paperman server";
+               state->why[idx] = "not a Paperman server";
          }
-         settle();
+         settle(false);
       });
    }
 
-   if (!candidates.isEmpty()) {
-      BlockWatch::note("probe " + candidates.first().host());
-      QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+   /* Settle as soon as the most likely candidate still in the running
+      answers; a later one answering first must wait for those ahead of
+      it, which usually fail quickly when nothing is listening, or for
+      the time to run out.  Then take the best of those which did
+      answer: one ahead of it may simply be slow to be refused, as on
+      Windows */
+   QTimer::singleShot(timeoutMs, state->mgr, [settle]() { settle(true); });
+}
+
+
+QUrl ClientConfig::probe(const QList<QUrl> &candidates, QString *errorOut,
+                         int timeoutMs)
+{
+   QUrl found;
+   QString error;
+   bool finished = false;
+   QEventLoop loop;
+
+   probe(candidates, &loop, [&](const QUrl &url, const QString &err) {
+      found = url;
+      error = err;
+      finished = true;
+      loop.quit();
+   }, timeoutMs);
+   if (!finished) {
+      BlockWatch::note("probe " + (candidates.isEmpty()
+                                   ? QString() : candidates.first().host()));
       loop.exec();
    }
+   if (found.isEmpty() && errorOut)
+      *errorOut = error;
+   return found;
+}
 
-   /* Out of time, take the best of those which did answer: one ahead
-      of it may simply be slow to be refused, as on Windows */
-   for (int i = 0; chosen.isEmpty() && i < candidates.size(); i++) {
-      if (!why[i].isNull() && why[i].isEmpty())
-         chosen = candidates[i];
+
+void ClientConfig::resolve(const QString &arg, QObject *context, Found done)
+{
+   QList<QUrl> candidates = probeCandidates(arg);
+   QString error;
+
+   if (findByName(arg, nullptr) || candidates.isEmpty()) {
+      QUrl url = resolve(arg, &error);
+      QMetaObject::invokeMethod(context, [done, url, error]() {
+         done(url, error);
+      }, Qt::QueuedConnection);
+      return;
    }
-
-   /* Leave nothing to call back into this frame once it is gone */
-   for (QNetworkReply *reply : replies) {
-      reply->disconnect();
-      reply->abort();
-   }
-
-   if (chosen.isEmpty() && errorOut) {
-      QStringList tried;
-      QStringList reasons;
-      for (int i = 0; i < candidates.size(); i++) {
-         QString reason = why[i].isNull() ? "no answer" : why[i];
-         tried << QString("%1 (%2)").arg(candidates[i].toString(), reason);
-         reasons << reason;
-      }
-
-      /* An unknown host fails the same way everywhere; say so once */
-      reasons.removeDuplicates();
-      if (reasons.size() == 1 && candidates.size() > 1) {
-         tried.clear();
-         for (const QUrl &cand : candidates)
-            tried << cand.toString();
-         *errorOut = QString("no Paperman server found (%1); tried %2")
-                        .arg(reasons.first(), tried.join(", "));
-      } else {
-         *errorOut = "no Paperman server found; tried " + tried.join(", ");
-      }
-   }
-   return chosen;
+   probe(candidates, context, done);
 }
 
 
