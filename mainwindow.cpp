@@ -51,6 +51,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qstatusbar.h"
 #include "qstring.h"
 
+#include "blockwatch.h"
 #include "clientconf.h"
 #include "config.h"
 
@@ -374,6 +375,11 @@ void Mainwindow::runGui(QApplication& app, QStringList args,
     Mainwindow *me;
 
     app.setWindowIcon(QIcon(":/images/images/paperman.png"));
+
+    /* report each time the window waits for a server, to find those
+       which are left */
+    if (!qEnvironmentVariableIsEmpty("PAPERMAN_BLOCKWATCH"))
+        BlockWatch::watch(true, true);
 
     me = new Mainwindow();
 

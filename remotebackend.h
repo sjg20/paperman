@@ -400,6 +400,9 @@ private:
     QByteArray postRequest(const QString &path, const QByteArray &body,
                            const QString &contentType
                                = QStringLiteral("application/json"));
+    /** Wait for @p reply to finish, spinning an event loop; noted with
+     *  BlockWatch, since the desktop should not wait */
+    void waitForFinish(QNetworkReply *reply);
     QByteArray waitForReply(QNetworkReply *reply);
 
     /** waitForReply() variant that also surfaces the HTTP status code

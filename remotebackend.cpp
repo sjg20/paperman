@@ -5,6 +5,7 @@ License: GPL-2
 #include "remotebackend.h"
 
 #include "backendstats.h"
+#include "blockwatch.h"
 
 #include <QDebug>
 #include <QDir>
@@ -142,13 +143,9 @@ DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
 {
    QNetworkReply *reply = startGet(browsePathFor(repo, dir));
 
-   /* Spin the local event loop until the reply finishes (sync),
-    * then hand the still-live reply to the shared parser before
-    * scheduling its deletion. */
-   QEventLoop loop;
-   QObject::connect(reply, &QNetworkReply::finished,
-                    &loop, &QEventLoop::quit);
-   loop.exec();
+   /* Wait until the reply finishes (sync), then hand the still-live
+    * reply to the shared parser before scheduling its deletion. */
+   waitForFinish(reply);
 
    DirectoryListing out = parseBrowseReply(reply);
    reply->deleteLater();
@@ -1217,14 +1214,30 @@ QByteArray RemoteBackend::postRequest(const QString &path,
 }
 
 
-QByteArray RemoteBackend::waitForReply(QNetworkReply *reply)
+void RemoteBackend::waitForFinish(QNetworkReply *reply)
 {
-   _lastError.clear();
+   if (reply->isFinished())
+      return;
+
+   const char *method = "GET";
+   if (reply->operation() == QNetworkAccessManager::PostOperation)
+      method = "POST";
+   else if (reply->operation() == QNetworkAccessManager::PutOperation)
+      method = "PUT";
+   BlockWatch::note(QString("%1 %2").arg(method, reply->url().path()));
 
    QEventLoop loop;
    QObject::connect(reply, &QNetworkReply::finished,
                     &loop, &QEventLoop::quit);
    loop.exec();
+}
+
+
+QByteArray RemoteBackend::waitForReply(QNetworkReply *reply)
+{
+   _lastError.clear();
+
+   waitForFinish(reply);
 
    QByteArray data = reply->readAll();
    if (reply->error() != QNetworkReply::NoError) {
@@ -1245,10 +1258,7 @@ QByteArray RemoteBackend::waitForReplyFull(QNetworkReply *reply, int *status,
 {
    _lastError.clear();
 
-   QEventLoop loop;
-   QObject::connect(reply, &QNetworkReply::finished,
-                    &loop, &QEventLoop::quit);
-   loop.exec();
+   waitForFinish(reply);
 
    QByteArray data = reply->readAll();
    *status = reply->attribute(

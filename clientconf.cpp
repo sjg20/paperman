@@ -4,6 +4,8 @@ License: GPL-2
 
 #include "clientconf.h"
 
+#include "blockwatch.h"
+
 #include <QDir>
 #include <QFile>
 #include <QEventLoop>
@@ -246,6 +248,7 @@ QUrl ClientConfig::probe(const QList<QUrl> &candidates, QString *errorOut,
    }
 
    if (!candidates.isEmpty()) {
+      BlockWatch::note("probe " + candidates.first().host());
       QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
       loop.exec();
    }
