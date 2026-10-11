@@ -17,7 +17,6 @@ Paperman
    scanning
    cli
    server
-   api
    app
 
 .. toctree::
@@ -36,6 +35,8 @@ Paperman
 
    develop
    client-server
+   server-internals
+   api
    build
    releasing
    code-signing
