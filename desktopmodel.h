@@ -1117,6 +1117,14 @@ private:
 
    /** Re-fetch a single stack's thumbnail from the server after its
     *  content changed (e.g. a rotation) and refresh the view. */
+   /** Fetch the server's thumbnail of the page a remote stack is turned
+    *  to, when that page is not here to draw it from
+    *
+    *  @param file   the stack
+    *  @return true if the thumbnail is being fetched, false if the
+    *          stack is local or has the page */
+   bool fetchRemoteThumbnail (File *file);
+
    void refreshRemoteThumbnail(Desk *desk, class RemoteBackend *backend,
                                File *file);
 

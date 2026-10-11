@@ -352,7 +352,10 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
       {
       QString pagename;
 
-      f->pixmap (true);
+      /* a remote stack's page that is not here is drawn from the
+         server's thumbnail of it */
+      if (!pagenum_change || !fetchRemoteThumbnail (f))
+         f->pixmap (true);
       //FIXME: better to emit our own signal which tells Desktopdelegate to just update the pixmap
       _minor_change = true;
       _pagenum_change = pagenum_change;
@@ -1581,7 +1584,9 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
        * File::getPreviewPixmap on the server side would match
        * exactly, but it needs QImage plumbing (the server uses
        * QCoreApplication, no QPixmap support) — deferred. */
-      int page = atPage ? qMax(f->pagenum(), 0) + 1 : 1;
+      /* the page each is turned to, when it is known to have it */
+      int pagenum = qMax(f->pagenum(), 0);
+      int page = atPage || pagenum < f->listedPagecount() ? pagenum + 1 : 1;
       quint64 t = backend->fetchThumbnailAsync(repoName, path, page,
                                                /*size=*/"small");
       _pendingThumbnails.insert(t, f);

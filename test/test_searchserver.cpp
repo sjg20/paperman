@@ -3562,9 +3562,28 @@ void TestSearchServer::testRemotePageControls()
     QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5);
     QCOMPARE(model.data(stack, Desktopmodel::Role_pagenum).toInt(), 2);
 
-    // it can be turned, but not past its last page
+    // its thumbnail is of that page
+    auto thumbOf = [&](int page) {
+        QImage img;
+        img.loadFromData(client.fetchThumbnail(repo, "testfile.max", page,
+                                               "small"));
+        return img.convertToFormat(QImage::Format_RGB32);
+    };
+    auto shown = [&]() {
+        return model.data(stack, Desktopmodel::Role_pixmap).value<QPixmap>()
+            .toImage().convertToFormat(QImage::Format_RGB32);
+    };
+    QImage third = thumbOf(3);
+    QVERIFY(!third.isNull());
+    QVERIFY(third != thumbOf(1));
+    QTRY_COMPARE_WITH_TIMEOUT(shown(), third, 5000);
+
+    // turning it shows the new page, from the server
     QVERIFY(model.setData(stack, 4, Desktopmodel::Role_pagenum));
     QCOMPARE(model.data(stack, Desktopmodel::Role_pagenum).toInt(), 4);
+    QTRY_COMPARE_WITH_TIMEOUT(shown(), thumbOf(5), 5000);
+
+    // but not past its last page
     QVERIFY(model.setData(stack, 9, Desktopmodel::Role_pagenum));
     QCOMPARE(model.data(stack, Desktopmodel::Role_pagenum).toInt(), 4);
 }
