@@ -109,6 +109,11 @@ TestSearchServer::Response TestSearchServer::get(const QString &path,
 
 /* Send a raw HTTP request string (already includes headers + body)
  * and split the response into header/body chunks. */
+/* An operation on a remote stack finishes once the server has answered,
+   so wait for any queued to finish before checking what they did */
+#define WAIT_OPS(model) \
+    QTRY_VERIFY_WITH_TIMEOUT(!(model).opsPending(), 10000)
+
 static TestSearchServer::Response sendRaw(const QByteArray &request,
                                           int port, int timeoutMs)
 {
@@ -1531,6 +1536,7 @@ void TestSearchServer::testDesktopRemoteTransform()
 
     // rotate the first page; the desktop must route this to the server
     model.transformPage(stack, 0, File::Transform_rotate90);
+    WAIT_OPS(model);
 
     QSize after = serverTestPageSize(dir, "testfile.max", 0);
     QCOMPARE(after.width(), before.height());
@@ -1538,6 +1544,7 @@ void TestSearchServer::testDesktopRemoteTransform()
 
     // undo rotates it back, again via the server
     model.getUndoStack()->undo();
+    WAIT_OPS(model);
     QSize restored = serverTestPageSize(dir, "testfile.max", 0);
     QCOMPARE(restored, before);
 
@@ -1773,12 +1780,14 @@ void TestSearchServer::testDesktopRemoteSimpleOps()
 
     // rename through the desktop; the server's file follows
     model.renameStack(stack, "renamed");
+    WAIT_OPS(model);
     QVERIFY(QFile::exists(dir + "renamed.max"));
     QVERIFY(!QFile::exists(dir + "testfile.max"));
     QVERIFY(model.index("renamed.max", parent).isValid());
 
     // and undo brings the old name back
     model.getUndoStack()->undo();
+    WAIT_OPS(model);
     QVERIFY(QFile::exists(dir + "testfile.max"));
     QVERIFY(!QFile::exists(dir + "renamed.max"));
 
@@ -1801,12 +1810,14 @@ void TestSearchServer::testDesktopRemoteSimpleOps()
     list << stack;
     int rowsBefore = model.rowCount(parent);
     model.trashStacks(list, parent);
+    WAIT_OPS(model);
     QVERIFY(!QFile::exists(dir + "testfile.max"));
     QVERIFY(QFile::exists(dir + ".maxview-trash/testfile.max"));
     QCOMPARE(model.rowCount(parent), rowsBefore - 1);
 
     // undo the trashing: the file comes back
     model.getUndoStack()->undo();
+    WAIT_OPS(model);
     QVERIFY(QFile::exists(dir + "testfile.max"));
     QVERIFY(!QFile::exists(dir + ".maxview-trash/testfile.max"));
     QCOMPARE(model.rowCount(parent), rowsBefore);
@@ -1874,18 +1885,21 @@ void TestSearchServer::testDesktopRemoteAnnotations()
     updates[File::Annot_author] = "A. Writer";
     updates[File::Annot_title] = "Remote title";
     model.updateAnnot(stack, updates);
+    WAIT_OPS(model);
 
     QCOMPARE(serverAnnot(dir, "testfile.max", File::Annot_author),
              QString("A. Writer"));
     QCOMPARE(serverAnnot(dir, "testfile.max", File::Annot_title),
              QString("Remote title"));
 
-    // the cached copy shows the new values without a refetch
-    QCOMPARE(model.getAnnot(stack, File::Annot_author),
-             QString("A. Writer"));
+    /* the stack shows the new values once its structure has come again,
+       which it is asked for without waiting */
+    QTRY_COMPARE(model.getAnnot(stack, File::Annot_author),
+                 QString("A. Writer"));
 
     // undo restores the previous value on the server
     model.getUndoStack()->undo();
+    WAIT_OPS(model);
     QCOMPARE(serverAnnot(dir, "testfile.max", File::Annot_author),
              oldAuthor);
 
@@ -1953,6 +1967,7 @@ void TestSearchServer::testDesktopRemoteStructuralOps()
 
     // undo redeems the server-side undoId and restores the page
     model.getUndoStack()->undo();
+    WAIT_OPS(model);
     QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount);
     QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
              pagecount);
@@ -1974,6 +1989,7 @@ void TestSearchServer::testDesktopRemoteStructuralOps()
 
     // undo stacks the page back and removes the new stack
     model.getUndoStack()->undo();
+    WAIT_OPS(model);
     QCOMPARE(model.rowCount(parent), rowsBefore);
     QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount);
     QVERIFY(!QFile::exists(dir + newName));

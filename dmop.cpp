@@ -37,11 +37,13 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QDesktopServices>
 #include <QFile>
+#include <QEventLoop>
 #include <QJsonObject>
 #include <QMimeData>
 #include <QProcess>
 #include <QUrl>
 
+#include "blockwatch.h"
 #include "desktopmodel.h"
 #include "desk.h"
 #include "file.h"
@@ -925,8 +927,19 @@ err_info *Desktopmodel::opUnstackPage (QModelIndex &ind, int &pagenum,
 
 err_info *Desktopmodel::opUpdateAnnot (QModelIndex &ind, QHash<int, QString> &updates)
    {
+   return waitForOp ("annotation", [&] (OpDone done) {
+      opUpdateAnnot (ind, updates, done);
+   });
+   }
+
+
+void Desktopmodel::opUpdateAnnot (const QModelIndex &ind,
+                                  const QHash<int, QString> &updates,
+                                  OpDone done)
+   {
    _modelconv->assertIsSource (ind.model (), &ind, 0);
    File *f = getFile (ind);
+   QHash<int, QString> changes = updates;
 
    if (f)
       {
@@ -935,45 +948,51 @@ err_info *Desktopmodel::opUpdateAnnot (QModelIndex &ind, QHash<int, QString> &up
       if (remote)
          {
          Desk *desk = f->desk ();
+         QString dir = desk->dir ();
+         QString fname = f->filename ();
          QJsonObject wire;
 
          for (auto it = updates.constBegin (); it != updates.constEnd ();
               ++it)
             wire [File::annotWireName ((File::e_annot)it.key ())]
                   = it.value ();
-         if (!remote->updateAnnotations (desk->repoName (),
-                                         remoteStackPath (desk, f), wire))
-            return err_make (ERRFN, ERR_remote_op_failed2, "annotation",
-                             qPrintable (remote->lastError ()));
-
-         /* A stack held a page at a time keeps its annotations in
-            info.json, so fetch that again: 50KB, and it cannot drift
-            from the server.  A stack fetched whole is mirrored, so the
-            annotations pane shows the new values without a refetch. */
-         Filemax *max = sparseFor (f, remote, desk);
-
-         if (max)
-            {
-            if (!remote->fetchStackInfo (desk->repoName (),
-                                         remoteStackPath (desk, f)).isEmpty ())
+         remote->updateAnnotations (desk->repoName (),
+                                    remoteStackPath (desk, f), wire, this,
+                                    [this, dir, fname, changes, done] (
+                                       const RemoteBackend::Result &result) {
+            if (_closing)
+               return;      // the model is going, with what it showed
+            if (!result.ok)
                {
-               QMutexLocker locker (&_imageMutex);
-
-               max->reload ();
+               done (err_make (ERRFN, ERR_remote_op_failed2, "annotation",
+                               qPrintable (result.error)));
+               return;
                }
-            }
-         else if (f->remoteChecked ())
-            {
-            f->putAnnot (updates);
-            f->flush ();
-            }
-         return NULL;
+
+            /* A stack held a page at a time keeps its annotations in
+               info.json, so fetch that again: 50KB, and it cannot drift
+               from the server.  A stack fetched whole is mirrored, so the
+               annotations pane shows the new values without a refetch. */
+            QModelIndex ind = stackFor (dir, fname);
+            File *f = getFile (ind);
+            QHash<int, QString> updates = changes;
+
+            if (f && sparseFor (f, remoteForFile (f), f->desk ()))
+               stackChangedLater (ind, QList<int> () << -1);
+            else if (f && f->remoteChecked ())
+               {
+               f->putAnnot (updates);
+               f->flush ();
+               }
+            done (NULL);
+         });
+         return;
          }
 
-      f->putAnnot (updates);
+      f->putAnnot (changes);
       f->flush ();
       }
-   return NULL;
+   done (NULL);
    }
 
 
@@ -1090,6 +1109,15 @@ void Desktopmodel::opChangeDir (QString &dirPath, QString &rootPath)
 
 err_info *Desktopmodel::opRenameStack (const QModelIndex &index, QString &newname)
    {
+   return waitForOp ("rename", [&] (OpDone done) {
+      opRenameStack (index, newname, done);
+   });
+   }
+
+
+void Desktopmodel::opRenameStack (const QModelIndex &index,
+                                  const QString &newname, OpDone done)
+   {
    File *f = getFile (index);
    err_info *e = NULL;
 
@@ -1100,35 +1128,67 @@ err_info *Desktopmodel::opRenameStack (const QModelIndex &index, QString &newnam
       if (remote)
          {
          Desk *desk = f->desk ();
-         QString oldCache = f->pathname ();
+         QString dir = desk->dir ();
+         QString oldname = f->filename ();
 
-         if (!remote->renameStack (desk->repoName (),
-                                   remoteStackPath (desk, f), newname))
-            return err_make (ERRFN, ERR_remote_op_failed2, "rename",
-                             qPrintable (remote->lastError ()));
+         remote->renameStack (desk->repoName (), remoteStackPath (desk, f),
+                              newname, true, this,
+                              [this, dir, oldname, newname, done] (
+                                 const RemoteBackend::Result &result) {
+            if (_closing)
+               return;      // the model is going, with what it showed
+            if (!result.ok)
+               {
+               done (err_make (ERRFN, ERR_remote_op_failed2, "rename",
+                               qPrintable (result.error)));
+               return;
+               }
 
-         /* carry the cached copy (and its validator) over to the new
-            name, then update the file object to match the server */
-         f->updateFilename (newname);
-         QFile::rename (oldCache, f->pathname ());
-         QFile::rename (oldCache + ".etag", f->pathname () + ".etag");
-         buildItem (index);
-         return NULL;
+            /* carry the cached copy (and its validator) over to the new
+               name, then update the file object to match the server */
+            QModelIndex ind = stackFor (dir, oldname);
+            File *f = getFile (ind);
+
+            if (f)
+               {
+               QString oldCache = f->pathname ();
+
+               f->updateFilename (result.json ().value ("name")
+                                     .toString (newname));
+               QFile::rename (oldCache, f->pathname ());
+               QFile::rename (oldCache + ".etag", f->pathname () + ".etag");
+               buildItem (ind);
+               }
+            done (NULL);
+         });
+         return;
          }
 
-      e = f->rename (newname, true);
+      QString name = newname;
+
+      e = f->rename (name, true);
       buildItem (index);
       getDesk (index.parent ())->dirty ();
       }
-   return e;
+   done (e);
    }
 
 
 err_info *Desktopmodel::opRenamePage (const QModelIndex &index, int pagenum, QString &newname)
    {
+   return waitForOp ("rename page", [&] (OpDone done) {
+      opRenamePage (index, pagenum, newname, done);
+   });
+   }
+
+
+void Desktopmodel::opRenamePage (const QModelIndex &index, int pagenum,
+                                 const QString &newname, OpDone done)
+   {
    _modelconv->assertIsSource (0, &index, 0);
    File *f = getFile (index);
    err_info *e = NULL;
+   QString name = newname;
 
    if (f)
       {
@@ -1137,46 +1197,77 @@ err_info *Desktopmodel::opRenamePage (const QModelIndex &index, int pagenum, QSt
       if (remote)
          {
          Desk *desk = f->desk ();
+         QString dir = desk->dir ();
+         QString fname = f->filename ();
 
-         if (!remote->renamePage (desk->repoName (),
-                                  remoteStackPath (desk, f), pagenum + 1,
-                                  newname))
-            return err_make (ERRFN, ERR_remote_op_failed2, "page rename",
-                             qPrintable (remote->lastError ()));
+         remote->renamePage (desk->repoName (), remoteStackPath (desk, f),
+                             pagenum + 1, newname, this,
+                             [this, dir, fname, pagenum, newname, done] (
+                                const RemoteBackend::Result &result) {
+            if (_closing)
+               return;      // the model is going, with what it showed
+            if (!result.ok)
+               {
+               done (err_make (ERRFN, ERR_remote_op_failed2, "page rename",
+                               qPrintable (result.error)));
+               return;
+               }
 
-         /* a stack held a page at a time has the title in both the
-            page file and info.json, so both are fetched again */
-         if (sparseFor (f, remote, desk))
-            {
-            CALL (remoteStackChanged (index, QList<int> () << pagenum));
-            f->setPagenum (pagenum);
-            return NULL;
-            }
+            QModelIndex ind = stackFor (dir, fname);
+            File *f = getFile (ind);
+            QString name = newname;
 
-         /* mirror the change onto the cached copy so the page view
-            stays in step without a refetch */
-         if (pagenum >= 0 && pagenum < f->pagecount ())
-            {
-            f->renamePage (pagenum, newname);
-            f->setPagenum (pagenum);
-            }
-         buildItem (index);
-         return NULL;
+            if (!f)
+               {
+               done (NULL);
+               return;
+               }
+
+            /* a stack held a page at a time has the title in both the
+               page file and info.json, so both are fetched again */
+            if (sparseFor (f, remoteForFile (f), f->desk ()))
+               {
+               stackChangedLater (ind, QList<int> () << pagenum);
+               f->setPagenum (pagenum);
+               done (NULL);
+               return;
+               }
+
+            /* mirror the change onto the cached copy so the page view
+               stays in step without a refetch */
+            if (pagenum >= 0 && pagenum < f->pagecount ())
+               {
+               f->renamePage (pagenum, name);
+               f->setPagenum (pagenum);
+               }
+            buildItem (ind);
+            done (NULL);
+         });
+         return;
          }
 
       if (pagenum >= 0 && pagenum < f->pagecount ()) // which it should be!
          {
-         e = f->renamePage (pagenum, newname);
+         e = f->renamePage (pagenum, name);
          f->setPagenum (pagenum);
          }
       buildItem (index);
       }
-   return e;
+   done (e);
    }
 
 
 err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
       int pagenum, File::e_transform op)
+   {
+   return waitForOp ("transform", [&] (OpDone done) {
+      opTransformPage (index, pagenum, op, done);
+   });
+   }
+
+
+void Desktopmodel::opTransformPage (const QModelIndex &index, int pagenum,
+                                    File::e_transform op, OpDone done)
    {
    _modelconv->assertIsSource (0, &index, 0);
    File *f = getFile (index);
@@ -1189,7 +1280,10 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
       {
       RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
       if (remote)
-         return opTransformPageRemote (index, f, desk, remote, pagenum, op);
+         {
+         opTransformPageRemote (f, desk, remote, pagenum, op, done);
+         return;
+         }
       }
 
    if (f)
@@ -1230,7 +1324,7 @@ err_info *Desktopmodel::opTransformPage (const QModelIndex &index,
       else
          e = f->not_impl ();
       }
-   return e;
+   done (e);
    }
 
 
@@ -1812,68 +1906,88 @@ err_info *Desktopmodel::remoteStackChanged (const QModelIndex &ind,
    }
 
 
-err_info *Desktopmodel::opTransformPageRemote (const QModelIndex &index,
-      File *file, Desk *desk, RemoteBackend *backend, int pagenum,
-      File::e_transform op)
+void Desktopmodel::opTransformPageRemote (File *file, Desk *desk,
+      RemoteBackend *backend, int pagenum, File::e_transform op, OpDone done)
    {
    /* The wire page number is 1-based; a value below 1 means every page,
       which is how the all-pages case (pagenum == -1) is expressed. */
    int wirePage = pagenum < 0 ? 0 : pagenum + 1;
+   QString dir = desk->dir ();
+   QString fname = file->filename ();
 
-   QString stackPath = remoteStackPath (desk, file);
-
-   if (!backend->transformPage (desk->repoName (), stackPath, wirePage,
-                                File::transformName (op)))
-      return err_make (ERRFN, ERR_remote_transform_failed1,
-                       qPrintable (backend->lastError ()));
-
-   /* A stack held a page at a time cannot be turned locally: its
-      changed page comes back from the server on the next read. */
-   if (sparseFor (file, backend, desk))
-      {
-      QList<int> pages;
-
-      if (pagenum >= 0)
-         pages << pagenum;
-      CALL (remoteStackChanged (index, pages));
-      refreshRemoteThumbnail (desk, backend, file);
-      return NULL;
-      }
-
-   /* Keep the cached copy in step with the server so an open page
-      view shows the turn at once: apply the same transform to the
-      already-parsed local bytes.  If the stack hasn't been fetched
-      (or the local apply fails), drop any cached copy instead; the
-      next ensureContent() downloads the transformed file. */
-   if (file->valid () && file->pagecount ())
-      {
-      err_info *e = NULL;
-
-      if (pagenum == -1)
+   backend->transformPage (desk->repoName (), remoteStackPath (desk, file),
+                           wirePage, File::transformName (op), this,
+                           [this, dir, fname, pagenum, op, done] (
+                              const RemoteBackend::Result &result) {
+      if (_closing)
+         return;      // the model is going, with what it showed
+      if (!result.ok)
          {
-         for (int page = 0; !e && page < file->pagecount (); page++)
-            e = file->transformPage (page, op);
+         done (err_make (ERRFN, ERR_remote_transform_failed1,
+                         qPrintable (result.error)));
+         return;
+         }
+
+      QModelIndex index = stackFor (dir, fname);
+      File *file = getFile (index);
+      if (!file)
+         {
+         done (NULL);
+         return;
+         }
+      Desk *desk = file->desk ();
+      RemoteBackend *backend = remoteForFile (file);
+      QString stackPath = remoteStackPath (desk, file);
+
+      /* A stack held a page at a time cannot be turned locally: its
+         changed page comes back from the server on the next read. */
+      if (sparseFor (file, backend, desk))
+         {
+         QList<int> pages;
+
+         if (pagenum >= 0)
+            pages << pagenum;
+         stackChangedLater (index, pages);
+         refreshRemoteThumbnail (desk, backend, file);
+         done (NULL);
+         return;
+         }
+
+      /* Keep the cached copy in step with the server so an open page
+         view shows the turn at once: apply the same transform to the
+         already-parsed local bytes.  If the stack hasn't been fetched
+         (or the local apply fails), drop any cached copy instead; the
+         next ensureContent() downloads the transformed file. */
+      if (file->valid () && file->pagecount ())
+         {
+         err_info *e = NULL;
+
+         if (pagenum == -1)
+            {
+            for (int page = 0; !e && page < file->pagecount (); page++)
+               e = file->transformPage (page, op);
+            }
+         else
+            e = file->transformPage (pagenum, op);
+         if (e)
+            {
+            qInfo () << "local cache transform failed:" << e->errstr;
+            backend->invalidateCachedFile (desk->repoName (), stackPath);
+            file->setRemoteChecked (false);
+            }
          }
       else
-         e = file->transformPage (pagenum, op);
-      if (e)
          {
-         qInfo () << "local cache transform failed:" << e->errstr;
          backend->invalidateCachedFile (desk->repoName (), stackPath);
          file->setRemoteChecked (false);
          }
-      }
-   else
-      {
-      backend->invalidateCachedFile (desk->repoName (), stackPath);
-      file->setRemoteChecked (false);
-      }
 
-   /* refresh the grid thumbnail from the server, and let any open page
-      view know the content changed */
-   refreshRemoteThumbnail (desk, backend, file);
-   emit pageContentChanged (index, pagenum);
-   return NULL;
+      /* refresh the grid thumbnail from the server, and let any open page
+         view know the content changed */
+      refreshRemoteThumbnail (desk, backend, file);
+      emit pageContentChanged (index, pagenum);
+      done (NULL);
+   });
    }
 
 
@@ -2045,3 +2159,105 @@ void Desktopmodel::opUpdateRepositoryList (QString &dirpath, bool add_not_delete
    // Tell our controller (Desktopwidget) what to do
    emit updateRepositoryList (dirpath, add_not_delete);
    }
+
+
+void Desktopmodel::queueOp (std::function<void (OpDone done)> op,
+                            OpDone report, bool remote)
+   {
+   if (!remote)
+      {
+      op (report);
+      return;
+      }
+   _ops.enqueue ([this, op, report] () {
+      op ([this, report] (err_info *err) {
+         // a window closing with an operation out has no one to tell
+         if (!_closing)
+            report (err);
+         _opBusy = false;
+
+         // on to the next, though not from inside this one
+         QMetaObject::invokeMethod (this, [this] () { runOps (); },
+                                    Qt::QueuedConnection);
+      });
+   });
+   runOps ();
+   }
+
+
+void Desktopmodel::runOps (void)
+   {
+   if (_opBusy || _ops.isEmpty () || _closing)
+      return;
+   _opBusy = true;
+   _ops.dequeue () ();
+   }
+
+
+err_info *Desktopmodel::waitForOp (const QString &what,
+                                   std::function<void (OpDone done)> op)
+   {
+   err_info *err = NULL;
+   bool finished = false;
+   QEventLoop loop;
+
+   op ([&] (err_info *e) {
+      err = e;
+      finished = true;
+      loop.quit ();
+   });
+   if (!finished)
+      {
+      BlockWatch::note (what);
+      loop.exec ();
+      }
+   return err;
+   }
+
+
+bool Desktopmodel::isRemoteDir (const QString &dir)
+   {
+   QString path = dir;
+   QModelIndex parent = deskFromDirname (path);
+   Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+
+   return desk && dynamic_cast<RemoteBackend *> (desk->backend ());
+   }
+
+
+QModelIndex Desktopmodel::stackFor (const QString &dir, const QString &fname)
+   {
+   QString path = dir;
+   QModelIndex parent = deskFromDirname (path);
+
+   return parent.isValid () ? index (fname, parent) : QModelIndex ();
+   }
+
+
+void Desktopmodel::stackChangedLater (const QModelIndex &ind,
+                                      const QList<int> &pages)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+   Filemax *max = remote ? sparseFor (f, remote, f->desk ()) : nullptr;
+
+   if (!max)
+      return;
+
+   Desk *desk = f->desk ();
+   QString path = remoteStackPath (desk, f);
+
+   if (pages.isEmpty ())
+      remote->invalidatePageDir (desk->repoName (), path);
+   else
+      for (int page : pages)
+         if (page >= 0)
+            remote->invalidatePage (desk->repoName (), path, page + 1);
+
+   /* the structure comes again, and onStackInfoReady() reads it and
+      has the stack shown afresh */
+   f->setRemoteChecked (false);
+   requestContent (ind);
+   }
+
+

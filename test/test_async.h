@@ -89,6 +89,18 @@ private slots:
    //! moving a stack to the trash
    void testTrash ();
 
+   //! undoing a rename before the server has answered it
+   void testUndoRename ();
+
+   //! renaming a page
+   void testRenamePage ();
+
+   //! changing a stack's annotations
+   void testAnnotations ();
+
+   //! renaming a stack on a server which never answers
+   void testRenameHung ();
+
 private:
    //! attach the server, waiting until it is there
    void connectServer ();

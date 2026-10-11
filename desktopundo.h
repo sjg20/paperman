@@ -29,6 +29,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "err.h"
 
+#include <memory>
+
 
 class Desktopmodel;
 
@@ -59,6 +61,13 @@ public:
 
       \param err     error to complain about (NULL if all ok) */
    void complain (err_info *err);
+
+   /** Run @p op on the stacks in the desk for @p dir, after any queued
+       before it if they are on a server, complaining of any error it
+       ends with.  It must find what it acts on when it runs, by name,
+       since what came before may have changed it */
+   void queue (const QString &dir,
+               std::function<void (Desktopmodel::OpDone done)> op);
 
    /** record that we are about to add items. We record the number of items
        currently in the desk so that we know later how many were added.
@@ -309,6 +318,9 @@ public:
    void redo();
    void undo();
 private:
+   //! rename the stack @p from to @p to
+   void rename (const QString &from, const QString &to);
+
    QString _dir;           //!< desk directory
    QString _newname;   //!< the new name
    QString _oldname;   //!< the old name
@@ -330,6 +342,9 @@ public:
    void redo();
    void undo();
 private:
+   //! give the page the name @p name
+   void rename (const QString &name);
+
    QString _dir;           //!< desk directory
    QString _fname;     //!< filename of stack to rename
    QString _newname;   //!< the new name
@@ -354,6 +369,9 @@ public:
    void redo();
    void undo();
 private:
+   //! apply @p op to the page
+   void transform (File::e_transform op);
+
    QString _dir;       //!< desk directory
    QString _fname;     //!< filename of stack
    int _pagenum;       //!< the page number to transform
@@ -376,6 +394,9 @@ public:
    void redo();
    void undo();
 private:
+   //! set the annotations to @p annots
+   void update (const QHash<int, QString> &annots);
+
    QString _dir;           //!< desk directory
    QString _fname;               //!< filename of stack to adjust
    QHash<int, QString> _old;      //!< old details
