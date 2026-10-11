@@ -147,12 +147,27 @@ The one the next command would talk to is marked with ``*``.
 Choosing a server
 ~~~~~~~~~~~~~~~~~
 
-``--server`` accepts either a URL or the name of a configured server:
+``--server`` accepts a URL, the name of a configured server, or just the
+host the server runs on:
 
 .. code:: bash
 
    paperman-client --server Office ls repo
    paperman --server Office
+   paperman --server ohau
+   paperman --server ohau:9000
+
+Given only a host, Paperman looks for a server there on port 8080 (the
+default), then on port 8081 (as in the systemd example), then over
+https, and uses the first it finds. With a port, it tries just that
+port, over http and then https. If it finds no server it says where it
+looked. To see which URL a host leads to:
+
+.. code:: bash
+
+   paperman-client probe ohau
+
+``add-server`` takes a host in the same way and stores the URL found.
 
 Without ``--server``, ``paperman-client`` uses ``$PAPERMAN_SERVER`` if
 it is set, otherwise the first server in ``client.conf``, otherwise
