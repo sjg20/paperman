@@ -1761,3 +1761,37 @@ void TestDesktopUi::testOverlappingOperations()
 
    unknown.setProgress (3);
 }
+
+
+void TestDesktopUi::testPageNumberBackground()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopview *view = me.getDesktop()->getView();
+
+   // a stack of several pages shows its page number
+   QModelIndex ind;
+   for (int row = 0; row < view->model()->rowCount(view->rootIndex()); row++) {
+      QModelIndex i = itemIndex(view, row);
+      if (view->model()->data(i, Desktopmodel::Role_pagecount).toInt() > 1)
+         ind = i;
+   }
+   QVERIFY(ind.isValid());
+
+   QColor button = QApplication::palette().color(QPalette::Button);
+   QImage image = view->viewport()->grab(view->visualRect(ind)).toImage();
+   QVERIFY(!image.isNull());
+
+   // the bottom of the item, where the page number is
+   int filled = 0, total = 0;
+   for (int y = image.height() * 3 / 4; y < image.height(); y++)
+      for (int x = 0; x < image.width(); x++, total++)
+         if (image.pixelColor(x, y).rgb() == button.rgb())
+            filled++;
+   QVERIFY2(filled < total / 20,
+            qPrintable(QString("%1 of %2 pixels are the button colour")
+                       .arg(filled).arg(total)));
+}
