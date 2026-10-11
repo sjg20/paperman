@@ -137,6 +137,14 @@ after a later one; only the final save as the window closes waits. Code
 which needs a folder's files before it can go on, as many tests do, passes
 ``wait`` to ``showDir()``.
 
+The page view does the same for a stack. Showing one asks for its
+structure with ``requestContent()``, and showing a page which is not here
+asks for it with ``requestPage()``, leaving the page blank meanwhile;
+``Desktopmodel::pageHere()`` says whether a page can be read without the
+server. When the structure arrives the model emits ``pageContentChanged()``
+for the whole stack, so that the view lays it out again with its real page
+count, and when a page arrives, for that page, so that it is drawn.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -167,9 +175,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: showing a stack and each change still wait
-  for the server on the main thread; see Not Waiting for the Server
-  above.
+- **Waiting for the server**: each change, and printing a remote stack,
+  still wait for the server on the main thread; see Not Waiting for the
+  Server above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
