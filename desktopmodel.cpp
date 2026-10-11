@@ -198,7 +198,7 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
          return f->pageTitle (-1);
 
       case Role_pagecount :
-         return f->pagecount ();
+         return f->knownPagecount ();
 
       case Role_title_maxsize :
          return f->titleMaxsize ();
@@ -336,8 +336,8 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
 
          if (newpage < 0)
             newpage = 0;
-         if (newpage >= f->pagecount ())
-            newpage = f->pagecount () - 1;
+         if (newpage >= f->knownPagecount ())
+            newpage = f->knownPagecount () - 1;
          if (newpage != f->pagenum ())
             {
             f->setPagenum (newpage);
@@ -2278,6 +2278,7 @@ void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
    f->setValid (true);
    locker.unlock ();
    f->setRemoteChecked (true);
+   f->setListedPagecount (f->pagecount ());
 
    _minor_change = true;
    buildItem (ind);

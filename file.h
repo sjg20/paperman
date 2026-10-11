@@ -422,6 +422,21 @@ eturns error, or NULL if ok */
    bool remoteChecked () const { return _remoteChecked; }
    void setRemoteChecked (bool checked) { _remoteChecked = checked; }
 
+   /** The page count the server's listing gives for a remote stack,
+    *  which is all that is known of it before any of it is fetched;
+    *  0 if the server did not say */
+   int listedPagecount () const { return _listedPagecount; }
+   void setListedPagecount (int count) { _listedPagecount = count; }
+
+   /** The page count as far as it is known: the stack's own once it has
+    *  been read, else the server's listing of it */
+   int knownPagecount ()
+      {
+      int count = pagecount ();
+
+      return count ? count : _listedPagecount;
+      }
+
    /** returns the preview image for a particular page.
 
      If 'blank' then the image should be returned blank, either by using
@@ -683,6 +698,7 @@ protected:
    err_info *_err;  //!< last error which occured with this item
    bool _valid;      //!< true if we have scanned this file and know what it contains
    bool _remoteChecked = false;  //!< remote content fetched/revalidated this session
+   int _listedPagecount = 0;     //!< page count from the server's listing
 
    // annotation data
    bool _annot_loaded;               // true if data has been loaded

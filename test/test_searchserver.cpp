@@ -1578,8 +1578,9 @@ void TestSearchServer::testDesktopRemoteOpenStack()
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
 
-    // before the fetch the stack is a shell with no pages known
-    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 0);
+    /* before the fetch the stack is a shell, whose page count is known
+       only from the listing */
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5);
 
     // fetch and parse the file
     err_info *e = model.ensureContent(stack);
@@ -2589,14 +2590,14 @@ void TestSearchServer::testDesktopRemotePages()
     QModelIndex stack = model.index("testfile.max", parent);
     QVERIFY(stack.isValid());
 
-    /* the view asks for the stack: only its structure comes */
+    /* the view asks for the stack: only its structure comes, after
+       which there is nothing more to ask for */
     QVERIFY(model.requestContent(stack));
-    QTRY_COMPARE_WITH_TIMEOUT(
-        model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!model.requestContent(stack), 5000);
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5);
     QVERIFY(QFile::exists(pageDir + "/info.json"));
     QVERIFY(!QFile::exists(pageDir + "/page-1.max"));
     QVERIFY(!QFile::exists(whole));
-    QVERIFY(!model.requestContent(stack));     // nothing more to ask for
 
     /* sizes come from the structure, so no page is needed for them */
     QSize preview, image;
@@ -3517,6 +3518,57 @@ void TestSearchServer::testBrowsePageCount()
 }
 
 
+void TestSearchServer::testRemotePageControls()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    // the stack was left turned to its third page
+    QFile desk(tmpDir.path() + "/.paperdesk");
+    QVERIFY(desk.open(QIODevice::WriteOnly));
+    desk.write("[Files]\ntestfile.max=0,0,2\n");
+    desk.close();
+
+    clearCaches();
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    RemoteBackend client(url);
+    QVERIFY(!client.serverId().isEmpty());
+    client.invalidatePageDir(repo, "testfile.max");
+    client.invalidateCachedFile(repo, "testfile.max");
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err), qPrintable(err));
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    /* before anything of it is fetched the stack knows its pages, so its
+       page controls can show, and is turned to its third */
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5);
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagenum).toInt(), 2);
+
+    // it can be turned, but not past its last page
+    QVERIFY(model.setData(stack, 4, Desktopmodel::Role_pagenum));
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagenum).toInt(), 4);
+    QVERIFY(model.setData(stack, 9, Desktopmodel::Role_pagenum));
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagenum).toInt(), 4);
+}
+
 void TestSearchServer::testRemotePagesAwaited()
 {
     QTemporaryDir tmpDir;
@@ -3554,9 +3606,11 @@ void TestSearchServer::testRemotePagesAwaited()
     QCOMPARE(model.data(stack, Desktopmodel::Role_message).toString(),
              QString("testfile.max"));
 
+    /* the listing gives the page count, so wait for the structure until
+       there is nothing more to ask for */
     QVERIFY(model.requestContent(stack));
-    QTRY_COMPARE_WITH_TIMEOUT(
-        model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!model.requestContent(stack), 5000);
+    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5);
     QVERIFY(model.data(stack, Desktopmodel::Role_message).toString()
             .contains("Page 1 of 5"));
 

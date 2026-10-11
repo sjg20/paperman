@@ -80,6 +80,10 @@ private slots:
    //! the server lists how many pages each stack has
    void testBrowsePageCount();
 
+   //! a remote stack shows its page controls, and the page it is turned
+   //! to, before any of it is fetched
+   void testRemotePageControls();
+
    //! the preview leaves remote pages to arrive rather than spinning
    void testRemotePagesAwaited();
 

@@ -238,6 +238,14 @@ void Desk::addFiles(const QString &dirPath, Measure *meas)
             continue;
          addFile(e.name, dirPath, meas);
       }
+
+      /* tell each stack how many pages it has, so its page controls
+       * can show before any of it is fetched */
+      for (const DirectoryEntry &e : listing.entries) {
+         File *f = e.isDir || !e.pages ? nullptr : findFile(e.name);
+         if (f)
+            f->setListedPagecount(e.pages);
+      }
       updateRowCount();
       return;
    }
