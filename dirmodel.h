@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QHash>
 #include <QSortFilterProxyModel>
 
+#include <functional>
 #include <memory>
 
 #include "backend.h"
@@ -218,11 +219,21 @@ public:
     */
    bool addRemoteRepository(const QUrl &baseUrl, QString *errorOut = nullptr);
 
+   //! called once a request to a server is done, with why it failed
+   using Finished = std::function<void (const QString &error)>;
+
+   /** Add every repository served by a server, as the other
+    *  addRemoteRepository() does, but without waiting for it: each
+    *  appears once the server has listed them, and @p done is then
+    *  called, with an empty error if it worked */
+   void addRemoteRepository(const QUrl &baseUrl, Finished done);
+
    /** whether the desktop can use a server, saying why not in
     *  @p errorOut: one from before the /v1 API, or with a newer major
     *  version of it, cannot be used.  @p probe has fetched /v1/status */
    static bool serverUsable(const class RemoteBackend &probe,
                             const QUrl &baseUrl, QString *errorOut);
+
 
    /**
     * @brief Return the Backend that owns @p rootPath, or nullptr if
@@ -244,6 +255,12 @@ public:
    bool loginToServer(const QUrl &baseUrl, const QString &user,
                       const QString &password,
                       QString *errorOut = nullptr);
+
+   /** Log in to a server, as the other loginToServer() does, but
+    *  without waiting for it: @p done is called once it is done, with
+    *  an empty error if it worked */
+   void loginToServer(const QUrl &baseUrl, const QString &user,
+                      const QString &password, Finished done);
 
    /** Aggregate network-activity stats shared across every
     *  RemoteBackend the model owns.  Lazily created on the first
@@ -516,6 +533,12 @@ signals:
    void backendError(const QString &path, const QString &error);
 
 private:
+   /** Put each of a server's repositories in the tree, with a backend
+    *  of its own sharing the server's id, features and token */
+   void addRemoteRepos(const QUrl &baseUrl, const QString &serverId,
+                       const QStringList &features, const QString &token,
+                       const QList<RepositoryInfo> &repos);
+
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndexList _recent;   //!< list of recent directories
    DirNode *_invisibleRoot;   //!< invisible root of the directory tree
