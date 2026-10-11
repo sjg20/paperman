@@ -181,6 +181,7 @@ HEADERS += desktopwidget.h \
     qlistwidgetitemiterator.h \
     searchindex.h \
     backend.h \
+    blockwatch.h \
     clientconf.h \
     fakescanner.h \
     backendstats.h \
@@ -278,6 +279,7 @@ SOURCES += desktopwidget.cpp \
     qlistwidgetitemiterator.cpp \
     searchindex.cpp \
     backend.cpp \
+    blockwatch.cpp \
     clientconf.cpp \
     fakescanner.cpp \
     backendstats.cpp \
