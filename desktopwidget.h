@@ -61,6 +61,8 @@ struct file_info;
 #include <QLabel>
 #include <QUrl>
 
+#include <functional>
+
 #include "qsplitter.h"
 #include "qstring.h"
 #include "qwidget.h"
@@ -96,11 +98,12 @@ public:
    QList<err_info> addRepositories(const QStringList& dirs);
 
    /** Add every repository served by a remote paperman-server as
-    *  top-level items.  If the server requires authentication and
-    *  no valid cached token is found, prompts for credentials and
-    *  retries.  Returns an empty string on success or a
-    *  diagnostic on failure. */
-   QString addRemoteServer(const QUrl &baseUrl);
+    *  top-level items, without waiting for the server.  If it requires
+    *  authentication and no valid cached token is found, prompts for
+    *  credentials and retries.  @p done is called once the server's
+    *  repositories are in the tree, or with why not. */
+   void addRemoteServer(const QUrl &baseUrl,
+                        std::function<void (const QString &error)> done);
 
    /** Show a modal username/password dialog for @p baseUrl and
     *  return the entered credentials.  Returns false if the user

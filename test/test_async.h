@@ -44,6 +44,12 @@ private slots:
    //! attaching a server
    void testConnect ();
 
+   //! attaching a server which never answers, then closing the window
+   void testConnectHung ();
+
+   //! attaching a server named by its host at startup
+   void testConnectAtStartup ();
+
    //! opening a folder on the server
    void testOpenFolder ();
 
@@ -74,6 +80,12 @@ private:
 
    //! the path of a file in the server's folder
    QString serverPath (const QString &fname) const;
+
+   //! the server's repository in the folder tree, as a path
+   QString repoPath () const;
+
+   //! an empty client.conf, so that the user's servers are left alone
+   std::unique_ptr<QTemporaryDir> _config;
 
    std::unique_ptr<QTemporaryDir> _repo;
    std::unique_ptr<ServerThread> _server;

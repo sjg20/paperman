@@ -1298,7 +1298,13 @@ void TestDesktopUi::testRemoteGroupMoveViaUi()
    QString root = url.toString() + "/" + repo;
 
    Desktopwidget *desktop = me.getDesktop();
-   QString err = desktop->addRemoteServer(url);
+   bool attached = false;
+   QString err;
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      err = error;
+      attached = true;
+   });
+   QTRY_VERIFY(attached);
    QVERIFY2(err.isEmpty(), qPrintable(err));
 
    me.resize(1024, 768);

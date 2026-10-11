@@ -198,41 +198,12 @@ void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
 
    err_list = desktop->addRepositories(dirs);
 
-   /* Attach the server named on the command line, if any.  This may be
-      a name from client.conf or a host to look for a server on, so
-      --server works the same way as it does for paperman-client. */
-   QString serverError;
-   QUrl cmdlineUrl;
-   if (!serverUrl.isEmpty()) {
-      cmdlineUrl = ClientConfig::resolve(serverUrl, &serverError);
-      if (!cmdlineUrl.isEmpty())
-         serverError = desktop->addRemoteServer(cmdlineUrl);
-   }
-
-   /* Attach everything else listed in client.conf.  These are best
-      effort: a server that is down must not stop the GUI from starting,
-      so their failures are collected and reported together rather than
-      being treated like the command-line one. */
-   QStringList badLines;
-   QStringList serverErrors;
-   const QList<ServerEntry> configured = ClientConfig::load(&badLines);
-   for (const ServerEntry &entry : configured) {
-      if (!cmdlineUrl.isEmpty()
-          && ClientConfig::sameServer(entry.url, cmdlineUrl))
-         continue;      // already attached above
-
-      QString err = desktop->addRemoteServer(entry.url);
-      if (!err.isEmpty())
-         serverErrors << QString("%1 (%2): %3")
-                            .arg(entry.name, entry.url.toString(), err);
-   }
-   for (const QString &line : badLines)
-      serverErrors << QString("cannot parse \"%1\" in %2")
-                         .arg(line, ClientConfig::configPath());
-
    show ();
    QModelIndex ind = QModelIndex();
    desktop->selectDir (ind);
+
+   // attach servers, which come as they answer
+   connectServers (serverUrl);
 
    if (err_list.size ())
       {
@@ -244,16 +215,99 @@ void Mainwindow::startup(const QStringList& dirs, const QString& serverUrl)
          msg.append (QString ("%1\n").arg (err.errstr));
       QMessageBox::warning (0, "Paperman", msg);
       }
+}
 
-   if (!serverError.isEmpty())
-      QMessageBox::warning(0, "Paperman",
-         QString("Failed to connect to %1: %2")
-             .arg(serverUrl, serverError));
 
-   if (!serverErrors.isEmpty())
-      QMessageBox::warning(0, "Paperman",
+void Mainwindow::connectServers(const QString &serverArg)
+{
+   /* The server named on the command line, if any, may be a name from
+      client.conf or a host to look for a server on, so --server works
+      the same way as it does for paperman-client.  Work out which first,
+      so that it is not attached twice if client.conf lists it too. */
+   _hasServers = !serverArg.isEmpty() || !ClientConfig::load().isEmpty();
+   if (!serverArg.isEmpty()) {
+      ClientConfig::resolve(serverArg, this, [this, serverArg](
+                               const QUrl &url, const QString &error) {
+         if (url.isEmpty()) {
+            reportServerError(serverArg, error);
+            connectConfigured(QUrl());
+            return;
+         }
+         _main->getDesktop()->addRemoteServer(url, [this, serverArg](
+                                                 const QString &err) {
+            if (err.isEmpty())
+               serverAttached();
+            else
+               reportServerError(serverArg, err);
+         });
+         connectConfigured(url);
+      });
+   } else {
+      connectConfigured(QUrl());
+   }
+}
+
+
+void Mainwindow::serverAttached()
+{
+   Desktopwidget *desktop = _main->getDesktop();
+
+   /* the window opened with no folder to show if a server was all it
+      had */
+   if (desktop->getSelectedPath().isEmpty())
+      desktop->selectDir(QModelIndex());
+}
+
+
+void Mainwindow::reportServerError(const QString &server,
+                                   const QString &error)
+{
+   QMessageBox::warning(this, "Paperman",
+      QString("Failed to connect to %1: %2").arg(server, error));
+}
+
+
+void Mainwindow::connectConfigured(const QUrl &except)
+{
+   /* Attach everything listed in client.conf but @except.  These are
+      best effort: a server that is down must not stop the GUI from
+      starting, so their failures are collected and reported together,
+      once each has answered or failed, rather than being treated like
+      the command-line one. */
+   QStringList badLines;
+   const QList<ServerEntry> configured = ClientConfig::load(&badLines);
+   auto errors = std::make_shared<QStringList>();
+   auto pending = std::make_shared<int>(1);
+
+   for (const QString &line : badLines)
+      *errors << QString("cannot parse \"%1\" in %2")
+                    .arg(line, ClientConfig::configPath());
+
+   auto finished = [this, errors, pending]() {
+      if (--*pending || errors->isEmpty())
+         return;
+      QMessageBox::warning(this, "Paperman",
          QString("Some configured servers are unavailable:\n%1")
-             .arg(serverErrors.join("\n")));
+             .arg(errors->join("\n")));
+   };
+
+   for (const ServerEntry &entry : configured) {
+      if (!except.isEmpty() && ClientConfig::sameServer(entry.url, except))
+         continue;      // already attached
+
+      ++*pending;
+      _main->getDesktop()->addRemoteServer(entry.url, [this, entry, errors,
+                                                       finished](
+                                              const QString &err) {
+         if (err.isEmpty())
+            serverAttached();
+         else
+            *errors << QString("%1 (%2): %3")
+                          .arg(entry.name, entry.url.toString(), err);
+         finished();
+      });
+   }
+   finished();
 }
 
 void Mainwindow::shutdown()
@@ -497,7 +551,7 @@ QString Mainwindow::defaultRepository (void)
 
 bool Mainwindow::needsRepository (void)
    {
-   return !_desktop->getDirmodel ()->rowCount (QModelIndex ());
+   return !_hasServers && !_desktop->getDirmodel ()->rowCount (QModelIndex ());
    }
 
 void Mainwindow::offerRepository (const QString &dir)

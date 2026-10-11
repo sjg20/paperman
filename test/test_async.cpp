@@ -70,6 +70,10 @@ void TestAsync::init ()
                      QStandardPaths::GenericConfigLocation)
                   + "/paperman-server/users.json");
 
+   _config.reset (new QTemporaryDir);
+   QVERIFY (_config->isValid ());
+   qputenv ("PAPERMAN_CONFIG", (_config->path () + "/client.conf").toLocal8Bit ());
+
    _repo.reset (new QTemporaryDir);
    QVERIFY (_repo->isValid ());
    QVERIFY (QDir (_repo->path ()).mkdir ("papers"));
@@ -102,6 +106,15 @@ void TestAsync::cleanup ()
    _desktop = nullptr;
    _server.reset ();
    _repo.reset ();
+   qunsetenv ("PAPERMAN_CONFIG");
+   _config.reset ();
+   }
+
+
+QString TestAsync::repoPath () const
+   {
+   return _server->url ().toString () + "/"
+          + QFileInfo (_repo->path ()).fileName ();
    }
 
 
@@ -113,14 +126,21 @@ QString TestAsync::serverPath (const QString &fname) const
 
 void TestAsync::connectServer ()
    {
-   QCOMPARE (_desktop->addRemoteServer (_server->url ()), QString ());
+   bool attached = false;
+   QString err;
+
+   _desktop->addRemoteServer (_server->url (), [&] (const QString &error) {
+      err = error;
+      attached = true;
+   });
+   QTRY_VERIFY (attached);
+   QCOMPARE (err, QString ());
    }
 
 
 void TestAsync::openFolder ()
    {
-   QString repo = QFileInfo (_repo->path ()).fileName ();
-   QString path = _server->url ().toString () + "/" + repo + "/papers";
+   QString path = repoPath () + "/papers";
 
    QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
    _desktop->selectDir (_desktop->getDirIndex (path));
@@ -183,7 +203,47 @@ void TestAsync::testConnect ()
    AsyncCheck check;
 
    connectServer ();
-   CHECK_ASYNC (check, "connecting waits for the server");
+   QVERIFY (_desktop->getDirIndex (repoPath ()).isValid ());
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testConnectHung ()
+   {
+   AsyncCheck check;
+   bool attached = false;
+
+   _server->setDelay (-1);
+   _desktop->addRemoteServer (_server->url (), [&] (const QString &) {
+      attached = true;
+   });
+
+   // the window carries on while the server says nothing
+   QTest::qWait (kDelayMs * 2);
+   QVERIFY (!attached);
+   QVERIFY (!_desktop->getDirIndex (repoPath ()).isValid ());
+   CHECK_ASYNC (check, nullptr);
+
+   // and closing it with the request still out is safe
+   _me.reset ();
+   QTest::qWait (100);
+   }
+
+
+void TestAsync::testConnectAtStartup ()
+   {
+   /* a local repository too, so that the window shows that rather than
+      opening the server's folder, which is not checked here */
+   QTemporaryDir local;
+   QVERIFY (local.isValid ());
+
+   AsyncCheck check;
+   QString host = QString ("127.0.0.1:%1").arg (_server->url ().port ());
+
+   _me->startup (QStringList () << local.path (), host);
+   QTRY_VERIFY (_desktop->getDirIndex (repoPath ()).isValid ());
+   QVERIFY (!_desktop->getSelectedPath ().startsWith (repoPath ()));
+   CHECK_ASYNC (check, nullptr);
    }
 
 
