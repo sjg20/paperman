@@ -505,16 +505,21 @@ void Pagemodel::nextUpdate (void)
             Ask here, on the GUI thread, since the render thread must
             not touch the network; the placeholder stays up until they
             arrive and the item is rebuilt. */
+         /* Move on to the next page while this one is on its way, but
+            still stop once round: when every page is waiting, asking
+            again here would never return to let them arrive */
+         bool waiting = false;
          if (_stackindex.isValid () && _contents)
             {
             Desktopmodel *dm = const_cast<Desktopmodel *> (_contents);
 
-            if (dm->requestContent (_stackindex)
-                || dm->requestPage (_stackindex, pagenum))
-               continue;
+            waiting = dm->requestContent (_stackindex)
+                      || dm->requestPage (_stackindex, pagenum);
             }
 
-         if (_stackindex.isValid () && !pi->scanning () && !_own_scan
+         if (waiting)
+            ;
+         else if (_stackindex.isValid () && !pi->scanning () && !_own_scan
              && _contents
              && _contents->imageNeedsDecode (_stackindex, pagenum, _pagesize))
             {
@@ -523,7 +528,7 @@ void Pagemodel::nextUpdate (void)
                                pi->isBlank (), _generation);
             return;
             }
-         if (pi->updatePixmap ())
+         else if (pi->updatePixmap ())
             {
             QModelIndex ind = index (row, 0, QModelIndex ());
             emit dataChanged (ind, ind);

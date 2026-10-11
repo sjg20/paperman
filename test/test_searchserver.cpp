@@ -23,6 +23,7 @@
 #include "../measure.h"
 #include "../ocrpage.h"
 #include "../op.h"
+#include "../pagemodel.h"
 #include "../remotebackend.h"
 #include "../searchserver.h"
 #include "../pdfio.h"
@@ -3477,4 +3478,64 @@ void TestSearchServer::testServerTooOldOrNew()
     stub.replies["/v1/status"] = {200, R"({"status":"running",
         "apiVersion":"1","serverId":"abc","features":[]})"};
     QVERIFY2(dirmodel.addRemoteRepository(url, &err), qPrintable(err));
+}
+
+void TestSearchServer::testRemotePagesAwaited()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    RemoteBackend probe(url);
+    QVERIFY(!probe.serverId().isEmpty());
+    QString pageDir = probe.pageDirFor(repo, "testfile.max");
+    probe.invalidatePageDir(repo, "testfile.max");
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err), qPrintable(err));
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas);
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+    QVERIFY(model.requestContent(stack));
+    QTRY_COMPARE_WITH_TIMEOUT(
+        model.data(stack, Desktopmodel::Role_pagecount).toInt(), 5, 5000);
+
+    /* the preview shows the stack, with none of its pages here yet */
+    Pagemodel pm(nullptr);
+    auto stopRender = qScopeGuard([&] { pm.stopRendering(); });
+    pm.setPagesize(QSize(100, 100));
+    pm.reset(&model, stack, 0, 5);
+    for (int i = 0; i < 5; i++) {
+        pm.ensurePage(i);
+        pm._pages[i]._rescale = true;
+    }
+    pm._rescaling = true;
+    pm._update_upto = 0;
+
+    /* each page is asked for once, and the update stops to let them
+       come, rather than asking again and again without returning */
+    pm.nextUpdate();
+    QVERIFY(!pm._updateTimer->isActive());
+    for (int i = 0; i < 5; i++)
+        QVERIFY(model.requestPage(stack, i));   // already on its way
+
+    for (int i = 1; i <= 5; i++)
+        QTRY_VERIFY_WITH_TIMEOUT(
+            QFile::exists(QString("%1/page-%2.max").arg(pageDir).arg(i)),
+            5000);
 }

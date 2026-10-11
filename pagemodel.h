@@ -111,6 +111,7 @@ class Pageinfo
    friend class Pagemodel;   /* needs direct access to _scan_image so two
                                 pages can be drawn in parallel during a
                                 progressive duplex scan */
+   friend class TestSearchServer;
    friend class TestPagewidget;
    friend class TestDesktopUi;
 public:
@@ -239,6 +240,7 @@ class Pagemodel : public QAbstractItemModel
    Q_OBJECT
    friend class TestPagewidget;
    friend class TestDesktopUi;
+   friend class TestSearchServer;
 public:
    Pagemodel (QObject *parent);
    ~Pagemodel ();
