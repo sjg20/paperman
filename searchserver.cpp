@@ -821,6 +821,11 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                                                  : listing.error));
         }
 
+        QString repoPath;
+        for (const QString &root : _rootPaths)
+            if (QFileInfo(root).fileName() == repoName)
+                repoPath = root;
+
         QJsonArray dirs, files;
         for (const DirectoryEntry &e : listing.entries) {
             if (e.isDir) {
@@ -835,6 +840,13 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 f["size"]     = e.size;
                 f["modified"] = e.modified;
                 f["path"]     = e.path;
+
+                /* so a client can show a stack's page controls before
+                   fetching anything of it */
+                int pages = repoPath.isEmpty() ? 0
+                    : stackPageCount(repoPath + "/" + e.path);
+                if (pages > 0)
+                    f["pages"] = pages;
                 files.append(f);
             }
         }
@@ -1527,6 +1539,30 @@ QString SearchServer::extractPageFile(const QString &stackPath, int page,
         return QString();
     }
     return dir + "/" + name;
+}
+
+
+int SearchServer::stackPageCount(const QString &fullPath)
+{
+    QFileInfo fi(fullPath);
+    File::e_type type = File::typeFromName(fi.fileName());
+    if (type == File::Type_other || !fi.isFile())
+        return 0;
+
+    auto it = _pageCounts.constFind(fullPath);
+    if (it != _pageCounts.constEnd() && it->size == fi.size()
+        && it->modified == fi.lastModified())
+        return it->pages;
+
+    int pages = 0;
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, type);
+    if (file && !file->load())
+        pages = file->pagecount();
+    delete file;
+
+    _pageCounts.insert(fullPath, {fi.size(), fi.lastModified(), pages});
+    return pages;
 }
 
 

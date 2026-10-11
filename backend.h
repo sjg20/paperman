@@ -32,6 +32,7 @@ struct DirectoryEntry
     bool isDir = false;
     QString modified;    //!< ISO-8601 (files only)
     int count = 0;       //!< File count for directory entries (recursive)
+    int pages = 0;       //!< Pages in a stack, if the server says (else 0)
 };
 
 

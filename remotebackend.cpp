@@ -216,6 +216,7 @@ DirectoryListing RemoteBackend::parseBrowseReply(QNetworkReply *reply)
       e.path     = f.value("path").toString();
       e.size     = f.value("size").toVariant().toLongLong();
       e.modified = f.value("modified").toString();
+      e.pages    = f.value("pages").toInt();
       out.entries.append(e);
    }
    out.ok = true;
