@@ -69,6 +69,15 @@ void Desktopundocmd::complain(err_info *err)
    Mainwidget::singleton()->complain(err);
 }
 
+
+void Desktopundocmd::queue (const QString &dir,
+                            std::function<void (Desktopmodel::OpDone)> op)
+{
+   _model->queueOp (op, [] (err_info *err) {
+      Mainwidget::singleton ()->complain (err);
+   }, _model->isRemoteDir (dir));
+}
+
 UCTrashStacks::UCTrashStacks (Desktopmodel *model,
          QModelIndexList &list, QModelIndex &parent, QString dir, bool copy)
       : Desktopundocmd (model)
@@ -424,19 +433,27 @@ UCRenameStack::UCRenameStack (Desktopmodel *model, const QModelIndex &ind, QStri
 
 void UCRenameStack::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_oldname, parent);
-
-   _model->opRenameStack (ind, _newname);
+   rename (_oldname, _newname);
    }
 
 
 void UCRenameStack::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_newname, parent);
+   rename (_newname, _oldname);
+   }
 
-   _model->opRenameStack (ind, _oldname);
+
+void UCRenameStack::rename (const QString &from, const QString &to)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (from, model->deskFromDirname (path));
+
+      model->opRenameStack (ind, to, done);
+   });
    }
 
 
@@ -455,20 +472,29 @@ UCTransformPage::UCTransformPage (Desktopmodel *model, const QModelIndex &ind,
 
 void UCTransformPage::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_fname, parent);
-
-   complain (_model->opTransformPage (ind, _pagenum, _op));
+   transform (_op);
    }
 
 
 void UCTransformPage::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_fname, parent);
+   transform (File::transformInverse (_op));
+   }
 
-   complain (_model->opTransformPage (ind, _pagenum,
-         File::transformInverse (_op)));
+
+void UCTransformPage::transform (File::e_transform op)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+   int pagenum = _pagenum;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opTransformPage (ind, pagenum, op, done);
+   });
    }
 
 
@@ -488,19 +514,29 @@ UCRenamePage::UCRenamePage (Desktopmodel *model, const QModelIndex &ind,
 
 void UCRenamePage::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_fname, parent);
-
-   _model->opRenamePage (ind, _pagenum, _newname);
+   rename (_newname);
    }
 
 
 void UCRenamePage::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_fname, parent);
+   rename (_oldname);
+   }
 
-   _model->opRenamePage (ind, _pagenum, _oldname);
+
+void UCRenamePage::rename (const QString &name)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+   int pagenum = _pagenum;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opRenamePage (ind, pagenum, name, done);
+   });
    }
 
 
@@ -525,19 +561,28 @@ UCUpdateAnnot::UCUpdateAnnot (Desktopmodel *model, const QModelIndex &ind,
 
 void UCUpdateAnnot::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_fname, parent);
-
-   complain(_model->opUpdateAnnot(ind, _new));
+   update (_new);
    }
 
 
 void UCUpdateAnnot::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex ind = _model->index (_fname, parent);
+   update (_old);
+   }
 
-   complain(_model->opUpdateAnnot(ind, _old));
+
+void UCUpdateAnnot::update (const QHash<int, QString> &annots)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opUpdateAnnot (ind, annots, done);
+   });
    }
 
 

@@ -9,6 +9,7 @@ License: GPL-2
 #include "test.h"
 
 #include "../desktopmodel.h"
+#include "../desktopundo.h"
 #include "../desktopview.h"
 #include "../desktopwidget.h"
 #include "../file.h"
@@ -455,7 +456,7 @@ void TestAsync::testRename ()
 
    _desktop->getModel ()->renameStack (stackIndex (), "renamed");
    QTRY_VERIFY (QFile::exists (serverPath ("renamed.max")));
-   CHECK_ASYNC (check, "renaming waits for the server");
+   CHECK_ASYNC (check, nullptr);
    }
 
 
@@ -485,7 +486,7 @@ void TestAsync::testRotate ()
    _desktop->getModel ()->transformPage (stackIndex (), 0,
                                          File::Transform_rotate90);
    QTRY_COMPARE (pageSize (), before.transposed ());
-   CHECK_ASYNC (check, "rotating waits for the server");
+   CHECK_ASYNC (check, nullptr);
    }
 
 
@@ -500,4 +501,89 @@ void TestAsync::testTrash ()
    _desktop->getModel ()->trashStack (stack);
    QTRY_VERIFY (!QFile::exists (serverPath ("testfile.max")));
    CHECK_ASYNC (check, "moving to the trash waits for the server");
+   }
+
+
+void TestAsync::testUndoRename ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+
+   /* undo before the server has answered the rename: the undo waits its
+      turn, so it renames back what the rename made */
+   model->renameStack (stackIndex (), "renamed");
+   model->getUndoStack ()->undo ();
+   QVERIFY (model->opsPending ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QVERIFY (QFile::exists (serverPath ("testfile.max")));
+   QVERIFY (!QFile::exists (serverPath ("renamed.max")));
+   QCOMPARE (model->data (stackIndex (), Desktopmodel::Role_filename)
+                .toString (), QString ("testfile.max"));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testRenamePage ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   QModelIndex stack = stackIndex ();
+
+   _desktop->getModel ()->renamePage (stack, "remote page");
+   QTRY_VERIFY_WITH_TIMEOUT (!_desktop->getModel ()->opsPending (),
+                             kDelayMs * 10);
+   File *f = File::createFile (_repo->path () + "/papers/", "testfile.max",
+                               nullptr, File::Type_max);
+   QVERIFY (f && !f->load ());
+   QCOMPARE (f->pageTitle (0), QString ("remote page"));
+   delete f;
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testAnnotations ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   QModelIndex stack = stackIndex ();
+   QHash<int, QString> updates;
+
+   updates [File::Annot_author] = "A. Writer";
+   _desktop->getModel ()->updateAnnot (stack, updates);
+   QTRY_VERIFY_WITH_TIMEOUT (!_desktop->getModel ()->opsPending (),
+                             kDelayMs * 10);
+   File *f = File::createFile (_repo->path () + "/papers/", "testfile.max",
+                               nullptr, File::Type_max);
+   QString author;
+   QVERIFY (f && !f->load () && !f->getAnnot (File::Annot_author, author));
+   QCOMPARE (author, QString ("A. Writer"));
+   delete f;
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testRenameHung ()
+   {
+   connectServer ();
+   openFolder ();
+   _server->setDelay (-1);
+
+   AsyncCheck check;
+
+   // the window carries on while the server says nothing
+   _desktop->getModel ()->renameStack (stackIndex (), "renamed");
+   QTest::qWait (kDelayMs * 2);
+   QVERIFY (_desktop->getModel ()->opsPending ());
+   CHECK_ASYNC (check, nullptr);
+
+   // and closing it with the rename still out is safe
+   _me.reset ();
+   QTest::qWait (100);
    }

@@ -27,10 +27,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QKeyEvent>
 #include <QSet>
 #include <QMutex>
+#include <QQueue>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QRecursiveMutex>
 #endif
 #include <QImage>
+
+#include <functional>
+#include <memory>
 
 
 class OcrPage;
@@ -118,6 +122,9 @@ class Desktopmodel : public QAbstractItemModel
    friend class TestDesktopUi;
 
 public:
+   //! called once an operation has finished, with any error
+   using OpDone = std::function<void (err_info *err)>;
+
    Desktopmodel(QObject *parent);
    ~Desktopmodel();
 
@@ -762,6 +769,27 @@ protected:
       \returns       error, or NULL if none */
    err_info *opRenameStack (const QModelIndex &index, QString &newname);
 
+
+   /* Forms of operations which call @p done once finished, rather than
+      waiting for a server.  They act on the stack's state as it is when
+      the server answers */
+
+   //! rename a stack, as the other opRenameStack() does
+   void opRenameStack (const QModelIndex &index, const QString &newname,
+                       OpDone done);
+
+   //! rename a page, as the other opRenamePage() does
+   void opRenamePage (const QModelIndex &index, int pagenum,
+                      const QString &newname, OpDone done);
+
+   //! transform a page, as the other opTransformPage() does
+   void opTransformPage (const QModelIndex &index, int pagenum,
+                         File::e_transform op, OpDone done);
+
+   //! update a stack's annotations, as the other opUpdateAnnot() does
+   void opUpdateAnnot (const QModelIndex &ind,
+                       const QHash<int, QString> &updates, OpDone done);
+
    /** rename a page and move to show that page
 
       \param index   the stack containing the page to rename
@@ -1092,6 +1120,26 @@ public:
    //! true if @p deskind is a folder on a server still being listed
    bool isListing (const QModelIndex &deskind) const;
 
+   /** Run @p op once the operations queued before it have finished, or at
+       once if none is.  An operation on a server finishes only once the
+       server has answered, so the undo commands queue their operations:
+       each then starts from what the one before it left, in the order the
+       user asked for them, however long the server takes
+
+      \param op      the operation, which calls the function it is given
+                     once it has finished
+      \param report  called then, with any error
+      \param remote  true if the operation is on a server; one which is
+                     not runs at once, as it finishes at once */
+   void queueOp (std::function<void (OpDone done)> op, OpDone report,
+                 bool remote);
+
+   //! true if the desk for @p dir is a folder on a server
+   bool isRemoteDir (const QString &dir);
+
+   //! true while operations are queued or running
+   bool opsPending (void) const { return _opBusy || !_ops.isEmpty (); }
+
    /** true if page @p pagenum of the stack @p ind can be read without
        asking a server for anything: always for a local stack, and for a
        remote one once its content, or that page of it, is here */
@@ -1163,9 +1211,34 @@ private:
 
    /** Transform a page of a remote stack by asking the server to do
     *  it, then refresh the thumbnail.  See opTransformPage(). */
-   err_info *opTransformPageRemote(const QModelIndex &index, File *file,
-                                   Desk *desk, class RemoteBackend *backend,
-                                   int pagenum, File::e_transform op);
+   void opTransformPageRemote(File *file, Desk *desk,
+                              class RemoteBackend *backend, int pagenum,
+                              File::e_transform op, OpDone done);
+
+   //! start the next queued operation, if none is running
+   void runOps (void);
+
+   /** Run an operation and wait for it to finish, for the forms of the
+    *  operations which return their error.  An operation on a server
+    *  waits in an event loop, which is reported to BlockWatch as
+    *  @p what */
+   err_info *waitForOp (const QString &what,
+                        std::function<void (OpDone done)> op);
+
+   /** the stack named @p fname in the desk for @p dir, which an operation
+    *  finds again once the server has answered; invalid if it has gone */
+   QModelIndex stackFor (const QString &dir, const QString &fname);
+
+   /** A remote stack held a page at a time has been changed on the
+    *  server: as remoteStackChanged(), but asking for the structure
+    *  rather than waiting for it */
+   void stackChangedLater (const QModelIndex &ind, const QList<int> &pages);
+
+   //! operations waiting their turn; see queueOp()
+   QQueue<std::function<void ()> > _ops;
+
+   //! true while an operation is running
+   bool _opBusy = false;
 
    bool getNewScaledImage (Paperscan &scan, const PPage *page, const char *data,
          int nbytes, QImage &image, int &scaled_linenum, QSize &surface);
