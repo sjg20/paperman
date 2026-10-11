@@ -1296,9 +1296,31 @@ void Desktopmodel::refreshRemoteThumbnail (Desk *desk, RemoteBackend *backend,
                this, &Desktopmodel::onThumbnailReady);
       _connectedBackends.insert (backend);
       }
+   /* the page the stack is turned to, if it is known to have it */
+   int pagenum = qMax (file->pagenum (), 0);
+   int page = pagenum < file->knownPagecount () ? pagenum + 1 : 1;
    quint64 token = backend->fetchThumbnailAsync (desk->repoName (),
-         remoteStackPath (desk, file), /*page=*/1, /*size=*/"small");
+         remoteStackPath (desk, file), page, /*size=*/"small");
    _pendingThumbnails.insert (token, file);
+   }
+
+
+bool Desktopmodel::fetchRemoteThumbnail (File *file)
+   {
+   RemoteBackend *remote = remoteForFile (file);
+
+   if (!remote)
+      return false;
+   Desk *desk = file->desk ();
+   if (file->remoteChecked ())
+      {
+      Filemax *max = sparseFor (file, remote, desk);
+
+      if (!max || max->hasPage (file->pagenum ()))
+         return false;      // here to draw from
+      }
+   refreshRemoteThumbnail (desk, remote, file);
+   return true;
    }
 
 
