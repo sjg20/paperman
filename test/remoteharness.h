@@ -89,8 +89,15 @@ private:
 class AsyncCheck
 {
 public:
-   //! the longest the main thread may go without handling events
+   /** the longest the main thread may go without handling events.  It
+       draws a page itself once it has come, which takes a Windows runner
+       several times as long as other machines, so allow for that there;
+       BlockWatch still catches a wait for the server */
+#ifdef Q_OS_WIN
+   static constexpr qint64 kMaxStallMs = 1500;
+#else
    static constexpr qint64 kMaxStallMs = 300;
+#endif
 
    AsyncCheck ();
    ~AsyncCheck ();

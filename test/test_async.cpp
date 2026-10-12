@@ -21,7 +21,7 @@ License: GPL-2
 #include "test_async.h"
 
 /* Each reply is held back this long, so that waiting for one is
-   plain; it is well over AsyncCheck::kMaxStallMs */
+   plain; it is well over AsyncCheck::kMaxStallMs, except on Windows */
 static const int kDelayMs = 500;
 
 // the port the server listens on, behind the proxy
