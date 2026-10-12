@@ -5951,7 +5951,7 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
    if (temp)
       {
       chunk_free (*chunk);
-      mem_free (CV &chunk);
+      delete chunk;
       }
    str = ba.constData ();
    return NULL;
@@ -6010,7 +6010,7 @@ err_info *Filemax::getPageOcr (int pagenum, OcrPage &out)
    if (temp)
       {
       chunk_free (*chunk);
-      mem_free (CV &chunk);
+      delete chunk;
       }
    if (err)
       return err;
