@@ -17,6 +17,7 @@ License: GPL-2
 #include "../mainwindow.h"
 #include "../ocrpage.h"
 #include "../pagemodel.h"
+#include "../pageview.h"
 #include "../pagewidget.h"
 #include "../remotebackend.h"
 
@@ -533,6 +534,33 @@ void TestAsync::testTurnStackPage ()
    QTRY_VERIFY (model->data (stack, Desktopmodel::Role_pixmap)
                 .value<QPixmap> ().toImage () != before);
    CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testRepaintChanged ()
+   {
+   connectServer ();
+   openFolder ();
+   clickStack ();
+   Pagewidget *page = _desktop->_page;
+   QTRY_VERIFY (!page->_image.isNull ());
+
+   // the server rotates a page, so the stack's structure is fetched again
+   Desktopmodel *model = _desktop->getModel ();
+
+   model->transformPage (stackIndex (), 0, File::Transform_rotate90);
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+
+   // its first page is drawn afresh meanwhile, without waiting for it
+   AsyncCheck check;
+
+   page->_pagemodel->updatePage (0);
+   page->_pageview->viewport ()->repaint ();
+   CHECK_ASYNC (check, nullptr);
+
+   // and the page is asked for, so it comes
+   QTRY_VERIFY_WITH_TIMEOUT (model->pageHere (stackIndex (), 0),
+                             kDelayMs * 10);
    }
 
 

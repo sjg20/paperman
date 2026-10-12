@@ -1536,7 +1536,10 @@ public:
        \param pagenum   page number
        \param size      desired size in pixels
        \param pixmap    on entry, the old pixmap (or 0), on exit the new pixmap
-       \param blank     modified the pixmap to indicate that this page is blank */
+       \param blank     modified the pixmap to indicate that this page is blank
+
+       A page of a remote stack which is not here is asked for, leaving the
+       pixmap as it is, rather than waited for */
    void getScaledImage (const QModelIndex &ind, int pagenum, QSize &size,
          QPixmap &pixmap, bool blank) const;
 
