@@ -1201,7 +1201,22 @@ void Desktopmodel::internalRemoveRows (int row, int count, const QModelIndex &pa
       decodes under, so that it has finished before the file goes */
    QMutexLocker locker (&_imageMutex);
 
+   forgetThumbnails (getDesk (parent), row, count);
    getDesk (parent)->removeRows (row, count);
+   }
+
+
+void Desktopmodel::forgetThumbnails (Desk *desk, int row, int count)
+   {
+   QSet<File *> gone;
+
+   for (int i = row; i < row + count && i < desk->files ().size (); i++)
+      gone << desk->files () [i];
+   for (auto it = _pendingThumbnails.begin (); it != _pendingThumbnails.end ();)
+      if (gone.contains (it.value ()))
+         it = _pendingThumbnails.erase (it);
+      else
+         ++it;
    }
 
 
@@ -1897,6 +1912,7 @@ void Desktopmodel::clearAll (QModelIndex &parent)
          render thread may be decoding a page from one of them */
       QMutexLocker locker (&_imageMutex);
 
+      forgetThumbnails (desk, 0, desk->fileCount ());
       desk->clear ();
       }
    desk->updateRowCount ();

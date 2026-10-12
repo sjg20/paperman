@@ -326,6 +326,31 @@ void TestAsync::testOtherClient ()
    }
 
 
+void TestAsync::testStaleThumbnail ()
+   {
+   connectServer ();
+
+   QString path = repoPath () + "/papers";
+
+   QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
+
+   /* the listing comes after the usual delay, and the thumbnail asked
+      for once it has come is held back for longer */
+   _desktop->selectDir (_desktop->getDirIndex (path));
+   QTest::qWait (kDelayMs / 5);
+   _server->setDelay (kDelayMs * 4);
+   QTRY_VERIFY (stackIndex ().isValid ());
+
+   // the stack goes before its thumbnail comes, which must not reach it
+   QModelIndex stack = stackIndex ();
+
+   QAbstractItemModel *model = _desktop->getModel ();
+
+   QVERIFY (model->removeRows (stack.row (), 1, stack.parent ()));
+   QTest::qWait (kDelayMs * 5);
+   }
+
+
 void TestAsync::testLocate ()
    {
    connectServer ();
