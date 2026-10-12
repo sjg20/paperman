@@ -70,6 +70,21 @@ void Desktopundocmd::complain(err_info *err)
 }
 
 
+void Desktopundocmd::deleteMade (const QString &dir,
+                                 std::shared_ptr<QStringList> names)
+{
+   Desktopmodel *model = _model;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (*names, parent);
+
+      model->opDeleteStacks (list, parent, done);
+   });
+}
+
+
 void Desktopundocmd::queue (const QString &dir,
                             std::function<void (Desktopmodel::OpDone)> op)
 {
@@ -178,6 +193,7 @@ UCDuplicate::UCDuplicate (Desktopmodel *model, QModelIndexList &list,
 
    _dir = model->deskToDirname (parent);
    _filenames = model->listToFilenames (list);
+   _newnames = std::make_shared<QStringList> ();
    _type = type;
    _odd_even = odd_even;
 
@@ -191,21 +207,28 @@ UCDuplicate::UCDuplicate (Desktopmodel *model, QModelIndexList &list,
 
 void UCDuplicate::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QStringList filenames = _filenames;
+   auto newnames = _newnames;
+   File::e_type type = _type;
+   int odd_even = _odd_even;
 
-   _newnames.clear ();
-   aboutToAdd (parent);
-   complain (_model->opDuplicateStacks (list, parent, _newnames, _type, _odd_even));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (filenames, parent);
+
+      newnames->clear ();
+      model->aboutToAdd (parent);
+      model->opDuplicateStacks (list, parent, newnames, type, odd_even, done);
+   });
    }
 
 
 void UCDuplicate::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndexList list = _model->listFromFilenames (_newnames, parent);
-
-   complain (_model->opDeleteStacks (list, parent));
+   deleteMade (_dir, _newnames);
    }
 
 
@@ -215,6 +238,7 @@ UCUnfoldBooklet::UCUnfoldBooklet (Desktopmodel *model, QModelIndexList &list,
    {
    _dir = model->deskToDirname (parent);
    _filenames = model->listToFilenames (list);
+   _newnames = std::make_shared<QStringList> ();
    setText (QApplication::translate ("UCUnfoldBooklet",
       "Unfold booklet (%1)").arg (list.size ()));
    }
@@ -222,21 +246,26 @@ UCUnfoldBooklet::UCUnfoldBooklet (Desktopmodel *model, QModelIndexList &list,
 
 void UCUnfoldBooklet::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QStringList filenames = _filenames;
+   auto newnames = _newnames;
 
-   _newnames.clear ();
-   aboutToAdd (parent);
-   complain (_model->opUnfoldBooklets (list, parent, _newnames));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (filenames, parent);
+
+      newnames->clear ();
+      model->aboutToAdd (parent);
+      model->opUnfoldBooklets (list, parent, newnames, done);
+   });
    }
 
 
 void UCUnfoldBooklet::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndexList list = _model->listFromFilenames (_newnames, parent);
-
-   complain (_model->opDeleteStacks (list, parent));
+   deleteMade (_dir, _newnames);
    }
 
 
@@ -248,6 +277,7 @@ UCUnstackStacks::UCUnstackStacks (Desktopmodel *model, QModelIndexList &list,
 
    _dir = model->deskToDirname (parent);
    _filenames = model->listToFilenames (list);
+   _newnames = std::make_shared<QList<QStringList> > ();
    setText (QApplication::translate("UCUnstackStacks",
       "Unstack stacks (%1)").arg (list.size ()));
    }
@@ -255,39 +285,50 @@ UCUnstackStacks::UCUnstackStacks (Desktopmodel *model, QModelIndexList &list,
 
 void UCUnstackStacks::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QStringList filenames = _filenames;
+   auto newnames = _newnames;
 
-   _newnames.clear ();
-   aboutToAdd (parent);
-   complain (_model->opUnstackStacks (list, parent, _newnames));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (filenames, parent);
+
+      newnames->clear ();
+      model->aboutToAdd (parent);
+      model->opUnstackStacks (list, parent, newnames, done);
+   });
    }
 
 
 void UCUnstackStacks::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QStringList fname_list;
-   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
-   QList<QModelIndexList> pages;
-   QString fname;
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QStringList filenames = _filenames;
+   auto newnames = _newnames;
 
-   foreach (fname_list, _newnames)
-      {
-      QModelIndexList plist;
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (filenames, parent);
+      QList<QModelIndexList> pages;
 
-      foreach (fname, fname_list)
+      for (const QStringList &fname_list : *newnames)
          {
-         QModelIndex ind = _model->index (fname, parent);
-         plist << ind;
-         }
-      pages << plist;
-      }
+         QModelIndexList plist;
 
-   /* restack to page 1, since we know that the destination stack has
-      only 1 page */
-   int pagenum = 1;
-   complain (_model->opRestackStacks (list, parent, pages, pagenum));
+         for (const QString &fname : fname_list)
+            plist << model->index (fname, parent);
+         pages << plist;
+         }
+
+      /* restack to page 1, since we know that the destination stack has
+         only 1 page */
+      model->opRestackStacks (list, parent, pages,
+                              std::make_shared<int> (1), done);
+   });
    }
 
 
@@ -297,7 +338,8 @@ UCUnstackPage::UCUnstackPage (Desktopmodel *model, QModelIndex &ind,
    {
    _dir = model->deskToDirname (ind.parent ());
    _filename = model->data (ind, Desktopmodel::Role_filename).toString ();
-   _pagenum = pagenum;
+   _pagenum = std::make_shared<int> (pagenum);
+   _newname = std::make_shared<QString> ();
    _remove = remove;
    setText (QApplication::translate("UCUnstackPage",
       "Unstack page"));
@@ -306,35 +348,57 @@ UCUnstackPage::UCUnstackPage (Desktopmodel *model, QModelIndex &ind,
 
 void UCUnstackPage::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex index = _model->index (_filename, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _filename;
+   auto pagenum = _pagenum;
+   auto newname = _newname;
+   bool remove = _remove;
 
-   aboutToAdd (parent);
-   complain (_model->opUnstackPage (index, _pagenum, _remove, _newname));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndex ind = model->index (fname, parent);
+
+      model->aboutToAdd (parent);
+      model->opUnstackPage (ind, pagenum, remove, newname, done);
+   });
    }
 
 
 void UCUnstackPage::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex index = _model->index (_filename, parent);
-   QModelIndex page = _model->index (_newname, parent);
-   QModelIndexList list;
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _filename;
+   auto pagenum = _pagenum;
+   auto newname = _newname;
+   bool remove = _remove;
 
-   list << page;
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndex ind = model->index (fname, parent);
+      QModelIndex page = model->index (*newname, parent);
 
-   // if we can't find something, skip
-   if (index == QModelIndex () || page == QModelIndex ())
-      return;
+      // if we can't find something, skip
+      if (ind == QModelIndex () || page == QModelIndex ())
+         {
+         done (NULL);
+         return;
+         }
 
-   // if we removed the page, then to undo we must stack it back
-   if (_remove)
-      complain (_model->opStackStacks (index, list, _pagenum));
-
-   /* but if we just copied the page, then the stack can be left alone, and
-      we just need to delete the page */
-   else
-      complain (_model->opDeleteStacks (list, parent));
+      /* if we removed the page, then to undo we must stack it back; but if
+         we just copied the page, then the stack can be left alone, and
+         we just need to delete the page */
+      if (remove)
+         model->opRestackStacks (QModelIndexList () << ind, parent,
+                                 QList<QModelIndexList> ()
+                                    << (QModelIndexList () << page),
+                                 std::make_shared<int> (*pagenum), done);
+      else
+         model->opDeleteStacks (QModelIndexList () << page, parent, done);
+   });
    }
 
 
@@ -400,7 +464,7 @@ UCStackStacks::UCStackStacks (Desktopmodel *model, QModelIndex &dest,
    _dir = model->deskToDirname (dest.parent ());
    _destname = model->data (dest, Desktopmodel::Role_filename).toString ();
    _filenames = model->listToFilenames (list);
-   _pagenum = pagenum;
+   _pagenum = std::make_shared<int> (pagenum);
    int upto = 0;
    foreach (ind, list)
       {
@@ -419,20 +483,43 @@ UCStackStacks::UCStackStacks (Desktopmodel *model, QModelIndex &dest,
 
 void UCStackStacks::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex dest = _model->index (_destname, parent);
-   QModelIndexList list = _model->listFromFilenames (_filenames, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString destname = _destname;
+   QStringList filenames = _filenames;
+   auto pagenum = _pagenum;
 
-   complain (_model->opStackStacks (dest, list, _pagenum));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndex dest = model->index (destname, parent);
+      QModelIndexList list = model->listFromFilenames (filenames, parent);
+
+      model->opRestackStacks (QModelIndexList () << dest, parent,
+                              QList<QModelIndexList> () << list, pagenum,
+                              done);
+   });
    }
 
 
 void UCStackStacks::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex dest = _model->index (_destname, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString destname = _destname;
+   QStringList filenames = _filenames;
+   auto pagenum = _pagenum;
+   QList<pagepos_info> pagepos = _pagepos;
 
-   complain (_model->opUnstackFromStack (dest, _filenames, _pagenum, _pagepos));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndex dest = model->index (destname, parent);
+      QStringList names = filenames;
+      QList<pagepos_info> pos = pagepos;
+
+      done (model->opUnstackFromStack (dest, names, *pagenum, pos));
+   });
    }
 
 

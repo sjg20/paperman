@@ -107,6 +107,21 @@ private slots:
    //! deleting a page, and undoing that before the server has answered
    void testDeletePages ();
 
+   //! unstacking a page, and undoing that before the server has answered
+   void testUnstackPage ();
+
+   //! unstacking a stack, and undoing that before the server has answered
+   void testUnstackStacks ();
+
+   //! duplicating a stack, and undoing that before the server has answered
+   void testDuplicate ();
+
+   //! converting a stack to PDF, and undoing that
+   void testConvert ();
+
+   //! unfolding a booklet, and undoing that
+   void testUnfold ();
+
 private:
    //! attach the server, waiting until it is there
    void connectServer ();
@@ -128,6 +143,12 @@ private:
 
    //! the number of pages in a stack on the server's disk, or -1
    int serverPages (const QString &fname) const;
+
+   //! the stacks in the server's folder, by name, sorted
+   QStringList serverStacks () const;
+
+   //! run @p op, the user's, and then undo it before the server answers
+   void doAndUndo (std::function<void ()> op);
 
    //! an empty client.conf, so that the user's servers are left alone
    std::unique_ptr<QTemporaryDir> _config;

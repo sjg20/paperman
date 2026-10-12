@@ -69,6 +69,10 @@ public:
    void queue (const QString &dir,
                std::function<void (Desktopmodel::OpDone done)> op);
 
+   /** queue deleting the stacks named in @p names, in the desk for
+       @p dir, as an undo which made them does */
+   void deleteMade (const QString &dir, std::shared_ptr<QStringList> names);
+
    /** record that we are about to add items. We record the number of items
        currently in the desk so that we know later how many were added.
    
@@ -145,7 +149,8 @@ public:
 private:
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of filenames to move
-   QStringList _newnames;  //!< the list of duplicated filenames
+   //! the list of duplicated filenames, once made
+   std::shared_ptr<QStringList> _newnames;
    File::e_type _type;   // the type of duplication to perform
    int _odd_even;          //!< bit 0 means duplicate even pages, bit 1 means odd
    };
@@ -166,7 +171,8 @@ public:
 private:
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of booklet filenames to unfold
-   QStringList _newnames;  //!< the list of unfolded filenames
+   //! the list of unfolded filenames, once made
+   std::shared_ptr<QStringList> _newnames;
    };
 
 
@@ -192,7 +198,8 @@ public:
 private:
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of filenames to unstack
-   QList<QStringList> _newnames;  //!< the list of duplicated filenames for each stack
+   //! the new stacks' names for each stack, once unstacked
+   std::shared_ptr<QList<QStringList> > _newnames;
    };
 
 
@@ -214,8 +221,10 @@ public:
 private:
    QString _dir;        //!< desk directory
    QString _filename;   //!< the filename of the original stack
-   QString _newname;    //!< the filename of the unstacked page
-   int _pagenum;        //!< page number to unstack
+   //! the filename of the unstacked page, once unstacked
+   std::shared_ptr<QString> _newname;
+   //! page number to unstack
+   std::shared_ptr<int> _pagenum;
    bool _remove;        //!< true if the page was removed from the original stack
    };
 
@@ -272,7 +281,8 @@ private:
    QString _destname;   //!< the filename of the destination stack
    QString _srcdir;           //!< source desk directory
    QStringList _filenames; //!< the list of filenames to stack
-   int _pagenum;        //!< page number in dest to stack before
+   //! page number in dest to stack before, once stacked
+   std::shared_ptr<int> _pagenum;
    QList<pagepos_info> _pagepos; //!< file information for each file
    };
 
