@@ -780,7 +780,10 @@ void Mainwidget::slotStackConfirm (void)
       {
       QString fname;
       File *file = nullptr;
-      err_info *err = _contents->confirmScan (&fname, &file);
+      err_info *err = _contents->confirmScan (&fname, &file,
+                                              [] (err_info *e) {
+         Mainwidget::singleton ()->complain (e);
+      });
 
       // read the text of the new pages, once the scan is out of the way
       if (!err && OcrReader::enabled () && _contents->keepsOcr (file))

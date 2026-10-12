@@ -399,6 +399,10 @@ void Desktopwidget::closing (void)
    {
    QList<int> size = sizes ();
 
+   /* a change, or a scan, still on its way to a server would be lost,
+      so let it get there first */
+   _contents->finishOps (30000);
+
    setSettingsSizes ("desktopwidget/", size);
    _page->closing ();
    }

@@ -434,6 +434,24 @@ void TestAsync::clickStack ()
    }
 
 
+void TestAsync::scanStack ()
+   {
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex parent = stackIndex ().parent ();
+   Filemaxpage page;
+   QByteArray data (64 * 48, '\x80');
+   QString title = "page 1";
+
+   page.addData (64, 48, 8, 64, title, false, false, 1, data, data.size ());
+   QVERIFY (!page.compress ());
+   QVERIFY (!model->beginScan (parent, "scanned"));
+
+   // as pageStarting() does, so that the page view has a place for it
+   emit model->beginningPage ();
+   QVERIFY (!model->addPageToScan (&page, ""));
+   }
+
+
 void TestAsync::testPreviewPage ()
    {
    connectServer ();
@@ -904,3 +922,49 @@ void TestAsync::testSearch ()
    QCOMPARE (model->data (found, Desktopmodel::Role_pagenum).toInt (), 2);
    CHECK_ASYNC (check, nullptr);
    }
+
+
+void TestAsync::testScan ()
+   {
+   connectServer ();
+   openFolder ();
+   scanStack ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   bool uploaded = false;
+   err_info *err = nullptr;
+   QString fname;
+
+   QVERIFY (!model->confirmScan (&fname, nullptr, [&] (err_info *e) {
+      err = e;
+      uploaded = true;
+   }));
+   QVERIFY (!uploaded);
+   QCOMPARE (fname, QString ("scanned.max"));
+
+   // the stack is in the folder meanwhile, and stays when it is listed
+   QModelIndex parent = stackIndex ().parent ();
+   QVERIFY (model->index (fname, parent).isValid ());
+   model->refresh (parent);
+   QTRY_VERIFY_WITH_TIMEOUT (uploaded, kDelayMs * 10);
+   QVERIFY2 (!err, err ? err->errstr : "");
+   QVERIFY (QFile::exists (serverPath (fname)));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QVERIFY (model->index (fname, parent).isValid ());
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testScanClose ()
+   {
+   connectServer ();
+   openFolder ();
+   scanStack ();
+
+   // closing the window waits for the stack to reach the server
+   QVERIFY (!_desktop->getModel ()->confirmScan ());
+   _me->close ();
+   QVERIFY (QFile::exists (serverPath ("scanned.max")));
+   }
+
