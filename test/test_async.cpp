@@ -133,6 +133,27 @@ int TestAsync::serverPages (const QString &fname) const
    }
 
 
+QStringList TestAsync::serverStacks () const
+   {
+   QStringList names = QDir (_repo->path () + "/papers")
+                          .entryList (QDir::Files, QDir::Name);
+
+   names.removeAll (".paperdesk");
+   return names;
+   }
+
+
+void TestAsync::doAndUndo (std::function<void ()> op)
+   {
+   Desktopmodel *model = _desktop->getModel ();
+
+   op ();
+   model->getUndoStack ()->undo ();
+   QVERIFY (model->opsPending ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   }
+
+
 QString TestAsync::serverPath (const QString &fname) const
    {
    return _repo->path () + "/papers/" + fname;
@@ -646,5 +667,130 @@ void TestAsync::testDeletePages ()
    model->getUndoStack ()->undo ();
    QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
    QCOMPARE (serverPages ("testfile.max"), 4);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testUnstackPage ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+
+   model->unstackPage (stack, 0, true);
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverPages ("testfile.max"), 4);
+   QCOMPARE (serverStacks ().size (), 2);
+
+   // the undo needs the name the server gave the new stack
+   doAndUndo ([&] () { model->unstackPage (stack, 0, true); });
+   QCOMPARE (serverPages ("testfile.max"), 4);
+   QCOMPARE (serverStacks ().size (), 2);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testUnstackStacks ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndexList list;
+
+   list << stackIndex ();
+   model->unstackStacks (list, stackIndex ().parent ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverPages ("testfile.max"), 1);
+   QCOMPARE (serverStacks ().size (), 5);
+   QTRY_COMPARE (model->rowCount (stackIndex ().parent ()), 5);
+
+   // the undo stacks back what the server made, by the names it gave
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverPages ("testfile.max"), 5);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+
+   // and pressed before the server has answered, waits for it
+   list.clear ();
+   list << stackIndex ();
+   doAndUndo ([&] () {
+      model->unstackStacks (list, stackIndex ().parent ());
+   });
+   QCOMPARE (serverPages ("testfile.max"), 5);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testDuplicate ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndexList list;
+
+   list << stackIndex ();
+   model->duplicate (list, stackIndex ().parent ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks ().size (), 2);
+   QTRY_COMPARE (model->rowCount (stackIndex ().parent ()), 2);
+
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+
+   doAndUndo ([&] () { model->duplicate (list, stackIndex ().parent ()); });
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testConvert ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndexList list;
+
+   list << stackIndex ();
+   model->duplicatePdf (list, stackIndex ().parent ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QStringList stacks = serverStacks ();
+   QCOMPARE (stacks.size (), 2);
+   QVERIFY2 (stacks.filter (".pdf").size () == 1, qPrintable (stacks.join (",")));
+
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testUnfold ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndexList list;
+
+   list << stackIndex ();
+   model->unfoldBooklet (list, stackIndex ().parent ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks ().size (), 2);
+
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
    CHECK_ASYNC (check, nullptr);
    }

@@ -770,6 +770,7 @@ protected:
    err_info *opRenameStack (const QModelIndex &index, QString &newname);
 
 
+public:
    /* Forms of operations which call @p done once finished, rather than
       waiting for a server.  They act on the stack's state as it is when
       the server answers */
@@ -807,6 +808,39 @@ protected:
                          std::shared_ptr<QByteArray> del_info, int count,
                          OpDone done);
 
+   //! delete stacks, as the other opDeleteStacks() does
+   void opDeleteStacks (const QModelIndexList &list, const QModelIndex &parent,
+                        OpDone done);
+
+   /** stack pages into stacks, as the other opRestackStacks() does,
+       setting @p destpage */
+   void opRestackStacks (const QModelIndexList &list, const QModelIndex &parent,
+                         const QList<QModelIndexList> &pages_list,
+                         std::shared_ptr<int> destpage, OpDone done);
+
+   /** unstack a page, as the other opUnstackPage() does, setting
+       @p pagenum and @p newname */
+   void opUnstackPage (const QModelIndex &ind, std::shared_ptr<int> pagenum,
+                       bool remove, std::shared_ptr<QString> newname,
+                       OpDone done);
+
+   //! unstack stacks, as the other opUnstackStacks() does
+   void opUnstackStacks (const QModelIndexList &list,
+                         const QModelIndex &parent,
+                         std::shared_ptr<QList<QStringList> > newnames,
+                         OpDone done);
+
+   //! duplicate or convert stacks, as the other opDuplicateStacks() does
+   void opDuplicateStacks (const QModelIndexList &list,
+                           const QModelIndex &parent,
+                           std::shared_ptr<QStringList> namelist,
+                           File::e_type type, int odd_even, OpDone done);
+
+   //! unfold booklets, as the other opUnfoldBooklets() does
+   void opUnfoldBooklets (const QModelIndexList &list,
+                          const QModelIndex &parent,
+                          std::shared_ptr<QStringList> namelist, OpDone done);
+
    /** move stacks back from the trash or another directory, as the other
        opUntrashStacks() does, updating @p filenames */
    void opUntrashStacks (const QStringList &trashlist,
@@ -814,6 +848,8 @@ protected:
                          std::shared_ptr<QStringList> filenames,
                          const QList<pagepos_info> &pagepos, bool havePagepos,
                          const QString &src, bool copy, OpDone done);
+
+protected:
 
    /** rename a page and move to show that page
 
@@ -1258,6 +1294,26 @@ private:
     *  server: as remoteStackChanged(), but asking for the structure
     *  rather than waiting for it */
    void stackChangedLater (const QModelIndex &ind, const QList<int> &pages);
+
+   /** requests to a server for one operation, made one after another;
+       see runSteps() */
+   struct Steps;
+
+   /** Make the next request of @p steps, once the one before has been
+       answered, or finish them; any failure finishes them at once */
+   void runSteps (std::shared_ptr<Steps> steps);
+
+   /** The server has changed the stack @p ind: have it fetched afresh,
+       with its thumbnail */
+   void stackChangedOnServer (const QModelIndex &ind);
+
+   /** Put the stacks a server made from @p sources, one each, beside them
+       in the desk for @p dir, adding their names to @p namelist, then
+       report @p err through @p done */
+   void addMadeStacks (const QString &dir, const QStringList &sources,
+                       const QStringList &made,
+                       std::shared_ptr<QStringList> namelist, err_info *err,
+                       OpDone done);
 
    //! a move of stacks to or from the trash, going one at a time
    struct TrashJob;

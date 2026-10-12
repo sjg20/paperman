@@ -94,6 +94,18 @@ err_info *Desktopmodel::opUnstackStacks (QModelIndexList &list, QModelIndex pare
    QModelIndex ind;
    err_info *err = NULL;
 
+   Desk *rdesk = getDesk (parent);
+   if (rdesk && dynamic_cast<RemoteBackend *> (rdesk->backend ()))
+      {
+      auto names = std::make_shared<QList<QStringList> > ();
+
+      err = waitForOp ("unstack", [&] (OpDone done) {
+         opUnstackStacks (list, parent, names, done);
+      });
+      _newnames << *names;
+      return err;
+      }
+
    // work through each stack in the list
    // note that some items might only have one page, in which case we do nothing
    foreach (ind, list)
@@ -106,83 +118,6 @@ err_info *Desktopmodel::opUnstackStacks (QModelIndexList &list, QModelIndex pare
 
       QList<File *> flist;
       QStringList stack_names;
-
-      RemoteBackend *remote = remoteForFile (f);
-      if (remote)
-         {
-         /* Unstack on the server page by page, mirroring each step
-            onto the cached copy under the server's chosen name.  Both
-            sides always remove the current first page, so the page
-            numbering stays aligned. */
-         Desk *desk = f->desk ();
-
-         CALL (ensureContent (ind));
-
-         /* A stack held a page at a time mirrors nothing.  The page
-            count is known up front, so unstack that many on the server
-            and fetch the structure once at the end; each new stack is a
-            shell that fetches on its first read. */
-         if (sparseFor (f, remote, desk))
-            {
-            int total = f->pagecount ();
-
-            for (int i = 1; !err && i < total; i++)
-               {
-               QString serverName;
-               if (!remote->unstackStack (desk->repoName (),
-                                          remoteStackPath (desk, f), 1, 1,
-                                          true, "", &serverName))
-                  {
-                  err = err_make (ERRFN, ERR_remote_op_failed2, "unstack",
-                                  qPrintable (remote->lastError ()));
-                  break;
-                  }
-               fnew = desk->createFile (desk->dir (), serverName);
-               desk->newFile (fnew, f, pagenum++);
-               stack_names << serverName;
-               flist << fnew;
-               }
-            err_info *e2 = remoteStackChanged (ind, QList<int> ());
-            if (!err)
-               err = e2;
-            if (flist.size ())
-               insertRows (flist, parent);
-            _newnames << stack_names;
-            if (err)
-               break;
-            continue;
-            }
-
-         while (!err && f->pagecount () > 1)
-            {
-            QString serverName;
-            if (!remote->unstackStack (desk->repoName (),
-                                       remoteStackPath (desk, f), 1, 1,
-                                       true, "", &serverName))
-               {
-               err = err_make (ERRFN, ERR_remote_op_failed2, "unstack",
-                               qPrintable (remote->lastError ()));
-               break;
-               }
-            fnew = desk->createFile (desk->dir (), serverName);
-            desk->newFile (fnew, f, pagenum++);
-            err = fnew->create ();
-            if (!err)
-               err = f->unstackPages (0, 1, true, fnew);
-            fnew->setRemoteChecked (true);
-            stack_names << serverName;
-            flist << fnew;
-            }
-         if (flist.size ())
-            {
-            buildItem (ind);
-            insertRows (flist, parent);
-            }
-         _newnames << stack_names;
-         if (err)
-            break;
-         continue;
-         }
 
       CALL(f->load());
       // remove every page from the stack except the first
@@ -238,58 +173,15 @@ err_info *Desktopmodel::opRestackStacks (QModelIndexList &list, QModelIndex pare
 
    if (remote)
       {
-      /* Stack on the server; it deletes the source files itself.  The
-         destination is refetched afterwards rather than mirrored,
-         since the sources may not all be in the local cache. */
-      foreach (ind, list)
-         {
-         File *f = getFile (ind);
-         int destpage = in_destpage == -1 ? f->pagenum () : in_destpage;
+      auto page = std::make_shared<int> (in_destpage);
 
-         if (out_destpage == -1)
-            out_destpage = destpage;
-
-         QStringList sources;
-         foreach (pind, pages_list [upto])
-            if (pind != QModelIndex ())
-               {
-               File *pdel = getFile (pind);
-
-               sources << remoteStackPath (rdesk, pdel);
-               delete_list << pind;
-               }
-         upto++;
-         if (sources.isEmpty ())
-            continue;
-
-         QString destPath = remoteStackPath (rdesk, f);
-         if (!remote->stackStacks (rdesk->repoName (), destPath, sources,
-                                   destpage + 1))
-            {
-            e = err_make (ERRFN, ERR_remote_op_failed2, "stack",
-                          qPrintable (remote->lastError ()));
-            break;
-            }
-
-         remote->invalidateCachedFile (rdesk->repoName (), destPath);
-         f->setRemoteChecked (false);
-         err_info *e2 = ensureContent (ind);
-         if (!e)
-            e = e2;
-         }
-      in_destpage = out_destpage;
-
-      /* the server has already deleted the source files; drop their
-         cached copies and rows */
-      foreach (pind, delete_list)
-         remote->invalidateCachedFile (rdesk->repoName (),
-                                       remoteStackPath (rdesk,
-                                                        getFile (pind)));
-      sortForDelete (delete_list);
-      foreach (pind, delete_list)
-         removeRow (pind.row (), pind.parent ());
+      e = waitForOp ("stack", [&] (OpDone done) {
+         opRestackStacks (list, parent, pages_list, page, done);
+      });
+      in_destpage = *page;
       return e;
       }
+
 
    // work through each stack in the list
    foreach (ind, list)
@@ -354,33 +246,17 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
 
    /* a conversion, or a copy of some of the pages, needs the pages; a
       server which converts does it in place, without the stack coming
-      here */
-   if (remote && (type != File::Type_other || odd_even != 3)
-       && remote->hasConvert ())
+      here.  A plain copy is made by the server too */
+   bool local = remote && (type != File::Type_other || odd_even != 3)
+                && !remote->hasConvert ();
+   if (remote && !local)
       {
-      QString ext = type == File::Type_other ? QString ()
-                    : File::typeExt (type).mid (1);
+      auto names = std::make_shared<QStringList> ();
 
-      foreach (ind, list)
-         {
-         QString name;
-
-         f = getFile (ind);
-         if (!remote->convertStack (rdesk->repoName (),
-                                    remoteStackPath (rdesk, f), ext,
-                                    odd_even, &name))
-            {
-            err = err_make (ERRFN, ERR_remote_op_failed2, "convert",
-                            qPrintable (remote->lastError ()));
-            break;
-            }
-         fnew = rdesk->createFile (rdesk->dir (), name);
-         rdesk->newFile (fnew, f);
-         refreshRemoteThumbnail (rdesk, remote, fnew);
-         flist << fnew;
-         namelist << name;
-         }
-      insertRows (flist, parent);
+      err = waitForOp ("duplicate", [&] (OpDone done) {
+         opDuplicateStacks (list, parent, names, type, odd_even, done);
+      });
+      namelist << *names;
       return err;
       }
 
@@ -423,30 +299,6 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
       return err;
       }
 
-   if (remote)
-      {
-      // a plain copy is made by the server, without fetching the stack
-      foreach (ind, list)
-         {
-         f = getFile (ind);
-         QString name;
-
-         if (!remote->duplicateStack (rdesk->repoName (),
-                                      remoteStackPath (rdesk, f), &name))
-            {
-            err = err_make (ERRFN, ERR_remote_op_failed2, "duplicate",
-                            qPrintable (remote->lastError ()));
-            break;
-            }
-         fnew = rdesk->createFile (rdesk->dir (), name);
-         rdesk->newFile (fnew, f);
-         refreshRemoteThumbnail (rdesk, remote, fnew);
-         flist << fnew;
-         namelist << name;
-         }
-      insertRows (flist, parent);
-      return err;
-      }
 
    // duplicate each stack, creating a list of new files
    QString opname = type == File::Type_other ? tr ("Copy files") :
@@ -487,25 +339,12 @@ err_info *Desktopmodel::opUnfoldBooklets (QModelIndexList &list,
    // a server which converts unfolds a booklet in place
    if (remote && remote->hasConvert ())
       {
-      foreach (ind, list)
-         {
-         QString name;
+      auto names = std::make_shared<QStringList> ();
 
-         f = getFile (ind);
-         if (!remote->unfoldStack (rdesk->repoName (),
-                                   remoteStackPath (rdesk, f), &name))
-            {
-            err = err_make (ERRFN, ERR_remote_op_failed2, "unfold",
-                            qPrintable (remote->lastError ()));
-            break;
-            }
-         fnew = rdesk->createFile (rdesk->dir (), name);
-         rdesk->newFile (fnew, f);
-         refreshRemoteThumbnail (rdesk, remote, fnew);
-         flist << fnew;
-         namelist << name;
-         }
-      insertRows (flist, parent);
+      err = waitForOp ("unfold", [&] (OpDone done) {
+         opUnfoldBooklets (list, parent, names, done);
+      });
+      namelist << *names;
       return err;
       }
 
@@ -577,28 +416,21 @@ err_info *Desktopmodel::opDeleteStacks (QModelIndexList &list, QModelIndex paren
    QModelIndexList del_list;   // list of indexes to delete
 //    Desk *desk = getDesk (parent);
 
-   UNUSED (parent);
+   for (const QModelIndex &first : list)
+      if (getFile (first))
+         {
+         if (remoteForFile (getFile (first)))
+            return waitForOp ("delete", [&] (OpDone done) {
+               opDeleteStacks (list, parent, done);
+            });
+         break;
+         }
 //    _model_invalid = true;
    foreach (ind, list) if (getFile (ind))
       {
       File *f = getFile (ind);
-      RemoteBackend *remote = remoteForFile (f);
 
-      if (remote)
-         {
-         Desk *fdesk = f->desk ();
-         QString stackPath = remoteStackPath (fdesk, f);
-
-         if (!remote->deleteStack (fdesk->repoName (), stackPath))
-            {
-            e = err_make (ERRFN, ERR_remote_op_failed2, "delete",
-                          qPrintable (remote->lastError ()));
-            break;
-            }
-         remote->invalidateCachedFile (fdesk->repoName (), stackPath);
-         }
-      else
-         CALLB (f->remove ());
+      CALLB (f->remove ());
       del_list << ind;
       }
 
@@ -789,51 +621,16 @@ err_info *Desktopmodel::opUnstackPage (QModelIndex &ind, int &pagenum,
    if (pagenum == -1)
       pagenum = f->pagenum ();
 
-   RemoteBackend *remote = remoteForFile (f);
-   if (remote)
+   if (remoteForFile (f))
       {
-      Desk *desk = f->desk ();
+      auto page = std::make_shared<int> (pagenum);
+      auto name = std::make_shared<QString> (newname);
 
-      CALL (ensureContent (ind));
-      if (remove && f->pagecount () <= 1)
-         return NULL;
-
-      /* the server picks the new stack's name; mirror the unstack
-         onto the cached copy under that name so both stay in step */
-      QString serverName;
-      if (!remote->unstackStack (desk->repoName (),
-                                 remoteStackPath (desk, f), pagenum + 1, 1,
-                                 remove, "", &serverName))
-         return err_make (ERRFN, ERR_remote_op_failed2, "unstack",
-                          qPrintable (remote->lastError ()));
-
-      /* A stack held a page at a time mirrors nothing: the new stack
-         is a shell that fetches on its first read, and the source is
-         fetched again if a page left it. */
-      if (sparseFor (f, remote, desk))
-         {
-         fnew = desk->createFile (desk->dir (), serverName);
-         row = desk->newFile (fnew, f, 1);
-         newname = serverName;
-         if (remove)
-            CALL (remoteStackChanged (ind, QList<int> ()));
-         QModelIndexList list;
-         newItem (row, ind.parent (), list);
-         return NULL;
-         }
-
-      fnew = desk->createFile (desk->dir (), serverName);
-      row = desk->newFile (fnew, f, 1);
-      e = fnew->create ();
-      if (!e)
-         e = f->unstackPages (pagenum, 1, remove, fnew);
-      fnew->setRemoteChecked (true);
-
-      newname = serverName;
-      if (remove)
-         buildItem (ind);
-      QModelIndexList list;
-      newItem (row, ind.parent (), list);
+      e = waitForOp ("unstack", [&] (OpDone done) {
+         opUnstackPage (ind, page, remove, name, done);
+      });
+      pagenum = *page;
+      newname = *name;
       return e;
       }
 
@@ -2514,4 +2311,572 @@ void Desktopmodel::finishTrash (std::shared_ptr<TrashJob> job, err_info *err)
    QStringList moved = job->done;
    removeFilesFromDesk (src, moved);
    job->report (err);
+   }
+
+
+/* Requests to a server for one operation, made one after another, each
+   once the one before has been answered */
+struct Desktopmodel::Steps
+   {
+   const char *what = "";   //!< the operation, for an error
+   //! each request, which calls the function it is given with its result
+   QList<std::function<void (RemoteBackend::Done)> > requests;
+   //! takes each result in turn, by the request's position
+   std::function<void (int i, const RemoteBackend::Result &)> each;
+   //! called once all are done, or one fails, with how many succeeded
+   std::function<void (int done, err_info *err)> finish;
+   int next = 0;            //!< the next request to make
+   };
+
+
+void Desktopmodel::runSteps (std::shared_ptr<Steps> steps)
+   {
+   if (_closing)
+      return;      // the model is going, with what it showed
+   if (steps->next == steps->requests.size ())
+      {
+      steps->finish (steps->next, NULL);
+      return;
+      }
+
+   int i = steps->next++;
+   steps->requests [i] ([this, steps, i] (const RemoteBackend::Result &result) {
+      if (_closing)
+         return;
+      if (!result.ok)
+         {
+         steps->finish (i, err_make (ERRFN, ERR_remote_op_failed2,
+                                     steps->what, qPrintable (result.error)));
+         return;
+         }
+      if (steps->each)
+         steps->each (i, result);
+      runSteps (steps);
+   });
+   }
+
+
+void Desktopmodel::stackChangedOnServer (const QModelIndex &ind)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      return;
+   Desk *desk = f->desk ();
+
+   if (sparseFor (f, remote, desk))
+      stackChangedLater (ind, QList<int> ());
+   else
+      {
+      remote->invalidateCachedFile (desk->repoName (),
+                                    remoteStackPath (desk, f));
+      f->setRemoteChecked (false);
+      requestContent (ind);
+      }
+   refreshRemoteThumbnail (desk, remote, f);
+   }
+
+
+void Desktopmodel::opDeleteStacks (const QModelIndexList &list,
+                                   const QModelIndex &parent, OpDone done)
+   {
+   File *first = list.isEmpty () ? nullptr : getFile (list.first ());
+   RemoteBackend *remote = first ? remoteForFile (first) : nullptr;
+
+   if (!remote)
+      {
+      QModelIndexList stacks = list;
+
+      done (opDeleteStacks (stacks, parent));
+      return;
+      }
+
+   Desk *desk = first->desk ();
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString dir = desk->dir ();
+   QStringList names, paths;
+   auto steps = std::make_shared<Steps> ();
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+
+      if (!f)
+         continue;
+      names << f->filename ();
+      paths << remoteStackPath (desk, f);
+      }
+   steps->what = "delete";
+   for (const QString &path : paths)
+      steps->requests << [this, server, repo, path] (RemoteBackend::Done d) {
+         if (server)
+            server->deleteStack (repo, path, this, d);
+      };
+   steps->finish = [this, server, repo, dir, names, paths, done] (int count,
+                                                                  err_info *err) {
+      QString path = dir;
+      QModelIndex parent = deskFromDirname (path);
+      QModelIndexList del_list;
+
+      for (int i = 0; i < count; i++)
+         {
+         QModelIndex ind = parent.isValid () ? index (names [i], parent)
+                                             : QModelIndex ();
+
+         if (server)
+            server->invalidateCachedFile (repo, paths [i]);
+         if (ind.isValid ())
+            del_list << ind;
+         }
+      sortForDelete (del_list);
+      for (const QModelIndex &ind : del_list)
+         removeRow (ind.row (), ind.parent ());
+      done (err);
+   };
+   runSteps (steps);
+   }
+
+
+void Desktopmodel::opRestackStacks (const QModelIndexList &list,
+                                    const QModelIndex &parent,
+                                    const QList<QModelIndexList> &pages_list,
+                                    std::shared_ptr<int> destpage, OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (!remote)
+      {
+      QModelIndexList dests = list;
+      QList<QModelIndexList> pages = pages_list;
+
+      done (opRestackStacks (dests, parent, pages, *destpage));
+      return;
+      }
+
+   /* Stack on the server, which deletes the source files itself.  The
+      destination is fetched afresh afterwards rather than mirrored,
+      since the sources may not all be in the local cache */
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString dir = desk->dir ();
+   QStringList dests;
+   QList<QStringList> sourceNames;
+   QList<QStringList> sourcePaths;
+   QList<int> pages;
+   int in_destpage = *destpage;
+   int out_destpage = in_destpage;
+   int upto = 0;
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+      QStringList names, paths;
+
+      if (!f)
+         {
+         upto++;
+         continue;
+         }
+      int page = in_destpage == -1 ? f->pagenum () : in_destpage;
+
+      if (out_destpage == -1)
+         out_destpage = page;
+      for (const QModelIndex &pind : pages_list.value (upto++))
+         if (pind.isValid ())
+            {
+            names << getFile (pind)->filename ();
+            paths << remoteStackPath (desk, getFile (pind));
+            }
+      if (paths.isEmpty ())
+         continue;
+      dests << f->filename ();
+      sourceNames << names;
+      sourcePaths << paths;
+      pages << page;
+      }
+   *destpage = out_destpage;
+
+   auto steps = std::make_shared<Steps> ();
+
+   steps->what = "stack";
+   for (int i = 0; i < dests.size (); i++)
+      {
+      QString destPath = remoteStackPath (desk, getFile (index (dests [i],
+                                                                parent)));
+      QStringList paths = sourcePaths [i];
+      int page = pages [i] + 1;
+
+      steps->requests << [this, server, repo, destPath, paths, page] (
+                            RemoteBackend::Done d) {
+         if (server)
+            server->stackStacks (repo, destPath, paths, page, this, d);
+      };
+      }
+   steps->finish = [this, server, repo, dir, dests, sourceNames, sourcePaths,
+                    done] (int count, err_info *err) {
+      QString path = dir;
+      QModelIndex parent = deskFromDirname (path);
+      QModelIndexList delete_list;
+
+      for (int i = 0; parent.isValid () && i < count; i++)
+         {
+         stackChangedOnServer (index (dests [i], parent));
+
+         /* the server has already deleted the source files; drop their
+            cached copies and rows */
+         for (int j = 0; j < sourceNames [i].size (); j++)
+            {
+            QModelIndex pind = index (sourceNames [i][j], parent);
+
+            if (server)
+               server->invalidateCachedFile (repo, sourcePaths [i][j]);
+            if (pind.isValid ())
+               delete_list << pind;
+            }
+         }
+      sortForDelete (delete_list);
+      for (const QModelIndex &pind : delete_list)
+         removeRow (pind.row (), pind.parent ());
+      done (err);
+   };
+   runSteps (steps);
+   }
+
+
+void Desktopmodel::opUnstackPage (const QModelIndex &ind,
+                                  std::shared_ptr<int> pagenum, bool remove,
+                                  std::shared_ptr<QString> newname,
+                                  OpDone done)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      {
+      QModelIndex stack = ind;
+      int page = *pagenum;
+      QString name = *newname;
+      err_info *e = opUnstackPage (stack, page, remove, name);
+
+      *pagenum = page;
+      *newname = name;
+      done (e);
+      return;
+      }
+
+   if (*pagenum == -1)
+      *pagenum = f->pagenum ();
+   /* the last page stays, as for a local stack; what is shown may lag an
+      earlier change, though, in which case the server refuses it */
+   if (remove && f->remoteChecked () && f->pagecount () <= 1)
+      {
+      done (NULL);
+      return;
+      }
+
+   Desk *desk = f->desk ();
+   QString dir = desk->dir ();
+   QString fname = f->filename ();
+
+   /* the server picks the new stack's name, and the new stack is a shell
+      which fetches on its first read; the source is fetched again if a
+      page left it */
+   remote->unstackStack (desk->repoName (), remoteStackPath (desk, f),
+                         *pagenum + 1, 1, remove, "", this,
+                         [this, dir, fname, remove, newname, done] (
+                            const RemoteBackend::Result &result) {
+      if (_closing)
+         return;
+      if (!result.ok)
+         {
+         done (err_make (ERRFN, ERR_remote_op_failed2, "unstack",
+                         qPrintable (result.error)));
+         return;
+         }
+      QString name = result.json ().value ("name").toString ();
+      QModelIndex ind = stackFor (dir, fname);
+      File *f = getFile (ind);
+
+      *newname = name;
+      if (f)
+         {
+         Desk *desk = f->desk ();
+         File *fnew = desk->createFile (desk->dir (), name);
+         int row = desk->newFile (fnew, f, 1);
+         QModelIndexList list;
+
+         if (remove)
+            stackChangedOnServer (ind);
+         newItem (row, ind.parent (), list);
+         refreshRemoteThumbnail (desk, remoteForFile (f), fnew);
+         }
+      done (NULL);
+   });
+   }
+
+
+void Desktopmodel::opUnstackStacks (const QModelIndexList &list,
+                                    const QModelIndex &parent,
+                                    std::shared_ptr<QList<QStringList> > newnames,
+                                    OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (!remote)
+      {
+      QModelIndexList stacks = list;
+      QList<QStringList> names;
+      err_info *e = opUnstackStacks (stacks, parent, names);
+
+      *newnames << names;
+      done (e);
+      return;
+      }
+
+   /* Unstack all but one of each stack's pages on the server, one at a
+      time, always taking the current first page, as the local path does.
+      Ask the server how many pages each has first, since what is shown
+      may not yet have caught up with an earlier change */
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString dir = desk->dir ();
+   QStringList stacks, paths;
+   auto steps = std::make_shared<Steps> ();
+   auto made = std::make_shared<QList<QStringList> > ();
+   auto owner = std::make_shared<QList<int> > ();  // the stack of each request
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+
+      if (!f)
+         continue;
+      QString path = remoteStackPath (desk, f);
+
+      stacks << f->filename ();
+      paths << path;
+      *made << QStringList ();
+      *owner << -1;
+      steps->requests << [this, server, repo, path] (RemoteBackend::Done d) {
+         if (server)
+            server->stackStructure (repo, path, this, d);
+      };
+      }
+   steps->what = "unstack";
+   Steps *run = steps.get ();
+   steps->each = [this, run, server, repo, paths, made, owner] (
+                    int i, const RemoteBackend::Result &result) {
+      int k = (*owner) [i];
+
+      if (k != -1)
+         {
+         (*made) [k] << result.json ().value ("name").toString ();
+         return;
+         }
+
+      // a stack's page count has come: unstack all its pages but one
+      k = 0;
+      for (int j = 0; j < i; j++)
+         if ((*owner) [j] == -1)
+            k++;
+      QString path = paths [k];
+      int count = result.json ().value ("pagecount").toInt ();
+
+      for (int p = 1; p < count; p++)
+         {
+         run->requests.insert (i + p, [this, server, repo, path] (
+                                         RemoteBackend::Done d) {
+            if (server)
+               server->unstackStack (repo, path, 1, 1, true, "", this, d);
+         });
+         owner->insert (i + p, k);
+         }
+   };
+   steps->finish = [this, dir, stacks, made, newnames, done] (int,
+                                                             err_info *err) {
+      QString path = dir;
+      QModelIndex parent = deskFromDirname (path);
+      Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+
+      for (int k = 0; k < stacks.size (); k++)
+         {
+         QModelIndex ind = parent.isValid () ? index (stacks [k], parent)
+                                             : QModelIndex ();
+         File *f = getFile (ind);
+         QList<File *> flist;
+         int pagenum = 1;
+
+         *newnames << (*made) [k];
+         if (!f || !desk || (*made) [k].isEmpty ())
+            continue;
+         for (const QString &name : (*made) [k])
+            {
+            File *fnew = desk->createFile (desk->dir (), name);
+
+            desk->newFile (fnew, f, pagenum++);
+            refreshRemoteThumbnail (desk, remoteForFile (f), fnew);
+            flist << fnew;
+            }
+         stackChangedOnServer (ind);
+         insertRows (flist, parent);
+         }
+      done (err);
+   };
+   runSteps (steps);
+   }
+
+
+void Desktopmodel::opDuplicateStacks (const QModelIndexList &list,
+                                      const QModelIndex &parent,
+                                      std::shared_ptr<QStringList> namelist,
+                                      File::e_type type, int odd_even,
+                                      OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+   bool convert = type != File::Type_other || odd_even != 3;
+
+   /* a server without conversion has a copy of the stack converted here,
+      which waits */
+   if (!remote || (convert && !remote->hasConvert ()))
+      {
+      QModelIndexList stacks = list;
+      QStringList names;
+      err_info *e = opDuplicateStacks (stacks, parent, names, type, odd_even);
+
+      *namelist << names;
+      done (e);
+      return;
+      }
+
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString dir = desk->dir ();
+   QString ext = type == File::Type_other ? QString ()
+                 : File::typeExt (type).mid (1);
+   QStringList sources;
+   auto made = std::make_shared<QStringList> ();
+   auto steps = std::make_shared<Steps> ();
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+
+      if (!f)
+         continue;
+      QString path = remoteStackPath (desk, f);
+
+      sources << f->filename ();
+      steps->requests << [this, server, repo, path, convert, ext, odd_even] (
+                            RemoteBackend::Done d) {
+         if (!server)
+            return;
+         if (convert)
+            server->convertStack (repo, path, ext, odd_even, this, d);
+         else
+            server->duplicateStack (repo, path, this, d);
+      };
+      }
+   steps->what = convert ? "convert" : "duplicate";
+   steps->each = [made] (int, const RemoteBackend::Result &result) {
+      *made << result.json ().value ("name").toString ();
+   };
+   steps->finish = [this, dir, sources, made, namelist, done] (int,
+                                                              err_info *err) {
+      addMadeStacks (dir, sources, *made, namelist, err, done);
+   };
+   runSteps (steps);
+   }
+
+
+void Desktopmodel::opUnfoldBooklets (const QModelIndexList &list,
+                                     const QModelIndex &parent,
+                                     std::shared_ptr<QStringList> namelist,
+                                     OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   // a server without conversion has a copy unfolded here, which waits
+   if (!remote || !remote->hasConvert ())
+      {
+      QModelIndexList stacks = list;
+      QStringList names;
+      err_info *e = opUnfoldBooklets (stacks, parent, names);
+
+      *namelist << names;
+      done (e);
+      return;
+      }
+
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString dir = desk->dir ();
+   QStringList sources;
+   auto made = std::make_shared<QStringList> ();
+   auto steps = std::make_shared<Steps> ();
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+
+      if (!f)
+         continue;
+      QString path = remoteStackPath (desk, f);
+
+      sources << f->filename ();
+      steps->requests << [this, server, repo, path] (RemoteBackend::Done d) {
+         if (server)
+            server->unfoldStack (repo, path, this, d);
+      };
+      }
+   steps->what = "unfold";
+   steps->each = [made] (int, const RemoteBackend::Result &result) {
+      *made << result.json ().value ("name").toString ();
+   };
+   steps->finish = [this, dir, sources, made, namelist, done] (int,
+                                                              err_info *err) {
+      addMadeStacks (dir, sources, *made, namelist, err, done);
+   };
+   runSteps (steps);
+   }
+
+
+void Desktopmodel::addMadeStacks (const QString &dir,
+                                  const QStringList &sources,
+                                  const QStringList &made,
+                                  std::shared_ptr<QStringList> namelist,
+                                  err_info *err, OpDone done)
+   {
+   QString path = dir;
+   QModelIndex parent = deskFromDirname (path);
+   Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+   QList<File *> flist;
+
+   for (int i = 0; i < made.size (); i++)
+      {
+      QModelIndex ind = parent.isValid () ? index (sources [i], parent)
+                                          : QModelIndex ();
+      File *f = getFile (ind);
+
+      *namelist << made [i];
+      if (!desk || !f)
+         continue;
+      File *fnew = desk->createFile (desk->dir (), made [i]);
+
+      desk->newFile (fnew, f);
+      refreshRemoteThumbnail (desk, remoteForFile (f), fnew);
+      flist << fnew;
+      }
+   if (!flist.isEmpty ())
+      insertRows (flist, parent);
+   done (err);
    }
