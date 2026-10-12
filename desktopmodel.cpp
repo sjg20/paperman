@@ -2219,6 +2219,18 @@ err_info *Desktopmodel::getImagePreviewSizes (const QModelIndex &ind, int pagenu
 void Desktopmodel::getScaledImage (const QModelIndex &ind, int pagenum,
       QSize &size, QPixmap &pixmap, bool blank) const
    {
+   auto *self = const_cast<Desktopmodel *> (this);
+
+   /* a page of a remote stack which is not here, or whose stack's
+      structure is not, is asked for rather than waited for: the view
+      draws it again once it comes, through pageContentChanged() */
+   if (!self->pageHere (ind, pagenum))
+      {
+      if (!self->requestContent (ind))
+         self->requestPage (ind, pagenum);
+      return;
+      }
+
    QMutexLocker locker (&_imageMutex);
    QSize preview_size, image_size;
    err_info *err;

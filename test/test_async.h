@@ -80,6 +80,10 @@ private slots:
    //! turning a stack's page in the folder, before it is fetched
    void testTurnStackPage ();
 
+   /** drawing a stack's pages again after the server has changed it,
+       before its new structure has come */
+   void testRepaintChanged ();
+
    //! renaming a stack
    void testRename ();
 
