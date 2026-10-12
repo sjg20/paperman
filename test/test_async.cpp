@@ -2,6 +2,8 @@
 License: GPL-2
 */
 
+#include <QClipboard>
+#include <QMimeData>
 #include <QStandardPaths>
 #include <QtConcurrent>
 #include <QtTest/QtTest>
@@ -1043,5 +1045,40 @@ void TestAsync::testFetchStacks ()
    QVERIFY2 (!err, err ? err->errstr : "");
    for (int pagenum = 0; pagenum < 5; pagenum++)
       QVERIFY (model->pageHere (stack, pagenum));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testCopyFiles ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   bool done = false;
+   err_info *err = nullptr;
+
+   QApplication::clipboard ()->clear ();
+   _desktop->getModel ()->sendFilesLater (QModelIndexList () << stackIndex (),
+                                          File::Type_other, true,
+                                          [&] (err_info *e) {
+      err = e;
+      done = true;
+   });
+   QVERIFY (!done);
+   QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 10);
+   QVERIFY2 (!err, err ? err->errstr : "");
+
+   // the clipboard has a copy of the whole stack
+   const QMimeData *mime = QApplication::clipboard ()->mimeData ();
+   QVERIFY (mime && mime->urls ().size () == 1);
+   QFileInfo fi (mime->urls () [0].toLocalFile ());
+   File *f = File::createFile (fi.absolutePath () + "/", fi.fileName (),
+                               nullptr, File::Type_max);
+
+   QVERIFY (f && !f->load ());
+   QCOMPARE (f->pagecount (), 5);
+   delete f;
+   QFile::remove (fi.filePath ());
    CHECK_ASYNC (check, nullptr);
    }

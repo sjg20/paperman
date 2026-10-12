@@ -144,6 +144,9 @@ private slots:
    //! fetching every page of a stack, as for printing it
    void testFetchStacks ();
 
+   //! copying a stack on the server to the clipboard
+   void testCopyFiles ();
+
 private:
    /** restart the server so that it indexes the text on its stacks and
        reads their pages */

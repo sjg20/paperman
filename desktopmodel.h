@@ -982,6 +982,18 @@ public:
    err_info *opCopyFiles (QModelIndex parent, QModelIndexList &slist,
          File::e_type type);
 
+   /** email files, or copy them to the clipboard, as opEmailFiles() and
+       opCopyFiles() do, but without waiting for a server: a copy of each
+       remote stack is fetched first, and @p done is called once the
+       files are sent, with any error
+
+      \param slist      the files
+      \param type       type to convert to (or Type_other to leave as is)
+      \param clipboard  true to copy them to the clipboard, false to email
+                        them */
+   void sendFilesLater (const QModelIndexList &slist, File::e_type type,
+                        bool clipboard, OpDone done);
+
    /** when non-null, URLs which would be opened in the browser (e.g.
        the email compose window) are stored here instead. Used by
        tests to check the URL without launching anything */
@@ -1884,14 +1896,29 @@ protected:
 
       \param slist      list of files to package
       \param type       type to convert to (or Type_other to leave as is)
+      \param copies     copies of the remote files, by their pathnames,
+                        from workCopiesLater()
       \param op         operation to update with progress
       \param fname      returns a name to use for the zip, if needed
       \param fname_list returns the list of files to put on the clipboard
       \param tmp_list   returns the temporary files which may be deleted
       \returns error or NULL if ok */
    err_info *packageFiles (QModelIndexList &slist, File::e_type type,
-         Operation &op, QString &fname, QStringList &fname_list,
-         QStringList &tmp_list);
+         const QHash<QString, QString> &copies, Operation &op,
+         QString &fname, QStringList &fname_list, QStringList &tmp_list);
+
+   /** fetch a copy of each remote stack in @p list into the temporary
+       folder, a stack at a time, without waiting; @p done is called with
+       any error and each copy's path, by its stack's pathname */
+   void workCopiesLater (const QModelIndexList &list,
+         std::function<void (err_info *err,
+                             const QHash<QString, QString> &copies)> done);
+
+   /** package files and email them or put them on the clipboard, with
+       copies of the remote ones from workCopiesLater(), deleting what
+       is not needed afterwards */
+   err_info *sendFiles (QModelIndexList &slist, File::e_type type,
+         const QHash<QString, QString> &copies, bool clipboard);
 
    /** put files on the clipboard as a text/uri-list
 
