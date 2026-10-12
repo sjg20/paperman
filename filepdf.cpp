@@ -126,6 +126,14 @@ err_info *Filepdf::remove (void)
    }
 
 
+/* a PDF not opened yet, such as one still coming from a server, has
+   nothing to read */
+err_info *Filepdf::notOpen (void)
+   {
+   return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (_filename));
+   }
+
+
 int Filepdf::pagecount (void)
    {
    if (_pdfio)
@@ -138,6 +146,8 @@ int Filepdf::pagecount (void)
 
 err_info *Filepdf::getPageTitle (int pagenum, QString &title)
    {
+   if (!_pdfio)
+      return notOpen ();
    return _pdfio->getPageTitle (pagenum, title);
    }
 
@@ -148,6 +158,8 @@ err_info *Filepdf::getAnnot (e_annot type, QString &text)
    {
    QString name = getAnnotName (type);
 
+   if (!_pdfio)
+      return notOpen ();
    return _pdfio->getAnnot (name, text);
    }
 
@@ -168,12 +180,16 @@ err_info *Filepdf::putEnvelope (QStringList &)
 
 err_info *Filepdf::getPageText (int pagenum, QString &str)
    {
+   if (!_pdfio)
+      return notOpen ();
    return _pdfio->getPageText (pagenum, str);
    }
 
 
 err_info *Filepdf::putPageOcr (int pagenum, const OcrPage &page)
    {
+   if (!_pdfio)
+      return notOpen ();
    return _pdfio->addTextLayer (pagenum, page);
    }
 
@@ -237,6 +253,8 @@ err_info *Filepdf::getImageInfo (int pagenum, QSize &size,
 
 err_info *Filepdf::getPreviewInfo (int pagenum, QSize &size, int &bpp)
    {
+   if (!_pdfio)
+      return notOpen ();
    return _pdfio->getImageSize (pagenum, true, size, bpp);
    }
 
@@ -257,6 +275,8 @@ err_info *Filepdf::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
    {
    QImage image;
 
+   if (!_pdfio)
+      return notOpen ();
    CALL (_pdfio->getImage (_filename, pagenum, image, DPI / 24, DPI / 24, true));
    if (blank)
       colour_image_for_blank (image);
@@ -269,6 +289,9 @@ err_info *Filepdf::getPreviewPixmap (int pagenum, QPixmap &pixmap, bool blank)
 err_info *Filepdf::getImage (int pagenum, bool,
             QImage &image, QSize &size, QSize &trueSize, int &bpp, bool blank)
    {
+   if (!_pdfio)
+      return notOpen ();
+
    // this gives us the page size at 72dpi, but does work for our DPI
 //    CALL (_pdfio->getImageSize (pagenum, size));
    CALL (_pdfio->getImage (_filename, pagenum, image, DPI, DPI, false));

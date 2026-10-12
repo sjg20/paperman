@@ -799,7 +799,12 @@ QString Desktopmodel::getAnnot (QModelIndex ind, File::e_annot type) const
    QString text;
 
    text.clear ();
-   if (!f->valid()) {
+
+   /* a stack on a server which has not come yet has nothing to read
+      its annotations from */
+   if (!f->valid()
+       || (!f->remoteChecked()
+           && const_cast<Desktopmodel *>(this)->remoteForFile(f))) {
       f->setErr(err_make(ERRFN, ERR_file_not_loaded_yet1,
                          qPrintable(f->filename())));
       return text;
