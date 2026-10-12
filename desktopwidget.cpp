@@ -385,6 +385,10 @@ void Desktopwidget::addActions(void)
 
 Desktopwidget::~Desktopwidget ()
    {
+   /* the preview's page view decodes on a thread of its own, reading the
+      stacks of the model about to be deleted, so stop it first, as the
+      main window does for its page view */
+   _page->stopRendering ();
    delete _timer;
    delete _contents;
    delete _modelconv;
