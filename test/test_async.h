@@ -65,6 +65,9 @@ private slots:
    //! locating a stack in a folder not yet listed selects it once it is
    void testLocate ();
 
+   //! a stack going while its thumbnail is on its way
+   void testStaleThumbnail ();
+
    //! showing a stack's pages
    void testPreviewStack ();
 

@@ -1575,6 +1575,11 @@ protected:
       maxdesk information, which is assumed to be done already */
    void internalRemoveRows (int row, int count, const QModelIndex &parent);
 
+   /** forget the thumbnails asked for for @p count files of @p desk from
+       @p row, which are going, so that one coming later is dropped
+       rather than reaching a file which has gone */
+   void forgetThumbnails (Desk *desk, int row, int count);
+
    /* remove rows from the model. Note this does not change the underlying
       maxdesk information, which is assumed to be done already.
 
