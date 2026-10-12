@@ -168,6 +168,7 @@ void StallMeter::tick ()
 AsyncCheck::AsyncCheck ()
    {
    BlockWatch::watch (true);
+   _mark = BlockWatch::mark ();
    _meter.start ();
    }
 
@@ -180,7 +181,7 @@ AsyncCheck::~AsyncCheck ()
 
 bool AsyncCheck::ok ()
    {
-   _waits += BlockWatch::take ();
+   _waits = BlockWatch::since (_mark);
    _gap = qMax (_gap, _meter.longestGap ());
    return _waits.isEmpty () && (_allowStall || _gap <= kMaxStallMs);
    }

@@ -11,8 +11,9 @@ License: GPL-2
 
 
 static QMutex watchMutex;
-static bool watching;
+static int watching;       // how many have started watching
 static bool warning;
+static bool keeping;       // something has asked for a mark
 static QStringList noted;
 
 
@@ -20,8 +21,16 @@ void BlockWatch::watch (bool on, bool warn)
    {
    QMutexLocker locker (&watchMutex);
 
-   watching = on;
-   warning = on && warn;
+   if (on)
+      {
+      watching++;
+      warning |= warn;
+      return;
+      }
+   if (watching && --watching)
+      return;
+   warning = false;
+   keeping = false;
    noted.clear ();
    }
 
@@ -37,17 +46,25 @@ void BlockWatch::note (const QString &what)
 
    if (!watching)
       return;
-   noted << what;
+   if (keeping)
+      noted << what;
    if (warning)
       qWarning () << "main thread waits for the server:" << what;
    }
 
 
-QStringList BlockWatch::take ()
+int BlockWatch::mark ()
    {
    QMutexLocker locker (&watchMutex);
-   QStringList out = noted;
 
-   noted.clear ();
-   return out;
+   keeping = true;
+   return noted.size ();
+   }
+
+
+QStringList BlockWatch::since (int mark)
+   {
+   QMutexLocker locker (&watchMutex);
+
+   return noted.mid (mark);
    }
