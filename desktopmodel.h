@@ -1040,11 +1040,16 @@ public:
       \returns       error, or NULL if none */
    err_info *beginScan (QModelIndex parent, const QString &stack_name);
 
-   /** confirm and save the pending scan
+   /** confirm and save the pending scan.  A stack scanned into a folder
+    *  on a server is uploaded without waiting, behind any other change
     *
-    *  \param fname  if non-null, returns the filename of the scanned stack
-    *  \param filep  if non-null, returns the scanned stack */
-   err_info *confirmScan (QString *fname = nullptr, File **filep = nullptr);
+    *  \param fname     if non-null, returns the filename of the scanned
+    *                   stack
+    *  \param filep     if non-null, returns the scanned stack
+    *  \param uploaded  if set, called with any error once a stack scanned
+    *                   into a folder on a server has been uploaded */
+   err_info *confirmScan (QString *fname = nullptr, File **filep = nullptr,
+                          OpDone uploaded = nullptr);
 
    /** cancel and remove the pending scan */
    err_info *cancelScan (void);
@@ -1212,6 +1217,10 @@ public:
    //! true while operations are queued or running
    bool opsPending (void) const { return _opBusy || !_ops.isEmpty (); }
 
+   /** wait until every queued change has reached its server, or
+       @p timeoutMs has passed, as the window closes */
+   void finishOps (int timeoutMs);
+
    /** true if page @p pagenum of the stack @p ind can be read without
        asking a server for anything: always for a local stack, and for a
        remote one once its content, or that page of it, is here */
@@ -1265,8 +1274,9 @@ private:
    /** Push a freshly-scanned stack's cached file to the server.  On a
     *  name clash the server picks a new name and the file object is
     *  renamed to match.  The server's validator is recorded so the
-    *  next open revalidates instead of downloading. */
-   err_info *uploadScanStack(File *f);
+    *  next open revalidates instead of downloading.  It is queued
+    *  behind other changes and @p done is called once it is uploaded */
+   void uploadScanStack(File *f, OpDone done);
 
    /** Re-fetch a single stack's thumbnail from the server after its
     *  content changed (e.g. a rotation) and refresh the view. */

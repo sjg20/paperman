@@ -894,7 +894,8 @@ err_info *Desktopmodel::cancelScan (void)
    }
 
 
-err_info *Desktopmodel::confirmScan (QString *fname, File **filep)
+err_info *Desktopmodel::confirmScan (QString *fname, File **filep,
+                                     OpDone uploaded)
    {
 //    qDebug () << "Desktopmodel::confirmScan";
    Q_ASSERT (_scan_desk && _scan_file);
@@ -906,7 +907,10 @@ err_info *Desktopmodel::confirmScan (QString *fname, File **filep)
       cache so far; push the finished file to the server (which may
       rename it on a clash, updating the file object) */
    if (remoteForFile (_scan_file))
-      CALL (uploadScanStack (_scan_file));
+      uploadScanStack (_scan_file, [uploaded] (err_info *err) {
+         if (uploaded)
+            uploaded (err);
+      });
 
    if (fname)
       *fname = _scan_file->filename ();
@@ -1488,9 +1492,23 @@ void Desktopmodel::refresh(QModelIndex ind)
    Q_ASSERT(ind.isValid());
    Desk *desk = getDesk(ind);
 
-   // a folder on a server is listed again without waiting
-   if (auto *remote = dynamic_cast<RemoteBackend *>(desk->backend())) {
-      listRemoteDesk(desk, remote, nullptr, true, false);
+   /* a folder on a server is listed again without waiting, after any
+      change still on its way there, so that the listing has it: a
+      scanned stack is only here until it is uploaded */
+   if (dynamic_cast<RemoteBackend *>(desk->backend())) {
+      QString dir = desk->dir();
+
+      queueOp([this, dir](OpDone done) {
+         QString path = dir;
+         QModelIndex ind = deskFromDirname(path);
+         Desk *desk = ind.isValid() ? getDesk(ind) : nullptr;
+         auto *remote = desk ? dynamic_cast<RemoteBackend *>(desk->backend())
+                             : nullptr;
+
+         if (remote)
+            listRemoteDesk(desk, remote, nullptr, true, false);
+         done(NULL);
+      }, [](err_info *) {}, true);
       return;
    }
 

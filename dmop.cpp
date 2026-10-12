@@ -38,7 +38,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDesktopServices>
 #include <QFile>
 #include <QEventLoop>
+#include <QElapsedTimer>
 #include <QJsonDocument>
+#include <QTimer>
 #include <QJsonObject>
 #include <QMimeData>
 #include <QProcess>
@@ -1568,42 +1570,92 @@ err_info *Desktopmodel::uploadNewStack (Desk *desk, RemoteBackend *remote,
    }
 
 
-err_info *Desktopmodel::uploadScanStack (File *f)
+void Desktopmodel::uploadScanStack (File *f, OpDone done)
    {
    Desk *desk = f->desk ();
-   RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
+   QPointer<RemoteBackend> remote (remoteForFile (f));
+   QString repo = desk->repoName ();
+   QString path = remoteStackPath (desk, f);
+   QString dir = desk->dir ();
+   QString name = f->filename ();
+   QString cached = f->pathname ();
 
-   QFile in (f->pathname ());
-   if (!in.open (QIODevice::ReadOnly))
-      return err_make (ERRFN, ERR_cannot_open_file1,
-                       qPrintable (f->pathname ()));
-   QByteArray bytes = in.readAll ();
-   in.close ();
-
-   QString finalName, etag;
-   if (!remote->uploadFile (desk->repoName (), remoteStackPath (desk, f),
-                            bytes, &finalName, &etag))
-      return err_make (ERRFN, ERR_remote_op_failed2, "upload",
-                       qPrintable (remote->lastError ()));
-
-   if (!finalName.isEmpty () && finalName != f->filename ())
-      {
-      QString oldCache = f->pathname ();
-
-      f->updateFilename (finalName);
-      QFile::rename (oldCache, f->pathname ());
-      }
-
-   /* record the server's validator so the next open costs a 304 */
-   if (!etag.isEmpty ())
-      {
-      QFile ef (f->pathname () + ".etag");
-
-      if (ef.open (QIODevice::WriteOnly))
-         ef.write (etag.toUtf8 ());
-      }
+   // the stack is all here, so nothing need fetch it while it goes up
    f->setRemoteChecked (true);
-   return NULL;
+
+   queueOp ([this, remote, repo, path, dir, name, cached] (OpDone opDone) {
+      QFile in (cached);
+
+      if (!remote)
+         {
+         opDone (NULL);
+         return;
+         }
+      if (!in.open (QIODevice::ReadOnly))
+         {
+         opDone (err_make (ERRFN, ERR_cannot_open_file1,
+                           qPrintable (cached)));
+         return;
+         }
+      remote->uploadFile (repo, path, in.readAll (), false, this,
+                          [this, dir, name, opDone] (
+                             const RemoteBackend::Result &result) {
+         if (!result.ok)
+            {
+            opDone (err_make (ERRFN, ERR_remote_op_failed2, "upload",
+                              qPrintable (result.error)));
+            return;
+            }
+
+         QJsonObject reply = result.json ();
+         QString finalName = reply.value ("name").toString ();
+         QString etag = reply.value ("etag").toString ();
+         File *f = getFile (stackFor (dir, name));
+
+         if (_closing || !f)
+            {
+            opDone (NULL);
+            return;
+            }
+         if (!finalName.isEmpty () && finalName != f->filename ())
+            {
+            QString oldCache = f->pathname ();
+
+            f->updateFilename (finalName);
+            QFile::rename (oldCache, f->pathname ());
+            }
+
+         // record the server's validator so the next open costs a 304
+         if (!etag.isEmpty ())
+            {
+            QFile ef (f->pathname () + ".etag");
+
+            if (ef.open (QIODevice::WriteOnly))
+               ef.write (etag.toUtf8 ());
+            }
+         opDone (NULL);
+      });
+   }, done, true);
+   }
+
+
+void Desktopmodel::finishOps (int timeoutMs)
+   {
+   if (!opsPending ())
+      return;
+
+   QElapsedTimer timer;
+   QEventLoop loop;
+   QTimer poll;
+
+   timer.start ();
+   connect (&poll, &QTimer::timeout, &loop, [&] () {
+      if (!opsPending () || timer.elapsed () >= timeoutMs)
+         loop.quit ();
+   });
+   poll.start (20);
+   BlockWatch::note ("finish changes");
+   loop.exec ();
    }
 
 
@@ -3008,3 +3060,4 @@ void Desktopmodel::askServerToReadLater (const QModelIndex &ind,
                                     qPrintable (result.error)));
    });
    }
+

@@ -2063,6 +2063,8 @@ void TestSearchServer::testDesktopRemoteScan()
     QString fname;
     QVERIFY(!model.confirmScan(&fname));
 
+    // the stack is uploaded without waiting
+    WAIT_OPS(model);
     QVERIFY(QFile::exists(dir + fname));
     QCOMPARE(serverPagecount(dir, fname), 1);
     QCOMPARE(model.rowCount(parent), rowsBefore + 1);

@@ -131,6 +131,12 @@ private slots:
    //! searching for text on the stacks' pages
    void testSearch ();
 
+   //! scanning a stack into a folder on the server
+   void testScan ();
+
+   //! closing the window with a scanned stack still to be uploaded
+   void testScanClose ();
+
 private:
    /** restart the server so that it indexes the text on its stacks and
        reads their pages */
@@ -147,6 +153,9 @@ private:
 
    //! click the test stack, once it has settled in place
    void clickStack ();
+
+   //! scan a one-page stack called "scanned" into the folder shown
+   void scanStack ();
 
    //! the path of a file in the server's folder
    QString serverPath (const QString &fname) const;
