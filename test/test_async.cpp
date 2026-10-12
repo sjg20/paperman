@@ -1069,7 +1069,11 @@ void TestAsync::testConvertHere ()
    openFolder ();
    dropConvert ();
 
+   /* the copy is converted here on the main thread, as a local stack is,
+      which can hold it for a while; only the server must not */
    AsyncCheck check;
+
+   check.allowStall ();
    Desktopmodel *model = _desktop->getModel ();
    QModelIndexList list;
 

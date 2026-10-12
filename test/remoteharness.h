@@ -115,6 +115,11 @@ public:
    //! true if nothing waited for the server since construction
    bool ok ();
 
+   /** allow the main thread to go without handling events for any time,
+       for a stretch which does the desktop's own work on it, such as
+       converting a stack here: only a wait for the server fails it */
+   void allowStall () { _allowStall = true; }
+
    //! what waited, for a failure message
    QString report () const;
 
@@ -122,6 +127,7 @@ private:
    StallMeter _meter;
    QStringList _waits;
    qint64 _gap = 0;
+   bool _allowStall = false;
 };
 
 #endif // REMOTEHARNESS_H
