@@ -101,6 +101,9 @@ private slots:
    //! renaming a stack on a server which never answers
    void testRenameHung ();
 
+   //! deleting a page, and undoing that before the server has answered
+   void testDeletePages ();
+
 private:
    //! attach the server, waiting until it is there
    void connectServer ();
@@ -119,6 +122,9 @@ private:
 
    //! the server's repository in the folder tree, as a path
    QString repoPath () const;
+
+   //! the number of pages in a stack on the server's disk, or -1
+   int serverPages (const QString &fname) const;
 
    //! an empty client.conf, so that the user's servers are left alone
    std::unique_ptr<QTemporaryDir> _config;

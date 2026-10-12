@@ -796,6 +796,17 @@ protected:
                        std::shared_ptr<QStringList> trashlist,
                        const QString &dest, bool copy, OpDone done);
 
+   /** delete pages, as the other opDeletePages() does, filling in
+       @p del_info and @p count for the undelete */
+   void opDeletePages (const QModelIndex &ind, const QBitArray &pages,
+                       std::shared_ptr<QByteArray> del_info,
+                       std::shared_ptr<int> count, OpDone done);
+
+   //! undelete pages, as the other opUndeletePages() does
+   void opUndeletePages (const QModelIndex &ind, const QBitArray &pages,
+                         std::shared_ptr<QByteArray> del_info, int count,
+                         OpDone done);
+
    /** move stacks back from the trash or another directory, as the other
        opUntrashStacks() does, updating @p filenames */
    void opUntrashStacks (const QStringList &trashlist,
