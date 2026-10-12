@@ -533,14 +533,20 @@ signals:
                     const QString &path, const QString &name);
 
 private:
-    /** Write downloaded bytes and their validator into the cache,
-     *  returning the cache pathname (empty on failure). */
+    /** Run @p work, which must touch nothing but files, on a worker
+     *  thread, and call @p done back on this object's thread with what
+     *  it returns: an empty string, or why it failed */
+    void inBackground(std::function<QString()> work,
+                      std::function<void(const QString &error)> done);
+
     /** Write @p bytes to @p path in the background, since syncing a
      *  file to disk can take a while, and call @p done back on this
      *  object's thread with an empty string, or why it failed */
     void writeLater(const QString &path, const QByteArray &bytes,
                     std::function<void(const QString &error)> done);
 
+    /** Write downloaded bytes and their validator into the cache,
+     *  returning the cache pathname (empty on failure). */
     QString storeCachedFile(const QString &cachePath, const QByteArray &body,
                             const QString &newEtag, bool *refreshed);
 

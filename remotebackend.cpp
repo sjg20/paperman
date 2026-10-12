@@ -1114,24 +1114,21 @@ QString RemoteBackend::ensureCachedFile(const QString &repo,
 
 /* Write freshly-downloaded bytes (and their validator) into the cache.
    Shared by the sync and async fetch paths. */
-QString RemoteBackend::storeCachedFile(const QString &cachePath,
-                                       const QByteArray &body,
-                                       const QString &newEtag,
-                                       bool *refreshed)
+/* Write a stack fetched whole to the cache, with its validator; returns
+   an empty string, or why it failed.  It touches nothing but the files,
+   so may run on any thread */
+static QString storeFile(const QString &cachePath, const QByteArray &body,
+                         const QString &newEtag)
 {
    QString etagPath = cachePath + ".etag";
 
    QDir().mkpath(QFileInfo(cachePath).path());
    QSaveFile out(cachePath);
-   if (!out.open(QIODevice::WriteOnly)) {
-      _lastError = "cannot write cache file " + cachePath;
-      return QString();
-   }
+   if (!out.open(QIODevice::WriteOnly))
+      return "cannot write cache file " + cachePath;
    out.write(body);
-   if (!out.commit()) {
-      _lastError = "cannot commit cache file " + cachePath;
-      return QString();
-   }
+   if (!out.commit())
+      return "cannot commit cache file " + cachePath;
 
    if (newEtag.isEmpty()) {
       QFile::remove(etagPath);
@@ -1139,6 +1136,21 @@ QString RemoteBackend::storeCachedFile(const QString &cachePath,
       QFile ef(etagPath);
       if (ef.open(QIODevice::WriteOnly))
          ef.write(newEtag.toUtf8());
+   }
+   return QString();
+}
+
+
+QString RemoteBackend::storeCachedFile(const QString &cachePath,
+                                       const QByteArray &body,
+                                       const QString &newEtag,
+                                       bool *refreshed)
+{
+   QString error = storeFile(cachePath, body, newEtag);
+
+   if (!error.isEmpty()) {
+      _lastError = error;
+      return QString();
    }
    if (refreshed)
       *refreshed = true;
@@ -1234,10 +1246,16 @@ quint64 RemoteBackend::ensureCachedFileAsync(const QString &repo,
              return;
           }
 
-          bool refreshed = false;
-          QString path = storeCachedFile(cachePath, body, newEtag,
-                                         &refreshed);
-          emit cachedFileReady(token, path, refreshed);
+          inBackground([cachePath, body, newEtag]() {
+             return storeFile(cachePath, body, newEtag);
+          }, [this, token, cachePath](const QString &error) {
+             if (!error.isEmpty()) {
+                _lastError = error;
+                emit cachedFileReady(token, QString(), false);
+                return;
+             }
+             emit cachedFileReady(token, cachePath, true);
+          });
        });
    return token;
 }
@@ -1305,8 +1323,8 @@ static bool writeWhole(const QString &path, const QByteArray &bytes,
 }
 
 
-void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
-                               std::function<void(const QString &)> done)
+void RemoteBackend::inBackground(std::function<QString()> work,
+                                 std::function<void(const QString &)> done)
 {
    auto *watcher = new QFutureWatcher<QString>(this);
 
@@ -1317,12 +1335,19 @@ void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
       watcher->deleteLater();
       done(error);
    });
-   watcher->setFuture(QtConcurrent::run([path, bytes]() {
+   watcher->setFuture(QtConcurrent::run(work));
+}
+
+
+void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
+                               std::function<void(const QString &)> done)
+{
+   inBackground([path, bytes]() {
       QString error;
 
       writeWhole(path, bytes, &error);
       return error;
-   }));
+   }, done);
 }
 
 
