@@ -10,6 +10,7 @@ License: GPL-2
 
 #include "test.h"
 
+#include "../blockwatch.h"
 #include "../desktopmodel.h"
 #include "../desktopundo.h"
 #include "../desktopview.h"
@@ -100,6 +101,11 @@ void TestAsync::init ()
    probe.invalidateCachedFile (repo, "papers/testfile.max");
    _server->setDelay (kDelayMs);
 
+   // from here on the main thread must not wait for the server
+   _waitsAllowed = false;
+   BlockWatch::watch (true);
+   _mark = BlockWatch::mark ();
+
    _me.reset (new Mainwindow);
    _desktop = _me->getDesktop ();
    _me->resize (1600, 1000);
@@ -110,12 +116,21 @@ void TestAsync::init ()
 
 void TestAsync::cleanup ()
    {
+   QStringList waits = BlockWatch::since (_mark);
+
+   // closing the window saves the folder's layout, which waits
+   BlockWatch::watch (false);
    _me.reset ();
    _desktop = nullptr;
    _server.reset ();
    _repo.reset ();
    qunsetenv ("PAPERMAN_CONFIG");
    _config.reset ();
+
+   if (!_waitsAllowed)
+      QVERIFY2 (waits.isEmpty (),
+                qPrintable ("the main thread waited for: "
+                            + waits.join (", ")));
    }
 
 
@@ -176,6 +191,20 @@ void TestAsync::indexServer ()
    }
 
 
+void TestAsync::closeWindow (bool destroy)
+   {
+   QStringList waits = BlockWatch::since (_mark);
+
+   QVERIFY2 (waits.isEmpty (), qPrintable ("the main thread waited for: "
+                                           + waits.join (", ")));
+   _waitsAllowed = true;
+   if (destroy)
+      _me.reset ();
+   else
+      _me->close ();
+   }
+
+
 void TestAsync::connectServer ()
    {
    bool attached = false;
@@ -213,6 +242,9 @@ QModelIndex TestAsync::stackIndex ()
 
 void TestAsync::testHarness ()
    {
+   // this waits on purpose, to show that the checks see it
+   _waitsAllowed = true;
+
    // a request the main thread waits for is caught, by its path
       {
       AsyncCheck check;
@@ -247,6 +279,10 @@ void TestAsync::testHarness ()
 
    QTest::qWait (50);
    QVERIFY2 (check.ok (), qPrintable (check.report ()));
+
+   /* the watch over the whole test saw both waits, inside the checks
+      and out, so cleanup() fails a test which waits anywhere */
+   QCOMPARE (BlockWatch::since (_mark).filter ("GET /v1/status").size (), 2);
    }
 
 
@@ -277,7 +313,7 @@ void TestAsync::testConnectHung ()
    CHECK_ASYNC (check, nullptr);
 
    // and closing it with the request still out is safe
-   _me.reset ();
+   closeWindow (true);
    QTest::qWait (100);
    }
 
@@ -738,7 +774,7 @@ void TestAsync::testRenameHung ()
    CHECK_ASYNC (check, nullptr);
 
    // and closing it with the rename still out is safe
-   _me.reset ();
+   closeWindow (true);
    QTest::qWait (100);
    }
 
@@ -1033,7 +1069,7 @@ void TestAsync::testScanClose ()
 
    // closing the window waits for the stack to reach the server
    QVERIFY (!_desktop->getModel ()->confirmScan ());
-   _me->close ();
+   closeWindow (false);
    QVERIFY (QFile::exists (serverPath ("scanned.max")));
    }
 

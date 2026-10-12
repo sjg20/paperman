@@ -36,6 +36,8 @@ private slots:
    void initTestCase ();
    void cleanupTestCase ();
    void init ();
+
+   //! also fails the test if the main thread waited for the server
    void cleanup ();
 
    //! the checks catch a wait for the server, a stall and a slow reply
@@ -174,6 +176,11 @@ private:
    //! have the server's backend say it cannot convert stacks
    void dropConvert ();
 
+   /** check that the main thread has not waited for the server, then
+       close the window, which waits for queued changes and saves the
+       folder's layout; @p destroy deletes it as well */
+   void closeWindow (bool destroy);
+
    //! the path of a file in the server's folder
    QString serverPath (const QString &fname) const;
 
@@ -196,6 +203,14 @@ private:
    std::unique_ptr<ServerThread> _server;
    std::unique_ptr<Mainwindow> _me;
    Desktopwidget *_desktop = nullptr;
+
+   /** where BlockWatch had got to as the test started: the main thread
+       must not wait for the server anywhere in a test, not only in the
+       stretches an AsyncCheck watches */
+   int _mark = 0;
+
+   //! true if the test waits on purpose, which it sets
+   bool _waitsAllowed = false;
 };
 
 #endif // TEST_ASYNC_H
