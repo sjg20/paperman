@@ -1961,19 +1961,23 @@ void TestSearchServer::testDesktopRemoteStructuralOps()
     QBitArray pages(pagecount);
     pages.setBit(pagecount - 1);
     model.deletePages(stack, pages);
+    WAIT_OPS(model);
     QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount - 1);
-    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
-             pagecount - 1);
+
+    // the stack's structure is fetched again once the server has changed it
+    QTRY_COMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
+                 pagecount - 1);
 
     // undo redeems the server-side undoId and restores the page
     model.getUndoStack()->undo();
     WAIT_OPS(model);
     QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount);
-    QCOMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
-             pagecount);
+    QTRY_COMPARE(model.data(stack, Desktopmodel::Role_pagecount).toInt(),
+                 pagecount);
 
     // unstack the first page into a new stack
     model.unstackPage(stack, 0, true);
+    WAIT_OPS(model);
     QCOMPARE(model.rowCount(parent), rowsBefore + 1);
     QCOMPARE(serverPagecount(dir, "testfile.max"), pagecount - 1);
     QModelIndex unstacked;

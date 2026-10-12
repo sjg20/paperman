@@ -120,6 +120,19 @@ QString TestAsync::repoPath () const
    }
 
 
+int TestAsync::serverPages (const QString &fname) const
+   {
+   File *f = File::createFile (_repo->path () + "/papers/", fname, nullptr,
+                               File::typeFromName (fname));
+   int count = -1;
+
+   if (f && !f->load ())
+      count = f->pagecount ();
+   delete f;
+   return count;
+   }
+
+
 QString TestAsync::serverPath (const QString &fname) const
    {
    return _repo->path () + "/papers/" + fname;
@@ -632,4 +645,31 @@ void TestAsync::testRenameHung ()
    // and closing it with the rename still out is safe
    _me.reset ();
    QTest::qWait (100);
+   }
+
+
+void TestAsync::testDeletePages ()
+   {
+   connectServer ();
+   openFolder ();
+   QCOMPARE (serverPages ("testfile.max"), 5);
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+   QBitArray pages (5);
+
+   pages.setBit (1);
+   model->deletePages (stack, pages);
+   QVERIFY (model->opsPending ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverPages ("testfile.max"), 4);
+
+   /* the undo needs the server's token for the deleted page, so it waits
+      for the delete even when pressed before the server has answered */
+   model->deletePages (stack, pages);
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverPages ("testfile.max"), 4);
+   CHECK_ASYNC (check, nullptr);
    }

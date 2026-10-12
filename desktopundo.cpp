@@ -345,10 +345,11 @@ UCDeletePages::UCDeletePages (Desktopmodel *model, QModelIndex &ind, QBitArray &
    _filename = model->data (ind, Desktopmodel::Role_filename).toString ();
    int pagecount = model->data (ind, Desktopmodel::Role_pagecount).toInt ();
    _pages = pages;
-   _count = 0;
+   _del_info = std::make_shared<QByteArray> ();
+   _count = std::make_shared<int> (0);
    for (int i = 0; i < pagecount; i++)
       if (pages.testBit (i))
-         _count++;
+         (*_count)++;
    setText (QApplication::translate("UCDeletePages",
       "Delete pages"));
    }
@@ -356,19 +357,37 @@ UCDeletePages::UCDeletePages (Desktopmodel *model, QModelIndex &ind, QBitArray &
 
 void UCDeletePages::redo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex index = _model->index (_filename, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _filename;
+   QBitArray pages = _pages;
+   auto del_info = _del_info;
+   auto count = _count;
 
-   complain (_model->opDeletePages (index, _pages, _del_info, _count));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opDeletePages (ind, pages, del_info, count, done);
+   });
    }
 
 
 void UCDeletePages::undo (void)
    {
-   QModelIndex parent = _model->deskFromDirname (_dir);
-   QModelIndex index = _model->index (_filename, parent);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _filename;
+   QBitArray pages = _pages;
+   auto del_info = _del_info;
+   auto count = _count;
 
-   complain (_model->opUndeletePages (index, _pages, _del_info, _count));
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opUndeletePages (ind, pages, del_info, *count, done);
+   });
    }
 
 

@@ -926,8 +926,26 @@ void Desktopmodel::opUpdateAnnot (const QModelIndex &ind,
 err_info *Desktopmodel::opDeletePages (QModelIndex &ind, QBitArray &pages,
       QByteArray &del_info, int &count)
    {
+   auto info = std::make_shared<QByteArray> (del_info);
+   auto num = std::make_shared<int> (count);
+   err_info *e = waitForOp ("page delete", [&] (OpDone done) {
+      opDeletePages (ind, pages, info, num, done);
+   });
+
+   del_info = *info;
+   count = *num;
+   return e;
+   }
+
+
+void Desktopmodel::opDeletePages (const QModelIndex &ind,
+                                  const QBitArray &pages,
+                                  std::shared_ptr<QByteArray> del_info,
+                                  std::shared_ptr<int> count, OpDone done)
+   {
    File *f = getFile (ind);
    err_info *e = NULL;
+   QBitArray which = pages;
 
    if (f)
       {
@@ -936,59 +954,98 @@ err_info *Desktopmodel::opDeletePages (QModelIndex &ind, QBitArray &pages,
       if (remote)
          {
          Desk *desk = f->desk ();
-
-         CALL (ensureContent (ind));
-
+         QString dir = desk->dir ();
+         QString fname = f->filename ();
          QList<int> pageList;
+
          for (int i = 0; i < pages.size (); i++)
             if (pages.testBit (i))
                pageList << i + 1;
 
-         QString undoId;
-         if (!remote->deletePages (desk->repoName (),
-                                   remoteStackPath (desk, f), pageList,
-                                   &undoId))
-            return err_make (ERRFN, ERR_remote_op_failed2, "page delete",
-                             qPrintable (remote->lastError ()));
+         remote->deletePages (desk->repoName (), remoteStackPath (desk, f),
+                              pageList, this,
+                              [this, dir, fname, which, pageList, del_info,
+                               count, done] (
+                                 const RemoteBackend::Result &result) {
+            if (_closing)
+               return;      // the model is going, with what it showed
+            if (!result.ok)
+               {
+               done (err_make (ERRFN, ERR_remote_op_failed2, "page delete",
+                               qPrintable (result.error)));
+               return;
+               }
 
-         /* A stack held a page at a time is fetched again, since its
-            pages have been renumbered; the undo record carries only the
-            server's token, and the restore refetches too. */
-         if (sparseFor (f, remote, desk))
-            {
-            count = pageList.size ();
-            del_info.clear ();
-            QDataStream ds (&del_info, QIODevice::WriteOnly);
-            ds << undoId << QByteArray ();
-            return remoteStackChanged (ind, QList<int> ());
-            }
+            /* The undo record's blob carries the server's token alongside
+               any local recovery data, so opUndeletePages() can restore
+               both sides */
+            QString undoId = result.json ().value ("undoId").toString ();
+            QModelIndex ind = stackFor (dir, fname);
+            File *f = getFile (ind);
+            RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+            QByteArray localInfo;
+            err_info *e = NULL;
 
-         /* Mirror the removal onto the cached copy so the view stays
-            in step without a refetch.  The undo record's blob carries
-            the server's token alongside the local recovery data, so
-            opUndeletePages() can restore both sides. */
-         QByteArray localInfo;
-         e = f->removePages (pages, localInfo, count);
-         del_info.clear ();
-         QDataStream ds (&del_info, QIODevice::WriteOnly);
-         ds << undoId << localInfo;
-         buildItem (ind);
-         return e;
+            *count = pageList.size ();
+            if (f && remote)
+               {
+               /* A stack held a page at a time is fetched again, since its
+                  pages have been renumbered.  A stack fetched whole has
+                  the removal mirrored onto the cached copy, so the view
+                  stays in step without a refetch; one not fetched yet is
+                  fetched afresh when next read */
+               if (sparseFor (f, remote, f->desk ()))
+                  stackChangedLater (ind, QList<int> ());
+               else if (f->remoteChecked () && f->pagecount ())
+                  {
+                  QBitArray bits = which;
+
+                  e = f->removePages (bits, localInfo, *count);
+                  buildItem (ind);
+                  }
+               else
+                  {
+                  remote->invalidateCachedFile (f->desk ()->repoName (),
+                                                remoteStackPath (f->desk (),
+                                                                 f));
+                  f->setRemoteChecked (false);
+                  }
+               }
+            del_info->clear ();
+            QDataStream ds (del_info.get (), QIODevice::WriteOnly);
+            ds << undoId << localInfo;
+            done (e);
+         });
+         return;
          }
 
-      e = f->removePages (pages, del_info, count);
+      e = f->removePages (which, *del_info, *count);
       buildItem (ind);
       getDesk (ind.parent ())->dirty ();
       }
-   return e;
+   done (e);
    }
 
 
 err_info *Desktopmodel::opUndeletePages (QModelIndex &ind, QBitArray &pages,
       QByteArray &del_info, int count)
    {
+   auto info = std::make_shared<QByteArray> (del_info);
+
+   return waitForOp ("page undelete", [&] (OpDone done) {
+      opUndeletePages (ind, pages, info, count, done);
+   });
+   }
+
+
+void Desktopmodel::opUndeletePages (const QModelIndex &ind,
+                                    const QBitArray &pages,
+                                    std::shared_ptr<QByteArray> del_info,
+                                    int count, OpDone done)
+   {
    File *f = getFile (ind);
    err_info *e = NULL;
+   QBitArray which = pages;
 
    if (f)
       {
@@ -997,32 +1054,62 @@ err_info *Desktopmodel::opUndeletePages (QModelIndex &ind, QBitArray &pages,
       if (remote)
          {
          Desk *desk = f->desk ();
+         QString dir = desk->dir ();
+         QString fname = f->filename ();
          QString undoId;
          QByteArray localInfo;
-         QDataStream ds (&del_info, QIODevice::ReadOnly);
+         QDataStream ds (del_info.get (), QIODevice::ReadOnly);
 
          ds >> undoId >> localInfo;
-         if (!remote->undeletePages (desk->repoName (),
-                                     remoteStackPath (desk, f), undoId))
-            return err_make (ERRFN, ERR_remote_op_failed2,
-                             "page undelete",
-                             qPrintable (remote->lastError ()));
+         remote->undeletePages (desk->repoName (), remoteStackPath (desk, f),
+                                undoId, this,
+                                [this, dir, fname, which, localInfo, count,
+                                 done] (
+                                   const RemoteBackend::Result &result) {
+            if (_closing)
+               return;      // the model is going, with what it showed
+            if (!result.ok)
+               {
+               done (err_make (ERRFN, ERR_remote_op_failed2,
+                               "page undelete", qPrintable (result.error)));
+               return;
+               }
 
-         if (sparseFor (f, remote, desk))
-            {
-            count = pages.count (true);
-            return remoteStackChanged (ind, QList<int> ());
-            }
+            QModelIndex ind = stackFor (dir, fname);
+            File *f = getFile (ind);
+            RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+            err_info *e = NULL;
 
-         e = f->restorePages (pages, localInfo, count);
-         buildItem (ind);
-         return e;
+            // as in opDeletePages()
+            if (f && remote)
+               {
+               if (sparseFor (f, remote, f->desk ()))
+                  stackChangedLater (ind, QList<int> ());
+               else if (f->remoteChecked () && !localInfo.isEmpty ())
+                  {
+                  QBitArray bits = which;
+                  QByteArray info = localInfo;
+
+                  e = f->restorePages (bits, info, count);
+                  buildItem (ind);
+                  }
+               else
+                  {
+                  remote->invalidateCachedFile (f->desk ()->repoName (),
+                                                remoteStackPath (f->desk (),
+                                                                 f));
+                  f->setRemoteChecked (false);
+                  }
+               }
+            done (e);
+         });
+         return;
          }
 
-      e = f->restorePages (pages, del_info, count);
+      e = f->restorePages (which, *del_info, count);
       buildItem (ind);
       }
-   return e;
+   done (e);
    }
 
 

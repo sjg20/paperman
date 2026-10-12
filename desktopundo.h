@@ -240,8 +240,10 @@ private:
    QString _filename;   //!< the filename of the original stack
    QString _newname;    //!< the filename of the stack where the unstacked pages end up
    QBitArray _pages;    //!< list of pages to delete, one bit for each (true = delete)
-   QByteArray _del_info;   //!< information about deleted pages
-   int _count;          //!< number of pages to delete
+   //! information about deleted pages, once deleted
+   std::shared_ptr<QByteArray> _del_info;
+   //! number of pages deleted, once deleted
+   std::shared_ptr<int> _count;
    };
 
 
