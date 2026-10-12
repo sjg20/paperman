@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSettings>
 #include <QSplitter>
 #include <QTimer>
+#include <QtConcurrent>
 
 #include "qlabel.h"
 #include "qlayout.h"
@@ -495,6 +496,7 @@ void Pagewidget::slotDelayedUpdate (void)
 
 void Pagewidget::clearViewport (void)
    {
+   _drawn++;      // no smooth page coming is wanted now
    _too_big = false;
    _pixmap = QPixmap ();
    _image = QImage ();
@@ -589,20 +591,12 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
 
             if (!_too_big && !_image.isNull ())
                {
-               // convert 1bpp to greyscale so smooth scaling can interpolate
-               const QImage &src = _image.depth () == 1
-                  ? _image.convertToFormat (QImage::Format_Grayscale8)
-                  : _image;
-               QImage small = _smoothing || force_smooth
-                  ? src.scaled(widgetSize, Qt::IgnoreAspectRatio,
-                                  Qt::SmoothTransformation)
-                  : src.scaledToWidth (widgetSize.width ());
-
-               // create a pixmap of the right scale
-               QPainter p (&_pixmap);
-
-               adjustMatrix (p, small.size (), _rotate);
-               p.drawImage (0, 0, small);
+               /* scaling the image as it is shows the page at once; a
+                  smooth scaling takes a while for a large page, so it is
+                  made in the background and drawn once it is ready */
+               drawScaled (_image.scaledToWidth (widgetSize.width ()));
+               if (_smoothing || force_smooth)
+                  smoothLater (widgetSize);
                }
             }
 
@@ -631,6 +625,44 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
          break;
 #endif
       }
+   }
+
+
+void Pagewidget::drawScaled (const QImage &small)
+   {
+   QPainter p (&_pixmap);
+
+   _drawn++;
+   adjustMatrix (p, small.size (), _rotate);
+   p.drawImage (0, 0, small);
+   }
+
+
+void Pagewidget::smoothLater (QSize size)
+   {
+   auto *watcher = new QFutureWatcher<QImage> (this);
+   QImage image = _image;
+   int drawn = _drawn;
+
+   connect (watcher, &QFutureWatcherBase::finished, this,
+            [this, watcher, drawn] () {
+      QImage small = watcher->result ();
+
+      watcher->deleteLater ();
+      if (drawn != _drawn || _too_big || small.isNull ())
+         return;     // the page has changed meanwhile
+      drawScaled (small);
+      _area->setPixmapImage (_pixmap, _image, _too_big, _rotate);
+      _area->viewport ()->update ();
+   });
+   watcher->setFuture (QtConcurrent::run ([image, size] () {
+      // convert 1bpp to greyscale so smooth scaling can interpolate
+      QImage src = image.depth () == 1
+         ? image.convertToFormat (QImage::Format_Grayscale8) : image;
+
+      return src.scaled (size, Qt::IgnoreAspectRatio,
+                         Qt::SmoothTransformation);
+   }));
    }
 
 
