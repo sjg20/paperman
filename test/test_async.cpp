@@ -13,7 +13,9 @@ License: GPL-2
 #include "../desktopview.h"
 #include "../desktopwidget.h"
 #include "../file.h"
+#include "../filemax.h"
 #include "../mainwindow.h"
+#include "../ocrpage.h"
 #include "../pagemodel.h"
 #include "../pagewidget.h"
 #include "../remotebackend.h"
@@ -854,3 +856,51 @@ void TestAsync::testReadStack ()
    CHECK_ASYNC (check, nullptr);
    }
 
+
+void TestAsync::testSearch ()
+   {
+   // give the stack some words for the server's index to find
+   {
+      Filemax max (_repo->path () + "/papers/", "testfile.max", nullptr);
+      OcrPage page;
+
+      page.size = QSize (100, 100);
+      page.words << OcrWord {QRect (0, 0, 10, 10), "invoice", 90, 0, 0};
+      QVERIFY (!max.load () && !max.putPageOcr (2, page));
+   }
+   indexServer ();
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   int count = -2;
+   bool complete = false;
+
+   // the server reads its stacks first, so ask until it has
+   QElapsedTimer timer;
+
+   timer.start ();
+   do
+      {
+      bool done = false;
+
+      _desktop->textSearchLater (repoPath (), "invoice",
+                                 [&] (int num, bool all) {
+         count = num;
+         complete = all;
+         done = true;
+      });
+      QVERIFY (!done);
+      QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 10);
+      if (!complete)
+         QTest::qWait (200);
+      } while (!complete && timer.elapsed () < 15000);
+   QVERIFY (complete);
+   QCOMPARE (count, 1);
+
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex found = stackIndex ();
+   QVERIFY (found.isValid ());
+   QCOMPARE (model->data (found, Desktopmodel::Role_pagenum).toInt (), 2);
+   CHECK_ASYNC (check, nullptr);
+   }

@@ -125,6 +125,9 @@ private slots:
    //! asking the server to read a stack's pages next
    void testReadStack ();
 
+   //! searching for text on the stacks' pages
+   void testSearch ();
+
 private:
    /** restart the server so that it indexes the text on its stacks and
        reads their pages */

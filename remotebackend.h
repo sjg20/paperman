@@ -157,13 +157,18 @@ public:
      *  @param dir       the folder to look in, relative to the
      *                   repository, with its subfolders; empty for all
      *  @param maxHits   the most stacks to return
-     *  @param hits      returns each stack found once, best first
-     *  @param complete  if non-null, returns false while the server is
-     *                   still building its index, so may lack stacks
-     *  @return true on success; lastError() says why not */
-    bool searchText(const QString &repo, const QString &text,
-                    const QString &dir, int maxHits, QList<TextHit> &hits,
-                    bool *complete = nullptr);
+     *  @param context   what the reply is tied to; nothing is called
+     *                   once it has gone
+     *  @param done      called with an empty error and each stack found
+     *                   once, best first, or with why the search failed;
+     *                   its complete is false while the server is still
+     *                   building its index, so may lack stacks */
+    using TextDone = std::function<void(const QString &error,
+                                        const QList<TextHit> &hits,
+                                        bool complete)>;
+    void searchText(const QString &repo, const QString &text,
+                    const QString &dir, int maxHits, QObject *context,
+                    TextDone done);
 
     /** True if the server converts and unfolds stacks itself (the
      *  "convert" feature), so convertStack() and unfoldStack() work. */

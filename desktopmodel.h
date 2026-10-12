@@ -1713,7 +1713,17 @@ public:
                        QModelIndex &found, int &count,
                        Operation *op = nullptr, bool *complete = nullptr);
 
+   /** called when a search for text is done, with any error, the desk of
+       the stacks found, how many there are, and whether the server's
+       index is complete */
+   using Found = std::function<void (err_info *err, const QModelIndex &found,
+                                     int count, bool complete)>;
 
+   /** search for text, as findText() does, but without waiting for a
+       server: @p done is called once the stacks are found */
+   void findTextLater (const QString &path, const QString &rootPath,
+                       const QString &text, Measure *meas, Operation *op,
+                       Found done);
 
 public slots:
    /** advises the model of the current context index (default item for
@@ -1753,6 +1763,24 @@ private:
    void flushAllDesks (void);
 
 protected:
+   /** search a local repository's index for text, bringing it up to date
+       first, as findTextLater() does
+
+      \param path      the folder to search, with its subfolders
+      \param root      the repository's top folder, without a trailing "/"
+      \param rootPath  the repository's top folder, as given
+      \param query     the words to match, from SearchIndex::matchQuery()
+      \param meas      measurer for text
+      \param op        shows progress as the index is brought up to date,
+                       or nullptr
+      \param found     returns the desk of the stacks found
+      \param count     returns how many were found
+      \returns error, or NULL if ok */
+   err_info *findLocalText (const QString &path, const QString &root,
+                            const QString &rootPath, const QString &query,
+                            Measure *meas, Operation *op, QModelIndex &found,
+                            int &count);
+
    /** remove rows from the model. Note this does not change the underlying
       maxdesk information, which is assumed to be done already */
    void internalRemoveRows (int row, int count, const QModelIndex &parent);

@@ -23,11 +23,14 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <assert.h>
 
+#include "blockwatch.h"
 #include "backendstats.h"
 
 #include <QtGui>
 #include <QCheckBox>
 #include <QDialog>
+#include <QEventLoop>
+#include <QPointer>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -986,17 +989,19 @@ void Desktopwidget::searchInFolders()
    _search_text = ui.stackName->text();
    _search_by_text = ui.byText->isChecked();
    if (_search_by_text) {
-      bool complete = true;
-      int count = startTextSearch(path, _search_text, &complete);
+      QString text = _search_text;
 
-      if (count >= 0)
-         specialView(tr("Showing %n stack(s) with '%1' on a page", "", count)
-                     .arg(_search_text)
-                     + (complete ? QString()
-                        : tr(" (the server is still reading its stacks, so "
-                             "some may be missing)")));
-      else
-         _toolbar->setFilterEnabled(true);
+      // a server is searched without waiting, so show the stacks once found
+      textSearchLater(path, text, [this, text](int count, bool complete) {
+         if (count >= 0)
+            specialView(tr("Showing %n stack(s) with '%1' on a page", "",
+                           count).arg(text)
+                        + (complete ? QString()
+                           : tr(" (the server is still reading its stacks, "
+                                "so some may be missing)")));
+         else
+            _toolbar->setFilterEnabled(true);
+      });
       return;
    }
    startSearch(path, _search_text);
@@ -1006,25 +1011,53 @@ void Desktopwidget::searchInFolders()
 int Desktopwidget::startTextSearch(const QString& path, const QString& text,
                                    bool *complete)
 {
+   int count = -1;
+   bool finished = false;
+   QEventLoop loop;
+
+   textSearchLater(path, text, [&](int num, bool all) {
+      count = num;
+      if (complete)
+         *complete = all;
+      finished = true;
+      loop.quit();
+   });
+   if (!finished) {
+      BlockWatch::note("search");
+      loop.exec();
+   }
+   return count;
+}
+
+void Desktopwidget::textSearchLater(const QString& path, const QString& text,
+                                    std::function<void(int count,
+                                                       bool complete)> done)
+{
    QModelIndex root = getRootIndex();
    QString root_path = _model->data(root, Dirmodel::FilePathRole).toString();
+   // only a local index is brought up to date, which is done before this returns
    Operation op(tr("Indexing text"), 0, this);
-   QModelIndex sind;
-   int count;
+   QPointer<Desktopwidget> self(this);
 
    _contents_proxy->setFilterFixedString("");
-   if (_main->complain(_contents->findText(path, root_path, text,
-                                           _view->getMeasure(), sind, count,
-                                           &op, complete)))
-      return -1;
+   _contents->findTextLater(path, root_path, text, _view->getMeasure(), &op,
+                            [self, done](err_info *err,
+                                         const QModelIndex &found, int count,
+                                         bool complete) {
+      if (!self)
+         return;
+      if (self->_main->complain(err)) {
+         done(-1, complete);
+         return;
+      }
 
-   QModelIndex ind = sind;
-   _modelconv->indexToProxy(ind.model(), ind);
-   _view->setRootIndex(ind);
-   _view->setFocus();
-   _view->scrollToTop();
-
-   return count;
+      QModelIndex ind = found;
+      self->_modelconv->indexToProxy(ind.model(), ind);
+      self->_view->setRootIndex(ind);
+      self->_view->setFocus();
+      self->_view->scrollToTop();
+      done(count, complete);
+   });
 }
 
 void Desktopwidget::specialView(const QString& prompt)
