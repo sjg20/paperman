@@ -1931,8 +1931,9 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
 
 
 err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
-      File::e_type type, Operation &op, QString &fname,
-      QStringList &fname_list, QStringList &tmp_list)
+      File::e_type type, const QHash<QString, QString> &copies,
+      Operation &op, QString &fname, QStringList &fname_list,
+      QStringList &tmp_list)
 {
    int upto = 0;
 
@@ -1948,13 +1949,31 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
       File *copy = nullptr;
 
       /* a remote stack may not be here, or only some of its pages, so
-         work from a copy of the whole of it */
-      if (RemoteBackend *remote = remoteForFile (f))
+         work from the copy of the whole of it fetched first */
+      if (remoteForFile (f))
          {
-         CALL (remoteWorkCopy (f->desk (), remote, f, copy));
+         QFileInfo fi (copies.value (f->pathname ()));
+
+         if (fi.fileName ().isEmpty ())
+            return err_make (ERRFN, ERR_cannot_open_file1,
+                             qPrintable (f->filename ()));
+         copy = File::createFile (fi.absolutePath () + "/", fi.fileName (),
+                                  nullptr, File::typeFromName (fi.fileName ()));
+         if (!copy)
+            return err_make (ERRFN, ERR_cannot_open_file1,
+                             qPrintable (fi.filePath ()));
          tmp_list << copy->pathname ();
          if (type != File::Type_other)
+            {
+            err_info *err = copy->load ();
+
+            if (err)
+               {
+               delete copy;
+               return err;
+               }
             f = copy;
+            }
          }
 
       // if just copying, then get the filename
@@ -1985,55 +2004,147 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
 }
 
 
-err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist,
-      File::e_type type)
+void Desktopmodel::workCopiesLater (const QModelIndexList &list,
+      std::function<void (err_info *err,
+                          const QHash<QString, QString> &copies)> done)
+   {
+   struct Want
+      {
+      QString pathname;    //!< the stack, as the model knows it
+      QString repo;
+      QString path;        //!< in the repository
+      QString leaf;
+      QString ext;
+      };
+   QPointer<RemoteBackend> server;
+   auto wants = std::make_shared<QList<Want> > ();
+   auto copies = std::make_shared<QHash<QString, QString> > ();
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+      RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+      if (!remote)
+         continue;
+      server = remote;
+      *wants << Want {f->pathname (), f->desk ()->repoName (),
+                      remoteStackPath (f->desk (), f), f->leaf (), f->ext ()};
+      }
+
+   /* one at a time, so that each copy is there before the next is
+      named, and two stacks of the same name get copies of their own.
+      Each download holds the chain until it is done */
+   auto next = std::make_shared<std::function<void ()> > ();
+   std::weak_ptr<std::function<void ()> > weak = next;
+
+   *next = [this, server, wants, copies, done, weak] () {
+      auto self = weak.lock ();
+
+      if (wants->isEmpty ())
+         {
+         done (NULL, *copies);
+         return;
+         }
+      if (!server)
+         {
+         done (err_make (ERRFN, ERR_remote_fetch_failed1,
+                         "the server has gone"), *copies);
+         return;
+         }
+
+      Want want = wants->takeFirst ();
+      QString dir = QDir::tempPath () + "/";
+      QString dest = dir + util_findNextFilename (want.leaf, dir, want.ext)
+                     + want.ext;
+
+      // hold the file's name, so the next copy does not take it
+      QFile (dest).open (QIODevice::WriteOnly);
+      copies->insert (want.pathname, dest);
+      server->downloadFile (want.repo, want.path, dest, this,
+                            [copies, done, self] (
+                               const RemoteBackend::Result &result) {
+         if (!result.ok)
+            done (err_make (ERRFN, ERR_remote_fetch_failed1,
+                            qPrintable (result.error)), *copies);
+         else
+            (*self) ();
+      });
+   };
+   (*next) ();
+   }
+
+
+err_info *Desktopmodel::sendFiles (QModelIndexList &slist, File::e_type type,
+      const QHash<QString, QString> &copies, bool clipboard)
 {
    QString fname;
    QStringList fname_list, tmp_list;
-
-   UNUSED (parent);
    Operation op ("Packaging", slist.size (), 0);
 
-   err_info *e = packageFiles (slist, type, op, fname, fname_list, tmp_list);
+   err_info *e = packageFiles (slist, type, copies, op, fname, fname_list,
+                               tmp_list);
    bool can_delete = true;
-   if (!e)
-      e = emailFiles (fname, fname_list, can_delete);
 
-   // delete the files if we are allowed
-   if (can_delete) {
-      foreach (QString fname, tmp_list)
-         {
-         QFile f (fname);
-         f.remove ();
-         }
-   }
+   if (!e)
+      e = clipboard ? copyFilesToClipboard (fname, fname_list, can_delete)
+                    : emailFiles (fname, fname_list, can_delete);
+
+   /* delete the files if we are allowed, with any copy fetched from a
+      server which was not used */
+   if (can_delete)
+      for (const QString &name : tmp_list)
+         QFile::remove (name);
+   for (const QString &copy : copies)
+      if (!tmp_list.contains (copy))
+         QFile::remove (copy);
    return e;
+}
+
+
+void Desktopmodel::sendFilesLater (const QModelIndexList &slist,
+      File::e_type type, bool clipboard, OpDone done)
+   {
+   QList<QPersistentModelIndex> stacks;
+
+   for (const QModelIndex &ind : slist)
+      stacks << QPersistentModelIndex (ind);
+   workCopiesLater (slist, [this, stacks, type, clipboard, done] (
+                       err_info *err, const QHash<QString, QString> &copies) {
+      QModelIndexList list;
+
+      for (const QPersistentModelIndex &ind : stacks)
+         if (ind.isValid ())
+            list << ind;
+      if (err || list.isEmpty ())
+         {
+         for (const QString &copy : copies)
+            QFile::remove (copy);
+         done (err);
+         return;
+         }
+      done (sendFiles (list, type, copies, clipboard));
+   });
+   }
+
+
+err_info *Desktopmodel::opEmailFiles (QModelIndex parent, QModelIndexList &slist,
+      File::e_type type)
+{
+   UNUSED (parent);
+   return waitForOp ("email", [&] (OpDone done) {
+      sendFilesLater (slist, type, false, done);
+   });
 }
 
 
 err_info *Desktopmodel::opCopyFiles (QModelIndex parent, QModelIndexList &slist,
       File::e_type type)
 {
-   QString fname;
-   QStringList fname_list, tmp_list;
-
    UNUSED (parent);
-   Operation op ("Packaging", slist.size (), 0);
-
-   err_info *e = packageFiles (slist, type, op, fname, fname_list, tmp_list);
-   bool can_delete = true;
-   if (!e)
-      e = copyFilesToClipboard (fname, fname_list, can_delete);
-
-   // delete the converted files if they are not the one on the clipboard
-   if (can_delete) {
-      foreach (QString fname, tmp_list)
-         {
-         QFile f (fname);
-         f.remove ();
-         }
-   }
-   return e;
+   return waitForOp ("copy", [&] (OpDone done) {
+      sendFilesLater (slist, type, true, done);
+   });
 }
 
 

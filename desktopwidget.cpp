@@ -1631,19 +1631,23 @@ void Desktopwidget::deliverOut (void)
 
 void Desktopwidget::email (void)
 {
-   QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
    
-   _main->complain(_contents->opEmailFiles(parent, slist, File::Type_other));
+   // a stack on a server is fetched first, without waiting
+   _contents->sendFilesLater(slist, File::Type_other, false, [this](err_info *err) {
+      _main->complain(err);
+   });
 }
 
 
 void Desktopwidget::emailMax (void)
 {
-   QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
    
-   _main->complain(_contents->opEmailFiles(parent, slist, File::Type_max));
+   // a stack on a server is fetched first, without waiting
+   _contents->sendFilesLater(slist, File::Type_max, false, [this](err_info *err) {
+      _main->complain(err);
+   });
 }
 
 void Desktopwidget::moveToFolder(void)
@@ -1680,33 +1684,38 @@ void Move::accept()
 
 void Desktopwidget::emailPdf (void)
 {
-   QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
 
-   _main->complain(_contents->opEmailFiles(parent, slist, File::Type_pdf));
+   // a stack on a server is fetched first, without waiting
+   _contents->sendFilesLater(slist, File::Type_pdf, false, [this](err_info *err) {
+      _main->complain(err);
+   });
 }
 
 
 void Desktopwidget::copy (void)
 {
-   QModelIndex parent = _view->rootIndexSource ();
    QModelIndexList slist = _view->getSelectedListSource ();
 
    if (slist.isEmpty ())
       return;
 
    // tell the user what landed on the clipboard and how to use it
-   if (!_main->complain (_contents->opCopyFiles (parent, slist,
-         File::Type_pdf)))
-      {
-      QString msg = slist.size () == 1
+   int count = slist.size ();
+
+   _contents->sendFilesLater (slist, File::Type_pdf, true,
+                              [this, count] (err_info *err) {
+      if (_main->complain (err))
+         return;
+
+      QString msg = count == 1
          ? tr ("Copied as a PDF document - press Ctrl+V to paste it into "
                "an email, a file manager or another app")
          : tr ("Copied %1 documents as a zip - press Ctrl+V to paste it "
                "into an email, a file manager or another app")
-                  .arg (slist.size ());
+                  .arg (count);
       emit newContents (msg);
-      }
+   });
 }
 
 
