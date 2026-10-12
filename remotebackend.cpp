@@ -9,6 +9,8 @@ License: GPL-2
 
 #include <QDebug>
 #include <QDir>
+#include <QFutureWatcher>
+#include <QtConcurrent>
 #include <QEventLoop>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -1303,6 +1305,27 @@ static bool writeWhole(const QString &path, const QByteArray &bytes,
 }
 
 
+void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
+                               std::function<void(const QString &)> done)
+{
+   auto *watcher = new QFutureWatcher<QString>(this);
+
+   QObject::connect(watcher, &QFutureWatcherBase::finished, this,
+                    [watcher, done]() {
+      QString error = watcher->result();
+
+      watcher->deleteLater();
+      done(error);
+   });
+   watcher->setFuture(QtConcurrent::run([path, bytes]() {
+      QString error;
+
+      writeWhole(path, bytes, &error);
+      return error;
+   }));
+}
+
+
 QString RemoteBackend::pageDirFor(const QString &repo, const QString &relPath)
 {
    QString p = cachePathFor(repo, relPath);
@@ -1375,11 +1398,15 @@ quint64 RemoteBackend::fetchStackInfoAsync(const QString &repo,
              emit stackInfoReady(token, QString());
              return;
           }
-          if (!writeWhole(dir + "/info.json", body, &_lastError)) {
-             emit stackInfoReady(token, QString());
-             return;
-          }
-          emit stackInfoReady(token, dir);
+          writeLater(dir + "/info.json", body,
+                     [this, token, dir](const QString &error) {
+             if (!error.isEmpty()) {
+                _lastError = error;
+                emit stackInfoReady(token, QString());
+                return;
+             }
+             emit stackInfoReady(token, dir);
+          });
        });
    return token;
 }
@@ -1445,11 +1472,15 @@ quint64 RemoteBackend::fetchPageAsync(const QString &repo,
              return;
           }
           QString path = pageFileIn(dir, page);
-          if (!writeWhole(path, body, &_lastError)) {
-             emit pageReady(token, QString());
-             return;
-          }
-          emit pageReady(token, path);
+
+          writeLater(path, body, [this, token, path](const QString &error) {
+             if (!error.isEmpty()) {
+                _lastError = error;
+                emit pageReady(token, QString());
+                return;
+             }
+             emit pageReady(token, path);
+          });
        });
    return token;
 }
