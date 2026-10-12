@@ -263,6 +263,46 @@ public:
     void transformPage(const QString &repo, const QString &path, int page,
                        const QString &op, QObject *context, Done done);
 
+    /** delete pages, numbered from 1; the JSON's "undoId" is what
+     *  undeletePages() needs to bring them back */
+    void deletePages(const QString &repo, const QString &path,
+                     const QList<int> &pages, QObject *context, Done done);
+
+    //! bring back pages deleted by deletePages()
+    void undeletePages(const QString &repo, const QString &path,
+                       const QString &undoId, QObject *context, Done done);
+
+    /** copy or move @p pagecount pages from @p pagenum (from 1) to a new
+     *  stack; the JSON's "name" is the new stack's */
+    void unstackStack(const QString &repo, const QString &path, int pagenum,
+                      int pagecount, bool remove,
+                      const QString &suggestedName, QObject *context,
+                      Done done);
+
+    //! put the pages of @p sources into a stack, at @p insertPage
+    void stackStacks(const QString &repo, const QString &destPath,
+                     const QStringList &sources, int insertPage,
+                     QObject *context, Done done);
+
+    //! copy a stack; the JSON's "name" is the copy's
+    void duplicateStack(const QString &repo, const QString &path,
+                        QObject *context, Done done);
+
+    //! convert a stack to another type; the JSON's "name" is the new one's
+    void convertStack(const QString &repo, const QString &path,
+                      const QString &type, int oddEven, QObject *context,
+                      Done done);
+
+    //! unfold a stack of booklet pages; the JSON's "name" is the new one's
+    void unfoldStack(const QString &repo, const QString &path,
+                     QObject *context, Done done);
+
+    /** Fetch a stack's structure without keeping it, as an operation
+     *  needing what the stack is now does; the JSON's "pagecount" is how
+     *  many pages it has */
+    void stackStructure(const QString &repo, const QString &path,
+                        QObject *context, Done done);
+
     /** Rename a stack on the server.  On success @p newName holds the
      *  final name the server chose (with autoRename it may differ
      *  from the requested one).  Sync. */
