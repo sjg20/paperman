@@ -1147,8 +1147,26 @@ err_info *Desktopmodel::scanCommitPages (QModelIndex &ind, int del_count,
          err = _scan_desk->removePages (_scan_file, pages, ba, count);
       else*/ if (allow_undo)
          deletePages (ind, pages);
-      else
+      else if (!file || !isRemoteDir (file->desk ()->dir ()))
          err = opDeletePages (ind, pages, ba, del_count);
+
+      /* a stack on a server has its pages deleted there, after anything
+         queued for it, such as its upload, without waiting */
+      else
+         {
+         QString dir = file->desk ()->dir ();
+         QString name = file->filename ();
+
+         queueOp ([this, dir, name, pages] (OpDone done) {
+            opDeletePages (stackFor (dir, name), pages,
+                           std::make_shared<QByteArray> (),
+                           std::make_shared<int> (0), done);
+         }, [name] (err_info *e) {
+            if (e)
+               qWarning () << "Desktopmodel: cannot delete the blank pages of"
+                           << name << ":" << e->errstr;
+         }, true);
+         }
       }
    return err;
    }
