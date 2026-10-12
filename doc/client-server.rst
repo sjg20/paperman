@@ -111,19 +111,20 @@ Not Waiting for the Server
 The desktop should never wait for a server on its main thread. A wait
 either freezes the window or, through the nested event loop which
 ``RemoteBackend``'s blocking calls spin, lets the user act again before
-the first action is done, with the code part-way through it. Much of the
-desktop still waits, and the work to stop it goes flow by flow.
+the first action is done, with the code part-way through it. Each flow
+which talks to a server is built not to wait, as below.
 
 Code which must not wait asks ``RemoteBackend`` with a context object and
 a callback, such as ``fetchStatus(context, done)``, and carries on when
 the callback comes with the ``Result``. The callback is dropped if the
 context has gone by then, so a window closed with a request still out is
-safe. The blocking calls remain, for ``paperman-client`` and for code not
-yet changed, and some are built on the asynchronous ones. Attaching a
-server works this way: ``Desktopwidget::addRemoteServer()`` calls back
-once the server's repositories are in the tree, and at startup the window
-opens at once, with each server, including one named by its host with
-``--server``, appearing as it answers.
+safe. The blocking calls remain, for ``paperman-client`` and for code
+which cannot go on without the answer, such as the tests, and some are
+built on the asynchronous ones. Attaching a server works this way:
+``Desktopwidget::addRemoteServer()`` calls back once the server's
+repositories are in the tree, and at startup the window opens at once,
+with each server, including one named by its host with ``--server``,
+appearing as it answers.
 
 Folders work this way too. Opening a folder on a server puts its desk in
 the model at once, empty, while ``Desktopmodel::listRemoteDesk()`` fetches
@@ -183,6 +184,14 @@ page of the stacks here with ``Desktopmodel::fetchStacksLater()``, which
 asks for what each stack lacks and looks again each time something
 arrives, then prints them as before.
 
+Emailing a remote stack, or copying it to the clipboard, first fetches a
+whole copy of it into the temporary folder with
+``Desktopmodel::workCopiesLater()``, then packages it as before. A
+server without the convert feature has a copy of the stack converted, or
+unfolded, here: each stack is a step of the operation which downloads
+the copy, converts it and uploads the result, whose reply names the new
+stack just as the server's own conversion does.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -213,9 +222,6 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: converting on a server without the convert
-  feature and sending a remote stack by email still wait for the server
-  on the main thread; see Not Waiting for the Server above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
