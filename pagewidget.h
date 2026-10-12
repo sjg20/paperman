@@ -293,6 +293,13 @@ protected:
                                  delay it for 300ms */
    void updateViewport (bool update_scale = false, bool force_smoothing = false, bool delay_smoothing = false);
 
+   //! draw @p small, the page scaled to the pixmap, into the pixmap
+   void drawScaled (const QImage &small);
+
+   /** scale the page smoothly to @p size in the background, and draw it
+       once done, unless the page has been drawn again meanwhile */
+   void smoothLater (QSize size);
+
    /** clear the viewport so that it shows no image */
    void clearViewport (void);
 
@@ -441,6 +448,10 @@ private:
 
    /** timer used to handle updates */
    QTimer *_timer;
+
+   /** counts each drawing of the page, so that a smooth one made in the
+       background is only drawn if nothing has been drawn since */
+   int _drawn = 0;
 
    /** true if a delayed update is set - we will update when the page is visible on screen */
    bool _delayed_update;
