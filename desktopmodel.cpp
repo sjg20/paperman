@@ -838,6 +838,12 @@ err_info *Desktopmodel::beginScan (QModelIndex parent, const QString &stack_name
    // stop this maxdesk from being disposed while we are scanning into it
    desk->setAllowDispose (false);
 
+   /* a stack scanned into a folder on a server is made here and only
+      uploaded once confirmed, so nothing should fetch it from the server
+      meanwhile, which would close it under the scan */
+   if (remoteForFile (_scan_file))
+      _scan_file->setRemoteChecked (true);
+
    // add to the model
    qDebug () << "scan_file" << _scan_file;
    newItem (row, parent, list);
@@ -2280,6 +2286,11 @@ Filemax *Desktopmodel::sparseFor (File *file, RemoteBackend *remote,
 
    if (!max->isSparse ())
       {
+      /* a stack checked already and not sparse is all here, such as one
+         scanned here and not yet uploaded, so it stays whole */
+      if (max->remoteChecked ())
+         return nullptr;
+
       QString dir = remote->pageDirFor (desk->repoName (),
                                         remoteStackPath (desk, file));
       if (dir.isEmpty ())
