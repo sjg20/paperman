@@ -160,6 +160,16 @@ QString TestAsync::serverPath (const QString &fname) const
    }
 
 
+void TestAsync::indexServer ()
+   {
+   _server.reset (new ServerThread (_repo->path (), kPort));
+   _server->setTextIndex (true);
+   _server->setReadPages (true);
+   QVERIFY (_server->begin ());
+   _server->setDelay (kDelayMs);
+   }
+
+
 void TestAsync::connectServer ()
    {
    bool attached = false;
@@ -819,3 +829,53 @@ void TestAsync::testUnfold ()
    QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
    CHECK_ASYNC (check, nullptr);
    }
+
+
+void TestAsync::testOcr ()
+   {
+   // the server reads the page with its own engine
+   if (QStandardPaths::findExecutable ("tesseract").isEmpty ())
+      QSKIP ("tesseract is not installed");
+   connectServer ();
+   openFolder ();
+   clickStack ();
+   Pagewidget *page = _desktop->_page;
+   QTRY_VERIFY (!page->_image.isNull ());
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   bool done = false;
+   err_info *err = nullptr;
+
+   model->ocrPageLater (stackIndex (), 0, [&] (err_info *e, const QString &) {
+      err = e;
+      done = true;
+   });
+   QVERIFY (!done);
+   QTRY_VERIFY_WITH_TIMEOUT (done, 30000);
+   QVERIFY2 (!err, err ? err->errstr : "");
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testReadStack ()
+   {
+   indexServer ();
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   bool done = false;
+   err_info *err = nullptr;
+
+   _desktop->getModel ()->askServerToReadLater (stackIndex (),
+                                                [&] (err_info *e) {
+      err = e;
+      done = true;
+   });
+   QVERIFY (!done);
+   QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 10);
+   QVERIFY2 (!err, err ? err->errstr : "");
+   CHECK_ASYNC (check, nullptr);
+   }
+

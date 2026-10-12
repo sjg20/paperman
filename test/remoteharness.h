@@ -43,6 +43,14 @@ public:
        server which has hung would */
    void setDelay (int ms) { _delay.storeRelaxed (ms); }
 
+   /** Have the server index the text on its stacks' pages, so it can
+       search them and read them in the background; call before begin() */
+   void setTextIndex (bool on) { _textIndex = on; }
+
+   /** Have the server read its stacks' pages in the background, with an
+       engine which finds no words; call before begin() */
+   void setReadPages (bool on) { _readPages = on; }
+
 protected:
    void run () override;
 
@@ -51,6 +59,8 @@ private:
    quint16 _port;
    quint16 _proxyPort = 0;
    bool _ok = false;
+   bool _textIndex = false;
+   bool _readPages = false;
    QAtomicInt _delay;
    QSemaphore _ready;
 };

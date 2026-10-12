@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QAction>
 #include <QDebug>
 #include <QImage>
+#include <QPointer>
 #include <QVBoxLayout>
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -1303,15 +1304,25 @@ void Pagewidget::ocrPage (void)
       _modelconv->indexToSource (_model, sindex);
       if (contents && sindex.isValid ())
          {
-         err_info *err = contents->ocrPage (sindex, _pagenum, str);
+         /* show what was read once it has been, if the page is still the
+            one shown: a remote stack is read without waiting */
+         QPointer<Pagewidget> self (this);
+         QPersistentModelIndex stack (_index);
+         int pagenum = _pagenum;
 
-         // a local stack keeps the page's words, so show them
-         if (!Mainwidget::singleton()->complain(err))
-            {
-            updateOcrText ();
-            if (!_ocr_page)
-               _ocr_edit->setText (str);
-            }
+         contents->ocrPageLater (sindex, _pagenum, [self, stack, pagenum] (
+                                    err_info *err, const QString &text) {
+            if (!self || Mainwidget::singleton ()->complain (err))
+               return;
+
+            // a local stack keeps the page's words, so show them
+            if (self->_index == stack && self->_pagenum == pagenum)
+               {
+               self->updateOcrText ();
+               if (!self->_ocr_page)
+                  self->_ocr_edit->setText (text);
+               }
+         });
          return;
          }
       }

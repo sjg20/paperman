@@ -49,6 +49,11 @@ void ServerThread::run ()
    SearchServer server (_root, _port);
    QTcpServer proxy;
 
+   server.setTextIndex (_textIndex);
+   if (_readPages)
+      server.setReadPages (1, [] (QImage &, OcrPage &) {
+         return QString ();
+      });
    _ok = server.start () && proxy.listen (QHostAddress::LocalHost);
    _proxyPort = proxy.serverPort ();
 

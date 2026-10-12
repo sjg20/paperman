@@ -122,7 +122,17 @@ private slots:
    //! unfolding a booklet, and undoing that
    void testUnfold ();
 
+   //! reading a page's text
+   void testOcr ();
+
+   //! asking the server to read a stack's pages next
+   void testReadStack ();
+
 private:
+   /** restart the server so that it indexes the text on its stacks and
+       reads their pages */
+   void indexServer ();
+
    //! attach the server, waiting until it is there
    void connectServer ();
 
