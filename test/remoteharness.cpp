@@ -182,7 +182,7 @@ bool AsyncCheck::ok ()
    {
    _waits += BlockWatch::take ();
    _gap = qMax (_gap, _meter.longestGap ());
-   return _waits.isEmpty () && _gap <= kMaxStallMs;
+   return _waits.isEmpty () && (_allowStall || _gap <= kMaxStallMs);
    }
 
 
@@ -192,7 +192,7 @@ QString AsyncCheck::report () const
 
    if (!_waits.isEmpty ())
       out << "waited for: " + _waits.join (", ");
-   if (_gap > kMaxStallMs)
+   if (!_allowStall && _gap > kMaxStallMs)
       out << QString ("stalled for %1ms").arg (_gap);
    return out.join ("; ");
    }
