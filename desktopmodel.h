@@ -1113,6 +1113,10 @@ signals:
       \param index    source model index of the stack
       \param pagenum  page whose image changed, or -1 for every page */
    void pageContentChanged (const QModelIndex &index, int pagenum);
+
+   /** emitted when a stack's structure or a page asked for with
+       requestContent() or requestPage() has come, or failed to */
+   void contentFetched ();
    /** indicate that we are about to start scanning into an item
 
       \index   item we are scanning into */
@@ -1220,6 +1224,14 @@ public:
    /** wait until every queued change has reached its server, or
        @p timeoutMs has passed, as the window closes */
    void finishOps (int timeoutMs);
+
+   /** bring every page of some stacks here from their server without
+       waiting, so that they can be read at once, as for printing.  A
+       stack which has gone meanwhile is skipped.
+
+      \param list  the stacks
+      \param done  called once they are here, or with why not */
+   void fetchStacksLater (const QModelIndexList &list, OpDone done);
 
    /** true if page @p pagenum of the stack @p ind can be read without
        asking a server for anything: always for a local stack, and for a
@@ -1338,6 +1350,12 @@ private:
 
    //! a move of stacks to or from the trash, going one at a time
    struct TrashJob;
+
+   /** state for fetchStacksLater(), shared with its callbacks */
+   struct FetchJob;
+
+   //! fetch what the next stack lacks, or finish once none does
+   void fetchNext (std::shared_ptr<FetchJob> job);
 
    //! move the next stack of @p job, or finish it
    void trashNext (std::shared_ptr<TrashJob> job);

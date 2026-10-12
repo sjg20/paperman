@@ -137,6 +137,9 @@ private slots:
    //! closing the window with a scanned stack still to be uploaded
    void testScanClose ();
 
+   //! fetching every page of a stack, as for printing it
+   void testFetchStacks ();
+
 private:
    /** restart the server so that it indexes the text on its stacks and
        reads their pages */

@@ -1402,6 +1402,12 @@ void Mainwidget::print (void)
    {
    Desktopview *view = _desktop->getView ();
 
+   if (_printing)
+      {
+      emit newContents ("Still fetching the pages to print");
+      return;
+      }
+
    // get source model indexes, which is what we need
    QModelIndexList list = view->getSelectedList (true, true);
 //    Desk *maxdesk;
@@ -1473,12 +1479,36 @@ void Mainwidget::print (void)
       _opt->save ();
       _opt->putxml ();
       }
-   if (result && !_saved)
-      printPages (list);
-   else if (!result)
-      emit newContents ("Printing aborted");
-   _watchButtons = true;
-   delete _opt;
+   if (!result || _saved)
+      {
+      if (!result)
+         emit newContents ("Printing aborted");
+      _watchButtons = true;
+      delete _opt;
+      return;
+      }
+
+   /* a stack on a server may not all be here, so bring it here first,
+      without waiting; a local one is printed at once */
+   QList<QPersistentModelIndex> stacks;
+
+   for (const QModelIndex &ind : list)
+      stacks << QPersistentModelIndex (ind);
+   _printing = true;
+   emit newContents ("Fetching the pages to print");
+   _contents->fetchStacksLater (list, [this, stacks] (err_info *err) {
+      QModelIndexList here;
+
+      for (const QPersistentModelIndex &ind : stacks)
+         if (ind.isValid ())
+            here << ind;
+      if (!complain (err) && !here.isEmpty ())
+         printPages (here);
+      _printing = false;
+      _watchButtons = true;
+      delete _opt;
+      _opt = nullptr;
+   });
    }
 
 
