@@ -451,6 +451,12 @@ public:
     bool downloadFile(const QString &repo, const QString &relPath,
                       const QString &dest);
 
+    /** Download a whole file without waiting, as the other
+     *  downloadFile() does.  Once done, @p done is called unless
+     *  @p context has gone */
+    void downloadFile(const QString &repo, const QString &relPath,
+                      const QString &dest, QObject *context, Done done);
+
     QString ensureCachedFile(const QString &repo, const QString &relPath,
                              bool *refreshed = nullptr);
 

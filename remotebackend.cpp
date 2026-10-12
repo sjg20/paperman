@@ -1063,6 +1063,31 @@ bool RemoteBackend::downloadFile(const QString &repo, const QString &relPath,
 }
 
 
+void RemoteBackend::downloadFile(const QString &repo, const QString &relPath,
+                                 const QString &dest, QObject *context,
+                                 Done done)
+{
+   whenFinished(startGet(wholeFilePathFor(repo, relPath), QString(),
+                         kFetchTimeoutMs),
+                context, [dest, done](const Result &result) {
+      Result out = result;
+
+      if (out.ok) {
+         QSaveFile file(dest);
+
+         if (!file.open(QIODevice::WriteOnly)
+             || file.write(out.body) != out.body.size() || !file.commit()) {
+            out.ok = false;
+            out.error = QString("cannot write %1: %2")
+                           .arg(dest, file.errorString());
+         }
+      }
+      out.body.clear();
+      done(out);
+   });
+}
+
+
 QString RemoteBackend::ensureCachedFile(const QString &repo,
                                         const QString &relPath,
                                         bool *refreshed)
