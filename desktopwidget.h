@@ -538,6 +538,18 @@ private:
    int startTextSearch(const QString& path, const QString& text,
                        bool *complete = nullptr);
 
+   /**
+    * @brief Search for text as startTextSearch() does, but without waiting
+    *        for a server
+    * @param path  Full path to directory to search
+    * @param text  Words to look for, as the user typed them
+    * @param done  called once the stacks are shown, with how many there
+    *              are, or -1 on error, and whether the server's index is
+    *              complete
+    */
+   void textSearchLater(const QString& path, const QString& text,
+                        std::function<void(int count, bool complete)> done);
+
    //! Update the view to indicate that it is in a search/import mode
    void specialView(const QString& prompt);
 

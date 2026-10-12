@@ -1292,6 +1292,24 @@ err_info *Desktopmodel::findText (const QString &path,
       const QString &rootPath, const QString &text, Measure *meas,
       QModelIndex &found, int &count, Operation *op, bool *complete)
    {
+   return waitForOp ("search", [&] (OpDone done) {
+      findTextLater (path, rootPath, text, meas, op,
+                     [&found, &count, complete, done] (err_info *err,
+                        const QModelIndex &ind, int num, bool all) {
+         found = ind;
+         count = num;
+         if (complete)
+            *complete = all;
+         done (err);
+      });
+   });
+   }
+
+
+void Desktopmodel::findTextLater (const QString &path,
+      const QString &rootPath, const QString &text, Measure *meas,
+      Operation *op, Found done)
+   {
    QString root = rootPath;
 
    while (root.endsWith ('/'))
@@ -1310,84 +1328,119 @@ err_info *Desktopmodel::findText (const QString &path,
    RemoteBackend *remote = _dirmodel ? dynamic_cast<RemoteBackend *> (
          _dirmodel->backendForRoot (root)) : nullptr;
    QString query = SearchIndex::matchQuery (text);
-   QStringList matches;          // relative to the folder searched
-   QHash<QString, int> pages;    // by the stack's path in the repository
    QString prefix = dirRel.isEmpty () ? QString () : dirRel + "/";
 
-   if (complete)
-      *complete = true;
-   count = 0;
-   if (remote)
+   if (!remote)
       {
-      QList<RemoteBackend::TextHit> hits;
+      QModelIndex found;
+      int count = 0;
+      err_info *err = findLocalText (path, root, rootPath, query, meas, op,
+                                     found, count);
 
-      if (!query.isEmpty () && !remote->searchText (QFileInfo (root).fileName (),
-                           text, dirRel, 1000, hits, complete))
-         return err_make (ERRFN, ERR_remote_op_failed2, "search",
-               qPrintable (remote->hasTextSearch () ? remote->lastError ()
-                  : tr ("the server does not search the text on the pages; "
-                        "it needs a newer paperman-server, run with "
-                        "--index")));
+      done (err, found, count, true);
+      return;
+      }
+
+   // the stacks found, relative to the folder searched
+   auto finish = [this, path, rootPath, prefix, meas, done] (
+                    const QList<RemoteBackend::TextHit> &hits, bool complete) {
+      QStringList matches;
+      QHash<QString, int> pages;    // by the stack's path in the repository
+
       for (const RemoteBackend::TextHit &hit : hits)
          if (!pages.contains (hit.path) && hit.path.startsWith (prefix))
             {
             pages.insert (hit.path, hit.page);
             matches << hit.path.mid (prefix.length ());
             }
-      }
-   else
+      QModelIndex found = finishFileSearch (path, rootPath, matches, meas,
+                                            pages);
+
+      done (NULL, found, matches.size (), complete);
+   };
+
+   if (query.isEmpty ())
       {
-      // a local repository keeps its index at the top, next to the stacks
-      if (!QFileInfo (root).isDir ())
-         return err_make (ERRFN, ERR_remote_op_failed2, "search",
-               qPrintable (tr ("cannot search the text in %1").arg (root)));
+      finish (QList<RemoteBackend::TextHit> (), true);
+      return;
+      }
 
-      SearchIndex index;
-      QList<SearchResult> results;
+   bool can = remote->hasTextSearch ();
 
-      CALL (index.init (root));
-      if (!query.isEmpty ())
+   remote->searchText (QFileInfo (root).fileName (), text, dirRel, 1000, this,
+                       [this, can, finish, done] (const QString &error,
+                          const QList<RemoteBackend::TextHit> &hits,
+                          bool complete) {
+      if (_closing)
+         return;
+      if (!error.isEmpty ())
          {
-         CALL (index.sync (path, [op] (int done, int total) {
-            if (!op)
-               return true;
-            op->setCount (total);
-            return !op->setProgress (done);
-            }));
-         CALL (index.search (query, results, 1000, path));
+         done (err_make (ERRFN, ERR_remote_op_failed2, "search",
+               qPrintable (can ? error
+                  : tr ("the server does not search the text on the pages; "
+                        "it needs a newer paperman-server, run with "
+                        "--index"))), QModelIndex (), 0, true);
+         return;
          }
+      finish (hits, complete);
+   });
+   }
 
-      QString top = QDir (root).absolutePath () + "/";
-      QString dir = QDir (path).absolutePath () + "/";
 
-      for (const SearchResult &res : results)
-         {
-         QString rel = res.filepath.mid (top.length ());
+err_info *Desktopmodel::findLocalText (const QString &path,
+      const QString &root, const QString &rootPath, const QString &query,
+      Measure *meas, Operation *op, QModelIndex &found, int &count)
+   {
+   QStringList matches;          // relative to the folder searched
+   QHash<QString, int> pages;    // by the stack's path in the repository
 
-         if (pages.contains (rel) || !res.filepath.startsWith (dir))
-            continue;
-         pages.insert (rel, res.pagenum);
-         matches << res.filepath.mid (dir.length ());
-         }
+   count = 0;
+
+   // a local repository keeps its index at the top, next to the stacks
+   if (!QFileInfo (root).isDir ())
+      return err_make (ERRFN, ERR_remote_op_failed2, "search",
+            qPrintable (tr ("cannot search the text in %1").arg (root)));
+
+   SearchIndex search;
+   QList<SearchResult> results;
+
+   CALL (search.init (root));
+   if (!query.isEmpty ())
+      {
+      CALL (search.sync (path, [op] (int done, int total) {
+         if (!op)
+            return true;
+         op->setCount (total);
+         return !op->setProgress (done);
+         }));
+      CALL (search.search (query, results, 1000, path));
+      }
+
+   QString top = QDir (root).absolutePath () + "/";
+   QString dir = QDir (path).absolutePath () + "/";
+
+   for (const SearchResult &res : results)
+      {
+      QString rel = res.filepath.mid (top.length ());
+
+      if (pages.contains (rel) || !res.filepath.startsWith (dir))
+         continue;
+      pages.insert (rel, res.pagenum);
+      matches << res.filepath.mid (dir.length ());
       }
 
    found = finishFileSearch (path, rootPath, matches, meas, pages);
 
    // a local stack is read, which makes its preview, and turned to its page
-   if (!remote)
+   for (int row = 0; row < rowCount (found); row++)
       {
-      QString top = QDir (root).absolutePath () + "/";
+      QModelIndex ind = index (row, 0, found);
+      File *f = getFile (ind);
+      QString rel = f ? QFileInfo (f->pathname ()).absoluteFilePath ()
+                           .mid (top.length ()) : QString ();
 
-      for (int row = 0; row < rowCount (found); row++)
-         {
-         QModelIndex ind = index (row, 0, found);
-         File *f = getFile (ind);
-         QString rel = f ? QFileInfo (f->pathname ()).absoluteFilePath ()
-                              .mid (top.length ()) : QString ();
-
-         if (pages.contains (rel))
-            showAtPage (ind, pages.value (rel));
-         }
+      if (pages.contains (rel))
+         showAtPage (ind, pages.value (rel));
       }
    count = matches.size ();
    return NULL;

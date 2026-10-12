@@ -884,44 +884,45 @@ bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
 }
 
 
-bool RemoteBackend::searchText(const QString &repo, const QString &text,
+void RemoteBackend::searchText(const QString &repo, const QString &text,
                                const QString &dir, int maxHits,
-                               QList<TextHit> &hits, bool *complete)
+                               QObject *context, TextDone done)
 {
    QUrlQuery q;
 
-   hits.clear();
    q.addQueryItem("text", text);
    if (!dir.isEmpty())
       q.addQueryItem("path", dir);
    q.addQueryItem("max", QString::number(maxHits));
 
-   QByteArray body = getRequest("/v1/repos/"
-                                + QString::fromUtf8(QUrl::toPercentEncoding(repo))
-                                + "/search?" + q.query(QUrl::FullyEncoded));
-   // the server says why it failed, which is more use than the status
-   QJsonObject obj = QJsonDocument::fromJson(body).object();
-   if (!_lastError.isEmpty() || !obj.value("success").toBool()) {
-      QString why = obj.value("error").toString();
+   whenFinished(startGet("/v1/repos/"
+                         + QString::fromUtf8(QUrl::toPercentEncoding(repo))
+                         + "/search?" + q.query(QUrl::FullyEncoded)),
+                context, [done](const Result &result) {
+      // the server says why it failed, which is more use than the status
+      QJsonObject obj = result.json();
+      QList<TextHit> hits;
 
-      if (!why.isEmpty())
-         _lastError = why;
-      else if (_lastError.isEmpty())
-         _lastError = "the server cannot search";
-      return false;
-   }
-   for (const QJsonValue &v : obj.value("results").toArray()) {
-      QJsonObject r = v.toObject();
-      TextHit hit;
+      if (!result.ok || !obj.value("success").toBool()) {
+         QString why = obj.value("error").toString();
 
-      hit.path = r.value("path").toString();
-      hit.page = r.value("page").toInt(1) - 1;   // the server's is 1-based
-      hit.snippet = r.value("snippet").toString();
-      hits << hit;
-   }
-   if (complete)
-      *complete = obj.value("complete").toBool(true);
-   return true;
+         if (why.isEmpty())
+            why = result.error.isEmpty()
+                  ? QStringLiteral("the server cannot search") : result.error;
+         done(why, hits, true);
+         return;
+      }
+      for (const QJsonValue &v : obj.value("results").toArray()) {
+         QJsonObject r = v.toObject();
+         TextHit hit;
+
+         hit.path = r.value("path").toString();
+         hit.page = r.value("page").toInt(1) - 1;   // the server's is 1-based
+         hit.snippet = r.value("snippet").toString();
+         hits << hit;
+      }
+      done(QString(), hits, obj.value("complete").toBool(true));
+   });
 }
 
 
