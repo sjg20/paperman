@@ -139,6 +139,9 @@ public:
    /*********** end of functions which the base class should implement ******/
 
 private:
+   //! the error for reading a PDF which has not been opened yet
+   err_info *notOpen (void);
+
    Pdfio *_pdfio;
    int _released_pages;  //!< page count remembered across release()
    };
