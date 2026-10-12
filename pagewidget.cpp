@@ -1384,6 +1384,8 @@ MyScrollArea::MyScrollArea (QWidget *parent)
    setHorizontalScrollBarPolicy (Qt::ScrollBarAsNeeded);
    setVerticalScrollBarPolicy (Qt::ScrollBarAsNeeded);
    _size = QSize (-1, -1);
+   _scale = 1.0;
+   _too_big = false;
    _rotate = 0;
    }
 
