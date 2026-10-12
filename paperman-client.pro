@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = paperman-client
 LANGUAGE = C++
-QT = core network
+QT = core network concurrent
 
 CONFIG += qt warn_on console
 CONFIG -= app_bundle
