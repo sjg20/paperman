@@ -173,6 +173,16 @@ stacks found once the answer comes; ``Desktopmodel::findTextLater()``
 calls back with them, and a local repository, whose index is brought up
 to date on the spot, calls back before it returns.
 
+A stack scanned into a folder on a server is made in the local cache, as
+before, and once confirmed is uploaded through the same queue, so the
+next scan can start at once. Until then it is only here, so a listing of
+its folder which replaces the rows waits behind any queued change, and
+closing the window waits (for up to half a minute) for queued changes to
+reach their server, rather than losing them. Printing first brings every
+page of the stacks here with ``Desktopmodel::fetchStacksLater()``, which
+asks for what each stack lacks and looks again each time something
+arrives, then prints them as before.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -203,9 +213,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: uploading a scan, converting on a server
-  without the convert feature and printing a remote stack still wait for
-  the server on the main thread; see Not Waiting for the Server above.
+- **Waiting for the server**: converting on a server without the convert
+  feature and sending a remote stack by email still wait for the server
+  on the main thread; see Not Waiting for the Server above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
