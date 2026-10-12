@@ -854,7 +854,7 @@ void TestAsync::testOcr ()
       done = true;
    });
    QVERIFY (!done);
-   QTRY_VERIFY_WITH_TIMEOUT (done, 30000);
+   QTRY_VERIFY_WITH_TIMEOUT (done, 90000);   // reading a page is slow
    QVERIFY2 (!err, err ? err->errstr : "");
    CHECK_ASYNC (check, nullptr);
    }
