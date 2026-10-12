@@ -1719,7 +1719,9 @@ void Desktopwidget::readText (void)
    {
    OcrReader *reader = Mainwidget::singleton ()->ocrReader ();
    int count = 0;
-   err_info *err = NULL;
+
+   // a server which cannot read pages says so once, not for every stack
+   auto told = std::make_shared<bool> (false);
 
    for (const QModelIndex &ind : _view->getSelectedListSource ())
       {
@@ -1734,15 +1736,17 @@ void Desktopwidget::readText (void)
       // a remote stack is read by its server, which is asked to do it next
       else if (f && f->desk () && f->desk ()->isRemote ())
          {
-         err = _contents->askServerToRead (ind);
-         if (err)
-            break;
+         _contents->askServerToReadLater (ind, [this, told] (err_info *e) {
+            if (e && !*told)
+               {
+               *told = true;
+               _main->complain (e);
+               }
+         });
          count++;
          }
       }
-   if (err)
-      _main->complain (err);
-   else if (!count)
+   if (!count)
       QMessageBox::information (this, tr ("Read text -- Paperman"),
          tr ("Only Paperman's own (.max) stacks can keep the text read "
              "from their pages"));

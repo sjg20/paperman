@@ -174,9 +174,11 @@ public:
     bool hasReadPages() const { return _features.contains(QStringLiteral("readPages")); }
 
     /** Ask the server to read the pages of a stack which have not been
-     *  read, before its other stacks.  It returns at once; the words
-     *  arrive with the stack once read, as a change to it. */
-    bool readStack(const QString &repo, const QString &path);
+     *  read, before its other stacks.  The server answers at once; the
+     *  words arrive with the stack once read, as a change to it.  Once
+     *  answered, @p done is called unless @p context has gone */
+    void readStack(const QString &repo, const QString &path,
+                   QObject *context, Done done);
 
     /** The bearer token currently in use (empty if not authenticated). */
     QString bearerToken() const { return _token; }
@@ -397,11 +399,11 @@ public:
     /** Run the server's OCR engine over 1-based page @p page of a
      *  stack.  The server keeps the page's words with the page, or
      *  where the stack cannot, stores the text in the stack's ocr
-     *  annotation.  It returns the text in @p text and, if it kept
-     *  them, the words in @p words, as OcrPage::toBytes() gives them;
-     *  otherwise @p words is empty. */
-    bool ocrPage(const QString &repo, const QString &path, int page,
-                 QString *text, QByteArray *words = nullptr);
+     *  annotation.  Once done, @p done is called unless @p context has
+     *  gone; the result's JSON gives the "text" and, if the server kept
+     *  them, the "words" */
+    void ocrPage(const QString &repo, const QString &path, int page,
+                 QObject *context, Done done);
 
     /** Open (and keep open) the server's event stream for @p repo.
      *  Each change made by another client is emitted as stackEvent();

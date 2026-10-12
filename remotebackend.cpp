@@ -663,9 +663,18 @@ void RemoteBackend::unfoldStack(const QString &repo, const QString &path,
 }
 
 
-bool RemoteBackend::readStack(const QString &repo, const QString &path)
+void RemoteBackend::ocrPage(const QString &repo, const QString &path,
+                            int page, QObject *context, Done done)
 {
-   return postStackOp(repo, path, "/read", QJsonObject(), nullptr);
+   postStackOp(repo, path + "/pages/" + QString::number(page), "/ocr",
+               QJsonObject(), context, done);
+}
+
+
+void RemoteBackend::readStack(const QString &repo, const QString &path,
+                              QObject *context, Done done)
+{
+   postStackOp(repo, path, "/read", QJsonObject(), context, done);
 }
 
 
@@ -912,26 +921,6 @@ bool RemoteBackend::searchText(const QString &repo, const QString &text,
    }
    if (complete)
       *complete = obj.value("complete").toBool(true);
-   return true;
-}
-
-
-bool RemoteBackend::ocrPage(const QString &repo, const QString &path,
-                            int page, QString *text, QByteArray *words)
-{
-   QJsonObject reply;
-
-   if (!postStackOp(repo, path + "/pages/" + QString::number(page),
-                    "/ocr", QJsonObject(), &reply))
-      return false;
-   if (text)
-      *text = reply.value("text").toString();
-   if (words) {
-      QJsonObject obj = reply.value("words").toObject();
-
-      *words = obj.isEmpty() ? QByteArray()
-               : QJsonDocument(obj).toJson(QJsonDocument::Compact);
-   }
    return true;
 }
 

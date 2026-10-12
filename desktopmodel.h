@@ -836,6 +836,17 @@ public:
                            std::shared_ptr<QStringList> namelist,
                            File::e_type type, int odd_even, OpDone done);
 
+   /** read a page's text, as the other ocrPage() does, but without
+       waiting for a server: @p done is called with any error and the
+       text once it is read.  It is queued behind changes to the stack */
+   void ocrPageLater (const QModelIndex &ind, int pagenum,
+                      std::function<void (err_info *err,
+                                          const QString &text)> done);
+
+   /** ask a server to read a stack's pages next, as askServerToRead()
+       does, but without waiting; @p report is called with any error */
+   void askServerToReadLater (const QModelIndex &ind, OpDone report);
+
    //! unfold booklets, as the other opUnfoldBooklets() does
    void opUnfoldBooklets (const QModelIndexList &list,
                           const QModelIndex &parent,
@@ -1412,6 +1423,12 @@ public:
       \returns error, or NULL if ok */
    err_info *ocrPage (const QModelIndex &ind, int pagenum, QString &text);
 
+   /** OCR one page of a local stack with the local OCR engine, as
+       ocrPage() does, keeping the words with the page where the stack
+       can */
+   err_info *ocrLocalPage (const QModelIndex &ind, int pagenum,
+                           QString &text);
+
    /** whether a stack keeps what OCR reads from its pages, so that the
        background reader can read it: a local .max stack. A remote
        stack's pages are for its server to read */
@@ -1695,6 +1712,8 @@ public:
                        const QString &text, Measure *meas,
                        QModelIndex &found, int &count,
                        Operation *op = nullptr, bool *complete = nullptr);
+
+
 
 public slots:
    /** advises the model of the current context index (default item for

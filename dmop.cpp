@@ -38,6 +38,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDesktopServices>
 #include <QFile>
 #include <QEventLoop>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QMimeData>
 #include <QProcess>
@@ -1231,47 +1232,23 @@ bool Desktopmodel::fetchRemoteThumbnail (File *file)
 err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
       QString &text)
    {
+   return waitForOp ("ocr", [&] (OpDone done) {
+      ocrPageLater (ind, pagenum, [&text, done] (err_info *err,
+                                                 const QString &str) {
+         text = str;
+         done (err);
+      });
+   });
+   }
+
+
+err_info *Desktopmodel::ocrLocalPage (const QModelIndex &ind, int pagenum,
+                                      QString &text)
+   {
    File *f = getFile (ind);
 
    if (!f)
       return NULL;
-
-   RemoteBackend *remote = remoteForFile (f);
-   if (remote)
-      {
-      Desk *desk = f->desk ();
-      QByteArray words;
-
-      if (!remote->ocrPage (desk->repoName (), remoteStackPath (desk, f),
-                            pagenum + 1, &text, &words))
-         return err_make (ERRFN, ERR_remote_op_failed2, "ocr",
-                          qPrintable (remote->lastError ()));
-
-      /* a stack held a page at a time fetches the page again, which
-         now carries what was read */
-      if (sparseFor (f, remote, desk))
-         return remoteStackChanged (ind, QList<int> () << pagenum);
-
-      /* the server kept the page's words with it, or else stored the
-         text in the stack's ocr annotation; mirror it onto the parsed
-         cached copy */
-      if (f->remoteChecked ())
-         {
-         OcrPage page;
-
-         if (!words.isEmpty () && OcrPage::fromBytes (words, page))
-            f->putPageOcr (pagenum, page);
-         else
-            {
-            QHash<int, QString> updates;
-
-            updates [File::Annot_ocr] = text;
-            f->putAnnot (updates);
-            f->flush ();
-            }
-         }
-      return NULL;
-      }
 
    CALL (ensureContent (ind));
 
@@ -1299,18 +1276,9 @@ err_info *Desktopmodel::ocrPage (const QModelIndex &ind, int pagenum,
 
 err_info *Desktopmodel::askServerToRead (const QModelIndex &ind)
    {
-   File *f = getFile (ind);
-   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
-
-   if (!remote)
-      return err_make (ERRFN, ERR_remote_op_failed2, "read",
-                       "the stack is not on a server");
-   Desk *desk = f->desk ();
-
-   if (!remote->readStack (desk->repoName (), remoteStackPath (desk, f)))
-      return err_make (ERRFN, ERR_remote_op_failed2, "read",
-                       qPrintable (remote->lastError ()));
-   return NULL;
+   return waitForOp ("read", [&] (OpDone done) {
+      askServerToReadLater (ind, done);
+   });
    }
 
 
@@ -2879,4 +2847,111 @@ void Desktopmodel::addMadeStacks (const QString &dir,
    if (!flist.isEmpty ())
       insertRows (flist, parent);
    done (err);
+   }
+
+
+void Desktopmodel::ocrPageLater (const QModelIndex &ind, int pagenum,
+                                 std::function<void (err_info *err,
+                                                     const QString &text)> done)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      {
+      QString text;
+      err_info *err = ocrLocalPage (ind, pagenum, text);
+
+      done (err, text);
+      return;
+      }
+
+   QString dir = f->desk ()->dir ();
+   QString fname = f->filename ();
+
+   queueOp ([this, dir, fname, pagenum, done] (OpDone opDone) {
+      QModelIndex ind = stackFor (dir, fname);
+      File *f = getFile (ind);
+      RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+      if (!remote)
+         {
+         opDone (NULL);
+         return;
+         }
+      Desk *desk = f->desk ();
+
+      remote->ocrPage (desk->repoName (), remoteStackPath (desk, f),
+                       pagenum + 1, this,
+                       [this, dir, fname, pagenum, done, opDone] (
+                          const RemoteBackend::Result &result) {
+         if (_closing)
+            return;      // the model is going, with what it showed
+         if (!result.ok)
+            {
+            done (err_make (ERRFN, ERR_remote_op_failed2, "ocr",
+                            qPrintable (result.error)), QString ());
+            opDone (NULL);
+            return;
+            }
+
+         QJsonObject reply = result.json ();
+         QString text = reply.value ("text").toString ();
+         QJsonObject obj = reply.value ("words").toObject ();
+         QByteArray words = obj.isEmpty () ? QByteArray ()
+               : QJsonDocument (obj).toJson (QJsonDocument::Compact);
+         QModelIndex ind = stackFor (dir, fname);
+         File *f = getFile (ind);
+         RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+         /* a stack held a page at a time fetches the page again, which
+            now carries what was read; otherwise the server kept the
+            page's words with it, or else stored the text in the stack's
+            ocr annotation, so mirror it onto the parsed cached copy */
+         if (remote && sparseFor (f, remote, f->desk ()))
+            stackChangedLater (ind, QList<int> () << pagenum);
+         else if (f && f->remoteChecked ())
+            {
+            OcrPage page;
+
+            if (!words.isEmpty () && OcrPage::fromBytes (words, page))
+               f->putPageOcr (pagenum, page);
+            else
+               {
+               QHash<int, QString> updates;
+
+               updates [File::Annot_ocr] = text;
+               f->putAnnot (updates);
+               f->flush ();
+               }
+            }
+         done (NULL, text);
+         opDone (NULL);
+      });
+   }, [] (err_info *) {}, true);
+   }
+
+
+void Desktopmodel::askServerToReadLater (const QModelIndex &ind,
+                                         OpDone report)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      {
+      report (err_make (ERRFN, ERR_remote_op_failed2, "read",
+                        "the stack is not on a server"));
+      return;
+      }
+   Desk *desk = f->desk ();
+
+   remote->readStack (desk->repoName (), remoteStackPath (desk, f), this,
+                      [this, report] (const RemoteBackend::Result &result) {
+      if (_closing)
+         return;
+      report (result.ok ? NULL
+                        : err_make (ERRFN, ERR_remote_op_failed2, "read",
+                                    qPrintable (result.error)));
+   });
    }
