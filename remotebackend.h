@@ -541,7 +541,8 @@ private:
     QByteArray getRequest(const QString &pathAndQuery);
     QByteArray postRequest(const QString &path, const QByteArray &body,
                            const QString &contentType
-                               = QStringLiteral("application/json"));
+                               = QStringLiteral("application/json"),
+                           int timeoutMs = 0);
     /** Wait for @p reply to finish, spinning an event loop; noted with
      *  BlockWatch, since the desktop should not wait */
     void waitForFinish(QNetworkReply *reply);
@@ -577,16 +578,21 @@ private:
                      const QString &verb, const QJsonObject &body,
                      QObject *context, Done done);
 
+    /** Construct an async POST of @p body to @p path, as startGet()
+     *  does a GET.  @p timeoutMs overrides the default per-request
+     *  transfer timeout, which is too short for an operation the server
+     *  takes a while over, such as reading a page. */
+    QNetworkReply *startPost(const QString &path, const QByteArray &body,
+                             const QString &contentType
+                                 = QStringLiteral("application/json"),
+                             int timeoutMs = 0);
+
     /** Construct an async GET against pathAndQuery.  Caller takes
      *  responsibility for the returned reply's signals; reply will
      *  call deleteLater on itself once consumed.  @p ifNoneMatch, when
-     *  non-empty, is sent as an If-None-Match header. */
-    /** @p timeoutMs overrides the default per-request transfer timeout,
-     *  which is far too short for fetching a whole stack. */
-    QNetworkReply *startPost(const QString &path, const QByteArray &body,
-                             const QString &contentType
-                                 = QStringLiteral("application/json"));
-
+     *  non-empty, is sent as an If-None-Match header.  @p timeoutMs
+     *  overrides the default per-request transfer timeout, which is far
+     *  too short for fetching a whole stack. */
     QNetworkReply *startGet(const QString &pathAndQuery,
                             const QString &ifNoneMatch = QString(),
                             int timeoutMs = 0);

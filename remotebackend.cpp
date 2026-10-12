@@ -334,6 +334,13 @@ static const int kRequestTimeoutMs = 5000;
  * this only fires when the transfer really has stalled. */
 static const int kFetchTimeoutMs = 120000;
 
+/* Nor is an operation on a stack: the server sends nothing until it has
+ * finished, and reading a page, or converting a long stack, takes it
+ * longer than a round-trip.  Giving up first reports a failure for an
+ * operation the server then completes.  The desktop does not wait for
+ * these, so a slow server only holds up the operations behind it */
+static const int kOperationTimeoutMs = 120000;
+
 
 /* Build the "/thumbnail?repo=...&path=...&page=N&size=..." path. */
 static QString thumbnailPathFor(const QString &repo, const QString &path,
@@ -478,7 +485,9 @@ bool RemoteBackend::postStackOp(const QString &repo, const QString &path,
    QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + verb;
    QByteArray data = QJsonDocument(body).toJson(QJsonDocument::Compact);
 
-   QByteArray resp = postRequest(endpoint, data);
+   QByteArray resp = postRequest(endpoint, data,
+                                 QStringLiteral("application/json"),
+                                 kOperationTimeoutMs);
    QJsonDocument doc = QJsonDocument::fromJson(resp);
    if (!doc.isObject()) {
       if (_lastError.isEmpty())
@@ -503,8 +512,9 @@ void RemoteBackend::postStackOp(const QString &repo, const QString &path,
    QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + verb;
    QByteArray data = QJsonDocument(body).toJson(QJsonDocument::Compact);
 
-   whenFinished(startPost(endpoint, data), context,
-                [verb, done](const Result &result) {
+   whenFinished(startPost(endpoint, data, QStringLiteral("application/json"),
+                          kOperationTimeoutMs),
+                context, [verb, done](const Result &result) {
       Result out = result;
       QJsonObject obj = result.json();
 
@@ -1465,15 +1475,17 @@ void RemoteBackend::invalidatePage(const QString &repo, const QString &relPath,
 
 QByteArray RemoteBackend::postRequest(const QString &path,
                                       const QByteArray &body,
-                                      const QString &contentType)
+                                      const QString &contentType,
+                                      int timeoutMs)
 {
-   return waitForReply(startPost(path, body, contentType));
+   return waitForReply(startPost(path, body, contentType, timeoutMs));
 }
 
 
 QNetworkReply *RemoteBackend::startPost(const QString &path,
                                         const QByteArray &body,
-                                        const QString &contentType)
+                                        const QString &contentType,
+                                        int timeoutMs)
 {
    QUrl url(_baseUrl);
    int q = path.indexOf('?');
@@ -1484,7 +1496,7 @@ QNetworkReply *RemoteBackend::startPost(const QString &path,
       url.setQuery(path.mid(q + 1));
    }
    QNetworkRequest req(url);
-   req.setTransferTimeout(kRequestTimeoutMs);
+   req.setTransferTimeout(timeoutMs > 0 ? timeoutMs : kRequestTimeoutMs);
    req.setRawHeader("X-Client-Id", _clientId.toUtf8());
    req.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
    if (!_token.isEmpty())
