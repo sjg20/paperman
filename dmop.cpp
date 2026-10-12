@@ -3061,3 +3061,91 @@ void Desktopmodel::askServerToReadLater (const QModelIndex &ind,
    });
    }
 
+
+/* Brings the pages of some stacks here, a stack at a time: first its
+   structure, then each page not here yet. Each time something comes, or
+   fails to, it looks again at what the stack still lacks */
+struct Desktopmodel::FetchJob
+   {
+   QList<QPersistentModelIndex> stacks;
+   int next = 0;              //!< the stack being fetched
+   bool askedInfo = false;    //!< its structure has been asked for
+   bool askedPages = false;   //!< and the pages it lacks
+   QMetaObject::Connection conn;
+   OpDone done;
+   };
+
+
+void Desktopmodel::fetchStacksLater (const QModelIndexList &list,
+                                     OpDone done)
+   {
+   auto job = std::make_shared<FetchJob> ();
+
+   for (const QModelIndex &ind : list)
+      job->stacks << QPersistentModelIndex (ind);
+   job->done = done;
+   job->conn = connect (this, &Desktopmodel::contentFetched, this,
+                        [this, job] () { fetchNext (job); });
+   fetchNext (job);
+   }
+
+
+void Desktopmodel::fetchNext (std::shared_ptr<FetchJob> job)
+   {
+   for (; job->next < job->stacks.size ();
+        job->next++, job->askedInfo = false, job->askedPages = false)
+      {
+      QModelIndex ind (job->stacks [job->next]);
+      File *f = ind.isValid () ? getFile (ind) : nullptr;
+
+      if (!f || !remoteForFile (f))
+         continue;               // gone, or local
+
+      // wait for anything on its way for this stack
+      for (const QPersistentModelIndex &other : _pendingContent)
+         if (other.isValid () && getFile (QModelIndex (other)) == f)
+            return;
+      for (const auto &other : _pendingPages)
+         if (other.first.isValid () && getFile (QModelIndex (other.first)) == f)
+            return;
+
+      err_info *err = NULL;
+
+      if (!f->remoteChecked ())
+         {
+         if (!job->askedInfo)
+            {
+            job->askedInfo = true;
+            if (requestContent (ind))
+               return;
+            }
+         err = err_make (ERRFN, ERR_remote_fetch_failed1,
+               qPrintable (tr ("cannot fetch %1").arg (f->filename ())));
+         }
+      else
+         {
+         QList<int> lack;
+
+         for (int pagenum = 0; pagenum < f->pagecount (); pagenum++)
+            if (!pageHere (ind, pagenum))
+               lack << pagenum;
+         if (lack.isEmpty ())
+            continue;
+         if (!job->askedPages)
+            {
+            job->askedPages = true;
+            for (int pagenum : lack)
+               requestPage (ind, pagenum);
+            return;
+            }
+         err = err_make (ERRFN, ERR_remote_fetch_failed1,
+               qPrintable (tr ("cannot fetch page %1 of %2")
+                           .arg (lack.first () + 1).arg (f->filename ())));
+         }
+      disconnect (job->conn);
+      job->done (err);
+      return;
+      }
+   disconnect (job->conn);
+   job->done (NULL);
+   }

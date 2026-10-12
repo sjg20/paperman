@@ -486,6 +486,7 @@ private:
    QPrinter *_printer;     //!< our printer
    QPrintDialog *_dialog;  //!< the printer dialog (to which we add Printopt)
    bool _saved;            //!< true if settings were saved
+   bool _printing = false; //!< fetching stacks from a server to print
    int _from_page;         //!< from page to print
    int _to_page;           //!< to page to print
    bool _new_page;         //!< true if we need to call newPage() before starting

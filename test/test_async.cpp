@@ -968,3 +968,27 @@ void TestAsync::testScanClose ()
    QVERIFY (QFile::exists (serverPath ("scanned.max")));
    }
 
+
+void TestAsync::testFetchStacks ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+   bool done = false;
+   err_info *err = nullptr;
+
+   QVERIFY (!model->pageHere (stack, 4));
+   model->fetchStacksLater (QModelIndexList () << stack, [&] (err_info *e) {
+      err = e;
+      done = true;
+   });
+   QVERIFY (!done);
+   QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 20);
+   QVERIFY2 (!err, err ? err->errstr : "");
+   for (int pagenum = 0; pagenum < 5; pagenum++)
+      QVERIFY (model->pageHere (stack, pagenum));
+   CHECK_ASYNC (check, nullptr);
+   }

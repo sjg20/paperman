@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDateTime>
 #include <QDebug>
+#include <QScopeGuard>
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
@@ -2405,6 +2406,9 @@ void Desktopmodel::onStackInfoReady (quint64 token, const QString &pageDir)
    QPersistentModelIndex pind = it.value ();
    _pendingContent.erase (it);
 
+   // whatever happens next, anything waiting for this looks again
+   auto notify = qScopeGuard ([this] { emit contentFetched (); });
+
    if (!pind.isValid () || pageDir.isEmpty ())
       return;             // moved on, or failed: the placeholder stays
    QModelIndex ind (pind);
@@ -2446,6 +2450,9 @@ void Desktopmodel::onPageReady (quint64 token, const QString &pagePath)
    int pagenum = it.value ().second;
    _pendingPages.erase (it);
 
+   // whatever happens next, anything waiting for this looks again
+   auto notify = qScopeGuard ([this] { emit contentFetched (); });
+
    if (!pind.isValid () || pagePath.isEmpty ())
       return;
    QModelIndex ind (pind);
@@ -2482,6 +2489,9 @@ void Desktopmodel::onCachedFileReady (quint64 token, const QString &cachePath,
       return;
    QPersistentModelIndex pind = it.value ();
    _pendingContent.erase (it);
+
+   // whatever happens next, anything waiting for this looks again
+   auto notify = qScopeGuard ([this] { emit contentFetched (); });
 
    if (!pind.isValid ())
       return;             // the view moved on
