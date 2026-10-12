@@ -79,6 +79,9 @@ private slots:
    //! showing a stack whose server never answers
    void testPreviewHung ();
 
+   //! showing a stack which comes whole, not a page at a time
+   void testPreviewWhole ();
+
    //! turning a stack's page in the folder, before it is fetched
    void testTurnStackPage ();
 

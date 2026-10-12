@@ -568,6 +568,39 @@ void TestAsync::testPreviewHung ()
    }
 
 
+void TestAsync::testPreviewWhole ()
+   {
+   // a PDF is fetched whole, and stored in the cache as such
+   QVERIFY (QFile::copy (testSrc + "/testpdf.pdf", serverPath ("testpdf.pdf")));
+   connectServer ();
+   openFolder ();
+
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex pdf = model->index ("testpdf.pdf", stackIndex ().parent ());
+   QVERIFY (pdf.isValid ());
+   QTRY_VERIFY (!model->data (pdf, Desktopmodel::Role_pixmap)
+                .value<QPixmap> ().isNull ());
+
+   Desktopview *view = _desktop->getView ();
+   QModelIndex ind = pdf;
+
+   _desktop->getModelconv ()->indexToProxy (model, ind);
+   QRect rect = view->visualRect (ind);
+   QVERIFY (rect.isValid ());
+
+   /* drawing the PDF's page is the desktop's own work, so only a wait
+      for the server fails this */
+   AsyncCheck check;
+
+   check.allowStall ();
+   QTest::mouseClick (view->viewport (), Qt::LeftButton, Qt::NoModifier,
+                      rect.center ());
+   QTRY_VERIFY_WITH_TIMEOUT (!_desktop->_page->_image.isNull (),
+                             kDelayMs * 10);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
 void TestAsync::testTurnStackPage ()
    {
    connectServer ();
