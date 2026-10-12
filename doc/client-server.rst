@@ -194,9 +194,10 @@ stack just as the server's own conversion does.
 
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
-on the main thread, and only while watching. Setting
-``PAPERMAN_BLOCKWATCH`` in the environment makes the desktop log each one,
-which shows what is left in use.
+on the main thread, and only while watching; watches nest, and each reads
+the waits noted since its own ``mark()``. Setting ``PAPERMAN_BLOCKWATCH``
+in the environment makes the desktop log each one, which shows any left
+in use.
 
 The ``async`` test suite (``test/test_async.cpp``) drives the desktop
 against a server on a thread of its own, behind a proxy which holds each
@@ -204,11 +205,14 @@ reply back for half a second (``test/remoteharness.cpp``). A server on
 the test's own thread would answer from inside any nested event loop, so
 would hide a wait. Around each step an ``AsyncCheck`` collects the
 requests the main thread waited for and the longest time it went without
-handling events, and the step must have neither. A flow which still
-waits is marked as an expected failure, and the test logs what it waited
-for, so the suite is also the list of work left. Making a flow
-asynchronous turns its expected failure into an unexpected pass, which
-fails, so the mark has to come off with the change.
+handling events, and the step must have neither. Each test is also
+watched from start to finish, and fails if the main thread waited for
+the server anywhere in it: only closing the window may wait, for queued
+changes and to save the folder's layout, and a test which closes it says
+so with ``closeWindow()``. A flow being worked on can be marked as an
+expected failure with ``CHECK_ASYNC()``, which logs what it waited for;
+making it asynchronous turns that into an unexpected pass, which fails,
+so the mark has to come off with the change.
 
 The proxy can also hold replies back for ever, as a hung server would,
 which is for testing the desktop once it no longer waits.
