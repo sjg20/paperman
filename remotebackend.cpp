@@ -1038,31 +1038,6 @@ static QString wholeFilePathFor(const QString &repo, const QString &path)
 }
 
 
-bool RemoteBackend::downloadFile(const QString &repo, const QString &relPath,
-                                 const QString &dest)
-{
-   int status = 0;
-   QString etag;
-   QByteArray body = waitForReplyFull(
-       startGet(wholeFilePathFor(repo, relPath), QString(), kFetchTimeoutMs),
-       &status, &etag);
-
-   if (status != 200) {
-      if (_lastError.isEmpty())
-         _lastError = QString("HTTP %1").arg(status);
-      return false;
-   }
-
-   QSaveFile out(dest);
-   if (!out.open(QIODevice::WriteOnly) || out.write(body) != body.size()
-       || !out.commit()) {
-      _lastError = QString("cannot write %1: %2").arg(dest, out.errorString());
-      return false;
-   }
-   return true;
-}
-
-
 void RemoteBackend::downloadFile(const QString &repo, const QString &relPath,
                                  const QString &dest, QObject *context,
                                  Done done)

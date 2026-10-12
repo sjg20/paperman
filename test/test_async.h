@@ -144,6 +144,10 @@ private slots:
    //! fetching every page of a stack, as for printing it
    void testFetchStacks ();
 
+   /** converting and unfolding a stack on a server which cannot, so the
+       desktop does it */
+   void testConvertHere ();
+
    //! copying a stack on the server to the clipboard
    void testCopyFiles ();
 
@@ -166,6 +170,9 @@ private:
 
    //! scan a one-page stack called "scanned" into the folder shown
    void scanStack ();
+
+   //! have the server's backend say it cannot convert stacks
+   void dropConvert ();
 
    //! the path of a file in the server's folder
    QString serverPath (const QString &fname) const;

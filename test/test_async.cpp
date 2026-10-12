@@ -14,6 +14,7 @@ License: GPL-2
 #include "../desktopundo.h"
 #include "../desktopview.h"
 #include "../desktopwidget.h"
+#include "../dirmodel.h"
 #include "../file.h"
 #include "../filemax.h"
 #include "../mainwindow.h"
@@ -477,6 +478,19 @@ void TestAsync::scanStack ()
    // as pageStarting() does, so that the page view has a place for it
    emit model->beginningPage ();
    QVERIFY (!model->addPageToScan (&page, ""));
+   }
+
+
+void TestAsync::dropConvert ()
+   {
+   auto *remote = dynamic_cast<RemoteBackend *> (
+                     _desktop->_model->backendForRoot (repoPath ()));
+   QVERIFY (remote && remote->hasConvert ());
+
+   QStringList features = remote->features ();
+
+   features.removeAll ("convert");
+   remote->setServerInfo (remote->serverId (), features);
    }
 
 
@@ -1045,6 +1059,38 @@ void TestAsync::testFetchStacks ()
    QVERIFY2 (!err, err ? err->errstr : "");
    for (int pagenum = 0; pagenum < 5; pagenum++)
       QVERIFY (model->pageHere (stack, pagenum));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testConvertHere ()
+   {
+   connectServer ();
+   openFolder ();
+   dropConvert ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndexList list;
+
+   list << stackIndex ();
+   model->duplicatePdf (list, stackIndex ().parent ());
+   QVERIFY (model->opsPending ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (),
+             QStringList ({"testfile.max", "testfile_copy.pdf"}));
+
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+
+   list.clear ();
+   list << stackIndex ();
+   model->unfoldBooklet (list, stackIndex ().parent ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (),
+             QStringList ({"testfile.max", "testfile_unfold.max"}));
+   QCOMPARE (serverPages ("testfile_unfold.max"), 10);
    CHECK_ASYNC (check, nullptr);
    }
 
