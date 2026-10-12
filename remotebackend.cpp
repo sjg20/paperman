@@ -583,6 +583,86 @@ void RemoteBackend::transformPage(const QString &repo, const QString &path,
 }
 
 
+void RemoteBackend::deletePages(const QString &repo, const QString &path,
+                                const QList<int> &pages, QObject *context,
+                                Done done)
+{
+   QJsonObject body;
+   QJsonArray arr;
+
+   for (int page : pages)
+      arr.append(page);
+   body["pages"] = arr;
+   postStackOp(repo, path + "/pages", "/delete", body, context, done);
+}
+
+
+void RemoteBackend::undeletePages(const QString &repo, const QString &path,
+                                  const QString &undoId, QObject *context,
+                                  Done done)
+{
+   QJsonObject body;
+   body["undoId"] = undoId;
+   postStackOp(repo, path + "/pages", "/undelete", body, context, done);
+}
+
+
+void RemoteBackend::unstackStack(const QString &repo, const QString &path,
+                                 int pagenum, int pagecount, bool remove,
+                                 const QString &suggestedName,
+                                 QObject *context, Done done)
+{
+   QJsonObject body;
+   body["pagenum"]   = pagenum;
+   body["pagecount"] = pagecount;
+   body["remove"]    = remove;
+   if (!suggestedName.isEmpty())
+      body["newName"] = suggestedName;
+   postStackOp(repo, path, "/unstack", body, context, done);
+}
+
+
+void RemoteBackend::stackStacks(const QString &repo, const QString &destPath,
+                                const QStringList &sources, int insertPage,
+                                QObject *context, Done done)
+{
+   QJsonObject body;
+   QJsonArray arr;
+
+   for (const QString &src : sources)
+      arr.append(src);
+   body["sources"] = arr;
+   if (insertPage > 0)
+      body["insertPage"] = insertPage;
+   postStackOp(repo, destPath, "/stack", body, context, done);
+}
+
+
+void RemoteBackend::duplicateStack(const QString &repo, const QString &path,
+                                   QObject *context, Done done)
+{
+   postStackOp(repo, path, "/duplicate", QJsonObject(), context, done);
+}
+
+
+void RemoteBackend::convertStack(const QString &repo, const QString &path,
+                                 const QString &type, int oddEven,
+                                 QObject *context, Done done)
+{
+   QJsonObject body;
+   body["type"] = type;
+   body["oddEven"] = oddEven;
+   postStackOp(repo, path, "/duplicate", body, context, done);
+}
+
+
+void RemoteBackend::unfoldStack(const QString &repo, const QString &path,
+                                QObject *context, Done done)
+{
+   postStackOp(repo, path, "/unfold", QJsonObject(), context, done);
+}
+
+
 bool RemoteBackend::readStack(const QString &repo, const QString &path)
 {
    return postStackOp(repo, path, "/read", QJsonObject(), nullptr);
@@ -1251,6 +1331,13 @@ QString RemoteBackend::fetchStackInfo(const QString &repo,
    if (!writeWhole(dir + "/info.json", body, &_lastError))
       return QString();
    return dir;
+}
+
+
+void RemoteBackend::stackStructure(const QString &repo, const QString &path,
+                                   QObject *context, Done done)
+{
+   whenFinished(startGet(stackInfoPathFor(repo, path, false)), context, done);
 }
 
 
