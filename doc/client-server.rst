@@ -165,6 +165,14 @@ another with ``Desktopmodel::runSteps()``. A stack the server changed is
 fetched afresh, rather than having the change mirrored onto its cached
 copy.
 
+Reading a page's text on the server goes through the same queue, behind
+any change to the stack, and the page view shows the text once it comes
+if the page is still the one shown. Asking a server to read a stack's
+pages next does not wait either. Searching a server's text shows the
+stacks found once the answer comes; ``Desktopmodel::findTextLater()``
+calls back with them, and a local repository, whose index is brought up
+to date on the spot, calls back before it returns.
+
 Each blocking wait in ``RemoteBackend``, and ``ClientConfig::probe()``,
 reports itself to ``BlockWatch``, naming the request. It notes only waits
 on the main thread, and only while watching. Setting
@@ -195,10 +203,9 @@ What Remains
   not follow other clients' changes, and makes no changes itself.
 - **Changes made at the same time**: the last to arrive wins, with no
   warning.
-- **Waiting for the server**: reading a page's text on the server,
-  uploading a scan and converting on a server without the convert
-  feature, printing a remote stack and searching still wait for the
-  server on the main thread; see Not Waiting for the Server above.
+- **Waiting for the server**: uploading a scan, converting on a server
+  without the convert feature and printing a remote stack still wait for
+  the server on the main thread; see Not Waiting for the Server above.
 - **Conversions on the server**: converting a remote stack downloads it
   and uploads the result, which is slow over a slow link, where the server
   could do it in place.
