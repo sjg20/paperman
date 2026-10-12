@@ -535,6 +535,10 @@ signals:
 private:
    /** Put each of a server's repositories in the tree, with a backend
     *  of its own sharing the server's id, features and token */
+   /** Delete the children of @p node, and everything below them,
+    *  forgetting any listing of them still on its way */
+   void deleteChildren(DirNode *node) const;
+
    void addRemoteRepos(const QUrl &baseUrl, const QString &serverId,
                        const QStringList &features, const QString &token,
                        const QList<RepositoryInfo> &repos);
@@ -542,7 +546,8 @@ private:
    QList<Diritem *> _item;   //!< a list of items to display
    QModelIndexList _recent;   //!< list of recent directories
    DirNode *_invisibleRoot;   //!< invisible root of the directory tree
-   QHash<quint64, DirNode *> _pendingBrowses;  //!< In-flight async browses
+   //! In-flight async browses; mutable as a lookup may re-scan a node
+   mutable QHash<quint64, DirNode *> _pendingBrowses;
    class BackendStats *_stats = nullptr;  //!< Lazily created on first remote add
    };
 

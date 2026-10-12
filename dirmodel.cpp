@@ -327,6 +327,28 @@ void Dirmodel::populateNode(DirNode *node) const
 }
 
 
+void Dirmodel::deleteChildren(DirNode *node) const
+{
+   /* a listing still on its way for any of them would otherwise come
+      back to a node which is gone */
+   std::function<void (DirNode *)> forget = [&](DirNode *n) {
+      for (auto it = _pendingBrowses.begin(); it != _pendingBrowses.end();) {
+         if (it.value() == n)
+            it = _pendingBrowses.erase(it);
+         else
+            ++it;
+      }
+      for (DirNode *child : n->children)
+         forget(child);
+   };
+   for (DirNode *child : node->children)
+      forget(child);
+
+   qDeleteAll(node->children);
+   node->children.clear();
+}
+
+
 void Dirmodel::onBrowseAsyncReady(quint64 token,
                                   const DirectoryListing &listing)
 {
@@ -345,8 +367,7 @@ void Dirmodel::onBrowseAsyncReady(quint64 token,
    /* Remove the "Loading…" placeholder we inserted in populateNode. */
    if (!node->children.isEmpty()) {
       beginRemoveRows(idx, 0, node->children.size() - 1);
-      qDeleteAll(node->children);
-      node->children.clear();
+      deleteChildren(node);
       endRemoveRows();
    }
 
@@ -506,8 +527,7 @@ void Dirmodel::refresh(const QModelIndex &parent)
    // beginResetModel/endResetModel so the proxy invalidates and the view
    // re-asks for the up-to-date row list.
    beginResetModel();
-   qDeleteAll(node->children);
-   node->children.clear();
+   deleteChildren(node);
    node->populated  = false;
    node->loadFailed = false;
    node->loading    = false;
@@ -543,8 +563,7 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
     DirNode *parentNode = nodeFromIndex(par);
     if (parentNode && parentNode->populated) {
        beginResetModel();
-       qDeleteAll(parentNode->children);
-       parentNode->children.clear();
+       deleteChildren(parentNode);
        parentNode->populated = false;
        endResetModel();
     }
@@ -1163,8 +1182,7 @@ QModelIndex Dirmodel::findPath (int, Diritem *item, QString path) const
          DirNode *parentNode = nodeFromIndex(ind);
          if (parentNode && parentNode->populated)
             {
-            qDeleteAll(parentNode->children);
-            parentNode->children.clear();
+            deleteChildren(parentNode);
             parentNode->populated = false;
 
             child_count = rowCount(ind);
