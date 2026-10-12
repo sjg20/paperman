@@ -125,6 +125,7 @@ public:
 
 private:
    StallMeter _meter;
+   int _mark = 0;          //!< where BlockWatch had got to at the start
    QStringList _waits;
    qint64 _gap = 0;
    bool _allowStall = false;

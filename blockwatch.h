@@ -18,9 +18,10 @@ License: GPL-2
     left over are seen in use. */
 namespace BlockWatch
 {
-   /** Start or stop noting waits
+   /** Start or stop noting waits.  Watching nests: noting stops, and the
+       waits noted are forgotten, once each start has been stopped
 
-       @param on    true to note them, false to stop and forget any noted
+       @param on    true to start, false to stop
        @param warn  true to log each wait as well */
    void watch (bool on, bool warn = false);
 
@@ -29,8 +30,12 @@ namespace BlockWatch
        on the main thread */
    void note (const QString &what);
 
-   //! Return the waits noted since the last call, and forget them
-   QStringList take ();
+   /** Return where the waits noted have got to, to pass to since().
+       Waits are only kept once something has asked for a mark */
+   int mark ();
+
+   //! Return the waits noted since @p mark, from mark()
+   QStringList since (int mark);
 }
 
 #endif // BLOCKWATCH_H
