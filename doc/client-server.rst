@@ -217,6 +217,18 @@ so the mark has to come off with the change.
 The proxy can also hold replies back for ever, as a hung server would,
 which is for testing the desktop once it no longer waits.
 
+Traffic
+-------
+
+The proxy also records each request it passes on, with the bytes it
+carried each way, headers included; the server closes a connection once
+it has replied, so each carries one request, apart from the event
+stream. The ``traffic`` suite (``test/test_traffic.cpp``) drives the
+desktop through things a user does, such as opening a folder of stacks
+or turning through a stack's pages, prints the requests each made,
+grouped by endpoint, and checks the totals against a budget. A change
+which sends more fails the budget; one which sends less tightens it.
+
 What Remains
 ------------
 
