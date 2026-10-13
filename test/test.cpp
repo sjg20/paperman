@@ -89,9 +89,15 @@ int test_run(int, char **in_argv, QApplication *,
       }
    }
 
-   // Build argv for QTest, optionally including function name
-   char *qt_argv[3] = { in_argv[0], nullptr, nullptr };
-   int qt_argc = 1;
+   /* Build argv for QTest, optionally including function name.  QtTest
+      stops printing messages after 2000 in the process, which the
+      server's log of each request uses up long before the later suites
+      run, so show every one */
+   static char maxwarnings[] = "-maxwarnings";
+   static char unlimited[] = "0";
+   char *qt_argv[5] = { in_argv[0], maxwarnings, unlimited, nullptr,
+                        nullptr };
+   int qt_argc = 3;
    if (funcName) {
       qt_argv[qt_argc++] = const_cast<char *>(funcName);
    }
