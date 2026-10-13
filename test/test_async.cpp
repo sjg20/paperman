@@ -438,6 +438,31 @@ void TestAsync::testStaleThumbnail ()
    }
 
 
+void TestAsync::testSlowFolders ()
+   {
+   // folders a few deep, as a year's bills are
+   QStringList years = {"2021", "2022", "2023", "2024", "2025"};
+
+   for (const QString &year : years)
+      QVERIFY (QDir (_repo->path ()).mkpath ("bills/" + year + "/gas"));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+   // nothing reads a reply which has gone
+   QTest::failOnWarning (QRegularExpression ("device not open"));
+#endif
+   connectServer ();
+
+   /* a server which has not listed these folders before can take a few
+      seconds over each, and answers one request at a time, so a listing
+      may well come after more than the usual few seconds */
+   _server->setDelay (6000);
+
+   // each year's folder is listed, and shows its own
+   for (const QString &year : years)
+      QTRY_VERIFY_WITH_TIMEOUT (_desktop->getDirIndex (
+         repoPath () + "/bills/" + year + "/gas").isValid (), 40000);
+   }
+
+
 void TestAsync::testLocate ()
    {
    connectServer ();
