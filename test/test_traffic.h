@@ -58,6 +58,9 @@ private slots:
        them in its cache from the one before */
    void testNewSession ();
 
+   //! opening the folder again once a stack in it has changed
+   void testChangedStack ();
+
 private:
    //! attach the server, waiting until it is there
    void connectServer ();
@@ -77,6 +80,7 @@ private:
    //! what went over the wire for something the user did
    struct Totals
       {
+      QStringList lines;      //!< each request's first line
       int requests = 0;
       qint64 sent = 0;
       qint64 received = 0;
