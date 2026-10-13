@@ -67,6 +67,10 @@ private slots:
    //! locating a stack in a folder not yet listed selects it once it is
    void testLocate ();
 
+   /** opening folders in the tree when the server takes longer to list
+       them than a request is normally allowed */
+   void testSlowFolders ();
+
    //! a stack going while its thumbnail is on its way
    void testStaleThumbnail ();
 

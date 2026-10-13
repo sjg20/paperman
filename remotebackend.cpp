@@ -28,6 +28,42 @@ License: GPL-2
 #include <memory>
 
 
+/* Default transfer timeout, for a request which is a plain round-trip,
+ * such as asking a server for its status: five seconds is long enough
+ * for any honest LAN round-trip and short enough that a dead server
+ * surfaces quickly.  Qt's own default is effectively unlimited */
+static const int kRequestTimeoutMs = 5000;
+
+/* Fetching a whole stack is not a round-trip: a large one takes tens of
+ * seconds over a link slower than a LAN, and the timeout above cancels
+ * it long before it arrives, leaving nothing cached and the stack
+ * unreadable.  Qt counts the timeout from the last byte received, so
+ * this only fires when the transfer really has stalled. */
+static const int kFetchTimeoutMs = 120000;
+
+/* Nor is an operation on a stack: the server sends nothing until it has
+ * finished, and reading a page, or converting a long stack, takes it
+ * longer than a round-trip.  Giving up first reports a failure for an
+ * operation the server then completes.  The desktop does not wait for
+ * these, so a slow server only holds up the operations behind it */
+static const int kOperationTimeoutMs = 120000;
+
+/* Nor is a request the server has to work for, such as listing a folder,
+ * making a thumbnail or reading a stack's structure: its first listing of
+ * a large folder takes it seconds, and it answers one request at a time,
+ * so a request queued behind a few others waits well past a round-trip.
+ * Giving up first leaves a folder showing no subfolders */
+static const int kWorkTimeoutMs = 120000;
+
+
+/* Read what a reply brought.  A request which has timed out has been
+   aborted, which closes the reply, and reading a closed one only warns */
+static QByteArray readReply(QNetworkReply *reply)
+{
+   return reply->isOpen() ? reply->readAll() : QByteArray();
+}
+
+
 RemoteBackend::RemoteBackend(const QUrl &baseUrl, QObject *parent)
    : QObject(parent)
    , _baseUrl(baseUrl)
@@ -158,7 +194,7 @@ QList<RepositoryInfo> RemoteBackend::listRepositories()
 
 void RemoteBackend::fetchRepositories(QObject *context, Done done)
 {
-   whenFinished(startGet("/repos"), context, done);
+   whenFinished(startGet("/repos", QString(), kWorkTimeoutMs), context, done);
 }
 
 
@@ -196,7 +232,8 @@ static QString browsePathFor(const QString &repo, const QString &dir)
 DirectoryListing RemoteBackend::browseDirectory(const QString &repo,
                                                 const QString &dir)
 {
-   QNetworkReply *reply = startGet(browsePathFor(repo, dir));
+   QNetworkReply *reply = startGet(browsePathFor(repo, dir), QString(),
+                                   kWorkTimeoutMs);
 
    /* Wait until the reply finishes (sync), then hand the still-live
     * reply to the shared parser before scheduling its deletion. */
@@ -232,7 +269,8 @@ quint64 RemoteBackend::browseDirectoryAsync(const QString &repo,
                                             const QString &dir)
 {
    quint64 token = _nextAsyncToken++;
-   QNetworkReply *reply = startGet(browsePathFor(repo, dir));
+   QNetworkReply *reply = startGet(browsePathFor(repo, dir), QString(),
+                                   kWorkTimeoutMs);
    QObject::connect(reply, &QNetworkReply::finished, this,
        [this, reply, token]() {
           DirectoryListing listing = parseBrowseReply(reply);
@@ -248,7 +286,7 @@ DirectoryListing RemoteBackend::parseBrowseReply(QNetworkReply *reply)
    DirectoryListing out;
    _lastError.clear();
 
-   QByteArray body = reply->readAll();
+   QByteArray body = readReply(reply);
    if (reply->error() != QNetworkReply::NoError) {
       _lastError = reply->errorString();
    } else {
@@ -322,26 +360,6 @@ FileFetch RemoteBackend::readFile(const QString &repo, const QString &path)
 }
 
 
-/* Default transfer timeout for every request.  Qt's own default is
- * effectively unlimited, which means the GUI would freeze for tens of
- * seconds if the server went away.  Five seconds is long enough for
- * any honest LAN round-trip and short enough that a dead server
- * surfaces quickly. */
-static const int kRequestTimeoutMs = 5000;
-
-/* Fetching a whole stack is not a round-trip: a large one takes tens of
- * seconds over a link slower than a LAN, and the timeout above cancels
- * it long before it arrives, leaving nothing cached and the stack
- * unreadable.  Qt counts the timeout from the last byte received, so
- * this only fires when the transfer really has stalled. */
-static const int kFetchTimeoutMs = 120000;
-
-/* Nor is an operation on a stack: the server sends nothing until it has
- * finished, and reading a page, or converting a long stack, takes it
- * longer than a round-trip.  Giving up first reports a failure for an
- * operation the server then completes.  The desktop does not wait for
- * these, so a slow server only holds up the operations behind it */
-static const int kOperationTimeoutMs = 120000;
 
 
 /* Build the "/thumbnail?repo=...&path=...&page=N&size=..." path. */
@@ -370,11 +388,12 @@ quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
                                            int page, const QString &size)
 {
    quint64 token = _nextAsyncToken++;
-   QNetworkReply *reply = startGet(thumbnailPathFor(repo, path, page, size));
+   QNetworkReply *reply = startGet(thumbnailPathFor(repo, path, page, size),
+                                   QString(), kWorkTimeoutMs);
    QObject::connect(reply, &QNetworkReply::finished, this,
        [this, reply, token]() {
           _lastError.clear();
-          QByteArray body = reply->readAll();
+          QByteArray body = readReply(reply);
           if (reply->error() != QNetworkReply::NoError) {
              _lastError = reply->errorString();
              body.clear();
@@ -909,7 +928,8 @@ void RemoteBackend::searchText(const QString &repo, const QString &text,
 
    whenFinished(startGet("/v1/repos/"
                          + QString::fromUtf8(QUrl::toPercentEncoding(repo))
-                         + "/search?" + q.query(QUrl::FullyEncoded)),
+                         + "/search?" + q.query(QUrl::FullyEncoded),
+                         QString(), kWorkTimeoutMs),
                 context, [done](const Result &result) {
       // the server says why it failed, which is more use than the status
       QJsonObject obj = result.json();
@@ -961,7 +981,7 @@ void RemoteBackend::startEventStream(const QString &repo)
    auto buf = std::make_shared<QByteArray>();
    QObject::connect(reply, &QNetworkReply::readyRead, this,
        [this, reply, buf, repo]() {
-          *buf += reply->readAll();
+          *buf += readReply(reply);
           int pos;
           while ((pos = buf->indexOf("\n\n")) >= 0) {
              QByteArray frame = buf->left(pos);
@@ -1217,7 +1237,7 @@ quint64 RemoteBackend::ensureCachedFileAsync(const QString &repo,
    QObject::connect(reply, &QNetworkReply::finished, this,
        [this, reply, token, cachePath, haveCopy]() {
           _lastError.clear();
-          QByteArray body = reply->readAll();
+          QByteArray body = readReply(reply);
           int status = reply->attribute(
                            QNetworkRequest::HttpStatusCodeAttribute).toInt();
           QString newEtag = QString::fromUtf8(
@@ -1370,7 +1390,8 @@ QString RemoteBackend::fetchStackInfo(const QString &repo,
    int status = 0;
    QString etag;
    QByteArray body = waitForReplyFull(
-       startGet(stackInfoPathFor(repo, relPath, withText)), &status, &etag);
+       startGet(stackInfoPathFor(repo, relPath, withText), QString(),
+                kWorkTimeoutMs), &status, &etag);
    if (status != 200) {
       if (_lastError.isEmpty())
          _lastError = QString("HTTP %1").arg(status);
@@ -1385,7 +1406,8 @@ QString RemoteBackend::fetchStackInfo(const QString &repo,
 void RemoteBackend::stackStructure(const QString &repo, const QString &path,
                                    QObject *context, Done done)
 {
-   whenFinished(startGet(stackInfoPathFor(repo, path, false)), context, done);
+   whenFinished(startGet(stackInfoPathFor(repo, path, false), QString(),
+                         kWorkTimeoutMs), context, done);
 }
 
 
@@ -1406,11 +1428,12 @@ quint64 RemoteBackend::fetchStackInfoAsync(const QString &repo,
       return token;
    }
 
-   QNetworkReply *reply = startGet(stackInfoPathFor(repo, relPath, withText));
+   QNetworkReply *reply = startGet(stackInfoPathFor(repo, relPath, withText),
+                                   QString(), kWorkTimeoutMs);
    QObject::connect(reply, &QNetworkReply::finished, this,
        [this, reply, token, dir]() {
           _lastError.clear();
-          QByteArray body = reply->readAll();
+          QByteArray body = readReply(reply);
           int status = reply->attribute(
                            QNetworkRequest::HttpStatusCodeAttribute).toInt();
           if (reply->error() != QNetworkReply::NoError)
@@ -1483,7 +1506,7 @@ quint64 RemoteBackend::fetchPageAsync(const QString &repo,
    QObject::connect(reply, &QNetworkReply::finished, this,
        [this, reply, token, dir, page]() {
           _lastError.clear();
-          QByteArray body = reply->readAll();
+          QByteArray body = readReply(reply);
           int status = reply->attribute(
                            QNetworkRequest::HttpStatusCodeAttribute).toInt();
           if (reply->error() != QNetworkReply::NoError)
@@ -1590,7 +1613,7 @@ void RemoteBackend::whenFinished(QNetworkReply *reply, QObject *context,
                     context ? context : this, [reply, done]() {
       Result result;
 
-      result.body = reply->readAll();
+      result.body = readReply(reply);
       result.status = reply->attribute(
                           QNetworkRequest::HttpStatusCodeAttribute).toInt();
       if (reply->error() != QNetworkReply::NoError)
@@ -1629,7 +1652,7 @@ QByteArray RemoteBackend::waitForReply(QNetworkReply *reply)
 
    waitForFinish(reply);
 
-   QByteArray data = reply->readAll();
+   QByteArray data = readReply(reply);
    if (reply->error() != QNetworkReply::NoError) {
       _lastError = reply->errorString();
    } else {
@@ -1650,7 +1673,7 @@ QByteArray RemoteBackend::waitForReplyFull(QNetworkReply *reply, int *status,
 
    waitForFinish(reply);
 
-   QByteArray data = reply->readAll();
+   QByteArray data = readReply(reply);
    *status = reply->attribute(
                  QNetworkRequest::HttpStatusCodeAttribute).toInt();
    *etag = QString::fromUtf8(reply->rawHeader("ETag"));
