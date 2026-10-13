@@ -84,6 +84,7 @@ class Desktopwidget : public QSplitter //QWidget
    {
    Q_OBJECT
    friend class TestAsync;
+   friend class TestTraffic;
    friend class TestDesktopUi;
    friend class TestOps;
 
