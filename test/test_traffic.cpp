@@ -247,18 +247,30 @@ void TestTraffic::testReopenFolder ()
    }
 
 
+void TestTraffic::testClickStack ()
+   {
+   connectServer ();
+   openFolder ();
+   traffic (QString ());
+   showStack ("a.max", false);
+   withinBudget (traffic ("click a five-page stack"), 6, 532451);
+   }
+
+
 void TestTraffic::testShowStack ()
    {
    connectServer ();
    openFolder ();
    traffic (QString ());
    showStack ("a.max");
-   withinBudget (traffic ("show a five-page stack, page by page"), 6,
-                 1260039);
+   /* the list asks for a thumbnail of each page not here yet, so how
+      many it asks for before each page comes depends on timing */
+   withinBudget (traffic ("show a five-page stack, page by page"), 10,
+                 1273000);
    }
 
 
-void TestTraffic::showStack (const QString &name)
+void TestTraffic::showStack (const QString &name, bool turn)
    {
    // let the stacks settle in place first, as a user would
    QTest::qWait (500);
@@ -277,6 +289,8 @@ void TestTraffic::showStack (const QString &name)
    /* a click shows the stack again once the time for a double click has
       gone, from its first page, so wait for that before turning */
    QTRY_VERIFY (!page->_image.isNull () && !_desktop->_timer->isActive ());
+   if (!turn)
+      return;
 
    // and every other page in turn
    for (int pagenum = 1; pagenum < 5; pagenum++)

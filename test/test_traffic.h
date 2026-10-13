@@ -48,6 +48,9 @@ private slots:
    //! opening the folder again, once its stacks have been shown
    void testReopenFolder ();
 
+   //! showing a stack, as a click on it does
+   void testClickStack ();
+
    //! showing a stack and turning through its pages
    void testShowStack ();
 
@@ -71,8 +74,9 @@ private:
    //! a stack in the folder shown, by name, as a source index
    QModelIndex stackIndex (const QString &name);
 
-   //! click a stack, then show each of its five pages in turn
-   void showStack (const QString &name);
+   /** click a stack, then if @p turn, show each of its five pages in
+       turn */
+   void showStack (const QString &name, bool turn = true);
 
    //! the server's repository in the folder tree, as a path
    QString repoPath () const;

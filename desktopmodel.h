@@ -1119,6 +1119,10 @@ signals:
        \param deskind   the desk */
    void deskListed (const QModelIndex &deskind);
 
+   //! emitted with what requestPagePreview() asked for
+   void pagePreviewReady (const QModelIndex &stack, int pagenum,
+                          const QImage &image);
+
    /** emitted when the image of a page has changed (e.g. it has been
        rotated), so views showing it can redisplay
 
@@ -1518,6 +1522,17 @@ public:
     *  False for a local stack, a stack fetched whole, or a page that is
     *  already here. */
    bool requestPage (const QModelIndex &ind, int pagenum);
+
+   /** Ask the server for a small image of a page of a remote stack which
+    *  is not here, for a list of the stack's pages to show rather than
+    *  fetching the whole page; pagePreviewReady() brings it, or a null
+    *  image if it cannot be had.  GUI thread only; returns at once.
+    *
+    *  @param size  how big the list draws a page
+    *  @return true if it is on its way, false for a local stack, or one
+    *          whose structure is not here yet */
+   bool requestPagePreview (const QModelIndex &ind, int pagenum,
+                            const QSize &size);
 
    /** gets an image of a page scaled to the exact requested size, using
        either the preview or full image. Returns a pixmap which is first freed
@@ -1954,6 +1969,9 @@ private:
     *  RemoteBackend::fetchThumbnailAsync → File* that wants the
     *  result.  Cleared in the slot. */
    QHash<quint64, File *> _pendingThumbnails;
+
+   //! requestPagePreview()'s requests, by token: the stack and the page
+   QHash<quint64, QPair<QPersistentModelIndex, int> > _pendingPagePreviews;
 
    //! stacks whose bytes are being fetched, by request token
    QHash<quint64, QPersistentModelIndex> _pendingContent;

@@ -181,6 +181,10 @@ void Pagemodel::reset (const Desktopmodel *model, const QModelIndex &index,
     QAbstractItemModel::beginResetModel ();
    _contents = model;
    _stackindex = index;
+   if (model)
+      connect (const_cast<Desktopmodel *> (model),
+               &Desktopmodel::pagePreviewReady, this,
+               &Pagemodel::slotPagePreview, Qt::UniqueConnection);
 //    qDebug () << "Pagemodel::reset: _stackindex" << _stackindex << "count" << count;
    _start = start;
    _count = count;
@@ -513,8 +517,20 @@ void Pagemodel::nextUpdate (void)
             {
             Desktopmodel *dm = const_cast<Desktopmodel *> (_contents);
 
-            waiting = dm->requestContent (_stackindex)
-                      || dm->requestPage (_stackindex, pagenum);
+            /* rather than fetch the whole of a page which is not here
+               for its small image, ask the server for a thumbnail of it;
+               the page itself comes when the page view shows it */
+            if (dm->requestContent (_stackindex))
+               waiting = true;
+            else if (!dm->pageHere (_stackindex, pagenum)
+                     && dm->requestPagePreview (_stackindex, pagenum,
+                                                _pagesize))
+               {
+               pi->markRendering ();
+               waiting = true;
+               }
+            else
+               waiting = dm->requestPage (_stackindex, pagenum);
             }
 
          if (waiting)
@@ -544,6 +560,33 @@ void Pagemodel::nextUpdate (void)
          break;
          }
       }
+   }
+
+
+void Pagemodel::slotPagePreview (const QModelIndex &stack, int pagenum,
+                                 const QImage &image)
+   {
+   int row = pagenum - _start;
+
+   if (QModelIndex (_stackindex) != stack || row < 0 || row >= _count)
+      return;
+
+   // without one, the page itself has to come
+   if (image.isNull ())
+      {
+      Desktopmodel *dm = const_cast<Desktopmodel *> (_contents);
+
+      if (dm && dm->requestPage (_stackindex, pagenum))
+         return;
+      _pages [row].setPixmap (QPixmap ());
+      return;
+      }
+   _pages [row].setPixmap (QPixmap::fromImage (
+      image.scaled (_pagesize, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+
+   QModelIndex ind = index (row, 0, QModelIndex ());
+
+   emit dataChanged (ind, ind);
    }
 
 
