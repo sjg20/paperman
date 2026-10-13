@@ -118,6 +118,7 @@ TestTraffic::Totals TestTraffic::traffic (const QString &what)
          {
          Totals &total = byEndpoint [ex.request.section ('?', 0, 0)];
 
+         total.lines << ex.request;
          total.requests++;
          total.sent += ex.sent;
          total.received += ex.received;
@@ -132,6 +133,7 @@ TestTraffic::Totals TestTraffic::traffic (const QString &what)
       qInfo ().noquote () << "traffic:" << what;
    for (auto it = byEndpoint.cbegin (); it != byEndpoint.cend (); ++it)
       {
+      sum.lines << it->lines;
       sum.requests += it->requests;
       sum.sent += it->sent;
       sum.received += it->received;
@@ -241,7 +243,7 @@ void TestTraffic::testReopenFolder ()
    _desktop->selectDir (top);
    QTest::qWait (300);
    openFolder ();
-   withinBudget (traffic ("open the folder again"), 11, 19431);
+   withinBudget (traffic ("open the folder again"), 5, 1437);
    }
 
 
@@ -310,7 +312,34 @@ void TestTraffic::testNewSession ()
    openFolder ();
    showStack ("a.max");
    withinBudget (traffic ("a new session: connect, open the folder and "
-                          "show the stack"), 13, 21564);
+                          "show the stack"), 7, 3570);
+   }
+
+
+void TestTraffic::testChangedStack ()
+   {
+   connectServer ();
+   openFolder ();
+   traffic (QString ());
+
+   // another client changes a stack, which the listing shows by its time
+   QFile changed (_repo->path () + "/papers/b.max");
+
+   QVERIFY (changed.open (QIODevice::ReadWrite));
+   QVERIFY (changed.setFileTime (QDateTime::currentDateTime ().addSecs (60),
+                                 QFileDevice::FileModificationTime));
+   changed.close ();
+
+   // go to the top of the repository, and back
+   _desktop->selectDir (_desktop->getDirIndex (repoPath ()));
+   QTest::qWait (300);
+   openFolder ();
+
+   // only the thumbnail of the stack which changed comes again
+   Totals totals = traffic ("open the folder again once a stack has changed");
+
+   QCOMPARE (totals.lines.filter ("/thumbnail").size (), 1);
+   QVERIFY (totals.lines.filter ("/thumbnail") [0].contains ("b.max"));
    }
 
 

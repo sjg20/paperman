@@ -1750,7 +1750,8 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
       int pagenum = qMax(f->pagenum(), 0);
       int page = atPage || pagenum < f->listedPagecount() ? pagenum + 1 : 1;
       quint64 t = backend->fetchThumbnailAsync(repoName, path, page,
-                                               /*size=*/"small");
+                                               /*size=*/"small",
+                                               f->listedVersion());
       _pendingThumbnails.insert(t, f);
    }
 }

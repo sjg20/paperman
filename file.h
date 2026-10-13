@@ -428,6 +428,11 @@ eturns error, or NULL if ok */
    int listedPagecount () const { return _listedPagecount; }
    void setListedPagecount (int count) { _listedPagecount = count; }
 
+   /** what the server's listing says of the stack, which changes when
+       the stack does, such as its time and size; empty if not listed */
+   const QString &listedVersion () const { return _listedVersion; }
+   void setListedVersion (const QString &version) { _listedVersion = version; }
+
    /** The page count as far as it is known: the stack's own once it has
     *  been read, else the server's listing of it */
    int knownPagecount ()
@@ -699,6 +704,7 @@ protected:
    bool _valid;      //!< true if we have scanned this file and know what it contains
    bool _remoteChecked = false;  //!< remote content fetched/revalidated this session
    int _listedPagecount = 0;     //!< page count from the server's listing
+   QString _listedVersion;       //!< see listedVersion()
 
    // annotation data
    bool _annot_loaded;               // true if data has been loaded

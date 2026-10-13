@@ -7,6 +7,7 @@ License: GPL-2
 #include "backendstats.h"
 #include "blockwatch.h"
 
+#include <QCryptographicHash>
 #include <QDebug>
 #include <QDir>
 #include <QFutureWatcher>
@@ -385,13 +386,39 @@ QByteArray RemoteBackend::fetchThumbnail(const QString &repo,
 
 quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
                                            const QString &path,
-                                           int page, const QString &size)
+                                           int page, const QString &size,
+                                           const QString &version)
 {
    quint64 token = _nextAsyncToken++;
+
+   /* a thumbnail of a version of a stack seen before is in the cache; the
+      id must be known already, since finding it out would wait */
+   QString cached;
+
+   if (!version.isEmpty() && !_serverId.isEmpty()) {
+      QByteArray key = QStringList({repo, path, QString::number(page), size,
+                                    version}).join('\n').toUtf8();
+
+      cached = cacheRoot() + "/thumbnails/"
+               + QCryptographicHash::hash(key, QCryptographicHash::Sha1)
+                    .toHex() + ".jpg";
+
+      QFile in(cached);
+
+      if (in.open(QIODevice::ReadOnly)) {
+         QByteArray bytes = in.readAll();
+
+         QMetaObject::invokeMethod(this, [this, token, bytes]() {
+            emit thumbnailReady(token, bytes);
+         }, Qt::QueuedConnection);
+         return token;
+      }
+   }
+
    QNetworkReply *reply = startGet(thumbnailPathFor(repo, path, page, size),
                                    QString(), kWorkTimeoutMs);
    QObject::connect(reply, &QNetworkReply::finished, this,
-       [this, reply, token]() {
+       [this, reply, token, cached]() {
           _lastError.clear();
           QByteArray body = readReply(reply);
           if (reply->error() != QNetworkReply::NoError) {
@@ -406,6 +433,8 @@ quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
              }
           }
           reply->deleteLater();
+          if (!cached.isEmpty() && !body.isEmpty())
+             writeLater(cached, body, [](const QString &) {});
           emit thumbnailReady(token, body);
        });
    return token;

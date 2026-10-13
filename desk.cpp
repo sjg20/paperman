@@ -777,12 +777,16 @@ void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
       }
 
    /* tell each stack how many pages it has, so its page controls
-    * can show before any of it is fetched */
+    * can show before any of it is fetched, and which version of it the
+    * server has, so a thumbnail of it can come from the cache */
    for (const DirectoryEntry &e : listing.entries)
       {
-      File *f = e.isDir || !e.pages ? nullptr : findFile (e.name);
-      if (f)
+      File *f = e.isDir ? nullptr : findFile (e.name);
+      if (!f)
+         continue;
+      if (e.pages)
          f->setListedPagecount (e.pages);
+      f->setListedVersion (e.modified + "/" + QString::number (e.size));
       }
    }
 

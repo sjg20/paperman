@@ -222,11 +222,17 @@ public:
 
     /** Async counterpart to fetchThumbnail.  Returns a token; emits
      *  thumbnailReady(token, bytes) when the reply arrives.  Empty
-     *  bytes mean the request failed. */
+     *  bytes mean the request failed.
+     *
+     *  @param version  what the server's listing says of the stack, such
+     *                  as its time and size; if given, a thumbnail of
+     *                  that version comes from the cache, without asking
+     *                  the server, and one fetched is kept there */
     quint64 fetchThumbnailAsync(const QString &repo, const QString &path,
                                 int page = 1,
                                 const QString &size
-                                    = QStringLiteral("medium"));
+                                    = QStringLiteral("medium"),
+                                const QString &version = QString());
 
     /** Rotate or flip a page of a stack on the server.  @p page is
      *  1-based; a value below 1 transforms every page.  @p op is the
