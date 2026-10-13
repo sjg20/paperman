@@ -36,6 +36,16 @@ bool ServerThread::begin ()
    }
 
 
+QList<ServerThread::Exchange> ServerThread::takeExchanges ()
+   {
+   QMutexLocker locker (&_mutex);
+   QList<Exchange> out = _exchanges;
+
+   _exchanges.clear ();
+   return out;
+   }
+
+
 QUrl ServerThread::url () const
    {
    /* not localhost, which Windows tries first as ::1, where the proxy
@@ -64,14 +74,23 @@ void ServerThread::run ()
          {
          QTcpSocket *upstream = new QTcpSocket (client);
          QPointer<QTcpSocket> to (client);
+         auto exchange = std::make_shared<Exchange> ();
+
+         _open.ref ();
 
          /* hold the request until the server's side is connected, since
             not every platform buffers a write made before then */
          auto request = std::make_shared<QByteArray> ();
          upstream->connectToHost (QHostAddress::LocalHost, _port);
          QObject::connect (client, &QTcpSocket::readyRead, upstream,
-                           [client, upstream, request] () {
-            *request += client->readAll ();
+                           [client, upstream, request, exchange] () {
+            QByteArray data = client->readAll ();
+
+            if (exchange->request.isEmpty ())
+               exchange->request = QString::fromUtf8 (
+                  data.left (data.indexOf ("\r\n"))).section (' ', 0, 1);
+            exchange->sent += data.size ();
+            *request += data;
             if (upstream->state () == QAbstractSocket::ConnectedState)
                {
                upstream->write (*request);
@@ -95,18 +114,20 @@ void ServerThread::run ()
             bool close;
             };
          auto held = std::make_shared<std::deque<Held>> ();
-         auto pass = [this, to, held] (const QByteArray &data, bool close) {
+         auto pass = [this, to, held, exchange] (const QByteArray &data,
+                                                 bool close) {
             int delay = _delay.loadRelaxed ();
 
             if (delay < 0)
                return;
             held->push_back ({data, close});
-            QTimer::singleShot (delay, to, [to, held] () {
+            QTimer::singleShot (delay, to, [to, held, exchange] () {
                if (!to || held->empty ())
                   return;
                Held next = held->front ();
 
                held->pop_front ();
+               exchange->received += next.data.size ();
                if (!next.data.isEmpty ())
                   to->write (next.data);
                if (next.close)
@@ -126,6 +147,14 @@ void ServerThread::run ()
          });
          QObject::connect (client, &QTcpSocket::disconnected, client,
                            &QObject::deleteLater);
+
+         // the request is done once the client's side has gone
+         QObject::connect (client, &QObject::destroyed, [this, exchange] () {
+            QMutexLocker locker (&_mutex);
+
+            _exchanges << *exchange;
+            _open.deref ();
+         });
          }
    });
 
