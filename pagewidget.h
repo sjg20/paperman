@@ -136,6 +136,7 @@ class Pagewidget : public QWidget
    friend class TestAsync;
    friend class TestDesktopUi;
    friend class TestPagewidget;
+   friend class TestTraffic;
 
 public:
    /** which mode the viewer is in */
