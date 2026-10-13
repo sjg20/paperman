@@ -7,6 +7,8 @@ License: GPL-2
 
 #include <QAtomicInt>
 #include <QElapsedTimer>
+#include <QList>
+#include <QMutex>
 #include <QObject>
 #include <QSemaphore>
 #include <QString>
@@ -25,6 +27,16 @@ License: GPL-2
 class ServerThread : public QThread
 {
 public:
+   /** One request through the proxy, with what went each way on the
+       wire: the server closes the connection once it has replied, so a
+       connection carries one request, apart from the event stream */
+   struct Exchange
+      {
+      QString request;     //!< its first line, such as "GET /browse?..."
+      qint64 sent = 0;     //!< bytes from the client, headers included
+      qint64 received = 0; //!< bytes back to the client, likewise
+      };
+
    /** Prepare a server for @p root, listening on @p port; begin() starts
        it */
    ServerThread (const QString &root, quint16 port);
@@ -42,6 +54,13 @@ public:
        on; 0 passes replies straight on, and -1 holds them for ever, as a
        server which has hung would */
    void setDelay (int ms) { _delay.storeRelaxed (ms); }
+
+   /** Return the requests finished since the last call, and forget them;
+       one still open, such as the event stream, is left until it ends */
+   QList<Exchange> takeExchanges ();
+
+   //! the number of requests under way
+   int openExchanges () const { return _open.loadRelaxed (); }
 
    /** Have the server index the text on its stacks' pages, so it can
        search them and read them in the background; call before begin() */
@@ -62,6 +81,9 @@ private:
    bool _textIndex = false;
    bool _readPages = false;
    QAtomicInt _delay;
+   QAtomicInt _open;
+   QMutex _mutex;              //!< guards _exchanges
+   QList<Exchange> _exchanges;
    QSemaphore _ready;
 };
 
