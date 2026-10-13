@@ -620,8 +620,10 @@ void TestAsync::testPreviewWhole ()
    check.allowStall ();
    QTest::mouseClick (view->viewport (), Qt::LeftButton, Qt::NoModifier,
                       rect.center ());
+   /* the page is drawn at full size, which takes a slow runner several
+      seconds on top of fetching the PDF */
    QTRY_VERIFY_WITH_TIMEOUT (!_desktop->_page->_image.isNull (),
-                             kDelayMs * 10);
+                             kDelayMs * 40);
    CHECK_ASYNC (check, nullptr);
    }
 
