@@ -460,6 +460,10 @@ protected slots:
    //! receive a page image from the background render thread
    void slotRendered (int itemnum, QImage image, quint64 gen);
 
+   //! receive a small image of a page from the server
+   void slotPagePreview (const QModelIndex &stack, int pagenum,
+                         const QImage &image);
+
 private:
    const Desktopmodel *_contents;    //!< stack model
    QPersistentModelIndex _stackindex;  //!< index of stack in _model that we are displaying

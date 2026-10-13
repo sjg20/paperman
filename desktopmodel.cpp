@@ -1799,6 +1799,22 @@ void Desktopmodel::onThumbnailReady(quint64 token,
 {
    if (_closing)
       return;
+
+   // a page's for a list of the stack's pages
+   auto preview = _pendingPagePreviews.find(token);
+   if (preview != _pendingPagePreviews.end()) {
+      QPersistentModelIndex stack = preview.value().first;
+      int pagenum = preview.value().second;
+      QImage image;
+
+      _pendingPagePreviews.erase(preview);
+      if (!jpegBytes.isEmpty())
+         image.loadFromData(jpegBytes);
+      if (stack.isValid())
+         emit pagePreviewReady(QModelIndex(stack), pagenum, image);
+      return;
+   }
+
    auto it = _pendingThumbnails.find(token);
    if (it == _pendingThumbnails.end())
       return;
@@ -2411,6 +2427,45 @@ bool Desktopmodel::requestContent (const QModelIndex &ind)
       token = remote->ensureCachedFileAsync (desk->repoName (),
                                              remoteStackPath (desk, f));
    _pendingContent.insert (token, QPersistentModelIndex (ind));
+   return true;
+   }
+
+
+bool Desktopmodel::requestPagePreview (const QModelIndex &ind, int pagenum,
+                                       const QSize &size)
+   {
+   if (_closing)
+      return false;
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote || !f->remoteChecked ())
+      return false;
+
+   for (auto it = _pendingPagePreviews.cbegin ();
+        it != _pendingPagePreviews.cend (); ++it)
+      if (it.value ().second == pagenum && it.value ().first.isValid ()
+          && getFile (QModelIndex (it.value ().first)) == f)
+         return true;    // already on its way
+
+   // the server makes thumbnails of three sizes
+   int longest = qMax (size.width (), size.height ());
+   QString name = longest <= 165 ? "small" : longest <= 330 ? "medium"
+                                                            : "large";
+   Desk *desk = f->desk ();
+
+   if (!_connectedBackends.contains (remote))
+      {
+      connect (remote, &RemoteBackend::thumbnailReady,
+               this, &Desktopmodel::onThumbnailReady);
+      _connectedBackends.insert (remote);
+      }
+   quint64 token = remote->fetchThumbnailAsync (desk->repoName (),
+                                                remoteStackPath (desk, f),
+                                                pagenum + 1, name,
+                                                f->listedVersion ());
+   _pendingPagePreviews.insert (token, qMakePair (QPersistentModelIndex (ind),
+                                                  pagenum));
    return true;
    }
 
