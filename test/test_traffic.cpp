@@ -184,8 +184,8 @@ void TestTraffic::connectServer ()
 
 
 /** true once the stack at @a ind is built and shows its thumbnail, rather
-   than the icon it has until that comes, and the view has recorded the
-   thumbnail's size */
+   than the hatched stand-in it has until that comes, or the icon of one
+   which cannot be had, and the view has recorded the thumbnail's size */
 static bool stackDrawn (const QModelIndex &ind)
    {
    static const QImage placeholder = utilIconPixmap ("unknown", 64).toImage ();
@@ -209,12 +209,22 @@ void TestTraffic::openFolder ()
    _desktop->selectDir (_desktop->getDirIndex (path));
 
    /* every stack is shown with its thumbnail, and the view has measured
-      that, so the stack's size is in the layout the session saves */
-   for (const QString &name : kStacks)
+      that, so the stack's size is in the layout the session saves. The
+      view measures only what it draws, so bring each stack into view in
+      turn, the PDF too, which is out of view to the right */
+   Desktopview *view = _desktop->getView ();
+
+   for (const QString &name : kStacks + QStringList ("f.pdf"))
       {
       QTRY_VERIFY (stackIndex (name).isValid ());
+
+      QModelIndex shown = stackIndex (name);
+
+      _desktop->getModelconv ()->indexToProxy (_desktop->getModel (), shown);
+      view->scrollTo (shown);
       QTRY_VERIFY (stackDrawn (stackIndex (name)));
       }
+   view->scrollToTop ();
    }
 
 
