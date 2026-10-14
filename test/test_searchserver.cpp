@@ -789,6 +789,54 @@ void TestSearchServer::testRemoteBackendThumbnail()
    server.stop();
 }
 
+void TestSearchServer::testCacheWriteFails()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+
+   // no users, so that the server asks for no login
+   QFile::remove(QStandardPaths::writableLocation(
+                    QStandardPaths::GenericConfigLocation)
+                 + "/paperman-server/users.json");
+
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QVERIFY(copyTestFile("testpdf.pdf", tmpDir.path()) > 0);
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+
+   QString repoName = QFileInfo(tmpDir.path()).fileName();
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+   QVERIFY(!client.serverId().isEmpty());
+
+   // a file where the thumbnails' directory should be stops each write
+   QString dir = client.cacheRoot() + "/thumbnails";
+   QDir(dir).removeRecursively();
+   QVERIFY(QDir().mkpath(client.cacheRoot()));
+   QFile blocker(dir);
+   QVERIFY(blocker.open(QIODevice::WriteOnly));
+   blocker.close();
+   auto cleanUp = qScopeGuard([&] { QFile::remove(dir); });
+
+   QByteArray bytes;
+   QObject::connect(&client, &RemoteBackend::thumbnailReady,
+       [&](quint64, const QByteArray &got) { bytes = got; });
+
+   /* the thumbnail comes all the same, and the failure to keep it is
+      logged, once the write has been tried again */
+   QTest::ignoreMessage(QtWarningMsg,
+                        QRegularExpression("^RemoteBackend: cannot write "));
+   client.fetchThumbnailAsync(repoName, "testpdf.pdf", 1, "small", "v1");
+   QTRY_VERIFY(!bytes.isEmpty());
+   QVERIFY(bytes.startsWith("\xFF\xD8\xFF"));
+   QTest::qWait(500);
+
+   server.stop();
+}
+
 void TestSearchServer::testBackendStatsAccumulates()
 {
    /* Smoke test for the toolbar indicator: BackendStats should

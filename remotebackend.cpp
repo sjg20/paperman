@@ -9,6 +9,7 @@ License: GPL-2
 
 #include <QCryptographicHash>
 #include <QDebug>
+#include <QThread>
 #include <QDir>
 #include <QFutureWatcher>
 #include <QtConcurrent>
@@ -1366,6 +1367,9 @@ static QString pageFileIn(const QString &pageDir, int page)
 }
 
 
+//! how long writeLater() waits before trying a failed write again
+static const int kRewriteMs = 200;
+
 /* Write bytes so a reader never sees a half-written file: a page file
    is opened as a stack the moment it exists. */
 static bool writeWhole(const QString &path, const QByteArray &bytes,
@@ -1374,12 +1378,12 @@ static bool writeWhole(const QString &path, const QByteArray &bytes,
    QDir().mkpath(QFileInfo(path).path());
    QSaveFile out(path);
    if (!out.open(QIODevice::WriteOnly)) {
-      *error = "cannot write " + path;
+      *error = "cannot write " + path + ": " + out.errorString();
       return false;
    }
    out.write(bytes);
    if (!out.commit()) {
-      *error = "cannot commit " + path;
+      *error = "cannot commit " + path + ": " + out.errorString();
       return false;
    }
    return true;
@@ -1408,9 +1412,22 @@ void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
    inBackground([path, bytes]() {
       QString error;
 
-      writeWhole(path, bytes, &error);
+      /* a file can be held for a moment, as by a virus checker on
+         Windows, so that putting the new one in its place fails: wait a
+         little and try once more */
+      if (!writeWhole(path, bytes, &error)) {
+         QThread::msleep(kRewriteMs);
+         error.clear();
+         writeWhole(path, bytes, &error);
+      }
       return error;
-   }, done);
+   }, [done](const QString &error) {
+      /* the callers carry on without the file, so a cache misses where
+         it should not; say why */
+      if (!error.isEmpty())
+         qWarning().noquote() << "RemoteBackend:" << error;
+      done(error);
+   });
 }
 
 
