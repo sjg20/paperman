@@ -155,11 +155,14 @@ TestTraffic::Totals TestTraffic::traffic (const QString &what)
 
 
 void TestTraffic::withinBudget (const Totals &totals, int requests,
-                                qint64 received)
+                                int connections, qint64 received)
    {
    QVERIFY2 (totals.requests <= requests,
              qPrintable (QString ("%1 requests, over the budget of %2")
                          .arg (totals.requests).arg (requests)));
+   QVERIFY2 (totals.connections <= connections,
+             qPrintable (QString ("%1 connections, over the budget of %2")
+                         .arg (totals.connections).arg (connections)));
    QVERIFY2 (totals.received <= received * 5 / 4,
              qPrintable (QString ("received %1 bytes, over the budget of %2")
                          .arg (totals.received).arg (received)));
@@ -236,7 +239,7 @@ QModelIndex TestTraffic::stackIndex (const QString &name)
 void TestTraffic::testConnect ()
    {
    connectServer ();
-   withinBudget (traffic ("connect"), 3, 726);
+   withinBudget (traffic ("connect"), 3, 2, 669);
    }
 
 
@@ -245,7 +248,7 @@ void TestTraffic::testOpenFolder ()
    connectServer ();
    traffic (QString ());
    openFolder ();
-   withinBudget (traffic ("open a folder of six stacks"), 8, 18519);
+   withinBudget (traffic ("open a folder of six stacks"), 8, 6, 18367);
    }
 
 
@@ -261,7 +264,7 @@ void TestTraffic::testReopenFolder ()
    _desktop->selectDir (top);
    QTest::qWait (300);
    openFolder ();
-   withinBudget (traffic ("open the folder again"), 5, 1019);
+   withinBudget (traffic ("open the folder again"), 5, 1, 926);
    }
 
 
@@ -271,7 +274,7 @@ void TestTraffic::testClickStack ()
    openFolder ();
    traffic (QString ());
    showStack ("a.max", false);
-   withinBudget (traffic ("click a five-page stack"), 6, 72445);
+   withinBudget (traffic ("click a five-page stack"), 6, 1, 72331);
    }
 
 
@@ -300,7 +303,7 @@ void TestTraffic::testZoomIn ()
    Totals totals = traffic ("zoom a page in to full size");
 
    QCOMPARE (totals.lines.filter ("/pages/1").size (), 1);
-   withinBudget (totals, 1, 518221);
+   withinBudget (totals, 1, 0, 518202);
    }
 
 
@@ -338,7 +341,7 @@ void TestTraffic::testShowStack ()
    /* the list asks for a thumbnail of each page not here yet, so how
       many it asks for before each page comes depends on timing */
    withinBudget (traffic ("show a five-page stack, page by page"), 10,
-                 335000);
+                 1, 335000);
    }
 
 
@@ -398,7 +401,7 @@ void TestTraffic::testNewSession ()
    openFolder ();
    showStack ("a.max");
    withinBudget (traffic ("a new session: connect, open the folder and "
-                          "show the stack"), 6, 1606);
+                          "show the stack"), 6, 4, 1492);
    }
 
 
@@ -437,7 +440,7 @@ void TestTraffic::testRename ()
 
    _desktop->getModel ()->renameStack (stackIndex ("a.max"), "renamed");
    QTRY_VERIFY (QFile::exists (_repo->path () + "/papers/renamed.max"));
-   withinBudget (traffic ("rename a stack"), 1, 159);
+   withinBudget (traffic ("rename a stack"), 1, 0, 140);
    }
 
 
@@ -467,7 +470,7 @@ void TestTraffic::testListLargeFolder ()
    QTRY_VERIFY (done);
    QVERIFY (listing.ok);
    QCOMPARE (listing.entries.size (), 200);
-   withinBudget (traffic ("list a folder of 200 stacks"), 1, 1343);
+   withinBudget (traffic ("list a folder of 200 stacks"), 1, 1, 1324);
    }
 
 
