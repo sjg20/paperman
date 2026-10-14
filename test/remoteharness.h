@@ -28,13 +28,13 @@ class ServerThread : public QThread
 {
 public:
    /** One request through the proxy, with what went each way on the
-       wire: the server closes the connection once it has replied, so a
-       connection carries one request, apart from the event stream */
+       wire; a connection may carry several requests in turn */
    struct Exchange
       {
       QString request;     //!< its first line, such as "GET /browse?..."
       qint64 sent = 0;     //!< bytes from the client, headers included
       qint64 received = 0; //!< bytes back to the client, likewise
+      bool connected = false; //!< true if it opened a new connection
       };
 
    /** Prepare a server for @p root, listening on @p port; begin() starts
@@ -55,7 +55,7 @@ public:
        server which has hung would */
    void setDelay (int ms) { _delay.storeRelaxed (ms); }
 
-   /** Return the requests finished since the last call, and forget them;
+   /** Return the requests answered since the last call, and forget them;
        one still open, such as the event stream, is left until it ends */
    QList<Exchange> takeExchanges ();
 
