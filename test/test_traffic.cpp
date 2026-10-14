@@ -121,6 +121,7 @@ TestTraffic::Totals TestTraffic::traffic (const QString &what)
 
          total.lines << ex.request;
          total.requests++;
+         total.connections += ex.connected;
          total.sent += ex.sent;
          total.received += ex.received;
          }
@@ -136,6 +137,7 @@ TestTraffic::Totals TestTraffic::traffic (const QString &what)
       {
       sum.lines << it->lines;
       sum.requests += it->requests;
+      sum.connections += it->connections;
       sum.sent += it->sent;
       sum.received += it->received;
       if (!what.isEmpty ())
@@ -144,10 +146,10 @@ TestTraffic::Totals TestTraffic::traffic (const QString &what)
                                 .arg (it->sent).arg (it->received);
       }
    if (!what.isEmpty ())
-      qInfo ().noquote () << QString ("  total %1 requests: sent %2, "
-                                      "received %3")
-                             .arg (sum.requests).arg (sum.sent)
-                             .arg (sum.received);
+      qInfo ().noquote () << QString ("  total %1 requests on %2 "
+                                      "connections: sent %3, received %4")
+                             .arg (sum.requests).arg (sum.connections)
+                             .arg (sum.sent).arg (sum.received);
    return sum;
    }
 

@@ -98,6 +98,7 @@ private:
       {
       QStringList lines;      //!< each request's first line
       int requests = 0;
+      int connections = 0;    //!< connections the requests opened
       qint64 sent = 0;
       qint64 received = 0;
       };
