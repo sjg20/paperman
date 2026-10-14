@@ -1616,6 +1616,9 @@ err_info *Desktopmodel::remoteStackChanged (const QModelIndex &ind,
    if (!max)
       return NULL;
 
+   // as in stackChangedLater()
+   f->setListedVersion (QString ());
+
    QString path = remoteStackPath (desk, f);
 
    if (pages.isEmpty ())
@@ -2092,6 +2095,10 @@ void Desktopmodel::stackChangedLater (const QModelIndex &ind,
    if (!max)
       return;
 
+   /* the version the folder's listing gave is out of date, so images of
+      its pages in the cache are too, until the folder is listed again */
+   f->setListedVersion (QString ());
+
    Desk *desk = f->desk ();
    QString path = remoteStackPath (desk, f);
 
@@ -2401,6 +2408,9 @@ void Desktopmodel::stackChangedOnServer (const QModelIndex &ind)
 
    if (!remote)
       return;
+
+   // as in stackChangedLater()
+   f->setListedVersion (QString ());
    Desk *desk = f->desk ();
 
    if (sparseFor (f, remote, desk))
