@@ -549,7 +549,8 @@ private:
 
     /** Write @p bytes to @p path in the background, since syncing a
      *  file to disk can take a while, and call @p done back on this
-     *  object's thread with an empty string, or why it failed */
+     *  object's thread with an empty string, or why it failed.  A write
+     *  which fails is tried once more, and logged if that fails too */
     void writeLater(const QString &path, const QByteArray &bytes,
                     std::function<void(const QString &error)> done);
 

@@ -105,6 +105,9 @@ private slots:
    //! BackendStats accumulates bytes across requests
    void testBackendStatsAccumulates();
 
+   //! a thumbnail which cannot go in the cache still comes, and says why
+   void testCacheWriteFails();
+
    //! Thumbnail rendered locally via File::getImage matches the JPEG
    //! the server returns from /thumbnail — pinned so the remote
    //! display can't silently diverge from the local one.
