@@ -184,7 +184,8 @@ void TestTraffic::openFolder ()
    QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
    _desktop->selectDir (_desktop->getDirIndex (path));
 
-   // every stack is shown, with its thumbnail
+   /* every stack is shown, with its thumbnail, and built, so that its
+      size is in the layout the session saves */
    Desktopmodel *model = _desktop->getModel ();
 
    for (const QString &name : kStacks)
@@ -193,6 +194,7 @@ void TestTraffic::openFolder ()
       QTRY_VERIFY (!model->data (stackIndex (name),
                                  Desktopmodel::Role_pixmap)
                    .value<QPixmap> ().isNull ());
+      QTRY_VERIFY (((File *)stackIndex (name).internalPointer ())->valid ());
       }
    }
 
