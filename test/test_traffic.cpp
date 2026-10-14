@@ -227,7 +227,7 @@ void TestTraffic::testOpenFolder ()
    connectServer ();
    traffic (QString ());
    openFolder ();
-   withinBudget (traffic ("open a folder of six stacks"), 9, 19709);
+   withinBudget (traffic ("open a folder of six stacks"), 9, 18873);
    }
 
 
@@ -243,7 +243,7 @@ void TestTraffic::testReopenFolder ()
    _desktop->selectDir (top);
    QTest::qWait (300);
    openFolder ();
-   withinBudget (traffic ("open the folder again"), 5, 1437);
+   withinBudget (traffic ("open the folder again"), 5, 1019);
    }
 
 
@@ -253,7 +253,7 @@ void TestTraffic::testClickStack ()
    openFolder ();
    traffic (QString ());
    showStack ("a.max", false);
-   withinBudget (traffic ("click a five-page stack"), 6, 532451);
+   withinBudget (traffic ("click a five-page stack"), 6, 531677);
    }
 
 
@@ -326,7 +326,7 @@ void TestTraffic::testNewSession ()
    openFolder ();
    showStack ("a.max");
    withinBudget (traffic ("a new session: connect, open the folder and "
-                          "show the stack"), 7, 3570);
+                          "show the stack"), 7, 1960);
    }
 
 
@@ -366,4 +366,34 @@ void TestTraffic::testRename ()
    _desktop->getModel ()->renameStack (stackIndex ("a.max"), "renamed");
    QTRY_VERIFY (QFile::exists (_repo->path () + "/papers/renamed.max"));
    withinBudget (traffic ("rename a stack"), 1, 159);
+   }
+
+
+void TestTraffic::testListLargeFolder ()
+   {
+   // a folder of 200 stacks, which need only be there to be listed
+   QDir repo (_repo->path ());
+
+   QVERIFY (repo.mkdir ("many"));
+   for (int i = 0; i < 200; i++)
+      {
+      QFile stack (repo.filePath (QString ("many/stack-%1.max")
+                                  .arg (i, 3, 10, QChar ('0'))));
+
+      QVERIFY (stack.open (QIODevice::WriteOnly));
+      }
+
+   RemoteBackend client (_server->url ());
+   bool done = false;
+   DirectoryListing listing;
+
+   client.browseDirectory (QFileInfo (_repo->path ()).fileName (), "many",
+                           this, [&] (const DirectoryListing &got) {
+      listing = got;
+      done = true;
+   });
+   QTRY_VERIFY (done);
+   QVERIFY (listing.ok);
+   QCOMPARE (listing.entries.size (), 200);
+   withinBudget (traffic ("list a folder of 200 stacks"), 1, 1343);
    }

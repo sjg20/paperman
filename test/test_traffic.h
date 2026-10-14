@@ -64,6 +64,9 @@ private slots:
    //! opening the folder again once a stack in it has changed
    void testChangedStack ();
 
+   //! listing a large folder
+   void testListLargeFolder ();
+
 private:
    //! attach the server, waiting until it is there
    void connectServer ();

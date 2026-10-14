@@ -58,6 +58,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+
+#include <zlib.h>
 #endif
 
 /* The server keeps its page, thumbnail and conversion caches in the
@@ -360,6 +362,82 @@ void SearchServer::onClientDisconnected()
     client->deleteLater();
 }
 
+/* Compress @data in the gzip format; returns an empty array if zlib
+   fails */
+static QByteArray gzip(const QByteArray &data)
+{
+    z_stream zs = {};
+
+    // 16 more than the window bits asks for a gzip header and trailer
+    if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 + 16, 8,
+                     Z_DEFAULT_STRATEGY) != Z_OK)
+        return QByteArray();
+
+    QByteArray out(deflateBound(&zs, data.size()), Qt::Uninitialized);
+
+    zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(data.data()));
+    zs.avail_in = data.size();
+    zs.next_out = reinterpret_cast<Bytef *>(out.data());
+    zs.avail_out = out.size();
+
+    int ret = deflate(&zs, Z_FINISH);
+
+    out.resize(zs.total_out);
+    deflateEnd(&zs);
+    return ret == Z_STREAM_END ? out : QByteArray();
+}
+
+/* Compress the body of @response, a whole HTTP response, with gzip if the
+   request, whose headers are @request, accepts that and it is worth it:
+   JSON or text of some size, not already compressed.  A JPEG or a stack's
+   page is compressed already, so is left as it is */
+static QByteArray compressResponse(const QByteArray &response,
+                                   const QByteArray &request)
+{
+    int requestEnd = request.indexOf("\r\n\r\n");
+    QByteArray requestHeaders = request.left(requestEnd).toLower();
+    int start = requestHeaders.indexOf("\naccept-encoding:");
+
+    if (start < 0)
+        return response;
+    int end = requestHeaders.indexOf('\n', start + 1);
+    QByteArray accepted = requestHeaders.mid(start, end < 0 ? -1 : end - start);
+
+    if (!accepted.contains("gzip"))
+        return response;
+
+    int headerEnd = response.indexOf("\r\n\r\n");
+
+    if (headerEnd < 0)
+        return response;
+    QByteArray headers = response.left(headerEnd);
+    QByteArray lower = headers.toLower();
+    QByteArray body = response.mid(headerEnd + 4);
+
+    if (body.size() < 512 || lower.contains("\r\ncontent-encoding:")
+        || !(lower.contains("\r\ncontent-type: application/json")
+             || lower.contains("\r\ncontent-type: text/")))
+        return response;
+
+    QByteArray packed = gzip(body);
+
+    if (packed.isEmpty() || packed.size() >= body.size())
+        return response;
+
+    // swap the length for the compressed one, and say how it is encoded
+    QList<QByteArray> lines = headers.split('\n');
+    QByteArray out;
+
+    for (QByteArray line : lines) {
+        if (line.toLower().startsWith("content-length:"))
+            line = "Content-Length: " + QByteArray::number(packed.size()) + "\r";
+        out += line + "\n";
+    }
+    out += "Content-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n";
+    out += packed;
+    return out;
+}
+
 void SearchServer::onReadyRead()
 {
     QTcpSocket *client = qobject_cast<QTcpSocket*>(sender());
@@ -437,6 +515,7 @@ void SearchServer::onReadyRead()
     // Empty response means the request is handled asynchronously
     if (response.isEmpty())
         return;
+    response = compressResponse(response, full);
 
     // Extract the status code from the HTTP response line
     int statusCode = 0;
