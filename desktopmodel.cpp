@@ -1809,15 +1809,20 @@ void Desktopmodel::onThumbnailReady(quint64 token,
    // a page's for a list of the stack's pages
    auto preview = _pendingPagePreviews.find(token);
    if (preview != _pendingPagePreviews.end()) {
-      QPersistentModelIndex stack = preview.value().first;
-      int pagenum = preview.value().second;
+      PendingPageImage pending = preview.value();
       QImage image;
 
       _pendingPagePreviews.erase(preview);
       if (!jpegBytes.isEmpty())
          image.loadFromData(jpegBytes);
-      if (stack.isValid())
-         emit pagePreviewReady(QModelIndex(stack), pagenum, image);
+      if (!pending.stack.isValid())
+         return;
+      if (pending.view)
+         emit pageViewReady(QModelIndex(pending.stack), pending.pagenum,
+                            image);
+      else
+         emit pagePreviewReady(QModelIndex(pending.stack), pending.pagenum,
+                               image);
       return;
    }
 
@@ -2440,6 +2445,68 @@ bool Desktopmodel::requestContent (const QModelIndex &ind)
 bool Desktopmodel::requestPagePreview (const QModelIndex &ind, int pagenum,
                                        const QSize &size)
    {
+   // the server makes thumbnails of three sizes
+   int longest = qMax (size.width (), size.height ());
+   QString name = longest <= 165 ? "small" : longest <= 330 ? "medium"
+                                                            : "large";
+
+   return requestPageImage (ind, pagenum, name, false);
+   }
+
+
+QSize Desktopmodel::pageTrueSize (const QModelIndex &ind, int pagenum)
+   {
+   File *f = getFile (ind);
+   QSize size, trueSize;
+   int bpp, bytes, compressed;
+   QDateTime stamp;
+
+   if (!f || (remoteForFile (f) && !f->remoteChecked ())
+       || f->getImageInfo (pagenum, size, trueSize, bpp, bytes, compressed,
+                           stamp))
+      return QSize ();
+   return trueSize;
+   }
+
+
+bool Desktopmodel::pageViewWorthwhile (const QModelIndex &ind, int pagenum,
+                                       int pixels)
+   {
+   File *f = getFile (ind);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+   QSize size, trueSize;
+   int bpp, bytes, compressed;
+   QDateTime stamp;
+
+   if (!remote || !f->remoteChecked () || pageHere (ind, pagenum)
+       || f->getImageInfo (pagenum, size, trueSize, bpp, bytes, compressed,
+                           stamp))
+      return false;
+
+   int longest = qMax (trueSize.width (), trueSize.height ());
+   int shortest = qMin (trueSize.width (), trueSize.height ());
+
+   if (!longest || pixels * 5 / 4 >= longest)
+      return false;   // nearly the page itself
+
+   /* a JPEG of a scanned page takes about a quarter of a byte a pixel;
+      ask for one when the page is at least twice as big as that */
+   qint64 estimate = qint64 (pixels) * pixels * shortest / longest / 4;
+
+   return compressed > 2 * estimate;
+   }
+
+
+bool Desktopmodel::requestPageView (const QModelIndex &ind, int pagenum,
+                                    int pixels)
+   {
+   return requestPageImage (ind, pagenum, QString::number (pixels), true);
+   }
+
+
+bool Desktopmodel::requestPageImage (const QModelIndex &ind, int pagenum,
+                                     const QString &size, bool view)
+   {
    if (_closing)
       return false;
    File *f = getFile (ind);
@@ -2448,16 +2515,12 @@ bool Desktopmodel::requestPagePreview (const QModelIndex &ind, int pagenum,
    if (!remote || !f->remoteChecked ())
       return false;
 
-   for (auto it = _pendingPagePreviews.cbegin ();
-        it != _pendingPagePreviews.cend (); ++it)
-      if (it.value ().second == pagenum && it.value ().first.isValid ()
-          && getFile (QModelIndex (it.value ().first)) == f)
+   for (const PendingPageImage &pending : _pendingPagePreviews)
+      if (pending.pagenum == pagenum && pending.view == view
+          && pending.stack.isValid ()
+          && getFile (QModelIndex (pending.stack)) == f)
          return true;    // already on its way
 
-   // the server makes thumbnails of three sizes
-   int longest = qMax (size.width (), size.height ());
-   QString name = longest <= 165 ? "small" : longest <= 330 ? "medium"
-                                                            : "large";
    Desk *desk = f->desk ();
 
    if (!_connectedBackends.contains (remote))
@@ -2468,10 +2531,14 @@ bool Desktopmodel::requestPagePreview (const QModelIndex &ind, int pagenum,
       }
    quint64 token = remote->fetchThumbnailAsync (desk->repoName (),
                                                 remoteStackPath (desk, f),
-                                                pagenum + 1, name,
+                                                pagenum + 1, size,
                                                 f->listedVersion ());
-   _pendingPagePreviews.insert (token, qMakePair (QPersistentModelIndex (ind),
-                                                  pagenum));
+   PendingPageImage pending;
+
+   pending.stack = QPersistentModelIndex (ind);
+   pending.pagenum = pagenum;
+   pending.view = view;
+   _pendingPagePreviews.insert (token, pending);
    return true;
    }
 

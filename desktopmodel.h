@@ -1123,6 +1123,10 @@ signals:
    void pagePreviewReady (const QModelIndex &stack, int pagenum,
                           const QImage &image);
 
+   //! emitted with what requestPageView() asked for
+   void pageViewReady (const QModelIndex &stack, int pagenum,
+                       const QImage &image);
+
    /** emitted when the image of a page has changed (e.g. it has been
        rotated), so views showing it can redisplay
 
@@ -1533,6 +1537,25 @@ public:
     *          whose structure is not here yet */
    bool requestPagePreview (const QModelIndex &ind, int pagenum,
                             const QSize &size);
+
+   /** Whether an image of a page of a remote stack to show at @p pixels
+    *  along its longest side is worth asking for rather than the page
+    *  itself: the page is not here, and is big enough that such an
+    *  image saves much, as a colour page is, while a black-and-white
+    *  page is small already.  False if the image would be nearly as big
+    *  as the page */
+   bool pageViewWorthwhile (const QModelIndex &ind, int pagenum, int pixels);
+
+   /** Ask the server for an image of a page of a remote stack to show at
+    *  @p pixels along its longest side, as pageViewWorthwhile() says is
+    *  worth it; pageViewReady() brings it, or a null image if it cannot
+    *  be had.  GUI thread only; returns at once.
+    *
+    *  @return true if it is on its way */
+   bool requestPageView (const QModelIndex &ind, int pagenum, int pixels);
+
+   //! the size of a page as its stack has it, even if the page is not here
+   QSize pageTrueSize (const QModelIndex &ind, int pagenum);
 
    /** gets an image of a page scaled to the exact requested size, using
        either the preview or full image. Returns a pixmap which is first freed
@@ -1970,8 +1993,22 @@ private:
     *  result.  Cleared in the slot. */
    QHash<quint64, File *> _pendingThumbnails;
 
-   //! requestPagePreview()'s requests, by token: the stack and the page
-   QHash<quint64, QPair<QPersistentModelIndex, int> > _pendingPagePreviews;
+   //! an image of a page on its way from requestPageImage()
+   struct PendingPageImage
+      {
+      QPersistentModelIndex stack;
+      int pagenum = 0;
+      bool view = false;      //!< for requestPageView(), not a preview
+      };
+
+   //! the images of pages on their way, by token
+   QHash<quint64, PendingPageImage> _pendingPagePreviews;
+
+   /** ask for an image of a page, at @p size as the server's thumbnail
+       endpoint takes it, for requestPagePreview() or, if @p view,
+       requestPageView() */
+   bool requestPageImage (const QModelIndex &ind, int pagenum,
+                          const QString &size, bool view);
 
    //! stacks whose bytes are being fetched, by request token
    QHash<quint64, QPersistentModelIndex> _pendingContent;
