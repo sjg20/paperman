@@ -269,7 +269,39 @@ void TestTraffic::testClickStack ()
    openFolder ();
    traffic (QString ());
    showStack ("a.max", false);
-   withinBudget (traffic ("click a five-page stack"), 6, 531677);
+   withinBudget (traffic ("click a five-page stack"), 6, 72445);
+   }
+
+
+void TestTraffic::testZoomIn ()
+   {
+   connectServer ();
+   openFolder ();
+   showStack ("a.max", false);
+
+   /* the colour first page comes as an image made for display, which is
+      drawn as big as the page itself would be */
+   Pagewidget *page = _desktop->_page;
+   QSize trueSize = _desktop->getModel ()->pageTrueSize (stackIndex ("a.max"),
+                                                       0);
+
+   QVERIFY (page->_imageScale > 1.0);
+   QVERIFY (qAbs (page->_pixmap.height ()
+                  - qRound (trueSize.height () * page->_scale)) <= 2);
+   traffic (QString ());
+
+   // zooming in to full size needs the page itself
+   page->slotNewScale (1.0, false);
+   QTRY_COMPARE (page->_imageScale, 1.0);
+   QCOMPARE (page->_image.size (), trueSize);
+
+   Totals totals = traffic ("zoom a page in to full size");
+
+   QCOMPARE (totals.lines.filter ("/pages/1").size (), 1);
+   withinBudget (totals, 1, 518221);
+   }
+
+
    }
 
 
@@ -282,7 +314,7 @@ void TestTraffic::testShowStack ()
    /* the list asks for a thumbnail of each page not here yet, so how
       many it asks for before each page comes depends on timing */
    withinBudget (traffic ("show a five-page stack, page by page"), 10,
-                 1273000);
+                 335000);
    }
 
 

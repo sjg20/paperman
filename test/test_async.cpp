@@ -670,9 +670,10 @@ void TestAsync::testRepaintChanged ()
    page->_pageview->viewport ()->repaint ();
    CHECK_ASYNC (check, nullptr);
 
-   // and the page is asked for, so it comes
-   QTRY_VERIFY_WITH_TIMEOUT (model->pageHere (stackIndex (), 0),
-                             kDelayMs * 10);
+   /* and the page is asked for, so it comes, or for a colour page an
+      image of it made for display */
+   QTRY_VERIFY_WITH_TIMEOUT (model->pageHere (stackIndex (), 0)
+                             || page->_imageScale > 1.0, kDelayMs * 10);
    }
 
 

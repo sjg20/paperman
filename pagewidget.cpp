@@ -501,6 +501,7 @@ void Pagewidget::clearViewport (void)
    _too_big = false;
    _pixmap = QPixmap ();
    _image = QImage ();
+   _imageScale = 1.0;
    _area->setPixmapImage (_pixmap, _image, _too_big, 0);
 //    _area->setScale (_scale);
    _area->viewport ()->update ();
@@ -532,8 +533,8 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
 
 //    qDebug () << "updateViewport" << updateScale << force_smooth << delay_smoothing;
 
-   // the image is empty at the beginning
-   widgetSize = _image.size ();
+   // the image is empty at the beginning; it may be smaller than the page
+   widgetSize = _image.size () * _imageScale;
    if (!widgetSize.width ())
       return;
 
@@ -603,7 +604,7 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
 
          _area->setSize (finalSize);
          _area->setPixmapImage (_pixmap, _image, _too_big, _rotate);
-         _area->setScale (_scale);
+         _area->setScale (_scale * _imageScale);
          _area->viewport ()->update ();
 
          // if not smoothed, remember to do this later
@@ -679,6 +680,24 @@ void Pagewidget::slotNewScale (double scale, bool delay_smoothing)
    {
    _scale = scale;
    updateViewport (true, false, delay_smoothing);
+
+   /* an image of the page made for a smaller size than it is now shown
+      at gives way to a bigger one, or to the page itself */
+   if (_imageScale > 1.0 && _index.isValid ())
+      {
+      int shown = qMax (_image.width (), _image.height ());
+      int pixels = viewPixels (_image.size () * _imageScale);
+
+      if (!pixels || pixels > shown)
+         {
+         Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+         QModelIndex sindex = _index;
+
+         _modelconv->indexToSource (_model, sindex);
+         if (!askForView (contents, sindex))
+            contents->requestPage (sindex, _pagenum);
+         }
+      }
    }
 
 
@@ -769,6 +788,64 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
    }
 
 
+int Pagewidget::viewPixels (const QSize &trueSize) const
+   {
+   static const int buckets[] = {1000, 1600, 2400};
+   int needed = qRound (qMax (trueSize.width (), trueSize.height ()) * _scale
+                        * devicePixelRatioF ());
+
+   /* a few sizes only, so that one image does for zooming a little and
+      the server and the cache keep few of each page */
+   for (int pixels : buckets)
+      if (needed <= pixels)
+         return pixels;
+   return 0;
+   }
+
+
+bool Pagewidget::askForView (Desktopmodel *contents, const QModelIndex &sindex)
+   {
+   QSize trueSize = contents->pageTrueSize (sindex, _pagenum);
+   int pixels = trueSize.isValid () ? viewPixels (trueSize) : 0;
+
+   if (!pixels || !contents->pageViewWorthwhile (sindex, _pagenum, pixels))
+      return false;
+   connect (contents, &Desktopmodel::pageViewReady, this,
+            &Pagewidget::slotPageView, Qt::UniqueConnection);
+   return contents->requestPageView (sindex, _pagenum, pixels);
+   }
+
+
+void Pagewidget::slotPageView (const QModelIndex &stack, int pagenum,
+                               const QImage &image)
+   {
+   if (!_index.isValid () || pagenum != _pagenum)
+      return;
+
+   Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+   QModelIndex sindex = _index;
+
+   _modelconv->indexToSource (_model, sindex);
+   if (stack != sindex || contents->pageHere (sindex, pagenum))
+      return;      // moved on, or the page itself is here
+
+   // without an image the page itself has to come
+   if (image.isNull ())
+      {
+      contents->requestPage (sindex, pagenum);
+      return;
+      }
+
+   QSize trueSize = contents->pageTrueSize (sindex, pagenum);
+
+   _image = image;
+   _imageScale = trueSize.isValid ()
+         ? double (qMax (trueSize.width (), trueSize.height ()))
+           / qMax (image.width (), image.height ()) : 1.0;
+   updateViewport (true, false, false);
+   }
+
+
 void Pagewidget::slotPreviewPage (const QModelIndex &ind)
    {
    QSize scaledSize, size;
@@ -784,16 +861,22 @@ void Pagewidget::slotPreviewPage (const QModelIndex &ind)
    _modelconv->indexToSource (_model, sindex);
 
    /* a page of a remote stack which is not here yet is asked for, and
-      shown once it comes, through Desktopmodel::pageContentChanged() */
+      shown once it comes, through Desktopmodel::pageContentChanged().  A
+      page which is big for what it shows, as a colour page is, comes as
+      an image of the size it is shown at instead, through
+      pageViewReady(), and the page itself only once it is needed */
    if (!contents->pageHere (sindex, _pagenum))
       {
-      if (!contents->requestContent (sindex))
+      if (contents->requestContent (sindex))
+         ;
+      else if (!askForView (contents, sindex))
          contents->requestPage (sindex, _pagenum);
       updateOcrText ();
       return;
       }
    err = contents->getImage (sindex, _pagenum, false,
                   _image, size, scaledSize, bpp);
+   _imageScale = 1.0;
    if (!err)
       updateViewport (true, false, false);
    else
@@ -896,7 +979,7 @@ void Pagewidget::slotZoomFit (void)
       {
       case SUBSYS_pixmap :
          QSize areaSize = _area->viewport ()->size ();
-         QSize imageSize = _image.size ();
+         QSize imageSize = _image.size () * _imageScale;
 
          if (imageSize.width () > 0)
             {

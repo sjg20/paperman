@@ -54,6 +54,9 @@ private slots:
    //! showing a stack and turning through its pages
    void testShowStack ();
 
+   //! zooming a page in, past what an image made for display shows
+   void testZoomIn ();
+
    //! renaming a stack
    void testRename ();
 

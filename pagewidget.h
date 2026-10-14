@@ -42,6 +42,7 @@ class QWidget;
 class Ui_Ocrbar;
 class Ui_Pageattr;
 
+class Desktopmodel;
 class Desktopmodelconv;
 class Desk;
 class Mainwidget;
@@ -348,6 +349,10 @@ protected slots:
    /** display a new page in the preview window */
    void slotPreviewPage (const QModelIndex &ind);
 
+   //! show an image of the page shown, made for display, as it comes
+   void slotPageView (const QModelIndex &stack, int pagenum,
+                      const QImage &image);
+
    /** called when there is a new scaled image for the page currently being
        scanned
 
@@ -440,6 +445,19 @@ private:
    int _count;             //!< number of pages to shoe
    bool _smoothing;          //!< true to display with smoothing
    double _scale;           //!< display scale
+   /** the number of pixels along its longest side an image of a page of
+       @p trueSize needs at the scale shown, rounded up to one of a few
+       sizes, or 0 if only the page itself will do */
+   int viewPixels (const QSize &trueSize) const;
+
+   /** ask for an image of the page shown, made for display, if that is
+       worth it; true if it is on its way */
+   bool askForView (Desktopmodel *contents, const QModelIndex &sindex);
+
+   /** the page's true size over the size of _image, which is more than
+       1 while an image of a remote page made for display stands in for
+       the page itself */
+   double _imageScale = 1.0;
 //    QGraphicsScene *_scene;
 //    QGraphicsPixmapItem *_pitem;
 //    QGraphicsView *_view;
