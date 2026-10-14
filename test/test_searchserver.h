@@ -36,6 +36,9 @@ private slots:
    //! POST body that arrives in a separate TCP segment is still parsed
    void testPostBodySplitAcrossReads();
 
+   //! a connection carries one request after another, until closed
+   void testKeepAlive();
+
    //! /repos hides repos the bearer-authed user is not allowed to see
    void testReposFilteredByUser();
 

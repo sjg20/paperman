@@ -398,6 +398,95 @@ void TestSearchServer::testV1AuthLogin()
    server.stop();
 }
 
+/* Return the length of the whole HTTP reply at the start of @raw, or 0 if
+   it has not all come yet */
+static int replyLength(const QByteArray &raw)
+{
+    int sep = raw.indexOf("\r\n\r\n");
+
+    if (sep < 0)
+        return 0;
+
+    static const QRegularExpression re("\r\ncontent-length: *(\\d+)",
+        QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch match = re.match(QString::fromLatin1(raw.left(sep)));
+    int length = sep + 4 + (match.hasMatch() ? match.captured(1).toInt() : 0);
+
+    return raw.size() >= length ? length : 0;
+}
+
+void TestSearchServer::testKeepAlive()
+{
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   SearchServer server(tmpDir.path(), PORT);
+   server.setIdleTimeout(500);
+   QVERIFY(server.start());
+
+   QByteArray get = "GET /status HTTP/1.1\r\nHost: localhost\r\n\r\n";
+   QTcpSocket sock;
+   QByteArray raw;
+
+   /* the server runs in this process, so it only answers while the event
+      loop runs, as it does between tries */
+   auto arrived = [&]() {
+      raw += sock.readAll();
+      return replyLength(raw) > 0;
+   };
+   auto take = [&]() {
+      int length = replyLength(raw);
+      QByteArray reply = raw.left(length);
+
+      raw.remove(0, length);
+      return reply;
+   };
+   QByteArray reply;
+
+   sock.connectToHost("localhost", PORT);
+   QVERIFY(sock.waitForConnected(2000));
+
+   // each reply says how long it is, so the connection stays for the next
+   for (int i = 0; i < 2; i++) {
+      sock.write(get);
+      QTRY_VERIFY(arrived());
+      reply = take();
+      QVERIFY(reply.startsWith("HTTP/1.1 200"));
+      QVERIFY(!reply.contains("Connection: close"));
+      QCOMPARE(sock.state(), QAbstractSocket::ConnectedState);
+   }
+
+   // two requests sent together are answered in turn
+   sock.write(get + get);
+   QTRY_VERIFY(arrived());
+   reply = take();
+   QVERIFY(reply.startsWith("HTTP/1.1 200"));
+   QTRY_VERIFY(arrived());
+   reply = take();
+   QVERIFY(reply.startsWith("HTTP/1.1 200"));
+
+   // a connection left idle is closed
+   QTRY_COMPARE(sock.state(), QAbstractSocket::UnconnectedState);
+
+   // so is one whose client asks for that, or which speaks HTTP/1.0
+   const QByteArray closing[] = {
+      "GET /status HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+      "GET /status HTTP/1.0\r\nHost: localhost\r\n\r\n",
+   };
+   for (const QByteArray &request : closing) {
+      raw.clear();
+      sock.connectToHost("localhost", PORT);
+      QVERIFY(sock.waitForConnected(2000));
+      sock.write(request);
+      QTRY_VERIFY(arrived());
+      reply = take();
+      QVERIFY(reply.contains("\r\nConnection: close\r\n"));
+      QTRY_COMPARE_WITH_TIMEOUT(sock.state(), QAbstractSocket::UnconnectedState,
+                                300);
+   }
+
+   server.stop();
+}
+
 void TestSearchServer::testPostBodySplitAcrossReads()
 {
    /* Regression test: QNetworkAccessManager (and other clients) often
