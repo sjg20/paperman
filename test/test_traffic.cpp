@@ -14,6 +14,7 @@ License: GPL-2
 #include "../pagemodel.h"
 #include "../pagewidget.h"
 #include "../remotebackend.h"
+#include "../utils.h"
 
 #include "test_traffic.h"
 
@@ -177,6 +178,24 @@ void TestTraffic::connectServer ()
    }
 
 
+/** true once the stack at @a ind is built and shows its thumbnail, rather
+   than the icon it has until that comes, and the view has recorded the
+   thumbnail's size */
+static bool stackDrawn (const QModelIndex &ind)
+   {
+   static const QImage placeholder = utilIconPixmap ("unknown", 64).toImage ();
+   const QAbstractItemModel *model = ind.model ();
+   QPixmap pixmap = model->data (ind, Desktopmodel::Role_pixmap)
+                    .value<QPixmap> ();
+   QSize size = model->data (ind, Desktopmodel::Role_preview_maxsize)
+                .toSize ();
+
+   return ((File *)ind.internalPointer ())->valid () && !pixmap.isNull ()
+          && pixmap.toImage () != placeholder
+          && size.expandedTo (pixmap.size ()) == size;
+   }
+
+
 void TestTraffic::openFolder ()
    {
    QString path = repoPath () + "/papers";
@@ -184,15 +203,12 @@ void TestTraffic::openFolder ()
    QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
    _desktop->selectDir (_desktop->getDirIndex (path));
 
-   // every stack is shown, with its thumbnail
-   Desktopmodel *model = _desktop->getModel ();
-
+   /* every stack is shown with its thumbnail, and the view has measured
+      that, so the stack's size is in the layout the session saves */
    for (const QString &name : kStacks)
       {
       QTRY_VERIFY (stackIndex (name).isValid ());
-      QTRY_VERIFY (!model->data (stackIndex (name),
-                                 Desktopmodel::Role_pixmap)
-                   .value<QPixmap> ().isNull ());
+      QTRY_VERIFY (stackDrawn (stackIndex (name)));
       }
    }
 
