@@ -3224,6 +3224,14 @@ int SearchServer::getThumbnailSize(const QString &size)
 {
     if (size == "small") return 150;
     if (size == "large") return 600;
+
+    /* a number of pixels, for an image of a page to show at that size,
+       within reason */
+    bool ok = false;
+    int pixels = size.toInt(&ok);
+
+    if (ok)
+        return qBound(50, pixels, 4000);
     return 300; // medium (default)
 }
 
@@ -3339,6 +3347,16 @@ QString SearchServer::generateThumbnail(const QString &repoPath, const QString &
         Filemax *max = dynamic_cast<Filemax *>(file);
         if (max)
             err = max->getPreviewImage(page - 1, image, false);
+
+        /* an image of a page to show at a size given in pixels wants
+           more than the preview holds, so comes from the page itself;
+           the named sizes are thumbnails, which the preview does for */
+        bool pixels = false;
+
+        size.toInt(&pixels);
+        if (pixels && !err && !image.isNull()
+            && qMax(image.width(), image.height()) * 5 / 4 < thumbSize)
+            image = QImage();
 
         if (err || image.isNull()) {
             QSize imgSize, trueSize;
