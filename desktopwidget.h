@@ -145,6 +145,10 @@ public:
 
    /** returns a pointer to the model, which contains the items being displayed */
    Desktopmodel *getModel (void) { return _contents; }
+
+   /** the indicator of the connection to a server and the data sent each
+       way, for the main window to show in its status bar */
+   QLabel *netStatus (void) { return _netStatus; }
    
    //! the page pane that shows the current stack and follows a scan
    Pagewidget *getPagewidget (void) { return _page; }
@@ -638,7 +642,7 @@ private:
 //   QAction *_act_send, *_act_deliver_out;
 
    Toolbar *_toolbar;
-   QLabel *_netStatus = nullptr;  //!< Network activity indicator in the toolbar
+   QLabel *_netStatus = nullptr;  //!< Network activity indicator
    QTimer *_netStatusTimer = nullptr;  //!< Trailing-edge throttle for label updates
    bool _netStatusDirty = false;  //!< Changes arrived during the throttle window
    //QWidget *_toolbar;

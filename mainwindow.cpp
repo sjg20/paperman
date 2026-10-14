@@ -106,9 +106,14 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    actionDirFilter->setChecked(dir_filter);
    _desktop->setDirFilter(dir_filter);
 
-   // to stop the status bar rising all the time, set its maximum size
-   QSize size = QSize (5000, 20);
+   /* to stop the status bar rising all the time, set its maximum size,
+      leaving room for a line of text in the font in use */
+   QSize size = QSize (5000, qMax (20, statusBar ()->fontMetrics ().height ()
+                                       + 8));
    statusBar ()->setMaximumSize (size);
+
+   // the connection to a server, if any, is shown on the right
+   statusBar ()->addPermanentWidget (_desktop->netStatus ());
    connect (_main->getDesktop (), SIGNAL (updateDone ()),
          this, SLOT (welcome ()));
    connect (_main->getDesktop (), SIGNAL (undoChanged ()),

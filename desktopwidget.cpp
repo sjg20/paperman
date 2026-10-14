@@ -97,20 +97,15 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    _toolbar = new Toolbar();
 
-   /* Append a network-activity indicator to the toolbar's existing
-    * horizontal row.  The toolbar's top-level layout is a
-    * QVBoxLayout; horizontalLayout_2 is the inner row that holds
-    * the buttons, generated from toolbar.ui.  Give the label its
-    * own size policy + minimum width so the toolbar layout actually
-    * allocates space for it. */
+   /* A network-activity indicator, which the main window shows on the
+    * right of its status bar (see netStatus()).  It starts in the
+    * toolbar, though not in its layout, since a child of this splitter
+    * would become one of its panes */
    _netStatus = new QLabel(_toolbar);
    _netStatus->setObjectName("netStatus");
    _netStatus->setVisible(false);
-   _netStatus->setMargin(4);
+   _netStatus->setContentsMargins(4, 0, 4, 0);
    _netStatus->setTextFormat(Qt::RichText);
-   _netStatus->setMinimumWidth(280);
-   _netStatus->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-   _toolbar->horizontalLayout_2->addWidget(_netStatus);
 
    /* Throttle: BackendStats emits changed() on every request +
     * every byte boundary, which can be many times per second
@@ -565,13 +560,15 @@ void Desktopwidget::updateNetStatus()
    QString dot = busy
                      ? QStringLiteral("<span style='color:#cc8800'>●</span>")
                      : QStringLiteral("<span style='color:#0aaa3a'>●</span>");
+   QUrl url(s->url());
+   QString host = url.host().isEmpty() ? s->url() : url.host();
    QString text = QString(
-       "%1 Connected to %2 &nbsp;&nbsp; "
-       "↑ %3 &nbsp;&nbsp; ↓ %4")
-           .arg(dot, s->url().toHtmlEscaped(),
-                formatBytes(s->bytesSent()),
-                formatBytes(s->bytesReceived()));
+       "↑ %1 &nbsp;&nbsp; ↓ %2 &nbsp;&nbsp; %3 %4")
+           .arg(formatBytes(s->bytesSent()),
+                formatBytes(s->bytesReceived()),
+                host.toHtmlEscaped(), dot);
    _netStatus->setText(text);
+   _netStatus->setToolTip(tr("Connected to %1").arg(s->url()));
    _netStatus->setVisible(true);
 }
 
