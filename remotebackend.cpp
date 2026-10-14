@@ -483,26 +483,60 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
 
    QNetworkReply *reply = _nam->get(req);
 
-   if (_stats) {
-      /* Approximate the request size by the URL bytes.  Headers
-       * are uncounted; tolerable for a user-facing tally. */
-      _stats->requestStarted();
-      _stats->recordSent(pathAndQuery.toUtf8().size());
-      /* Tie the callback to the reply, not to _stats: the stats object
-         outlives this backend, so a connection owned by it keeps firing
-         after the backend (and the reply it captured) have gone.  That
-         happens on every startup, where the probe backend is a local
-         whose replies are cancelled as it goes out of scope, and shows
-         up as "device not open" from the read below.  Capture the stats
-         pointer rather than this, so nothing reaches the dead backend. */
-      BackendStats *stats = _stats;
-      QObject::connect(reply, &QNetworkReply::finished, reply,
-          [stats, reply]() {
-             stats->recordReceived(reply->bytesAvailable());
-             stats->requestFinished();
-          });
-   }
+   /* Approximate the request size by the URL bytes.  Headers are
+      uncounted; tolerable for a user-facing tally. */
+   track(reply, pathAndQuery, false, pathAndQuery.toUtf8().size());
    return reply;
+}
+
+
+void RemoteBackend::track(QNetworkReply *reply, const QString &path,
+                          bool post, qint64 sent)
+{
+   if (!_stats)
+      return;
+
+   BackendStats *stats = _stats;
+   quint64 id = stats->requestStarted(BackendStats::kindOf(path, post));
+
+   stats->recordSent(sent);
+
+   /* Tie the callbacks to the reply, not to _stats: the stats object
+      outlives this backend, so a connection owned by it keeps firing
+      after the backend (and the reply it captured) have gone.  That
+      happens on every startup, where the probe backend is a local whose
+      replies are cancelled as it goes out of scope.  Capture the stats
+      pointer rather than this, so nothing reaches the dead backend. */
+   QObject::connect(reply, &QNetworkReply::metaDataChanged, reply,
+       [stats, id]() { stats->requestAnswered(id); });
+   QObject::connect(reply, &QNetworkReply::downloadProgress, reply,
+       [stats, id](qint64 received, qint64 total) {
+          stats->requestProgress(id, received, total);
+       });
+   QElapsedTimer started;
+
+   started.start();
+   QObject::connect(reply, &QNetworkReply::finished, reply,
+       [stats, id, reply, started]() {
+          QNetworkReply::NetworkError err = reply->error();
+          QString error;
+
+          /* A request this side drops is cancelled, which is no failure,
+             but so is one which runs out of time.  An error from the
+             server about the request itself, such as a file which is not
+             there, is an answer: only a failure to get one counts */
+          if (err == QNetworkReply::OperationCanceledError) {
+             int timeout = reply->request().transferTimeout();
+
+             if (timeout > 0 && started.elapsed() >= timeout)
+                error = QObject::tr("No answer in %1 seconds")
+                        .arg(timeout / 1000);
+          } else if ((err > QNetworkReply::NoError && err < 200)
+                     || err >= QNetworkReply::InternalServerError) {
+             error = reply->errorString();
+          }
+          stats->requestFinished(id, error);
+       });
 }
 
 
@@ -1028,6 +1062,23 @@ void RemoteBackend::startEventStream(const QString &repo)
 
    QNetworkReply *reply = _nam->get(req);
    auto buf = std::make_shared<QByteArray>();
+
+   /* the stream is wanted from now on, and connected once the server
+      answers it */
+   if (_stats) {
+      BackendStats *stats = _stats;
+
+      stats->setEventStream(repo, false);
+      QObject::connect(reply, &QNetworkReply::metaDataChanged, reply,
+          [stats, reply, repo]() {
+             int status = reply->attribute(
+                QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+             stats->setEventStream(repo, status == 200);
+          });
+      QObject::connect(reply, &QNetworkReply::finished, reply,
+          [stats, repo]() { stats->setEventStream(repo, false); });
+   }
    QObject::connect(reply, &QNetworkReply::readyRead, this,
        [this, reply, buf, repo]() {
           *buf += readReply(reply);
@@ -1654,18 +1705,8 @@ QNetworkReply *RemoteBackend::startPost(const QString &path,
       req.setRawHeader("Authorization", "Bearer " + _token.toUtf8());
 
    QNetworkReply *reply = _nam->post(req, body);
-   if (_stats) {
-      _stats->requestStarted();
-      _stats->recordSent(path.toUtf8().size() + body.size());
 
-      // tied to the reply, as in startGet()
-      BackendStats *stats = _stats;
-      QObject::connect(reply, &QNetworkReply::finished, reply,
-          [stats, reply]() {
-             stats->recordReceived(reply->bytesAvailable());
-             stats->requestFinished();
-          });
-   }
+   track(reply, path, true, path.toUtf8().size() + body.size());
    return reply;
 }
 

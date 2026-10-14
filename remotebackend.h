@@ -628,6 +628,11 @@ private:
     /** (Re)connect the event stream for one repo. */
     void startEventStream(const QString &repo);
 
+    /** Follow @p reply in the stats, if any: what @p path is for, which
+     *  is a POST if @p post, and @p sent bytes for the request */
+    void track(QNetworkReply *reply, const QString &path, bool post,
+               qint64 sent);
+
     QUrl _baseUrl;
     QString _token;
     QString _serverId;

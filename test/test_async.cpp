@@ -10,6 +10,7 @@ License: GPL-2
 
 #include "test.h"
 
+#include "../backendstats.h"
 #include "../blockwatch.h"
 #include "../desktopmodel.h"
 #include "../desktopundo.h"
@@ -480,6 +481,42 @@ void TestAsync::testWaitingThumbnail ()
    _desktop->getView ()->viewport ()->repaint ();
    QTRY_COMPARE (model->data (stack, Desktopmodel::Role_preview_maxsize)
                  .toSize (), thumbnail.size ());
+   }
+
+
+void TestAsync::testConnectionState ()
+   {
+   connectServer ();
+
+   BackendStats *stats = _desktop->_model->stats ();
+   QString path = repoPath () + "/papers";
+
+   QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
+   stats->reset ();
+
+   // while the folder's listing is held back, it is seen to wait
+   _server->setDelay (kDelayMs * 2);
+   _desktop->selectDir (_desktop->getDirIndex (path));
+   QTRY_VERIFY (stats->activeRequests (BackendStats::Listing) > 0);
+   QTRY_VERIFY (stats->longestWaitMs () >= kDelayMs);
+
+   /* once it comes, the server is seen to take about as long as it was
+      held to answer, and the folder's event stream is connected */
+   QTRY_VERIFY (stackIndex ().isValid ());
+   QTRY_COMPARE (stats->eventStreams (), 1);
+   QVERIFY (stats->responseMs () >= kDelayMs * 2);
+   QTRY_COMPARE_WITH_TIMEOUT (stats->activeRequests (), 0, kDelayMs * 10);
+   QCOMPARE (stats->failures (), 0);
+
+   /* with the server gone, the stream is lost, and a request fails for
+      want of an answer */
+   QModelIndex top = _desktop->getDirIndex (repoPath ());
+
+   _server.reset ();
+   QTRY_COMPARE (stats->eventStreamsDown (), 1);
+   _desktop->selectDir (top);
+   QTRY_VERIFY (stats->failures () > 0);
+   QVERIFY (!stats->lastError ().isEmpty ());
    }
 
 

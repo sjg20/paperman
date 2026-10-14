@@ -886,6 +886,79 @@ void TestSearchServer::testCacheWhileWriting()
    server.stop();
 }
 
+void TestSearchServer::testBackendStatsTracks()
+{
+   // what each request is for, from its path
+   QCOMPARE(BackendStats::kindOf("/browse?repo=r&path=p", false),
+            BackendStats::Listing);
+   QCOMPARE(BackendStats::kindOf("/repos", false), BackendStats::Listing);
+   QCOMPARE(BackendStats::kindOf("/thumbnail?size=small&path=p", false),
+            BackendStats::Thumbnail);
+   QCOMPARE(BackendStats::kindOf("/thumbnail?size=1600&path=p", false),
+            BackendStats::Page);
+   QCOMPARE(BackendStats::kindOf("/file?repo=r&path=p", false),
+            BackendStats::Page);
+   QCOMPARE(BackendStats::kindOf("/v1/repos/r/stacks/p/pages/1", false),
+            BackendStats::Page);
+   QCOMPARE(BackendStats::kindOf("/v1/repos/r/stacks/p/upload", true),
+            BackendStats::Upload);
+   QCOMPARE(BackendStats::kindOf("/v1/repos/r/stacks/p/rename", true),
+            BackendStats::Change);
+   QCOMPARE(BackendStats::kindOf("/v1/auth/login", true),
+            BackendStats::Other);
+   QCOMPARE(BackendStats::kindOf("/search?q=x", false), BackendStats::Other);
+
+   BackendStats stats;
+   quint64 listing = stats.requestStarted(BackendStats::Listing);
+   quint64 page = stats.requestStarted(BackendStats::Page);
+
+   QCOMPARE(stats.activeRequests(), 2);
+   QCOMPARE(stats.activeRequests(BackendStats::Page), 1);
+   QCOMPARE(stats.activeRequests(BackendStats::Thumbnail), 0);
+   QCOMPARE(stats.responseMs(), qint64(-1));
+
+   // nothing is known to come until a reply says how long it is
+   QCOMPARE(stats.bytesToCome(), qint64(0));
+   QCOMPARE(stats.lengthsUnknown(), 2);
+   QTest::qWait(20);
+   QVERIFY(stats.longestWaitMs() >= 20);
+
+   stats.requestAnswered(page);
+   QVERIFY(stats.responseMs() >= 20);
+   stats.requestProgress(page, 1000, 5000);
+   QCOMPARE(stats.bytesToCome(), qint64(4000));
+   QCOMPARE(stats.lengthsUnknown(), 1);
+   QCOMPARE(stats.bytesReceived(), qint64(1000));
+   stats.requestProgress(page, 5000, 5000);
+   QCOMPARE(stats.bytesToCome(), qint64(0));
+   QCOMPARE(stats.bytesReceived(), qint64(5000));
+   stats.requestFinished(page);
+   QCOMPARE(stats.activeRequests(), 1);
+   QCOMPARE(stats.failures(), 0);
+
+   // a failure is counted, with what went wrong
+   stats.requestFinished(listing, "Connection refused");
+   QCOMPARE(stats.activeRequests(), 0);
+   QCOMPARE(stats.longestWaitMs(), qint64(0));
+   QCOMPARE(stats.failures(), 1);
+   QCOMPARE(stats.lastError(), QString("Connection refused"));
+
+   // an event stream is wanted, then connected, then lost
+   stats.setEventStream("r", false);
+   QCOMPARE(stats.eventStreams(), 0);
+   QCOMPARE(stats.eventStreamsDown(), 1);
+   stats.setEventStream("r", true);
+   QCOMPARE(stats.eventStreams(), 1);
+   QCOMPARE(stats.eventStreamsDown(), 0);
+   stats.setEventStream("r", false);
+   QCOMPARE(stats.eventStreamsDown(), 1);
+
+   stats.reset();
+   QCOMPARE(stats.failures(), 0);
+   QCOMPARE(stats.bytesReceived(), qint64(0));
+   QCOMPARE(stats.responseMs(), qint64(-1));
+}
+
 void TestSearchServer::testBackendStatsAccumulates()
 {
    /* Smoke test for the toolbar indicator: BackendStats should
