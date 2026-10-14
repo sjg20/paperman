@@ -57,6 +57,9 @@ private slots:
    //! zooming a page in, past what an image made for display shows
    void testZoomIn ();
 
+   //! rotating a page shown as an image made for display
+   void testRotateView ();
+
    //! renaming a stack
    void testRename ();
 

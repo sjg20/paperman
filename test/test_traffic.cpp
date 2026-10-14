@@ -302,6 +302,28 @@ void TestTraffic::testZoomIn ()
    }
 
 
+void TestTraffic::testRotateView ()
+   {
+   connectServer ();
+   openFolder ();
+   showStack ("a.max", false);
+
+   Pagewidget *page = _desktop->_page;
+
+   QVERIFY (page->_imageScale > 1.0);
+   QVERIFY (page->_image.height () > page->_image.width ());
+   traffic (QString ());
+
+   /* rotating the page on the server makes the image in the cache out of
+      date, so a new one comes, turned */
+   _desktop->getModel ()->transformPage (stackIndex ("a.max"), 0,
+                                         File::Transform_rotate90);
+   QTRY_VERIFY (page->_image.width () > page->_image.height ());
+
+   Totals totals = traffic ("rotate a page shown as an image made for "
+                            "display");
+
+   QVERIFY (totals.lines.filter ("size=1000").size () >= 1);
    }
 
 
