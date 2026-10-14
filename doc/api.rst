@@ -632,6 +632,18 @@ This allows web applications from any origin to access the API.
 
 --------------
 
+Compression
+-----------
+
+A JSON or text response of more than a few hundred bytes, such as a
+folder's listing, is compressed with gzip when the request accepts that,
+with an ``Accept-Encoding`` header which includes ``gzip``. The response
+then has ``Content-Encoding: gzip``. Qt's and Dart's HTTP clients send
+that header and undo the compression themselves. Images and stacks are
+compressed already, so are sent as they are.
+
+--------------
+
 Rate Limiting
 -------------
 
