@@ -24,6 +24,7 @@ License: GPL-2
 #include "../pageview.h"
 #include "../pagewidget.h"
 #include "../remotebackend.h"
+#include "../utils.h"
 
 #include "remoteharness.h"
 #include "test_async.h"
@@ -435,6 +436,50 @@ void TestAsync::testStaleThumbnail ()
 
    QVERIFY (model->removeRows (stack.row (), 1, stack.parent ()));
    QTest::qWait (kDelayMs * 5);
+   }
+
+
+void TestAsync::testWaitingThumbnail ()
+   {
+   connectServer ();
+
+   QString path = repoPath () + "/papers";
+
+   QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
+
+   // the thumbnail asked for once the listing has come is held back
+   _desktop->selectDir (_desktop->getDirIndex (path));
+   QTest::qWait (kDelayMs / 5);
+   _server->setDelay (kDelayMs * 4);
+   QTRY_VERIFY (stackIndex ().isValid ());
+
+   /* meanwhile the stack shows a hatched page in its place, rather than
+      the icon of a stack whose image cannot be had */
+   QModelIndex stack = stackIndex ();
+   QAbstractItemModel *model = _desktop->getModel ();
+   QPixmap waiting = model->data (stack, Desktopmodel::Role_pixmap)
+                     .value<QPixmap> ();
+   QImage unknown = utilIconPixmap ("unknown", 64).toImage ();
+
+   QCOMPARE (waiting.size (), QSize (106, 150));
+   QVERIFY (waiting.toImage () != unknown);
+
+   // the view draws it, but its size is not the stack's to keep
+   _desktop->getView ()->viewport ()->repaint ();
+   QVERIFY (!model->data (stack, Desktopmodel::Role_preview_maxsize)
+            .toSize ().isValid ());
+
+   // then the thumbnail comes, and the view takes its size
+   QTRY_VERIFY_WITH_TIMEOUT (model->data (stack, Desktopmodel::Role_pixmap)
+                             .value<QPixmap> ().toImage ()
+                             != waiting.toImage (), kDelayMs * 10);
+   QPixmap thumbnail = model->data (stack, Desktopmodel::Role_pixmap)
+                       .value<QPixmap> ();
+
+   QVERIFY (thumbnail.toImage () != unknown);
+   _desktop->getView ()->viewport ()->repaint ();
+   QTRY_COMPARE (model->data (stack, Desktopmodel::Role_preview_maxsize)
+                 .toSize (), thumbnail.size ());
    }
 
 

@@ -73,6 +73,7 @@ private slots:
 
    //! a stack going while its thumbnail is on its way
    void testStaleThumbnail ();
+   void testWaitingThumbnail ();
 
    //! showing a stack's pages
    void testPreviewStack ();

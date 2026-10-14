@@ -1269,6 +1269,14 @@ private:
     *  if the file isn't in any of our desks. */
    QModelIndex indexForFile(File *file) const;
 
+   /** true if @p file has no image yet, but one is on its way from the
+       server */
+   bool waitingForImage(File *file) const;
+
+   /** a hatched stand-in, @p size or the size of a usual thumbnail, for
+       an image which is on its way */
+   QPixmap waitingPixmap(QSize size) const;
+
    /** The path of a stack relative to its repository root, with no
     *  leading slash (e.g. "sub/dir/stack.max"), used as the {path} in
     *  the server's per-stack URLs. */
@@ -2048,6 +2056,7 @@ private:
    QHash<int, double> _scaled_factors; //!< scale factor used per page
    QPixmap _unknown;
    QPixmap _no_access;
+   mutable QPixmap _waiting;  //!< see waitingPixmap()
    QStringList _persistent_filenames;  //!< list of filename for each persistent model index (used when saving)
    QList<QPersistentModelIndex> _pending_scan_list; //!< list of stacks which need to be scanned
 

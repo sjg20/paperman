@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "remotebackend.h"
 
 #include "qapplication.h"
+#include <QPainter>
 #include "qcursor.h"
 #include "qmessagebox.h"
 #include "qtimer.h"
@@ -205,6 +206,8 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
          return f->previewMaxsize ();
 
       case Role_pixmap :
+         if (waitingForImage (f))
+            return waitingPixmap (f->previewMaxsize ());
          return f->pixmap ();
 
       case Role_pagenum :
@@ -330,7 +333,9 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
          break;
 
       case Role_preview_maxsize :
-         f->setPreviewMaxsize (value.toSize ());
+         // the stand-in for an image still to come says nothing of its size
+         if (!waitingForImage (f))
+            f->setPreviewMaxsize (value.toSize ());
          break;
 
       case Role_title_maxsize :
@@ -1842,6 +1847,47 @@ void Desktopmodel::onThumbnailReady(quint64 token,
    QModelIndex idx = indexForFile(file);
    if (idx.isValid())
       emit dataChanged(idx, idx, {Qt::DecorationRole});
+}
+
+
+bool Desktopmodel::waitingForImage(File *file) const
+{
+   if (file->hasImage())
+      return false;
+   for (File *waiting : _pendingThumbnails)
+      if (waiting == file)
+         return true;
+   return false;
+}
+
+
+QPixmap Desktopmodel::waitingPixmap(QSize size) const
+{
+   /* without a size from the layout, take a page of A4 at the height of
+      the server's small thumbnails */
+   if (size.width() <= 0 || size.height() <= 0)
+      size = QSize(106, 150);
+   if (_waiting.size() != size) {
+      QPixmap pm(size);
+
+      pm.fill(Qt::transparent);
+
+      QPainter painter(&pm);
+
+      /* faint lines in the colour of the text, which shows on a light
+         theme or a dark one */
+      QColor colour = utilStylePalette(QApplication::style())
+                      .color(QPalette::WindowText);
+
+      colour.setAlpha(80);
+      painter.fillRect(pm.rect(), QBrush(colour, Qt::BDiagPattern));
+      colour.setAlpha(160);
+      painter.setPen(colour);
+      painter.drawRect(pm.rect().adjusted(0, 0, -1, -1));
+      painter.end();
+      _waiting = pm;
+   }
+   return _waiting;
 }
 
 
