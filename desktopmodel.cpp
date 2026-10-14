@@ -130,6 +130,10 @@ Desktopmodel::~Desktopmodel()
       already gone: a reply to an earlier request, or a view asking for a
       page and getting its reply during the next desk's save */
    _closing = true;
+
+   /* nor build a stack in a desk going, during the save of the desk: a
+      desk is out of the list as it goes, so its stacks have no place */
+   _updateTimer->stop ();
    _pendingThumbnails.clear ();
    _pendingContent.clear ();
    _pendingPages.clear ();
@@ -1458,6 +1462,8 @@ void Desktopmodel::progress (const char *fmt, ...)
 
 void Desktopmodel::nextUpdate (void)
    {
+   if (_closing)
+      return;
    if (_pending_scan_list.isEmpty ())
       {
       // nothing to do, so finish
