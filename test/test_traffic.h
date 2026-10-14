@@ -108,10 +108,11 @@ private:
        return the totals */
    Totals traffic (const QString &what);
 
-   /** check that @p totals keeps within a budget of @p requests and
-       @p received bytes, which allows for thumbnails and the like being
-       a little bigger on another platform */
-   void withinBudget (const Totals &totals, int requests, qint64 received);
+   /** check that @p totals keeps within a budget of @p requests, new
+       @p connections and @p received bytes, which allows for thumbnails
+       and the like being a little bigger on another platform */
+   void withinBudget (const Totals &totals, int requests, int connections,
+                      qint64 received);
 
    //! an empty client.conf, so that the user's servers are left alone
    std::unique_ptr<QTemporaryDir> _config;
