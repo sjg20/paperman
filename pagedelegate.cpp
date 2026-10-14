@@ -232,7 +232,13 @@ void Pagedelegate::paint (QPainter *painter, const QStyleOptionViewItem &option,
    if (measure.valid && !measure.pixmap.isNull ())
       style->drawItemPixmap (painter, measure.pixmapRect, Qt::AlignHCenter, measure.pixmap);
    else
-      painter->fillRect (measure.rect, QBrush (Qt::DiagCrossPattern));
+      {
+      // hatched until its image comes, as on the desktop
+      QColor colour = utilStylePalette (style).color (QPalette::WindowText);
+
+      colour.setAlpha (80);
+      painter->fillRect (measure.rect, QBrush (colour, Qt::BDiagPattern));
+      }
 
    style->drawItemText (painter, measure.pagenumRect, Qt::AlignLeft,
          utilStylePalette (style), false, QString ("%1").arg (measure.pagenum));

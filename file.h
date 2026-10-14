@@ -416,6 +416,9 @@ eturns error, or NULL if ok */
     *  own pixmap (Fileother) can display the supplied one. */
    void setThumbnail(const QPixmap &pix) { _pixmap = pix; }
 
+   //! true if this file has an image to show, made or supplied
+   bool hasImage(void) const { return _pixmap && !_pixmap->isNull(); }
+
    /** True once this session has fetched or revalidated the remote
     *  content behind this file and parsed it.  Meaningless for a
     *  local desk.  See Desktopmodel::ensureContent(). */
