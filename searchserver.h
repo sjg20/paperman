@@ -171,6 +171,10 @@ public:
      *  Call before start() */
     void setTextIndex(bool on) { _textIndex = on; }
 
+    /** Close a client's connection once it has been idle for @p ms,
+     *  between requests or before the first; 30 seconds by default */
+    void setIdleTimeout(int ms) { _idleMs = ms; }
+
 protected:
     /**
      * Handle incoming connections
@@ -607,6 +611,34 @@ private:
                                 const QString &contentType, const QByteArray &body);
 
     /**
+     * Handle each whole request waiting on a client's connection, one at
+     * a time: a request which arrives while the one before is still being
+     * answered waits for it
+     *
+     * @param client  Client socket to read from
+     */
+    void processRequests(QTcpSocket *client);
+
+    /**
+     * Send a whole reply to a client, then keep its connection for the
+     * next request, if the request allows that and the reply says how
+     * long it is, or close it
+     *
+     * @param client    Client socket to write to
+     * @param response  Whole HTTP response, without a Connection header
+     */
+    void sendReply(QTcpSocket *client, QByteArray response);
+
+    /**
+     * Finish a reply already written to a client: keep its connection for
+     * the next request, or close it
+     *
+     * @param client  Client socket
+     * @param keep    true to keep the connection
+     */
+    void endReply(QTcpSocket *client, bool keep);
+
+    /**
      * Stream a file to a client socket with HTTP headers.
      *
      * Writes headers first, then streams the file in 512 KB chunks
@@ -698,6 +730,7 @@ private:
     QHash<QString, RepoReader *> _readers;  //!< by repository name
 
     bool _textIndex = false;         //!< see setTextIndex()
+    int _idleMs = 30000;             //!< see setIdleTimeout()
     QHash<QString, RepoIndex *> _indexes;   //!< by repository name
 
     /** Start a reader for each repository, if asked to */

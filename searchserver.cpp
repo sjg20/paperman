@@ -333,6 +333,15 @@ void SearchServer::incomingConnection(qintptr socketDescriptor)
 
     _clients.append(client);
 
+    /* clients reuse a connection for requests in quick succession, but
+       close one left idle; they open another when they next need one */
+    QTimer *idle = new QTimer(client);
+    idle->setObjectName("idle");
+    idle->setSingleShot(true);
+    idle->setInterval(_idleMs);
+    connect(idle, &QTimer::timeout, client, &QTcpSocket::disconnectFromHost);
+    idle->start();
+
     connect(client, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
     connect(client, SIGNAL(disconnected()), this, SLOT(onClientDisconnected()));
 
@@ -438,14 +447,34 @@ static QByteArray compressResponse(const QByteArray &response,
     return out;
 }
 
+/* Return true if the HTTP @response says how long its body is, so that
+   the client can tell where it ends without the connection closing */
+static bool hasLength(const QByteArray &response)
+{
+    QByteArray headers = response.left(response.indexOf("\r\n\r\n"))
+                         .toLower();
+    int status = headers.split(' ').value(1).toInt();
+
+    return status == 204 || status == 304
+           || headers.contains("\r\ncontent-length:");
+}
+
 void SearchServer::onReadyRead()
 {
     QTcpSocket *client = qobject_cast<QTcpSocket*>(sender());
     if (!client)
         return;
 
+    processRequests(client);
+}
+
+void SearchServer::processRequests(QTcpSocket *client)
+{
     QElapsedTimer timer;
     timer.start();
+
+    if (QTimer *idle = client->findChild<QTimer *>("idle"))
+        idle->stop();
 
     /* Accumulate per-socket because POST bodies can arrive in a
      * separate TCP segment from the headers — readyRead fires once
@@ -453,6 +482,12 @@ void SearchServer::onReadyRead()
      * header block and Content-Length bytes of body. */
     QByteArray accum = client->property("__buf__").toByteArray();
     accum += client->readAll();
+
+    // the next request waits until the one before has its reply
+    if (client->property("__busy__").toBool()) {
+        client->setProperty("__buf__", accum);
+        return;
+    }
 
     int headerEnd = accum.indexOf("\r\n\r\n");
     if (headerEnd < 0) {
@@ -479,11 +514,19 @@ void SearchServer::onReadyRead()
         return;  // wait for more body
     }
 
-    /* We have a complete request.  Trim accum to it and clear the
-     * stashed buffer (we don't support pipelined keep-alive). */
+    /* We have a complete request.  Trim accum to it and keep the rest,
+     * the start of the next request, for when this one is answered */
     QByteArray full = accum.left(headerEnd + 4 + contentLength);
-    client->setProperty("__buf__", QByteArray());
+    client->setProperty("__buf__", accum.mid(full.size()));
     QString request = QString::fromUtf8(full);
+
+    /* the connection may carry the next request, unless the client says
+       not to: an HTTP/1.1 client keeps it unless it asks otherwise */
+    QByteArray head = full.left(headerEnd).toLower();
+    bool keep = head.left(head.indexOf("\r\n")).endsWith("http/1.1")
+                && !head.contains("\nconnection: close");
+    client->setProperty("__keep__", keep);
+    client->setProperty("__busy__", true);
     QString clientAddr = client->peerAddress().toString();
 
     QString method, path;
@@ -533,10 +576,45 @@ void SearchServer::onReadyRead()
         .arg(formatSize(response.size()))
         .arg(elapsedMs);
 
-    // Write binary response directly
+    sendReply(client, response);
+}
+
+void SearchServer::sendReply(QTcpSocket *client, QByteArray response)
+{
+    bool keep = client->property("__keep__").toBool() && hasLength(response);
+
+    if (!keep) {
+        int headerEnd = response.indexOf("\r\n\r\n");
+
+        if (headerEnd >= 0)
+            response.insert(headerEnd + 2, "Connection: close\r\n");
+    }
     client->write(response);
     client->flush();
-    client->disconnectFromHost();
+    endReply(client, keep);
+}
+
+void SearchServer::endReply(QTcpSocket *client, bool keep)
+{
+    client->setProperty("__busy__", false);
+    if (!keep) {
+        client->disconnectFromHost();
+        return;
+    }
+
+    if (QTimer *idle = client->findChild<QTimer *>("idle"))
+        idle->start();
+
+    // a request which came while this was answered is next
+    if (!client->property("__buf__").toByteArray().isEmpty()
+        || client->bytesAvailable()) {
+        QPointer<QTcpSocket> next(client);
+
+        QTimer::singleShot(0, this, [this, next]() {
+            if (next)
+                processRequests(next);
+        });
+    }
 }
 
 void SearchServer::onDirectoryChanged(const QString &path)
@@ -1062,7 +1140,6 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         response += "Content-Length: " + QByteArray::number(thumbData.size()) + "\r\n";
         response += "Cache-Control: public, max-age=86400\r\n";  // Cache for 24 hours
         response += "Access-Control-Allow-Origin: *\r\n";
-        response += "Connection: close\r\n";
         response += "\r\n";
         response += thumbData;
 
@@ -1814,7 +1891,6 @@ QByteArray SearchServer::handleStackPage(const QString &path,
     response += "Content-Type: application/octet-stream\r\n";
     response += "Content-Length: " + QByteArray::number(bytes.size()) + "\r\n";
     response += "Cache-Control: private, max-age=86400\r\n";
-    response += "Connection: close\r\n";
     response += "\r\n";
     response += bytes;
     return response;
@@ -3041,7 +3117,6 @@ QByteArray SearchServer::getFile(const QString &repoPath, const QString &filePat
         QByteArray response;
         response += "HTTP/1.1 304 Not Modified\r\n";
         response += "ETag: " + etag.toUtf8() + "\r\n";
-        response += "Connection: close\r\n";
         response += "\r\n";
         return response;
     }
@@ -3090,7 +3165,6 @@ QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &status
     response += "Content-Type: " + contentType.toUtf8() + "\r\n";
     response += "Content-Length: " + QByteArray::number(body.toUtf8().size()) + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";  // Enable CORS
-    response += "Connection: close\r\n";
     response += "\r\n";
     response += body.toUtf8();
     return response;
@@ -3105,7 +3179,6 @@ QByteArray SearchServer::buildHttpResponse(int statusCode, const QString &status
     response += "Content-Type: " + contentType.toUtf8() + "\r\n";
     response += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";  // Enable CORS
-    response += "Connection: close\r\n";
     response += "\r\n";
     response += body;  // Append binary body directly
     return response;
@@ -3118,12 +3191,9 @@ void SearchServer::streamFile(const QString &filePath,
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        QByteArray err = buildHttpResponse(500, "Internal Server Error",
+        sendReply(client, buildHttpResponse(500, "Internal Server Error",
             "application/json",
-            buildJsonResponse(false, "", "Failed to read file"));
-        client->write(err);
-        client->flush();
-        client->disconnectFromHost();
+            buildJsonResponse(false, "", "Failed to read file")));
         return;
     }
 
@@ -3137,7 +3207,11 @@ void SearchServer::streamFile(const QString &filePath,
     if (!etag.isEmpty())
         headers += "ETag: " + etag.toUtf8() + "\r\n";
     headers += "Access-Control-Allow-Origin: *\r\n";
-    headers += "Connection: close\r\n";
+
+    bool keep = client->property("__keep__").toBool();
+
+    if (!keep)
+        headers += "Connection: close\r\n";
     headers += "\r\n";
     client->write(headers);
 
@@ -3160,7 +3234,7 @@ void SearchServer::streamFile(const QString &filePath,
                .arg(formatSize(size));
 
     client->flush();
-    client->disconnectFromHost();
+    endReply(client, keep);
 }
 
 QString SearchServer::urlDecode(const QString &str)
@@ -3916,9 +3990,7 @@ void SearchServer::onExtractionFinished(int exitCode,
                        .arg(client->peerAddress().toString())
                        .arg(pe.filePath)
                        .arg(formatSize(response.size()));
-            client->write(response);
-            client->flush();
-            client->disconnectFromHost();
+            sendReply(client, response);
         }
     }
 
