@@ -397,3 +397,28 @@ void TestTraffic::testListLargeFolder ()
    QCOMPARE (listing.entries.size (), 200);
    withinBudget (traffic ("list a folder of 200 stacks"), 1, 1343);
    }
+
+
+void TestTraffic::testCloseUnchanged ()
+   {
+   // a session which opens the folder saves its layout as it closes
+   connectServer ();
+   openFolder ();
+   _me.reset (new Mainwindow);
+   _desktop = _me->getDesktop ();
+   _me->resize (1600, 1000);
+   _me->show ();
+   QVERIFY (QTest::qWaitForWindowExposed (_me.get ()));
+
+   // the next finds it there, so closing has nothing to send back
+   connectServer ();
+   openFolder ();
+   traffic (QString ());
+   _me.reset ();
+   _desktop = nullptr;
+
+   Totals totals = traffic ("close a session, with the layout unchanged");
+
+   // the event stream ends as the window closes, which is all there is
+   QCOMPARE (totals.lines.filter ("/events").size (), totals.lines.size ());
+   }

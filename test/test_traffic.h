@@ -67,6 +67,9 @@ private slots:
    //! listing a large folder
    void testListLargeFolder ();
 
+   //! closing the window once the folder's layout is on the server
+   void testCloseUnchanged ();
+
 private:
    //! attach the server, waiting until it is there
    void connectServer ();
