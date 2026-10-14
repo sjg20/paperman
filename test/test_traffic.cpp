@@ -227,7 +227,7 @@ void TestTraffic::testOpenFolder ()
    connectServer ();
    traffic (QString ());
    openFolder ();
-   withinBudget (traffic ("open a folder of six stacks"), 9, 18873);
+   withinBudget (traffic ("open a folder of six stacks"), 8, 18519);
    }
 
 
@@ -326,7 +326,7 @@ void TestTraffic::testNewSession ()
    openFolder ();
    showStack ("a.max");
    withinBudget (traffic ("a new session: connect, open the folder and "
-                          "show the stack"), 7, 1960);
+                          "show the stack"), 6, 1606);
    }
 
 

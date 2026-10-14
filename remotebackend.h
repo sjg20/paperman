@@ -203,7 +203,9 @@ public:
      *  when the server responds (or the request fails/times out) the
      *  browseDirectoryReady() signal is emitted with the same token
      *  and the parsed DirectoryListing.  The caller can correlate
-     *  tokens to its own state (e.g. the DirNode being expanded). */
+     *  tokens to its own state (e.g. the DirNode being expanded).
+     *  A listing of the same folder already on its way is shared,
+     *  rather than asked for again, each token having it emitted */
     quint64 browseDirectoryAsync(const QString &repo, const QString &dir);
 
     /** List a folder without waiting, calling @p done with the listing
@@ -634,6 +636,10 @@ private:
     QNetworkAccessManager *_nam;
     class BackendStats *_stats = nullptr;
     quint64 _nextAsyncToken = 1;
+
+    /** the tokens waiting for each listing on its way, by repository and
+     *  folder, see browseDirectoryAsync() */
+    QHash<QString, QList<quint64> > _browsesInFlight;
     QSet<QString> _eventRepos;  //!< repos with an event subscription
 };
 

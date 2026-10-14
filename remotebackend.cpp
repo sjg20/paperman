@@ -270,13 +270,27 @@ quint64 RemoteBackend::browseDirectoryAsync(const QString &repo,
                                             const QString &dir)
 {
    quint64 token = _nextAsyncToken++;
+
+   // a listing of this folder on its way already does for this one too
+   QString key = repo + '\n' + dir;
+   auto pending = _browsesInFlight.find(key);
+
+   if (pending != _browsesInFlight.end()) {
+      pending->append(token);
+      return token;
+   }
+   _browsesInFlight.insert(key, {token});
+
    QNetworkReply *reply = startGet(browsePathFor(repo, dir), QString(),
                                    kWorkTimeoutMs);
    QObject::connect(reply, &QNetworkReply::finished, this,
-       [this, reply, token]() {
+       [this, reply, key]() {
           DirectoryListing listing = parseBrowseReply(reply);
+          const QList<quint64> tokens = _browsesInFlight.take(key);
+
           reply->deleteLater();
-          emit browseDirectoryReady(token, listing);
+          for (quint64 waiting : tokens)
+             emit browseDirectoryReady(waiting, listing);
        });
    return token;
 }
