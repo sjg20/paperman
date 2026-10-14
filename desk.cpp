@@ -669,15 +669,8 @@ bool Desk::writeDesk (bool wait)
       if (file.exists ())
          file.remove ();
       }
-   file.setFileName (deskDir + DESK_FNAME);
-   if (file.exists ())
-      file.remove ();
-
-   QTextStream stream( &file );
-   QString line;
-
-   if (!file.open (QIODevice::WriteOnly))
-      return false;
+   QByteArray content;
+   QTextStream stream (&content);
 
    // write header
    stream << "[DesktopFile]" << '\n' ;
@@ -692,6 +685,29 @@ bool Desk::writeDesk (bool wait)
    // output the file list
    foreach (File *f, _files)
       f->encodeFile (stream);
+   stream.flush ();
+
+   /* the server has a remote desk's file already if it is the copy in the
+      cache, which it is once it has a validator, so leave it be: sending
+      it again costs an upload, and tells every other client it changed */
+   file.setFileName (deskDir + DESK_FNAME);
+   if (_isRemote && QFile::exists (file.fileName () + ".etag")
+       && file.open (QIODevice::ReadOnly))
+      {
+      bool same = file.readAll () == content;
+
+      file.close ();
+      if (same)
+         {
+         _dirty = false;
+         return true;
+         }
+      }
+
+   if (file.exists ())
+      file.remove ();
+   if (!file.open (QIODevice::WriteOnly) || file.write (content) != content.size ())
+      return false;
 
    utilSetGroup(file.fileName());
 
