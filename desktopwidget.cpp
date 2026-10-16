@@ -518,6 +518,9 @@ static QString formatBytes(qint64 n)
 }
 
 
+//! how long a request waits before the status bar says so
+static const qint64 kSlowWaitMs = 5000;
+
 void Desktopwidget::scheduleNetStatusUpdate()
 {
    /* Leading edge: first change in a quiet window updates the
@@ -543,6 +546,38 @@ void Desktopwidget::flushNetStatus()
 }
 
 
+/* Say how many requests of each kind are waiting, as "2 listings, 1 page",
+   or an empty string if none */
+static QString waitingKinds(BackendStats *s)
+{
+   static const char *const names[][2] = {
+      {QT_TRANSLATE_NOOP("Desktopwidget", "listing"),
+       QT_TRANSLATE_NOOP("Desktopwidget", "listings")},
+      {QT_TRANSLATE_NOOP("Desktopwidget", "thumbnail"),
+       QT_TRANSLATE_NOOP("Desktopwidget", "thumbnails")},
+      {QT_TRANSLATE_NOOP("Desktopwidget", "page"),
+       QT_TRANSLATE_NOOP("Desktopwidget", "pages")},
+      {QT_TRANSLATE_NOOP("Desktopwidget", "upload"),
+       QT_TRANSLATE_NOOP("Desktopwidget", "uploads")},
+      {QT_TRANSLATE_NOOP("Desktopwidget", "change"),
+       QT_TRANSLATE_NOOP("Desktopwidget", "changes")},
+      {QT_TRANSLATE_NOOP("Desktopwidget", "other request"),
+       QT_TRANSLATE_NOOP("Desktopwidget", "other requests")},
+   };
+   QStringList parts;
+
+   for (int kind = 0; kind < BackendStats::KindCount; kind++) {
+      int count = s->activeRequests(BackendStats::Kind(kind));
+
+      if (count)
+         parts << QString("%1 %2").arg(count).arg(
+            QCoreApplication::translate("Desktopwidget",
+                                        names[kind][count != 1]));
+   }
+   return parts.join(", ");
+}
+
+
 void Desktopwidget::updateNetStatus()
 {
    if (!_netStatus || !_model)
@@ -553,23 +588,72 @@ void Desktopwidget::updateNetStatus()
       return;
    }
 
-   /* ● green when idle, amber when one or more requests are in
-    * flight.  Two text styles share a single label so the layout
-    * doesn't shift width when activity toggles. */
-   bool busy = s->activeRequests() > 0;
-   QString dot = busy
-                     ? QStringLiteral("<span style='color:#cc8800'>●</span>")
-                     : QStringLiteral("<span style='color:#0aaa3a'>●</span>");
+   /* ● green when idle, amber when one or more requests are in flight,
+    * red when the server is not answering or the stream of changes
+    * from other clients is down */
+   int active = s->activeRequests();
+   bool down = s->failing() || s->eventStreamsDown() > 0;
+   QString colour = down ? "#d03030" : active ? "#cc8800" : "#0aaa3a";
+   QString dot = QString("<span style='color:%1'>●</span>").arg(colour);
    QUrl url(s->url());
    QString host = url.host().isEmpty() ? s->url() : url.host();
-   QString text = QString(
-       "↑ %1 &nbsp;&nbsp; ↓ %2 &nbsp;&nbsp; %3 %4")
-           .arg(formatBytes(s->bytesSent()),
-                formatBytes(s->bytesReceived()),
-                host.toHtmlEscaped(), dot);
+   QString sep = QStringLiteral(" &nbsp;&nbsp; ");
+   QString text;
+
+   // what is waiting, and for how long, when anything is
+   qint64 waitMs = s->longestWaitMs();
+
+   if (active) {
+      text += QString("⇅ %1").arg(active);
+      if (s->bytesToCome() > 0)
+         text += " · " + tr("%1 to come").arg(formatBytes(s->bytesToCome()));
+      if (waitMs >= kSlowWaitMs)
+         text += " · " + tr("waiting %1 s").arg(waitMs / 1000);
+      text += sep;
+   }
+   text += QString("↑ %1%2↓ %3%2%4 %5")
+           .arg(formatBytes(s->bytesSent()), sep,
+                formatBytes(s->bytesReceived()), host.toHtmlEscaped(), dot);
    _netStatus->setText(text);
-   _netStatus->setToolTip(tr("Connected to %1").arg(s->url()));
+
+   // and the details, for a look
+   QStringList tip;
+   QString waiting = waitingKinds(s);
+
+   tip << tr("Connected to %1").arg(s->url());
+   if (waiting.isEmpty()) {
+      tip << tr("Nothing waiting");
+   } else {
+      tip << tr("Waiting for %1, the longest for %2 s").arg(waiting)
+                .arg(waitMs / 1000);
+      if (s->bytesToCome() > 0)
+         tip << tr("%1 still to come").arg(formatBytes(s->bytesToCome()));
+      if (s->lengthsUnknown())
+         tip << tr("%1 of unknown length").arg(s->lengthsUnknown());
+   }
+   if (s->responseMs() >= 0)
+      tip << tr("The server answers in %1 ms").arg(s->responseMs());
+   if (s->failing())
+      tip << tr("The server is not answering: %1").arg(s->lastError());
+   else if (s->failures())
+      tip << tr("Requests which failed: %1, the last with: %2")
+                .arg(s->failures()).arg(s->lastError());
+   if (s->eventStreamsDown())
+      tip << tr("Changes from other clients: not connected, trying again");
+   else if (s->eventStreams())
+      tip << tr("Changes from other clients: connected");
+   tip << tr("Sent %1, received %2").arg(formatBytes(s->bytesSent()),
+                                         formatBytes(s->bytesReceived()));
+   _netStatus->setToolTip(tip.join('\n'));
    _netStatus->setVisible(true);
+
+   /* while anything is waiting, keep the time it has waited up to date,
+      though nothing else changes */
+   if (active) {
+      _netStatusDirty = true;
+      if (_netStatusTimer && !_netStatusTimer->isActive())
+         _netStatusTimer->start();
+   }
 }
 
 void Desktopwidget::slotModeChanging (int new_mode, int old_mode)

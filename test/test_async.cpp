@@ -520,6 +520,37 @@ void TestAsync::testConnectionState ()
    }
 
 
+void TestAsync::testConnectionIndicator ()
+   {
+   connectServer ();
+
+   QLabel *label = _desktop->netStatus ();
+   QString path = repoPath () + "/papers";
+   const QString waiting = QString::fromUtf8 ("⇅");
+
+   QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
+
+   // with nothing under way, the dot is green and nothing waits
+   QTRY_VERIFY (label->text ().contains ("#0aaa3a"));
+   QVERIFY (!label->text ().contains (waiting));
+   QVERIFY (label->toolTip ().contains ("Nothing waiting"));
+
+   /* a listing which does not come shows as waiting, and once it has
+      waited a while, for how long */
+   _server->setDelay (-1);
+   _desktop->selectDir (_desktop->getDirIndex (path));
+   QTRY_VERIFY (label->text ().contains (waiting));
+   QVERIFY (label->text ().contains ("#cc8800"));
+   QVERIFY (label->toolTip ().contains ("listing"));
+   QTRY_VERIFY_WITH_TIMEOUT (label->text ().contains ("waiting"), 8000);
+
+   // with the server gone, the dot is red, and the tip says why
+   _server.reset ();
+   QTRY_VERIFY (label->text ().contains ("#d03030"));
+   QVERIFY (label->toolTip ().contains ("not answering"));
+   }
+
+
 void TestAsync::testSlowFolders ()
    {
    // folders a few deep, as a year's bills are
