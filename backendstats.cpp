@@ -96,6 +96,7 @@ void BackendStats::reset()
    _responses.clear();
    _failures = 0;
    _lastError.clear();
+   _failing = false;
    emit changed();
 }
 
@@ -119,6 +120,7 @@ void BackendStats::requestAnswered(quint64 id)
    if (it == _requests.end() || it->answered)
       return;
    it->answered = true;
+   _failing = false;
    _responses.append(it->started.elapsed());
    if (_responses.size() > kResponses)
       _responses.removeFirst();
@@ -146,6 +148,7 @@ void BackendStats::requestFinished(quint64 id, const QString &error)
 {
    _requests.remove(id);
    if (!error.isEmpty()) {
+      _failing = true;
       _failures++;
       _lastError = error;
    }
@@ -190,13 +193,18 @@ BackendStats::Kind BackendStats::kindOf(const QString &path, bool post)
       return Upload;
    if (post)
       return route.startsWith("/v1/auth/") ? Other : Change;
-   if (route == "/browse" || route == "/repos")
+
+   QUrlQuery query(path.section('?', 1));
+
+   // a folder's layout goes with its listing
+   if (route == "/browse" || route == "/repos"
+       || query.queryItemValue("path").endsWith(".paperdesk"))
       return Listing;
    if (route == "/thumbnail") {
       // one asked for in pixels is a page, at the size it is shown
       bool pixels = false;
 
-      QUrlQuery(path.section('?', 1)).queryItemValue("size").toInt(&pixels);
+      query.queryItemValue("size").toInt(&pixels);
       return pixels ? Page : Thumbnail;
    }
    if (route == "/file" || route.contains("/stacks/"))

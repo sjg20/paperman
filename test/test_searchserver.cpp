@@ -892,6 +892,8 @@ void TestSearchServer::testBackendStatsTracks()
    QCOMPARE(BackendStats::kindOf("/browse?repo=r&path=p", false),
             BackendStats::Listing);
    QCOMPARE(BackendStats::kindOf("/repos", false), BackendStats::Listing);
+   QCOMPARE(BackendStats::kindOf("/file?repo=r&path=d/.paperdesk", false),
+            BackendStats::Listing);
    QCOMPARE(BackendStats::kindOf("/thumbnail?size=small&path=p", false),
             BackendStats::Thumbnail);
    QCOMPARE(BackendStats::kindOf("/thumbnail?size=1600&path=p", false),
@@ -942,6 +944,16 @@ void TestSearchServer::testBackendStatsTracks()
    QCOMPARE(stats.longestWaitMs(), qint64(0));
    QCOMPARE(stats.failures(), 1);
    QCOMPARE(stats.lastError(), QString("Connection refused"));
+   QVERIFY(stats.failing());
+
+   // until the server answers again
+   quint64 next = stats.requestStarted(BackendStats::Other);
+   stats.requestFinished(next);
+   QVERIFY(stats.failing());
+   next = stats.requestStarted(BackendStats::Other);
+   stats.requestAnswered(next);
+   QVERIFY(!stats.failing());
+   stats.requestFinished(next);
 
    // an event stream is wanted, then connected, then lost
    stats.setEventStream("r", false);

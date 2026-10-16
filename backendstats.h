@@ -72,6 +72,10 @@ public:
     //! what went wrong with the last request to fail
     QString lastError() const    { return _lastError; }
 
+    /** true if a request has failed since the server last answered one:
+     *  the server is not answering, for now */
+    bool failing() const         { return _failing; }
+
     //! the number of event streams which are connected
     int eventStreams() const;
 
@@ -135,6 +139,7 @@ private:
     QList<qint64> _responses;     //!< the latest times to an answer
     int _failures = 0;
     QString _lastError;
+    bool _failing = false;
     QHash<QString, bool> _streams; //!< each repo's event stream
     QString _url;
 };
