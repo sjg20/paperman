@@ -837,6 +837,55 @@ void TestSearchServer::testCacheWriteFails()
    server.stop();
 }
 
+void TestSearchServer::testCacheWhileWriting()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+
+   // no users, so that the server asks for no login
+   QFile::remove(QStandardPaths::writableLocation(
+                    QStandardPaths::GenericConfigLocation)
+                 + "/paperman-server/users.json");
+
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QVERIFY(copyTestFile("testpdf.pdf", tmpDir.path()) > 0);
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+
+   QString repoName = QFileInfo(tmpDir.path()).fileName();
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+   BackendStats stats;
+
+   client.setStats(&stats);
+   QVERIFY(!client.serverId().isEmpty());
+
+   /* ask again the moment the thumbnail comes, while its copy is still
+      on its way to the cache: it comes from there, with no request */
+   QList<QByteArray> got;
+   qint64 sent = -1;
+
+   QObject::connect(&client, &RemoteBackend::thumbnailReady,
+       [&](quint64, const QByteArray &bytes) {
+          got << bytes;
+          if (got.size() == 1) {
+             sent = stats.bytesSent();
+             client.fetchThumbnailAsync(repoName, "testpdf.pdf", 1, "small",
+                                        "v1");
+          }
+       });
+   client.fetchThumbnailAsync(repoName, "testpdf.pdf", 1, "small", "v1");
+   QTRY_COMPARE(got.size(), 2);
+   QVERIFY(got[0].startsWith("\xFF\xD8\xFF"));
+   QCOMPARE(got[1], got[0]);
+   QCOMPARE(stats.bytesSent(), sent);
+
+   server.stop();
+}
+
 void TestSearchServer::testBackendStatsAccumulates()
 {
    /* Smoke test for the toolbar indicator: BackendStats should
