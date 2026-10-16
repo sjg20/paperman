@@ -420,8 +420,13 @@ quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
 
       QFile in(cached);
 
-      if (in.open(QIODevice::ReadOnly)) {
-         QByteArray bytes = in.readAll();
+      /* one still being written is not on disk yet, or not all of it:
+         syncing it can take a while */
+      auto writing = _writing.constFind(cached);
+
+      if (writing != _writing.constEnd() || in.open(QIODevice::ReadOnly)) {
+         QByteArray bytes = writing != _writing.constEnd() ? *writing
+                                                           : in.readAll();
 
          QMetaObject::invokeMethod(this, [this, token, bytes]() {
             emit thumbnailReady(token, bytes);
@@ -1409,6 +1414,7 @@ void RemoteBackend::inBackground(std::function<QString()> work,
 void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
                                std::function<void(const QString &)> done)
 {
+   _writing[path] = bytes;
    inBackground([path, bytes]() {
       QString error;
 
@@ -1421,7 +1427,13 @@ void RemoteBackend::writeLater(const QString &path, const QByteArray &bytes,
          writeWhole(path, bytes, &error);
       }
       return error;
-   }, [done](const QString &error) {
+   }, [this, path, bytes, done](const QString &error) {
+      // unless a later write of the file is on its way
+      auto it = _writing.find(path);
+
+      if (it != _writing.end() && *it == bytes)
+         _writing.erase(it);
+
       /* the callers carry on without the file, so a cache misses where
          it should not; say why */
       if (!error.isEmpty())

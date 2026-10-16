@@ -108,6 +108,9 @@ private slots:
    //! a thumbnail which cannot go in the cache still comes, and says why
    void testCacheWriteFails();
 
+   //! a thumbnail still being written to the cache is had from it
+   void testCacheWhileWriting();
+
    //! Thumbnail rendered locally via File::getImage matches the JPEG
    //! the server returns from /thumbnail — pinned so the remote
    //! display can't silently diverge from the local one.

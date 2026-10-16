@@ -550,7 +550,9 @@ private:
     /** Write @p bytes to @p path in the background, since syncing a
      *  file to disk can take a while, and call @p done back on this
      *  object's thread with an empty string, or why it failed.  A write
-     *  which fails is tried once more, and logged if that fails too */
+     *  which fails is tried once more, and logged if that fails too.
+     *  Until it is done, the bytes are kept in _writing, for a reader
+     *  who wants them meanwhile */
     void writeLater(const QString &path, const QByteArray &bytes,
                     std::function<void(const QString &error)> done);
 
@@ -642,6 +644,7 @@ private:
      *  folder, see browseDirectoryAsync() */
     QHash<QString, QList<quint64> > _browsesInFlight;
     QSet<QString> _eventRepos;  //!< repos with an event subscription
+    QHash<QString, QByteArray> _writing; //!< see writeLater()
 };
 
 #endif // REMOTEBACKEND_H
