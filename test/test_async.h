@@ -75,6 +75,7 @@ private slots:
    void testStaleThumbnail ();
    void testWaitingThumbnail ();
    void testConnectionState ();
+   void testConnectionIndicator ();
 
    //! showing a stack's pages
    void testPreviewStack ();
