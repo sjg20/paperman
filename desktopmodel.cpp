@@ -270,7 +270,7 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
             str = QString ("%1 page%2, %3").arg (f->pagecount).arg (f->pagecount > 1 ? "s" : "").arg (numstr);
 */
             if (_subdirs)
-               str += ", at " + f->pathname ();
+               str += ", at " + stackLocation (f);
             return str;
             }
 

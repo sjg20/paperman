@@ -1282,6 +1282,10 @@ private:
     *  the server's per-stack URLs. */
    QString remoteStackPath(Desk *desk, File *file) const;
 
+   /** where @p file is, for the user: its path, or for a stack on a
+       server, its path in the repository and the server's name */
+   QString stackLocation(File *file) const;
+
    /** The RemoteBackend behind a file's desk, or nullptr when the
     *  file is local (or detached).  Ops use this to decide whether to
     *  route a mutation to the server. */

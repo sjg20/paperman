@@ -43,6 +43,9 @@ class RemoteBackend : public QObject, public Backend
     Q_OBJECT
 public:
     explicit RemoteBackend(const QUrl &baseUrl, QObject *parent = nullptr);
+
+    //! the server's URL, as given to the constructor
+    QUrl baseUrl() const { return _baseUrl; }
     ~RemoteBackend() override;
 
     /** What a request to the server came back with */
