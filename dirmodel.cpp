@@ -1422,6 +1422,10 @@ QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
 {
    TreeItem *tree = ensureCache(root, op);
 
+   // there is no tree of a repository which cannot be scanned here
+   if (!tree)
+      return QStringList();
+
    QStringList matches;
    addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text);
 

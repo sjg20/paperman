@@ -111,6 +111,13 @@ private slots:
    //! Test dragging a stack onto a folder in the tree moves it there
    void testDragDropToFolder();
 
+   //! Ctrl-M moves the stacks chosen to a folder, or copies them
+   void testMoveKey();
+   void testCopyKey();
+
+   //! Ctrl-M moves a stack found by a search, from its own folder
+   void testMoveFoundKey();
+
    //! Repositioning a stack on the desk moves it, persists and undoes
    void testMoveStackOnDesk();
 

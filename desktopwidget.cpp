@@ -1468,7 +1468,7 @@ void Desktopwidget::updateActions()
    _act_unstack_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
    _act_unstack_all->setEnabled (_view->isSelection (Desktopview::SEL_at_least_one_multipage));
    _act_duplicate->setEnabled (at_least_one);
-   _act_move->setEnabled(_showing_imports && at_least_one);
+   _act_move->setEnabled(at_least_one);
    _act_delete->setEnabled (at_least_one);
    _act_rename_stack->setEnabled (at_least_one);
    _act_rename_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
@@ -1772,6 +1772,12 @@ void Desktopwidget::moveToFolder(void)
    diag._folders = _folders;
    QModelIndexList to_move = _view->getSelectedListSource();
    diag.itemCount->setText(QString("%1").arg(to_move.size()));
+
+   // the stacks are moved unless the user asks for copies
+   connect(diag.copy, &QCheckBox::toggled, &diag, [&diag](bool copy) {
+      diag.setWindowTitle(copy ? tr("Copy stacks") : tr("Move stacks"));
+      diag.label->setText(copy ? tr("Copy to folder:") : tr("Move to folder:"));
+   });
    diag.show();
 
    // Wait for Move::accept() to be happy before continuing
@@ -1779,10 +1785,9 @@ void Desktopwidget::moveToFolder(void)
       QModelIndex dest_ind = _dir_proxy->mapToSource(diag._ind);
       QString destDir = _model->data(dest_ind, Dirmodel::FilePathRole).toString();
 
-      // qDebug() << "destDir" << destDir;
-
       QStringList sl;
-      _contents->moveToDir(to_move, _view->rootIndexSource(), destDir, sl);
+      _contents->moveToDir(to_move, _view->rootIndexSource(), destDir, sl,
+                           diag.copy->isChecked());
    }
 
    delete _folders;
