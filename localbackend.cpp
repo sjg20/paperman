@@ -158,6 +158,18 @@ static const QStringList kStackFilters = {"*.max", "*.pdf", "*.jpg", "*.jpeg",
                                           "*.tiff", "*.tif"};
 
 
+/* True if @relPath, within a repository, is hidden: it or a folder it is
+   in has a name which starts with a dot, such as the trash.  These are
+   hidden by name, since only Unix hides them itself */
+static bool isHidden(const QString &relPath)
+{
+   for (const QString &part : relPath.split('/', Qt::SkipEmptyParts))
+      if (part.startsWith('.'))
+         return true;
+   return false;
+}
+
+
 int LocalBackend::loadCacheForRepo(const QString &rootPath)
 {
    QList<CachedFile> &fileList = _fileCache[rootPath];
@@ -209,7 +221,9 @@ void LocalBackend::updateCachedFile(const QString &rootPath,
 
    QFileInfo info(rootPath + "/" + relPath);
 
-   if (!info.isFile() || !QDir::match(kStackFilters, info.fileName()))
+   // a stack moved to the trash is gone, as far as a search goes
+   if (!info.isFile() || !QDir::match(kStackFilters, info.fileName())
+       || isHidden(relPath))
       return;
 
    CachedFile cached;
@@ -330,6 +344,8 @@ void LocalBackend::scanDirectory(const QString &repoPath,
          relativePath = relativePath.mid(repoPath.length() + 1);
       else if (relativePath.startsWith(repoPath))
          relativePath = relativePath.mid(repoPath.length());
+      if (isHidden(relativePath))
+         continue;
 
       CachedFile cached;
       cached.path     = relativePath;
