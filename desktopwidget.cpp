@@ -75,6 +75,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mainwindow.h"
 #include "maxview.h"
 #include "pagewidget.h"
+#include "remotebackend.h"
 #include "senddialog.h"
 #include "utils.h"
 #include "ui_search.h"
@@ -1013,7 +1014,20 @@ QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
    QModelIndex root = getRootIndex();
 
    Operation op ("Scanning folders", 0, this);
-   return _model->findFolders(text, dirPath, root, missing, &op);
+   QStringList found = _model->findFolders(text, dirPath, root, missing, &op);
+
+   // a folder cannot be made on a server yet, so suggest none
+   if (dynamic_cast<RemoteBackend *>(_model->backendForRoot(dirPath)))
+      missing.clear();
+   return found;
+}
+
+bool Desktopwidget::fetchFolders(QObject *context,
+                                 std::function<void(const QString &error)> done)
+{
+   QModelIndex root = getRootIndex();
+
+   return root.isValid() && _model->fetchFolders(root, context, done);
 }
 
 void Desktopwidget::startSearch(const QString& path, const QString& match)
@@ -1782,11 +1796,9 @@ void Desktopwidget::moveToFolder(void)
 
    // Wait for Move::accept() to be happy before continuing
    if (diag.exec()) {
-      QModelIndex dest_ind = _dir_proxy->mapToSource(diag._ind);
-      QString destDir = _model->data(dest_ind, Dirmodel::FilePathRole).toString();
-
       QStringList sl;
-      _contents->moveToDir(to_move, _view->rootIndexSource(), destDir, sl,
+
+      _contents->moveToDir(to_move, _view->rootIndexSource(), diag._path, sl,
                            diag.copy->isChecked());
    }
 
@@ -1795,7 +1807,8 @@ void Desktopwidget::moveToFolder(void)
 
 void Move::accept()
 {
-   if (_folders->getSelected(_ind, true) && _ind != QModelIndex())
+   // a folder on a server need not be in the tree yet, so go by its path
+   if (_folders->getSelectedPath(_path) && !_path.isEmpty())
       QDialog::accept();
 }
 

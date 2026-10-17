@@ -140,14 +140,60 @@ TreeItem *Diritem::buildCache(Operation *op)
 
 TreeItem *Diritem::ensureCache(Operation *op)
 {
-   if (_dir_cache || readCache())
+   // a server's folders come from the server, by fetchFolders()
+   if (_dir_cache || dynamic_cast<RemoteBackend *>(backend()))
+      return _dir_cache;
+   if (readCache())
       return _dir_cache;
 
    return buildCache(op);
 }
 
+bool Diritem::fetchFolders(QObject *context,
+                           std::function<void(const QString &error)> done)
+{
+   RemoteBackend *remote = dynamic_cast<RemoteBackend *>(backend());
+
+   if (!remote)
+      return false;
+
+   remote->listFolders(QFileInfo(_dir).fileName(), context,
+                       [this, done](const QString &error,
+                                    const QStringList &folders) {
+      if (!error.isEmpty()) {
+         done(error);
+         return;
+      }
+
+      // a tree of the folders, as a scan of them would give
+      TreeItem *root = new TreeItem({_dir});
+
+      for (const QString &folder : folders) {
+         TreeItem *parent = root;
+
+         for (const QString &name : folder.split('/', Qt::SkipEmptyParts)) {
+            TreeItem *child = parent->child(name);
+
+            if (!child) {
+               child = new TreeItem({name}, parent);
+               child->setDir(true);
+               parent->appendChild(child);
+            }
+            parent = child;
+         }
+      }
+      dropCache();
+      _dir_cache = root;
+      done(QString());
+   });
+   return true;
+}
+
 bool Diritem::refreshCache(const QString dirPath, Operation *op)
 {
+   // a server's tree of folders is fetched afresh when it is wanted
+   if (dynamic_cast<RemoteBackend *>(backend()))
+      return true;
    if (!_dir_cache && !readCache()) {
       if (!buildCache(op))
          return false;
@@ -188,6 +234,9 @@ bool Diritem::refreshCache(const QString dirPath, Operation *op)
 bool Diritem::addFileToCache(const QString &dirPath,
                              const QString &filename)
 {
+   // a server's tree of folders is fetched afresh when it is wanted
+   if (dynamic_cast<RemoteBackend *>(backend()))
+      return true;
    if (!_dir_cache && !readCache())
       return false;
 
@@ -1414,6 +1463,16 @@ void Dirmodel::addMatches(QStringList& matches, uint baseLen,
          addMatches(matches, baseLen, fname + "/", child, match);
       }
    }
+}
+
+bool Dirmodel::fetchFolders(const QModelIndex& root, QObject *context,
+                            std::function<void(const QString &error)> done)
+{
+   int index = findIndex(root);
+
+   if (index < 0)
+      return false;
+   return _item[index]->fetchFolders(context, done);
 }
 
 QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,

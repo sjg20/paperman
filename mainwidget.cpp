@@ -1737,6 +1737,12 @@ QStringList Mainwidget::findFolders(const QString& text, QString& dirPath,
    return _desktop->findFolders(text, dirPath, missing);
 }
 
+bool Mainwidget::fetchFolders(QObject *context,
+                              std::function<void(const QString &error)> done)
+{
+   return _desktop->fetchFolders(context, done);
+}
+
 bool Mainwidget::isScanning()
 {
    return _scanning;

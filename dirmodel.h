@@ -141,6 +141,15 @@ public:
    /** Non-owning pointer to the backend (or nullptr if not set). */
    Backend *backend() const { return _backend.get(); }
 
+   /** Fetch the tree of folders from the server, for a repository on
+    *  one, to use as the cache; @p done is called with an empty string,
+    *  or why it failed.  The cache of a repository on a server is only
+    *  had this way, since its folders cannot be scanned here
+    *
+    *  @return false if the repository is not on a server */
+   bool fetchFolders(QObject *context,
+                     std::function<void(const QString &error)> done);
+
 private:
    // Get the filename for the dir cache
    QString dirCacheFilename() const;
@@ -402,6 +411,17 @@ public:
    QStringList findFolders(const QString& text, const QString& dirPath,
                            const QModelIndex& root, QStringList& missing,
                            Operation *op);
+
+   /**
+    * @brief Fetch the folders of a repository on a server, so that
+    * findFolders() can find them; see Diritem::fetchFolders()
+    * @param  root    Index of a top-level repository
+    * @param  context What the reply is tied to
+    * @param  done    Called with an empty string, or why it failed
+    * @return false if the repository is not on a server
+    */
+   bool fetchFolders(const QModelIndex& root, QObject *context,
+                     std::function<void(const QString &error)> done);
 
    /**
     * @brief Find files matching a substring
