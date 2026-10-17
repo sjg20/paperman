@@ -237,7 +237,29 @@ bool Folderlist::createMissingDir(int item, QModelIndex& ind)
    if (!ok)
       return false;
 
-   _main->newDir(_path + "/" + fname, ind);
+   /* on a server, the folder is made without waiting: say so meanwhile,
+      then list the folders again and say that it is there */
+   QString path = _path + "/" + fname;
+   QPointer<Folderlist> self(this);
+
+   if (_main->makeFolderLater(path, this, [self, path](const QString &err) {
+         if (!self)
+            return;
+         if (!err.isEmpty()) {
+            QMessageBox::warning(nullptr, tr("Paperman"),
+               tr("Could not make directory %1: %2").arg(path, err));
+            self->foldersel_textChanged(self->_foldersel->text());
+            return;
+         }
+         self->_fetched = false;
+         self->foldersel_textChanged(self->_foldersel->text());
+         emit self->folderMade(path);
+      })) {
+      showNote(tr("<making %1...>").arg(fname));
+      return false;
+   }
+
+   _main->newDir(path, ind);
 
    // regenerate the folder list
    _searching = true;

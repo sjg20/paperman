@@ -3,6 +3,8 @@ License: GPL-2
 */
 
 #include <QClipboard>
+#include <QInputDialog>
+#include <QMessageBox>
 #include <QMimeData>
 #include <QPushButton>
 #include <QStandardPaths>
@@ -19,6 +21,7 @@ License: GPL-2
 #include "../desktopview.h"
 #include "../desktopwidget.h"
 #include "../dirmodel.h"
+#include "../dirview.h"
 #include "../file.h"
 #include "../filemax.h"
 #include "../folderlist.h"
@@ -1329,6 +1332,104 @@ void TestAsync::testCopyKey ()
    QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (_repo->path ()
                              + "/archive/2026/testfile.max"), kDelayMs * 10);
    QVERIFY (QFile::exists (serverPath ("testfile.max")));
+   }
+
+
+void TestAsync::testMoveToNewFolder ()
+   {
+   // last year's folder has the chooser suggest one for this year
+   int year = QDate::currentDate ().year ();
+   QString lastYear = QString ("bills/%1").arg (year - 1);
+   QString thisYear = QString ("bills/%1").arg (year);
+
+   QVERIFY (QDir (_repo->path ()).mkpath (lastYear));
+   connectServer ();
+   openFolder ();
+   _desktop->getView ()->setSelectionRange (0, 1);
+   QTRY_VERIFY (_desktop->_act_move->isEnabled ());
+
+   /* choose the folder suggested, and say yes to making it: the dialog
+      is accepted once the server has made it */
+   QTimer filler;
+   bool chose = false, confirmed = false;
+
+   connect (&filler, &QTimer::timeout, _me.get (),
+            [&chose, &confirmed, thisYear] () {
+      for (QWidget *w : QApplication::topLevelWidgets ())
+         {
+         if (!w->isVisible ())
+            continue;
+         if (QMessageBox *box = qobject_cast<QMessageBox *> (w))
+            {
+            box->button (QMessageBox::Ok)->click ();
+            confirmed = true;
+            return;
+            }
+         if (w->objectName () != "Move" || chose)
+            continue;
+
+         QLineEdit *name = w->findChild<QLineEdit *> ("folderName");
+         QTableView *list = w->findChild<QTableView *> ();
+
+         if (name->text () != "bills")
+            {
+            name->setText ("bills");
+            return;
+            }
+         if (list->model ()->index (0, 0).data ().toString ()
+             != "<Add: " + thisYear + ">")
+            return;
+         list->selectRow (0);
+         chose = true;
+
+         /* later, since accepting asks whether to make the folder, in a
+            box this timer must be free to answer */
+         QMetaObject::invokeMethod (w, "accept", Qt::QueuedConnection);
+         }
+   });
+   filler.start (50);
+
+   AsyncCheck check;
+
+   check.allowStall ();
+   QTest::keyClick (_me.get (), Qt::Key_M, Qt::ControlModifier);
+   QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (_repo->path () + "/" + thisYear
+                                            + "/testfile.max"),
+                             kDelayMs * 20);
+   QVERIFY (confirmed);
+   QVERIFY (!QFile::exists (serverPath ("testfile.max")));
+   filler.stop ();
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testNewSubdirectory ()
+   {
+   connectServer ();
+   openFolder ();
+
+   // name the new folder in the dialog the action shows
+   QTimer filler;
+
+   connect (&filler, &QTimer::timeout, _me.get (), [&filler] () {
+      for (QWidget *w : QApplication::topLevelWidgets ())
+         if (QInputDialog *diag = qobject_cast<QInputDialog *> (w))
+            if (diag->isVisible ())
+               {
+               filler.stop ();
+               diag->setTextValue ("receipts");
+               diag->accept ();
+               }
+   });
+   filler.start (50);
+
+   AsyncCheck check;
+
+   check.allowStall ();
+   _desktop->_dir->_new->trigger ();
+   QTRY_VERIFY_WITH_TIMEOUT (QFileInfo (serverPath ("receipts")).isDir (),
+                             kDelayMs * 10);
+   CHECK_ASYNC (check, nullptr);
    }
 
 

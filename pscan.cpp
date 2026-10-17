@@ -110,6 +110,12 @@ Pscan::Pscan(QWidget* parent, const char* name, bool modal, Qt::WindowFlags fl)
 
     _folders = new Folderlist(folderName, this);
 
+    // a folder made on a server, once it is there, is where the scan goes
+    connect(_folders, &Folderlist::folderMade, this,
+            [this](const QString &path) {
+       _main->scanIntoPath(path);
+    });
+
     init();
     readSettings();
 }

@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDate>
 #include <QDebug>
 #include <QDir>
+#include <QPointer>
 #include <QEventLoop>
 #include <QFile>
 #include <QMessageBox>
@@ -622,6 +623,44 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
     QModelIndex i = index (path + QLatin1Char('/') + childName);
 
     return i;
+}
+
+
+bool Dirmodel::mkdirLater(const QString &path, QObject *context,
+                          std::function<void(const QString &error)> done)
+{
+   for (Diritem *item : _item) {
+      QString dir = item->dir();
+      RemoteBackend *remote = dynamic_cast<RemoteBackend *>(item->backend());
+
+      if (!path.startsWith(dir + "/"))
+         continue;
+      if (!remote)
+         return false;
+
+      QString parentPath = QFileInfo(path).path();
+      QPointer<Dirmodel> self(this);
+
+      remote->makeFolder(QFileInfo(dir).fileName(),
+                         path.mid(dir.size() + 1), context,
+                         [self, parentPath, done](const QString &error) {
+         /* list the parent again, if it is listed, so that the folder
+            shows in the tree */
+         if (self && error.isEmpty()) {
+            DirNode *parent = self->nodeFromIndex(self->index(parentPath));
+
+            if (parent && parent->populated) {
+               self->beginResetModel();
+               self->deleteChildren(parent);
+               parent->populated = false;
+               self->endResetModel();
+            }
+         }
+         done(error);
+      });
+      return true;
+   }
+   return false;
 }
 
 

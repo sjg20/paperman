@@ -1754,6 +1754,12 @@ bool Mainwidget::fetchFolders(QObject *context,
    return _desktop->fetchFolders(context, done);
 }
 
+bool Mainwidget::makeFolderLater(const QString &path, QObject *context,
+                                 std::function<void(const QString &)> done)
+{
+   return _desktop->makeFolderLater(path, context, done);
+}
+
 bool Mainwidget::isScanning()
 {
    return _scanning;

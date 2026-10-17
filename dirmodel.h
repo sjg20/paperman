@@ -283,6 +283,18 @@ public:
    bool removeDirFromList (const QModelIndex &index);
 
    /**
+    * @brief Make a folder in a repository on a server, without waiting;
+    * once it is made, the folder tree shows it, if its parent is listed
+    * @param path     Full path of the folder to make
+    * @param context  What the reply is tied to
+    * @param done     Called with an empty string, or why it failed
+    * @return false if the folder is not in a repository on a server, so
+    *         that nothing is done; mkdir() makes one locally
+    */
+   bool mkdirLater(const QString &path, QObject *context,
+                   std::function<void(const QString &error)> done);
+
+   /**
     * @brief mkdir
     * @param parent  parent directory to create it in
     * @param name    name of directory to create

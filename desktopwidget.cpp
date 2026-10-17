@@ -1114,8 +1114,11 @@ QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
    Operation op ("Scanning folders", 0, this);
    QStringList found = _model->findFolders(text, dirPath, root, missing, &op);
 
-   // a folder cannot be made on a server yet, so suggest none
-   if (dynamic_cast<RemoteBackend *>(_model->backendForRoot(dirPath)))
+   // suggest no folders to make on a server which cannot make them
+   RemoteBackend *remote = dynamic_cast<RemoteBackend *>(
+                              _model->backendForRoot(dirPath));
+
+   if (remote && !remote->hasMakeFolders())
       missing.clear();
    return found;
 }
@@ -1126,6 +1129,12 @@ bool Desktopwidget::fetchFolders(QObject *context,
    QModelIndex root = getRootIndex();
 
    return root.isValid() && _model->fetchFolders(root, context, done);
+}
+
+bool Desktopwidget::makeFolderLater(const QString &path, QObject *context,
+                                    std::function<void(const QString &)> done)
+{
+   return _model->mkdirLater(path, context, done);
 }
 
 void Desktopwidget::startSearch(const QString& path, const QString& match)
@@ -1360,6 +1369,19 @@ void Desktopwidget::newDir ()
             QString(), &ok);
    if (ok && !text.isEmpty()) {
       QString path;
+
+      // on a server, the folder is made without waiting
+      QString parentPath = _model->data(
+         _dir_proxy->mapToSource(_dir->menuGetModelIndex()),
+         Dirmodel::FilePathRole).toString();
+
+      path = parentPath + "/" + text;
+      if (_model->mkdirLater(path, this, [this, path](const QString &err) {
+            if (!err.isEmpty())
+               QMessageBox::warning(this, "Paperman",
+                  tr("Could not make directory %1: %2").arg(path, err));
+         }))
+         return;
 
       QModelIndex new_ind = doNewDir(text, path);
       if (new_ind == QModelIndex())
@@ -1882,6 +1904,13 @@ void Desktopwidget::moveToFolder(void)
    _folders = new Folderlist(diag.folderName, &diag);
    _folders->setMainwidget(_main);
    diag._folders = _folders;
+
+   // a folder made on a server, once it is there, is where the stacks go
+   connect(_folders, &Folderlist::folderMade, &diag,
+           [&diag](const QString &path) {
+      diag._path = path;
+      diag.done(QDialog::Accepted);
+   });
    QModelIndexList to_move = _view->getSelectedListSource();
    diag.itemCount->setText(QString("%1").arg(to_move.size()));
 

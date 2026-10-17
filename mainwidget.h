@@ -177,6 +177,17 @@ public:
    bool fetchFolders(QObject *context,
                      std::function<void(const QString &error)> done);
 
+   /**
+    * @brief Make a folder in a repository on a server, without waiting
+    * @param  path    Full path of the folder
+    * @param  context What the reply is tied to
+    * @param  done    Called with an empty string, or why it failed
+    * @return false if the folder is not on a server, so is to be made
+    *         with newDir()
+    */
+   bool makeFolderLater(const QString &path, QObject *context,
+                        std::function<void(const QString &error)> done);
+
    /* Start a new scan using dir_ind as the destination dir in Dirmodel */
    void scanInto(QModelIndex dir_ind);
 
