@@ -170,6 +170,23 @@ public:
                     const QString &dir, int maxHits, QObject *context,
                     TextDone done);
 
+    /** Search the names of a repository's stacks for @p text, which may
+     *  be any part of a name, ignoring case
+     *
+     *  @param repo      the repository
+     *  @param text      what to look for
+     *  @param dir       the folder to look in, relative to the
+     *                   repository, with its subfolders; empty for all
+     *  @param context   what the reply is tied to; nothing is called
+     *                   once it has gone
+     *  @param done      called with an empty error and the path of each
+     *                   stack found, relative to the repository, or with
+     *                   why the search failed */
+    using NamesDone = std::function<void(const QString &error,
+                                         const QStringList &paths)>;
+    void searchNames(const QString &repo, const QString &text,
+                     const QString &dir, QObject *context, NamesDone done);
+
     /** True if the server converts and unfolds stacks itself (the
      *  "convert" feature), so convertStack() and unfoldStack() work. */
     bool hasConvert() const { return _features.contains(QStringLiteral("convert")); }

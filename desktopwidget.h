@@ -524,11 +524,23 @@ private:
    void updateSettings ();
 
    /**
-    * @brief start a search for a stack through dirs and subdirs
+    * @brief start a search for a stack through dirs and subdirs; the
+    * stacks in a folder on a server are shown once it has found them
     * @param path    Full path to directory to search
     * @param match   Match string to use
     */
    void startSearch(const QString& path, const QString& match);
+
+   /**
+    * @brief search for a stack by name, as startSearch() does, but
+    * without waiting for a server
+    * @param path    Full path to directory to search
+    * @param match   Match string to use
+    * @param done    called once the stacks are shown, with false if the
+    *                search failed
+    */
+   void nameSearchLater(const QString& path, const QString& match,
+                        std::function<void(bool ok)> done);
 
    /**
     * @brief start a search for stacks with some text on their pages,

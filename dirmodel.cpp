@@ -1465,6 +1465,10 @@ QStringList Dirmodel::findFiles(const QString& text, const QString& dirPath,
    QString root_path = data(root, Dirmodel::FilePathRole).toString();
    const TreeItem *node;
 
+   // there is no tree of a folder which cannot be scanned here
+   if (!tree)
+      return QStringList();
+
    // Remove the root-path prefix
    QString rel = dirPath.mid(root_path.size() + 1);
 

@@ -1798,6 +1798,15 @@ public:
                        const QString &text, Measure *meas, Operation *op,
                        Found done);
 
+   /** search the names of the stacks in a folder on a server, and in its
+       subfolders, for @p text, without waiting for the server: @p done is
+       called once the stacks are found
+
+       \returns false if @p rootPath is not on a server, so nothing is
+                done */
+   bool findNamesLater (const QString &path, const QString &rootPath,
+                        const QString &text, Measure *meas, Found done);
+
 public slots:
    /** advises the model of the current context index (default item for
        operations */

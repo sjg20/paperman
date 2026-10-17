@@ -1154,6 +1154,46 @@ void TestAsync::testReadStack ()
    }
 
 
+void TestAsync::testSearchName ()
+   {
+   connectServer ();
+   openFolder ();
+
+   /* Ctrl-S searches the folder chosen for a stack's name: fill in the
+      dialog once it is up */
+   bool shown = false;
+   QTimer filler;
+
+   connect (&filler, &QTimer::timeout, _me.get (), [&shown, &filler] () {
+      for (QWidget *w : QApplication::topLevelWidgets ())
+         if (w->isVisible () && w->objectName () == "Search")
+            {
+            QDialog *diag = qobject_cast<QDialog *> (w);
+
+            filler.stop ();
+            shown = true;
+            diag->findChild<QLineEdit *> ("stackName")->setText ("testfile");
+            diag->accept ();
+            }
+   });
+   filler.start (50);
+
+   AsyncCheck check;
+
+   QTest::keyClick (_me.get (), Qt::Key_S, Qt::ControlModifier);
+   QTRY_VERIFY (shown);
+
+   // the stack found is shown, and the window was not held up for it
+   Desktopview *view = _desktop->getView ();
+
+   QTRY_COMPARE (view->model ()->rowCount (view->rootIndex ()), 1);
+   QCOMPARE (view->model ()->data (view->model ()->index (0, 0,
+                                   view->rootIndex ()), Qt::DisplayRole)
+             .toString (), QString ("testfile"));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
 void TestAsync::testSearch ()
    {
    // give the stack some words for the server's index to find
