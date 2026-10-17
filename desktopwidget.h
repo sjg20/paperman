@@ -242,6 +242,17 @@ public:
    QStringList findFolders(const QString& text, QString& dirPath,
                            QStringList& missing);
 
+   /**
+    * @brief Fetch the folders of the current repository, when it is on a
+    * server, so that findFolders() can find them
+    * @param  context What the reply is tied to
+    * @param  done    Called with an empty string, or why it failed
+    * @return false if the repository is not on a server, so its folders
+    *         are found without fetching
+    */
+   bool fetchFolders(QObject *context,
+                     std::function<void(const QString &error)> done);
+
    void showImports(const QString& path);
 
    /**
@@ -704,7 +715,7 @@ class Move : public QDialog, public Ui::Move
 {
    Q_OBJECT
 public:
-   QModelIndex _ind;
+   QString _path;       //!< the folder chosen
    Folderlist *_folders;
 
 protected slots:

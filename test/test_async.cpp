@@ -5,6 +5,7 @@ License: GPL-2
 #include <QClipboard>
 #include <QMimeData>
 #include <QStandardPaths>
+#include <QTableView>
 #include <QtConcurrent>
 #include <QtTest/QtTest>
 
@@ -1151,6 +1152,86 @@ void TestAsync::testReadStack ()
    QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 10);
    QVERIFY2 (!err, err ? err->errstr : "");
    CHECK_ASYNC (check, nullptr);
+   }
+
+
+/* Press Ctrl-M in @me and fill in the dialog: the folder @folder, once the
+   server has said which folders it has, and whether to @copy rather than
+   move. Return true if the dialog was accepted */
+static bool moveByKey (QWidget *me, const QString &folder, bool copy)
+   {
+   bool accepted = false;
+   QTimer filler;
+
+   QObject::connect (&filler, &QTimer::timeout, me,
+                     [&accepted, &filler, folder, copy] () {
+      QDialog *diag = nullptr;
+
+      for (QWidget *w : QApplication::topLevelWidgets ())
+         if (w->isVisible () && w->objectName () == "Move")
+            diag = qobject_cast<QDialog *> (w);
+      if (!diag)
+         return;
+
+      QLineEdit *name = diag->findChild<QLineEdit *> ("folderName");
+
+      if (name->text () != folder)
+         {
+         diag->findChild<QCheckBox *> ("copy")->setChecked (copy);
+         name->setText (folder);
+         return;
+         }
+
+      // a folder is listed, rather than a note that they are on their way
+      QTableView *list = diag->findChild<QTableView *> ();
+      QString first = list ? list->model ()->index (0, 0).data ().toString ()
+                           : QString ();
+
+      if (first.isEmpty () || first.startsWith ('<'))
+         return;
+      filler.stop ();
+      QMetaObject::invokeMethod (diag, "accept");
+      accepted = !diag->isVisible ();
+   });
+   filler.start (50);
+   QTest::keyClick (me, Qt::Key_M, Qt::ControlModifier);
+   return QTest::qWaitFor ([&accepted] { return accepted; }, 10000);
+   }
+
+
+void TestAsync::testMoveKey ()
+   {
+   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
+   connectServer ();
+   openFolder ();
+
+   // a stack on the server goes to a folder there found by its name
+   _desktop->getView ()->setSelectionRange (0, 1);
+   QTRY_VERIFY (_desktop->_act_move->isEnabled ());
+
+   AsyncCheck check;
+
+   QVERIFY (moveByKey (_me.get (), "2026", false));
+   QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (_repo->path ()
+                             + "/archive/2026/testfile.max"), kDelayMs * 10);
+   QVERIFY (!QFile::exists (serverPath ("testfile.max")));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testCopyKey ()
+   {
+   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
+   connectServer ();
+   openFolder ();
+
+   // a copy goes there, and the stack stays
+   _desktop->getView ()->setSelectionRange (0, 1);
+   QTRY_VERIFY (_desktop->_act_move->isEnabled ());
+   QVERIFY (moveByKey (_me.get (), "2026", true));
+   QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (_repo->path ()
+                             + "/archive/2026/testfile.max"), kDelayMs * 10);
+   QVERIFY (QFile::exists (serverPath ("testfile.max")));
    }
 
 

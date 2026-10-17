@@ -7,6 +7,8 @@
 #include <QScrollBar>
 #include <QStandardItemModel>
 #include <QTimer>
+#include <QPointer>
+
 #include "folderlist.h"
 #include "foldersel.h"
 #include "mainwidget.h"
@@ -119,11 +121,45 @@ void Folderlist::showFolders()
    show();
 }
 
+void Folderlist::showNote(const QString& text)
+{
+   _model->removeRows(0, _model->rowCount(QModelIndex()), QModelIndex());
+   _model->insertRows(0, 1, QModelIndex());
+   _model->setData(_model->index(0, 0, QModelIndex()), text);
+   resizeColumnToContents(0);
+   showFolders();
+   _valid = false;
+}
+
 void Folderlist::searchForFolders(const QString& match)
 {
    QStringList folders;
    bool valid = false;
    int row;
+
+   /* the folders of a repository on a server come from the server, so ask
+      for them once, the first time the list is wanted; the search is done
+      again once they come */
+   if (!_fetched && _main) {
+      QPointer<Folderlist> self(this);
+
+      _fetched = true;
+      _fetching = _main->fetchFolders(this, [self](const QString &error) {
+         if (!self)
+            return;
+         self->_fetching = false;
+         self->_fetchError = error;
+         self->foldersel_textChanged(self->_foldersel->text());
+      });
+   }
+   if (_fetching) {
+      showNote(tr("<finding folders...>"));
+      return;
+   }
+   if (!_fetchError.isEmpty()) {
+      showNote(tr("<cannot list the folders: %1>").arg(_fetchError));
+      return;
+   }
 
    // We want at least three characters for a match
    if (match.length() >= 3) {
@@ -248,6 +284,29 @@ bool Folderlist::getSelected(QModelIndex& ind, bool hiddenOk)
    }
 
    return ok;
+}
+
+bool Folderlist::getSelectedPath(QString& path)
+{
+   path.clear();
+   if (_awaiting_user || !_valid)
+      return false;
+
+   QModelIndex sel_ind = selected();
+
+   if (!sel_ind.isValid())
+      return false;
+   if (sel_ind.row() < _missing.size()) {
+      QString fname = _missing[sel_ind.row()];
+      QModelIndex ind;
+
+      if (!createMissingDir(sel_ind.row(), ind))
+         return false;
+      path = _path + "/" + fname;
+   } else {
+      path = _path + "/" + _model->data(sel_ind).toString();
+   }
+   return true;
 }
 
 void Folderlist::foldersel_textChanged(const QString &text)

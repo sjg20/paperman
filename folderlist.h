@@ -28,6 +28,16 @@ public:
     */
    bool getSelected(QModelIndex& ind, bool hiddenOk);
 
+   /**
+    * @brief Get the path of the folder selected by the user, whether or
+    * not it is in the folder tree yet, as a folder on a server may not be
+    * @param path  Returns the full path of the folder
+    * @return true if something was selected
+    *
+    * This creates a missing folder if requested
+    */
+   bool getSelectedPath(QString& path);
+
    //! Indicates that a scan is starting
    void scanStarting();
 
@@ -98,6 +108,19 @@ protected:
 
    // true if waiting for the user to confirm directory creation
    bool _awaiting_user;
+
+   // true once the folders of a repository on a server are asked for
+   bool _fetched = false;
+
+   // true while they are on their way
+   bool _fetching = false;
+
+   // why they could not be had, if they could not
+   QString _fetchError;
+
+   /** Show @p text in the list in place of folders, such as why there
+    *  are none */
+   void showNote(const QString& text);
 };
 
 #endif // FOLDERLIST_H
