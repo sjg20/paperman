@@ -67,6 +67,10 @@ signals:
    void keypressReceived(QKeyEvent *event);
    void selectItem(const QModelIndex&);
 
+   /** A folder the user chose to make on a server, at @p path, is now
+    *  there; one made here is there at once, so getSelected() gives it */
+   void folderMade(const QString &path);
+
 protected:
    virtual void keyPressEvent(QKeyEvent *event) override;
    virtual void mousePressEvent(QMouseEvent *e) override;

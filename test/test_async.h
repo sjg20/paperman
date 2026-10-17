@@ -151,6 +151,8 @@ private slots:
    void testSearchName ();
    void testMoveKey ();
    void testCopyKey ();
+   void testMoveToNewFolder ();
+   void testNewSubdirectory ();
 
    //! scanning a stack into a folder on the server
    void testScan ();
