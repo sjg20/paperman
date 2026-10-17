@@ -153,6 +153,11 @@ FileFetch LocalBackend::readFile(const QString &repo, const QString &path)
 }
 
 
+//! the files the cache holds: the kinds of stack
+static const QStringList kStackFilters = {"*.max", "*.pdf", "*.jpg", "*.jpeg",
+                                          "*.tiff", "*.tif"};
+
+
 int LocalBackend::loadCacheForRepo(const QString &rootPath)
 {
    QList<CachedFile> &fileList = _fileCache[rootPath];
@@ -185,6 +190,35 @@ qint64 LocalBackend::cacheBytes(const QString &rootPath) const
    for (const CachedFile &f : files)
       total += f.size;
    return total;
+}
+
+
+void LocalBackend::updateCachedFile(const QString &rootPath,
+                                    const QString &relPath)
+{
+   auto it = _fileCache.find(rootPath);
+
+   if (it == _fileCache.end())
+      return;
+
+   QList<CachedFile> &fileList = it.value();
+
+   for (int i = fileList.size() - 1; i >= 0; i--)
+      if (fileList[i].path == relPath)
+         fileList.removeAt(i);
+
+   QFileInfo info(rootPath + "/" + relPath);
+
+   if (!info.isFile() || !QDir::match(kStackFilters, info.fileName()))
+      return;
+
+   CachedFile cached;
+
+   cached.path     = relPath;
+   cached.name     = info.fileName();
+   cached.size     = info.size();
+   cached.modified = info.lastModified();
+   fileList.append(cached);
 }
 
 
@@ -283,11 +317,7 @@ void LocalBackend::scanDirectory(const QString &repoPath,
    if (!dirPath.isEmpty())
       fullPath += "/" + dirPath;
 
-   QStringList nameFilters;
-   nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg"
-               << "*.tiff" << "*.tif";
-
-   QDirIterator it(fullPath, nameFilters,
+   QDirIterator it(fullPath, kStackFilters,
                    QDir::Files | QDir::Readable,
                    QDirIterator::Subdirectories);
 

@@ -3352,6 +3352,54 @@ static bool makeTextRepo(const QString &dir)
            && say(dir + "sub/b.max", 2, "banana invoice");
 }
 
+void TestSearchServer::testSearchNames()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(QDir(tmpDir.path()).mkdir("sub"));
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QVERIFY(QFile::copy(tmpDir.path() + "/testfile.max",
+                        tmpDir.path() + "/sub/Invoice-march.max"));
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+    // ask, and wait for, the paths of the stacks found
+    auto search = [&](const QString &text, const QString &dir) {
+        QStringList got;
+        QString error = "none yet";
+
+        client.searchNames(repo, text, dir, &client,
+                           [&](const QString &err, const QStringList &paths) {
+            error = err;
+            got = paths;
+        });
+        if (!QTest::qWaitFor([&] { return error != "none yet"; }, 5000))
+            return QStringList({"no reply"});
+        if (!error.isEmpty())
+            return QStringList({"error: " + error});
+        got.sort();
+        return got;
+    };
+
+    // any part of the name, in any case, in the folder and below
+    QCOMPARE(search("INVOICE", ""), QStringList({"sub/Invoice-march.max"}));
+    QCOMPARE(search("file", ""), QStringList({"testfile.max"}));
+    QCOMPARE(search("max", "sub"), QStringList({"sub/Invoice-march.max"}));
+    QCOMPARE(search("nothing", ""), QStringList());
+
+    // a stack renamed is found by its new name, and not its old one
+    QString newName = "receipt.max";
+    QVERIFY2(client.renameStack(repo, "testfile.max", newName),
+             qPrintable(client.lastError()));
+    QCOMPARE(search("receipt", ""), QStringList({"receipt.max"}));
+    QCOMPARE(search("testfile", ""), QStringList());
+
+    server.stop();
+}
+
 void TestSearchServer::testRemoteSearchDesk()
 {
     QTemporaryDir tmpDir;

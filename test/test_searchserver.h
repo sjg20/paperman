@@ -67,6 +67,9 @@ private slots:
    //! folders, and they work as in their own folders
    void testRemoteSearchDesk();
 
+   //! a search for a stack's name on the server follows renames
+   void testSearchNames();
+
    //! the desktop searches the text of a remote repository's stacks
    void testRemoteTextSearch();
 
