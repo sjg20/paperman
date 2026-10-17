@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Move stacks</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -33,7 +33,7 @@
      <item>
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>Files to move:</string>
+        <string>Stacks:</string>
        </property>
       </widget>
      </item>
@@ -58,6 +58,16 @@
       </widget>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="copy">
+     <property name="toolTip">
+      <string>Put a copy of each stack in the folder, leaving the stacks where they are</string>
+     </property>
+     <property name="text">
+      <string>&amp;Copy instead of moving</string>
+     </property>
+    </widget>
    </item>
    <item>
     <spacer name="verticalSpacer">

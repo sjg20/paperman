@@ -1202,6 +1202,116 @@ void TestDesktopUi::testCopyAsPdf()
    QFile::remove(pdf);
 }
 
+/* Press Ctrl-M in @me and fill in the dialog: the folder @folder, and
+   whether to @copy rather than move. Return true if the dialog came up */
+static bool moveByKey(Mainwindow *me, const QString &folder, bool copy)
+{
+   bool shown = false;
+   QTimer filler;
+
+   /* the dialog is modal, so fill it in once it is up; nothing becomes
+      the active window on every platform the tests run on, so look for
+      the dialog itself */
+   QObject::connect(&filler, &QTimer::timeout, me,
+                    [&shown, &filler, folder, copy]() {
+      QDialog *diag = nullptr;
+
+      for (QWidget *w : QApplication::topLevelWidgets())
+         if (w->isVisible() && w->objectName() == "Move")
+            diag = qobject_cast<QDialog *>(w);
+      if (!diag)
+         return;
+      filler.stop();
+      shown = true;
+      diag->findChild<QCheckBox *>("copy")->setChecked(copy);
+      diag->findChild<QLineEdit *>("folderName")->setText(folder);
+      QMetaObject::invokeMethod(diag, "accept");
+   });
+   filler.start(50);
+   QTest::keyClick(me, Qt::Key_M, Qt::ControlModifier);
+   return QTest::qWaitFor([&shown] { return shown; }, 5000);
+}
+
+void TestDesktopUi::testMoveKey()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   // choose the stack and press Ctrl-M, then name the folder
+   clickItem(view, 0);
+   QVERIFY(moveByKey(&me, "main", false));
+
+   // it moves there, and leaves the view
+   QTRY_VERIFY(QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+
+   // undo brings it back
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/main/testfile.max"));
+}
+
+void TestDesktopUi::testCopyKey()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   // a copy goes to the folder, and the stack stays
+   clickItem(view, 0);
+   QVERIFY(moveByKey(&me, "main", true));
+   QTRY_VERIFY(QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(QFile::exists(path + "/testfile.max"));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   // undo takes the copy away again
+   me.actionUndo->trigger();
+   QTRY_VERIFY(!QFile::exists(path + "/main/testfile.max"));
+   QVERIFY(QFile::exists(path + "/testfile.max"));
+}
+
+void TestDesktopUi::testMoveFoundKey()
+{
+   Mainwindow me;
+   auto path = setupRepo();
+
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/findme.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+   Desktopview *view = desktop->getView();
+
+   desktop->startSearch(path, "findme");
+   desktop->specialView("Showing the results of folder search");
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+
+   // the stack found goes from its folder to the one named
+   view->setSelectionRange(0, 1);
+   QTRY_VERIFY(desktop->_act_move->isEnabled());
+   QVERIFY(moveByKey(&me, "two", false));
+   QTRY_VERIFY(QFile::exists(path + "/main/two/findme.max"));
+   QVERIFY(!QFile::exists(path + "/main/one/findme.max"));
+}
+
 void TestDesktopUi::testDragDropToFolder()
 {
    QModelIndex repo_ind;
