@@ -211,6 +211,23 @@ public:
                                            const QStringList &folders)>;
     void listFolders(const QString &repo, QObject *context, FoldersDone done);
 
+    /** True if the server makes folders (the "makeFolders" feature), so
+     *  makeFolder() works. */
+    bool hasMakeFolders() const { return _features.contains(QStringLiteral("makeFolders")); }
+
+    /** Make a folder in a repository, with any above it which are
+     *  missing, without waiting
+     *
+     *  @param repo      the repository
+     *  @param path      the folder, relative to the repository
+     *  @param context   what the reply is tied to; nothing is called
+     *                   once it has gone
+     *  @param done      called with an empty string, or why the folder
+     *                   could not be made */
+    void makeFolder(const QString &repo, const QString &path,
+                    QObject *context,
+                    std::function<void(const QString &error)> done);
+
     /** True if the server converts and unfolds stacks itself (the
      *  "convert" feature), so convertStack() and unfoldStack() work. */
     bool hasConvert() const { return _features.contains(QStringLiteral("convert")); }

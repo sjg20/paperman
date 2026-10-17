@@ -3509,6 +3509,46 @@ void TestSearchServer::testListFolders()
     server.stop();
 }
 
+void TestSearchServer::testMakeFolder()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QVERIFY(!client.serverId().isEmpty());
+    QVERIFY(client.hasMakeFolders());
+
+    // make a folder, waiting for the answer
+    auto make = [&](const QString &path) {
+        QString error = "none yet";
+
+        client.makeFolder(repo, path, &client, [&](const QString &err) {
+            error = err;
+        });
+        if (!QTest::qWaitFor([&] { return error != "none yet"; }, 5000))
+            return QString("no reply");
+        return error;
+    };
+
+    // with any folder above it which is missing; making one again is fine
+    QCOMPARE(make("bills/2026"), QString());
+    QVERIFY(QFileInfo(tmpDir.path() + "/bills/2026").isDir());
+    QCOMPARE(make("bills/2026"), QString());
+
+    // nothing hidden, outside the repository, or in the way of a file
+    for (const QString &bad : {".hidden", "bills/.trash", "../outside",
+                               "/absolute", " spaced", "",
+                               "testfile.max/sub", "testfile.max"})
+        QVERIFY2(!make(bad).isEmpty(), qPrintable(bad));
+    QVERIFY(!QDir(tmpDir.path() + "/.hidden").exists());
+    QVERIFY(!QDir(tmpDir.path() + "/../outside").exists());
+}
+
 void TestSearchServer::testListFoldersNeedsAccess()
 {
    QStandardPaths::setTestModeEnabled(true);
