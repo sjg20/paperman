@@ -628,8 +628,16 @@ void Pscan::scan_clicked()
       return;
       }
 
-   if (_folders->getSelected(ind, false))
+   QString path;
+
+   /* a folder on a server need not be in the folder tree yet, so is found
+      by its path */
+   if (!_folders->getSelected(ind, false, &path))
+      return;
+   if (ind.isValid() || path.isEmpty())
       _main->scanInto(ind);
+   else
+      _main->scanIntoPath(path);
 }
 
 

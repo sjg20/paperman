@@ -261,24 +261,32 @@ void Folderlist::selectDir(const QModelIndex& target)
    }
 }
 
-bool Folderlist::getSelected(QModelIndex& ind, bool hiddenOk)
+bool Folderlist::getSelected(QModelIndex& ind, bool hiddenOk, QString *path)
 {
    if (_awaiting_user)
       return false;
 
    bool ok = true;
    ind = QModelIndex();
+   if (path)
+      path->clear();
    if (_valid && (hiddenOk || isVisible())) {
       QModelIndex sel_ind = selected();
 
       if (sel_ind != QModelIndex()) {
          if (sel_ind.row() < _missing.size()) {
+            QString fname = _missing[sel_ind.row()];
+
             ok = createMissingDir(sel_ind.row(), ind);
+            if (ok && path)
+               *path = _path + "/" + fname;
          } else {
             QString dir_path;
 
             dir_path = _path + "/" + _model->data(sel_ind).toString();
             ind = _main->getDirIndex(dir_path);
+            if (path)
+               *path = dir_path;
          }
       }
    }

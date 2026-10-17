@@ -21,6 +21,9 @@ License: GPL-2
 #include "../dirmodel.h"
 #include "../file.h"
 #include "../filemax.h"
+#include "../folderlist.h"
+#include "../foldersel.h"
+#include "../mainwidget.h"
 #include "../mainwindow.h"
 #include "../ocrpage.h"
 #include "../pagemodel.h"
@@ -634,6 +637,58 @@ void TestAsync::testLocate ()
    QTRY_COMPARE (view->getSelectedItem ().data (Desktopmodel::Role_filename)
                     .toString (), QString ("testfile.max"));
    CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testDirIndexLater ()
+   {
+   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
+   connectServer ();
+
+   QString path = repoPath () + "/archive/2026";
+
+   QTRY_VERIFY (_desktop->getDirIndex (repoPath ()).isValid ());
+
+   /* a folder on the server two levels down, neither yet listed, is found
+      as each level comes, as the scan dialog needs when one is typed */
+   AsyncCheck check;
+   QModelIndex found;
+   bool done = false;
+
+   _desktop->dirIndexLater (path, _desktop, [&] (const QModelIndex &ind) {
+      found = ind;
+      done = true;
+   });
+   QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 10);
+   QVERIFY (found.isValid ());
+   QCOMPARE (found.data (Dirmodel::FilePathRole).toString (), path);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testChooseFolderPath ()
+   {
+   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
+   connectServer ();
+   QTRY_VERIFY (_desktop->getDirIndex (repoPath ()).isValid ());
+   _desktop->selectDir (_desktop->getDirIndex (repoPath ()));
+
+   /* a folder on the server chosen by its name, as in the scan dialog,
+      has no index yet, since the folders above it are not listed: the
+      chooser gives its path instead */
+   QWidget parent;
+   Foldersel *name = new Foldersel (&parent);
+   Folderlist *list = new Folderlist (name, &parent);
+
+   list->setMainwidget (Mainwidget::singleton ());
+   name->setText ("2026");
+
+   QModelIndex ind;
+   QString path;
+
+   QTRY_VERIFY (list->getSelected (ind, true, &path) && !path.isEmpty ());
+   QCOMPARE (path, repoPath () + "/archive/2026");
+   QVERIFY (!ind.isValid ());
    }
 
 

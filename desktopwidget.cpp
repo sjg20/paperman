@@ -552,6 +552,9 @@ static QString formatBytes(qint64 n)
 //! how long a request waits before the status bar says so
 static const qint64 kSlowWaitMs = 5000;
 
+//! how long dirIndexLater() looks for a folder before giving up
+static const qint64 kFindDirMs = 30000;
+
 void Desktopwidget::scheduleNetStatusUpdate()
 {
    /* Leading edge: first change in a quiet window updates the
@@ -2277,6 +2280,41 @@ QModelIndex Desktopwidget::getDirIndex(const QString dirname)
    QModelIndex ind = _dir_proxy->mapFromSource(src_ind);
 
    return ind;
+}
+
+void Desktopwidget::dirIndexLater(const QString &path, QObject *context,
+                                  std::function<void(const QModelIndex &)> done)
+{
+   QModelIndex ind = getDirIndex(path);
+
+   if (ind.isValid()) {
+      done(ind);
+      return;
+   }
+
+   /* each try asks for the next folder on the way to be listed, if it is
+      on a server, so try again until all of them have come, for a while */
+   QPointer<Desktopwidget> self(this);
+   QTimer *timer = new QTimer(context);
+   auto since = std::make_shared<QElapsedTimer>();
+
+   since->start();
+   connect(timer, &QTimer::timeout, context,
+           [self, timer, since, path, done]() {
+      if (!self) {
+         timer->deleteLater();
+         return;
+      }
+
+      QModelIndex found = self->getDirIndex(path);
+
+      if (!found.isValid() && since->elapsed() < kFindDirMs)
+         return;
+      timer->stop();
+      timer->deleteLater();
+      done(found);
+   });
+   timer->start(100);
 }
 
 void Desktopwidget::setDirFilter(bool active)
