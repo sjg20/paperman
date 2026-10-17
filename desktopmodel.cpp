@@ -1747,6 +1747,11 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
 
    UNUSED (dirInRepo);
    for (File *f : desk->files()) {
+      /* the stack being scanned is here, not on the server yet, and has
+         its own image as it grows */
+      if (f == _scan_file)
+         continue;
+
       // a search's desk holds stacks from many folders
       QString path = remoteStackPath(desk, f);
       /* "small" maps to ~150px on the server.  The local desktop
