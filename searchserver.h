@@ -747,6 +747,10 @@ private:
      *  it read and indexed again */
     void touchStack(const QString &repoName, const QString &relPath);
 
+    /** GET /v1/repos/{repo}/folders: every folder in the repository, by
+     *  its path within it, for a client to find one by name */
+    QByteArray handleFolders(const QString &path, const QString &authedUser);
+
     /** GET /v1/repos/{repo}/search: the stacks with some text on a page */
     QByteArray handleTextSearch(const QString &path,
                                 const QHash<QString, QString> &params,

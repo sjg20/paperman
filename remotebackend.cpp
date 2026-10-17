@@ -1075,6 +1075,33 @@ void RemoteBackend::searchNames(const QString &repo, const QString &text,
 }
 
 
+void RemoteBackend::listFolders(const QString &repo, QObject *context,
+                                FoldersDone done)
+{
+   whenFinished(startGet("/v1/repos/"
+                         + QString::fromUtf8(QUrl::toPercentEncoding(repo))
+                         + "/folders", QString(), kWorkTimeoutMs),
+                context, [done](const Result &result) {
+      QJsonObject obj = result.json();
+      QStringList folders;
+
+      if (!result.ok || !obj.value("success").toBool()) {
+         QString why = obj.value("error").toString();
+
+         if (why.isEmpty())
+            why = result.error.isEmpty()
+                  ? QStringLiteral("the server cannot list its folders")
+                  : result.error;
+         done(why, folders);
+         return;
+      }
+      for (const QJsonValue &v : obj.value("folders").toArray())
+         folders << v.toString();
+      done(QString(), folders);
+   });
+}
+
+
 void RemoteBackend::subscribeEvents(const QString &repo)
 {
    if (_eventRepos.contains(repo))

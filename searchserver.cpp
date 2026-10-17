@@ -881,6 +881,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         QJsonArray features;
         features.append("pages");
         features.append("convert");
+        features.append("folders");
         if (!_indexes.isEmpty())
             features.append("textSearch");
         if (!_readers.isEmpty())
@@ -1166,6 +1167,10 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     else if (path.startsWith("/v1/repos/") && path.endsWith("/search")
              && !path.contains("/stacks/")) {
         return handleTextSearch(path, params, authedUser);
+    }
+    else if (path.startsWith("/v1/repos/") && path.endsWith("/folders")
+             && !path.contains("/stacks/")) {
+        return handleFolders(path, authedUser);
     }
     else {
         return buildHttpResponse(404, "Not Found", "text/plain",
@@ -2444,6 +2449,59 @@ QByteArray SearchServer::handleUpload(const QString &path,
     return buildHttpResponse(200, "OK", "application/json",
                              QString::fromUtf8(QJsonDocument(outObj).toJson(
                                  QJsonDocument::Compact)));
+}
+
+/* Add to @folders each folder below @dir, @rel within the repository,
+   leaving out those a client's own scan of the folders leaves out: hidden
+   ones, such as the trash, and those whose names start with a space.  A
+   name starting with a dot is hidden only on Unix, so leave those out by
+   name, so that the trash is never offered on Windows either */
+static void addFolders(const QString &dir, const QString &rel,
+                       QJsonArray &folders)
+{
+    QDir d(dir);
+    const QStringList names = d.entryList(QDir::Dirs | QDir::NoDotAndDotDot
+                                          | QDir::NoSymLinks, QDir::Name);
+
+    for (const QString &name : names) {
+        if (name.startsWith(' ') || name.startsWith('.'))
+            continue;
+
+        QString path = rel.isEmpty() ? name : rel + "/" + name;
+
+        folders.append(path);
+        addFolders(d.filePath(name), path, folders);
+    }
+}
+
+QByteArray SearchServer::handleFolders(const QString &path,
+                                       const QString &authedUser)
+{
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/folders").size());
+    QString repoName = QUrl::fromPercentEncoding(rest.toUtf8());
+
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    QString root = _backend->rootPathForName(repoName);
+    if (root.isEmpty())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Repository not found: " + repoName));
+
+    QJsonArray folders;
+    addFolders(root, QString(), folders);
+
+    QJsonObject obj;
+    obj["success"] = true;
+    obj["folders"] = folders;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }
 
 QByteArray SearchServer::handleTextSearch(const QString &path,

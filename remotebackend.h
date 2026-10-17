@@ -190,6 +190,22 @@ public:
     void searchNames(const QString &repo, const QString &text,
                      const QString &dir, QObject *context, NamesDone done);
 
+    /** True if the server lists a repository's folders (the "folders"
+     *  feature), so listFolders() works. */
+    bool hasFolders() const { return _features.contains(QStringLiteral("folders")); }
+
+    /** List every folder in a repository, for finding one by name
+     *
+     *  @param repo      the repository
+     *  @param context   what the reply is tied to; nothing is called
+     *                   once it has gone
+     *  @param done      called with an empty error and the path of each
+     *                   folder, relative to the repository, or with why
+     *                   they could not be had */
+    using FoldersDone = std::function<void(const QString &error,
+                                           const QStringList &folders)>;
+    void listFolders(const QString &repo, QObject *context, FoldersDone done);
+
     /** True if the server converts and unfolds stacks itself (the
      *  "convert" feature), so convertStack() and unfoldStack() work. */
     bool hasConvert() const { return _features.contains(QStringLiteral("convert")); }
