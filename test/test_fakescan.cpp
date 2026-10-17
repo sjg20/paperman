@@ -21,6 +21,7 @@
 #include <functional>
 
 #include "fakescan/fakescan.h"
+#include "remoteharness.h"
 #include "scansettings.h"
 #include "test_fakescan.h"
 
@@ -620,6 +621,143 @@ void TestFakescan::testScanIntoStack ()
                             .arg (pagenum + 1).arg (dark [0])
                             .arg (dark [1])));
       }
+}
+
+
+/* Scan two sheets with the fake scanner into a folder two levels down on a
+   server, as the scan dialog does, holding back each of the server's
+   replies by @delayMs while it scans.  Check that the stack lands there
+   with a page for each sheet, without the window waiting for the server,
+   and set @requests to what the scan asked of the server and @stackSize to
+   the size of the stack */
+static void scanIntoServer (int delayMs,
+                            QList<ServerThread::Exchange> &requests,
+                            qint64 &stackSize)
+{
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+   QVERIFY (QDir (repo.path ()).mkpath ("bills/2026"));
+
+   ServerThread server (repo.path (), 9879);
+   QVERIFY (server.begin ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   bool attached = false;
+   QString error;
+
+   desktop->addRemoteServer (server.url (), [&] (const QString &err) {
+      error = err;
+      attached = true;
+   });
+   QTRY_VERIFY (attached);
+   QCOMPARE (error, QString ());
+
+   // the folder, once the folders above it have been listed
+   QString folder = server.url ().toString () + "/"
+                    + QFileInfo (repo.path ()).fileName () + "/bills/2026";
+   QModelIndex ind;
+
+   QTRY_VERIFY ((ind = desktop->getDirIndex (folder)).isValid ());
+
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+
+   Mainwidget *main = Mainwidget::singleton ();
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   QVERIFY (main->ensureScanner ());
+
+   // count only what the scan asks for, once all before it is done
+   QTRY_COMPARE (server.openExchanges (), 0);
+   server.takeExchanges ();
+   server.setDelay (delayMs);
+
+   AsyncCheck check;
+
+   /* the scanner is driven here, on the main thread, as headless; only
+      a wait for the server is a fault */
+   check.allowStall ();
+   main->scanInto (ind);
+   QCOMPARE (Fakescan::sheetsLeft (), 0);
+
+   // the stack goes up to the server, with a page for each sheet
+   QString dir = repo.path () + "/bills/2026/";
+   QStringList stacks;
+
+   QTRY_VERIFY_WITH_TIMEOUT (!(stacks = QDir (dir).entryList (
+                                 QStringList () << "*.max", QDir::Files))
+                             .isEmpty (), 10000);
+   QCOMPARE (stacks.size (), 1);
+   QVERIFY2 (check.ok (), qPrintable (check.report ()));
+
+   Filemax max (dir, stacks [0], nullptr);
+
+   QVERIFY (!max.load ());
+   QCOMPARE (max.pagecount (), 2);
+   stackSize = QFileInfo (dir + stacks [0]).size ();
+
+   /* all that the scan asked for, once the stack is up: the event stream
+      for the folder stays open, so is not counted */
+   requests.clear ();
+   auto uploaded = [&requests] () {
+      for (const ServerThread::Exchange &ex : requests)
+         if (ex.request.contains ("/upload"))
+            return true;
+      return false;
+   };
+
+   QTRY_VERIFY_WITH_TIMEOUT ((requests << server.takeExchanges (),
+                              uploaded ()), 10000);
+   QTest::qWait (delayMs * 2 + 200);
+   requests << server.takeExchanges ();
+}
+
+
+void TestFakescan::testScanIntoServer ()
+{
+   QList<ServerThread::Exchange> requests;
+   qint64 stackSize = 0;
+
+   scanIntoServer (0, requests, stackSize);
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* opening the folder lists it and fetches its layout, and the stack
+      goes up once, with little more than its own bytes; nothing is asked
+      for the stack being scanned, which is not on the server yet */
+   QStringList lines;
+   qint64 sent = 0, received = 0;
+
+   for (const ServerThread::Exchange &ex : requests)
+      {
+      lines << ex.request.section ('?', 0, 0);
+      sent += ex.sent;
+      received += ex.received;
+      }
+   QVERIFY2 (requests.size () <= 3, qPrintable (lines.join (", ")));
+   QCOMPARE (lines.filter ("/upload").size (), 1);
+   QVERIFY2 (lines.filter ("/thumbnail").isEmpty (),
+             qPrintable (lines.join (", ")));
+   QVERIFY2 (sent < stackSize + 1500,
+             qPrintable (QString ("sent %1 for a stack of %2")
+                         .arg (sent).arg (stackSize)));
+   QVERIFY2 (received < 1000, qPrintable (QString ("received %1")
+                                          .arg (received)));
+}
+
+
+void TestFakescan::testScanIntoSlowServer ()
+{
+   // each reply comes 300ms late, as from a server far away
+   QList<ServerThread::Exchange> requests;
+   qint64 stackSize = 0;
+
+   scanIntoServer (300, requests, stackSize);
 }
 
 

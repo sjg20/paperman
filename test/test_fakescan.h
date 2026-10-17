@@ -94,6 +94,13 @@ private slots:
    //! Paperman scans a hopper of sheets into a stack, in order
    void testScanIntoStack ();
 
+   //! scanning into a folder on a server leaves the stack there, sending
+   //! little more than the stack itself
+   void testScanIntoServer ();
+
+   //! and a slow server does not hold up the scan
+   void testScanIntoSlowServer ();
+
    //! With ald the page ends at the foot of the sheet, length unknown
    void testAld ();
 
