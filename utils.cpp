@@ -1514,7 +1514,9 @@ static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
          continue;
       }
 
-      if (fi.fileName() != "." && fi.fileName() != "..") {
+      /* leave out what is hidden, such as the trash; only Unix hides a
+         name which starts with a dot itself */
+      if (!fi.fileName().startsWith('.')) {
          TreeItem *child = new TreeItem(columnData, parent);
 
          parent->appendChild(child);

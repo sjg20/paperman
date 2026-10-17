@@ -91,6 +91,9 @@ private slots:
    //! Test that findFolders finds folders for other years by name
    void testFindFoldersOtherYear();
 
+   //! the trash is not offered as a folder, nor its stacks found
+   void testFindHidesTrash();
+
    //! Test that the print options count pages correctly
    void testPrintCountPages();
 

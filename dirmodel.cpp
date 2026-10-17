@@ -521,11 +521,13 @@ int Dirmodel::count_files (QString path, int count, int max)
    for (int i = 0; count < max && i < list.size (); i++)
       {
       QFileInfo fi = list.at (i);
+
+      /* leave out what is hidden, such as the trash; only Unix hides a
+         name which starts with a dot itself */
+      if (fi.fileName ().startsWith ('.'))
+         continue;
       if (fi.isDir ())
-         {
-         if (fi.fileName () != "." && fi.fileName () != "..")
-            count += count_files (path + "/" + fi.fileName (), count, max);
-         }
+         count += count_files (path + "/" + fi.fileName (), count, max);
       else
          count++;
       }
