@@ -3458,6 +3458,85 @@ void TestSearchServer::testSearchNames()
     server.stop();
 }
 
+void TestSearchServer::testListFolders()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+
+    // what a scan of the folders leaves out, the list does too
+    QVERIFY(dir.mkpath("bills/2026"));
+    QVERIFY(dir.mkpath("tax"));
+    QVERIFY(dir.mkpath(".maxview-trash/old"));
+    QVERIFY(dir.mkpath(" spaced"));
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QVERIFY(!client.serverId().isEmpty());
+    QVERIFY(client.hasFolders());
+
+    QStringList got;
+    QString error = "none yet";
+
+    client.listFolders(repo, &client,
+                       [&](const QString &err, const QStringList &folders) {
+        error = err;
+        got = folders;
+    });
+    QTRY_VERIFY(error != "none yet");
+    QCOMPARE(error, QString());
+    got.sort();
+    QCOMPARE(got, QStringList({"bills", "bills/2026", "tax"}));
+
+    // a repository which is not there says so
+    error = "none yet";
+    client.listFolders("nosuch", &client,
+                       [&](const QString &err, const QStringList &) {
+        error = err;
+    });
+    QTRY_VERIFY(error != "none yet");
+    QVERIFY(!error.isEmpty());
+
+    server.stop();
+}
+
+void TestSearchServer::testListFoldersNeedsAccess()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QFile::remove(QStandardPaths::writableLocation(
+                    QStandardPaths::GenericConfigLocation)
+                 + "/paperman-server/users.json");
+
+   // bob may see the second repository only
+   QTemporaryDir repoA, repoB;
+   QVERIFY(repoA.isValid() && repoB.isValid());
+   QString nameA = QFileInfo(repoA.path()).fileName();
+   QString nameB = QFileInfo(repoB.path()).fileName();
+
+   {
+      UserStore store;
+      QVERIFY(store.addUser("bob", "pw"));
+      QVERIFY(store.setRepos("bob", {nameB}));
+   }
+
+   SearchServer server({repoA.path(), repoB.path()}, PORT);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+
+   auto resp = postJson("/v1/auth/login", R"({"user":"bob","password":"pw"})");
+   QVERIFY(resp.ok());
+   QString bob = QJsonDocument::fromJson(resp.body).object()["token"].toString();
+
+   QVERIFY(getWithBearer("/v1/repos/" + nameA + "/folders", bob)
+           .header.contains(" 403 "));
+   QVERIFY(getWithBearer("/v1/repos/" + nameB + "/folders", bob).ok());
+}
+
 void TestSearchServer::testRemoteSearchDesk()
 {
     QTemporaryDir tmpDir;

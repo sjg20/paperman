@@ -74,6 +74,12 @@ private slots:
    //! a search for a stack's name on the server follows renames
    void testSearchNames();
 
+   //! the server lists a repository's folders, as a scan of them would
+   void testListFolders();
+
+   //! only to a user who may see the repository
+   void testListFoldersNeedsAccess();
+
    //! the desktop searches the text of a remote repository's stacks
    void testRemoteTextSearch();
 
