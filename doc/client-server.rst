@@ -221,13 +221,42 @@ Traffic
 -------
 
 The proxy also records each request it passes on, with the bytes it
-carried each way, headers included; the server closes a connection once
-it has replied, so each carries one request, apart from the event
-stream. The ``traffic`` suite (``test/test_traffic.cpp``) drives the
-desktop through things a user does, such as opening a folder of stacks
-or turning through a stack's pages, prints the requests each made,
-grouped by endpoint, and checks the totals against a budget. A change
-which sends more fails the budget; one which sends less tightens it.
+carried each way, headers included, and which requests opened a
+connection: the server keeps a connection open for the next request, so
+one may carry many. The ``traffic`` suite (``test/test_traffic.cpp``)
+drives the desktop through things a user does, such as opening a folder
+of stacks or turning through a stack's pages, prints the requests each
+made, grouped by endpoint, and checks the totals against a budget of
+requests, connections and bytes. A change which sends more fails the
+budget; one which sends less tightens it.
+
+Tracing the Connection
+----------------------
+
+The desktop logs each request to a server, and how it ends, when the
+``paperman.net`` logging category is turned on:
+
+.. code-block:: bash
+
+   QT_LOGGING_RULES="paperman.net.debug=true" paperman --server ohau
+
+This shows the addresses tried for a server given by name, and which
+answered, then each request with a number, when the server answered it
+and with what status, and how it ended::
+
+   paperman.net: probe http://ohau:8081/status answers
+   paperman.net: probe chose http://ohau:8081
+   paperman.net: #1 GET ohau:8081/v1/status
+   paperman.net: #1 answered 200 in 4 ms
+   paperman.net: #1 done in 4 ms, ok
+
+A warning from Qt itself says nothing of where it came from. Asking for a
+backtrace with each warning helps, in a build with debug information:
+
+.. code-block:: bash
+
+   QT_MESSAGE_PATTERN='%{message}%{if-warning} %{backtrace depth=20}%{endif}' \
+      paperman --server ohau
 
 What Remains
 ------------
