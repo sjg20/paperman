@@ -212,8 +212,20 @@ mkdir "$dist/dmg"
 cp -R "$app" "$dist/dmg/"
 ln -s /Applications "$dist/dmg/Applications"
 dmg=$dist/Paperman-$version-$arch.dmg
-hdiutil create -quiet -volname Paperman -srcfolder "$dist/dmg" -ov \
-   -format UDZO "$dmg"
+# hdiutil fails now and then with "Resource busy" on a busy machine, as
+# CI's are, so say why and try again
+for try in 1 2 3; do
+   if hdiutil create -volname Paperman -srcfolder "$dist/dmg" -ov \
+      -format UDZO "$dmg"; then
+      break
+   fi
+   if [ $try = 3 ]; then
+      echo "cannot make the disk image" >&2
+      exit 1
+   fi
+   echo "hdiutil failed; trying again" >&2
+   sleep 10
+done
 rm -rf "$dist/dmg"
 
 # Have Apple notarise it, and staple the ticket to the image so that it
