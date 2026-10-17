@@ -8,6 +8,7 @@ License: GPL-2
 #include "backend.h"
 
 #include <QJsonObject>
+#include <QLoggingCategory>
 #include <QObject>
 #include <QSet>
 #include <QString>
@@ -18,6 +19,10 @@ License: GPL-2
 class QNetworkAccessManager;
 class QNetworkReply;
 
+
+/* each request to a server and how it ends, for tracking down trouble
+   with the connection: QT_LOGGING_RULES="paperman.net.debug=true" */
+Q_DECLARE_LOGGING_CATEGORY(logNet)
 
 /**
  * Backend that talks to a paperman-server over HTTP.  Symmetric with
