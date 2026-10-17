@@ -81,6 +81,9 @@ private slots:
    //! Test searching folders for a stack and locating its folder
    void testSearchAndLocate();
 
+   //! Ctrl-S opens the folder search, which finds a stack by name
+   void testSearchKey();
+
    //! Test searching for text on the stacks' pages
    void testTextSearch();
 

@@ -555,6 +555,51 @@ static void sayOnPage(const QString &dir, const QString &fname, int pagenum,
    QVERIFY(!max.putPageOcr(pagenum, ocr));
 }
 
+void TestDesktopUi::testSearchKey()
+{
+   Mainwindow me;
+   auto path = setupRepo();
+
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/findme.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+   /* the dialog is modal, so fill it in once it is up: the name to look
+      for, then OK.  Nothing becomes the active window on every platform
+      the tests run on, so look for the dialog itself */
+   bool shown = false;
+   QTimer filler;
+
+   connect(&filler, &QTimer::timeout, &me, [&shown, &filler]() {
+      QDialog *diag = nullptr;
+
+      for (QWidget *w : QApplication::topLevelWidgets())
+         if (w->isVisible() && w->objectName() == "Search")
+            diag = qobject_cast<QDialog *>(w);
+      if (!diag)
+         return;
+      filler.stop();
+      shown = true;
+      diag->findChild<QLineEdit *>("stackName")->setText("findme");
+      diag->accept();
+   });
+   filler.start(50);
+   QTest::keyClick(&me, Qt::Key_S, Qt::ControlModifier);
+   QTRY_VERIFY(shown);
+
+   // only the stack found is shown
+   Desktopview *view = desktop->getView();
+
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+   QCOMPARE(view->model()->data(itemIndex(view, 0), Qt::DisplayRole)
+            .toString(), QString("findme"));
+}
+
 void TestDesktopUi::testTextSearch()
 {
    Mainwindow me;
