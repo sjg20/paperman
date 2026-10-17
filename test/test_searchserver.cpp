@@ -3455,6 +3455,13 @@ void TestSearchServer::testSearchNames()
     QCOMPARE(search("receipt", ""), QStringList({"receipt.max"}));
     QCOMPARE(search("testfile", ""), QStringList());
 
+    // a stack in the trash is not found
+    QString inTrash;
+    QVERIFY2(client.moveStack(repo, "receipt.max",
+                              RemoteBackend::trashDirName(), false, &inTrash),
+             qPrintable(client.lastError()));
+    QCOMPARE(search("receipt", ""), QStringList());
+
     server.stop();
 }
 
