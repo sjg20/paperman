@@ -52,6 +52,11 @@ public:
      *  path.  Returns empty string for unknown names. */
     QString rootPathForName(const QString &repo) const;
 
+    /** Bring the cached entry for the file @p relPath in @p rootPath up
+     *  to date with the disk: add or update it if it is a stack there,
+     *  or drop it if not.  Nothing is done for a repo not cached. */
+    void updateCachedFile(const QString &rootPath, const QString &relPath);
+
 private:
     void scanDirectory(const QString &repoPath, const QString &dirPath,
                        QList<CachedFile> &fileList);

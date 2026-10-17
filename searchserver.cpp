@@ -2544,6 +2544,12 @@ QByteArray SearchServer::handleEvents(const QString &path,
 void SearchServer::touchStack(const QString &repoName,
                               const QString &relPath)
 {
+    // a search for its name finds it where it is now, and not where it was
+    QString root = _backend->rootPathForName(repoName);
+
+    if (!root.isEmpty())
+        _backend->updateCachedFile(root, relPath);
+
     /* A stack which has changed or arrived, such as a new scan, is read
        before the rest; each ignores anything which is not a stack */
     if (RepoReader *reader = _readers.value(repoName))
