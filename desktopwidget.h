@@ -212,6 +212,19 @@ public:
    QModelIndex getDirIndex(const QString dirname);
 
    /**
+    * @brief Find the index of a folder, as getDirIndex() does, without
+    * waiting for a server: a folder on one has an index only once each
+    * folder above it has been listed, which is done a level at a time
+    * @param path     Full path to the folder
+    * @param context  What the answer is tied to; nothing is called once
+    *                 it has gone
+    * @param done     Called with the folder's index, or an invalid one if
+    *                 it cannot be found
+    */
+   void dirIndexLater(const QString &path, QObject *context,
+                      std::function<void(const QModelIndex &ind)> done);
+
+   /**
     * @brief Create a new directory
     * @param dir_path   Full path to new directory
     * @param index      Returns the Dirmodel index of the created directory

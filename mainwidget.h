@@ -180,6 +180,11 @@ public:
    /* Start a new scan using dir_ind as the destination dir in Dirmodel */
    void scanInto(QModelIndex dir_ind);
 
+   /* Start a new scan into the folder at @path, once it is found in the
+      Dirmodel: one on a server may need its place in the folder tree
+      listed first, which is done without waiting */
+   void scanIntoPath(const QString &path);
+
    //! Convert a directory path to a _model index
    QModelIndex getDirIndex(const QString& dir_path);
 

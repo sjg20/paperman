@@ -21,12 +21,17 @@ public:
     * @brief Get the folder selected by the user
     * @param ind           Returns index of any selected item
     * @param hiddenOk      Allow the folder list to be hidden
+    * @param path          If not null, returns the full path of any
+    *                      selected item: a folder on a server has no
+    *                      index until its place in the folder tree has
+    *                      been listed, though it has a path
     * @return true if something was selected
     *
     * This creates a missing folder if requested. If !hiddenOk, then the
     * selection is ignored if the folder list is hidden
     */
-   bool getSelected(QModelIndex& ind, bool hiddenOk);
+   bool getSelected(QModelIndex& ind, bool hiddenOk,
+                    QString *path = nullptr);
 
    /**
     * @brief Get the path of the folder selected by the user, whether or

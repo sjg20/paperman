@@ -376,6 +376,17 @@ void Mainwidget::updatePscan ()
    }
 
 
+void Mainwidget::scanIntoPath(const QString &path)
+{
+   _desktop->dirIndexLater(path, this, [this, path](const QModelIndex &ind) {
+      if (ind.isValid())
+         scanInto(ind);
+      else
+         QMessageBox::warning(this, "Paperman",
+                              tr("Cannot find the folder %1").arg(path));
+   });
+}
+
 QModelIndex Mainwidget::getDirIndex(const QString& dir_path)
 {
    return _desktop->getDirIndex(dir_path);

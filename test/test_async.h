@@ -66,6 +66,8 @@ private slots:
 
    //! locating a stack in a folder not yet listed selects it once it is
    void testLocate ();
+   void testDirIndexLater ();
+   void testChooseFolderPath ();
 
    /** opening folders in the tree when the server takes longer to list
        them than a request is normally allowed */
