@@ -4,6 +4,7 @@ License: GPL-2
 
 #include <QClipboard>
 #include <QMimeData>
+#include <QPushButton>
 #include <QStandardPaths>
 #include <QTableView>
 #include <QtConcurrent>
@@ -549,6 +550,47 @@ void TestAsync::testConnectionIndicator ()
    _server.reset ();
    QTRY_VERIFY (label->text ().contains ("#d03030"));
    QVERIFY (label->toolTip ().contains ("not answering"));
+   }
+
+
+void TestAsync::testConnectionDetails ()
+   {
+   connectServer ();
+
+   QLabel *label = _desktop->netStatus ();
+   QString path = repoPath () + "/papers";
+
+   QTRY_VERIFY (_desktop->getDirIndex (path).isValid ());
+   QTRY_VERIFY (label->isVisible ());
+
+   // a click on the indicator shows the details
+   QTest::mouseClick (label, Qt::LeftButton);
+
+   QFrame *popup = _desktop->findChild<QFrame *> ("netDetails");
+
+   QVERIFY (popup);
+   QTRY_VERIFY (popup->isVisible ());
+
+   QLabel *text = popup->findChild<QLabel *> ();
+
+   QVERIFY (text->text ().contains ("Connected to"));
+   QTRY_VERIFY (text->text ().contains ("Nothing waiting"));
+
+   // they are kept up to date while it is open
+   _server->setDelay (-1);
+   _desktop->selectDir (_desktop->getDirIndex (path));
+   QTRY_VERIFY (text->text ().contains ("Waiting for")
+                && text->text ().contains ("listing"));
+
+   // the counts can be started again
+   BackendStats *stats = _desktop->_model->stats ();
+
+   QVERIFY (stats->bytesSent () > 0);
+   QTest::mouseClick (popup->findChild<QPushButton *> ("reset"),
+                      Qt::LeftButton);
+   QCOMPARE (stats->bytesSent (), qint64 (0));
+   QTRY_VERIFY (text->text ().contains ("Sent 0 B"));
+   popup->hide ();
    }
 
 

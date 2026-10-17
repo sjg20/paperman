@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 class QCheckBox;
+class QFrame;
 class QKeyEventTransition;
 class QLineEdit;
 class QSplitter;
@@ -126,6 +127,18 @@ private:
     *  BackendStats numbers.  Called via scheduleNetStatusUpdate /
     *  flushNetStatus, never directly from a signal. */
    void updateNetStatus();
+
+   /** Say in full how the connection to a server is going, a line each:
+    *  what is waiting, how quickly the server answers, what has failed,
+    *  and whether other clients' changes come through */
+   static QStringList connectionDetails(class BackendStats *s);
+
+   /** Show the details of the connection in a popup above the indicator,
+    *  kept up to date while it is open */
+   void showNetDetails();
+
+   //! bring the popup's details up to date, and keep it by the indicator
+   void refreshNetPopup();
 
 private slots:
 
@@ -668,6 +681,8 @@ private:
    QLabel *_netStatus = nullptr;  //!< Network activity indicator
    QTimer *_netStatusTimer = nullptr;  //!< Trailing-edge throttle for label updates
    bool _netStatusDirty = false;  //!< Changes arrived during the throttle window
+   QFrame *_netPopup = nullptr;  //!< The connection's details, on a click
+   QLabel *_netPopupText = nullptr;  //!< What _netPopup says
    //QWidget *_toolbar;
 
    // more actions (toolbar)
