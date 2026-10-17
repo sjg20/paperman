@@ -42,6 +42,10 @@ private slots:
    //! /repos hides repos the bearer-authed user is not allowed to see
    void testReposFilteredByUser();
 
+   //! a user who may not see the first repository cannot reach it by
+   //! leaving out ?repo=
+   void testFirstRepoNeedsAccess();
+
    //! users.json is written privately and whole, and a file which
    //! cannot be read leaves the users as they were
    void testUserStoreFile();

@@ -801,6 +801,15 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
      * lands. */
     if (!authedUser.isEmpty()) {
         QString repoName = params.value("repo", "");
+
+        /* these fall back to the first repository when given none, so the
+           user must be allowed that one */
+        static const QStringList firstByDefault = {
+            "/search", "/list", "/browse", "/file", "/thumbnail"};
+
+        if (repoName.isEmpty() && firstByDefault.contains(path)
+            && !_rootPaths.isEmpty())
+            repoName = QFileInfo(_rootPaths.first()).fileName();
         if (!repoName.isEmpty()
             && !_users.repoAllowed(authedUser, repoName)) {
             return buildHttpResponse(403, "Forbidden", "application/json",

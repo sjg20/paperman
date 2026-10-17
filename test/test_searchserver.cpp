@@ -622,6 +622,64 @@ void TestSearchServer::testReposFilteredByUser()
    server.stop();
 }
 
+void TestSearchServer::testFirstRepoNeedsAccess()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgFile = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server/users.json";
+   QFile::remove(cfgFile);
+
+   // bob may see the second repository only; alice the first
+   QTemporaryDir repoA, repoB;
+   QVERIFY(repoA.isValid() && repoB.isValid());
+   QVERIFY(copyTestFile("testfile.max", repoA.path()) > 0);
+   QVERIFY(copyTestFile("testfile.max", repoB.path()) > 0);
+   QString nameA = QFileInfo(repoA.path()).fileName();
+   QString nameB = QFileInfo(repoB.path()).fileName();
+
+   {
+      UserStore store;
+      QVERIFY(store.addUser("alice", "pw"));
+      QVERIFY(store.setRepos("alice", {nameA}));
+      QVERIFY(store.addUser("bob", "pw"));
+      QVERIFY(store.setRepos("bob", {nameB}));
+   }
+
+   SearchServer server({repoA.path(), repoB.path()}, PORT);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+
+   auto login = [&](const QString &user) {
+      auto resp = postJson(
+          "/v1/auth/login",
+          QString(R"({"user":"%1","password":"pw"})").arg(user).toUtf8());
+      Q_ASSERT(resp.ok());
+      return QJsonDocument::fromJson(resp.body).object()["token"].toString();
+   };
+   QString bob = login("bob");
+   QString alice = login("alice");
+
+   // each of these reaches the first repository when given none
+   const QStringList routes = {
+      "/search?q=test", "/list", "/browse", "/file?path=testfile.max",
+      "/thumbnail?path=testfile.max"};
+
+   for (const QString &route : routes) {
+      QVERIFY2(getWithBearer(route, bob).header.contains(" 403 "),
+               qPrintable(route));
+      QVERIFY2(!getWithBearer(route, alice).header.contains(" 403 "),
+               qPrintable(route));
+   }
+
+   // bob still reaches his own, by name
+   QVERIFY(getWithBearer("/search?q=test&repo=" + nameB, bob).ok());
+   QVERIFY(getWithBearer("/browse?repo=" + nameB, bob).ok());
+}
+
 void TestSearchServer::testRemoteBackendEndToEnd()
 {
    /* Full client→server→client round-trip: spin up a real
