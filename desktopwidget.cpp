@@ -34,6 +34,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QVBoxLayout>
+#include <QPushButton>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QKeyEventTransition>
@@ -80,6 +83,27 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "utils.h"
 #include "ui_search.h"
 
+/* Calls a function when the widget it watches is clicked */
+class ClickFilter : public QObject
+{
+public:
+   ClickFilter(QObject *parent, std::function<void()> clicked)
+      : QObject(parent), _clicked(clicked) {}
+
+protected:
+   bool eventFilter(QObject *, QEvent *e) override
+   {
+      if (e->type() != QEvent::MouseButtonRelease)
+         return false;
+      _clicked();
+      return true;
+   }
+
+private:
+   std::function<void()> _clicked;
+};
+
+
 Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
    {
@@ -107,6 +131,12 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    _netStatus->setVisible(false);
    _netStatus->setContentsMargins(4, 0, 4, 0);
    _netStatus->setTextFormat(Qt::RichText);
+
+   // a click shows the details, kept up to date
+   _netStatus->setCursor(Qt::PointingHandCursor);
+   _netStatus->installEventFilter(new ClickFilter(_netStatus, [this]() {
+      showNetDetails();
+   }));
 
    /* Throttle: BackendStats emits changed() on every request +
     * every byte boundary, which can be many times per second
@@ -579,6 +609,93 @@ static QString waitingKinds(BackendStats *s)
 }
 
 
+/* Say in full how the connection to a server is going, a line each: what
+   is waiting, how quickly the server answers, what has failed, and
+   whether other clients' changes come through */
+QStringList Desktopwidget::connectionDetails(BackendStats *s)
+{
+   qint64 waitMs = s->longestWaitMs();
+   QStringList tip;
+   QString waiting = waitingKinds(s);
+
+   tip << tr("Connected to %1").arg(s->url());
+   if (waiting.isEmpty()) {
+      tip << tr("Nothing waiting");
+   } else {
+      tip << tr("Waiting for %1, the longest for %2 s").arg(waiting)
+                .arg(waitMs / 1000);
+      if (s->bytesToCome() > 0)
+         tip << tr("%1 still to come").arg(formatBytes(s->bytesToCome()));
+      if (s->lengthsUnknown())
+         tip << tr("%1 of unknown length").arg(s->lengthsUnknown());
+   }
+   if (s->responseMs() >= 0)
+      tip << tr("The server answers in %1 ms").arg(s->responseMs());
+   if (s->failing())
+      tip << tr("The server is not answering: %1").arg(s->lastError());
+   else if (s->failures())
+      tip << tr("Requests which failed: %1, the last with: %2")
+                .arg(s->failures()).arg(s->lastError());
+   if (s->eventStreamsDown())
+      tip << tr("Changes from other clients: not connected, trying "
+                "again");
+   else if (s->eventStreams())
+      tip << tr("Changes from other clients: connected");
+   tip << tr("Sent %1, received %2").arg(formatBytes(s->bytesSent()),
+                                         formatBytes(s->bytesReceived()));
+   return tip;
+}
+
+
+void Desktopwidget::refreshNetPopup()
+{
+   BackendStats *s = _model ? _model->stats() : nullptr;
+
+   if (!_netPopup || !s)
+      return;
+   _netPopupText->setText(connectionDetails(s).join('\n'));
+   _netPopup->adjustSize();
+
+   // above the indicator, with their right-hand sides together
+   QPoint corner = _netStatus->mapToGlobal(QPoint(_netStatus->width(), 0));
+
+   _netPopup->move(corner - QPoint(_netPopup->width(), _netPopup->height()));
+}
+
+
+void Desktopwidget::showNetDetails()
+{
+   if (!_netPopup) {
+      _netPopup = new QFrame(this, Qt::Popup);
+      _netPopup->setObjectName("netDetails");
+      _netPopup->setFrameShape(QFrame::StyledPanel);
+
+      QVBoxLayout *lay = new QVBoxLayout(_netPopup);
+
+      _netPopupText = new QLabel(_netPopup);
+      _netPopupText->setTextInteractionFlags(Qt::TextSelectableByMouse);
+      lay->addWidget(_netPopupText);
+
+      // start the counts again, to see what something costs
+      QPushButton *reset = new QPushButton(tr("&Reset counters"),
+                                           _netPopup);
+      QHBoxLayout *buttons = new QHBoxLayout;
+
+      reset->setObjectName("reset");
+      connect(reset, &QPushButton::clicked, this, [this]() {
+         if (BackendStats *s = _model->stats())
+            s->reset();
+         updateNetStatus();
+      });
+      buttons->addStretch();
+      buttons->addWidget(reset);
+      lay->addLayout(buttons);
+   }
+   refreshNetPopup();
+   _netPopup->show();
+}
+
+
 void Desktopwidget::updateNetStatus()
 {
    if (!_netStatus || !_model)
@@ -617,35 +734,13 @@ void Desktopwidget::updateNetStatus()
                 formatBytes(s->bytesReceived()), host.toHtmlEscaped(), dot);
    _netStatus->setText(text);
 
-   // and the details, for a look
-   QStringList tip;
-   QString waiting = waitingKinds(s);
+   // and the details, for a look, or in full on a click
+   QStringList details = connectionDetails(s);
 
-   tip << tr("Connected to %1").arg(s->url());
-   if (waiting.isEmpty()) {
-      tip << tr("Nothing waiting");
-   } else {
-      tip << tr("Waiting for %1, the longest for %2 s").arg(waiting)
-                .arg(waitMs / 1000);
-      if (s->bytesToCome() > 0)
-         tip << tr("%1 still to come").arg(formatBytes(s->bytesToCome()));
-      if (s->lengthsUnknown())
-         tip << tr("%1 of unknown length").arg(s->lengthsUnknown());
-   }
-   if (s->responseMs() >= 0)
-      tip << tr("The server answers in %1 ms").arg(s->responseMs());
-   if (s->failing())
-      tip << tr("The server is not answering: %1").arg(s->lastError());
-   else if (s->failures())
-      tip << tr("Requests which failed: %1, the last with: %2")
-                .arg(s->failures()).arg(s->lastError());
-   if (s->eventStreamsDown())
-      tip << tr("Changes from other clients: not connected, trying again");
-   else if (s->eventStreams())
-      tip << tr("Changes from other clients: connected");
-   tip << tr("Sent %1, received %2").arg(formatBytes(s->bytesSent()),
-                                         formatBytes(s->bytesReceived()));
-   _netStatus->setToolTip(tip.join('\n'));
+   _netStatus->setToolTip(details.join('\n') + "\n\n"
+                          + tr("Click for the details, kept up to date"));
+   if (_netPopup && _netPopup->isVisible())
+      refreshNetPopup();
    _netStatus->setVisible(true);
 
    /* while anything is waiting, keep the time it has waited up to date,
