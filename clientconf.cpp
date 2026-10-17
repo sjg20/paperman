@@ -5,6 +5,7 @@ License: GPL-2
 #include "clientconf.h"
 
 #include "blockwatch.h"
+#include "remotebackend.h"
 
 #include <QDir>
 #include <QFile>
@@ -259,6 +260,8 @@ void ClientConfig::probe(const QList<QUrl> &candidates, QObject *context,
       if (state->settled)
          return;
       state->settled = true;
+      qCDebug(logNet).noquote() << "probe chose"
+         << (chosen.isEmpty() ? QStringLiteral("none") : chosen.toString());
 
       /* leave nothing to call back once the probe is done */
       for (QNetworkReply *reply
@@ -279,6 +282,7 @@ void ClientConfig::probe(const QList<QUrl> &candidates, QObject *context,
       QNetworkReply *reply = state->mgr->get(req);
       int idx = state->why.size();
       state->why << QString();
+      qCDebug(logNet).noquote() << "probe" << status.toString();
 
       QObject::connect(reply, &QNetworkReply::finished, state->mgr,
                        [state, settle, reply, idx]() {
@@ -298,6 +302,9 @@ void ClientConfig::probe(const QList<QUrl> &candidates, QObject *context,
             else
                state->why[idx] = "not a Paperman server";
          }
+         qCDebug(logNet).noquote() << "probe" << reply->url().toString()
+            << (state->why[idx].isEmpty() ? QStringLiteral("answers")
+                                          : state->why[idx]);
          settle(false);
       });
    }

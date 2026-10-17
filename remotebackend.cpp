@@ -490,9 +490,48 @@ QNetworkReply *RemoteBackend::startGet(const QString &pathAndQuery,
 }
 
 
+Q_LOGGING_CATEGORY(logNet, "paperman.net", QtWarningMsg)
+
+/* Follow @reply, for @method on @path, in the log, when the paperman.net
+   category is on: when it starts, when the server answers and how, and
+   how it ends */
+static void logRequest(QNetworkReply *reply, const char *method,
+                       const QString &path)
+{
+   if (!logNet().isDebugEnabled())
+      return;
+
+   static quint64 next = 1;
+   quint64 num = next++;
+   auto timer = std::make_shared<QElapsedTimer>();
+
+   timer->start();
+   qCDebug(logNet).noquote() << QString("#%1 %2 %3%4").arg(num)
+      .arg(QString::fromLatin1(method), reply->url().authority(), path);
+   QObject::connect(reply, &QNetworkReply::metaDataChanged, reply,
+                    [reply, num, timer]() {
+      qCDebug(logNet).noquote() << QString("#%1 answered %2 in %3 ms")
+         .arg(num).arg(reply->attribute(
+            QNetworkRequest::HttpStatusCodeAttribute).toInt())
+         .arg(timer->elapsed());
+   });
+   QObject::connect(reply, &QNetworkReply::finished, reply,
+                    [reply, num, timer]() {
+      QString how = reply->error() == QNetworkReply::NoError
+         ? QStringLiteral("ok")
+         : QString("error %1: %2").arg(int(reply->error()))
+                                  .arg(reply->errorString());
+
+      qCDebug(logNet).noquote() << QString("#%1 done in %2 ms, %3")
+         .arg(num).arg(timer->elapsed()).arg(how);
+   });
+}
+
+
 void RemoteBackend::track(QNetworkReply *reply, const QString &path,
                           bool post, qint64 sent)
 {
+   logRequest(reply, post ? "POST" : "GET", path);
    if (!_stats)
       return;
 
@@ -1123,6 +1162,8 @@ void RemoteBackend::startEventStream(const QString &repo)
 
    QNetworkReply *reply = _nam->get(req);
    auto buf = std::make_shared<QByteArray>();
+
+   logRequest(reply, "GET", url.path());
 
    /* the stream is wanted from now on, and connected once the server
       answers it */
