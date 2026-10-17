@@ -1086,6 +1086,21 @@ QString Desktopmodel::remoteRelDir (Desk *desk, QString dir) const
    }
 
 
+QString Desktopmodel::stackLocation (File *file) const
+   {
+   /* a stack on a server is where it is there, as the folder tree names
+      the server, not where its copy is kept here */
+   RemoteBackend *remote = remoteForFile (file);
+   Desk *desk = file->desk ();
+
+   if (!remote || !desk)
+      return file->pathname ();
+   return tr ("%1/%2 on %3").arg (desk->repoName (),
+                                  remoteStackPath (desk, file),
+                                  remote->baseUrl ().authority ());
+   }
+
+
 QString Desktopmodel::remoteStackPath (Desk *desk, File *file) const
    {
    /* the stack's file is in the backend's cache, at its path within the

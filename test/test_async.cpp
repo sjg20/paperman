@@ -1240,6 +1240,14 @@ void TestAsync::testSearch ()
    QVERIFY (found.isValid ());
    QCOMPARE (model->data (found, Desktopmodel::Role_pagenum).toInt (), 2);
    CHECK_ASYNC (check, nullptr);
+
+   // it says where it is on the server, not where its copy is kept
+   QString where = model->data (found, Desktopmodel::Role_message)
+                   .toString ();
+   QString expect = QFileInfo (_repo->path ()).fileName ()
+                    + "/papers/testfile.max on " + _server->url ().authority ();
+
+   QVERIFY2 (where.endsWith (", at " + expect), qPrintable (where));
    }
 
 
