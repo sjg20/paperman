@@ -263,12 +263,12 @@ void ClientConfig::probe(const QList<QUrl> &candidates, QObject *context,
       qCDebug(logNet).noquote() << "probe chose"
          << (chosen.isEmpty() ? QStringLiteral("none") : chosen.toString());
 
-      /* leave nothing to call back once the probe is done */
+      /* leave nothing to call back once the probe is done; the manager
+         takes the replies with it as it goes.  Aborting one which has
+         failed, but not yet said so, has Qt report its error twice */
       for (QNetworkReply *reply
-           : state->mgr->findChildren<QNetworkReply *>()) {
+           : state->mgr->findChildren<QNetworkReply *>())
          reply->disconnect();
-         reply->abort();
-      }
       state->mgr->deleteLater();
       state->done(chosen, chosen.isEmpty()
                               ? probeError(state->candidates, state->why)
