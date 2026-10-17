@@ -1018,28 +1018,50 @@ QStringList Desktopwidget::findFolders(const QString& text, QString& dirPath,
 
 void Desktopwidget::startSearch(const QString& path, const QString& match)
 {
+   nameSearchLater(path, match, [](bool) {});
+}
+
+void Desktopwidget::nameSearchLater(const QString& path, const QString& match,
+                                    std::function<void(bool ok)> done)
+{
    // Create a 'virtual' maxdesk which holds files from a number different dirs
    _contents_proxy->setFilterFixedString ("");
 
    QModelIndex root = getRootIndex();
    QString root_path = _model->data(root, Dirmodel::FilePathRole).toString ();
+   QPointer<Desktopwidget> self(this);
+
+   auto show = [self, done](err_info *err, const QModelIndex &sind, int,
+                            bool) {
+      if (!self)
+         return;
+      if (self->_main->complain(err)) {
+         done(false);
+         return;
+      }
+
+      QModelIndex ind = sind;
+      self->_modelconv->indexToProxy(ind.model (), ind);
+      self->_view->setRootIndex(ind);
+
+      // Set the focus so that Escape works
+      self->_view->setFocus();
+
+      self->_view->scrollToTop();
+      done(true);
+   };
+
+   // a server searches its own stacks' names, without waiting for it
+   if (_contents->findNamesLater(path, root_path, match, _view->getMeasure(),
+                                 show))
+      return;
 
    Operation op("Scanning folders", 0, this);
-   QStringList matches;
-   matches = _model->findFiles(match, path, root, &op);
+   QStringList matches = _model->findFiles(match, path, root, &op);
 
-   QModelIndex sind = _contents->finishFileSearch(path, root_path, matches,
-                                                  _view->getMeasure());
-
-   //delete op;
-   QModelIndex ind = sind;
-   _modelconv->indexToProxy(ind.model (), ind);
-   _view->setRootIndex(ind);
-
-   // Set the focus so that Escape works
-   _view->setFocus();
-
-   _view->scrollToTop();
+   show(NULL, _contents->finishFileSearch(path, root_path, matches,
+                                          _view->getMeasure()),
+        matches.size(), true);
 }
 
 void Desktopwidget::searchInFolders()
@@ -1093,8 +1115,13 @@ void Desktopwidget::searchInFolders()
       });
       return;
    }
-   startSearch(path, _search_text);
-   specialView("Showing the results of folder search");
+   // a server is searched without waiting, so show the stacks once found
+   nameSearchLater(path, _search_text, [this](bool ok) {
+      if (ok)
+         specialView("Showing the results of folder search");
+      else
+         _toolbar->setFilterEnabled(true);
+   });
 }
 
 int Desktopwidget::startTextSearch(const QString& path, const QString& text,

@@ -146,6 +146,7 @@ private slots:
 
    //! searching for text on the stacks' pages
    void testSearch ();
+   void testSearchName ();
 
    //! scanning a stack into a folder on the server
    void testScan ();

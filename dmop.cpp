@@ -1231,16 +1231,15 @@ err_info *Desktopmodel::findText (const QString &path,
    }
 
 
-void Desktopmodel::findTextLater (const QString &path,
-      const QString &rootPath, const QString &text, Measure *meas,
-      Operation *op, Found done)
+/** Set @p root to @p rootPath without a trailing slash, and return the
+    folder @p path relative to it, with no slash at either end */
+static QString folderInRepo (const QString &path, const QString &rootPath,
+                             QString &root)
    {
-   QString root = rootPath;
-
+   root = rootPath;
    while (root.endsWith ('/'))
       root.chop (1);
 
-   // the folder searched, relative to the repository
    QString dirRel = path;
 
    if (dirRel.startsWith (root))
@@ -1249,6 +1248,59 @@ void Desktopmodel::findTextLater (const QString &path,
       dirRel.remove (0, 1);
    while (dirRel.endsWith ('/'))
       dirRel.chop (1);
+   return dirRel;
+   }
+
+
+bool Desktopmodel::findNamesLater (const QString &path,
+      const QString &rootPath, const QString &text, Measure *meas,
+      Found done)
+   {
+   QString root;
+   QString dirRel = folderInRepo (path, rootPath, root);
+   RemoteBackend *remote = _dirmodel ? dynamic_cast<RemoteBackend *> (
+         _dirmodel->backendForRoot (root)) : nullptr;
+
+   if (!remote)
+      return false;
+
+   QString prefix = dirRel.isEmpty () ? QString () : dirRel + "/";
+
+   remote->searchNames (QFileInfo (root).fileName (), text, dirRel, this,
+                        [this, path, rootPath, prefix, meas, done] (
+                           const QString &error, const QStringList &paths) {
+      if (_closing)
+         return;
+      if (!error.isEmpty ())
+         {
+         done (err_make (ERRFN, ERR_remote_op_failed2, "search",
+                         qPrintable (error)), QModelIndex (), 0, true);
+         return;
+         }
+
+      // the stacks found, relative to the folder searched
+      QStringList matches;
+
+      for (const QString &found : paths)
+         if (found.startsWith (prefix))
+            matches << found.mid (prefix.length ());
+
+      QModelIndex desk = finishFileSearch (path, rootPath, matches, meas);
+
+      done (NULL, desk, matches.size (), true);
+   });
+   return true;
+   }
+
+
+void Desktopmodel::findTextLater (const QString &path,
+      const QString &rootPath, const QString &text, Measure *meas,
+      Operation *op, Found done)
+   {
+   QString root;
+
+   // the folder searched, relative to the repository
+   QString dirRel = folderInRepo (path, rootPath, root);
 
    RemoteBackend *remote = _dirmodel ? dynamic_cast<RemoteBackend *> (
          _dirmodel->backendForRoot (root)) : nullptr;

@@ -1041,6 +1041,40 @@ void RemoteBackend::searchText(const QString &repo, const QString &text,
 }
 
 
+void RemoteBackend::searchNames(const QString &repo, const QString &text,
+                                const QString &dir, QObject *context,
+                                NamesDone done)
+{
+   QUrlQuery q;
+
+   q.addQueryItem("repo", repo);
+   q.addQueryItem("q", text);
+   if (!dir.isEmpty())
+      q.addQueryItem("path", dir);
+   q.addQueryItem("recursive", "true");
+
+   whenFinished(startGet("/search?" + q.query(QUrl::FullyEncoded), QString(),
+                         kWorkTimeoutMs),
+                context, [done](const Result &result) {
+      QJsonObject obj = result.json();
+      QStringList paths;
+
+      if (!result.ok || !obj.value("success").toBool()) {
+         QString why = obj.value("error").toString();
+
+         if (why.isEmpty())
+            why = result.error.isEmpty()
+                  ? QStringLiteral("the server cannot search") : result.error;
+         done(why, paths);
+         return;
+      }
+      for (const QJsonValue &v : obj.value("results").toArray())
+         paths << v.toObject().value("path").toString();
+      done(QString(), paths);
+   });
+}
+
+
 void RemoteBackend::subscribeEvents(const QString &repo)
 {
    if (_eventRepos.contains(repo))
