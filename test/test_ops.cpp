@@ -530,6 +530,34 @@ void TestOps::testRenamePage()
             "Page 1");
 }
 
+void TestOps::testFindHidesTrash()
+{
+   Mainwindow me;
+   auto path = setupRepo();
+   QDir dir(path);
+
+   /* the trash, and what is in it; a name which starts with a dot is
+      hidden only on Unix, so this matters on Windows */
+   QVERIFY(dir.mkpath(".maxview-trash/old"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/.maxview-trash/gone.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Dirmodel *dirmodel = desktop->getDirmodel();
+   QModelIndex root = dirmodel->index(path);
+   QVERIFY(root.isValid());
+
+   QStringList missing;
+   QStringList folders = dirmodel->findFolders("", path, root, missing,
+                                               nullptr);
+
+   for (const QString &folder : folders)
+      QVERIFY2(!folder.contains(".maxview-trash"), qPrintable(folder));
+   QVERIFY(dirmodel->findFiles("gone", path, root, nullptr).isEmpty());
+}
+
 void TestOps::testFindFoldersOtherYear()
 {
    Mainwindow me;
