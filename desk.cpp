@@ -1210,7 +1210,8 @@ err_info *Desk::deleteFromTrash (QString &trashname)
 
 err_info *Desk::deleteFromDir (QString &src, QString &trashname)
    {
-   QString path = src + trashname;
+   // the folder may or may not end in a slash
+   QString path = QDir (src).filePath (trashname);
    QFile file (path);
 
    if (!file.remove ())
