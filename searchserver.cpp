@@ -856,6 +856,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 return handleRead(path, params, authedUser);
             if (path.endsWith("/upload"))
                 return handleUpload(path, params, authedUser);
+            if (path.endsWith("/folders") && !path.contains("/stacks/"))
+                return handleMakeFolder(path, params, authedUser);
         }
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("POST not supported on this path"));
@@ -882,6 +884,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         features.append("pages");
         features.append("convert");
         features.append("folders");
+        features.append("makeFolders");
         if (!_indexes.isEmpty())
             features.append("textSearch");
         if (!_readers.isEmpty())
@@ -2472,6 +2475,68 @@ static void addFolders(const QString &dir, const QString &rel,
         folders.append(path);
         addFolders(d.filePath(name), path, folders);
     }
+}
+
+QByteArray SearchServer::handleMakeFolder(const QString &path,
+                                          const QHash<QString, QString> &params,
+                                          const QString &authedUser)
+{
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/folders").size());
+    QString repoName = QUrl::fromPercentEncoding(rest.toUtf8());
+
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    QString root = _backend->rootPathForName(repoName);
+    if (root.isEmpty())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Repository not found: " + repoName));
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {path}"));
+
+    /* each folder in the path must be one which the folders listed would
+       show: nothing hidden, such as the trash, nor starting with a space */
+    QString folder = obj.value("path").toString();
+    QStringList parts = folder.split('/', Qt::SkipEmptyParts);
+    bool ok = !parts.isEmpty() && !folder.startsWith('/');
+
+    for (const QString &part : parts)
+        if (part == ".." || part.startsWith('.') || part.startsWith(' '))
+            ok = false;
+    if (!ok)
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid folder: " + folder));
+
+    QString full = root + "/" + parts.join('/');
+    QFileInfo existing(full);
+
+    if (existing.exists() && !existing.isDir())
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "A file is in the way: " + folder));
+    if (!QDir().mkpath(full))
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Cannot make folder: " + folder));
+    utilSetDirGroup(full);
+
+    QJsonObject out;
+    out["success"] = true;
+    out["path"] = parts.join('/');
+    return buildHttpResponse(200, "OK", "application/json",
+                             QJsonDocument(out).toJson(QJsonDocument::Compact));
 }
 
 QByteArray SearchServer::handleFolders(const QString &path,

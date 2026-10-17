@@ -1141,6 +1141,37 @@ void RemoteBackend::listFolders(const QString &repo, QObject *context,
 }
 
 
+void RemoteBackend::makeFolder(const QString &repo, const QString &path,
+                               QObject *context,
+                               std::function<void(const QString &error)> done)
+{
+   QJsonObject body;
+
+   body["path"] = path;
+   whenFinished(startPost("/v1/repos/"
+                          + QString::fromUtf8(QUrl::toPercentEncoding(repo))
+                          + "/folders",
+                          QJsonDocument(body).toJson(QJsonDocument::Compact),
+                          QStringLiteral("application/json"), kWorkTimeoutMs),
+                context, [done](const Result &result) {
+      QJsonObject obj = result.json();
+
+      if (result.ok && obj.value("success").toBool()) {
+         done(QString());
+         return;
+      }
+
+      QString why = obj.value("error").toString();
+
+      if (why.isEmpty())
+         why = result.error.isEmpty()
+               ? QStringLiteral("the server cannot make folders")
+               : result.error;
+      done(why);
+   });
+}
+
+
 void RemoteBackend::subscribeEvents(const QString &repo)
 {
    if (_eventRepos.contains(repo))

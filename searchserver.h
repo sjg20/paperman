@@ -751,6 +751,12 @@ private:
      *  its path within it, for a client to find one by name */
     QByteArray handleFolders(const QString &path, const QString &authedUser);
 
+    /** POST /v1/repos/{repo}/folders: make a folder, with any above it
+     *  which are missing, from JSON {path} */
+    QByteArray handleMakeFolder(const QString &path,
+                                const QHash<QString, QString> &params,
+                                const QString &authedUser);
+
     /** GET /v1/repos/{repo}/search: the stacks with some text on a page */
     QByteArray handleTextSearch(const QString &path,
                                 const QHash<QString, QString> &params,

@@ -80,6 +80,9 @@ private slots:
    //! only to a user who may see the repository
    void testListFoldersNeedsAccess();
 
+   //! the server makes a folder, but nothing hidden nor outside the repo
+   void testMakeFolder();
+
    //! the desktop searches the text of a remote repository's stacks
    void testRemoteTextSearch();
 
