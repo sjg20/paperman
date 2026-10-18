@@ -838,7 +838,6 @@ err_info *Desktopmodel::beginScan (QModelIndex parent, const QString &stack_name
    if (!desk)
       err = err_make (ERRFN, ERR_do_not_have_a_valid_directory_to_scan_into);
 
-   qDebug () << "scan parent" << parent << desk;
    if (!err)
       // create the new stack
       err = desk->addPaperstack (stack_name, _scan_file, row);
@@ -860,7 +859,6 @@ err_info *Desktopmodel::beginScan (QModelIndex parent, const QString &stack_name
       _scan_file->setRemoteChecked (true);
 
    // add to the model
-   qDebug () << "scan_file" << _scan_file;
    newItem (row, parent, list);
 
    emit beginningScan (list [0]);
