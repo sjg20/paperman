@@ -100,14 +100,16 @@ static int awaitPageCount(RemoteBackend &client, const QString &repo,
 {
     int pages = 0;
 
-    QTest::qWaitFor([&] {
-        DirectoryListing listing = client.browseDirectory(repo, QString());
+    if (!QTest::qWaitFor([&] {
+           DirectoryListing listing = client.browseDirectory(repo,
+                                                             QString());
 
-        for (const DirectoryEntry &e : listing.entries)
-            if (e.name == name)
-                pages = e.pages;
-        return pages > 0;
-    }, 5000);
+           for (const DirectoryEntry &e : listing.entries)
+               if (e.name == name)
+                   pages = e.pages;
+           return pages > 0;
+        }, 5000))
+        return 0;
     return pages;
 }
 
@@ -3608,9 +3610,9 @@ void TestSearchServer::testMakeFolder()
     QCOMPARE(make("bills/2026"), QString());
 
     // nothing hidden, outside the repository, or in the way of a file
-    for (const QString &bad : {".hidden", "bills/.trash", "../outside",
-                               "/absolute", " spaced", "",
-                               "testfile.max/sub", "testfile.max"})
+    for (const char *bad : {".hidden", "bills/.trash", "../outside",
+                            "/absolute", " spaced", "",
+                            "testfile.max/sub", "testfile.max"})
         QVERIFY2(!make(bad).isEmpty(), qPrintable(bad));
     QVERIFY(!QDir(tmpDir.path() + "/.hidden").exists());
     QVERIFY(!QDir(tmpDir.path() + "/../outside").exists());
