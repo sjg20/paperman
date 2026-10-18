@@ -221,7 +221,7 @@ void Desk::addFiles(const QString &dirPath, Measure *meas)
          return;
       }
 
-      if (_isRemote)
+      if (_isRemote && !serverLayout())
          fetchRemoteDeskFile();
       addListing(listing, dirPath, meas);
       updateRowCount();
@@ -482,6 +482,111 @@ static void uploadInBackground (QPointer<RemoteBackend> remote,
    }
 
 
+bool Desk::serverLayout (void) const
+   {
+   return _isRemote && _remote && _remote->hasLayout ();
+   }
+
+
+/* Where the server has the stacks of a desk, and the moves of them on their
+   way to it: at most one request is on its way, and moves made meanwhile
+   follow it once it has landed */
+struct DeskMoves
+   {
+   QHash<QString, QPoint> server;      //!< where the server has each stack
+   bool busy = false;                  //!< a request is on its way
+   RemoteBackend::Positions pending;   //!< moves made since it was sent
+   };
+
+
+void Desk::setServerPos (const QString &name, const QPoint &pos)
+   {
+   if (!_moves)
+      _moves = std::make_shared<DeskMoves> ();
+   _moves->server[name] = pos;
+   }
+
+
+/* Send @stacks, where they are to go in the layout of the folder @dir, in
+   the background, then any moved meanwhile.  This touches nothing of the
+   desk, which may be gone by the time the server answers */
+static void movesInBackground (QPointer<RemoteBackend> remote,
+                               const QString &repo, const QString &dir,
+                               const RemoteBackend::Positions &stacks,
+                               std::shared_ptr<DeskMoves> moves)
+   {
+   if (!remote)
+      {
+      moves->busy = false;
+      return;
+      }
+   moves->busy = true;
+   remote->moveInLayout (repo, dir, stacks, remote,
+                         [remote, repo, dir, stacks, moves] (
+                            const QString &error, const QStringList &placed) {
+      if (!error.isEmpty ())
+         qInfo () << "Desk: could not move stacks on the server:" << error;
+      for (const QString &name : placed)
+         moves->server[name] = stacks.value (name);
+      moves->busy = false;
+
+      RemoteBackend::Positions next;
+
+      next.swap (moves->pending);
+      for (auto it = next.begin (); it != next.end ();)
+         if (moves->server.value (it.key (), QPoint (-1, -1)) == it.value ())
+            it = next.erase (it);
+         else
+            ++it;
+      if (!next.isEmpty ())
+         movesInBackground (remote, repo, dir, next, moves);
+   });
+   }
+
+
+bool Desk::sendMoves (bool wait)
+   {
+   if (!serverLayout ())
+      return false;
+   if (!_moves)
+      _moves = std::make_shared<DeskMoves> ();
+
+   RemoteBackend::Positions moved;
+
+   for (File *f : _files)
+      {
+      auto it = _moves->server.constFind (f->filename ());
+
+      if (it == _moves->server.constEnd () || *it != f->pos ())
+         moved[f->filename ()] = f->pos ();
+      }
+   if (moved.isEmpty ())
+      return true;
+
+   if (wait)
+      {
+      QStringList placed;
+
+      if (!_remote->moveInLayout (_repoName, remoteRelDir (), moved, &placed,
+                                  /*quick=*/true))
+         {
+         qInfo () << "Desk: could not move stacks on the server:"
+                  << _remote->lastError ();
+         return false;
+         }
+      for (const QString &name : placed)
+         _moves->server[name] = moved.value (name);
+      return true;
+      }
+
+   if (_moves->busy)
+      _moves->pending = moved;  // sent once the one on its way lands
+   else
+      movesInBackground (_remote, _repoName, remoteRelDir (), moved, _moves);
+   return true;
+   }
+
+
 bool Desk::uploadDeskFile (bool wait)
    {
    if (!_remote)
@@ -689,10 +794,30 @@ bool Desk::writeDesk (bool wait)
       f->encodeFile (stream);
    stream.flush ();
 
+   /* a server which keeps the layout is told only of the stacks which
+      have moved; the file in the cache holds what this desktop notes,
+      such as the page each stack shows, which is its own */
+   file.setFileName (deskDir + DESK_FNAME);
+   if (serverLayout ())
+      {
+      bool same = false;
+
+      if (file.open (QIODevice::ReadOnly))
+         {
+         same = file.readAll () == content;
+         file.close ();
+         }
+      if (!same && (!file.open (QIODevice::WriteOnly)
+                    || file.write (content) != content.size ()))
+         return false;
+      file.close ();
+      _dirty = false;
+      return sendMoves (wait);
+      }
+
    /* the server has a remote desk's file already if it is the copy in the
       cache, which it is once it has a validator, so leave it be: sending
       it again costs an upload, and tells every other client it changed */
-   file.setFileName (deskDir + DESK_FNAME);
    if (_isRemote && QFile::exists (file.fileName () + ".etag")
        && file.open (QIODevice::ReadOnly))
       {
@@ -794,6 +919,26 @@ void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
          if (!e.isDir)
             names.insert (e.name);
       readDesk (true, &names);
+      }
+
+   /* a server which keeps the layout says where each stack is; the desk
+      file gives only what this desktop noted of each */
+   if (serverLayout ())
+      {
+      for (const DirectoryEntry &e : listing.entries)
+         {
+         if (e.isDir || !e.placed)
+            continue;
+         addFile (e.name, dirPath, meas);
+
+         // a page of a stack held in several files does not move it
+         File *f = findFile (e.name);
+
+         if (f && f->filename () == e.name)
+            f->setPos (e.pos);
+         setServerPos (e.name, e.pos);
+         }
+      advance ();
       }
 
    for (const DirectoryEntry &e : listing.entries)

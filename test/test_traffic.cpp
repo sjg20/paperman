@@ -278,7 +278,7 @@ void TestTraffic::testOpenFolder ()
    connectServer ();
    traffic (QString ());
    openFolder ();
-   withinBudget (traffic ("open a folder of six stacks"), 8, 6, 18367);
+   withinBudget (traffic ("open a folder of six stacks"), 7, 6, 18244);
    }
 
 
@@ -294,7 +294,7 @@ void TestTraffic::testReopenFolder ()
    _desktop->selectDir (top);
    QTest::qWait (300);
    openFolder ();
-   withinBudget (traffic ("open the folder again"), 5, 1, 926);
+   withinBudget (traffic ("open the folder again"), 2, 1, 575);
    }
 
 

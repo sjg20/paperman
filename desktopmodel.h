@@ -1190,6 +1190,11 @@ private slots:
    void onRemoteStackEvent(const QString &repo, const QString &op,
                            const QString &path, const QString &name);
 
+   /** Another client moved stacks on the desk of the folder @p dir in a
+    *  remote repository: move them on any desk showing it */
+   void onRemoteLayoutEvent(const QString &repo, const QString &dir,
+                            const QHash<QString, QPoint> &stacks);
+
 private:
    /** Issue async thumbnail fetches for every file in @p desk via
     *  the provided RemoteBackend.  No-op if @p backend is null.

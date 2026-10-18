@@ -229,6 +229,26 @@ public:
        \returns true if the upload worked, or has started */
    bool uploadDeskFile (bool wait);
 
+   /** True if this is a remote desk whose server keeps the folder's
+    *  layout: it places stacks, and is told of the ones moved here, while
+    *  the desk file in the cache holds only what this desktop notes, such
+    *  as the page each stack shows */
+   bool serverLayout (void) const;
+
+   /** Note that the server has the stack @p name at @p pos, so that it
+    *  is not told again */
+   void setServerPos (const QString &name, const QPoint &pos);
+
+   /** Tell the server where each stack is which it has elsewhere, or
+    *  has not said it has, such as one just uploaded.  Moves go one at a
+    *  time, so that a later one cannot be overtaken by an earlier one:
+    *  any made while another is on its way follow it
+
+       \param wait   wait for it to finish rather than carry on
+       
+eturns true if the moves were made, or have started */
+   bool sendMoves (bool wait);
+
    /** given a filename, try to make it unique by adding numbers, etc.
 
       \param fname    the original filename (excluding extension)
@@ -693,6 +713,10 @@ private:
    /** The state of the uploads of the desk file, shared with each
     *  upload on its way so that it outlives the desk if need be */
    std::shared_ptr<struct DeskUploads> _uploads;
+
+   /** Where the server has each stack, for a desk with serverLayout(),
+    *  and the moves on their way to it, shared as with _uploads */
+   std::shared_ptr<struct DeskMoves> _moves;
    QPoint _pos;        //!< next position for a file to appear
    int _rightMargin;   //!< right margin for items
    int _debug_level;     //!< the debug level to use for max debugging

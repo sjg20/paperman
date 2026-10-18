@@ -192,6 +192,7 @@ private slots:
 
    //! Stack positions are shared through the server's desk file
    void testDesktopRemoteSharedPositions();
+   void testDesktopsShareLayout();
 
    //! OCR of a remote stack runs on the server and stores the text
    void testRemoteOcr();
