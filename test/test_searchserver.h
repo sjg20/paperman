@@ -80,6 +80,9 @@ private slots:
    //! only to a user who may see the repository
    void testListFoldersNeedsAccess();
 
+   //! the folders are kept, and listed again once old
+   void testFolderListKept();
+
    //! the server makes a folder, but nothing hidden nor outside the repo
    void testMakeFolder();
 

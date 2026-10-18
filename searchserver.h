@@ -42,6 +42,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <memory>
 
+#include <QPointer>
+#include <QJsonArray>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -174,6 +177,10 @@ public:
     /** Close a client's connection once it has been idle for @p ms,
      *  between requests or before the first; 30 seconds by default */
     void setIdleTimeout(int ms) { _idleMs = ms; }
+
+    /** List a repository's folders again, in the background, once the
+     *  list is older than @p ms; a minute by default */
+    void setFolderListAge(int ms) { _folderListMs = ms; }
 
 protected:
     /**
@@ -731,6 +738,21 @@ private:
 
     bool _textIndex = false;         //!< see setTextIndex()
     int _idleMs = 30000;             //!< see setIdleTimeout()
+    int _folderListMs = 60000;       //!< see setFolderListAge()
+
+    //! the folders of a repository, for GET /v1/repos/{repo}/folders
+    struct FolderList {
+        QJsonArray folders;
+        QElapsedTimer age;           //!< since listed; invalid until then
+        bool listing = false;        //!< a listing is under way
+        QList<QPointer<QTcpSocket>> waiters;  //!< clients waiting for one
+    };
+    QHash<QString, FolderList> _folderLists;  //!< by repository name
+
+    /** List the folders of @p repoName, at @p root, on a worker thread,
+     *  since walking them can take a while; then answer any waiting */
+    void listFoldersLater(const QString &repoName, const QString &root);
+
     QHash<QString, RepoIndex *> _indexes;   //!< by repository name
 
     /** Start a reader for each repository, if asked to */
@@ -749,7 +771,8 @@ private:
 
     /** GET /v1/repos/{repo}/folders: every folder in the repository, by
      *  its path within it, for a client to find one by name */
-    QByteArray handleFolders(const QString &path, const QString &authedUser);
+    QByteArray handleFolders(const QString &path, const QString &authedUser,
+                             QTcpSocket *client);
 
     /** POST /v1/repos/{repo}/folders: make a folder, with any above it
      *  which are missing, from JSON {path} */

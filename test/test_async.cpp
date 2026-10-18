@@ -229,6 +229,23 @@ void TestAsync::connectServer ()
    }
 
 
+void TestAsync::makeFolder (const QString &path)
+   {
+   auto *remote = dynamic_cast<RemoteBackend *> (
+                     _desktop->_model->backendForRoot (repoPath ()));
+   QVERIFY (remote);
+
+   QString error = "none yet";
+
+   remote->makeFolder (QFileInfo (_repo->path ()).fileName (), path, this,
+                       [&error] (const QString &err) {
+      error = err;
+   });
+   QTRY_VERIFY (error != "none yet");
+   QCOMPARE (error, QString ());
+   }
+
+
 void TestAsync::openFolder ()
    {
    QString path = repoPath () + "/papers";
@@ -671,8 +688,8 @@ void TestAsync::testDirIndexLater ()
 
 void TestAsync::testChooseFolderPath ()
    {
-   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
    connectServer ();
+   makeFolder ("archive/2026");
    QTRY_VERIFY (_desktop->getDirIndex (repoPath ()).isValid ());
    _desktop->selectDir (_desktop->getDirIndex (repoPath ()));
 
@@ -1301,8 +1318,8 @@ static bool moveByKey (QWidget *me, const QString &folder, bool copy)
 
 void TestAsync::testMoveKey ()
    {
-   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
    connectServer ();
+   makeFolder ("archive/2026");
    openFolder ();
 
    // a stack on the server goes to a folder there found by its name
@@ -1321,8 +1338,8 @@ void TestAsync::testMoveKey ()
 
 void TestAsync::testCopyKey ()
    {
-   QVERIFY (QDir (_repo->path ()).mkpath ("archive/2026"));
    connectServer ();
+   makeFolder ("archive/2026");
    openFolder ();
 
    // a copy goes there, and the stack stays
@@ -1342,8 +1359,8 @@ void TestAsync::testMoveToNewFolder ()
    QString lastYear = QString ("bills/%1").arg (year - 1);
    QString thisYear = QString ("bills/%1").arg (year);
 
-   QVERIFY (QDir (_repo->path ()).mkpath (lastYear));
    connectServer ();
+   makeFolder (lastYear);
    openFolder ();
    _desktop->getView ()->setSelectionRange (0, 1);
    QTRY_VERIFY (_desktop->_act_move->isEnabled ());

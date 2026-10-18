@@ -3549,6 +3549,55 @@ void TestSearchServer::testMakeFolder()
     QVERIFY(!QDir(tmpDir.path() + "/../outside").exists());
 }
 
+void TestSearchServer::testFolderListKept()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    QVERIFY(dir.mkpath("bills"));
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    SearchServer server(tmpDir.path(), PORT);
+    server.setFolderListAge(300);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QVERIFY(!client.serverId().isEmpty());
+
+    auto list = [&]() {
+        QStringList got;
+        QString error = "none yet";
+
+        client.listFolders(repo, &client,
+                           [&](const QString &err, const QStringList &f) {
+            error = err;
+            got = f;
+        });
+        if (!QTest::qWaitFor([&] { return error != "none yet"; }, 5000))
+            return QStringList({"no reply"});
+        got.sort();
+        return got;
+    };
+
+    QCOMPARE(list(), QStringList({"bills"}));
+
+    // a folder made on the disk is not listed until the list is old...
+    QVERIFY(dir.mkpath("tax"));
+    QCOMPARE(list(), QStringList({"bills"}));
+
+    // ...when the next to ask has the old list, and the one after the new
+    QTest::qWait(400);
+    QTRY_COMPARE(list(), QStringList({"bills", "tax"}));
+
+    // one made through the server is listed at once
+    QString error = "none yet";
+    client.makeFolder(repo, "notes/2026", &client,
+                      [&](const QString &err) { error = err; });
+    QTRY_VERIFY(error != "none yet");
+    QCOMPARE(error, QString());
+    QCOMPARE(list(), QStringList({"bills", "notes", "notes/2026", "tax"}));
+}
+
 void TestSearchServer::testListFoldersNeedsAccess()
 {
    QStandardPaths::setTestModeEnabled(true);

@@ -179,6 +179,11 @@ private:
    //! attach the server, waiting until it is there
    void connectServer ();
 
+   /** Make the folder @p path, within the repository, through the server,
+       as a user would; one made on the disk instead is not listed until
+       the server lists its folders again */
+   void makeFolder (const QString &path);
+
    //! open the folder holding the test stack, waiting until it is shown
    void openFolder ();
 
