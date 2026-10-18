@@ -507,9 +507,11 @@ bool Desk::uploadDeskFile (bool wait)
    QByteArray bytes = in.readAll ();
    in.close ();
 
+   /* this is waited for, as the window closes, so give up on a server
+      which does not answer as soon as a round-trip would */
    QString etag;
    if (!_remote->uploadFile (_repoName, path, bytes, nullptr, &etag,
-                             /*overwrite=*/true))
+                             /*overwrite=*/true, /*quick=*/true))
       {
       qInfo () << "Desk: could not upload desk file:"
                << _remote->lastError ();

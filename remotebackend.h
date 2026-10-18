@@ -455,10 +455,14 @@ public:
      *  overwrites unless @p overwrite is set (used for the shared
      *  desk file): on a name clash @p finalName differs from the
      *  requested one.  @p etag returns the stored file's validator,
-     *  ready for the cache sidecar. */
+     *  ready for the cache sidecar.  It waits as long as an operation
+     *  does, unless @p quick, when it gives up as soon as a round-trip
+     *  would: as for the layout saved while the window closes, which
+     *  must not hang on a server which does not answer. */
     bool uploadFile(const QString &repo, const QString &path,
                     const QByteArray &bytes, QString *finalName,
-                    QString *etag, bool overwrite = false);
+                    QString *etag, bool overwrite = false,
+                    bool quick = false);
 
     /** Upload a file without waiting, as uploadFile() does.  Once done,
      *  @p done is called unless @p context has gone; the result's JSON
