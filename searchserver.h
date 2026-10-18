@@ -811,13 +811,31 @@ private:
     };
     QHash<QString, PageCount> _pageCounts;  //!< Keyed by full path
 
+    QSet<QString> _toCount;          //!< stacks to count, by full path
+    bool _counting = false;          //!< a batch is being counted
+
     /**
-     * Find how many pages the stack at @p fullPath has, reading it only
-     * if it has changed since it was last asked about
+     * Find how many pages the stack at @p fullPath has, as known from
+     * when it was last read, if it has not changed since; otherwise have
+     * it counted in the background, for the next to ask
      *
-     * @return the page count, or 0 if the file cannot be read as a stack
+     * @return the page count, 0 if the file is not a stack, or -1 if it
+     *         is not known yet
      */
-    int stackPageCount(const QString &fullPath);
+    int knownPageCount(const QString &fullPath);
+
+    //! count the pages of the next stacks waiting, on a worker thread
+    void countPagesLater();
+
+    bool _countsDirty = false;       //!< page counts not yet kept
+    QTimer *_saveCountsTimer = nullptr;  //!< keeps them a while after
+
+    /** Read the page counts kept at the top of each repository, so that
+     *  after a restart only stacks new or changed since are counted */
+    void loadPageCounts();
+
+    //! keep the page counts, if they have changed, for loadPageCounts()
+    void savePageCounts();
 
     /**
      * Handle GET /v1/repos/{repo}/events

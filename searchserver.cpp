@@ -213,6 +213,7 @@ bool SearchServer::start()
 
     qDebug() << "SearchServer: Listening on port" << _port;
     qDebug() << "SearchServer: Repository root:" << _rootPath;
+    loadPageCounts();
     startIndexes();
     startReaders();
 
@@ -299,6 +300,8 @@ void SearchServer::startReaders()
 
 void SearchServer::stop()
 {
+    savePageCounts();
+
     /* the pages being read finish, but nothing more is written: a stack
        is either as it was or has all the words read from it */
     qDeleteAll(_readers);
@@ -1022,7 +1025,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 /* so a client can show a stack's page controls before
                    fetching anything of it */
                 int pages = repoPath.isEmpty() ? 0
-                    : stackPageCount(repoPath + "/" + e.path);
+                    : knownPageCount(repoPath + "/" + e.path);
                 if (pages > 0)
                     f["pages"] = pages;
                 files.append(f);
@@ -1723,11 +1726,31 @@ QString SearchServer::extractPageFile(const QString &stackPath, int page,
 }
 
 
-int SearchServer::stackPageCount(const QString &fullPath)
+/* How many pages the stack at @fullPath has, reading it; this touches
+   nothing but the file, so can be done on another thread */
+static int readPageCount(const QString &fullPath)
 {
     QFileInfo fi(fullPath);
     File::e_type type = File::typeFromName(fi.fileName());
+    int pages = 0;
+
     if (type == File::Type_other || !fi.isFile())
+        return 0;
+
+    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
+                                  nullptr, type);
+    if (file && !file->load())
+        pages = file->pagecount();
+    delete file;
+    return pages;
+}
+
+int SearchServer::knownPageCount(const QString &fullPath)
+{
+    QFileInfo fi(fullPath);
+
+    if (File::typeFromName(fi.fileName()) == File::Type_other
+        || !fi.isFile())
         return 0;
 
     auto it = _pageCounts.constFind(fullPath);
@@ -1735,15 +1758,116 @@ int SearchServer::stackPageCount(const QString &fullPath)
         && it->modified == fi.lastModified())
         return it->pages;
 
-    int pages = 0;
-    File *file = File::createFile(fi.absolutePath() + "/", fi.fileName(),
-                                  nullptr, type);
-    if (file && !file->load())
-        pages = file->pagecount();
-    delete file;
+    /* reading a stack, as a PDF, can take a while, and a large folder
+       has many: count its pages in the background for the next to ask */
+    if (!_toCount.contains(fullPath)) {
+        _toCount.insert(fullPath);
+        countPagesLater();
+    }
+    return -1;
+}
 
-    _pageCounts.insert(fullPath, {fi.size(), fi.lastModified(), pages});
-    return pages;
+void SearchServer::countPagesLater()
+{
+    if (_counting || _toCount.isEmpty())
+        return;
+    _counting = true;
+
+    // a batch at a time, so that the counts come as they are made
+    QStringList batch;
+    for (auto it = _toCount.cbegin(); it != _toCount.cend()
+         && batch.size() < 20; ++it)
+        batch << *it;
+
+    struct Counted {
+        QString path;
+        qint64 size;
+        QDateTime modified;
+        int pages;
+    };
+    auto *watcher = new QFutureWatcher<QList<Counted>>(this);
+
+    connect(watcher, &QFutureWatcherBase::finished, this, [this, watcher]() {
+        for (const Counted &c : watcher->result()) {
+            _pageCounts.insert(c.path, {c.size, c.modified, c.pages});
+            _toCount.remove(c.path);
+        }
+        watcher->deleteLater();
+        _counting = false;
+
+        // kept for when the server starts again, a while after the last
+        _countsDirty = true;
+        if (!_saveCountsTimer) {
+            _saveCountsTimer = new QTimer(this);
+            _saveCountsTimer->setSingleShot(true);
+            connect(_saveCountsTimer, &QTimer::timeout, this,
+                    &SearchServer::savePageCounts);
+        }
+        _saveCountsTimer->start(10000);
+        countPagesLater();
+    });
+    watcher->setFuture(QtConcurrent::run([batch]() {
+        QList<Counted> counted;
+
+        for (const QString &path : batch) {
+            QFileInfo fi(path);
+
+            counted.append({path, fi.size(), fi.lastModified(),
+                            readPageCount(path)});
+        }
+        return counted;
+    }));
+}
+
+
+//! the file at the top of a repository in which its page counts are kept
+static const char kPageCountsFile[] = ".paperman-server-pages";
+
+void SearchServer::loadPageCounts()
+{
+    /* a line per stack: its size, its modification time in ms, its page
+       count and its path in the repository, tab-separated; a stack which
+       has changed since does not match, so is counted again */
+    for (const QString &root : _rootPaths) {
+        QFile file(root + "/" + kPageCountsFile);
+
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        while (!file.atEnd()) {
+            QList<QByteArray> parts = file.readLine().trimmed().split('\t');
+
+            if (parts.size() != 4)
+                continue;
+            _pageCounts.insert(root + "/" + QString::fromUtf8(parts[3]),
+                {parts[0].toLongLong(),
+                 QDateTime::fromMSecsSinceEpoch(parts[1].toLongLong()),
+                 parts[2].toInt()});
+        }
+    }
+}
+
+void SearchServer::savePageCounts()
+{
+    if (!_countsDirty)
+        return;
+    _countsDirty = false;
+    for (const QString &root : _rootPaths) {
+        QSaveFile file(root + "/" + kPageCountsFile);
+        QString prefix = root + "/";
+
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+            continue;
+        for (auto it = _pageCounts.cbegin(); it != _pageCounts.cend(); ++it)
+            if (it.key().startsWith(prefix))
+                file.write(QString("%1\t%2\t%3\t%4\n")
+                           .arg(it->size)
+                           .arg(it->modified.toMSecsSinceEpoch())
+                           .arg(it->pages)
+                           .arg(it.key().mid(prefix.size())).toUtf8());
+        if (!file.commit())
+            qWarning() << "SearchServer: cannot keep the page counts in"
+                       << file.fileName();
+    }
 }
 
 

@@ -74,6 +74,26 @@ void TestTraffic::init ()
    _server.reset (new ServerThread (_repo->path (), kPort));
    QVERIFY (_server->begin ());
 
+   /* the server counts a stack's pages in the background the first time
+      it lists it, and a listing gives the count only once it is known:
+      have it counted, so that each test sees what a server which has
+      been running a while sends */
+   {
+      RemoteBackend counter (_server->url ());
+      QString repo = QFileInfo (_repo->path ()).fileName ();
+
+      QTRY_VERIFY ([&] {
+         DirectoryListing listing = counter.browseDirectory (repo, "papers");
+         int counted = 0;
+
+         for (const DirectoryEntry &e : listing.entries)
+            counted += e.pages > 0;
+         return counted == listing.entries.size ()
+                && !listing.entries.isEmpty ();
+      } ());
+   }
+   _server->takeExchanges ();
+
    _me.reset (new Mainwindow);
    _desktop = _me->getDesktop ();
    _me->resize (1600, 1000);

@@ -93,6 +93,24 @@ static QByteArray httpGetRaw(const QString &path, int port, int timeoutMs)
     return response;
 }
 
+/* Wait for the server to have counted the pages of the stack @name at the
+   top of @repo, as a listing gives them once counted; return how many */
+static int awaitPageCount(RemoteBackend &client, const QString &repo,
+                          const QString &name)
+{
+    int pages = 0;
+
+    QTest::qWaitFor([&] {
+        DirectoryListing listing = client.browseDirectory(repo, QString());
+
+        for (const DirectoryEntry &e : listing.entries)
+            if (e.name == name)
+                pages = e.pages;
+        return pages > 0;
+    }, 5000);
+    return pages;
+}
+
 TestSearchServer::Response TestSearchServer::get(const QString &path,
                                                   int timeoutMs)
 {
@@ -1896,6 +1914,10 @@ void TestSearchServer::testDesktopRemoteOpenStack()
     QVERIFY(server.start());
     QTest::qWait(100);
     QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    // the listing has the stack's page count once the server has it
+    RemoteBackend counter(url);
+    QCOMPARE(awaitPageCount(counter, repo, "testfile.max"), 5);
 
     Dirmodel dirmodel;
     QString err;
@@ -4085,7 +4107,16 @@ void TestSearchServer::testBrowsePageCount()
         return -1;
     };
 
-    // the listing gives the stack's page count
+    /* the listing gives the stack's page count once it is counted, which
+       it is in the background, rather than holding up the listing */
+    QCOMPARE(pagesListed(), 0);
+    QTRY_COMPARE(pagesListed(), 5);
+
+    // the count is kept, so a server started again has it at once
+    server.stop();
+    SearchServer again(tmpDir.path(), PORT);
+    QVERIFY(again.start());
+    auto stopAgain = qScopeGuard([&] { again.stop(); });
     QCOMPARE(pagesListed(), 5);
 
     /* a stack which changes is read again: replace it with one of its
@@ -4096,7 +4127,7 @@ void TestSearchServer::testBrowsePageCount()
     QString path = tmpDir.path() + "/testfile.max";
     QVERIFY(QFile::remove(path));
     QVERIFY(QFile::copy(page3, path));
-    QCOMPARE(pagesListed(), 1);
+    QTRY_COMPARE(pagesListed(), 1);
 }
 
 
@@ -4123,6 +4154,7 @@ void TestSearchServer::testRemotePageControls()
     QVERIFY(!client.serverId().isEmpty());
     client.invalidatePageDir(repo, "testfile.max");
     client.invalidateCachedFile(repo, "testfile.max");
+    QCOMPARE(awaitPageCount(client, repo, "testfile.max"), 5);
 
     Dirmodel dirmodel;
     QString err;
