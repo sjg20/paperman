@@ -4354,6 +4354,111 @@ void TestSearchServer::testServerKeepsLayout()
 }
 
 
+void TestSearchServer::testLayoutMoves()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path();
+    QString repo = QFileInfo(dir).fileName();
+    QVERIFY(QDir(dir).mkdir("sub"));
+    makeStacks(dir, {"a.max", "b.max"});
+    makeStacks(dir + "/sub", {"c.max"});
+
+    SearchServer server(dir, PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    // the listing says where each stack is
+    RemoteBackend actor(url);
+    QVERIFY(!actor.serverId().isEmpty());
+    QVERIFY(actor.hasLayout());
+    DirectoryListing listing = actor.browseDirectory(repo, QString());
+    QHash<QString, QPoint> listed;
+    for (const DirectoryEntry &e : listing.entries)
+        if (e.placed)
+            listed[e.name] = e.pos;
+    QCOMPARE(listed.value("a.max"), QPoint(25, 35));
+    QCOMPARE(listed.value("b.max"), QPoint(185, 35));
+
+    RemoteBackend listener(url);
+    QSignalSpy moves(&listener, &RemoteBackend::layoutChanged);
+    QSignalSpy changes(&listener, &RemoteBackend::stackEvent);
+    listener.subscribeEvents(repo);
+    QTRY_COMPARE(server.eventClientCount(), 1);
+
+    /* a client moves the stacks it names, leaving the others, and one
+       which has gone is left out */
+    QString error = "none";
+    QStringList placed;
+    actor.moveInLayout(repo, QString(),
+                       {{"a.max", QPoint(500, 285)},
+                        {"gone.max", QPoint(25, 35)}},
+                       this, [&](const QString &why,
+                                 const QStringList &names) {
+        error = why;
+        placed = names;
+    });
+    QTRY_COMPARE(error, QString());
+    QCOMPARE(placed, QStringList({"a.max"}));
+    QCOMPARE(layoutPos(dir, "a.max"), QPoint(500, 285));
+    QCOMPARE(layoutPos(dir, "b.max"), QPoint(185, 35));
+    QCOMPARE(layoutPos(dir, "gone.max"), QPoint(-1, -1));
+
+    // the others following the repository hear where they went
+    QTRY_COMPARE(moves.count(), 1);
+    QList<QVariant> args = moves.takeFirst();
+    QCOMPARE(args[0].toString(), repo);
+    QCOMPARE(args[1].toString(), QString());
+    RemoteBackend::Positions moved
+        = args[2].value<RemoteBackend::Positions>();
+    QCOMPARE(moved.size(), 1);
+    QCOMPARE(moved.value("a.max"), QPoint(500, 285));
+    QCOMPARE(changes.count(), 0);
+
+    // as in a folder below, but not the client which moved them
+    QSignalSpy own(&actor, &RemoteBackend::layoutChanged);
+    actor.subscribeEvents(repo);
+    QTRY_COMPARE(server.eventClientCount(), 2);
+    QVERIFY(actor.moveInLayout(repo, "sub", {{"c.max", QPoint(165, 35)}},
+                               &placed, false));
+    QCOMPARE(placed, QStringList({"c.max"}));
+    QCOMPARE(layoutPos(dir + "/sub", "c.max"), QPoint(165, 35));
+    QTRY_COMPARE(moves.count(), 1);
+    QCOMPARE(moves.takeFirst()[1].toString(), QString("sub"));
+    QTest::qWait(200);
+    QCOMPARE(own.count(), 0);
+
+    /* a client which knows nothing of the event takes it as a change to
+       the folder's layout file */
+    QTcpSocket raw;
+    raw.connectToHost("localhost", PORT);
+    QVERIFY(raw.waitForConnected(2000));
+    raw.write(QString("GET /v1/repos/%1/events HTTP/1.1\r\nHost: localhost"
+                      "\r\n\r\n").arg(repo).toUtf8());
+    QTRY_COMPARE(server.eventClientCount(), 3);
+    error = "none";
+    actor.moveInLayout(repo, "sub", {{"c.max", QPoint(305, 35)}}, this,
+                       [&](const QString &why, const QStringList &) {
+        error = why;
+    });
+    QTRY_COMPARE(error, QString());
+    QByteArray stream;
+    QTRY_VERIFY((stream += raw.readAll()).contains("layoutChanged"));
+    QVERIFY(stream.contains(R"("op":"layout")"));
+    QVERIFY(stream.contains(R"("path":"sub/.paperdesk")"));
+
+    // a folder which is not there, or outside the repository, is refused
+    QString base = QString("/v1/repos/%1/layout").arg(repo);
+    Response r = postJson(base, R"({"dir":"none","stacks":[]})");
+    QVERIFY2(r.header.contains("404"), qPrintable(r.header));
+    r = postJson(base, R"({"dir":"../x","stacks":[]})");
+    QVERIFY2(r.header.contains("400"), qPrintable(r.header));
+    r = postJson(base, R"({"dir":""})");
+    QVERIFY2(r.header.contains("400"), qPrintable(r.header));
+}
+
+
 void TestSearchServer::testRemotePageControls()
 {
     QTemporaryDir tmpDir;

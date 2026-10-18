@@ -785,6 +785,15 @@ private:
     void layoutRename(const QString &repoName, const QString &relPath,
                       const QString &name);
 
+    /** POST /v1/repos/{repo}/layout: put the stacks a client names where
+     *  it says in a folder's layout, leaving the others where they are */
+    QByteArray handleLayout(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser);
+
+    /** Send @p frame to each client following changes to @p repoName */
+    void sendEvent(const QString &repoName, const QByteArray &frame);
+
     /** GET /v1/repos/{repo}/folders: every folder in the repository, by
      *  its path within it, for a client to find one by name */
     QByteArray handleFolders(const QString &path, const QString &authedUser,

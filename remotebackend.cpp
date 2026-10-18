@@ -72,6 +72,8 @@ RemoteBackend::RemoteBackend(const QUrl &baseUrl, QObject *parent)
    , _clientId(QUuid::createUuid().toString(QUuid::WithoutBraces))
    , _nam(new QNetworkAccessManager(this))
 {
+   // so that layoutChanged() can be queued
+   qRegisterMetaType<Positions>("RemoteBackend::Positions");
 }
 
 
@@ -343,6 +345,8 @@ DirectoryListing RemoteBackend::parseBrowseReply(QNetworkReply *reply)
       e.size     = f.value("size").toVariant().toLongLong();
       e.modified = f.value("modified").toString();
       e.pages    = f.value("pages").toInt();
+      e.placed   = f.contains("x") && f.contains("y");
+      e.pos      = QPoint(f.value("x").toInt(), f.value("y").toInt());
       out.entries.append(e);
    }
    out.ok = true;
@@ -1173,6 +1177,91 @@ void RemoteBackend::makeFolder(const QString &repo, const QString &path,
 }
 
 
+/* The body of a request to put @stacks where they are to go in the layout
+   of the folder @dir */
+static QByteArray layoutBody(const QString &dir,
+                             const RemoteBackend::Positions &stacks)
+{
+   QJsonArray arr;
+
+   for (auto it = stacks.cbegin(); it != stacks.cend(); ++it) {
+      QJsonObject o;
+
+      o["name"] = it.key();
+      o["x"] = it.value().x();
+      o["y"] = it.value().y();
+      arr.append(o);
+   }
+
+   QJsonObject body;
+
+   body["dir"] = dir;
+   body["stacks"] = arr;
+   return QJsonDocument(body).toJson(QJsonDocument::Compact);
+}
+
+
+/* The stacks a reply to a layout request says were put in place */
+static QStringList movedStacks(const QJsonObject &obj)
+{
+   QStringList moved;
+
+   for (const QJsonValue &v : obj.value("moved").toArray())
+      moved << v.toString();
+   return moved;
+}
+
+
+void RemoteBackend::moveInLayout(const QString &repo, const QString &dir,
+                                 const Positions &stacks, QObject *context,
+                                 MovesDone done)
+{
+   whenFinished(startPost("/v1/repos/"
+                          + QString::fromUtf8(QUrl::toPercentEncoding(repo))
+                          + "/layout", layoutBody(dir, stacks),
+                          QStringLiteral("application/json")),
+                context, [done](const Result &result) {
+      QJsonObject obj = result.json();
+
+      if (result.ok && obj.value("success").toBool()) {
+         done(QString(), movedStacks(obj));
+         return;
+      }
+
+      QString why = obj.value("error").toString();
+
+      if (why.isEmpty())
+         why = result.error.isEmpty()
+               ? QStringLiteral("the server does not keep layouts")
+               : result.error;
+      done(why, QStringList());
+   });
+}
+
+
+bool RemoteBackend::moveInLayout(const QString &repo, const QString &dir,
+                                 const Positions &stacks, QStringList *moved,
+                                 bool quick)
+{
+   QByteArray resp = postRequest("/v1/repos/"
+                                 + QString::fromUtf8(
+                                      QUrl::toPercentEncoding(repo))
+                                 + "/layout", layoutBody(dir, stacks),
+                                 "application/json",
+                                 quick ? kRequestTimeoutMs : 0);
+   QJsonObject obj = QJsonDocument::fromJson(resp).object();
+
+   if (!obj.value("success").toBool()) {
+      if (_lastError.isEmpty())
+         _lastError = obj.value("error").toString("layout request failed");
+      return false;
+   }
+   if (moved)
+      *moved = movedStacks(obj);
+   return true;
+}
+
+
 void RemoteBackend::subscribeEvents(const QString &repo)
 {
    if (_eventRepos.contains(repo))
@@ -1229,6 +1318,19 @@ void RemoteBackend::startEventStream(const QString &repo)
              QJsonObject o = doc.object();
              if (o.value("origin").toString() == _clientId)
                 continue;      // our own change, already applied
+             if (frame.startsWith("event: layoutChanged")) {
+                Positions moved;
+
+                for (const QJsonValue &v : o.value("stacks").toArray()) {
+                   QJsonObject s = v.toObject();
+
+                   moved[s.value("name").toString()]
+                      = QPoint(s.value("x").toInt(), s.value("y").toInt());
+                }
+                emit layoutChanged(o.value("repo").toString(repo),
+                                   o.value("dir").toString(), moved);
+                continue;
+             }
              emit stackEvent(o.value("repo").toString(repo),
                              o.value("op").toString(),
                              o.value("path").toString(),

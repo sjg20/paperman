@@ -886,7 +886,9 @@ mutation in the repository sends a frame::
 ``unstack``, ``stack``, ``duplicate``, ``upload``), ``name`` the
 resulting name where one exists, and ``origin`` echoes the
 ``X-Client-Id`` header of the originating request so a client can
-ignore its own changes.  Behind nginx the events path needs
+ignore its own changes.  Moves on a folder's desk send a
+``layoutChanged`` frame instead; see *Stack Layout (v1)* below.  Behind
+nginx the events path needs
 ``proxy_buffering off`` and a long ``proxy_read_timeout``.
 
 8. Pages (v1)
@@ -1008,6 +1010,31 @@ arrived after the desktop read the layout, and leaves out any stack no
 longer in the folder.  The reply has an ``etag`` only when the upload
 holds the whole layout, so a desktop which missed something fetches the
 layout again rather than keep its own copy.
+
+**Endpoint**: ``POST /v1/repos/{repo}/layout``
+
+Puts the stacks named where the body says on the desk of the folder
+``dir``, relative to the repository, leaving the others where they are.
+A stack no longer in the folder, such as one another client has just
+moved away, is left out:
+
+.. code:: json
+
+   {"dir": "bills", "stacks": [{"name": "water.max", "x": 305, "y": 35}]}
+
+The reply is ``{"success": true, "moved": [name, ...]}``, naming the
+stacks put in place.  A folder which is not there is a 404.  Each client
+following the repository, other than the one which asked, hears of the
+change as a frame of its own::
+
+   event: layoutChanged
+   data: {"repo": ..., "op": "layout", "path": "bills/.paperdesk",
+          "dir": "bills", "stacks": [{"name": ..., "x": ..., "y": ...}],
+          "origin": ...}
+
+so a client can move the stacks itself.  ``op`` and ``path`` are there for
+a client which takes every frame as a ``stackChanged``: it sees the
+folder's ``.paperdesk`` change, and fetches it again.
 
 --------------
 

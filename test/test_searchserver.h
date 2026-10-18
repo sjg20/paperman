@@ -107,6 +107,7 @@ private slots:
    void testBrowsePageCount();
    void testDeskLayout();
    void testServerKeepsLayout();
+   void testLayoutMoves();
 
    //! a remote stack shows its page controls, and the page it is turned
    //! to, before any of it is fetched
