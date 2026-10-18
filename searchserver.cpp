@@ -823,6 +823,8 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                 return handleUpload(path, params, authedUser);
             if (path.endsWith("/folders") && !path.contains("/stacks/"))
                 return handleMakeFolder(path, params, authedUser);
+            if (path.endsWith("/layout") && !path.contains("/stacks/"))
+                return handleLayout(path, params, authedUser);
         }
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("POST not supported on this path"));
@@ -2695,6 +2697,105 @@ QByteArray SearchServer::handleMakeFolder(const QString &path,
                              QJsonDocument(out).toJson(QJsonDocument::Compact));
 }
 
+QByteArray SearchServer::handleLayout(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser)
+{
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/layout").size());
+    QString repoName = QUrl::fromPercentEncoding(rest.toUtf8());
+
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    QString root = _backend->rootPathForName(repoName);
+    if (root.isEmpty())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Repository not found: " + repoName));
+
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj) || !obj.value("stacks").isArray())
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {dir, stacks:[...]}"));
+
+    // any folder a desk can show, the trash too
+    QString dir = obj.value("dir").toString();
+    QStringList parts = dir.split('/', Qt::SkipEmptyParts);
+    if (dir.startsWith('/') || parts.contains(".."))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Invalid folder: " + dir));
+    dir = parts.join('/');
+
+    QString full = dir.isEmpty() ? root : root + "/" + dir;
+    if (!QFileInfo(full).isDir())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Folder not found: " + dir));
+
+    /* the stacks the client names which are there; one which has gone
+       meanwhile, such as by another client's move, is left out */
+    DeskLayout layout(full);
+    QJsonArray moved, names;
+
+    layout.read();
+    for (const QJsonValue &v : obj.value("stacks").toArray()) {
+        QJsonObject o = v.toObject();
+        QString name = o.value("name").toString();
+
+        if (name.contains('/') || !LocalBackend::isStackName(name)
+            || !QFileInfo::exists(full + "/" + name))
+            continue;
+
+        QPoint pos(o.value("x").toInt(), o.value("y").toInt());
+
+        layout.setPos(name, pos);
+        QJsonObject m;
+        m["name"] = name;
+        m["x"] = pos.x();
+        m["y"] = pos.y();
+        moved.append(m);
+        names.append(name);
+    }
+    if (!moved.isEmpty()) {
+        if (!layout.write())
+            return buildHttpResponse(500, "Internal Server Error",
+                                     "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Cannot write the layout of: "
+                                         + dir));
+
+        /* A client which knows of this event moves the stacks itself; an
+           older one takes it as a change to the folder's layout file,
+           and fetches that again */
+        QString file = DeskLayout::fileName();
+        QJsonObject data;
+        data["repo"] = repoName;
+        data["op"] = "layout";
+        data["path"] = dir.isEmpty() ? file : dir + "/" + file;
+        data["dir"] = dir;
+        data["stacks"] = moved;
+        QString clientId = params.value("__client_id__");
+        if (!clientId.isEmpty())
+            data["origin"] = clientId;
+        sendEvent(repoName, "event: layoutChanged\ndata: "
+                  + QJsonDocument(data).toJson(QJsonDocument::Compact)
+                  + "\n\n");
+    }
+
+    QJsonObject out;
+    out["success"] = true;
+    out["moved"] = names;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QJsonDocument(out).toJson(QJsonDocument::Compact));
+}
+
 /* The answer to GET /v1/repos/{repo}/folders, with @folders */
 static QByteArray foldersReply(const QJsonArray &folders)
 {
@@ -3015,9 +3116,13 @@ void SearchServer::notifyStackEvent(const QString &repoName,
         data["name"] = name;
     if (!clientId.isEmpty())
         data["origin"] = clientId;
-    QByteArray frame = "event: stackChanged\ndata: "
-        + QJsonDocument(data).toJson(QJsonDocument::Compact) + "\n\n";
+    sendEvent(repoName, "event: stackChanged\ndata: "
+              + QJsonDocument(data).toJson(QJsonDocument::Compact) + "\n\n");
+}
 
+
+void SearchServer::sendEvent(const QString &repoName, const QByteArray &frame)
+{
     for (int i = _eventClients.size() - 1; i >= 0; i--) {
         EventClient &ec = _eventClients[i];
 
@@ -3032,6 +3137,7 @@ void SearchServer::notifyStackEvent(const QString &repoName,
         }
     }
 }
+
 
 QByteArray SearchServer::handleRead(const QString &path,
                                     const QHash<QString, QString> &params,

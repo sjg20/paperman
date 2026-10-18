@@ -9,7 +9,9 @@ License: GPL-2
 
 #include <QJsonObject>
 #include <QLoggingCategory>
+#include <QHash>
 #include <QObject>
+#include <QPoint>
 #include <QSet>
 #include <QString>
 #include <QUrl>
@@ -227,6 +229,40 @@ public:
     void makeFolder(const QString &repo, const QString &path,
                     QObject *context,
                     std::function<void(const QString &error)> done);
+
+    /** Where stacks are on a desk, by name */
+    using Positions = QHash<QString, QPoint>;
+
+    /** True if the server keeps each folder's layout (the "layout"
+     *  feature): it places stacks which arrive, a listing says where each
+     *  is, and moveInLayout() works. */
+    bool hasLayout() const { return _features.contains(QStringLiteral("layout")); }
+
+    /** Put stacks where they are to go on a folder's desk, without
+     *  waiting.  The others there stay where they are, and the clients
+     *  following the repository hear of it with layoutChanged().
+     *
+     *  @param repo      the repository
+     *  @param dir       the folder, relative to the repository
+     *  @param stacks    where each stack goes, by name
+     *  @param context   what the reply is tied to; nothing is called
+     *                   once it has gone
+     *  @param done      called with an empty error and the stacks put
+     *                   in place, leaving out any no longer there, or
+     *                   with why they could not be put there */
+    using MovesDone = std::function<void(const QString &error,
+                                         const QStringList &moved)>;
+    void moveInLayout(const QString &repo, const QString &dir,
+                      const Positions &stacks, QObject *context,
+                      MovesDone done);
+
+    /** As above, but waiting for the server, or with @p quick only as
+     *  long as a round-trip would take, as when the window closes.
+     *  Returns false on failure, else the stacks put in place in
+     *  @p moved */
+    bool moveInLayout(const QString &repo, const QString &dir,
+                      const Positions &stacks, QStringList *moved,
+                      bool quick);
 
     /** True if the server converts and unfolds stacks itself (the
      *  "convert" feature), so convertStack() and unfoldStack() work. */
@@ -601,6 +637,10 @@ signals:
     /** A change made by another client arrived on the event stream */
     void stackEvent(const QString &repo, const QString &op,
                     const QString &path, const QString &name);
+
+    /** Another client moved stacks on the desk of the folder @p dir */
+    void layoutChanged(const QString &repo, const QString &dir,
+                       const RemoteBackend::Positions &stacks);
 
 private:
     /** Run @p work, which must touch nothing but files, on a worker

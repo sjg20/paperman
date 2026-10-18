@@ -6,6 +6,7 @@ License: GPL-2
 #define BACKEND_H
 
 #include <QList>
+#include <QPoint>
 #include <QString>
 
 
@@ -33,6 +34,8 @@ struct DirectoryEntry
     QString modified;    //!< ISO-8601 (files only)
     int count = 0;       //!< File count for directory entries (recursive)
     int pages = 0;       //!< Pages in a stack, if the server says (else 0)
+    bool placed = false; //!< True if the server says where it is on the desk
+    QPoint pos;          //!< Where it is on the desk, if @c placed
 };
 
 
