@@ -120,11 +120,20 @@ jobs:
             mingw-w64-x86_64-poppler
             mingw-w64-x86_64-ghostscript
             mingw-w64-x86_64-tesseract-ocr
-            mingw-w64-x86_64-tesseract-data-eng
             mingw-w64-x86_64-python
-            mingw-w64-x86_64-python-reportlab
+            mingw-w64-x86_64-python-pip
             mingw-w64-x86_64-python-pillow
             mingw-w64-x86_64-python-numpy
+
+      # MSYS2 no longer packages these for MINGW64: the tests need
+      # reportlab to make their PDFs, and tesseract's English data to read
+      # pages
+      - name: Install what MSYS2 does not package
+        run: |
+          python3 -m pip install --break-system-packages reportlab
+          mkdir -p $MINGW_PREFIX/share/tessdata
+          curl -sSfL -o $MINGW_PREFIX/share/tessdata/eng.traineddata \
+            https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata
 
       - name: Build desktop app
         run: qmake6 paperman.pro CONFIG+=test -o Makefile.win && make -k -f Makefile.win -j$(nproc)
