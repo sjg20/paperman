@@ -87,7 +87,6 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
     : QTcpServer(parent)
     , _rootPath(rootPath)
     , _port(port)
-    , _fsWatcher(nullptr)
 {
     // Ensure root path has no trailing slash
     if (_rootPath.endsWith('/'))
@@ -109,8 +108,6 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
     // Clean old thumbnails from cache
     cleanThumbnailCache();
 
-    QString papertreeFile = _rootPath + "/.papertree";
-
     if (skipCache) {
         qDebug() << "SearchServer: Skipping file cache build (--no-cache)";
     } else {
@@ -126,22 +123,11 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
                            << cacheTimer.elapsed() / 1000.0 << "s";
     }
 
-    // Set up file system watcher for papertree file
-    _fsWatcher = new QFileSystemWatcher(this);
-    if (QFile::exists(papertreeFile)) {
-        _fsWatcher->addPath(papertreeFile);
-        qDebug() << "SearchServer: Watching papertree file for changes:" << papertreeFile;
-        connect(_fsWatcher, &QFileSystemWatcher::fileChanged,
-                this, &SearchServer::onDirectoryChanged);
-    } else {
-        qDebug() << "SearchServer: No papertree file found, auto-reload disabled";
-    }
 }
 
 SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *parent)
     : QTcpServer(parent)
     , _port(port)
-    , _fsWatcher(nullptr)
 {
     // Store all paths, removing trailing slashes
     foreach (QString path, rootPaths) {
@@ -180,21 +166,6 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     qDebug().nospace() << "SearchServer: File cache ready in "
                        << cacheTimer.elapsed() / 1000.0 << "s";
 
-    // Set up file system watcher for papertree files in all repositories
-    _fsWatcher = new QFileSystemWatcher(this);
-    foreach (const QString &path, _rootPaths) {
-        QString papertreeFile = path + "/.papertree";
-        if (QFile::exists(papertreeFile)) {
-            _fsWatcher->addPath(papertreeFile);
-            qDebug() << "SearchServer: Watching papertree file for changes:" << papertreeFile;
-        }
-    }
-    if (_fsWatcher->files().isEmpty()) {
-        qDebug() << "SearchServer: No papertree files found, auto-reload disabled";
-    } else {
-        connect(_fsWatcher, &QFileSystemWatcher::fileChanged,
-                this, &SearchServer::onDirectoryChanged);
-    }
 }
 
 SearchServer::~SearchServer()
@@ -219,6 +190,19 @@ bool SearchServer::start()
     // list each repository's folders now, so that the first to ask need not wait
     for (const QString &root : _rootPaths)
         listFoldersLater(QFileInfo(root).fileName(), root);
+
+    /* walk the repositories for their stacks now and then, so that a
+       search for a stack's name finds one put there other than through
+       this server */
+    if (_stackWalkMs > 0) {
+        QTimer *walk = new QTimer(this);
+
+        connect(walk, &QTimer::timeout, this, [this]() {
+            for (const QString &root : _rootPaths)
+                walkStacksLater(root);
+        });
+        walk->start(_stackWalkMs);
+    }
     return true;
 }
 
@@ -622,37 +606,6 @@ void SearchServer::endReply(QTcpSocket *client, bool keep)
             if (next)
                 processRequests(next);
         });
-    }
-}
-
-void SearchServer::onDirectoryChanged(const QString &path)
-{
-    qDebug() << "SearchServer: Papertree file changed, reloading cache:" << path;
-
-    // Determine which repository this papertree belongs to
-    QString repoPath;
-    foreach (const QString &candidate, _rootPaths) {
-        QString papertreeFile = candidate + "/.papertree";
-        if (papertreeFile == path) {
-            repoPath = candidate;
-            break;
-        }
-    }
-
-    if (repoPath.isEmpty()) {
-        qWarning() << "SearchServer: Could not determine repository for papertree file:" << path;
-        return;
-    }
-
-    qDebug() << "SearchServer: Rebuilding file cache for" << repoPath;
-    int count = _backend->loadCacheForRepo(repoPath);
-    qDebug() << "SearchServer: File cache rebuilt with" << count << "files";
-
-    // Re-add the papertree file to watcher if it was removed
-    // (some editors delete and recreate files when saving)
-    if (!_fsWatcher->files().contains(path)) {
-        _fsWatcher->addPath(path);
-        qDebug() << "SearchServer: Re-added papertree file to watcher:" << path;
     }
 }
 
@@ -2567,6 +2520,33 @@ static QByteArray foldersReply(const QJsonArray &folders)
     return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
+void SearchServer::walkStacksLater(const QString &root)
+{
+    QString repoName = QFileInfo(root).fileName();
+
+    if (_walking.contains(repoName))
+        return;
+    _walking.insert(repoName);
+    _touchedWhileWalking[repoName].clear();
+
+    auto *watcher = new QFutureWatcher<QList<CachedFile>>(this);
+
+    connect(watcher, &QFutureWatcherBase::finished, this,
+            [this, watcher, root, repoName]() {
+        _backend->setCache(root, watcher->result());
+        watcher->deleteLater();
+
+        /* a stack changed through this server while the walk was under way
+           may have been seen before it changed */
+        for (const QString &relPath : _touchedWhileWalking.take(repoName))
+            _backend->updateCachedFile(root, relPath);
+        _walking.remove(repoName);
+    });
+    watcher->setFuture(QtConcurrent::run([root]() {
+        return LocalBackend::scanRepo(root);
+    }));
+}
+
 void SearchServer::listFoldersLater(const QString &repoName,
                                     const QString &root)
 {
@@ -2755,6 +2735,8 @@ void SearchServer::touchStack(const QString &repoName,
 
     if (!root.isEmpty())
         _backend->updateCachedFile(root, relPath);
+    if (_walking.contains(repoName))
+        _touchedWhileWalking[repoName] << relPath;
 
     /* A stack which has changed or arrived, such as a new scan, is read
        before the rest; each ignores anything which is not a stack */

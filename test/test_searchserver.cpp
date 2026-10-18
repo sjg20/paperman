@@ -3465,6 +3465,51 @@ void TestSearchServer::testSearchNames()
     server.stop();
 }
 
+void TestSearchServer::testSearchNamesWalks()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    // a .papertree from long ago, which knows nothing of the stack
+    QFile tree(tmpDir.path() + "/.papertree");
+    QVERIFY(tree.open(QIODevice::WriteOnly));
+    tree.write("root\n old.max\n");
+    tree.close();
+
+    SearchServer server(tmpDir.path(), PORT);
+    server.setStackWalk(300);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+    auto search = [&](const QString &text) {
+        QStringList got;
+        QString error = "none yet";
+
+        client.searchNames(repo, text, QString(), &client,
+                           [&](const QString &err, const QStringList &paths) {
+            error = err;
+            got = paths;
+        });
+        if (!QTest::qWaitFor([&] { return error != "none yet"; }, 5000))
+            return QStringList({"no reply"});
+        got.sort();
+        return got;
+    };
+
+    // what is on the disk is found, whatever the .papertree says
+    QCOMPARE(search("testfile"), QStringList({"testfile.max"}));
+    QCOMPARE(search("old"), QStringList());
+
+    // a stack put there behind the server's back is found after a walk
+    QVERIFY(QFile::copy(tmpDir.path() + "/testfile.max",
+                        tmpDir.path() + "/late.max"));
+    QTRY_COMPARE_WITH_TIMEOUT(search("late"), QStringList({"late.max"}),
+                              3000);
+}
+
 void TestSearchServer::testListFolders()
 {
     QTemporaryDir tmpDir;

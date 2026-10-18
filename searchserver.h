@@ -42,6 +42,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <memory>
 
+#include <QSet>
 #include <QPointer>
 #include <QJsonArray>
 #include <QElapsedTimer>
@@ -55,7 +56,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMap>
 #include <QDateTime>
 #include <QFileInfo>
-#include <QFileSystemWatcher>
 #include <QProcess>
 
 #include "serverlog.h"
@@ -182,6 +182,11 @@ public:
      *  list is older than @p ms; a minute by default */
     void setFolderListAge(int ms) { _folderListMs = ms; }
 
+    /** Walk the repositories for their stacks every @p ms, in the
+     *  background, to find any put there other than through this server;
+     *  ten minutes by default, and never if 0.  Call before start() */
+    void setStackWalk(int ms) { _stackWalkMs = ms; }
+
 protected:
     /**
      * Handle incoming connections
@@ -203,12 +208,6 @@ private slots:
      * Handle completion of an async Ghostscript page extraction
      */
     void onExtractionFinished(int exitCode, QProcess::ExitStatus exitStatus);
-
-    /**
-     * Handle file system changes (files added/removed/modified)
-     * @param path Path to the directory that changed
-     */
-    void onDirectoryChanged(const QString &path);
 
 private:
     /**
@@ -739,6 +738,14 @@ private:
     bool _textIndex = false;         //!< see setTextIndex()
     int _idleMs = 30000;             //!< see setIdleTimeout()
     int _folderListMs = 60000;       //!< see setFolderListAge()
+    int _stackWalkMs = 600000;       //!< see setStackWalk()
+    QSet<QString> _walking;          //!< repositories being walked
+    //! stacks changed through this server during each repository's walk
+    QHash<QString, QSet<QString>> _touchedWhileWalking;
+
+    /** Walk the repository at @p root for its stacks on a worker thread,
+     *  and take what it finds as the stacks to search */
+    void walkStacksLater(const QString &root);
 
     //! the folders of a repository, for GET /v1/repos/{repo}/folders
     struct FolderList {
@@ -793,7 +800,6 @@ private:
      *  fresh salt) changes.  Empty for a user who does not exist. */
     QString loginStamp(const QString &user) const;
     std::unique_ptr<LocalBackend> _backend;  //!< Data-source (owns the file cache)
-    QFileSystemWatcher *_fsWatcher;  //!< File system watcher for automatic cache updates
     QMap<QString, PendingExtraction> _pendingExtractions;  //!< In-flight gs extractions keyed by cache path
 
     /** Tracks progress of an in-flight PDF conversion */

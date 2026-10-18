@@ -172,20 +172,30 @@ static bool isHidden(const QString &relPath)
 
 int LocalBackend::loadCacheForRepo(const QString &rootPath)
 {
+   /* walk the folders rather than read a .papertree there, which is a
+      client's and may be out of date; walking is no slower */
    QList<CachedFile> &fileList = _fileCache[rootPath];
-   fileList.clear();
 
-   QString papertreeFile = rootPath + "/.papertree";
-   if (QFile::exists(papertreeFile)
-       && loadFromPapertree(rootPath, fileList)) {
-      qDebug() << "LocalBackend: file cache loaded from papertree with"
-               << fileList.size() << "files";
-   } else {
-      scanDirectory(rootPath, "", fileList);
-      qDebug() << "LocalBackend: file cache built with"
-               << fileList.size() << "files";
-   }
+   fileList = scanRepo(rootPath);
+   qDebug() << "LocalBackend: file cache built with"
+            << fileList.size() << "files";
    return fileList.size();
+}
+
+
+QList<CachedFile> LocalBackend::scanRepo(const QString &rootPath)
+{
+   QList<CachedFile> fileList;
+
+   scanDirectory(rootPath, "", fileList);
+   return fileList;
+}
+
+
+void LocalBackend::setCache(const QString &rootPath,
+                            const QList<CachedFile> &files)
+{
+   _fileCache[rootPath] = files;
 }
 
 
@@ -256,70 +266,6 @@ int LocalBackend::countFilesRecursive(const QString &repoPath,
          count++;
    }
    return count;
-}
-
-
-bool LocalBackend::loadFromPapertree(const QString &repoPath,
-                                     QList<CachedFile> &fileList)
-{
-   QString papertreeFile = repoPath + "/.papertree";
-   QFile file(papertreeFile);
-
-   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-      qWarning() << "LocalBackend: failed to open papertree file:"
-                 << papertreeFile;
-      return false;
-   }
-
-   QTextStream in(&file);
-   QStringList dirStack;
-
-   while (!in.atEnd()) {
-      QString line = in.readLine();
-
-      int level = 0;
-      for (int i = 0; i < line.length(); i++) {
-         if (line[i] == ' ')
-            level++;
-         else
-            break;
-      }
-      if (level < 1)
-         continue;
-
-      QString name = line.mid(level);
-
-      while (dirStack.size() >= level)
-         dirStack.removeLast();
-
-      QString relativePath = dirStack.join("/");
-      if (!relativePath.isEmpty())
-         relativePath += "/";
-      relativePath += name;
-
-      QString fullPath = repoPath + "/" + relativePath;
-      QFileInfo fileInfo(fullPath);
-      if (!fileInfo.exists())
-         continue;
-
-      if (fileInfo.isDir()) {
-         dirStack.append(name);
-      } else if (fileInfo.isFile()) {
-         QString ext = name.section('.', -1).toLower();
-         if (ext == "max" || ext == "pdf" || ext == "jpg"
-             || ext == "jpeg" || ext == "tiff" || ext == "tif") {
-            CachedFile cachedFile;
-            cachedFile.path     = relativePath;
-            cachedFile.name     = name;
-            cachedFile.size     = fileInfo.size();
-            cachedFile.modified = fileInfo.lastModified();
-            fileList.append(cachedFile);
-         }
-      }
-   }
-
-   file.close();
-   return fileList.size() > 0;
 }
 
 
