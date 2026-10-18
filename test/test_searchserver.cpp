@@ -16,6 +16,7 @@
 #include "../backendstats.h"
 #include "../clientconf.h"
 
+#include "../desklayout.h"
 #include "../desktopmodel.h"
 #include "../dirmodel.h"
 #include "../desktopundo.h"
@@ -92,6 +93,8 @@ static QByteArray httpGetRaw(const QString &path, int port, int timeoutMs)
     socket.close();
     return response;
 }
+
+static QPoint layoutPos(const QString &dir, const QString &name);
 
 /* Wait for the server to have counted the pages of the stack @name at the
    top of @repo, as a listing gives them once counted; return how many */
@@ -2560,12 +2563,7 @@ void TestSearchServer::testDesktopRemoteSharedPositions()
     list << stack;
     newpos << target;
     model.opMoveStacks(list, parent, newpos);
-    QTRY_VERIFY(QFile::exists(dir + ".paperdesk"));
-    {
-        QFile pd(dir + ".paperdesk");
-        QVERIFY(pd.open(QIODevice::ReadOnly));
-        QVERIFY(pd.readAll().contains("testfile.max"));
-    }
+    QTRY_COMPARE(layoutPos(dir, "testfile.max"), target);
 
     // the desk file must not show up as a stack
     QVERIFY(!model.index(".paperdesk", parent).isValid());
@@ -4175,6 +4173,184 @@ void TestSearchServer::testBrowsePageCount()
     QVERIFY(QFile::remove(path));
     QVERIFY(QFile::copy(page3, path));
     QTRY_COMPARE(pagesListed(), 1);
+}
+
+
+/* Make an empty file for each of @names in @dir */
+static void makeStacks(const QString &dir, const QStringList &names)
+{
+    for (const QString &name : names) {
+        QFile f(dir + "/" + name);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("stack");
+    }
+}
+
+/* Where the stack @name is in the layout of @dir, or (-1, -1) if not in it */
+static QPoint layoutPos(const QString &dir, const QString &name)
+{
+    DeskLayout layout(dir);
+    QPoint pos(-1, -1);
+
+    layout.read();
+    layout.pos(name, &pos);
+    return pos;
+}
+
+void TestSearchServer::testDeskLayout()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path();
+    makeStacks(dir, {"a.max", "b.max", "c.max", "100%1.max"});
+
+    // a file written by a desktop comes back as it was
+    QByteArray desktop = "[DesktopFile]\nFile=\n\n[Folder]\n"
+        "Version=0x00060000\n\n[Files]\n"
+        "a.max=25,35,2,100,141,120,30,0,0\n";
+    DeskLayout layout(dir);
+    layout.parse(desktop);
+    QCOMPARE(layout.toBytes(), desktop);
+
+    /* stacks go after the others, as a desktop puts them: across, then
+       spaced by their names */
+    layout.placeAll({"b.max", "c.max"});
+    QPoint pos;
+    QVERIFY(layout.pos("b.max", &pos));
+    QCOMPARE(pos, QPoint(165, 35));
+    QVERIFY(layout.pos("c.max", &pos));
+    QCOMPARE(pos, QPoint(325, 35));
+
+    // one already there is left where it is
+    layout.place("a.max");
+    QVERIFY(layout.pos("a.max", &pos));
+    QCOMPARE(pos, QPoint(25, 35));
+
+    // a full row moves on to the next
+    layout.setPos("c.max", QPoint(865, 35));
+    layout.remove("b.max");
+    layout.place("b.max");
+    QVERIFY(layout.pos("b.max", &pos));
+    QCOMPARE(pos, QPoint(25, 285));
+
+    // a renamed stack stays where it is, keeping what a desktop noted
+    layout.rename("a.max", "z.max");
+    QVERIFY(!layout.contains("a.max"));
+    QVERIFY(layout.toBytes().contains("z.max=25,35,2,100,141,120,30,0,0\n"));
+
+    // a name which looks like an argument is kept as it is
+    layout.place("100%1.max");
+    QVERIFY(layout.toBytes().contains("100%1.max="));
+
+    /* a stack which is not there is left out, and a new one has what a
+       desktop reads */
+    QVERIFY(layout.write());
+    DeskLayout again(dir);
+    QVERIFY(again.read());
+    QCOMPARE(again.names(), QStringList({"c.max", "b.max", "100%1.max"}));
+    QVERIFY(again.toBytes().contains("b.max=25,285,0\n"));
+
+    /* an uploaded layout moves the stacks it mentions, in its order, and
+       keeps the others */
+    again.merge("[Files]\nb.max=600,35,4\nnew.max=165,35,0\n");
+    QCOMPARE(again.names(),
+             QStringList({"b.max", "new.max", "c.max", "100%1.max"}));
+    QVERIFY(again.toBytes().contains("b.max=600,35,4\n"));
+    QVERIFY(again.toBytes().contains("c.max=865,35,0\n"));
+}
+
+
+void TestSearchServer::testServerKeepsLayout()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path();
+    QString repo = QFileInfo(dir).fileName();
+    QVERIFY(QDir(dir).mkdir("sub"));
+    makeStacks(dir, {"one.max", "two.max"});
+    {
+        DeskLayout layout(dir);
+        layout.setPos("one.max", QPoint(25, 35));
+        layout.setPos("two.max", QPoint(165, 35));
+        QVERIFY(layout.write());
+    }
+
+    SearchServer server(dir, PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    // the server says it keeps layouts
+    Response r = getConditional("/v1/status", QString(), PORT);
+    QVERIFY(r.ok());
+    QVERIFY(QJsonDocument::fromJson(r.body).object().value("features")
+                .toArray().contains(QStringLiteral("layout")));
+
+    // a stack uploaded from anywhere goes after the others
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    QVERIFY(!client.serverId().isEmpty());
+    QString name, etag;
+    QVERIFY(client.uploadFile(repo, "three.max", "three", &name, &etag));
+    QCOMPARE(layoutPos(dir, "three.max"), QPoint(305, 35));
+
+    // as does a copy of one
+    QString base = QString("/v1/repos/%1/stacks/").arg(repo);
+    r = postJson(base + "one.max/move", R"({"destDir":"sub","copy":true})");
+    QVERIFY2(r.ok(), qPrintable(r.header));
+    QCOMPARE(layoutPos(dir, "one.max"), QPoint(25, 35));
+    QCOMPARE(layoutPos(dir + "/sub", "one.max"), QPoint(25, 35));
+
+    // a renamed stack keeps its place
+    r = postJson(base + "two.max/rename", R"({"newName":"deux.max"})");
+    QVERIFY2(r.ok(), qPrintable(r.header));
+    QCOMPARE(layoutPos(dir, "deux.max"), QPoint(165, 35));
+    QCOMPARE(layoutPos(dir, "two.max"), QPoint(-1, -1));
+
+    // one moved away leaves, and one deleted
+    r = postJson(base + "three.max/move", R"({"destDir":"sub"})");
+    QVERIFY2(r.ok(), qPrintable(r.header));
+    QCOMPARE(layoutPos(dir, "three.max"), QPoint(-1, -1));
+    QCOMPARE(layoutPos(dir + "/sub", "three.max"), QPoint(165, 35));
+    r = postJson(base + "sub/one.max/delete", "{}");
+    QVERIFY2(r.ok(), qPrintable(r.header));
+    QCOMPARE(layoutPos(dir + "/sub", "one.max"), QPoint(-1, -1));
+
+    /* a listing says where each stack is, placing one put there without
+       the server */
+    makeStacks(dir, {"four.max"});
+    r = getConditional(QString("/browse?repo=%1&path=").arg(repo),
+                       QString(), PORT);
+    QVERIFY(r.ok());
+    QHash<QString, QPoint> listed;
+    for (const QJsonValue &v : QJsonDocument::fromJson(r.body).object()
+             .value("files").toArray()) {
+        QJsonObject f = v.toObject();
+        listed[f.value("name").toString()] = QPoint(f.value("x").toInt(-1),
+                                                    f.value("y").toInt(-1));
+    }
+    QCOMPARE(listed.value("one.max"), QPoint(25, 35));
+    QCOMPARE(listed.value("deux.max"), QPoint(165, 35));
+    QCOMPARE(listed.value("four.max"), QPoint(305, 35));
+    QCOMPARE(layoutPos(dir, "four.max"), QPoint(305, 35));
+
+    /* a desktop's upload of the whole layout, read before the last stack
+       came, moves what it mentions and keeps that stack; the desktop's
+       copy is not the server's, so it is not told it is */
+    QByteArray old = "[Files]\none.max=600,35,0\ndeux.max=165,35,0\n";
+    QVERIFY(client.uploadFile(repo, ".paperdesk", old, &name, &etag,
+                              /*overwrite=*/true));
+    QCOMPARE(name, QString(".paperdesk"));
+    QVERIFY(etag.isEmpty());
+    QCOMPARE(layoutPos(dir, "one.max"), QPoint(600, 35));
+    QCOMPARE(layoutPos(dir, "four.max"), QPoint(305, 35));
+
+    // one which has all of them is the server's, so is told so
+    QFile pd(dir + "/.paperdesk");
+    QVERIFY(pd.open(QIODevice::ReadOnly));
+    QByteArray all = pd.readAll();
+    pd.close();
+    QVERIFY(client.uploadFile(repo, ".paperdesk", all, &name, &etag,
+                              /*overwrite=*/true));
+    QVERIFY(!etag.isEmpty());
 }
 
 

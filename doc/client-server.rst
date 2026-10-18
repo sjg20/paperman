@@ -64,7 +64,10 @@ name the server gives it if its own is taken. A scan into a remote folder
 is uploaded the same way when it is confirmed.
 
 The positions of the stacks on a desk are shared through the server's copy
-of the folder's ``.paperdesk``.
+of the folder's ``.paperdesk``. The server keeps it up to date as stacks
+come and go: a stack which arrives is placed after the others, whichever
+client put it there, and the stacks a desktop's upload of the layout does
+not mention are kept.
 
 Other clients' changes arrive on ``/v1/repos/{repo}/events``, a stream of
 server-sent events which the desktop opens for each remote repository it

@@ -105,6 +105,8 @@ private slots:
 
    //! the server lists how many pages each stack has
    void testBrowsePageCount();
+   void testDeskLayout();
+   void testServerKeepsLayout();
 
    //! a remote stack shows its page controls, and the page it is turned
    //! to, before any of it is fetched

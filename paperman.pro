@@ -347,6 +347,7 @@ test {
       test/test_traffic.cpp \
       test/remoteharness.cpp \
       test/test_fakescan.cpp \
+      desklayout.cpp \
       searchserver.cpp \
       serverlog.cpp \
       tokenstore.cpp \
@@ -376,6 +377,7 @@ test {
       test/test_fakescan.h \
       test/fakescan/fakescan.h \
       test/scansettings.h \
+      desklayout.h \
       searchserver.h \
       serverlog.h \
       tokenstore.h \

@@ -158,6 +158,12 @@ static const QStringList kStackFilters = {"*.max", "*.pdf", "*.jpg", "*.jpeg",
                                           "*.tiff", "*.tif"};
 
 
+bool LocalBackend::isStackName(const QString &name)
+{
+   return QDir::match(kStackFilters, name);
+}
+
+
 /* True if @relPath, within a repository, is hidden: it or a folder it is
    in has a name which starts with a dot, such as the trash.  These are
    hidden by name, since only Unix hides them itself */
