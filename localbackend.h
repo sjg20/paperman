@@ -64,6 +64,9 @@ public:
      *  or drop it if not.  Nothing is done for a repo not cached. */
     void updateCachedFile(const QString &rootPath, const QString &relPath);
 
+    /** Whether a file called @p name is a stack, shown on a desk */
+    static bool isStackName(const QString &name);
+
 private:
     static void scanDirectory(const QString &repoPath, const QString &dirPath,
                               QList<CachedFile> &fileList);

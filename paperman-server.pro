@@ -32,6 +32,7 @@ HEADERS += builddate.h \
     backend.h \
     cachedfile.h \
     localbackend.h \
+    desklayout.h \
     searchserver.h \
     serverlog.h \
     tokenstore.h \
@@ -60,6 +61,7 @@ HEADERS += builddate.h \
 
 SOURCES += searchserver.cpp \
     backend.cpp \
+    desklayout.cpp \
     localbackend.cpp \
     serverlog.cpp \
     tokenstore.cpp \

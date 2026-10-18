@@ -776,6 +776,15 @@ private:
      *  it read and indexed again */
     void touchStack(const QString &repoName, const QString &relPath);
 
+    /** A stack (repo-relative path) has arrived or gone: place it after
+     *  the others in its folder's layout, or drop it from there */
+    void layoutStack(const QString &repoName, const QString &relPath);
+
+    /** A stack (repo-relative path) is renamed to @p name in the same
+     *  folder: keep it where it is in the folder's layout */
+    void layoutRename(const QString &repoName, const QString &relPath,
+                      const QString &name);
+
     /** GET /v1/repos/{repo}/folders: every folder in the repository, by
      *  its path within it, for a client to find one by name */
     QByteArray handleFolders(const QString &path, const QString &authedUser,

@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "ocrpage.h"
 #include "op.h"
 #include "searchserver.h"
+#include "desklayout.h"
 #include "localbackend.h"
 #include "serverlog.h"
 #include "config.h"
@@ -849,6 +850,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         features.append("convert");
         features.append("folders");
         features.append("makeFolders");
+        features.append("layout");
         if (!_indexes.isEmpty())
             features.append("textSearch");
         if (!_readers.isEmpty())
@@ -960,6 +962,26 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
             if (QFileInfo(root).fileName() == repoName)
                 repoPath = root;
 
+        /* where each stack is on the desk; any not placed yet, such as
+           one put there without the server, go after the others */
+        QString fullDir = repoPath.isEmpty() ? QString()
+            : dirPath.isEmpty() ? repoPath : repoPath + "/" + dirPath;
+        DeskLayout layout(fullDir);
+        if (!fullDir.isEmpty()) {
+            QStringList unplaced;
+
+            layout.read();
+            for (const DirectoryEntry &e : listing.entries)
+                if (!e.isDir && !layout.contains(e.name))
+                    unplaced << e.name;
+            if (!unplaced.isEmpty()) {
+                layout.placeAll(unplaced);
+                if (!layout.write())
+                    qWarning() << "SearchServer: cannot write the layout of"
+                               << fullDir;
+            }
+        }
+
         QJsonArray dirs, files;
         for (const DirectoryEntry &e : listing.entries) {
             if (e.isDir) {
@@ -981,6 +1003,12 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                     : knownPageCount(repoPath + "/" + e.path);
                 if (pages > 0)
                     f["pages"] = pages;
+
+                QPoint pos;
+                if (layout.pos(e.name, &pos)) {
+                    f["x"] = pos.x();
+                    f["y"] = pos.y();
+                }
                 files.append(f);
             }
         }
@@ -2452,6 +2480,7 @@ QByteArray SearchServer::handleStack(const QString &path,
             break;
         QFile::remove(src.fullPath);
         touchStack(src.repoName, src.filePath);
+        layoutStack(src.repoName, src.filePath);
         dest->setPagenum(qMin(nextInsert, dest->pagecount()));
     }
     if (!err)
@@ -2513,6 +2542,37 @@ QByteArray SearchServer::handleUpload(const QString &path,
     }
 
     QString outPath = fi.absolutePath() + "/" + name;
+
+    /* A desktop uploads the whole layout of a folder, as it last read
+       it: keep the stacks put there since, such as by a scan from
+       elsewhere */
+    if (overwrite && name == DeskLayout::fileName()) {
+        DeskLayout layout(fi.absolutePath());
+
+        layout.read();
+        layout.merge(bytes);
+        if (!layout.write())
+            return buildHttpResponse(500, "Internal Server Error",
+                                     "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Cannot write file"));
+
+        _log.log(ServerLog::ServeFile, "upload " + target.filePath);
+        notifyStackEvent(target.repoName, "upload", target.filePath, name,
+                         params.value("__client_id__"));
+
+        /* the desktop's copy only stands for what is here now if
+           nothing was kept, so only then give it the validator */
+        QJsonObject outObj;
+        outObj["success"] = true;
+        outObj["name"] = name;
+        if (layout.toBytes() == bytes)
+            outObj["etag"] = fileEtag(QFileInfo(outPath));
+        return buildHttpResponse(200, "OK", "application/json",
+                                 QString::fromUtf8(QJsonDocument(outObj)
+                                     .toJson(QJsonDocument::Compact)));
+    }
+
     QSaveFile out(outPath);
     if (!out.open(QIODevice::WriteOnly)) {
         return buildHttpResponse(500, "Internal Server Error",
@@ -2871,6 +2931,52 @@ void SearchServer::touchStack(const QString &repoName,
 }
 
 
+void SearchServer::layoutStack(const QString &repoName,
+                               const QString &relPath)
+{
+    QString root = _backend->rootPathForName(repoName);
+    QFileInfo fi(root + "/" + relPath);
+
+    // the layout is not on the desk, nor is anything else not a stack
+    if (root.isEmpty() || !LocalBackend::isStackName(fi.fileName()))
+        return;
+
+    DeskLayout layout(fi.absolutePath());
+    bool there = fi.exists();
+
+    layout.read();
+    if (there == layout.contains(fi.fileName()))
+        return;
+    if (there)
+        layout.place(fi.fileName());
+    else
+        layout.remove(fi.fileName());
+    if (!layout.write())
+        qWarning() << "SearchServer: cannot write the layout of"
+                   << fi.absolutePath();
+}
+
+
+void SearchServer::layoutRename(const QString &repoName,
+                                const QString &relPath, const QString &name)
+{
+    QString root = _backend->rootPathForName(repoName);
+    QFileInfo fi(root + "/" + relPath);
+
+    if (root.isEmpty())
+        return;
+
+    DeskLayout layout(fi.absolutePath());
+
+    if (!layout.read() || !layout.contains(fi.fileName()))
+        return;
+    layout.rename(fi.fileName(), name);
+    if (!layout.write())
+        qWarning() << "SearchServer: cannot write the layout of"
+                   << fi.absolutePath();
+}
+
+
 void SearchServer::notifyStackEvent(const QString &repoName,
                                     const QString &op, const QString &path,
                                     const QString &name,
@@ -2878,13 +2984,25 @@ void SearchServer::notifyStackEvent(const QString &repoName,
 {
     /* A move also gives the stack's new path, and a rename, unstack and
        so on the name of a stack in the same folder */
-    touchStack(repoName, path);
-    if (!name.isEmpty()) {
-        QString dir = QFileInfo(path).path();
+    QString dir = QFileInfo(path).path();
+    QString newPath = name.isEmpty() ? QString()
+        : op == "move" || dir == "." ? name : dir + "/" + name;
 
-        touchStack(repoName,
-                   op == "move" || dir == "." ? name : dir + "/" + name);
+    /* only these bring a stack or take one away; a renamed one keeps
+       its place */
+    static const QStringList kArrive = {"upload", "duplicate", "unstack",
+                                        "move", "delete", "rename"};
+    if (op == "rename")
+        layoutRename(repoName, path, name);
+    if (kArrive.contains(op)) {
+        layoutStack(repoName, path);
+        if (!newPath.isEmpty())
+            layoutStack(repoName, newPath);
     }
+
+    touchStack(repoName, path);
+    if (!newPath.isEmpty())
+        touchStack(repoName, newPath);
 
     if (_eventClients.isEmpty())
         return;

@@ -500,7 +500,7 @@ void TestTraffic::testListLargeFolder ()
    QTRY_VERIFY (done);
    QVERIFY (listing.ok);
    QCOMPARE (listing.entries.size (), 200);
-   withinBudget (traffic ("list a folder of 200 stacks"), 1, 1, 1324);
+   withinBudget (traffic ("list a folder of 200 stacks"), 1, 1, 1913);
    }
 
 

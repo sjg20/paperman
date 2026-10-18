@@ -842,7 +842,9 @@ A server which does these lists ``convert`` in ``features``.
    The raw request body is the whole file's bytes (e.g. a stack
    scanned on a client).  Never overwrites unless ``?overwrite=true``
    is given (used for the shared ``.paperdesk`` desk file): a name
-   clash gets a fresh name.  Returns ``{"name", "etag"}``.
+   clash gets a fresh name.  Returns ``{"name", "etag"}``.  A
+   ``.paperdesk`` is merged with the server's, as described in *Stack
+   Layout (v1)* below.
 
 ``/pages/{n}/ocr``
    Renders 1-based page ``n``, runs the server's OCR engine
@@ -973,6 +975,39 @@ the page (1-based) which matches best, with the words around the match
 ``complete`` is false while the index is first being built, when it may
 lack some stacks.  The trash and hidden folders are left out.  A
 repository the server does not index is a 404.
+
+10. Stack Layout (v1)
+~~~~~~~~~~~~~~~~~~~~~
+
+Where each stack sits on a folder's desk is kept in the folder's
+``.paperdesk`` file, the same file a desktop keeps for a folder on its own
+disk.  A server which keeps it up to date lists ``layout`` in
+``features``:
+
+- A stack which arrives in a folder, by an upload, a move or copy, a
+  duplicate or an unstacked page, is placed after the others there, as a
+  desktop places one.  The server cannot measure names as a desktop does,
+  so it estimates how wide each is.
+- A renamed stack keeps its place, and one which leaves the folder leaves
+  the layout.
+- A stack put in the folder without the server, such as on its disk, is
+  placed when the folder is next listed.
+
+``GET /browse`` gives each stack's position, in the desk's pixels, as
+``x`` and ``y``:
+
+.. code:: json
+
+   {"name": "water.max", "path": "bills/water.max", "size": 81234,
+    "modified": "2026-10-01T09:12:00", "x": 165, "y": 35}
+
+A desktop uploads the whole ``.paperdesk`` with ``/upload?overwrite=true``
+as it last read it.  The server takes the position of each stack the
+upload mentions and keeps the stacks it does not, such as one which
+arrived after the desktop read the layout, and leaves out any stack no
+longer in the folder.  The reply has an ``etag`` only when the upload
+holds the whole layout, so a desktop which missed something fetches the
+layout again rather than keep its own copy.
 
 --------------
 
