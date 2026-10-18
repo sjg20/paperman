@@ -1554,6 +1554,10 @@ void Desktopmodel::uploadScanStack (File *f, OpDone done)
             if (ef.open (QIODevice::WriteOnly))
                ef.write (etag.toUtf8 ());
             }
+
+         // the server put it after the others; it goes where it is here
+         if (f->desk () && f->desk ()->serverLayout ())
+            f->desk ()->sendMoves (false);
          opDone (NULL);
       });
    }, done, true);
@@ -3118,6 +3122,10 @@ void Desktopmodel::addMadeStacks (const QString &dir,
       }
    if (!flist.isEmpty ())
       insertRows (flist, parent);
+
+   // the server put them after the others; they go where they are here
+   if (desk && desk->serverLayout ())
+      desk->sendMoves (false);
    done (err);
    }
 

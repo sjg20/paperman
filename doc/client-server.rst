@@ -69,6 +69,15 @@ come and go: a stack which arrives is placed after the others, whichever
 client put it there, and the stacks a desktop's upload of the layout does
 not mention are kept.
 
+A server which lists ``layout`` among its features gives each stack's
+position in the folder's listing, so the desktop does not fetch the
+layout itself. When stacks move, the desktop sends only those
+(``POST /v1/repos/{repo}/layout``), one request at a time, and each other
+desktop showing the folder moves them as the event comes. The desktop
+keeps its own copy of the file in its cache, for what it notes of each
+stack, such as the page it shows, which is its own. Against an older
+server the desktop uploads the whole layout, as before.
+
 Other clients' changes arrive on ``/v1/repos/{repo}/events``, a stream of
 server-sent events which the desktop opens for each remote repository it
 shows. Each event names the stack changed; the desktop drops its cached

@@ -2584,6 +2584,85 @@ void TestSearchServer::testDesktopRemoteSharedPositions()
 }
 
 
+void TestSearchServer::testDesktopsShareLayout()
+{
+    /* Two desktops showing a folder on a server which keeps its layout,
+       each with a connection of its own */
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path();
+    QVERIFY(QFile::copy(dir + "/testfile.max", dir + "/other.max"));
+    QString repo = QFileInfo(dir).fileName();
+
+    clearCaches();
+    SearchServer server(dir, PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+
+    Dirmodel dirs1, dirs2;
+    QString err;
+    QVERIFY2(dirs1.addRemoteRepository(url, &err), qPrintable(err));
+    QVERIFY2(dirs2.addRemoteRepository(url, &err), qPrintable(err));
+    Desktopmodel one(nullptr), two(nullptr);
+    Desktopmodelconv conv1(&one), conv2(&two);
+    one.setModelConv(&conv1);
+    one.setDirmodel(&dirs1);
+    two.setModelConv(&conv2);
+    two.setDirmodel(&dirs2);
+    QModelIndex parent1 = one.showDir(root, root, &meas, true);
+    QModelIndex parent2 = two.showDir(root, root, &meas, true);
+    QVERIFY(parent1.isValid() && parent2.isValid());
+    QTRY_COMPARE(server.eventClientCount(), 2);
+
+    // both show the stacks where the server put them
+    auto posIn = [](Desktopmodel &model, const QModelIndex &parent,
+                    const QString &name) {
+        return model.data(model.index(name, parent),
+                          Desktopmodel::Role_position).toPoint();
+    };
+    QPoint first = layoutPos(dir, "other.max");
+    QCOMPARE(posIn(one, parent1, "other.max"), first);
+    QCOMPARE(posIn(two, parent2, "other.max"), first);
+
+    /* a stack moved on one desktop moves on the other, which is told
+       where it went */
+    auto move = [](Desktopmodel &model, const QModelIndex &parent,
+                   const QString &name, const QPoint &to) {
+        QModelIndexList list;
+        QList<QPoint> newpos;
+
+        list << model.index(name, parent);
+        newpos << to;
+        model.opMoveStacks(list, parent, newpos);
+    };
+    QPoint there(432, 210);
+    move(one, parent1, "testfile.max", there);
+    QTRY_COMPARE(layoutPos(dir, "testfile.max"), there);
+    QTRY_COMPARE(posIn(two, parent2, "testfile.max"), there);
+
+    // each keeps the other's move of a different stack
+    QPoint elsewhere(600, 460);
+    move(two, parent2, "other.max", elsewhere);
+    QTRY_COMPARE(layoutPos(dir, "other.max"), elsewhere);
+    QTRY_COMPARE(posIn(one, parent1, "other.max"), elsewhere);
+    QCOMPARE(layoutPos(dir, "testfile.max"), there);
+    QCOMPARE(posIn(two, parent2, "testfile.max"), there);
+
+    // the page a desktop shows is its own
+    QModelIndex stack = one.index("testfile.max", parent1);
+    QVERIFY(one.setData(stack, 3, Desktopmodel::Role_pagenum));
+    one.flushAllDesks();
+    QTest::qWait(200);
+    QFile pd(dir + "/.paperdesk");
+    QVERIFY(pd.open(QIODevice::ReadOnly));
+    QVERIFY(pd.readAll().contains("testfile.max=432,210,0\n"));
+}
+
+
 void TestSearchServer::testRemoteOcr()
 {
     /* OCR of a remote stack runs on the server, which stores the text
@@ -4466,10 +4545,10 @@ void TestSearchServer::testRemotePageControls()
     QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
     QString repo = QFileInfo(tmpDir.path()).fileName();
 
-    // the stack was left turned to its third page
+    // another desktop left the stack turned to its fifth page
     QFile desk(tmpDir.path() + "/.paperdesk");
     QVERIFY(desk.open(QIODevice::WriteOnly));
-    desk.write("[Files]\ntestfile.max=0,0,2\n");
+    desk.write("[Files]\ntestfile.max=0,0,4\n");
     desk.close();
 
     clearCaches();
@@ -4483,6 +4562,15 @@ void TestSearchServer::testRemotePageControls()
     client.invalidatePageDir(repo, "testfile.max");
     client.invalidateCachedFile(repo, "testfile.max");
     QCOMPARE(awaitPageCount(client, repo, "testfile.max"), 5);
+
+    /* and this one left it at its third: which page each desktop shows is
+       its own, noted with the folder in its cache */
+    QString notes = client.cacheDirFor(repo, QString());
+    QVERIFY(QDir().mkpath(notes));
+    QFile own(notes + "/.paperdesk");
+    QVERIFY(own.open(QIODevice::WriteOnly));
+    own.write("[Files]\ntestfile.max=0,0,2\n");
+    own.close();
 
     Dirmodel dirmodel;
     QString err;
