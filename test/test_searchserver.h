@@ -74,6 +74,10 @@ private slots:
    //! a search for a stack's name on the server follows renames
    void testSearchNames();
 
+   //! it finds what is on the disk, not in a .papertree, and finds a stack
+   //! put there behind its back once it walks the repository again
+   void testSearchNamesWalks();
+
    //! the server lists a repository's folders, as a scan of them would
    void testListFolders();
 

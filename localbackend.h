@@ -16,8 +16,8 @@ License: GPL-2
 /**
  * In-process Backend that reads directly from the local filesystem.
  * The list of root paths is fixed for the lifetime of the instance;
- * the file cache it maintains can be rebuilt at runtime (e.g. when a
- * `.papertree` file changes).
+ * the file cache it maintains can be rebuilt at runtime, from a walk of
+ * the repository made on another thread (see scanRepo()).
  */
 class LocalBackend : public Backend
 {
@@ -32,10 +32,17 @@ public:
                        const QString &path) override;
 
     /** Build (or rebuild) the in-memory file cache for one repo from
-     *  disk.  Returns the number of files cached.  Prefers loading
-     *  from `<root>/.papertree` if present and non-empty, otherwise
-     *  walks the directory tree. */
+     *  disk, by walking its folders.  Returns the number of files
+     *  cached. */
     int loadCacheForRepo(const QString &rootPath);
+
+    /** Walk the repository at @p rootPath for its stacks, as
+     *  loadCacheForRepo() does, touching nothing else, so that it can be
+     *  done on another thread */
+    static QList<CachedFile> scanRepo(const QString &rootPath);
+
+    /** Take @p files, from scanRepo(), as the file cache for @p rootPath */
+    void setCache(const QString &rootPath, const QList<CachedFile> &files);
 
     /** Number of files cached for @p rootPath. */
     int cacheCount(const QString &rootPath) const;
@@ -58,10 +65,8 @@ public:
     void updateCachedFile(const QString &rootPath, const QString &relPath);
 
 private:
-    void scanDirectory(const QString &repoPath, const QString &dirPath,
-                       QList<CachedFile> &fileList);
-    bool loadFromPapertree(const QString &repoPath,
-                           QList<CachedFile> &fileList);
+    static void scanDirectory(const QString &repoPath, const QString &dirPath,
+                              QList<CachedFile> &fileList);
     int countFilesRecursive(const QString &repoPath,
                             const QString &dirPath) const;
 
