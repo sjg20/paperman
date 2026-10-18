@@ -51,6 +51,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QBuffer>
 #include <QCryptographicHash>
 #include <QElapsedTimer>
+#include <QFutureWatcher>
 #include <QtConcurrent>
 #include <QThread>
 
@@ -214,6 +215,10 @@ bool SearchServer::start()
     qDebug() << "SearchServer: Repository root:" << _rootPath;
     startIndexes();
     startReaders();
+
+    // list each repository's folders now, so that the first to ask need not wait
+    for (const QString &root : _rootPaths)
+        listFoldersLater(QFileInfo(root).fileName(), root);
     return true;
 }
 
@@ -518,6 +523,9 @@ void SearchServer::processRequests(QTcpSocket *client)
      * the start of the next request, for when this one is answered */
     QByteArray full = accum.left(headerEnd + 4 + contentLength);
     client->setProperty("__buf__", accum.mid(full.size()));
+
+    // a reply sent later is compressed as the request allows
+    client->setProperty("__request__", full.left(headerEnd + 4));
     QString request = QString::fromUtf8(full);
 
     /* the connection may carry the next request, unless the client says
@@ -1173,7 +1181,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     }
     else if (path.startsWith("/v1/repos/") && path.endsWith("/folders")
              && !path.contains("/stacks/")) {
-        return handleFolders(path, authedUser);
+        return handleFolders(path, authedUser, client);
     }
     else {
         return buildHttpResponse(404, "Not Found", "text/plain",
@@ -2532,6 +2540,17 @@ QByteArray SearchServer::handleMakeFolder(const QString &path,
                                      "Cannot make folder: " + folder));
     utilSetDirGroup(full);
 
+    // the folders kept for listing have it at once, with any made above it
+    FolderList &list = _folderLists[repoName];
+
+    if (list.age.isValid())
+        for (int i = 1; i <= parts.size(); i++) {
+            QString made = QStringList(parts.mid(0, i)).join('/');
+
+            if (!list.folders.contains(made))
+                list.folders.append(made);
+        }
+
     QJsonObject out;
     out["success"] = true;
     out["path"] = parts.join('/');
@@ -2539,8 +2558,56 @@ QByteArray SearchServer::handleMakeFolder(const QString &path,
                              QJsonDocument(out).toJson(QJsonDocument::Compact));
 }
 
+/* The answer to GET /v1/repos/{repo}/folders, with @folders */
+static QByteArray foldersReply(const QJsonArray &folders)
+{
+    QJsonObject obj;
+    obj["success"] = true;
+    obj["folders"] = folders;
+    return QJsonDocument(obj).toJson(QJsonDocument::Compact);
+}
+
+void SearchServer::listFoldersLater(const QString &repoName,
+                                    const QString &root)
+{
+    FolderList &list = _folderLists[repoName];
+
+    if (list.listing)
+        return;
+    list.listing = true;
+
+    auto *watcher = new QFutureWatcher<QJsonArray>(this);
+
+    connect(watcher, &QFutureWatcherBase::finished, this,
+            [this, watcher, repoName]() {
+        FolderList &done = _folderLists[repoName];
+
+        done.folders = watcher->result();
+        done.age.start();
+        done.listing = false;
+        watcher->deleteLater();
+
+        QByteArray reply = buildHttpResponse(200, "OK", "application/json",
+                                             foldersReply(done.folders));
+        const QList<QPointer<QTcpSocket>> waiters = done.waiters;
+
+        done.waiters.clear();
+        for (const QPointer<QTcpSocket> &client : waiters)
+            if (client && client->state() == QAbstractSocket::ConnectedState)
+                sendReply(client, compressResponse(reply,
+                    client->property("__request__").toByteArray()));
+    });
+    watcher->setFuture(QtConcurrent::run([root]() {
+        QJsonArray folders;
+
+        addFolders(root, QString(), folders);
+        return folders;
+    }));
+}
+
 QByteArray SearchServer::handleFolders(const QString &path,
-                                       const QString &authedUser)
+                                       const QString &authedUser,
+                                       QTcpSocket *client)
 {
     QString rest = path;
     rest.remove(0, QStringLiteral("/v1/repos/").size());
@@ -2559,14 +2626,21 @@ QByteArray SearchServer::handleFolders(const QString &path,
                                  buildJsonResponse(false, "",
                                      "Repository not found: " + repoName));
 
-    QJsonArray folders;
-    addFolders(root, QString(), folders);
+    /* Walking the folders can take seconds, as on a network share, so
+       they are walked in the background and kept: an old list is given
+       at once, while a new one is made for the next to ask.  Until the
+       first is made, the client waits for it */
+    FolderList &list = _folderLists[repoName];
 
-    QJsonObject obj;
-    obj["success"] = true;
-    obj["folders"] = folders;
+    if (!list.age.isValid()) {
+        list.waiters << client;
+        listFoldersLater(repoName, root);
+        return QByteArray();
+    }
+    if (list.age.elapsed() > _folderListMs)
+        listFoldersLater(repoName, root);
     return buildHttpResponse(200, "OK", "application/json",
-                             QJsonDocument(obj).toJson(QJsonDocument::Compact));
+                             foldersReply(list.folders));
 }
 
 QByteArray SearchServer::handleTextSearch(const QString &path,
