@@ -1703,13 +1703,18 @@ void Desktopmodel::listRemoteDesk(Desk *desk, RemoteBackend *remote,
       fill();
    });
 
-   /* a failure just means the server has no desk file yet (or is
-      unreachable, in which case any cached copy is used) */
-   remote->ensureCachedFile(desk->repoName(), desk->remoteDeskPath(), this,
-                            [state, fill](const QString &, bool) {
+   /* a server which keeps the layout says where each stack is in the
+      listing.  Otherwise a failure just means the server has no desk file
+      yet (or is unreachable, in which case any cached copy is used) */
+   if (remote->hasLayout()) {
       state->deskFile = true;
-      fill();
-   });
+   } else {
+      remote->ensureCachedFile(desk->repoName(), desk->remoteDeskPath(),
+                               this, [state, fill](const QString &, bool) {
+         state->deskFile = true;
+         fill();
+      });
+   }
 
    if (wait && !state->filled) {
       QEventLoop loop;
@@ -1744,6 +1749,9 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
       connect(backend, &RemoteBackend::stackEvent,
               this, &Desktopmodel::onRemoteStackEvent,
               Qt::QueuedConnection);
+      connect(backend, &RemoteBackend::layoutChanged,
+              this, &Desktopmodel::onRemoteLayoutEvent,
+              Qt::QueuedConnection);
       _connectedBackends.insert(backend);
    }
 
@@ -1774,6 +1782,42 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
                                                /*size=*/"small",
                                                f->listedVersion());
       _pendingThumbnails.insert(t, f);
+   }
+}
+
+
+void Desktopmodel::onRemoteLayoutEvent(const QString &repo,
+                                       const QString &dir,
+                                       const QHash<QString, QPoint> &stacks)
+{
+   if (_closing)
+      return;
+   RemoteBackend *remote = qobject_cast<RemoteBackend *>(sender());
+   if (!remote)
+      return;
+
+   for (int row = 0; row < _desks.size(); row++) {
+      Desk *desk = _desks[row];
+
+      if (desk->backend() != remote || desk->repoName() != repo
+          || remoteRelDir(desk, desk->dir()) != dir)
+         continue;
+
+      QModelIndex parent = index(row, 0, QModelIndex());
+
+      for (auto it = stacks.cbegin(); it != stacks.cend(); ++it) {
+         int pos;
+         File *f = desk->findFile(it.key(), pos);
+
+         desk->setServerPos(it.key(), it.value());
+         if (!f || f->pos() == it.value())
+            continue;
+         f->setPos(it.value());
+
+         QModelIndex ind = index(pos, 0, parent);
+         if (ind.isValid())
+            emit dataChanged(ind, ind, {Role_position});
+      }
    }
 }
 
@@ -2447,6 +2491,8 @@ void Desktopmodel::connectContentSignals (RemoteBackend *remote)
                this, &Desktopmodel::onThumbnailReady);
       connect (remote, &RemoteBackend::stackEvent,
                this, &Desktopmodel::onRemoteStackEvent, Qt::QueuedConnection);
+      connect (remote, &RemoteBackend::layoutChanged,
+               this, &Desktopmodel::onRemoteLayoutEvent, Qt::QueuedConnection);
       _connectedBackends.insert (remote);
       }
    if (!_contentBackends.contains (remote))
