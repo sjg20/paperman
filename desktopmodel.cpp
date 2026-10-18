@@ -1683,6 +1683,11 @@ void Desktopmodel::listRemoteDesk(Desk *desk, RemoteBackend *remote,
          desk->updateRowCount();
          endInsertRows();
       }
+
+      // any there already, such as a stack being scanned, have moved
+      if (old)
+         emit dataChanged(index(0, 0, ind), index(old - 1, 0, ind),
+                          {Role_position});
       scheduleRemoteThumbnails(desk, remote, desk->repoName(), rel);
       if (!replace)
          emit deskListed(ind);
