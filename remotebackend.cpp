@@ -1013,14 +1013,15 @@ void RemoteBackend::uploadFile(const QString &repo, const QString &path,
 
 bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
                                const QByteArray &bytes, QString *finalName,
-                               QString *etag, bool overwrite)
+                               QString *etag, bool overwrite, bool quick)
 {
    QString endpoint = "/v1/repos/" + repo + "/stacks/" + path + "/upload";
    if (overwrite)
       endpoint += "?overwrite=true";
 
    QByteArray resp = postRequest(endpoint, bytes,
-                                 "application/octet-stream");
+                                 "application/octet-stream",
+                                 quick ? kRequestTimeoutMs : 0);
    QJsonDocument doc = QJsonDocument::fromJson(resp);
    if (!doc.isObject() || !doc.object().value("success").toBool(false)) {
       if (_lastError.isEmpty())
@@ -1831,7 +1832,10 @@ QNetworkReply *RemoteBackend::startPost(const QString &path,
       url.setQuery(path.mid(q + 1));
    }
    QNetworkRequest req(url);
-   req.setTransferTimeout(timeoutMs > 0 ? timeoutMs : kRequestTimeoutMs);
+   /* a POST changes something, such as uploading a stack, and is
+      answered only once the server has done it, perhaps behind other
+      requests: so it is an operation, not a round-trip */
+   req.setTransferTimeout(timeoutMs > 0 ? timeoutMs : kOperationTimeoutMs);
    req.setRawHeader("X-Client-Id", _clientId.toUtf8());
    req.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
    if (!_token.isEmpty())

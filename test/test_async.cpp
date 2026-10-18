@@ -1579,6 +1579,31 @@ void TestAsync::testScan ()
    }
 
 
+void TestAsync::testScanSlowServer ()
+   {
+   connectServer ();
+   openFolder ();
+   scanStack ();
+
+   /* a server busy with other requests, as when it lists large folders
+      after starting, answers late: the stack still goes up */
+   _server->setDelay (6000);
+
+   Desktopmodel *model = _desktop->getModel ();
+   bool uploaded = false;
+   err_info *err = nullptr;
+   QString fname;
+
+   QVERIFY (!model->confirmScan (&fname, nullptr, [&] (err_info *e) {
+      err = e;
+      uploaded = true;
+   }));
+   QTRY_VERIFY_WITH_TIMEOUT (uploaded, 20000);
+   QVERIFY2 (!err, err ? err->errstr : "");
+   QVERIFY (QFile::exists (serverPath (fname)));
+   }
+
+
 void TestAsync::testScanClose ()
    {
    connectServer ();

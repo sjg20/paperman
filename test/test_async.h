@@ -160,6 +160,7 @@ private slots:
 
    //! closing the window with a scanned stack still to be uploaded
    void testScanClose ();
+   void testScanSlowServer ();
 
    //! fetching every page of a stack, as for printing it
    void testFetchStacks ();
