@@ -775,6 +775,15 @@ File *Desk::findFile (QString fileName, int &pos)
 void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
                       Measure *meas)
    {
+   /* a stack made here before the listing came, as by a scan into the
+      folder as it opens, was placed with nothing else known, so at the
+      top: keep it out of the way while the others take their places,
+      then put it after them */
+   QList<File *> early = _files;
+
+   for (File *f : early)
+      f->setPos (QPoint (POS_leftmargin, -POS_ystep * 1000));
+
    if (_isRemote)
       {
       /* the server's desk file carries the shared layout; read it
@@ -792,6 +801,17 @@ void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
       if (e.isDir)
          continue;
       addFile (e.name, dirPath, meas);
+      }
+
+   for (File *f : early)
+      {
+      advance ();
+      f->setPos (_pos);
+      }
+   if (!early.isEmpty ())
+      {
+      advance ();
+      dirty ();
       }
 
    /* tell each stack how many pages it has, so its page controls

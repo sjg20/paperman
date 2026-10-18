@@ -10,6 +10,7 @@
 
 #include "desktopmodel.h"
 #include "fakescanner.h"
+#include "desktopview.h"
 #include "desktopwidget.h"
 #include "filemax.h"
 #include "mainwidget.h"
@@ -632,13 +633,20 @@ void TestFakescan::testScanIntoStack ()
    the size of the stack */
 static void scanIntoServer (int delayMs,
                             QList<ServerThread::Exchange> &requests,
-                            qint64 &stackSize)
+                            qint64 &stackSize, QString *scannedName = nullptr)
 {
    utilSetHeadless (true);
 
    QTemporaryDir repo;
    QVERIFY (repo.isValid ());
    QVERIFY (QDir (repo.path ()).mkpath ("bills/2026"));
+
+   // with some stacks there already, for the scan to go after
+   const QStringList there = {"one.max", "two.max", "three.max"};
+
+   for (const QString &name : there)
+      QVERIFY (QFile::copy (Test::testSrc + "/testfile.max",
+                            repo.path () + "/bills/2026/" + name));
 
    ServerThread server (repo.path (), 9879);
    QVERIFY (server.begin ());
@@ -689,17 +697,48 @@ static void scanIntoServer (int delayMs,
    QString dir = repo.path () + "/bills/2026/";
    QStringList stacks;
 
-   QTRY_VERIFY_WITH_TIMEOUT (!(stacks = QDir (dir).entryList (
+   QTRY_VERIFY_WITH_TIMEOUT ((stacks = QDir (dir).entryList (
                                  QStringList () << "*.max", QDir::Files))
-                             .isEmpty (), 10000);
+                             .size () > there.size (), 10000);
+   for (const QString &name : there)
+      stacks.removeAll (name);
    QCOMPARE (stacks.size (), 1);
    QVERIFY2 (check.ok (), qPrintable (check.report ()));
+
+   /* the scan goes after the stacks there, though it began before the
+      folder's listing came, as it does from a slow server */
+   Desktopmodel *model = desktop->getModel ();
+   QModelIndex desk = desktop->getView ()->rootIndex ();
+
+   desktop->getModelconv ()->indexToSource (desktop->getView ()->model (),
+                                            desk);
+   QTRY_VERIFY (model->index (there [0], desk).isValid ());
+
+   auto placed = [&] (const QString &name) {
+      return model->data (model->index (name, desk),
+                          Desktopmodel::Role_position).toPoint ();
+   };
+   QPoint scanned = placed (stacks [0]);
+
+   for (const QString &name : there)
+      {
+      QPoint other = placed (name);
+
+      QVERIFY2 (scanned.y () > other.y ()
+                || (scanned.y () == other.y () && scanned.x () > other.x ()),
+                qPrintable (QString ("the scan at %1,%2 is not after %3 at "
+                                     "%4,%5")
+                            .arg (scanned.x ()).arg (scanned.y ()).arg (name)
+                            .arg (other.x ()).arg (other.y ())));
+      }
 
    Filemax max (dir, stacks [0], nullptr);
 
    QVERIFY (!max.load ());
    QCOMPARE (max.pagecount (), 2);
    stackSize = QFileInfo (dir + stacks [0]).size ();
+   if (scannedName)
+      *scannedName = stacks [0];
 
    /* all that the scan asked for, once the stack is up: the event stream
       for the folder stays open, so is not counted */
@@ -722,31 +761,39 @@ void TestFakescan::testScanIntoServer ()
 {
    QList<ServerThread::Exchange> requests;
    qint64 stackSize = 0;
+   QString scanned;
 
-   scanIntoServer (0, requests, stackSize);
+   scanIntoServer (0, requests, stackSize, &scanned);
    if (QTest::currentTestFailed ())
       return;
 
-   /* opening the folder lists it and fetches its layout, and the stack
-      goes up once, with little more than its own bytes; nothing is asked
-      for the stack being scanned, which is not on the server yet */
+   /* opening the folder lists it, fetches its layout and a thumbnail of
+      each of the three stacks there, and the stack goes up once, with
+      little more than its own bytes; nothing is asked for the stack being
+      scanned, which is not on the server yet */
    QStringList lines;
    qint64 sent = 0, received = 0;
+   int thumbnails = 0;
 
    for (const ServerThread::Exchange &ex : requests)
       {
       lines << ex.request.section ('?', 0, 0);
+      if (ex.request.contains ("/thumbnail"))
+         {
+         thumbnails++;
+         QVERIFY2 (!ex.request.contains (scanned), qPrintable (ex.request));
+         continue;
+         }
       sent += ex.sent;
       received += ex.received;
       }
-   QVERIFY2 (requests.size () <= 3, qPrintable (lines.join (", ")));
+   QVERIFY2 (requests.size () <= 3 + 3, qPrintable (lines.join (", ")));
+   QCOMPARE (thumbnails, 3);
    QCOMPARE (lines.filter ("/upload").size (), 1);
-   QVERIFY2 (lines.filter ("/thumbnail").isEmpty (),
-             qPrintable (lines.join (", ")));
    QVERIFY2 (sent < stackSize + 1500,
              qPrintable (QString ("sent %1 for a stack of %2")
                          .arg (sent).arg (stackSize)));
-   QVERIFY2 (received < 1000, qPrintable (QString ("received %1")
+   QVERIFY2 (received < 1500, qPrintable (QString ("received %1")
                                           .arg (received)));
 }
 
