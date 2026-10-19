@@ -1232,6 +1232,52 @@ static bool moveByKey(Mainwindow *me, const QString &folder, bool copy)
    return QTest::qWaitFor([&shown] { return shown; }, 5000);
 }
 
+/* Ctrl-F brings up a box in which a few letters of a folder's name find it,
+   and Return goes there */
+void TestDesktopUi::testGoToFolder()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   QString path = desktop->getSelectedPath();
+   bool typed = false;
+   QTimer typist;
+
+   // the dialog is modal, so type into it once it is up
+   QObject::connect(&typist, &QTimer::timeout, &me, [&]() {
+      QDialog *diag = nullptr;
+
+      for (QWidget *w : QApplication::topLevelWidgets())
+         if (w->isVisible() && w->objectName() == "Gotofolder")
+            diag = qobject_cast<QDialog *>(w);
+      if (!diag)
+         return;
+      typist.stop();
+      typed = true;
+
+      QLineEdit *name = diag->findChild<QLineEdit *>("folderName");
+
+      QTest::keyClicks(name, "mai");
+
+      // the list of folders which match has the keys then
+      QWidget *focus = diag->focusWidget();
+
+      QTest::keyClick(focus ? focus : name, Qt::Key_Return);
+   });
+   typist.start(50);
+   QTest::keyClick(&me, Qt::Key_F, Qt::ControlModifier);
+   QVERIFY(QTest::qWaitFor([&typed] { return typed; }, 5000));
+   QTRY_COMPARE(QDir(desktop->getSelectedPath()).absolutePath(),
+                QDir(path + "/main").absolutePath());
+
+   // F4 does it too, as in the pscan dialogue
+   QVERIFY(me.actionGotoFolder->shortcuts().contains(QKeySequence(Qt::Key_F4)));
+}
+
 void TestDesktopUi::testMoveKey()
 {
    QModelIndex repo_ind;

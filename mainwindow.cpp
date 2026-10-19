@@ -83,6 +83,10 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _label = 0;
    setupUi(this);
    utilSetIcons(this);
+
+   // F4 as well, as the pscan dialogue has
+   actionGotoFolder->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_F),
+                                   QKeySequence(Qt::Key_F4)});
    init();
    _welcome_shown = false;
    _desktop = _main->getDesktop ();
@@ -547,6 +551,12 @@ void Mainwindow::on_actionAbout_triggered(bool)
    widget->show ();
    widget->exec ();
 }
+
+void Mainwindow::on_actionGotoFolder_triggered(bool)
+{
+   _main->getDesktop()->goToFolder();
+}
+
 
 void Mainwindow::on_actionSearch_triggered(bool)
 {

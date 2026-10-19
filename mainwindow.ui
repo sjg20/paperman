@@ -118,6 +118,7 @@
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
     <addaction name="actionSearch"/>
+    <addaction name="actionGotoFolder"/>
     <addaction name="separator"/>
     <addaction name="actionSelectall"/>
     <addaction name="separator"/>
@@ -173,6 +174,17 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionGotoFolder">
+   <property name="text">
+    <string>Go to folder...</string>
+   </property>
+   <property name="toolTip">
+    <string>Choose a folder by typing part of its name, and open it</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
    </property>
   </action>
   <action name="actionSearch">

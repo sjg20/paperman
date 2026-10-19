@@ -44,6 +44,7 @@ class Dirmodel;
 class Dirproxy;
 class Dirview;
 class Folderlist;
+class Foldersel;
 class Mainwidget;
 class Paperstack;
 class Pagewidget;
@@ -95,6 +96,10 @@ public:
 
    /** destroy a desktop widget */
    ~Desktopwidget ();
+
+   /** Choose a folder by typing part of its name, as the pscan dialogue
+       does, and open it */
+   void goToFolder();
 
    //! Add the given list of extra repositories
    QList<err_info> addRepositories(const QStringList& dirs);
@@ -749,6 +754,23 @@ public:
 public:
     QKeyEventTransition *pressed_esc;
 };
+
+/** A small dialogue for choosing a folder to go to by typing part of its
+    name, from a list of those which match */
+class Gotofolder : public QDialog
+{
+   Q_OBJECT
+public:
+   explicit Gotofolder(QWidget *parent);
+
+   Foldersel *folderName;   //!< where the name is typed
+   Folderlist *_folders;    //!< the folders which match
+   QString _path;           //!< the folder chosen
+
+protected slots:
+   void accept() override;
+};
+
 
 class Move : public QDialog, public Ui::Move
 {
