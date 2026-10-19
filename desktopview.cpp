@@ -628,6 +628,11 @@ void Desktopview::setSelectionRange (int row, int count)
    sel->select (QItemSelection (mod->index (row, 0, rootIndex ()),
       mod->index (row + count - 1, 0, rootIndex ())),
       QItemSelectionModel::Clear | QItemSelectionModel::Select);
+
+   /* the arrow keys move from the current item, which would otherwise
+      stay where it was, away from what is now selected */
+   sel->setCurrentIndex (mod->index (row, 0, rootIndex ()),
+                         QItemSelectionModel::NoUpdate);
    }
 
 

@@ -94,7 +94,8 @@ public:
    /** record the index on which the context menu was opened */
    void setContextIndex (QModelIndex index);
 
-   /** clears the current selection and selects the given range
+   /** clears the current selection and selects the given range, the
+       first of which becomes the current item, from which the keys move
 
       \param row     first row to select
       \param count   number of rows to select */
