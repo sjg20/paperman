@@ -94,7 +94,8 @@ public:
    /** record the index on which the context menu was opened */
    void setContextIndex (QModelIndex index);
 
-   /** clears the current selection and selects the given range
+   /** clears the current selection and selects the given range, the
+       first of which becomes the current item, from which the keys move
 
       \param row     first row to select
       \param count   number of rows to select */
@@ -180,6 +181,12 @@ public slots:
    void slotScrollTo (const QModelIndex &index);
 
 protected:
+   /** Move left or right to the stack beside this one on the desk, rather
+       than to the one before or after it in the model, which QListView
+       does, though the two need not be in that order */
+   QModelIndex moveCursor (CursorAction action,
+                           Qt::KeyboardModifiers modifiers) override;
+
    /** handle a drop event - this saves the new position of items into
        the model*/
    void dropEvent (QDropEvent* event);

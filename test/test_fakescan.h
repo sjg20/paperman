@@ -102,6 +102,8 @@ private slots:
    void testScanIntoSlowServer ();
    void testScanRecordsDpi_data ();
    void testScanRecordsDpi ();
+   void testKeysMoveFromScan ();
+   void testKeysFollowPlaces ();
    void testScanNameTaken_data ();
    void testScanNameTaken ();
    void testReopenPscan ();
