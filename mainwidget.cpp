@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "config.h"
 
+#include <QSettings>
 #include <QTimer>
 #include <QDebug>
 #include <time.h>
@@ -174,6 +175,45 @@ void Mainwidget::closing (void)
    _page->closing ();
    if (_pscan)
       _pscan->closing ();
+
+   /* so that it opens again next time, where it was.  Only the first
+      time: quitting has Qt close each window, the dialogue perhaps before
+      the main window, which saves its settings again as it closes */
+   if (!_pscanNoted)
+      QSettings ().setValue ("pscan/open", _pscan && _pscan->isVisible ());
+   _pscanNoted = true;
+   }
+
+
+void Mainwidget::reopenPscan (int tries)
+   {
+   if (utilHeadless () || !QSettings ().value ("pscan/open").toBool ()
+       || (_pscan && _pscan->isVisible ()))
+      return;
+
+   // only with the scanner used last, which may not be there now
+   if (!_scanner)
+      {
+      QScannerSetupDlg ssd (_scanner, 0);
+
+      if (!ssd.setupLast ())
+         {
+         if (tries > 1)
+            QTimer::singleShot (kReopenRetryMs, this, [this, tries] () {
+               reopenPscan (tries - 1);
+            });
+         else
+            qInfo () << "Mainwidget: not opening the scan dialogue, as the"
+                     << "scanner"
+                     << (xmlConfig ? xmlConfig->stringValue ("LAST_DEVICE")
+                                   : QString ())
+                     << "cannot be opened";
+         return;
+         }
+      _scanner = ssd.scanner ();
+      connectScanner ();
+      }
+   pscan ();
    }
 
 

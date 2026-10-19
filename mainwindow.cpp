@@ -61,6 +61,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopwidget.h"
 #include "dirmodel.h"
 #include "mainwidget.h"
+
+#include <QTimer>
 #include "mainwindow.h"
 #include "pagewidget.h"
 #include "utils.h"
@@ -444,6 +446,9 @@ void Mainwindow::runGui(QApplication& app, QStringList args,
 
     me->startup(args, serverUrl);
     me->offerRepository();
+
+    // once the window is up, as opening the scanner takes a while
+    QTimer::singleShot(0, me, [me]() { me->_main->reopenPscan(); });
     app.exec();
 
     me->shutdown();
