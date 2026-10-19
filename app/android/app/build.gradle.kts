@@ -31,7 +31,8 @@ android {
 
     defaultConfig {
         applicationId = "com.sjg20.paperman"
-        minSdk = flutter.minSdkVersion
+        // the document scanner needs Android 7 (API 24) or later
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

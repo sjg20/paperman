@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -10,8 +13,32 @@ import 'connection_screen.dart';
 import 'search_screen.dart';
 import 'viewer_screen.dart';
 
+/// Scans pages with the phone's camera, returning the path of a PDF of
+/// them, or null if the person gives up
+typedef ScanPages = Future<String?> Function();
+
+Future<String?> _scanWithCamera() async {
+  final pdf = await CunningDocumentScanner.getPictures(asPdf: true);
+  return pdf == null || pdf.isEmpty ? null : pdf.first;
+}
+
+/// Today's date as the desktop names a scan, such as 19-Oct-26
+String defaultScanName([DateTime? when]) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final d = when ?? DateTime.now();
+  final day = d.day.toString().padLeft(2, '0');
+  final year = (d.year % 100).toString().padLeft(2, '0');
+  return '$day-${months[d.month - 1]}-$year';
+}
+
 class BrowseScreen extends StatefulWidget {
-  const BrowseScreen({super.key});
+  const BrowseScreen({super.key, this.scanPages = _scanWithCamera});
+
+  /// how pages are scanned; a test gives its own
+  final ScanPages scanPages;
 
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
@@ -29,6 +56,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   BrowseResult? _browseResult;
   bool _loading = true;
   String? _error;
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -105,6 +133,113 @@ class _BrowseScreenState extends State<BrowseScreen> {
               fileName: file.name,
               repo: _selectedRepo,
             ),
+      ),
+    );
+  }
+
+  /// Scan pages into a PDF, ask what to call it, and put it in the folder
+  /// shown, which is then listed again to show it
+  Future<void> _scan() async {
+    final repo = _selectedRepo;
+    final messenger = ScaffoldMessenger.of(context);
+    final api = context.read<ApiService>();
+    if (repo == null) return;
+
+    final String? pdf;
+    try {
+      pdf = await widget.scanPages();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Cannot scan: $e')));
+      return;
+    }
+    if (pdf == null || !mounted) return;
+
+    final name = await _askName(defaultScanName());
+    if (name == null || !mounted) return;
+
+    await _upload(api, messenger, repo, _currentPath, '$name.pdf', pdf);
+  }
+
+  /// Upload the scan [pdf] as [name] in the folder [dir], then drop it;
+  /// should that fail, as when the phone loses its connection, the person
+  /// can try again without scanning again
+  Future<void> _upload(
+    ApiService api,
+    ScaffoldMessengerState messenger,
+    String repo,
+    String dir,
+    String name,
+    String pdf,
+  ) async {
+    setState(() => _uploading = true);
+    try {
+      final file = File(pdf);
+      final stored = await api.uploadStack(
+        repo: repo,
+        dir: dir,
+        name: name,
+        bytes: await file.readAsBytes(),
+      );
+      try {
+        await file.delete();
+      } catch (_) {}
+      messenger.showSnackBar(SnackBar(content: Text('Scanned into $stored')));
+      if (mounted && dir == _currentPath) await _browse();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Cannot upload the scan: $e'),
+          duration: const Duration(seconds: 30),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _upload(api, messenger, repo, dir, name, pdf),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  /// Ask what to call a scan, starting from [suggested]; null if the
+  /// person gives up
+  Future<String?> _askName(String suggested) {
+    final controller = TextEditingController(text: suggested)
+      ..selection = TextSelection(baseOffset: 0, extentOffset: suggested.length);
+    String? valid(String text) {
+      var name = text.trim();
+      if (name.toLowerCase().endsWith('.pdf')) {
+        name = name.substring(0, name.length - 4);
+      }
+      return name.isEmpty || name.contains('/') ? null : name;
+    }
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Name the scan'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Name'),
+          onSubmitted: (text) {
+            final name = valid(text);
+            if (name != null) Navigator.of(context).pop(name);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = valid(controller.text);
+              if (name != null) Navigator.of(context).pop(name);
+            },
+            child: const Text('Upload'),
+          ),
+        ],
       ),
     );
   }
@@ -212,6 +347,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ),
         ],
       ),
+      // scans go into the folder shown, which a demo has none of
+      floatingActionButton: context.read<ApiService>().isDemo
+          ? null
+          : FloatingActionButton(
+              tooltip: 'Scan pages into this folder',
+              onPressed: _uploading ? null : _scan,
+              child: _uploading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    )
+                  : const Icon(Icons.document_scanner),
+            ),
       body: Column(
         children: [
           // Breadcrumbs

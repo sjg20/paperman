@@ -14,6 +14,8 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera scans pages into a folder on your Paperman server.</string>
 	<key>CFBundleName</key>
 	<string>paperman</string>
 	<key>CFBundlePackageType</key>
