@@ -14,6 +14,13 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- a server may be reached by plain HTTP at its address, as over a
+		     tailnet, whose traffic is encrypted already -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>The camera scans pages into a folder on your Paperman server.</string>
 	<key>CFBundleName</key>
