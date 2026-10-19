@@ -948,7 +948,10 @@ void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
       for (const DirectoryEntry &e : listing.entries)
          if (!e.isDir)
             names.insert (e.name);
-      readDesk (true, &names);
+      /* the preview sizes noted for a folder on a server are those of
+         images it may make differently now, so are found again from the
+         images it gives */
+      readDesk (!serverLayout (), &names);
       }
 
    /* a server which keeps the layout says where each stack is; the desk

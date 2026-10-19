@@ -16,6 +16,7 @@
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "paperstack.h"
+#include "remotebackend.h"
 #include "pscan.h"
 #include "qscanner.h"
 #include "utils.h"
@@ -948,8 +949,6 @@ static Pscan *shownPscan ()
 }
 
 
-/* The pscan dialogue opens again as Paperman starts, if it was open when
-   it closed */
 /* Quit Paperman, with its window @me, as someone at the screen does: by
    File > Exit if @exit, else by closing the window, while Paperman runs */
 static void quitPaperman (Mainwindow &me, bool exit)
@@ -1230,6 +1229,86 @@ void TestFakescan::testKeysFollowPlaces ()
    QCOMPARE (press (Qt::Key_Right), QString ("five.max"));
    QCOMPARE (press (Qt::Key_Left), QString ("three.max"));
    QCOMPARE (press (Qt::Key_Left), QString ("four.max"));
+}
+
+
+/* Each stack in a folder on a server is laid out for the image it shows,
+   not for a size noted from images made before, nor for the stand-in
+   shown while its image comes, which put its page controls well below it */
+void TestFakescan::testPreviewSizeFromImage ()
+{
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+   QVERIFY (QDir (repo.path ()).mkpath ("bills/2026"));
+   QString dir = repo.path () + "/bills/2026/";
+   const QStringList there = {"one.max", "two.max"};
+
+   for (const QString &name : there)
+      QVERIFY (QFile::copy (Test::testSrc + "/testfile.max", dir + name));
+
+   ServerThread server (repo.path (), 9879);
+   QVERIFY (server.begin ());
+   QString repoName = QFileInfo (repo.path ()).fileName ();
+
+   // this desktop noted a larger image of one than the server now gives
+   {
+      RemoteBackend client (server.url ());
+      QString notes = client.cacheDirFor (repoName, "bills/2026");
+
+      QVERIFY (!notes.isEmpty ());
+      QVERIFY (QDir ().mkpath (notes));
+      QFile file (notes + "/.paperdesk");
+
+      QVERIFY (file.open (QIODevice::WriteOnly));
+      file.write ("[Files]\none.max=25,35,0,115,250,47,18,-1,-1\n");
+   }
+
+   Mainwindow me;
+   me.resize (1600, 1000);
+   me.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&me));
+   Desktopwidget *desktop = me.getDesktop ();
+   bool attached = false;
+   QString error;
+
+   desktop->addRemoteServer (server.url (), [&] (const QString &err) {
+      error = err;
+      attached = true;
+   });
+   QTRY_VERIFY (attached);
+   QCOMPARE (error, QString ());
+
+   QString folder = server.url ().toString () + "/" + repoName
+                    + "/bills/2026";
+   QModelIndex ind;
+
+   QTRY_VERIFY ((ind = desktop->getDirIndex (folder)).isValid ());
+   desktop->selectDir (ind);
+
+   Desktopmodel *model = desktop->getModel ();
+   QModelIndex desk;
+
+   QTRY_VERIFY ((desk = model->index (folder + "/", QModelIndex ()))
+                   .isValid ());
+   for (const QString &name : there)
+      {
+      QModelIndex stack;
+
+      QTRY_VERIFY ((stack = model->index (name, desk)).isValid ());
+
+      // once drawn with its image, the preview held in the stack
+      auto laidOut = [&] () {
+         desktop->getView ()->viewport ()->repaint ();
+         return model->data (stack, Desktopmodel::Role_preview_maxsize)
+                   .toSize ();
+      };
+
+      QTRY_COMPARE (laidOut (), QSize (106, 137));
+      QCOMPARE (model->data (stack, Desktopmodel::Role_pixmap)
+                   .value<QPixmap> ().size (), QSize (106, 137));
+      }
 }
 
 

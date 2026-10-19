@@ -487,7 +487,8 @@ void TestAsync::testWaitingThumbnail ()
                      .value<QPixmap> ();
    QImage unknown = utilIconPixmap ("unknown", 64).toImage ();
 
-   QCOMPARE (waiting.size (), QSize (106, 150));
+   // the size of a page of US letter's preview, scanned at 200dpi
+   QCOMPARE (waiting.size (), QSize (70, 91));
    QVERIFY (waiting.toImage () != unknown);
 
    // the view draws it, but its size is not the stack's to keep

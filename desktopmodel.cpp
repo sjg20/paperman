@@ -1916,10 +1916,10 @@ bool Desktopmodel::waitingForImage(File *file) const
 
 QPixmap Desktopmodel::waitingPixmap(QSize size) const
 {
-   /* without a size from the layout, take a page of A4 at the height of
-      the server's small thumbnails */
+   /* without a size from the layout, take a page of US letter as its
+      preview holds it when scanned at 200dpi, as most are */
    if (size.width() <= 0 || size.height() <= 0)
-      size = QSize(106, 150);
+      size = QSize(70, 91);
    if (_waiting.size() != size) {
       QPixmap pm(size);
 
