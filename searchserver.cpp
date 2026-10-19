@@ -549,6 +549,14 @@ void SearchServer::processRequests(QTcpSocket *client)
     if (!queryParts.isEmpty())
         requestUri += "?" + queryParts.join("&");
 
+    /* a change to a stack waits for any thumbnail being made from it,
+       which holds the file open: Windows cannot delete or rename it
+       meanwhile */
+    if (method == "POST" && waitsForThumbnail(path)) {
+        _waitingForThumbnails << Waiting{client, method, path, params};
+        return;
+    }
+
     QByteArray response = handleRequest(method, path, params, client);
 
     // Empty response means the request is handled asynchronously
@@ -858,6 +866,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         if (!_readers.isEmpty())
             features.append("readPages");
         obj["features"] = features;
+        obj["thumbnails"] = kThumbnailVersion;
 
         /* how far the server has got indexing the text of each
            repository, when it does */
@@ -1122,35 +1131,17 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
                                    buildJsonResponse(false, "", "File not found"));
         }
 
-        // Generate thumbnail
-        QString thumbnailPath = generateThumbnail(repoPath, filePath, page, size);
+        /* one made already is given at once; making one, which can take a
+           while for a large page, is done in the background, and the
+           client answered once it is made */
+        QString thumbPath = thumbnailPath(repoPath, filePath, page, size);
 
-        if (thumbnailPath.isEmpty()) {
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "Failed to generate thumbnail"));
+        if (QFile::exists(thumbPath)) {
+            _log.log(ServerLog::ThumbnailCacheHit, filePath, page);
+            return thumbnailReply(thumbPath);
         }
-
-        // Read thumbnail file
-        QFile thumbFile(thumbnailPath);
-        if (!thumbFile.open(QIODevice::ReadOnly)) {
-            return buildHttpResponse(500, "Internal Server Error", "application/json",
-                                   buildJsonResponse(false, "", "Failed to read thumbnail"));
-        }
-
-        QByteArray thumbData = thumbFile.readAll();
-        thumbFile.close();
-
-        // Build HTTP response with caching headers
-        QByteArray response;
-        response += "HTTP/1.1 200 OK\r\n";
-        response += "Content-Type: image/jpeg\r\n";
-        response += "Content-Length: " + QByteArray::number(thumbData.size()) + "\r\n";
-        response += "Cache-Control: public, max-age=86400\r\n";  // Cache for 24 hours
-        response += "Access-Control-Allow-Origin: *\r\n";
-        response += "\r\n";
-        response += thumbData;
-
-        return response;
+        makeThumbnailLater(fullPath, filePath, page, size, thumbPath, client);
+        return QByteArray();
     }
     else if (path.startsWith("/v1/repos/") && path.endsWith("/info")) {
         return handleStackInfo(path, params, authedUser);
@@ -3897,119 +3888,238 @@ bool SearchServer::extractPdfThumbnail(const QString &pdfPath, int page, int siz
     return QFile::exists(outputPath);
 }
 
-QString SearchServer::generateThumbnail(const QString &repoPath, const QString &filePath,
-                                       int page, const QString &size)
+QString SearchServer::thumbnailPath(const QString &repoPath,
+                                    const QString &filePath, int page,
+                                    const QString &size)
 {
-    // 1. Create thumbnail cache directory
     QString cacheDir = cacheDirPath("thumbnails");
+    QFileInfo fileInfo(repoPath + "/" + filePath);
+
     QDir().mkpath(cacheDir);
-    
-    // 2. Build full file path
-    QString fullPath = repoPath + "/" + filePath;
-    QFileInfo fileInfo(fullPath);
-    
-    if (!fileInfo.exists()) {
-        qWarning() << "SearchServer: File not found for thumbnail:" << fullPath;
-        return "";
-    }
-    
-    // 3. Generate cache key (hash of path + page + size + mtime)
-    QString cacheKeyData = filePath + "_" + QString::number(page) + "_" + size + "_"
-                          + QString::number(fileInfo.lastModified().toMSecsSinceEpoch());
+
+    /* the hash of path, page, size and when the file last changed, and
+       of how thumbnails are made, so that none made before it changed is
+       given out */
+    QString cacheKeyData = filePath + "_" + QString::number(page) + "_" + size
+        + "_" + QString::number(fileInfo.lastModified().toMSecsSinceEpoch())
+        + "_v" + QString::number(kThumbnailVersion);
     QString cacheKeyHash = QString(QCryptographicHash::hash(cacheKeyData.toUtf8(),
                                    QCryptographicHash::Md5).toHex());
-    QString cachedThumb = cacheDir + "/" + cacheKeyHash + ".jpg";
-    
-    // 4. Return cached thumbnail if exists
-    if (QFile::exists(cachedThumb)) {
-        qDebug() << "SearchServer: Using cached thumbnail:" << cachedThumb;
-        _log.log(ServerLog::ThumbnailCacheHit, filePath, page);
-        return cachedThumb;
-    }
-    
-    qDebug() << "SearchServer: Generating new thumbnail for:" << filePath;
 
+    return cacheDir + "/" + cacheKeyHash + ".jpg";
+}
+
+bool SearchServer::makeThumbnail(const QString &fullPath, int page,
+                                 const QString &size, const QString &outPath)
+{
+    QFileInfo fileInfo(fullPath);
     int thumbSize = getThumbnailSize(size);
     QString ext = fileInfo.suffix().toLower();
 
-    if (ext != "pdf") {
-        // Use the File class to get a page image directly
-        QString dir = fileInfo.absolutePath() + "/";
-        QString fname = fileInfo.fileName();
+    // PDF files: extract the thumbnail directly with pdftocairo
+    if (ext == "pdf")
+        return extractPdfThumbnail(fullPath, page, thumbSize, outPath);
 
-        File::e_type type = File::typeFromName(fname);
-        File *file = File::createFile(dir, fname, nullptr, type);
-        if (!file) {
-            qWarning() << "SearchServer: Failed to create File for thumbnail";
-            return "";
-        }
+    // Use the File class to get a page image directly
+    QString dir = fileInfo.absolutePath() + "/";
+    QString fname = fileInfo.fileName();
 
-        err_info *err = file->load();
-        if (err) {
-            qWarning() << "SearchServer: Failed to load file for thumbnail:"
-                       << fullPath;
-            delete file;
-            return "";
-        }
+    File::e_type type = File::typeFromName(fname);
+    File *file = File::createFile(dir, fname, nullptr, type);
+    if (!file) {
+        qWarning() << "SearchServer: Failed to create File for thumbnail";
+        return false;
+    }
 
-        QImage image;
-
-        /* A .max file embeds a small preview of each page, which is all
-         * a thumbnail needs; decoding the full-resolution page instead
-         * means reading and unpacking megabytes to produce a ~150px
-         * image.  Fall back to the full page if the preview cannot be
-         * read (an old file may have none). */
-        err = NULL;
-        Filemax *max = dynamic_cast<Filemax *>(file);
-        if (max)
-            err = max->getPreviewImage(page - 1, image, false);
-
-        /* an image of a page to show at a size given in pixels wants
-           more than the preview holds, so comes from the page itself;
-           the named sizes are thumbnails, which the preview does for */
-        bool pixels = false;
-
-        size.toInt(&pixels);
-        if (pixels && !err && !image.isNull()
-            && qMax(image.width(), image.height()) * 5 / 4 < thumbSize)
-            image = QImage();
-
-        if (err || image.isNull()) {
-            QSize imgSize, trueSize;
-            int bpp;
-
-            err = file->getImage(page - 1, false, image, imgSize, trueSize,
-                                 bpp, false);
-        }
+    err_info *err = file->load();
+    if (err) {
+        qWarning() << "SearchServer: Failed to load file for thumbnail:"
+                   << fullPath;
         delete file;
-        if (err || image.isNull()) {
-            qWarning() << "SearchServer: Failed to get image for thumbnail";
-            return "";
-        }
+        return false;
+    }
 
-        QImage thumb = image.scaled(thumbSize, thumbSize,
-                                    Qt::KeepAspectRatio,
-                                    Qt::SmoothTransformation);
-        if (thumb.save(cachedThumb, "JPEG")) {
-            qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
-            _log.log(ServerLog::Thumbnail, filePath, page);
-            return cachedThumb;
-        }
+    QImage image;
 
+    /* A .max file embeds a small preview of each page, a twenty-fourth
+     * of its size, which is what a desktop shows of a stack held on its
+     * own disk.  A thumbnail for a desk is that preview as it is, and
+     * not enlarged, which blurs it; decoding the full-resolution page
+     * instead would mean reading and unpacking megabytes.  An image of a
+     * page at a larger size comes from the page itself, as does one for
+     * a file with no preview */
+    err = NULL;
+    Filemax *max = dynamic_cast<Filemax *>(file);
+    bool asIs = false;
+
+    if (max)
+        err = max->getPreviewImage(page - 1, image, false);
+    if (!err && !image.isNull()
+        && qMax(image.width(), image.height()) <= thumbSize)
+        asIs = size == "small";
+    if (!err && !image.isNull() && !asIs
+        && qMax(image.width(), image.height()) < thumbSize)
+        image = QImage();
+
+    if (err || image.isNull()) {
+        QSize imgSize, trueSize;
+        int bpp;
+
+        err = file->getImage(page - 1, false, image, imgSize, trueSize,
+                             bpp, false);
+    }
+    delete file;
+    if (err || image.isNull()) {
+        qWarning() << "SearchServer: Failed to get image for thumbnail";
+        return false;
+    }
+
+    /* a preview as it is is kept close to how it shows on a desktop which
+       has the stack itself: a high quality costs a little more than the
+       default, but is half the size of a lossless image, and looks no
+       different */
+    QImage thumb = asIs ? image
+        : image.scaled(thumbSize, thumbSize, Qt::KeepAspectRatio,
+                       Qt::SmoothTransformation);
+
+    /* written aside and then put in place, so that one being written is
+       never given out */
+    QSaveFile out(outPath);
+
+    if (!out.open(QIODevice::WriteOnly)
+        || !thumb.save(&out, "JPEG", asIs ? 90 : -1) || !out.commit()) {
         qWarning() << "SearchServer: Failed to save thumbnail JPEG";
-        return "";
+        return false;
+    }
+    return true;
+}
+
+bool SearchServer::waitsForThumbnail(const QString &path)
+{
+    QString prefix = QStringLiteral("/v1/repos/");
+    int stacks = path.indexOf("/stacks/");
+
+    if (_thumbnailFiles.isEmpty() || !path.startsWith(prefix) || stacks < 0)
+        return false;
+
+    QString repoName = QUrl::fromPercentEncoding(
+        path.mid(prefix.size(), stacks - prefix.size()).toUtf8());
+    QString root = _backend->rootPathForName(repoName);
+
+    if (root.isEmpty())
+        return false;
+
+    // the stack's path within the repository, then what is asked of it
+    QString target = root + "/" + QUrl::fromPercentEncoding(
+        path.mid(stacks + QStringLiteral("/stacks/").size()).toUtf8());
+
+    for (auto it = _thumbnailFiles.cbegin(); it != _thumbnailFiles.cend();
+         ++it)
+        if (target.startsWith(it.key() + "/"))
+            return true;
+    return false;
+}
+
+void SearchServer::runWaitingForThumbnails()
+{
+    const QList<Waiting> waiting = _waitingForThumbnails;
+
+    _waitingForThumbnails.clear();
+    for (const Waiting &w : waiting) {
+        if (!w.client || w.client->state() != QAbstractSocket::ConnectedState)
+            continue;
+        if (waitsForThumbnail(w.path)) {
+            _waitingForThumbnails << w;
+            continue;
+        }
+
+        QByteArray response = handleRequest(w.method, w.path, w.params,
+                                            w.client);
+
+        if (response.isEmpty())
+            continue;      // answered later
+        qDebug().noquote() << QString("%1 %2 %3 (after a thumbnail) %4")
+            .arg(w.client->peerAddress().toString(), w.method, w.path,
+                 formatSize(response.size()));
+        sendReply(w.client, compressResponse(response,
+            w.client->property("__request__").toByteArray()));
+    }
+}
+
+QByteArray SearchServer::thumbnailReply(const QString &thumbPath)
+{
+    QFile thumbFile(thumbPath);
+    if (!thumbFile.open(QIODevice::ReadOnly)) {
+        return buildHttpResponse(500, "Internal Server Error", "application/json",
+                               buildJsonResponse(false, "", "Failed to read thumbnail"));
     }
 
-    // PDF files — extract thumbnail directly with pdftocairo
-    bool success = extractPdfThumbnail(fullPath, page, thumbSize, cachedThumb);
-    if (success) {
-        qDebug() << "SearchServer: Thumbnail generated:" << cachedThumb;
-        _log.log(ServerLog::Thumbnail, filePath, page);
-        return cachedThumb;
-    }
+    QByteArray thumbData = thumbFile.readAll();
+    thumbFile.close();
 
-    qWarning() << "SearchServer: Failed to generate thumbnail";
-    return "";
+    // Build HTTP response with caching headers
+    QByteArray response;
+    response += "HTTP/1.1 200 OK\r\n";
+    response += "Content-Type: image/jpeg\r\n";
+    response += "Content-Length: " + QByteArray::number(thumbData.size()) + "\r\n";
+    response += "Cache-Control: public, max-age=86400\r\n";  // Cache for 24 hours
+    response += "Access-Control-Allow-Origin: *\r\n";
+    response += "\r\n";
+    response += thumbData;
+
+    return response;
+}
+
+void SearchServer::makeThumbnailLater(const QString &fullPath,
+                                      const QString &filePath, int page,
+                                      const QString &size,
+                                      const QString &thumbPath,
+                                      QTcpSocket *client)
+{
+    // a client asking for one already being made waits for that one
+    QList<QPointer<QTcpSocket>> &waiters = _thumbnailWaiters[thumbPath];
+
+    waiters << client;
+    if (waiters.size() > 1)
+        return;
+    _thumbnailFiles[fullPath]++;
+
+    qDebug() << "SearchServer: Generating new thumbnail for:" << filePath;
+
+    auto *watcher = new QFutureWatcher<bool>(this);
+
+    connect(watcher, &QFutureWatcherBase::finished, this,
+            [this, watcher, fullPath, filePath, page, thumbPath]() {
+        bool ok = watcher->result();
+        const QList<QPointer<QTcpSocket>> waiting
+            = _thumbnailWaiters.take(thumbPath);
+
+        watcher->deleteLater();
+        if (--_thumbnailFiles[fullPath] <= 0)
+            _thumbnailFiles.remove(fullPath);
+        if (ok)
+            _log.log(ServerLog::Thumbnail, filePath, page);
+
+        QByteArray reply = ok ? thumbnailReply(thumbPath)
+            : buildHttpResponse(500, "Internal Server Error",
+                                "application/json",
+                                buildJsonResponse(false, "",
+                                    "Failed to generate thumbnail"));
+
+        for (const QPointer<QTcpSocket> &client : waiting) {
+            if (!client || client->state() != QAbstractSocket::ConnectedState)
+                continue;
+            qDebug().noquote()
+                << QString("%1 GET /thumbnail (async) %2 page %3 %4")
+                       .arg(client->peerAddress().toString(), filePath)
+                       .arg(page).arg(formatSize(reply.size()));
+            sendReply(client, reply);
+        }
+        runWaitingForThumbnails();
+    });
+    watcher->setFuture(QtConcurrent::run([fullPath, page, size, thumbPath]() {
+        return makeThumbnail(fullPath, page, size, thumbPath);
+    }));
 }
 
 QString SearchServer::convertToPdf(const QString &fullPath,

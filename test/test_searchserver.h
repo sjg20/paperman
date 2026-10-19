@@ -144,6 +144,7 @@ private slots:
    //! the server returns from /thumbnail — pinned so the remote
    //! display can't silently diverge from the local one.
    void testThumbnailMatchesLocalRender();
+   void testChangeWaitsForThumbnail();
 
 
    void testSearchEndpoint();
