@@ -100,6 +100,8 @@ private slots:
 
    //! and a slow server does not hold up the scan
    void testScanIntoSlowServer ();
+   void testScanRecordsDpi_data ();
+   void testScanRecordsDpi ();
    void testScanNameTaken_data ();
    void testScanNameTaken ();
 

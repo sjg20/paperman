@@ -323,6 +323,7 @@ err_info *Paperstack::confirmImage (Filepage *&mp, QMutex &mutex)
    mp = new Filemaxpage;
 
    mp->setPaperstack (this);
+   mp->setDpi (_dpi_x, _dpi_y);
    CALL (_page->confirm (_pageName, mark_blank, mp));
 
    if (_stackName.isEmpty ())
@@ -353,6 +354,7 @@ err_info *Paperstack::confirmImageBack (Filepage *&mp, QMutex &mutex)
 
    mp = new Filemaxpage;
    mp->setPaperstack (this);
+   mp->setDpi (_dpi_x, _dpi_y);
    CALL (_page_back->confirm (_pageName, mark_blank, mp));
 
    if (_stackName.isEmpty ())
@@ -369,6 +371,13 @@ err_info *Paperstack::confirmImageBack (Filepage *&mp, QMutex &mutex)
 void Paperstack::setAutoColour (bool on)
    {
    _autoColour = on;
+   }
+
+
+void Paperstack::setDpi (int x, int y)
+   {
+   _dpi_x = x;
+   _dpi_y = y;
    }
 
 
@@ -2171,6 +2180,8 @@ void Paperscan::ensureStack (QString &stack_name, QString &page_name,
       _stack->setDeskewed (deskewed ());
       _stack->setSideways ((Paperstack::t_sideways)
                            xmlConfig->intValue ("SCAN_SIDEWAYS"));
+      _stack->setDpi (_scanner->xResolutionDpi (),
+                      _scanner->yResolutionDpi ());
       emit stackNew (stack_name);
       }
    }

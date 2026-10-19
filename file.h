@@ -736,6 +736,10 @@ public:
 
    void setPaperstack (Paperstack *stack);
 
+   /** set the resolution the page was scanned at, in dots per inch, across
+       and down as scanned; 0 if unknown */
+   void setDpi (int x, int y) { _dpi_x = x; _dpi_y = y; }
+
    void addData (int width, int height, int depth, int stride,
       QString &name, bool jpeg, bool blank, int pagenum, QByteArray data, int size);
 
@@ -786,6 +790,8 @@ public:
    int _jpeg;           //!< true if page is already JPEG compressed
    int _mark_blank;     //!< true if the page should be marked blank (to be deleted)
    int _pagenum;        //!< page number (used by Paperstack)
+   int _dpi_x = 0;      //!< resolution across as scanned, 0 if unknown
+   int _dpi_y = 0;      //!< resolution down as scanned, 0 if unknown
    Paperstack *_stack;  //!< the Paperstack which is creating this page
    QDateTime _timestamp;   //!< timestamp for page
    QByteArray _data;    //!< the image data

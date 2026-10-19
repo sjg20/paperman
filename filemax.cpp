@@ -2825,6 +2825,23 @@ err_info *Filemax::putAnnot (QHash<int, QString> &updates)
    }
 
 
+err_info *Filemax::getDpi (int pagenum, QSize &dpi)
+   {
+   QMutexLocker locker (&_file_mutex);
+   chunk_info *chunk;
+
+   if (!_valid)
+       return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (_filename));
+
+   CALL (ensure_open ());
+   err_info *err = find_page_chunk (pagenum, chunk, NULL, NULL);
+   ensure_closed ();
+   CALL (err);
+   dpi = QSize (chunk->dpi.x, chunk->dpi.y);
+   return NULL;
+   }
+
+
 err_info *Filemax::getImageInfo (int pagenum, QSize &size,
       QSize &true_size, int &bpp, int &image_size, int &compressed_size,
       QDateTime &timestamp)
@@ -4645,7 +4662,7 @@ static int add_image_header (chunk_info &chunk, byte *buf)
    ptr [0] = chunk.image_size.x;
    ptr [1] = chunk.image_size.y;
    ptr [2] = chunk.dpi.x;
-   ptr [3] = chunk.dpi.x;
+   ptr [3] = chunk.dpi.y;
    ptr [4] = 0; //?
    ptr [5] = chunk.bits;
    ptr [6] = chunk.channels;
@@ -4714,7 +4731,15 @@ err_info *Filemaxpage::compress (void)
       _chunk.preview_size.x = _chunk.image_size.x / PREVIEW_SCALE;
       _chunk.preview_size.y = _chunk.image_size.y / PREVIEW_SCALE;
       }
-   _chunk.dpi.x = _chunk.dpi.y = 300;           // dots per inch
+   /* dots per inch, as scanned: a page turned as it is stored has them
+      the other way about.  One whose resolution is not known is taken to
+      be at 300, as all were before */
+   bool turned = _rotate == 90 || _rotate == 270;
+
+   _chunk.dpi.x = (turned ? _dpi_y : _dpi_x) > 0 ? (turned ? _dpi_y : _dpi_x)
+                                                  : 300;
+   _chunk.dpi.y = (turned ? _dpi_x : _dpi_y) > 0 ? (turned ? _dpi_x : _dpi_y)
+                                                  : 300;
    _chunk.bits = _depth;
    if (_chunk.bits == 32)
       _chunk.bits = 24;
