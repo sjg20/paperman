@@ -960,7 +960,13 @@ static void quitPaperman (Mainwindow &me, bool exit)
    if (exit)
       QTimer::singleShot (0, exitAction, &QAction::trigger);
    else
-      QTimer::singleShot (0, &me, &QWidget::close);
+      QTimer::singleShot (0, &me, [&me] () {
+         me.close ();
+
+         /* Qt 5 can keep running with the dialogue still showing; Paperman
+            is gone by then, so end it as the window manager would */
+         QCoreApplication::quit ();
+      });
    qApp->exec ();
 }
 
