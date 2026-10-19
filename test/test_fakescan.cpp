@@ -808,6 +808,127 @@ void TestFakescan::testScanIntoSlowServer ()
 }
 
 
+void TestFakescan::testScanNameTaken_data ()
+{
+   QTest::addColumn<int> ("delayMs");
+   QTest::addColumn<bool> ("listedFirst");
+
+   // the scan begins before the folder's listing comes
+   QTest::newRow ("before the listing") << 300 << false;
+   QTest::newRow ("after the listing") << 0 << true;
+}
+
+
+/* A scan into a folder on a server with a stack named as the scan would be
+   is a stack of its own, with a name of its own, and the stack there stays
+   on the desk */
+void TestFakescan::testScanNameTaken ()
+{
+   QFETCH (int, delayMs);
+   QFETCH (bool, listedFirst);
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+   QVERIFY (QDir (repo.path ()).mkpath ("bills/2026"));
+
+   // a scan is named for the day, when the scanner is not told otherwise
+   QString dir = repo.path () + "/bills/2026/";
+   QString taken = QDateTime::currentDateTime ().toString ("dd-MMM-yy")
+                   + ".max";
+
+   QVERIFY (QFile::copy (Test::testSrc + "/testfile.max", dir + taken));
+
+   ServerThread server (repo.path (), 9879);
+   QVERIFY (server.begin ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   bool attached = false;
+   QString error;
+
+   desktop->addRemoteServer (server.url (), [&] (const QString &err) {
+      error = err;
+      attached = true;
+   });
+   QTRY_VERIFY (attached);
+   QCOMPARE (error, QString ());
+
+   QString folder = server.url ().toString () + "/"
+                    + QFileInfo (repo.path ()).fileName () + "/bills/2026";
+   QModelIndex ind;
+
+   QTRY_VERIFY ((ind = desktop->getDirIndex (folder)).isValid ());
+
+   Desktopmodel *model = desktop->getModel ();
+   auto deskIndex = [&] () {
+      QModelIndex desk = desktop->getView ()->rootIndex ();
+
+      desktop->getModelconv ()->indexToSource (desktop->getView ()->model (),
+                                               desk);
+      return desk;
+   };
+
+   if (listedFirst)
+      {
+      desktop->selectDir (ind);
+      QTRY_VERIFY (model->index (taken, deskIndex ()).isValid ());
+      }
+
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+
+   Mainwidget *main = Mainwidget::singleton ();
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   QVERIFY (main->ensureScanner ());
+
+   // the event stream of a folder shown stays open
+   QTRY_COMPARE (server.openExchanges (), listedFirst ? 1 : 0);
+   server.takeExchanges ();
+   server.setDelay (delayMs);
+   main->scanInto (ind);
+
+   // the scan goes up beside the stack there, under a name of its own
+   QStringList stacks;
+
+   QTRY_VERIFY_WITH_TIMEOUT ((stacks = QDir (dir).entryList (
+                                 QStringList () << "*.max", QDir::Files))
+                             .size () == 2, 10000);
+   stacks.removeAll (taken);
+   QCOMPARE (stacks.size (), 1);
+
+   /* with the folder listed, it is sent up under its own name, rather
+      than the server having to find it one: until then its copy here was
+      where the stack there is kept, which the scan wrote over.  A scan
+      which is done before the listing comes could not know */
+   QStringList uploads;
+   auto uploaded = [&] () {
+      for (const ServerThread::Exchange &ex : server.takeExchanges ())
+         if (ex.request.contains ("/upload"))
+            uploads << ex.request;
+      return !uploads.isEmpty ();
+   };
+
+   QTRY_VERIFY (uploaded ());
+   QCOMPARE (uploads.size (), 1);
+   if (listedFirst)
+      QVERIFY2 (!uploads [0].contains (taken), qPrintable (uploads [0]));
+
+   // both are on the desk, the scan with the name it has on the server
+   QModelIndex desk = deskIndex ();
+
+   QTRY_VERIFY (model->index (stacks [0], desk).isValid ());
+   QVERIFY2 (model->index (taken, desk).isValid (), qPrintable (taken));
+
+   // and the stack there was not overwritten by the scan
+   Filemax max (dir, taken, nullptr);
+
+   QVERIFY (!max.load ());
+   QCOMPARE (max.pagecount (), 5);
+}
+
+
 /* a sheet at 10dpi which is US letter wide and 101.6mm long, which at
    50dpi is 425 pixels across and 200 lines down */
 static QImage shortSheet ()

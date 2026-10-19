@@ -100,6 +100,8 @@ private slots:
 
    //! and a slow server does not hold up the scan
    void testScanIntoSlowServer ();
+   void testScanNameTaken_data ();
+   void testScanNameTaken ();
 
    //! With ald the page ends at the foot of the sheet, length unknown
    void testAld ();

@@ -904,10 +904,40 @@ void Desk::addListing(const DirectoryListing &listing, const QString &dirPath,
       folder as it opens, was placed with nothing else known, so at the
       top: keep it out of the way while the others take their places,
       then put it after them */
-   QList<File *> early = _files;
+   QList<File *> early;
+   QStringList listed;
+
+   // not those which are on the server, as when the listing comes again
+   for (File *f : _files)
+      if (f->localOnly ())
+         early << f;
+
+   for (const DirectoryEntry &e : listing.entries)
+      if (!e.isDir)
+         listed << e.name;
 
    for (File *f : early)
+      {
       f->setPos (QPoint (POS_leftmargin, -POS_ystep * 1000));
+
+      /* such a stack was named with nothing else known: if the folder
+         has a stack of that name, it is another stack, so give this one
+         a name of its own, as it is not on the server yet */
+      if (listed.contains (f->filename ()))
+         {
+         QString ext;
+         QString base = ::removeExtension (f->filename (), ext);
+         QString name = util_findNextName (base, listed);
+         QString old = f->pathname ();
+
+         if (name.isEmpty ())
+            continue;
+         f->updateFilename (name + ext);
+         if (!QFile::rename (old, f->pathname ()))
+            qInfo () << "Desk: cannot rename" << old << "to"
+                     << f->pathname ();
+         }
+      }
 
    if (_isRemote)
       {
@@ -1227,6 +1257,17 @@ QString Desk::findNextFilename (QString fname, QString dir, QString ext)
       dir = _dir;
    if (ext.isNull ())
       ext = ".max";
+
+   /* a folder on a server is not on this disk: its stacks are those on
+      the desk, as the server listed them */
+   if (_isRemote && dir == _dir)
+      {
+      QStringList names;
+
+      for (File *f : _files)
+         names << f->filename ();
+      return util_findNextName (fname, names);
+      }
    return util_findNextFilename (fname, dir, ext);
    }
 
@@ -1452,6 +1493,9 @@ err_info *Desk::addPaperstack (const QString &stack_name, File *&fnew, int &item
    fname += ".max";
 //   stack->compressMax (_dir + fname);
    fnew = createFile (_dir, fname);
+
+   // in a folder on a server, it is only here until it is uploaded
+   fnew->setLocalOnly (_isRemote);
 //   qDebug () << "addPaperStack" << fnew;
    CALL (fnew->create ());
 

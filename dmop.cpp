@@ -1493,74 +1493,125 @@ void Desktopmodel::dropWorkCopy (File *copy)
 
 void Desktopmodel::uploadScanStack (File *f, OpDone done)
    {
-   Desk *desk = f->desk ();
    QPointer<RemoteBackend> remote (remoteForFile (f));
-   QString repo = desk->repoName ();
-   QString path = remoteStackPath (desk, f);
-   QString dir = desk->dir ();
-   QString name = f->filename ();
-   QString cached = f->pathname ();
+
+   /* the stack is followed rather than its name, since a listing of its
+      folder which comes meanwhile can find it a name of its own */
+   QPointer<File> stack (f);
 
    // the stack is all here, so nothing need fetch it while it goes up
    f->setRemoteChecked (true);
 
-   queueOp ([this, remote, repo, path, dir, name, cached] (OpDone opDone) {
-      QFile in (cached);
-
-      if (!remote)
-         {
-         opDone (NULL);
-         return;
-         }
-      if (!in.open (QIODevice::ReadOnly))
-         {
-         opDone (err_make (ERRFN, ERR_cannot_open_file1,
-                           qPrintable (cached)));
-         return;
-         }
-      remote->uploadFile (repo, path, in.readAll (), false, this,
-                          [this, dir, name, opDone] (
-                             const RemoteBackend::Result &result) {
-         if (!result.ok)
-            {
-            opDone (err_make (ERRFN, ERR_remote_op_failed2, "upload",
-                              qPrintable (result.error)));
-            return;
-            }
-
-         QJsonObject reply = result.json ();
-         QString finalName = reply.value ("name").toString ();
-         QString etag = reply.value ("etag").toString ();
-         File *f = getFile (stackFor (dir, name));
-
-         if (_closing || !f)
+   queueOp ([this, remote, stack] (OpDone opDone) {
+      auto upload = [this, remote, stack, opDone] () {
+         if (!remote || !stack)
             {
             opDone (NULL);
             return;
             }
-         if (!finalName.isEmpty () && finalName != f->filename ())
+
+         Desk *desk = stack->desk ();
+         QString cached = stack->pathname ();
+         QFile in (cached);
+
+         if (!in.open (QIODevice::ReadOnly))
             {
-            QString oldCache = f->pathname ();
-
-            f->updateFilename (finalName);
-            QFile::rename (oldCache, f->pathname ());
+            opDone (err_make (ERRFN, ERR_cannot_open_file1,
+                              qPrintable (cached)));
+            return;
             }
+         remote->uploadFile (desk->repoName (), remoteStackPath (desk, stack),
+                             in.readAll (), false, this,
+                             [this, stack, opDone] (
+                                const RemoteBackend::Result &result) {
+            uploadedScanStack (stack, result.ok, result.error,
+                               result.json (), opDone);
+         });
+      };
 
-         // record the server's validator so the next open costs a 304
-         if (!etag.isEmpty ())
-            {
-            QFile ef (f->pathname () + ".etag");
+      /* a scan quicker than the listing of its folder waits for it, so
+         that it has a name of its own if the folder has a stack of its
+         name, which the listing could not tell from it once uploaded */
+      Desk *desk = stack ? stack->desk () : nullptr;
 
-            if (ef.open (QIODevice::WriteOnly))
-               ef.write (etag.toUtf8 ());
-            }
+      if (!desk || !_listing.contains (desk))
+         {
+         upload ();
+         return;
+         }
 
-         // the server put it after the others; it goes where it is here
-         if (f->desk () && f->desk ()->serverLayout ())
-            f->desk ()->sendMoves (false);
-         opDone (NULL);
+      auto started = std::make_shared<bool> (false);
+      auto listed = std::make_shared<QMetaObject::Connection> ();
+      auto once = [started, listed, upload] () {
+         if (*started)
+            return;
+         *started = true;
+         QObject::disconnect (*listed);
+         upload ();
+      };
+
+      *listed = connect (this, &Desktopmodel::deskListed, this,
+                         [this, desk, once] (const QModelIndex &) {
+         if (!_listing.contains (desk))
+            once ();
       });
+
+      // nor does it wait for ever, should the listing never come
+      QTimer::singleShot (kListingWaitMs, this, once);
    }, done, true);
+   }
+
+
+void Desktopmodel::uploadedScanStack (QPointer<File> stack, bool ok,
+                                      const QString &error,
+                                      const QJsonObject &reply, OpDone opDone)
+   {
+   if (!ok)
+      {
+      opDone (err_make (ERRFN, ERR_remote_op_failed2, "upload",
+                        qPrintable (error)));
+      return;
+      }
+
+   QString finalName = reply.value ("name").toString ();
+   QString etag = reply.value ("etag").toString ();
+   File *f = stack.data ();
+
+   if (_closing || !f)
+      {
+      opDone (NULL);
+      return;
+      }
+
+   // the server has it now
+   f->setLocalOnly (false);
+   if (!finalName.isEmpty () && finalName != f->filename ())
+      {
+      QString oldCache = f->pathname ();
+
+      f->updateFilename (finalName);
+      QFile::rename (oldCache, f->pathname ());
+
+      // the view shows its new name
+      QModelIndex ind = indexForFile (f);
+
+      if (ind.isValid ())
+         emit dataChanged (ind, ind, {Qt::DisplayRole});
+      }
+
+   // record the server's validator so the next open costs a 304
+   if (!etag.isEmpty ())
+      {
+      QFile ef (f->pathname () + ".etag");
+
+      if (ef.open (QIODevice::WriteOnly))
+         ef.write (etag.toUtf8 ());
+      }
+
+   // the server put it after the others; it goes where it is here
+   if (f->desk () && f->desk ()->serverLayout ())
+      f->desk ()->sendMoves (false);
+   opDone (NULL);
    }
 
 

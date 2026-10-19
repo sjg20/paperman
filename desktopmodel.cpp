@@ -1682,10 +1682,11 @@ void Desktopmodel::listRemoteDesk(Desk *desk, RemoteBackend *remote,
          endInsertRows();
       }
 
-      // any there already, such as a stack being scanned, have moved
+      /* any there already, such as a stack being scanned, have moved, and
+         one named as a stack listed has a name of its own */
       if (old)
          emit dataChanged(index(0, 0, ind), index(old - 1, 0, ind),
-                          {Role_position});
+                          {Role_position, Qt::DisplayRole});
       scheduleRemoteThumbnails(desk, remote, desk->repoName(), rel);
       if (!replace)
          emit deskListed(ind);
