@@ -782,7 +782,7 @@ void TestAsync::dropConvert ()
    QStringList features = remote->features ();
 
    features.removeAll ("convert");
-   remote->setServerInfo (remote->serverId (), features);
+   remote->setFeatures (features);
    }
 
 

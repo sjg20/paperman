@@ -117,17 +117,24 @@ public:
      *  until serverId() or fetchStatus() has had it from the server */
     QString knownServerId() const { return _serverId; }
 
-    /** Supply the server's id and its advertised features together,
-     *  as one backend learns them from /v1/status and hands them to
-     *  the backends made for each repository. */
-    void setServerInfo(const QString &id, const QStringList &features)
+    /** Take what @p from learnt of the server from /v1/status: its id,
+     *  API version, features and how it makes thumbnails.  One backend
+     *  learns these and hands them to the backends made for each
+     *  repository, which then never block on /v1/status. */
+    void takeServerInfo(const RemoteBackend &from)
     {
-        _serverId = id;
-        _features = features;
+        _serverId = from._serverId;
+        _apiVersion = from._apiVersion;
+        _features = from._features;
+        _thumbnails = from._thumbnails;
     }
 
+    /** Take @p features as those the server has, as a test does to act
+     *  as a server without some */
+    void setFeatures(const QStringList &features) { _features = features; }
+
     /** The features /v1/status advertised; empty until serverId() has
-     *  fetched it or setServerInfo() has been called. */
+     *  fetched it or takeServerInfo() has been called. */
     QStringList features() const { return _features; }
 
     /** The API version /v1/status gave, such as "1"; empty until
@@ -232,6 +239,10 @@ public:
 
     /** Where stacks are on a desk, by name */
     using Positions = QHash<QString, QPoint>;
+
+    /** How the server makes thumbnails, as /v1/status says; 0 if it
+     *  does not say */
+    int thumbnails() const { return _thumbnails; }
 
     /** True if the server keeps each folder's layout (the "layout"
      *  feature): it places stacks which arrive, a listing says where each

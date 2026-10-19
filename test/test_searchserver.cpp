@@ -1275,6 +1275,35 @@ void TestSearchServer::testChangeWaitsForThumbnail()
 }
 
 
+void TestSearchServer::testRepoKnowsThumbnails()
+{
+   /* The backend a desktop uses for a repository is not the one which
+      asked the server about itself, but takes what that one learnt:
+      without how the server makes thumbnails, the desktop would keep
+      showing those made before from its cache */
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+   QString repo = QFileInfo(tmpDir.path()).fileName();
+
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+   QUrl url(QString("http://localhost:%1").arg(PORT));
+
+   Dirmodel dirmodel;
+   QString err;
+   QVERIFY2(dirmodel.addRemoteRepository(url, &err), qPrintable(err));
+
+   auto *remote = dynamic_cast<RemoteBackend *>(
+      dirmodel.backendForRoot(url.toString() + "/" + repo));
+   QVERIFY(remote);
+   QCOMPARE(remote->thumbnails(), SearchServer::kThumbnailVersion);
+   QVERIFY(remote->hasLayout());
+   QCOMPARE(remote->apiVersion(), QString("1"));
+}
+
+
 void TestSearchServer::testSearchEndpoint()
 {
     QTemporaryDir tmpDir;
@@ -4113,7 +4142,7 @@ void TestSearchServer::testRemoteConvert()
     QVERIFY(remote && remote->hasConvert());
     QStringList features = remote->features();
     features.removeAll("convert");
-    remote->setServerInfo(remote->serverId(), features);
+    remote->setFeatures(features);
     QVERIFY(!remote->hasConvert());
 
     list = {stackA()};

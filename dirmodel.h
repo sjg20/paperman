@@ -571,8 +571,8 @@ private:
     *  forgetting any listing of them still on its way */
    void deleteChildren(DirNode *node) const;
 
-   void addRemoteRepos(const QUrl &baseUrl, const QString &serverId,
-                       const QStringList &features, const QString &token,
+   void addRemoteRepos(const QUrl &baseUrl, const class RemoteBackend &probe,
+                       const QString &token,
                        const QList<RepositoryInfo> &repos);
 
    QList<Diritem *> _item;   //!< a list of items to display
