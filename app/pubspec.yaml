@@ -42,6 +42,7 @@ dependencies:
   url_launcher: ^6.2.0
   pdf: ^3.0.0
   printing: ^5.13.0
+  cunning_document_scanner: ^3.0.3
 
 dev_dependencies:
   flutter_test:

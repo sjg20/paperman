@@ -190,6 +190,47 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// Upload [bytes] as a new stack called [name] in the folder [dir] of
+  /// [repo], logging in first if need be. The server never overwrites a
+  /// stack: one of that name already there leaves this one a new name,
+  /// which is returned.
+  Future<String> uploadStack({
+    required String repo,
+    required String dir,
+    required String name,
+    required List<int> bytes,
+  }) async {
+    final path = dir.isEmpty ? name : '$dir/$name';
+    final stack = path.split('/').map(Uri.encodeComponent).join('/');
+    final uri = Uri.parse(
+      '$_baseUrl/v1/repos/${Uri.encodeComponent(repo)}/stacks/$stack/upload',
+    );
+    final client = createClient();
+
+    Future<http.Response> post() => client.post(
+      uri,
+      headers: {..._headers, 'Content-Type': 'application/octet-stream'},
+      body: bytes,
+    );
+
+    var response = await post();
+    if (response.statusCode == 401 && await _login()) {
+      response = await post();
+    }
+
+    Map<String, dynamic> body = {};
+    try {
+      body = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {}
+    if (response.statusCode != 200 || body['success'] != true) {
+      throw ApiException(
+        response.statusCode,
+        body['error'] as String? ?? 'Upload failed',
+      );
+    }
+    return body['name'] as String? ?? name;
+  }
+
   /// Check server status. Returns normally on success, throws on failure.
   Future<void> checkStatus() async {
     if (_isDemo) return;

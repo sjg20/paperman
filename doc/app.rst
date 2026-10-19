@@ -1,8 +1,8 @@
 Paperman Mobile App
 ====================
 
-A Flutter app for Android and iPhone for browsing and viewing documents
-on a paperman server.
+A Flutter app for Android and iPhone for browsing, viewing and scanning
+documents on a paperman server.
 
 Overview
 --------
@@ -21,6 +21,7 @@ Features
 -  **Search** documents across the whole repository or within the current
    directory, by name or by the text on their pages
 -  **View** documents as PDF (server converts .max, .jpg, .tiff on the fly)
+-  **Scan** pages with the phone's camera into the folder shown, as a PDF
 -  **Multiple repositories** with a switcher in the toolbar
 -  **Logging in** to a server with accounts of its own, or **HTTP Basic
    Auth** for servers behind nginx authentication
@@ -29,6 +30,19 @@ Features
 -  **Dark mode** follows the system theme
 -  **Local URL** for fast downloads when on the same LAN as the server
 -  Credentials and server URL saved locally for auto-reconnect
+
+Scanning
+--------
+
+The scan button at the foot of a folder opens the phone's document
+scanner: Google's on Android (7 or later), Apple's on iPhone. It finds the
+edges of each page and straightens it, and takes as many pages as wanted
+in one go. The pages are made into a PDF, named for the day as the desktop
+names a scan (which can be changed), and uploaded into the folder shown,
+where any desktop showing it sees it at once. A stack of that name already
+there is not overwritten: the scan is given a new name. Should the upload
+fail, as when the phone loses its connection, it can be tried again
+without scanning again.
 
 Prerequisites
 -------------
