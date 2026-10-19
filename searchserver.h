@@ -104,6 +104,10 @@ class SearchServer : public QTcpServer
     friend class TestSearchServer;
 
 public:
+    /** How thumbnails are made, raised when they change, so that one made
+     *  before is not given out, nor kept by a client */
+    static constexpr int kThumbnailVersion = 2;
+
     /**
      * Constructor
      * @param rootPath   Root path of the paper repository (single path)
@@ -678,23 +682,47 @@ private:
      */
     bool isAuthEnabled();
 
+    /** Where the thumbnail of @p page of the file @p filePath, within the
+     *  repository at @p repoPath, of @p size is kept once made */
+    QString thumbnailPath(const QString &repoPath, const QString &filePath,
+                          int page, const QString &size);
+
     /**
-     * Generate thumbnail for a file
-     * @param repoPath Repository root path
-     * @param filePath File path relative to repository
-     * @param page Page number (for multi-page documents)
-     * @param size Thumbnail size (small, medium, large)
-     * @return Path to generated thumbnail, or empty string on failure
+     * Make a thumbnail of a page of a file.  This touches nothing of the
+     * server, so can be done on another thread
+     * @param fullPath the file
+     * @param page Page number, from 1
+     * @param size Thumbnail size (small, medium, large, or pixels)
+     * @param outPath where to write the thumbnail
+     * @return true if it was made
      */
-    QString generateThumbnail(const QString &repoPath, const QString &filePath,
-                             int page, const QString &size);
+    static bool makeThumbnail(const QString &fullPath, int page,
+                              const QString &size, const QString &outPath);
+
+    /** Make a thumbnail, as makeThumbnail(), in the background, then send
+     *  it to @p client, along with any other client which asks for it
+     *  meanwhile */
+    void makeThumbnailLater(const QString &fullPath, const QString &filePath,
+                            int page, const QString &size,
+                            const QString &thumbPath, QTcpSocket *client);
+
+    /** The reply giving the thumbnail made at @p thumbPath */
+    QByteArray thumbnailReply(const QString &thumbPath);
+
+    /** True if the request for @p path changes a stack from which a
+     *  thumbnail is being made, so must wait until it is made */
+    bool waitsForThumbnail(const QString &path);
+
+    /** Handle the requests which were waiting for thumbnails, as far as
+     *  those are made */
+    void runWaitingForThumbnails();
 
     /**
      * Get thumbnail pixel size from size string
      * @param size Size string (small, medium, large)
      * @return Pixel dimension for thumbnail
      */
-    int getThumbnailSize(const QString &size);
+    static int getThumbnailSize(const QString &size);
 
     /**
      * Extract thumbnail from PDF using pdftocairo
@@ -704,8 +732,8 @@ private:
      * @param outputPath Output path for thumbnail
      * @return true if successful
      */
-    bool extractPdfThumbnail(const QString &pdfPath, int page, int size,
-                            const QString &outputPath);
+    static bool extractPdfThumbnail(const QString &pdfPath, int page,
+                                    int size, const QString &outputPath);
 
     /**
      * Clean old thumbnails from cache
@@ -755,6 +783,21 @@ private:
         QList<QPointer<QTcpSocket>> waiters;  //!< clients waiting for one
     };
     QHash<QString, FolderList> _folderLists;  //!< by repository name
+
+    //! clients waiting for each thumbnail being made, by where it goes
+    QHash<QString, QList<QPointer<QTcpSocket>>> _thumbnailWaiters;
+
+    //! how many thumbnails are being made from each file, by its path
+    QHash<QString, int> _thumbnailFiles;
+
+    //! a request waiting for a thumbnail to be made before it is handled
+    struct Waiting {
+        QPointer<QTcpSocket> client;
+        QString method;
+        QString path;
+        QHash<QString, QString> params;
+    };
+    QList<Waiting> _waitingForThumbnails;
 
     /** List the folders of @p repoName, at @p root, on a worker thread,
      *  since walking them can take a while; then answer any waiting */

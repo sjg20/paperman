@@ -1106,14 +1106,13 @@ void TestSearchServer::testThumbnailMatchesLocalRender()
    /* Render the same .max file two ways and verify the bytes are
     * identical:
     *
-    *   - Locally: instantiate Filemax, load, getImage page 0,
-    *     scale to the medium thumbnail size, JPEG-encode in
-    *     memory.  This is exactly what the server's
-    *     generateThumbnail() does for non-PDF files (see
-    *     searchserver.cpp::generateThumbnail).
+    *   - Locally: instantiate Filemax, load, take the preview or page 0,
+    *     scale it as the server does for each size, encode in memory.
+    *     This is exactly what the server's makeThumbnail() does for
+    *     non-PDF files.
     *
     *   - Remotely: fetch via RemoteBackend::fetchThumbnail, which
-    *     causes the server to run that same generateThumbnail path
+    *     causes the server to run that same makeThumbnail() path
     *     and stream the bytes back.
     *
     * If both code paths use the same File class, scaler, and JPEG
@@ -1127,80 +1126,152 @@ void TestSearchServer::testThumbnailMatchesLocalRender()
 
    /* Local render: same recipe as SearchServer::generateThumbnail
     * for non-PDF.  thumbSize 300 matches getThumbnailSize("medium").
-    * That recipe reads the preview embedded in a max file and only
-    * decodes the full page when there is none, so follow it here or
-    * the two scale from different images. */
-   const int kThumbSize = 300;
+    * That recipe reads the preview embedded in a max file, and decodes
+    * the full page when there is none or it is smaller than the
+    * thumbnail, so follow it here or the two scale from different
+    * images. */
    QString fname = "testfile.max";
    QString dir = tmpDir.path() + "/";
-   File *file = File::createFile(dir, fname, nullptr,
-                                 File::typeFromName(fname));
-   QVERIFY(file != nullptr);
-   QVERIFY(file->load() == nullptr);
+   auto localThumb = [&](const QString &size, int thumbSize,
+                         QByteArray *bytes) {
+      File *file = File::createFile(dir, fname, nullptr,
+                                    File::typeFromName(fname));
+      QVERIFY(file != nullptr);
+      QVERIFY(file->load() == nullptr);
 
-   QImage image;
-   err_info *err = nullptr;
-   Filemax *max = dynamic_cast<Filemax *>(file);
-   if (max)
-      err = max->getPreviewImage(0, image, false);
-   if (!max || err || image.isNull()) {
-      QSize imgSize, trueSize;
-      int bpp;
+      QImage image;
+      err_info *err = nullptr;
+      Filemax *max = dynamic_cast<Filemax *>(file);
+      bool asIs = false;
 
-      err = file->getImage(0, false, image, imgSize, trueSize, bpp, false);
-   }
-   delete file;
-   QVERIFY(err == nullptr);
-   QVERIFY(!image.isNull());
+      if (max)
+         err = max->getPreviewImage(0, image, false);
+      if (!err && !image.isNull()
+          && qMax(image.width(), image.height()) <= thumbSize)
+         asIs = size == "small";
+      if (!err && !image.isNull() && !asIs
+          && qMax(image.width(), image.height()) < thumbSize)
+         image = QImage();
+      if (!max || err || image.isNull()) {
+         QSize imgSize, trueSize;
+         int bpp;
 
-   QImage thumb = image.scaled(kThumbSize, kThumbSize,
-                               Qt::KeepAspectRatio,
-                               Qt::SmoothTransformation);
-   QByteArray localBytes;
-   {
-      QBuffer buf(&localBytes);
+         err = file->getImage(0, false, image, imgSize, trueSize, bpp,
+                              false);
+      }
+      delete file;
+      QVERIFY(err == nullptr);
+      QVERIFY(!image.isNull());
+
+      QImage thumb = asIs ? image
+         : image.scaled(thumbSize, thumbSize, Qt::KeepAspectRatio,
+                        Qt::SmoothTransformation);
+      QBuffer buf(bytes);
       buf.open(QIODevice::WriteOnly);
-      QVERIFY(thumb.save(&buf, "JPEG"));
-   }
-   QVERIFY(!localBytes.isEmpty());
+      QVERIFY(thumb.save(&buf, "JPEG", asIs ? 90 : -1));
+   };
 
    /* Remote render: spin up a SearchServer pointed at the same
     * repo and ask RemoteBackend for the same thumbnail. */
    SearchServer server(tmpDir.path(), PORT);
    QVERIFY(server.start());
-   QTest::qWait(100);
-
+   auto stop = qScopeGuard([&] { server.stop(); });
    QString repoName = QFileInfo(tmpDir.path()).fileName();
    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
-   QByteArray remoteBytes = client.fetchThumbnail(repoName, fname,
-                                                  /*page=*/1,
-                                                  /*size=*/"medium");
-   server.stop();
 
-   QVERIFY2(!remoteBytes.isEmpty(),
-            client.lastError().toUtf8().constData());
+   /* the preview in the file is smaller than either size: a thumbnail
+      for a desk is the preview as it is, as a desktop shows it, while a
+      larger one comes from the page itself rather than an enlarged
+      preview */
+   const QList<QPair<QString, int>> sizes = {{"small", 150}, {"medium", 300}};
 
-   /* Bytes should match.  If they don't, decode both and compare
-    * pixel-by-pixel so a "JPEG bytes drift" report still tells us
-    * whether the visible result moved or only the encoding did. */
-   if (localBytes != remoteBytes) {
-      QImage localImg = QImage::fromData(localBytes);
-      QImage remoteImg = QImage::fromData(remoteBytes);
-      QVERIFY2(!localImg.isNull() && !remoteImg.isNull(),
-               "one of the JPEGs failed to decode");
-      QCOMPARE(localImg.size(), remoteImg.size());
-      /* If the pixels match exactly the only difference is the
-       * JPEG encoder state — strictly speaking the user-visible
-       * display is identical. */
-      QCOMPARE(localImg.convertToFormat(QImage::Format_RGB32),
-               remoteImg.convertToFormat(QImage::Format_RGB32));
-      /* Pixels matched, bytes didn't.  Don't fail the test — but
-       * note the divergence so a future change to either
-       * generateThumbnail or the encoder is at least visible. */
-      qInfo() << "Thumbnail JPEG bytes differ but pixels match;"
-              << "local=" << localBytes.size()
-              << "remote=" << remoteBytes.size();
+   for (const auto &[size, pixels] : sizes) {
+      QByteArray localBytes;
+
+      localThumb(size, pixels, &localBytes);
+      if (QTest::currentTestFailed())
+         return;
+      QVERIFY(!localBytes.isEmpty());
+
+      QByteArray remoteBytes = client.fetchThumbnail(repoName, fname,
+                                                     /*page=*/1, size);
+      QVERIFY2(!remoteBytes.isEmpty(),
+               client.lastError().toUtf8().constData());
+      // a thumbnail for a desk is no larger than the preview
+      QImage remote = QImage::fromData(remoteBytes);
+      QCOMPARE(qMax(remote.width(), remote.height()) < pixels,
+               size == "small");
+
+      /* Bytes should match.  If they don't, decode both and compare
+       * pixel-by-pixel so a "JPEG bytes drift" report still tells us
+       * whether the visible result moved or only the encoding did. */
+      if (localBytes != remoteBytes) {
+         QImage localImg = QImage::fromData(localBytes);
+         QImage remoteImg = QImage::fromData(remoteBytes);
+         QVERIFY2(!localImg.isNull() && !remoteImg.isNull(),
+                  "one of the JPEGs failed to decode");
+         QCOMPARE(localImg.size(), remoteImg.size());
+         /* If the pixels match exactly the only difference is the
+          * JPEG encoder state — strictly speaking the user-visible
+          * display is identical. */
+         QCOMPARE(localImg.convertToFormat(QImage::Format_RGB32),
+                  remoteImg.convertToFormat(QImage::Format_RGB32));
+         /* Pixels matched, bytes didn't.  Don't fail the test — but
+          * note the divergence so a future change to either
+          * makeThumbnail() or the encoder is at least visible. */
+         qInfo() << "Thumbnail JPEG bytes differ but pixels match;"
+                 << "local=" << localBytes.size()
+                 << "remote=" << remoteBytes.size();
+      }
    }
+
+   /* two clients asking at once for a thumbnail not yet made both have
+      it, made the once */
+   RemoteBackend other(QUrl(QString("http://localhost:%1").arg(PORT)));
+   QSignalSpy got1(&client, &RemoteBackend::thumbnailReady);
+   QSignalSpy got2(&other, &RemoteBackend::thumbnailReady);
+   client.fetchThumbnailAsync(repoName, fname, 2, "large");
+   other.fetchThumbnailAsync(repoName, fname, 2, "large");
+   QTRY_COMPARE(got1.count(), 1);
+   QTRY_COMPARE(got2.count(), 1);
+   QByteArray first = got1.takeFirst()[1].toByteArray();
+   QVERIFY(!first.isEmpty());
+   QCOMPARE(got2.takeFirst()[1].toByteArray(), first);
+}
+
+
+void TestSearchServer::testChangeWaitsForThumbnail()
+{
+   /* A thumbnail is made in the background, with the stack's file open,
+      which on Windows stops it being deleted: a change to the stack made
+      meanwhile waits until the thumbnail is made */
+   QTemporaryDir tmpDir;
+   QVERIFY(tmpDir.isValid());
+   QString fname = "100pp_from_pdf.max";
+   QVERIFY(copyTestFile(fname, tmpDir.path()) > 0);
+   QString repo = QFileInfo(tmpDir.path()).fileName();
+
+   clearCaches();
+   SearchServer server(tmpDir.path(), PORT);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+   RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+   QVERIFY(!client.serverId().isEmpty());
+
+   // a large image of a page, which comes from the page itself
+   QStringList order;
+   connect(&client, &RemoteBackend::thumbnailReady, this,
+           [&](quint64, const QByteArray &bytes) {
+      order << (bytes.isEmpty() ? "no thumbnail" : "thumbnail");
+   });
+   client.fetchThumbnailAsync(repo, fname, 1, "large");
+   client.deleteStack(repo, fname, this,
+                      [&](const RemoteBackend::Result &result) {
+      order << (result.ok ? "deleted" : "not deleted");
+   });
+   QTRY_COMPARE(order.size(), 2);
+   QCOMPARE(order, QStringList({"thumbnail", "deleted"}));
+   QVERIFY(!QFile::exists(tmpDir.path() + "/" + fname));
 }
 
 

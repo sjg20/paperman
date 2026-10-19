@@ -739,6 +739,7 @@ private:
     QString _token;
     QString _serverId;
     QStringList _features;   //!< from /v1/status
+    int _thumbnails = 0;     //!< how the server makes thumbnails, if it says
     QString _apiVersion;     //!< from /v1/status
     bool _lacksV1 = false;   //!< see lacksV1Api()
     QString _clientId;

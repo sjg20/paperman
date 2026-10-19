@@ -278,7 +278,7 @@ void TestTraffic::testOpenFolder ()
    connectServer ();
    traffic (QString ());
    openFolder ();
-   withinBudget (traffic ("open a folder of six stacks"), 7, 6, 18244);
+   withinBudget (traffic ("open a folder of six stacks"), 7, 6, 23399);
    }
 
 

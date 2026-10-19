@@ -187,6 +187,7 @@ void RemoteBackend::takeStatus(int status, const QByteArray &body)
    const QJsonArray feats = doc.object().value("features").toArray();
    for (const QJsonValue &v : feats)
       _features.append(v.toString());
+   _thumbnails = doc.object().value("thumbnails").toInt();
 }
 
 
@@ -415,8 +416,14 @@ quint64 RemoteBackend::fetchThumbnailAsync(const QString &repo,
    QString cached;
 
    if (!version.isEmpty() && !_serverId.isEmpty()) {
-      QByteArray key = QStringList({repo, path, QString::number(page), size,
-                                    version}).join('\n').toUtf8();
+      /* a server which makes its thumbnails differently says so, and
+         those made before are not used */
+      QStringList parts({repo, path, QString::number(page), size, version});
+
+      if (_thumbnails > 1)
+         parts << QString::number(_thumbnails);
+
+      QByteArray key = parts.join('\n').toUtf8();
 
       cached = cacheRoot() + "/thumbnails/"
                + QCryptographicHash::hash(key, QCryptographicHash::Sha1)
