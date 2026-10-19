@@ -100,6 +100,7 @@ private slots:
 
    //! and a slow server does not hold up the scan
    void testScanIntoSlowServer ();
+   void testPreviewSizeFromImage ();
    void testScanRecordsDpi_data ();
    void testScanRecordsDpi ();
    void testKeysMoveFromScan ();
