@@ -1045,6 +1045,194 @@ void TestFakescan::testReopenPscan ()
 }
 
 
+/* The arrow keys move from the stack being scanned, which is selected as
+   the scan begins, not from the stack chosen before it */
+void TestFakescan::testKeysMoveFromScan ()
+{
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+   QVERIFY (QDir (repo.path ()).mkpath ("bills/2026"));
+   QString dir = repo.path () + "/bills/2026/";
+   const QStringList there = {"one.max", "two.max", "three.max"};
+
+   for (const QString &name : there)
+      QVERIFY (QFile::copy (Test::testSrc + "/testfile.max", dir + name));
+
+   ServerThread server (repo.path (), 9879);
+   QVERIFY (server.begin ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   bool attached = false;
+   QString error;
+
+   desktop->addRemoteServer (server.url (), [&] (const QString &err) {
+      error = err;
+      attached = true;
+   });
+   QTRY_VERIFY (attached);
+   QCOMPARE (error, QString ());
+
+   QString folder = server.url ().toString () + "/"
+                    + QFileInfo (repo.path ()).fileName () + "/bills/2026";
+   QModelIndex ind;
+
+   QTRY_VERIFY ((ind = desktop->getDirIndex (folder)).isValid ());
+   desktop->selectDir (ind);
+
+   Desktopview *view = desktop->getView ();
+   QAbstractItemModel *vm = view->model ();
+   auto nameOf = [&] (QModelIndex i) {
+      desktop->getModelconv ()->indexToSource (vm, i);
+      return desktop->getModel ()->data (i, Desktopmodel::Role_filename)
+         .toString ();
+   };
+   auto viewIndex = [&] (const QString &name) {
+      QModelIndex root = view->rootIndex ();
+
+      for (int row = 0; row < vm->rowCount (root); row++)
+         if (nameOf (vm->index (row, 0, root)) == name)
+            return vm->index (row, 0, root);
+      return QModelIndex ();
+   };
+
+   QTRY_VERIFY (viewIndex (there [0]).isValid ());
+
+   // a stack chosen first, as by a click on it
+   view->setCurrentIndex (viewIndex (there [0]));
+
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+
+   Mainwidget *main = Mainwidget::singleton ();
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   QVERIFY (main->ensureScanner ());
+   main->scanInto (ind);
+
+   QStringList stacks;
+
+   QTRY_VERIFY_WITH_TIMEOUT ((stacks = QDir (dir).entryList (
+                                 QStringList () << "*.max", QDir::Files))
+                             .size () == there.size () + 1, 10000);
+   for (const QString &name : there)
+      stacks.removeAll (name);
+   QCOMPARE (stacks.size (), 1);
+
+   // the scan is selected, and the keys move from there
+   QTRY_COMPARE (nameOf (view->currentIndex ()), stacks [0]);
+
+   // to the stack beside it on its left
+   auto posOf = [&] (const QString &name) {
+      return vm->data (viewIndex (name), Desktopmodel::Role_position)
+         .toPoint ();
+   };
+   QPoint scanned = posOf (stacks [0]);
+   QString left;
+
+   for (const QString &name : there)
+      {
+      QPoint p = posOf (name);
+
+      if (p.y () == scanned.y () && p.x () < scanned.x ()
+          && (left.isEmpty () || p.x () > posOf (left).x ()))
+         left = name;
+      }
+   QVERIFY (!left.isEmpty ());
+   QTest::keyClick (view, Qt::Key_Left);
+   QCOMPARE (nameOf (view->currentIndex ()), left);
+   QTest::keyClick (view, Qt::Key_Right);
+   QCOMPARE (nameOf (view->currentIndex ()), stacks [0]);
+}
+
+
+/* Left and right move to the stack beside on the desk, not to the one
+   before or after in the order the stacks came, which differs */
+void TestFakescan::testKeysFollowPlaces ()
+{
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+   QVERIFY (QDir (repo.path ()).mkpath ("bills/2026"));
+   QString dir = repo.path () + "/bills/2026/";
+
+   // across a row out of the order of their names, and one below
+   for (const char *name : {"one.max", "two.max", "three.max", "four.max",
+                            "five.max"})
+      QVERIFY (QFile::copy (Test::testSrc + "/testfile.max", dir + name));
+   {
+      QFile layout (dir + ".paperdesk");
+
+      QVERIFY (layout.open (QIODevice::WriteOnly));
+      layout.write ("[Files]\ntwo.max=25,35,0\none.max=165,35,0\n"
+                    "four.max=305,35,0\nthree.max=445,35,0\n"
+                    "five.max=25,285,0\n");
+   }
+
+   ServerThread server (repo.path (), 9879);
+   QVERIFY (server.begin ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   bool attached = false;
+   QString error;
+
+   desktop->addRemoteServer (server.url (), [&] (const QString &err) {
+      error = err;
+      attached = true;
+   });
+   QTRY_VERIFY (attached);
+   QCOMPARE (error, QString ());
+
+   QString folder = server.url ().toString () + "/"
+                    + QFileInfo (repo.path ()).fileName () + "/bills/2026";
+   QModelIndex ind;
+
+   QTRY_VERIFY ((ind = desktop->getDirIndex (folder)).isValid ());
+   desktop->selectDir (ind);
+
+   Desktopview *view = desktop->getView ();
+   QAbstractItemModel *vm = view->model ();
+   auto nameOf = [&] (QModelIndex i) {
+      desktop->getModelconv ()->indexToSource (vm, i);
+      return desktop->getModel ()->data (i, Desktopmodel::Role_filename)
+         .toString ();
+   };
+   auto viewIndex = [&] (const QString &name) {
+      QModelIndex root = view->rootIndex ();
+
+      for (int row = 0; row < vm->rowCount (root); row++)
+         if (nameOf (vm->index (row, 0, root)) == name)
+            return vm->index (row, 0, root);
+      return QModelIndex ();
+   };
+
+   QTRY_VERIFY (viewIndex ("five.max").isValid ());
+   QTRY_COMPARE (vm->data (viewIndex ("three.max"),
+                           Desktopmodel::Role_position).toPoint (),
+                 QPoint (445, 35));
+
+   auto press = [&] (Qt::Key key) {
+      QTest::keyClick (view, key);
+      return nameOf (view->currentIndex ());
+   };
+
+   view->setCurrentIndex (viewIndex ("two.max"));
+   QCOMPARE (press (Qt::Key_Left), QString ("two.max"));
+   QCOMPARE (press (Qt::Key_Right), QString ("one.max"));
+   QCOMPARE (press (Qt::Key_Right), QString ("four.max"));
+   QCOMPARE (press (Qt::Key_Right), QString ("three.max"));
+
+   // past the end of a row to the next, and back
+   QCOMPARE (press (Qt::Key_Right), QString ("five.max"));
+   QCOMPARE (press (Qt::Key_Left), QString ("three.max"));
+   QCOMPARE (press (Qt::Key_Left), QString ("four.max"));
+}
+
+
 /* a sheet at 10dpi which is US letter wide and 101.6mm long, which at
    50dpi is 425 pixels across and 200 lines down */
 static QImage shortSheet ()

@@ -32,6 +32,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QItemSelectionModel>
 #include <QScrollBar>
 
+#include <algorithm>
+
 #include "desktopdelegate.h"
 #include "desktopmodel.h"
 #include "desktopview.h"
@@ -628,6 +630,11 @@ void Desktopview::setSelectionRange (int row, int count)
    sel->select (QItemSelection (mod->index (row, 0, rootIndex ()),
       mod->index (row + count - 1, 0, rootIndex ())),
       QItemSelectionModel::Clear | QItemSelectionModel::Select);
+
+   /* the arrow keys move from the current item, which would otherwise
+      stay where it was, away from what is now selected */
+   sel->setCurrentIndex (mod->index (row, 0, rootIndex ()),
+                         QItemSelectionModel::NoUpdate);
    }
 
 
@@ -770,3 +777,69 @@ void Desktopview::mousePressEvent (QMouseEvent *event)
    QListView::mousePressEvent (event);
    }
 
+
+
+QModelIndex Desktopview::moveCursor (CursorAction action,
+                                     Qt::KeyboardModifiers modifiers)
+   {
+   QModelIndex current = currentIndex ();
+
+   if ((action != MoveLeft && action != MoveRight) || !model ()
+       || !current.isValid ())
+      return QListView::moveCursor (action, modifiers);
+
+   // the stacks shown, by rows down the desk and then across
+   QModelIndex root = rootIndex ();
+   QList<QPair<QRect, QModelIndex>> items;
+
+   for (int row = 0; row < model ()->rowCount (root); row++)
+      {
+      QModelIndex ind = model ()->index (row, 0, root);
+
+      if (!isIndexHidden (ind))
+         items << qMakePair (rectForIndex (ind), ind);
+      }
+   std::sort (items.begin (), items.end (),
+              [] (const QPair<QRect, QModelIndex> &a,
+                  const QPair<QRect, QModelIndex> &b) {
+      return a.first.top () != b.first.top () ? a.first.top () < b.first.top ()
+                                              : a.first.left () < b.first.left ();
+   });
+
+   int at = -1;
+
+   for (int i = 0; i < items.size (); i++)
+      if (items [i].second == current)
+         at = i;
+   if (at == -1)
+      return QListView::moveCursor (action, modifiers);
+
+   // the nearest which is beside it, on the same row
+   QRect from = items [at].first;
+   int best = -1;
+   int bestDist = 0;
+
+   for (int i = 0; i < items.size (); i++)
+      {
+      QRect r = items [i].first;
+      int dist = r.center ().x () - from.center ().x ();
+
+      if (action == MoveLeft)
+         dist = -dist;
+      if (i == at || dist <= 0 || r.bottom () < from.top ()
+          || r.top () > from.bottom ())
+         continue;
+      if (best == -1 || dist < bestDist)
+         {
+         best = i;
+         bestDist = dist;
+         }
+      }
+   if (best != -1)
+      return items [best].second;
+
+   // at the end of a row, on to the next, or back to the one before
+   int next = action == MoveRight ? at + 1 : at - 1;
+
+   return next >= 0 && next < items.size () ? items [next].second : current;
+   }
