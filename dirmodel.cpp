@@ -915,8 +915,7 @@ void Dirmodel::addRemoteRepository(const QUrl &baseUrl, Finished done)
       if (!token.isEmpty())
          probe->setBearerToken(token);
 
-      probe->fetchRepositories(this, [this, probe, baseUrl, serverId, token,
-                                      finish](
+      probe->fetchRepositories(this, [this, probe, baseUrl, token, finish](
                                          const RemoteBackend::Result &result) {
          QList<RepositoryInfo> repos
                = RemoteBackend::parseRepositories(result.body);
@@ -926,15 +925,14 @@ void Dirmodel::addRemoteRepository(const QUrl &baseUrl, Finished done)
                        : result.error);
             return;
          }
-         addRemoteRepos(baseUrl, serverId, probe->features(), token, repos);
+         addRemoteRepos(baseUrl, *probe, token, repos);
          finish(QString());
       });
    });
 }
 
 
-void Dirmodel::addRemoteRepos(const QUrl &baseUrl, const QString &serverId,
-                              const QStringList &features,
+void Dirmodel::addRemoteRepos(const QUrl &baseUrl, const RemoteBackend &probe,
                               const QString &token,
                               const QList<RepositoryInfo> &repos)
 {
@@ -955,10 +953,11 @@ void Dirmodel::addRemoteRepos(const QUrl &baseUrl, const QString &serverId,
 
       RemoteBackend *rb = new RemoteBackend(baseUrl);
       rb->setStats(stats());
-      /* Hand on the id and features the probe already fetched, so this
+      /* Hand on what the probe already learnt of the server, so this
          backend never has to block on /v1/status to work out its cache
-         directory, and knows whether stacks come a page at a time. */
-      rb->setServerInfo(serverId, features);
+         directory, knows whether stacks come a page at a time, and keeps
+         the thumbnails the server now makes apart from older ones */
+      rb->takeServerInfo(probe);
       if (!token.isEmpty())
          rb->setBearerToken(token);
       connect(rb, &RemoteBackend::browseDirectoryReady,
