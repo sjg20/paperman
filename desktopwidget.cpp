@@ -34,10 +34,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QFrame>
-#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QKeyEventTransition>
 #include <QStateMachine>
@@ -70,6 +71,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "dirmodel.h"
 #include "dirview.h"
 #include "folderlist.h"
+#include "foldersel.h"
 #include "op.h"
 #include "desk.h"
 #include "mainwidget.h"
@@ -1931,6 +1933,72 @@ void Desktopwidget::moveToFolder(void)
 
    delete _folders;
 }
+
+void Desktopwidget::goToFolder(void)
+{
+   Gotofolder diag(this);
+
+   diag._folders = new Folderlist(diag.folderName, &diag);
+   diag._folders->setMainwidget(_main);
+
+   // a folder made on a server, once it is there, is where to go
+   connect(diag._folders, &Folderlist::folderMade, &diag,
+           [&diag](const QString &path) {
+      diag._path = path;
+      diag.done(QDialog::Accepted);
+   });
+   if (!diag.exec())
+      return;
+
+   // a folder on a server need not be in the tree yet
+   QString path = diag._path;
+
+   dirIndexLater(path, this, [this, path](const QModelIndex &ind) {
+      if (ind.isValid())
+         selectDir(ind);
+      else
+         QMessageBox::warning(this, "Paperman",
+                              tr("Cannot find the folder %1").arg(path));
+   });
+}
+
+
+Gotofolder::Gotofolder(QWidget *parent)
+   : QDialog(parent), _folders(nullptr)
+{
+   setObjectName("Gotofolder");
+   setWindowTitle(tr("Go to folder"));
+
+   auto *layout = new QVBoxLayout(this);
+   auto *row = new QHBoxLayout;
+
+   folderName = new Foldersel(this);
+   folderName->setObjectName("folderName");
+   row->addWidget(new QLabel(tr("Folder:"), this));
+   row->addWidget(folderName);
+   layout->addLayout(row);
+
+   // room below the name for the folders which match it
+   layout->addStretch();
+
+   auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok
+                                        | QDialogButtonBox::Cancel, this);
+
+   connect(buttons, &QDialogButtonBox::accepted, this, &Gotofolder::accept);
+   connect(buttons, &QDialogButtonBox::rejected, this, &Gotofolder::reject);
+   layout->addWidget(buttons);
+   resize(400, 250);
+   folderName->setFocus();
+}
+
+
+void Gotofolder::accept()
+{
+   // a folder on a server need not be in the tree yet, so go by its path
+   if (_folders && _folders->getSelectedPath(_path) && !_path.isEmpty())
+      QDialog::accept();
+}
+
 
 void Move::accept()
 {

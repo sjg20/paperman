@@ -120,6 +120,7 @@ public slots:
     virtual void on_actionOptions_triggered(bool);
     virtual void on_actionOptionsm_triggered(bool);
     virtual void on_actionSearch_triggered(bool);
+    virtual void on_actionGotoFolder_triggered(bool);
     virtual void on_actionDownloads_triggered(bool);
     virtual void on_actionAddRepository_triggered(bool);
     virtual void on_actionDocuments_triggered(bool);

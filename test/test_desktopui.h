@@ -113,6 +113,7 @@ private slots:
 
    //! Ctrl-M moves the stacks chosen to a folder, or copies them
    void testMoveKey();
+   void testGoToFolder();
    void testCopyKey();
 
    //! Ctrl-M moves a stack found by a search, from its own folder
