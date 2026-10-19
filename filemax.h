@@ -195,6 +195,10 @@ public:
 
    virtual err_info *transformPage (int pagenum, e_transform op);
 
+   /** get the resolution a page was scanned at, in dots per inch, across
+       and down; a page from before this was recorded says 300 */
+   err_info *getDpi (int pagenum, QSize &dpi);
+
    err_info *getImageInfo (int pagenum, QSize &size,
          QSize &true_size, int &bpp, int &image_size, int &compressed_size,
          QDateTime &timestamp);

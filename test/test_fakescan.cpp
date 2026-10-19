@@ -465,6 +465,7 @@ struct ScanRun
 
    QList<QImage> pages;       //!< the pages of the stack, if one was made
    QStringList titles;        //!< and their titles
+   QList<QSize> dpis;         //!< and the resolution each was stored at
    QList<bool> blank;         //!< which of them paperman found blank
    };
 
@@ -528,6 +529,7 @@ static void scanStack (ScanRun &run)
                                                QDir::Files);
    run.pages.clear ();
    run.titles.clear ();
+   run.dpis.clear ();
    QVERIFY (stacks.size () <= 1);
    if (stacks.isEmpty ())
       return;
@@ -544,8 +546,13 @@ static void scanStack (ScanRun &run)
       QVERIFY (!max.getImage (pagenum, false, image, size, true_size, bpp,
                               false));
       QVERIFY (!max.getPageTitle (pagenum, title));
+
+      QSize dpi;
+
+      QVERIFY (!max.getDpi (pagenum, dpi));
       run.pages << image;
       run.titles << title;
+      run.dpis << dpi;
       }
 }
 
@@ -1053,6 +1060,38 @@ void TestFakescan::testDeskewCrop ()
    QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
    QCOMPARE (params.format, SANE_FRAME_GRAY);
    QCOMPARE (data.size (), 200 * 300);
+}
+
+
+void TestFakescan::testScanRecordsDpi_data ()
+{
+   QTest::addColumn<int> ("dpi");
+
+   QTest::newRow ("50dpi") << 50;
+   QTest::newRow ("100dpi") << 100;
+}
+
+
+/* Each page records the resolution it was scanned at, so that its size on
+   paper can be known */
+void TestFakescan::testScanRecordsDpi ()
+{
+   QFETCH (int, dpi);
+
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+
+   ScanRun run;
+
+   run.options ["resolution"] = QString::number (dpi);
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (run.pages.size (), 2);
+   for (const QSize &stored : std::as_const (run.dpis))
+      QCOMPARE (stored, QSize (dpi, dpi));
 }
 
 

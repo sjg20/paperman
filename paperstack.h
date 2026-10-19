@@ -389,6 +389,10 @@ public:
        other side, so its top is at the opposite edge */
    void setSideways (t_sideways how);
 
+   /** set the resolution the pages are scanned at, in dots per inch, which
+       each page records */
+   void setDpi (int x, int y);
+
    /** say whether the back end is cutting each page down to the sheet,
        so that a page fed sideways is cut to it as well
 
@@ -520,6 +524,8 @@ private:
    bool _autoSize;              //!< cut each page down to the sheet
    bool _deskewed;              //!< the scanner straightened each page
    t_sideways _sideways;        //!< how the sheets are fed
+   int _dpi_x = 0;              //!< resolution across, 0 if unknown
+   int _dpi_y = 0;              //!< resolution down, 0 if unknown
    bool _front;                 //!< true if this is a front page (else back)
    bool _jpeg;                  //!< true if we are doing JPEG compression (else raw data)
 
