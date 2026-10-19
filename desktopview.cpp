@@ -775,3 +775,44 @@ void Desktopview::mousePressEvent (QMouseEvent *event)
    QListView::mousePressEvent (event);
    }
 
+
+
+// DEBUG: trace the arrow keys
+QModelIndex Desktopview::moveCursor (CursorAction action,
+                                     Qt::KeyboardModifiers modifiers)
+   {
+   QModelIndex from = currentIndex ();
+   QModelIndex to = QListView::moveCursor (action, modifiers);
+   auto describe = [this] (const QModelIndex &ind) {
+      if (!ind.isValid ())
+         return QString ("(none)");
+
+      QPoint p = model ()->data (ind, Desktopmodel::Role_position).toPoint ();
+      QRect r = rectForIndex (ind);
+
+      return QString ("%1 row %2 pos %3,%4 rect %5,%6 %7x%8")
+         .arg (model ()->data (ind, Desktopmodel::Role_filename).toString ())
+         .arg (ind.row ()).arg (p.x ()).arg (p.y ())
+         .arg (r.x ()).arg (r.y ()).arg (r.width ()).arg (r.height ());
+   };
+
+   qInfo ().noquote () << "keys: action" << action << "from" << describe (from)
+                       << "to" << describe (to);
+   if (from.isValid ())
+      {
+      int y = model ()->data (from, Desktopmodel::Role_position).toPoint ().y ();
+      QModelIndex root = rootIndex ();
+
+      for (int row = 0; row < model ()->rowCount (root); row++)
+         {
+         QModelIndex ind = model ()->index (row, 0, root);
+         QPoint p = model ()->data (ind, Desktopmodel::Role_position).toPoint ();
+         QRect r = rectForIndex (ind);
+
+         if (p.y () == y || r.intersects (QRect (0, y, 100000, 1)))
+            qInfo ().noquote () << "keys:   " << describe (ind)
+                                << (isIndexHidden (ind) ? "hidden" : "");
+         }
+      }
+   return to;
+   }

@@ -181,6 +181,10 @@ public slots:
    void slotScrollTo (const QModelIndex &index);
 
 protected:
+   // DEBUG: trace the arrow keys
+   QModelIndex moveCursor (CursorAction action,
+                           Qt::KeyboardModifiers modifiers) override;
+
    /** handle a drop event - this saves the new position of items into
        the model*/
    void dropEvent (QDropEvent* event);
