@@ -153,6 +153,18 @@ public:
    // called when the main window is closing, to save window settings
    void closing (void);
 
+   /** Open the pscan dialogue again if it was open when Paperman last
+       closed, with the scanner used then, if that is there: no scanner is
+       asked for as the window opens.  A scanner which is not ready, as
+       one just let go by the Paperman before, is tried again a few times
+
+       \param tries   how many more times to try the scanner */
+   void reopenPscan (int tries = kReopenTries);
+
+   //! how many times, and how often, a scanner not ready is tried
+   static constexpr int kReopenTries = 5;
+   static constexpr int kReopenRetryMs = 2000;
+
    /**
     * @brief  Find folders in the current repo which match a text string
     * @param  text    Text to match
@@ -491,6 +503,9 @@ private:
 
    /** the current pscan dialogue */
    Pscan *_pscan;
+
+   //! whether the pscan dialogue was open is noted, as Paperman closes
+   bool _pscanNoted = false;
 
    /** the current options dialogue */
    Options *_options;

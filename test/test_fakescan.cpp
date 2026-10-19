@@ -16,6 +16,7 @@
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "paperstack.h"
+#include "pscan.h"
 #include "qscanner.h"
 #include "utils.h"
 
@@ -926,6 +927,108 @@ void TestFakescan::testScanNameTaken ()
 
    QVERIFY (!max.load ());
    QCOMPARE (max.pagecount (), 5);
+}
+
+
+/* The pscan dialogue showing, if any */
+static Pscan *shownPscan ()
+{
+   for (QWidget *w : QApplication::topLevelWidgets ())
+      if (auto *p = qobject_cast<Pscan *> (w))
+         if (p->isVisible ())
+            return p;
+   return nullptr;
+}
+
+
+/* The pscan dialogue opens again as Paperman starts, if it was open when
+   it closed */
+/* Quit Paperman, with its window @me, as someone at the screen does: by
+   File > Exit if @exit, else by closing the window, while Paperman runs */
+static void quitPaperman (Mainwindow &me, bool exit)
+{
+   QAction *exitAction = me.findChild<QAction *> ("actionExit");
+
+   QVERIFY (exitAction);
+   if (exit)
+      QTimer::singleShot (0, exitAction, &QAction::trigger);
+   else
+      QTimer::singleShot (0, &me, &QWidget::close);
+   qApp->exec ();
+}
+
+
+/* The pscan dialogue opens again as Paperman starts, if it was open when
+   it closed */
+void TestFakescan::testReopenPscan ()
+{
+   // a window is shown, as for someone at the screen
+   bool headless = utilHeadless ();
+   auto restore = qScopeGuard ([headless] { utilSetHeadless (headless); });
+
+   utilSetHeadless (false);
+   {
+      Mainwindow me;
+      Scansettings settings (0, FAKESCAN_DEVICE);
+
+      me.show ();
+      Mainwidget::singleton ()->pscan ();
+      QVERIFY (shownPscan ());
+
+      /* quitting has Qt close each window, the dialogue before the main
+         window, which saves its settings again as it closes */
+      quitPaperman (me, true);
+   }
+   QVERIFY (!shownPscan ());
+
+   // it opens again each time, however Paperman is quit
+   for (bool exit : {true, false})
+      {
+      Mainwindow me;
+      Scansettings settings (0, FAKESCAN_DEVICE);
+
+      me.show ();
+      Mainwidget::singleton ()->reopenPscan ();
+      QVERIFY (shownPscan ());
+      quitPaperman (me, exit);
+      }
+
+   {
+      Mainwindow me;
+      Scansettings settings (0, FAKESCAN_DEVICE);
+
+      me.show ();
+      Mainwidget::singleton ()->reopenPscan ();
+      QVERIFY (shownPscan ());
+
+      // closed before Paperman is, it stays closed
+      shownPscan ()->hide ();
+      quitPaperman (me, true);
+   }
+
+   {
+      Mainwindow me;
+      Scansettings settings (0, FAKESCAN_DEVICE);
+
+      me.show ();
+      Mainwidget::singleton ()->reopenPscan ();
+      QVERIFY (!shownPscan ());
+      Mainwidget::singleton ()->pscan ();
+      quitPaperman (me, true);
+   }
+
+   /* a scanner which cannot be opened yet, as one just let go by the
+      Paperman before, is tried again until it can */
+   Mainwindow me;
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   me.show ();
+   xmlConfig->setStringValue ("LAST_DEVICE", "nosuch:scanner");
+   Mainwidget::singleton ()->reopenPscan ();
+   QVERIFY (!shownPscan ());
+   xmlConfig->setStringValue ("LAST_DEVICE", FAKESCAN_DEVICE);
+   QTRY_VERIFY_WITH_TIMEOUT (shownPscan (),
+                             2 * Mainwidget::kReopenRetryMs);
 }
 
 
