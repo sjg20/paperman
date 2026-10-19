@@ -47,6 +47,7 @@ class Desktopundostack;
 class Filepage;
 class PPage;
 class Measure;
+class QJsonObject;
 class Paperscan;
 class QImage;
 
@@ -1308,8 +1309,19 @@ private:
     *  name clash the server picks a new name and the file object is
     *  renamed to match.  The server's validator is recorded so the
     *  next open revalidates instead of downloading.  It is queued
-    *  behind other changes and @p done is called once it is uploaded */
+    *  behind other changes and @p done is called once it is uploaded.
+    *  It waits for its folder's listing, should that not have come yet,
+    *  so that it has a name of its own if the folder has one like it */
    void uploadScanStack(File *f, OpDone done);
+
+   //! the longest an upload of a scan waits for its folder's listing
+   static constexpr int kListingWaitMs = 30000;
+
+   /** Take the server's reply to the upload of @p stack: why it failed,
+    *  unless @p ok, else the name it gave it and its validator */
+   void uploadedScanStack(QPointer<File> stack, bool ok,
+                          const QString &error, const QJsonObject &reply,
+                          OpDone opDone);
 
    /** Re-fetch a single stack's thumbnail from the server after its
     *  content changed (e.g. a rotation) and refresh the view. */

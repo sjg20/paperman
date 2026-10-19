@@ -878,6 +878,38 @@ QString util_findNextFilename (QString fname, QString dir, QString ext)
    return QString();
    }
 
+
+QString util_findNextName (QString fname, const QStringList &names)
+   {
+   QString orig = fname;
+
+   for (int i = 0; i < 10000; i++)
+      {
+      QString str = fname;
+
+      if (str.right (1) == "_")
+         str.truncate (str.length () - 1);
+
+      int pos = str.lastIndexOf (UTIL_PAGE_PREFIX);
+
+      if (pos != -1)
+         str.truncate (pos);
+
+      // as util_findNextFilename(), any file starting with it is a clash
+      bool taken = false;
+
+      for (const QString &name : names)
+         if (name.startsWith (str))
+            taken = true;
+      if (!taken)
+         return fname;
+
+      // increment filename, ignoring any numbers present
+      util_incrementFilename (fname, fname != orig);
+      }
+   return QString ();
+   }
+
    
 void util_incrementFilename (QString &name, bool useNum)
    {

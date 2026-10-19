@@ -436,6 +436,11 @@ eturns error, or NULL if ok */
    const QString &listedVersion () const { return _listedVersion; }
    void setListedVersion (const QString &version) { _listedVersion = version; }
 
+   /** true for a stack of a folder on a server which is only here so far,
+       as one being scanned, until the server has it */
+   bool localOnly () const { return _localOnly; }
+   void setLocalOnly (bool local) { _localOnly = local; }
+
    /** The page count as far as it is known: the stack's own once it has
     *  been read, else the server's listing of it */
    int knownPagecount ()
@@ -708,6 +713,7 @@ protected:
    bool _remoteChecked = false;  //!< remote content fetched/revalidated this session
    int _listedPagecount = 0;     //!< page count from the server's listing
    QString _listedVersion;       //!< see listedVersion()
+   bool _localOnly = false;      //!< see localOnly()
 
    // annotation data
    bool _annot_loaded;               // true if data has been loaded

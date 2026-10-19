@@ -225,6 +225,10 @@ err_info *util_buildZip (QString &zip, const QStringList &fnamelist);
                      filesystem fault) */
 QString util_findNextFilename (QString fname, QString dir, QString ext);
 
+/** As util_findNextFilename(), but with @p names as the files there are,
+    as for a folder on a server, whose files are not on this disk */
+QString util_findNextName (QString fname, const QStringList &names);
+
 /** increment a filename
 
    There are various rules. It will increment numbers on the end of a filename, but only if
