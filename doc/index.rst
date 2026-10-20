@@ -42,5 +42,6 @@ Paperman
    code-signing
    ppa
    testing
+   corpus
    claude-setup-nginx
    install-claude
