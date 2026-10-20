@@ -71,6 +71,12 @@ private slots:
    //! Where a stack is dragged to, to move it to another folder
    void testDragToFolder();
 
+   //! The ways of emailing and copying a stack, from the stack menu
+   void testEmailMenu();
+
+   //! Paperman's own options for printing, a tab of the print dialog
+   void testPrintOptions();
+
 private:
    /** open the window on the repository, showing a folder
 
