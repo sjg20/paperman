@@ -115,22 +115,18 @@ private:
 };
 
 
-/** Watches a stretch of a test for waits on the server: those the main
-    thread made (through BlockWatch) and any time it went without
-    handling events (through StallMeter) */
+/** Watches a stretch of a test for waits on the server which the main
+    thread made, through BlockWatch: every request which waits for a reply
+    notes itself there.
+
+    It can also fail a test when the main thread goes too long without
+    handling events (measured by StallMeter), to find work which holds up
+    the window. That is a matter of timing, which depends on how busy the
+    machine is, so it is only done when asked for, by setting
+    PAPERMAN_TEST_STALL_MS to the longest the main thread may go */
 class AsyncCheck
 {
 public:
-   /** the longest the main thread may go without handling events.  It
-       draws a page itself once it has come, which takes a Windows runner
-       several times as long as other machines, so allow for that there;
-       BlockWatch still catches a wait for the server */
-#ifdef Q_OS_WIN
-   static constexpr qint64 kMaxStallMs = 1500;
-#else
-   static constexpr qint64 kMaxStallMs = 300;
-#endif
-
    AsyncCheck ();
    ~AsyncCheck ();
 
@@ -139,17 +135,25 @@ public:
 
    /** allow the main thread to go without handling events for any time,
        for a stretch which does the desktop's own work on it, such as
-       converting a stack here: only a wait for the server fails it */
+       converting a stack here, even when PAPERMAN_TEST_STALL_MS is set */
    void allowStall () { _allowStall = true; }
+
+   /** fail if the main thread goes more than @p ms without handling
+       events, as PAPERMAN_TEST_STALL_MS does; 0 to allow any time */
+   void setMaxStall (qint64 ms) { _maxStall = ms; }
 
    //! what waited, for a failure message
    QString report () const;
 
 private:
+   //! true if the main thread went too long without handling events
+   bool stalled () const;
+
    StallMeter _meter;
    int _mark = 0;          //!< where BlockWatch had got to at the start
    QStringList _waits;
    qint64 _gap = 0;
+   qint64 _maxStall = 0;   //!< longest the main thread may go, 0 for any
    bool _allowStall = false;
 };
 

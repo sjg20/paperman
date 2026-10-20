@@ -39,8 +39,7 @@ License: GPL-2
 #include "remoteharness.h"
 #include "test_async.h"
 
-/* Each reply is held back this long, so that waiting for one is
-   plain; it is well over AsyncCheck::kMaxStallMs, except on Windows */
+/* Each reply is held back this long, so that waiting for one is plain */
 static const int kDelayMs = 500;
 
 // the port the server listens on, behind the proxy
@@ -291,11 +290,12 @@ void TestAsync::testHarness ()
                 qPrintable (check.report ()));
       }
 
-   // so is the main thread going without handling events
+   // so is the main thread going without handling events, given a limit
       {
       AsyncCheck check;
 
-      QThread::msleep (AsyncCheck::kMaxStallMs + 100);
+      check.setMaxStall (300);
+      QThread::msleep (400);
       QVERIFY (!check.ok ());
       QVERIFY2 (check.report ().contains ("stalled"),
                 qPrintable (check.report ()));

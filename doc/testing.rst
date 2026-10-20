@@ -33,6 +33,16 @@ Pass the class name after ``-t`` to run only that suite:
 
    QT_QPA_PLATFORM=offscreen ./paperman -t TestSearchServer
 
+Checking for Stalls
+-------------------
+
+The asynchronous tests check that the desktop never waits for a server on
+its main thread: each request which waits notes itself, and any such wait
+fails the test. Set ``PAPERMAN_TEST_STALL_MS`` to also fail a test whenever
+the main thread goes longer than that without handling events, which
+finds other work that holds up the window. It depends on how busy the
+machine is, so it is left out by default.
+
 Listing Available Suites
 ------------------------
 

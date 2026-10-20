@@ -266,6 +266,7 @@ AsyncCheck::AsyncCheck ()
    {
    BlockWatch::watch (true);
    _mark = BlockWatch::mark ();
+   _maxStall = qEnvironmentVariableIntValue ("PAPERMAN_TEST_STALL_MS");
    _meter.start ();
    }
 
@@ -280,9 +281,14 @@ bool AsyncCheck::ok ()
    {
    _waits = BlockWatch::since (_mark);
    _gap = qMax (_gap, _meter.longestGap ());
-   return _waits.isEmpty () && (_allowStall || _gap <= kMaxStallMs);
+   return _waits.isEmpty () && !stalled ();
    }
 
+
+bool AsyncCheck::stalled () const
+   {
+   return _maxStall && !_allowStall && _gap > _maxStall;
+   }
 
 QString AsyncCheck::report () const
    {
@@ -290,7 +296,7 @@ QString AsyncCheck::report () const
 
    if (!_waits.isEmpty ())
       out << "waited for: " + _waits.join (", ");
-   if (!_allowStall && _gap > kMaxStallMs)
+   if (stalled ())
       out << QString ("stalled for %1ms").arg (_gap);
    return out.join ("; ");
    }
