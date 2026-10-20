@@ -3,7 +3,9 @@
 #include <functional>
 #include <QAbstractButton>
 #include <QAction>
+#include <QContextMenuEvent>
 #include <QDir>
+#include <QMenu>
 #include <QRegularExpression>
 #include <QToolButton>
 #include <QFile>
@@ -26,6 +28,7 @@
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "pagedelegate.h"
 #include "pageview.h"
 #include "pagetools.h"
 #include "pagewidget.h"
@@ -429,4 +432,214 @@ void TestScreenshots::testScanPanel ()
    settle ();
    save (pscan, "scan-folders");
    pscan->close ();
+   }
+
+void TestScreenshots::saveMenu (QWidget *widget, QPoint pos,
+                                const QString &name, const QString &sub)
+   {
+   /* the menu waits for a choice in a loop of its own, like a dialog,
+      so take its picture and close it from a timer */
+   bool seen = false;
+
+   std::function<void (int)> look = [&] (int tries)
+      {
+      for (QWidget *top : QApplication::topLevelWidgets ())
+         {
+         QMenu *menu = qobject_cast<QMenu *> (top);
+
+         if (menu && menu->isVisible () && !sub.isEmpty ())
+            {
+            // open the submenu beside its item, as hovering on it does
+            for (QAction *action : menu->actions ())
+               if (action->menu ()
+                   && action->text ().remove ('&') == sub)
+                  {
+                  QRect item = menu->actionGeometry (action);
+
+                  menu->setActiveAction (action);
+                  action->menu ()->popup (
+                     menu->mapToGlobal (item.topRight ()));
+                  QTest::qWait (300);
+                  seen = true;
+                  save (action->menu (), name);
+                  action->menu ()->close ();
+                  }
+            menu->close ();
+            return;
+            }
+         if (menu && menu->isVisible ())
+            {
+            seen = true;
+            save (menu, name);
+            menu->close ();
+            return;
+            }
+         }
+      if (tries > 1)
+         QTimer::singleShot (100, this, [&look, tries] { look (tries - 1); });
+      };
+   QTimer::singleShot (100, this, [&look] { look (100); });
+
+   QContextMenuEvent event (QContextMenuEvent::Mouse, pos,
+                            widget->mapToGlobal (pos));
+
+   QApplication::sendEvent (widget, &event);
+   QVERIFY (seen);
+   }
+
+void TestScreenshots::testStackMenu ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   Desktopview *view = me.getDesktop ()->getView ();
+
+   saveMenu (view->viewport (),
+             view->visualRect (view->currentIndex ()).center (),
+             "stack-menu");
+   }
+
+void TestScreenshots::testDuplicateMenu ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   Desktopview *view = me.getDesktop ()->getView ();
+
+   saveMenu (view->viewport (),
+             view->visualRect (view->currentIndex ()).center (),
+             "duplicate-menu", "Duplicate...");
+   }
+
+void TestScreenshots::testFolderMenu ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar");
+   if (QTest::currentTestFailed ())
+      return;
+
+   Dirview *folders = me.getDesktop ()->_dir;
+
+   saveMenu (folders->viewport (),
+             folders->visualRect (folders->currentIndex ()).center (),
+             "folder-menu");
+   }
+
+void TestScreenshots::testMoveToFolder ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/10oct", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   bool seen = false;
+
+   whenDialog (this, [this, &seen] (QDialog *diag)
+      {
+      seen = true;
+      QTest::keyClicks (diag->findChild<QLineEdit *> ("folderName"), "tax");
+      QTest::qWait (300);
+      save (diag, "move-to-folder");
+      diag->reject ();
+      });
+   me.getDesktop ()->moveToFolder ();
+   QVERIFY (seen);
+   }
+
+void TestScreenshots::testFilter ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/01jan");
+   if (QTest::currentTestFailed ())
+      return;
+
+   QLineEdit *filter =
+      me.getDesktop ()->_toolbar->findChild<QLineEdit *> ();
+
+   QVERIFY (filter);
+   QTest::keyClicks (filter, "bill");
+   settle ();
+   save (&me, "filter");
+   }
+
+void TestScreenshots::testRemovePage ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* mark the second page to be removed, as a click on its tick does,
+      and show the first */
+   Pagewidget *page = me.getDesktop ()->_page;
+   Pageview *pages = page->_pageview;
+   QModelIndex kept = pages->model ()->index (0, 0);
+   QModelIndex removed = pages->model ()->index (1, 0);
+
+   QVERIFY (removed.isValid ());
+   page->slotItemClicked (removed, Pagedelegate::Point_remove);
+   settle ();
+
+   // only the preview pane, where this happens
+   save (page, "page-remove");
+
+   /* point at each page as a whole: an arrow to its tick would run
+      across its name */
+   QMap<QString, QRect> parts;
+   QPoint origin = pages->viewport ()->mapTo (page, QPoint ());
+
+   parts ["kept"] = pages->visualRect (kept).translated (origin);
+   parts ["removed"] = pages->visualRect (removed).translated (origin);
+   for (const char *name : {"save", "revert"})
+      {
+      QWidget *button = page->_tools->findChild<QWidget *> (name);
+
+      QVERIFY2 (button, name);
+      parts [name] = within (page, button);
+      }
+   saveParts (page, "page-remove", parts);
+   }
+
+void TestScreenshots::testDragToFolder ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/06jun", "pine and nail.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* the picture is of the window as the drag starts; the annotation
+      draws where the stack goes, from the parts saved here: a receipt
+      from the hardware shop, which belongs with the house */
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopview *view = desktop->getView ();
+   Dirview *folders = desktop->_dir;
+   QAbstractItemModel *model = folders->model ();
+   QModelIndexList found = model->match (model->index (0, 0),
+                                         Qt::DisplayRole, "house", 1,
+                                         Qt::MatchExactly
+                                         | Qt::MatchRecursive);
+
+   QVERIFY (!found.isEmpty ());
+   save (&me, "drag-to-folder");
+
+   QMap<QString, QRect> parts;
+
+   parts ["stack"] = view->visualRect (view->currentIndex ())
+                        .translated (view->viewport ()->mapTo (&me,
+                                                               QPoint ()));
+   parts ["folder"] = folders->visualRect (found.first ())
+                         .translated (folders->viewport ()->mapTo (
+                                         &me, QPoint ()));
+   saveParts (&me, "drag-to-folder", parts);
    }
