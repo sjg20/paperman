@@ -13,4 +13,5 @@ html_theme_options = {
     'collapse_navigation': False,
 }
 
-html_static_path = []
+html_static_path = ['_static']
+html_css_files = ['custom.css']

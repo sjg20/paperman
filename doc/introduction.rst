@@ -26,11 +26,10 @@ The Android and iPhone app
 So papers can be scanned at a desk, kept on one machine running the
 server, and found from anywhere.
 
-.. image:: 1.jpeg
-   :width: 30%
+New to Paperman? Start with :doc:`getting-started`.
 
-.. image:: all.png
-   :width: 30%
+.. image:: images/desktop.png
+   :alt: The Paperman window, showing a month's bills
 
 Features
 --------

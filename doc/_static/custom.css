@@ -1,0 +1,5 @@
+/* the theme keeps a table's cells to one line, so that a long one runs
+   off the page; let them wrap */
+.wy-table-responsive table td {
+    white-space: normal;
+}

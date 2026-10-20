@@ -14,6 +14,8 @@ Paperman
    :maxdepth: 2
    :caption: User Guide
 
+   getting-started
+   desktop
    scanning
    cli
    server
