@@ -564,7 +564,7 @@ private:
 //   Paperstack *_stack;     //!< paper stack to scan into
    Paperscan *_scan;       //!< the current scan in progress
 
-   Mainwindow *_mainwindow;
+   Mainwindow *_mainwindow = nullptr;
    QString _scan_path;     //!< directory path we are scanning into
    };
 
