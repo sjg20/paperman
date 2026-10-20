@@ -18,6 +18,7 @@ Paperman
    desktop
    filing
    finding
+   sharing
    scanning
    cli
    server
