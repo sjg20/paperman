@@ -25,7 +25,7 @@ private slots:
    void init();
    void cleanup();
 
-   //! A folder of stacks, one selected, with its page and its text
+   //! A month's bills, one selected, with its page and its text
    void testDesktop();
 
    //! The same, with the dark theme
@@ -39,6 +39,9 @@ private slots:
 
    //! Going to a folder by typing part of its name
    void testGoToFolder();
+
+   //! The scan panel, and the folders it suggests scanning into
+   void testScanPanel();
 
 private:
    /** open the window on the repository, showing a folder

@@ -18,6 +18,7 @@
 set -e
 
 corpus=/tmp/Paperman
+when="2026-10-20 10:00:00"
 paperman=./paperman
 fresh=
 
@@ -51,8 +52,19 @@ if [ -n "$fresh" ] || [ ! -d "$corpus" ]; then
 		>/dev/null
 fi
 
+# the corpus ends in October 2026, so set the clock to then: the scan
+# panel suggests the folder for the current month, and the pictures come
+# out the same whenever they are taken
+clock=()
+if command -v faketime >/dev/null; then
+	clock=(faketime "$when")
+else
+	echo "faketime is not installed, so the pictures show today's date" >&2
+fi
+
 mkdir -p "$out"
 HOME=$home QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=120000 \
 	PAPERMAN_SHOTS_REPO=$(realpath "$corpus") \
 	PAPERMAN_SHOTS_DIR=$(realpath "$out") \
-	"$paperman" -t TestScreenshots 2>&1 | grep -E '^(PASS|FAIL|Totals)|saved'
+	"${clock[@]}" "$paperman" -t TestScreenshots 2>&1 |
+	grep -E '^(PASS|FAIL|Totals)|saved'
