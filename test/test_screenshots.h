@@ -77,6 +77,9 @@ private slots:
    //! Paperman's own options for printing, a tab of the print dialog
    void testPrintOptions();
 
+   //! The desktop showing a repository on a server
+   void testServer();
+
 private:
    /** open the window on the repository, showing a folder
 

@@ -3,7 +3,8 @@
 #
 # Take the screenshots for the documentation and the website
 #
-# Some are also drawn with their parts labelled, by annotate_screenshot.py.
+# Some are also drawn with their parts labelled, by annotate_screenshot.py,
+# and draw_diagram.py draws how Paperman's parts work together.
 #
 # They show the demo corpus (see doc/corpus.rst), which is made first if
 # it is not there, and read by OCR so that its text can be shown and
@@ -73,3 +74,4 @@ HOME=$home QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=120000 \
 
 # and label the parts of those which say where they are
 "$(dirname "$0")/annotate_screenshot.py" "$out"
+"$(dirname "$0")/draw_diagram.py" "$out"

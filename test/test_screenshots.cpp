@@ -10,6 +10,7 @@
 #include <QRegularExpression>
 #include <QToolButton>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -38,6 +39,7 @@
 #include "qxmlconfig.h"
 #include "fakescan/fakescan.h"
 #include "test_fakescan.h"
+#include "remoteharness.h"
 #include "test_screenshots.h"
 
 /* the size of the pictures: big enough to show a folder's stacks beside
@@ -685,4 +687,62 @@ void TestScreenshots::testPrintOptions ()
    opt.resize (opt.width (), opt.childrenRect ().bottom () + 12);
    settle ();
    save (&opt, "print-options");
+   }
+
+void TestScreenshots::testServer ()
+   {
+   /* serve the corpus from a server in this process, on the port a
+      server usually has, and show the desktop attached to it, as on
+      another computer. It is reached straight, not through the test
+      proxy, so that the folder pane shows a usual address */
+   ServerThread server (_repo, 8080);
+
+   if (!server.begin ())
+      QSKIP ("cannot serve on port 8080, which something else has");
+   QUrl url ("http://localhost:8080");
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+
+   me.resize (kWindowSize);
+   me.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&me));
+
+   bool attached = false;
+   QString err;
+
+   desktop->addRemoteServer (url, [&] (const QString &error)
+      {
+      err = error;
+      attached = true;
+      });
+   QTRY_VERIFY_WITH_TIMEOUT (attached, 20000);
+   QCOMPARE (err, QString ());
+
+   QString path = url.toString () + "/" + QFileInfo (_repo).fileName ()
+                  + "/bills/2026/03mar";
+
+   QTRY_VERIFY_WITH_TIMEOUT (desktop->getDirIndex (path).isValid (), 20000);
+   desktop->selectDir (desktop->getDirIndex (path));
+
+   // give the folder pane room for the server's address
+   QList<int> sizes = desktop->sizes ();
+
+   sizes [2] -= 90;
+   sizes [0] += 90;
+   desktop->setSizes (sizes);
+   settle ();
+   settle ();
+   save (&me, "server");
+
+   // the server's repository, and the connection to it
+   Dirview *folders = desktop->_dir;
+   QAbstractItemModel *model = folders->model ();
+   QModelIndex top = model->index (0, 0);
+   QMap<QString, QRect> parts;
+
+   parts ["repository"] = folders->visualRect (top).translated (
+      folders->viewport ()->mapTo (&me, QPoint ()));
+   parts ["connection"] = within (&me, desktop->netStatus ());
+   saveParts (&me, "server", parts);
    }
