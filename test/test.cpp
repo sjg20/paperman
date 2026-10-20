@@ -22,6 +22,7 @@
 #include "test_fakescan.h"
 #include "test_localbackend.h"
 #include "test_ocrsearch.h"
+#include "test_screenshots.h"
 
 //QTEST_MAIN(TestPaperman)
 
@@ -42,6 +43,7 @@ static TestClientConf TEST_CLIENTCONF("clientconf");
 static TestAsync TEST_ASYNC("async");
 static TestTraffic TEST_TRAFFIC("traffic");
 static TestFakescan TEST_FAKESCAN("fakescan");
+static TestScreenshots TEST_SCREENSHOTS("screenshots");
 
 int test_run(int, char **in_argv, QApplication *,
              const char *filter)
