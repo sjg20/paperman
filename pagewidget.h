@@ -138,6 +138,7 @@ class Pagewidget : public QWidget
    friend class TestDesktopUi;
    friend class TestPagewidget;
    friend class TestTraffic;
+   friend class TestScreenshots;
 
 public:
    /** which mode the viewer is in */

@@ -130,6 +130,25 @@ range kept for fiction, e-mail addresses are at example.com and no
 company or brand is real, so nothing in it can be taken for a real
 record. The household lives in ``scripts/corpus/household.py``.
 
+Screenshots
+-----------
+
+``scripts/make_screenshots.sh`` takes the screenshots for the
+documentation and the website from the corpus. It makes the corpus in
+``/tmp/Paperman`` if it is not there, reads its pages with OCR so that
+their text can be shown and searched, then runs the ``TestScreenshots``
+suite, which opens the window off screen, puts it in each state worth
+showing and saves a picture of it:
+
+.. code:: bash
+
+   scripts/make_screenshots.sh doc/images
+
+paperman must be built with its tests (``qmake CONFIG+=test``). The
+suite skips unless ``PAPERMAN_SHOTS_REPO`` and ``PAPERMAN_SHOTS_DIR`` are
+set, as the script sets them, so it does nothing in an ordinary test run.
+To show something new, add a test to ``test/test_screenshots.cpp``.
+
 Sources
 -------
 
