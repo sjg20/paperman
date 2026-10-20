@@ -148,8 +148,12 @@ jobs:
         run: python3 scripts/make_test_files.py
 
       - name: Run Qt unit tests
-        # fail a hung test quickly rather than after QtTest's five minutes
-        run: QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=60000 ./paperman.exe -t
+        # fail a hung test quickly rather than after QtTest's five minutes.
+        # The client-server suites check logic which is the same on every
+        # platform, and take most of the time, so they run on Linux only
+        run: >-
+          QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=60000
+          PAPERMAN_TEST_SKIP=TestAsync,TestTraffic ./paperman.exe -t
 
       # The tests are built with a console attached, so that their output
       # is not swallowed; what is shipped is built without one
@@ -288,7 +292,9 @@ jobs:
           qmake CONFIG+=test paperman.pro -o Makefile
           make -f Makefile -j$(sysctl -n hw.ncpu)
           python3 scripts/make_test_files.py
-          QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=60000 ./paperman -t
+          # the client-server suites run on Linux only, as on Windows
+          QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=60000 \
+            PAPERMAN_TEST_SKIP=TestAsync,TestTraffic ./paperman -t
 
       # Signed with the Developer ID, and notarised, once the repository has
       # the secrets; see scripts/mac-sign-setup.sh. Otherwise ad hoc

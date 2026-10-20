@@ -33,6 +33,21 @@ Pass the class name after ``-t`` to run only that suite:
 
    QT_QPA_PLATFORM=offscreen ./paperman -t TestSearchServer
 
+Leaving Suites Out
+------------------
+
+``PAPERMAN_TEST_SKIP`` names suites to leave out of a run of them all,
+separated by commas:
+
+.. code:: bash
+
+   QT_QPA_PLATFORM=offscreen PAPERMAN_TEST_SKIP=TestAsync,TestTraffic \
+      ./paperman -t
+
+CI does this on Windows and macOS. ``TestAsync`` and ``TestTraffic`` check
+how the desktop talks to a server, which is the same on every platform,
+and take most of the time there, so they run on Linux only.
+
 Checking for Stalls
 -------------------
 
