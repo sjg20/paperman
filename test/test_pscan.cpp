@@ -134,7 +134,7 @@ void TestPscan::testPresetFollowsPanel()
       {"straighten", [&] { pscan.deskew->click(); },
                      [&] { pscan.deskew->click(); }},
       {"exposure", [&] { setBright(pscan, 60); },
-                   [&] { setBright(pscan, 127); }},
+                   [&] { setBright(pscan, 128); }},
    };
 
    for (auto &change : changes) {
@@ -224,7 +224,7 @@ void TestPscan::testOldPresetGivesUsual()
    QVERIFY(!fake._autosize);
    QVERIFY(!pscan.autosize->isChecked());
    QCOMPARE(pscan.pageSize->currentText(), usual);
-   QCOMPARE(fake._exposure, 127);
+   QCOMPARE(fake._exposure, 128);
    QCOMPARE(pscan.preset->currentIndex(), 0);
 
    // in colour, brightness and contrast

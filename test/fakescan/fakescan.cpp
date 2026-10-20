@@ -508,7 +508,8 @@ static void init_values (Scanner *s)
    s->tl_x = s->tl_y = 0;
    s->br_x = s->page_width;
    s->br_y = s->page_height;
-   s->brightness = s->contrast = s->threshold = 0;
+   s->brightness = s->contrast = 0;
+   s->threshold = 128;              // as the fi-8000 series starts
    s->ald = false;
    s->compress = COMPRESS_NONE;
    s->compress_arg = 0;

@@ -1049,7 +1049,9 @@ int Pscan::presetLocate()
    saved before they were kept, means the usual one: the usual paper size,
    fed upright, without auto-size or straightening, and the brightness and
    contrast in the middle of the scanner's range. Those are only known
-   from the scanner, so a setting stays Any while they are not */
+   from the scanner, so a setting stays Any while they are not. The middle
+   is rounded up, so that for an exposure from 0 to 255 it is 128, which
+   is what a Fujitsu scanner starts at */
 Preset Pscan::presetResolve(const Preset &pre)
 {
    Preset res = pre;
@@ -1069,10 +1071,10 @@ Preset Pscan::presetResolve(const Preset &pre)
       if (res._bright == Preset::Any
           && (mono ? _ctl->exposureRange(&min, &max)
                    : _ctl->brightnessRange(&min, &max)))
-         res._bright = (min + max) / 2;
+         res._bright = (min + max + 1) / 2;
       if (res._contrast == Preset::Any && !mono
           && _ctl->contrastRange(&min, &max))
-         res._contrast = (min + max) / 2;
+         res._contrast = (min + max + 1) / 2;
    }
 
    return res;

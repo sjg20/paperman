@@ -26,7 +26,7 @@ public:
    int _dpi = 300;
    bool _adf = true;
    bool _duplex = true;
-   int _exposure = 127;   // the middle, as the others are
+   int _exposure = 128;   // the middle, as the others are
    int _bright = 0;
    int _contrast = 0;
    bool _has_autosize = true;
