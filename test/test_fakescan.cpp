@@ -1044,6 +1044,43 @@ void TestFakescan::testReopenPscan ()
 }
 
 
+void TestFakescan::testFindFolderKeys ()
+{
+   Mainwindow me;
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   me.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&me));
+   Mainwidget::singleton ()->pscan ();
+   Pscan *pscan = shownPscan ();
+
+   QVERIFY (pscan);
+
+   /* from the main window too, as Go to folder gives up the keys, which
+      neither would have if both did */
+   Desktopview *view = me.getDesktop ()->getView ();
+   const QList<QPair<Qt::Key, Qt::KeyboardModifiers>> keys = {
+      {Qt::Key_F4, Qt::NoModifier}, {Qt::Key_F, Qt::ControlModifier}};
+
+   for (const auto &key : keys)
+      {
+      me.activateWindow ();
+      QVERIFY (QTest::qWaitForWindowActive (&me));
+      view->setFocus ();
+      QTRY_VERIFY (view->hasFocus ());
+      QTest::keyClick (view, key.first, key.second);
+      QTRY_VERIFY (pscan->folderName->hasFocus ());
+      }
+
+   // they go to a folder again once it is closed
+   pscan->close ();
+   QVERIFY (me.actionGotoFolder->shortcuts ().contains (
+               QKeySequence (Qt::Key_F4)));
+   QVERIFY (me.actionGotoFolder->shortcuts ().contains (
+               QKeySequence (Qt::CTRL | Qt::Key_F)));
+}
+
+
 /* The arrow keys move from the stack being scanned, which is selected as
    the scan begins, not from the stack chosen before it */
 void TestFakescan::testKeysMoveFromScan ()

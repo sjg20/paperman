@@ -63,6 +63,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "err.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "desk.h"
 #include "maxview.h"
@@ -1007,6 +1008,9 @@ void Mainwidget::pscan (void)
       {
       _pscan = new Pscan (this, "pscan", false, Qt::WindowStaysOnTopHint);
       _pscan->setMainwidget (this);
+      if (_mainwindow)
+         connect (_pscan, &Pscan::shown, _mainwindow,
+                  &Mainwindow::scanPanelShown);
       updatePscan ();
       }
    if (!ensureScanner ())

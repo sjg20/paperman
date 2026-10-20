@@ -109,6 +109,9 @@ private slots:
    void testScanNameTaken ();
    void testReopenPscan ();
 
+   //! While the scan panel is open, Ctrl+F and F4 choose its folder
+   void testFindFolderKeys ();
+
    //! With ald the page ends at the foot of the sheet, length unknown
    void testAld ();
 

@@ -124,6 +124,15 @@ public slots:
     virtual void on_actionOptionsm_triggered(bool);
     virtual void on_actionSearch_triggered(bool);
     virtual void on_actionGotoFolder_triggered(bool);
+
+    /** Let the scan panel have Ctrl+F and F4 while it is shown
+
+       It takes them from anywhere, to choose the folder to scan into, so
+       Go to folder gives them up meanwhile, as neither would work if
+       both had them
+
+       \param shown   true if the scan panel is shown, false if hidden */
+    void scanPanelShown(bool shown);
     virtual void on_actionDownloads_triggered(bool);
     virtual void on_actionAddRepository_triggered(bool);
     virtual void on_actionDocuments_triggered(bool);

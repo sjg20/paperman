@@ -1315,6 +1315,20 @@ Presetadd::~Presetadd()
 {
 }
 
+void Pscan::showEvent(QShowEvent *event)
+{
+   QDialog::showEvent(event);
+   emit shown(true);
+}
+
+
+void Pscan::hideEvent(QHideEvent *event)
+{
+   QDialog::hideEvent(event);
+   emit shown(false);
+}
+
+
 void Pscan::focusFind()
 {
    activateWindow();

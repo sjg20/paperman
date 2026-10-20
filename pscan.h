@@ -189,8 +189,14 @@ public slots:
     // Toggle between US letter and legal
     void toggleLetter();
 
+signals:
+    //! the panel is shown, if @shown, else hidden
+    void shown(bool shown);
+
 protected:
     void reject();
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
 
 protected:
     Mainwidget *_main;
