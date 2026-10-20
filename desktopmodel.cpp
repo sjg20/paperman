@@ -1759,9 +1759,12 @@ void Desktopmodel::scheduleRemoteThumbnails(Desk *desk,
 
    UNUSED (dirInRepo);
    for (File *f : desk->files()) {
-      /* the stack being scanned is here, not on the server yet, and has
-         its own image as it grows */
-      if (f == _scan_file)
+      /* a stack only here so far, such as one being scanned, is not on
+         the server to ask, and has its own image. Look at the stack as
+         well as the scan: the folder's listing can come in while a scan
+         is starting or once it is over, with the stack still on its way
+         up */
+      if (f == _scan_file || f->localOnly())
          continue;
 
       // a search's desk holds stacks from many folders
