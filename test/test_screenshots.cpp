@@ -15,6 +15,10 @@
 #include "mainwindow.h"
 #include "pageview.h"
 #include "pagewidget.h"
+#include "pscan.h"
+#include "qxmlconfig.h"
+#include "fakescan/fakescan.h"
+#include "test_fakescan.h"
 #include "test_screenshots.h"
 
 /* the size of the pictures: big enough to show a folder's stacks beside
@@ -126,7 +130,7 @@ void TestScreenshots::testDesktop ()
    {
    Mainwindow me;
 
-   open (&me, "house", "kitchen quote.max");
+   open (&me, "bills/2026/03mar", "power bill.max");
    if (!QTest::currentTestFailed ())
       save (&me, "desktop");
    }
@@ -137,7 +141,7 @@ void TestScreenshots::testDesktopDark ()
 
    Mainwindow me;
 
-   open (&me, "house", "kitchen quote.max");
+   open (&me, "bills/2026/03mar", "power bill.max");
    if (!QTest::currentTestFailed ())
       save (&me, "desktop-dark");
    }
@@ -225,7 +229,7 @@ void TestScreenshots::testGoToFolder ()
    {
    Mainwindow me;
 
-   open (&me, "bills/power");
+   open (&me, "bills/2026/10oct");
    if (QTest::currentTestFailed ())
       return;
 
@@ -234,11 +238,60 @@ void TestScreenshots::testGoToFolder ()
    whenDialog (this, [this, &seen] (QDialog *diag)
       {
       seen = true;
-      QTest::keyClicks (diag->findChild<QLineEdit *> ("folderName"), "rec");
+      QTest::keyClicks (diag->findChild<QLineEdit *> ("folderName"), "jun");
       QTest::qWait (300);
       save (diag, "go-to-folder");
       diag->reject ();
       });
    me.getDesktop ()->goToFolder ();
    QVERIFY (seen);
+   }
+
+void TestScreenshots::testScanPanel ()
+   {
+   if (!Fakescan::available ())
+      QSKIP ("the fake scanner is only built on Linux");
+
+   Mainwindow me;
+
+   open (&me, "bills/2026/10oct");
+   if (QTest::currentTestFailed ())
+      return;
+
+   // scan with the fake scanner, as if it were the one last used
+   if (!xmlConfig)
+      new QXmlConfig ();
+   xmlConfig->setStringValue ("LAST_DEVICE", FAKESCAN_DEVICE);
+   Mainwidget::singleton ()->pscan ();
+
+   Pscan *pscan = nullptr;
+
+   for (QWidget *widget : QApplication::topLevelWidgets ())
+      if (qobject_cast<Pscan *> (widget))
+         pscan = qobject_cast<Pscan *> (widget);
+   QVERIFY (pscan);
+   QTRY_VERIFY (pscan->isVisible ());
+   settle ();
+
+   /* choose the usual preset, so the panel does not show <custom>, and
+      an exposure in the middle of its range */
+   int item = pscan->preset->findText ("Monochrome 300dpi duplex");
+
+   QVERIFY (item >= 0);
+   pscan->preset->setCurrentIndex (item);
+   pscan->on_preset_activated (item);
+   pscan->bright->setValue (128);
+   pscan->brightChanged (128);
+   settle ();
+   QCOMPARE (pscan->preset->currentText (),
+             QString ("Monochrome 300dpi duplex"));
+   save (pscan, "scan-panel");
+
+   /* typing in the folder shows the folders to scan into, this month's
+      first */
+   pscan->folderName->setFocus ();
+   QTest::keyClicks (pscan->folderName, "bills");
+   settle ();
+   save (pscan, "scan-folders");
+   pscan->close ();
    }
