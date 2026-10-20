@@ -254,7 +254,7 @@ class Doc:
             x (float): Left edge
             y (float): Top edge
             size (float): Width and height
-            shape (str): bolt, wave, drop, tree, shield, house, leaf,
+            shape (str): bolt, wave, drop, flame, tree, shield, house, leaf,
                 wrench, plane, cross, book, tooth, sun or star
             colour (str): Main colour
         """
@@ -338,6 +338,14 @@ class Doc:
             for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0), (0.7, 0.7),
                            (-0.7, 0.7), (0.7, -0.7), (-0.7, -0.7)):
                 c.line(50 + dx * 32, 50 + dy * 32, 50 + dx * 46, 50 + dy * 46)
+        elif shape == 'flame':
+            path.moveTo(50, 96)
+            path.curveTo(30, 70, 14, 50, 22, 26)
+            path.curveTo(30, 4, 70, 4, 78, 26)
+            path.curveTo(86, 50, 70, 70, 50, 96)
+            c.drawPath(path, stroke=0, fill=1)
+            c.setFillColor(white)
+            c.circle(50, 30, 12, stroke=0, fill=1)
         elif shape == 'star':
             c.setFont(font('Sans-Bold'), 110)
             c.drawCentredString(50, 12, '★')

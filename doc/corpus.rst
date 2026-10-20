@@ -50,19 +50,15 @@ What is in it
      - Document
      - Kind
      - What it shows
-   * - bills/power
-     - Three electricity bills
+   * - bills/2025/10oct to bills/2026/10oct
+     - A year of bills, a folder for each month: power and broadband
+       every month, gas in the heating months, water every quarter, and
+       most months a till receipt
      - max, pdf
-     - Stacks named by date; searching for the account number finds all
-       three, the third arriving by e-mail
-   * - bills/internet
-     - Broadband bill
-     - pdf
-     - Tables in a PDF with text
-   * - bills/water
-     - Water and sewer bill
-     - max
-     - A black-only page, stored as mono
+     - Folders named by year and month, as the scan panel suggests them
+       (see below); searching for an account number finds a whole year
+       of one kind of bill; the water bill is black only, stored as
+       mono, and the receipts are long, narrow and faded
    * - banks
      - Bank statement, credit card statement
      - pdf, max
@@ -103,10 +99,6 @@ What is in it
      - Handwritten letter from Grandma
      - max
      - Handwriting on cream paper, where OCR does poorly
-   * - receipts
-     - Two till receipts
-     - max
-     - Long, narrow sheets of faded thermal paper
    * - recipes
      - Recipe card with a photo
      - max
@@ -124,6 +116,13 @@ What is in it
      - max
      - Stacks still with the names the scanner gave them, for showing
        how to file them
+
+The bills are filed as many people file them, in a folder for each
+year with one inside for each month, named ``01jan`` to ``12dec``. The
+scan panel looks for these: it suggests the current month's folder to
+scan into, and offers to make it when only last month's is there. The
+corpus ends in October 2026, so these are seen when paperman runs with
+its clock set to then, as the screenshots do (see below).
 
 Everyone in the corpus is made up. Telephone numbers are in the 555-01xx
 range kept for fiction, e-mail addresses are at example.com and no

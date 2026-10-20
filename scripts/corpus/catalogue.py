@@ -10,10 +10,10 @@ scanned images, so only OCR can read it.
 
 import dataclasses
 import datetime
+import random
 from typing import Callable, Optional
 
 from corpus import bills, manual, papers, policy, tenancy
-from corpus import household as hh
 from corpus.scanner import CARD, CREAM, THERMAL, WHITE, at
 
 D = datetime.date
@@ -65,9 +65,76 @@ def _both(*funcs):
     return marks
 
 
-def _receipt(shop, lines, payment, when):
-    """Make a builder for a till receipt"""
-    return lambda path: papers.receipt(path, when, shop, lines, payment)
+MONTHS = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
+          'oct', 'nov', 'dec')
+
+# the bills cover these months, up to the one the screenshots are set in
+FIRST_MONTH = D(2025, 10, 1)
+LAST_MONTH = D(2026, 10, 1)
+
+# the shop whose till receipt is kept each month, if any, by month
+RECEIPTS = {10: 'ridgeline fuel', 11: 'green basket', 12: 'pine and nail',
+            1: 'pharmacy', 3: 'oak and ember', 4: 'green basket',
+            5: 'ridgeline fuel', 6: 'pine and nail', 7: 'oak and ember',
+            8: 'pharmacy', 9: 'green basket'}
+
+
+def month_folder(when):
+    """Get the folder for a month's bills, as the scan panel names them
+
+    Paperman looks for a year and a month such as 2026 and 10oct in a
+    folder's path, to suggest the current month's folder to scan into
+    and to offer to make it when last month's is all there is.
+    """
+    return f'bills/{when.year}/{when.month:02d}{MONTHS[when.month - 1]}'
+
+
+def _months():
+    """Yield the first day of each month the bills cover"""
+    when = FIRST_MONTH
+    while when <= LAST_MONTH:
+        yield when
+        when = D(when.year + when.month // 12, when.month % 12 + 1, 1)
+
+
+def monthly_bills():
+    """Get a year of bills, filed by year and month
+
+    Each month has the power bill and the broadband bill, the heating
+    months a gas bill, every third month a water bill, and most months a
+    receipt kept from a shop.
+    """
+    specs = []
+    for month in _months():
+        folder = month_folder(month)
+        rng = random.Random(month.toordinal())
+        bill = month.replace(day=6)
+        specs.append(Spec(folder, 'power bill', at(bill.replace(day=9)),
+                          'max', lambda p, d=bill: bills.power_bill(p, d),
+                          marks=bills.power_marks if month.month == 3
+                          else None))
+        specs.append(Spec(folder, 'brightwave', at(month, 8, 30), 'pdf',
+                          lambda p, d=month: bills.internet_bill(p, d)))
+        if month.month in (11, 12, 1, 2, 3):
+            gas = month.replace(day=11)
+            specs.append(Spec(folder, 'gas bill', at(gas.replace(day=14)),
+                              'max', lambda p, d=gas: bills.gas_bill(p, d)))
+        if month.month in (1, 4, 7, 10):
+            water = month.replace(day=12)
+            specs.append(Spec(folder, 'water bill',
+                              at(water.replace(day=15)), 'max',
+                              lambda p, d=water: bills.water_bill(p, d)))
+        shop = RECEIPTS.get(month.month)
+        if shop:
+            day = rng.randint(2, 19 if month == LAST_MONTH else 27)
+            when = at(month.replace(day=day), rng.randint(9, 19),
+                      rng.randint(0, 59))
+            specs.append(Spec(
+                folder, shop, when, 'max',
+                lambda p, w=when, s=shop, r=random.Random(day):
+                papers.shop_receipt(p, w, s, r),
+                tint=THERMAL, fade=rng.uniform(0.15, 0.45)))
+    return specs
 
 
 def documents():
@@ -76,20 +143,7 @@ def documents():
     Returns:
         list of Spec: The documents, in no particular order
     """
-    groc = at(D(2026, 9, 26), 17, 42)
-    hard = at(D(2026, 6, 6), 10, 15)
-    return [
-        Spec('bills/power', 'power mar26', at(D(2026, 3, 9)), 'max',
-             lambda p: bills.power_bill(p, D(2026, 3, 6)),
-             marks=bills.power_marks),
-        Spec('bills/power', 'power jun26', at(D(2026, 6, 8)), 'max',
-             lambda p: bills.power_bill(p, D(2026, 6, 5))),
-        Spec('bills/power', 'power sep26', at(D(2026, 9, 7), 21, 3), 'pdf',
-             lambda p: bills.power_bill(p, D(2026, 9, 4))),
-        Spec('bills/internet', 'brightwave aug26', at(D(2026, 8, 2), 8, 30),
-             'pdf', lambda p: bills.internet_bill(p, D(2026, 8, 1))),
-        Spec('bills/water', 'water jan26', at(D(2026, 1, 14)), 'max',
-             lambda p: bills.water_bill(p, D(2026, 1, 12))),
+    return monthly_bills() + [
         Spec('banks', 'redwood statement jun26', at(D(2026, 7, 2), 19, 20),
              'pdf', lambda p: bills.bank_statement(p, D(2026, 6, 1))),
         Spec('banks', 'meridian card apr26', at(D(2026, 4, 17)), 'max',
@@ -132,16 +186,6 @@ def documents():
         Spec('letters', 'letter from grandma', at(D(2026, 5, 9)), 'max',
              papers.letter_from_grandma,
              marks=papers.letter_marks, tint=CREAM),
-        Spec('receipts', 'green basket sep26', groc, 'max',
-             _receipt((hh.GROCER.upper(), '3RD & OAK', f'{hh.TOWN.upper()} '
-                       'OR', '(541) 555-0108'), papers.GROCERIES,
-                      'DEBIT ****3381', groc),
-             tint=THERMAL, fade=0.25),
-        Spec('receipts', 'pine and nail jun26', hard, 'max',
-             _receipt((hh.HARDWARE.upper(), '640 DEPOT ROAD',
-                       f'{hh.TOWN.upper()} OR', '(541) 555-0109'),
-                      papers.HARDWARE, 'VISA ****7714', hard),
-             tint=THERMAL, fade=0.4),
         Spec('recipes', 'apple cake', at(D(2026, 5, 9), 10, 20), 'max',
              papers.recipe_card,
              marks=papers.recipe_marks, tint=CARD, dpi=200),

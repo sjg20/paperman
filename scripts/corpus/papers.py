@@ -547,6 +547,54 @@ HARDWARE = (('WOOD SCREWS #8 1-1/4 100', 7.98), ('WOOD GLUE 8OZ', 5.49),
             ('KEY CUT X2', 3.70))
 
 
+PHARMACY = (('IBUPROFEN 200MG 100CT', 8.99), ('VITAMIN D3 2000IU', 11.49),
+            ('BANDAGES ASST 30CT', 4.79), ('SUNSCREEN SPF50', 12.99),
+            ('TOOTHPASTE 2PK', 6.49), ('RX COPAY', 15.00),
+            ('ALLERGY RELIEF 24HR', 18.99), ('HAND CREAM', 5.29))
+
+PIZZA = (('LG MARGHERITA', 21.00), ('MED PEPPERONI', 17.50),
+         ('CAESAR SALAD', 9.00), ('GARLIC KNOTS', 6.50),
+         ('LEMONADE X2', 7.00), ('KIDS CHEESE SLICE X2', 8.00),
+         ('TIP', 9.00))
+
+FUEL = (('UNLEADED 11.204 GAL', 46.38), ('CAR WASH DELUXE', 12.00),
+        ('COFFEE LG', 2.79), ('WINDSHIELD FLUID', 4.49),
+        ('TRAIL MIX', 3.99))
+
+# shop: (name and address lines, things it sells, how it is paid)
+SHOPS = {
+    'green basket': ((hh.GROCER.upper(), '3RD & OAK',
+                      f'{hh.TOWN.upper()} OR', '(541) 555-0108'),
+                     GROCERIES, 'DEBIT ****3381'),
+    'pine and nail': ((hh.HARDWARE.upper(), '640 DEPOT ROAD',
+                       f'{hh.TOWN.upper()} OR', '(541) 555-0109'),
+                      HARDWARE, 'VISA ****7714'),
+    'pharmacy': (('CEDAR RIDGE PHARMACY', '12 MAIN STREET',
+                  f'{hh.TOWN.upper()} OR', '(541) 555-0112'),
+                 PHARMACY, 'VISA ****7714'),
+    'oak and ember': (('OAK & EMBER PIZZA', '88 MILL STREET',
+                       f'{hh.TOWN.upper()} OR', '(541) 555-0113'),
+                      PIZZA, 'VISA ****7714'),
+    'ridgeline fuel': (('RIDGELINE FUEL & MART', 'HWY 20 AT ELM',
+                        f'{hh.TOWN.upper()} OR', '(541) 555-0114'),
+                       FUEL, 'DEBIT ****3381'),
+}
+
+
+def shop_receipt(path, when, shop, rng):
+    """A till receipt from one of the shops, with some of what it sells
+
+    Args:
+        path (str): PDF to write
+        when (datetime.datetime): Time of the sale
+        shop (str): Key in SHOPS
+        rng (random.Random): Picks the things bought
+    """
+    lines, stock, payment = SHOPS[shop]
+    count = min(len(stock), rng.randint(3, 9))
+    receipt(path, when, lines, rng.sample(stock, count), payment)
+
+
 def recipe_card(path):
     """A recipe card with a photograph of the cake, 6 by 4 inches"""
     size = (6 * INCH, 4 * INCH)
