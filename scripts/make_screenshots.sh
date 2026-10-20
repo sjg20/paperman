@@ -3,6 +3,8 @@
 #
 # Take the screenshots for the documentation and the website
 #
+# Some are also drawn with their parts labelled, by annotate_screenshot.py.
+#
 # They show the demo corpus (see doc/corpus.rst), which is made first if
 # it is not there, and read by OCR so that its text can be shown and
 # searched. The window is drawn off screen, so this needs no display.
@@ -27,7 +29,7 @@ while getopts "fc:p:h" opt; do
 	f) fresh=1 ;;
 	c) corpus=$OPTARG ;;
 	p) paperman=$OPTARG ;;
-	*) sed -n '3,17s/^# \?//p' "$0"; exit 1 ;;
+	*) sed -n '3,19s/^# \?//p' "$0"; exit 1 ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -68,3 +70,6 @@ HOME=$home QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=120000 \
 	PAPERMAN_SHOTS_DIR=$(realpath "$out") \
 	"${clock[@]}" "$paperman" -t TestScreenshots 2>&1 |
 	grep -E '^(PASS|FAIL|Totals)|saved'
+
+# and label the parts of those which say where they are
+"$(dirname "$0")/annotate_screenshot.py" "$out"

@@ -1,11 +1,15 @@
 #ifndef TEST_SCREENSHOTS_H
 #define TEST_SCREENSHOTS_H
 
+#include <QList>
+#include <QMap>
 #include <QObject>
+#include <QRect>
 
 #include "suite.h"
 
 class Mainwindow;
+class QAbstractButton;
 class QWidget;
 
 /** Takes the screenshots for the documentation and the website
@@ -27,6 +31,9 @@ private slots:
 
    //! A month's bills, one selected, with its page and its text
    void testDesktop();
+
+   //! The icons of each toolbar, for the tables of what they do
+   void testToolbarIcons();
 
    //! The same, with the dark theme
    void testDesktopDark();
@@ -57,6 +64,25 @@ private:
 
    //! save a picture of a widget as \p name in the output directory
    void save(QWidget *widget, const QString &name);
+
+   /** save where each part of a window is, beside its picture, as
+       \p name .json, for scripts/annotate_screenshot.py to point at
+
+       \param window  window the picture is of
+       \param name    name of the picture
+       \param parts   each part's name, with where it is in the window */
+   void saveParts (QWidget *window, const QString &name,
+                   const QMap<QString, QRect> &parts);
+
+   //! save the icon of each button as icons/<group>-<name>.png
+   void saveIcons (const QString &group,
+                   const QList<QAbstractButton *> &buttons);
+
+   //! where \p widget is in \p window
+   static QRect within (QWidget *window, QWidget *widget);
+
+   //! the desktop's parts, for the annotated picture of it
+   QMap<QString, QRect> desktopParts (Mainwindow *me);
 
    //! repository and output directory, empty if not given
    QString _repo, _out;
