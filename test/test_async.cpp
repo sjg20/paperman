@@ -835,8 +835,13 @@ void TestAsync::testPreviewWhole ()
    Desktopmodel *model = _desktop->getModel ();
    QModelIndex pdf = model->index ("testpdf.pdf", stackIndex ().parent ());
    QVERIFY (pdf.isValid ());
-   QTRY_VERIFY (!model->data (pdf, Desktopmodel::Role_pixmap)
-                .value<QPixmap> ().isNull ());
+
+   /* wait for the stacks' own images: the stand-in shown until one
+      comes is smaller than a PDF's, so the stacks grow when the images
+      arrive and the one beside them moves, and a click at where it was
+      can miss it */
+   QTRY_VERIFY (model->getFile (pdf)->hasImage ());
+   QTRY_VERIFY (model->getFile (stackIndex ())->hasImage ());
 
    Desktopview *view = _desktop->getView ();
    QModelIndex ind = pdf;
@@ -852,6 +857,7 @@ void TestAsync::testPreviewWhole ()
    check.allowStall ();
    QTest::mouseClick (view->viewport (), Qt::LeftButton, Qt::NoModifier,
                       rect.center ());
+   QCOMPARE (view->currentIndex (), ind);
    /* the page is drawn at full size, which takes a slow runner several
       seconds on top of fetching the PDF */
    QTRY_VERIFY_WITH_TIMEOUT (!_desktop->_page->_image.isNull (),
