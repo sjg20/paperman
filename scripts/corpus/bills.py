@@ -9,7 +9,9 @@ the tax summary counts the gift to the food pantry.
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 
+import calendar
 import datetime
+import random
 
 from reportlab.lib.pagesizes import letter
 
@@ -176,9 +178,10 @@ def internet_bill(path, bill_date):
     doc.text(doc.right - 16, y + 38, '$79.99', 'Sans-Bold', 22, colour,
              'right')
     y += 84
+    last = calendar.monthrange(bill_date.year, bill_date.month)[1]
     rows = [['Item', 'Period', 'Amount'],
             ['Brightwave Fibre 500 (500/500 Mbps)',
-             f'{bill_date:%b} 1 - {bill_date:%b} 30', '$70.00'],
+             f'{bill_date:%b} 1 - {bill_date:%b} {last}', '$70.00'],
             ['Wi-Fi 7 router rental', '', '$8.00'],
             ['Paperless discount', '', '-$3.00'],
             ['Regulatory recovery fee', '', '$2.49'],
@@ -188,11 +191,17 @@ def internet_bill(path, bill_date):
                   header_fill='#ddd0f2', size=9.5) + 24
     y = doc.text(doc.margin, y, 'Your data this month', 'Sans-Bold', 12,
                  colour) + 4
+    rng = random.Random(bill_date.toordinal())
     rows = [['Week', 'Download (GB)', 'Upload (GB)', 'Peak speed (Mbps)']]
-    for week, down, up, peak in ((1, 212.4, 31.0, 487), (2, 188.9, 27.6, 491),
-                                 (3, 240.2, 44.8, 476), (4, 205.7, 29.3, 489)):
-        rows.append([f'Week {week}', f'{down:.1f}', f'{up:.1f}', str(peak)])
-    rows.append(['Total', '847.2', '132.7', ''])
+    down_total = up_total = 0
+    for week in range(1, 5):
+        down = rng.uniform(150, 260)
+        up = rng.uniform(20, 50)
+        down_total += down
+        up_total += up
+        rows.append([f'Week {week}', f'{down:.1f}', f'{up:.1f}',
+                     str(rng.randint(470, 495))])
+    rows.append(['Total', f'{down_total:.1f}', f'{up_total:.1f}', ''])
     y = doc.table(doc.margin, y, (126, 126, 126, 126), rows, aligns='lrrr',
                   header_fill='#ddd0f2', zebra='#f7f3fd') + 20
     doc.para(doc.margin, y, 'Your plan has no data cap. Speeds are measured '
@@ -220,8 +229,16 @@ def internet_bill(path, bill_date):
 
 
 def water_bill(path, bill_date):
-    """A one-page quarterly water and sewer bill, in black only"""
+    """A one-page quarterly water and sewer bill, in black only
+
+    The summer quarter, with the garden watered, uses the most water.
+    """
     name = hh.WATER[0]
+    gallons = {1: 15800, 4: 14900, 7: 19400, 10: 26300}.get(bill_date.month,
+                                                           17600)
+    start = 1204300 + bill_date.month * 15000
+    water = 22.50 + gallons * 0.00203
+    total = water + 71.40 + 12.75 + 6.00
     doc = Doc(path, title='Utility bill', author=name)
     y = doc.lines(doc.width / 2, 50, (name.upper(),
                                       'Utility Billing • 200 Main Street',
@@ -237,18 +254,18 @@ def water_bill(path, bill_date):
     y = doc.table(doc.margin, y + 10, (110, 170, 110, 114), rows,
                   header_fill='#e6e6e6') + 20
     rows = [['Service', 'Previous', 'Current', 'Used (gal)', 'Amount'],
-            ['Water - residential 5/8"', '1,204,300', '1,221,900', '17,600',
-             '$58.21'],
+            ['Water - residential 5/8"', f'{start:,}', f'{start + gallons:,}',
+             f'{gallons:,}', money(water)],
             ['Sewer', '', '', '', '$71.40'],
             ['Storm drainage', '', '', '', '$12.75'],
             ['Street maintenance fee', '', '', '', '$6.00'],
-            ['Total due', '', '', '', '$148.36']]
+            ['Total due', '', '', '', money(total)]]
     y = doc.table(doc.margin, y, (170, 80, 80, 80, 94), rows,
                   header_fill='#e6e6e6', aligns='lrrrr') + 24
     for para in (
             'Water use is billed every three months, from meter readings '
             'taken in the last week of the quarter. Your use this quarter '
-            'averaged 191 gallons a day.',
+            f'averaged {gallons / 91:.0f} gallons a day.',
             'Watering restrictions apply from June 1 to September 30: lawns '
             'may be watered on odd days at odd-numbered addresses and on '
             'even days at even-numbered addresses, before 10 am or after '
@@ -257,6 +274,58 @@ def water_bill(path, bill_date):
             'Hall. A late fee of $10 applies to payments received after the '
             'due date.'):
         y = doc.para(doc.margin, y, para, face='Sans', size=9.5, space=8)
+    doc.save()
+
+
+# therms of gas used each month in the heating season, by month
+THERMS = {10: 22, 11: 58, 12: 96, 1: 112, 2: 88, 3: 61, 4: 34}
+
+
+def gas_bill(path, bill_date):
+    """A one-page natural gas bill, with the heating season's use"""
+    name, colour = hh.GAS
+    therms = THERMS.get(bill_date.month, 18)
+    rate = 1.4123
+    charge = 10.00 + therms * rate
+    tax = charge * 0.031
+    total = charge + tax
+    due = bill_date + datetime.timedelta(days=19)
+
+    doc = Doc(path, title=f'{name} bill', author=name)
+    y = doc.letterhead(name, colour, 'flame', (
+        'PO Box 2210, Bend, OR 97709', 'Emergencies 1-800-555-0115',
+        'riverbendgas.example.com'), 'Warmth you can count on', band=True)
+    doc.address_block(y + 10, (hh.ADULTS[0].upper(), hh.STREET.upper(),
+                               f'{hh.TOWN.upper()} OR {hh.ZIP}'))
+    box_x = doc.right - 220
+    doc.box(box_x, y, 220, 80, fill='#fdecea', stroke=colour)
+    doc.lines(box_x + 10, y + 18, ('Account number', 'Bill date',
+                                   'Amount due', 'Due date'), 'Sans', 9)
+    doc.lines(box_x + 210, y + 18, (hh.GAS_ACCOUNT, us_date(bill_date),
+                                    money(total), us_date(due)),
+              'Sans-Bold', 9, align='right')
+    y += 110
+    months = (10, 11, 12, 1, 2, 3, 4)
+    labels = [MONTHS[m - 1] for m in months]
+    values = [THERMS[m] for m in months]
+    y = doc.text(doc.margin, y, 'Gas used this heating season (therms)',
+                 'Sans-Bold', 12, colour) + 4
+    highlight = months.index(bill_date.month) if bill_date.month in months \
+        else None
+    y = doc.bar_chart(doc.margin, y + 10, 260, 80, labels, values, colour,
+                      highlight=highlight, unit='therms') + 6
+    rows = [['Description', 'Quantity', 'Rate', 'Amount'],
+            ['Customer charge', '1 month', '$10.00', '$10.00'],
+            ['Gas delivered', f'{therms} therms', f'${rate:.4f}',
+             money(therms * rate)],
+            ['City franchise fee', '3.1%', '', money(tax)],
+            ['Total', '', '', money(total)]]
+    y = doc.table(doc.margin, y, (230, 100, 90, 84), rows, aligns='lrrr',
+                  header_fill='#f8d4cf') + 18
+    doc.para(doc.margin, y, 'If you smell gas, leave at once and call us '
+             'from outside on 1-800-555-0115. Do not use light switches or '
+             'phones near the smell. Have your furnace checked every year '
+             'by a licensed technician.', face='Sans', size=9.5)
     doc.save()
 
 
