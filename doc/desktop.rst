@@ -73,13 +73,13 @@ Stack toolbar
    :widths: 10 90
 
    * - |stack-pprev|
-     - Turn the stack selected to its previous page (Page Up)
+     - Turn the stack selected to its previous page
    * - |stack-pnext|
-     - Turn it to its next page (Page Down)
+     - Turn it to its next page
    * - |stack-prev|
-     - Select the stack before (Ctrl+Page Up)
+     - Select the stack before
    * - |stack-next|
-     - Select the stack after (Ctrl+Page Down)
+     - Select the stack after
    * - |stack-rleft|
      - Turn every page of the stacks selected to the left (Alt+Left)
    * - |stack-rright|
