@@ -24,6 +24,7 @@
 #include "op.h"
 #include "pagemodel.h"
 #include "pageview.h"
+#include "paperstack.h"
 #include "pagewidget.h"
 #include "searchserver.h"
 #include "qxmlconfig.h"
@@ -1816,6 +1817,38 @@ void TestDesktopUi::testScanCommandLine()
    QCOMPARE(Mainwindow::runScan(path, "nosuch", FAKESCAN_DEVICE, 1), 1);
 
    utilSetHeadless(false);
+}
+
+void TestDesktopUi::testScanCommandLineBlank()
+{
+   /* with nobody to look at the pages, the command-line scan must leave
+      out the blank ones itself, as asked: here the backs of two plain
+      sheets scanned on both sides, while the fronts are kept */
+   QString path = setupRepo();
+   QVERIFY(QDir().mkpath(path + "/inbox"));
+
+   if (!Fakescan::available())
+      QSKIP("the fake scanner is only built on Linux");
+   if (!xmlConfig)
+      new QXmlConfig();
+   int old_blank = xmlConfig->intValue("SCAN_BLANK");
+
+   loadSheets(2);
+   int ret = Mainwindow::runScan(path, "inbox", FAKESCAN_DEVICE, 0,
+                                 QStringList() << "mode=Color"
+                                 << "resolution=100"
+                                 << "source=ADF Duplex", false, 0,
+                                 Paperstack::ignoreIfBack);
+   utilSetHeadless(false);
+   QCOMPARE(ret, 0);
+   QCOMPARE(xmlConfig->intValue("SCAN_BLANK"), old_blank);
+
+   QStringList stacks = QDir(path + "/inbox").entryList(
+         QStringList() << "*.max", QDir::Files);
+   QCOMPARE(stacks.size(), 1);
+   Filemax max(path + "/inbox/", stacks[0], nullptr);
+   QVERIFY(!max.load());
+   QCOMPARE(max.pagecount(), 2);
 }
 
 void TestDesktopUi::testRepositoryAddRemoveUndo()

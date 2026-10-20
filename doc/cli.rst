@@ -95,6 +95,9 @@ and the exit code is 0 if at least one page was scanned.
    * - ``--sideways SIDE``
      - Sheets are fed sideways with the top of the page at the ``left``
        or ``right``: turn them upright
+   * - ``--blank WHICH``
+     - Which blank pages to leave out: ``none``, ``backs`` (the backs of
+       sheets) or ``all`` (default: as set in the Options dialog)
 
 Before every scan Paperman turns on the fast-transfer settings a back end
 offers (``buffermode=On``, and ``compression=JPEG`` in colour), which a

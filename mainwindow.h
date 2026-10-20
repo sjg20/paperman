@@ -93,11 +93,14 @@ public:
       \param autoColour  true to store pages without colour as grey or mono
       \param sideways    how the sheets are fed (Paperstack::t_sideways),
                          0 for upright
+      \param blank       which blank pages to leave out
+                         (Paperstack::t_blankPolicy), -1 for the setting
       \returns exit code: 0 on success */
    static int runScan(const QString& repo, const QString& subdir,
                       const QString& device, int pages,
                       const QStringList& settings = QStringList(),
-                      bool autoColour = false, int sideways = 0);
+                      bool autoColour = false, int sideways = 0,
+                      int blank = -1);
 
 public slots:
     virtual void on_actionPrint_triggered(bool);

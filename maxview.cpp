@@ -491,6 +491,8 @@ static void usage (void)
    printf ("     --auto-colour       store pages without colour as grey or mono\n");
    printf ("     --sideways SIDE     sheets are fed sideways with the top of the\n");
    printf ("                         page at the left or right: turn them upright\n");
+   printf ("     --blank WHICH       which blank pages to leave out: none, backs\n");
+   printf ("                         or all (default: as set in the window)\n");
    printf ("   --snap DIR          save a snapshot of the window every second\n");
    printf ("                       (or every PAPERMAN_SNAP_MS milliseconds)\n");
    printf ("                       into DIR (the same as PAPERMAN_SNAP=DIR)\n");
@@ -746,6 +748,7 @@ int main (int argc, char *argv[])
      {"sane-debug", 1, 0, 274},
      {"kind", 1, 0, 275},
      {"fake-scanner", 1, 0, 276},
+     {"blank", 1, 0, 277},
      {0, 0, 0, 0}
    };
    int op_type = -1, c;
@@ -763,6 +766,7 @@ int main (int argc, char *argv[])
    int scanPages = 0;
    bool scanAutoColour = false;           // --auto-colour
    int scanSideways = 0;                  // --sideways, Paperstack::t_sideways
+   int scanBlank = -1;                    // --blank, Paperstack::t_blankPolicy
    QString fakeScanner = QString::fromLocal8Bit (qgetenv ("PAPERMAN_FAKE_SCANNER"));
 
 #ifndef Q_OS_WIN
@@ -937,6 +941,20 @@ int main (int argc, char *argv[])
             else
                {
                fprintf (stderr, "--sideways needs left or right\n");
+               return 1;
+               }
+            break;
+
+         case 277 :    // --blank none|backs|all
+            if (!strcmp (optarg, "none"))
+               scanBlank = 0;
+            else if (!strcmp (optarg, "backs"))
+               scanBlank = 1;
+            else if (!strcmp (optarg, "all"))
+               scanBlank = 2;
+            else
+               {
+               fprintf (stderr, "--blank needs none, backs or all\n");
                return 1;
                }
             break;
@@ -1246,7 +1264,7 @@ int main (int argc, char *argv[])
       case 263 :
          return Mainwindow::runScan (scanRepo, scanDir, scanDevice,
                                      scanPages, scanSettings, scanAutoColour,
-                                     scanSideways);
+                                     scanSideways, scanBlank);
 
       case 259 :
          {

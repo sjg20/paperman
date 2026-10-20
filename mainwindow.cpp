@@ -334,7 +334,7 @@ void Mainwindow::shutdown()
 int Mainwindow::runScan(const QString& repo, const QString& subdir,
                         const QString& device, int pages,
                         const QStringList& settings, bool autoColour,
-                        int sideways)
+                        int sideways, int blank)
 {
    Mainwindow me;
    Desktopwidget *desktop = me.getDesktop();
@@ -409,6 +409,7 @@ int Mainwindow::runScan(const QString& repo, const QString& subdir,
    int old_single = xmlConfig->intValue("SCAN_SINGLE");
    bool old_auto_colour = xmlConfig->boolValue("SCAN_AUTO_COLOUR");
    int old_sideways = xmlConfig->intValue("SCAN_SIDEWAYS");
+   int old_blank = xmlConfig->intValue("SCAN_BLANK");
    if (!device.isEmpty())
       xmlConfig->setStringValue("LAST_DEVICE", device);
    if (pages)
@@ -417,14 +418,22 @@ int Mainwindow::runScan(const QString& repo, const QString& subdir,
       xmlConfig->setBoolValue("SCAN_AUTO_COLOUR", true);
    if (sideways)
       xmlConfig->setIntValue("SCAN_SIDEWAYS", sideways);
+   if (blank != -1)
+      xmlConfig->setIntValue("SCAN_BLANK", blank);
 
    printf("Scanning into %s\n", qPrintable(path));
    main->scanInto(target);
+
+   /* the window leaves blank pages showing, marked for removal, until
+      the stack is left, so that they can be kept; nobody is looking
+      here, so leave them out now */
+   desktop->getPagewidget()->slotCommitScanStack();
 
    xmlConfig->setStringValue("LAST_DEVICE", old_device);
    xmlConfig->setIntValue("SCAN_SINGLE", old_single);
    xmlConfig->setBoolValue("SCAN_AUTO_COLOUR", old_auto_colour);
    xmlConfig->setIntValue("SCAN_SIDEWAYS", old_sideways);
+   xmlConfig->setIntValue("SCAN_BLANK", old_blank);
 
    if (!main->scanOk() || !main->scanPages()) {
       fprintf(stderr, "Scan failed: %s\n", qPrintable(main->scanSummary()));
