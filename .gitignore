@@ -48,3 +48,6 @@ install-*
 build-coverage/
 build-appimage/
 /test/fakescan/libsane-fakefujitsu.so*
+
+# where each part of a screenshot is, for annotate_screenshot.py
+doc/images/*.json
