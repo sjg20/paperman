@@ -21,6 +21,7 @@ Paperman
    sharing
    network
    keys
+   troubleshooting
    scanning
    cli
    server
