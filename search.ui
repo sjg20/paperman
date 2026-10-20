@@ -113,7 +113,7 @@
      <property name="text">
       <string>Searching will produce a view of all matching stacks within the selected folder or any sub-folders.
 
-You can return to the normal view using the 'Close search' button in the toolbar.</string>
+You can return to the normal view using the 'Return to folder' button in the toolbar.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
