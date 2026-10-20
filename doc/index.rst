@@ -19,6 +19,7 @@ Paperman
    filing
    finding
    sharing
+   network
    scanning
    cli
    server
