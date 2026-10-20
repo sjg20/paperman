@@ -16,6 +16,8 @@ Paperman
 
    getting-started
    desktop
+   filing
+   finding
    scanning
    cli
    server
