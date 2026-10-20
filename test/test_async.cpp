@@ -2,6 +2,7 @@
 License: GPL-2
 */
 
+#include <algorithm>
 #include <QClipboard>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -169,7 +170,14 @@ QStringList TestAsync::serverStacks () const
    QStringList names = QDir (_repo->path () + "/papers")
                           .entryList (QDir::Files, QDir::Name);
 
-   names.removeAll (".paperdesk");
+   /* leave out the server's own files, such as the folder's layout, and
+      the temporary file it writes that through, which can be there for
+      a moment: on Windows a name starting with a dot is not hidden, so
+      the listing has them */
+   names.erase (std::remove_if (names.begin (), names.end (),
+                                [] (const QString &name)
+                                   { return name.startsWith ('.'); }),
+                names.end ());
    return names;
    }
 
