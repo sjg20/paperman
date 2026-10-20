@@ -5,7 +5,8 @@
 Paperman is an electronic filing cabinet: it scans paper into stacks of
 pages and lets you view, arrange, annotate, print, search and send them.
 It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
-format.
+format. Its website, [getpaperman.com](https://getpaperman.com), has
+downloads and a tour of what it does.
 
 It has three parts: the desktop program, for Linux, Windows and macOS; a
 search server, `paperman-server`, which serves repositories over the
