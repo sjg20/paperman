@@ -1145,7 +1145,7 @@ void TestQscanner::testPscanPresetSettings()
       QCOMPARE(usual, dialog.getPreview()->getSizeName(
                          pscan._default_papersize_id));
       QVERIFY(scanner.getRangeExposure(&min, &max));
-      QCOMPARE(pscan.bright->value(), (min + max) / 2);
+      QCOMPARE(pscan.bright->value(), (min + max + 1) / 2);
       if (has_auto)
          QVERIFY(!pscan.autosize->isChecked());
       int update = pscan._presets.size() + Preset::update;
