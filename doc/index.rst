@@ -20,6 +20,7 @@ Paperman
    finding
    sharing
    network
+   keys
    scanning
    cli
    server
