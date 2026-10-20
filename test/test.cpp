@@ -119,11 +119,23 @@ int test_run(int, char **in_argv, QApplication *,
       return 0;
    }
 
+   /* suites to leave out, named in PAPERMAN_TEST_SKIP and separated by
+      commas, such as those whose logic is the same everywhere, on all
+      but one platform */
+   const QStringList skip = qEnvironmentVariable("PAPERMAN_TEST_SKIP")
+                               .split(',', Qt::SkipEmptyParts);
+
    // Run suites
    for (auto it = suite.begin(); it != suite.end(); ++it) {
       const Test *test = *it;
-      if (className && strcmp(test->metaObject()->className(), className))
+      const char *name = test->metaObject()->className();
+
+      if (className && strcmp(name, className))
          continue;
+      if (!className && skip.contains(QString(name).trimmed())) {
+         printf("Skipping %s, as PAPERMAN_TEST_SKIP asks\n", name);
+         continue;
+      }
       qDebug() << "suite" << test->_name;
       runTest(*it);
    }
