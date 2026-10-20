@@ -6,6 +6,7 @@
 #include <QContextMenuEvent>
 #include <QDir>
 #include <QMenu>
+#include <QPrinter>
 #include <QRegularExpression>
 #include <QToolButton>
 #include <QFile>
@@ -31,6 +32,7 @@
 #include "pagedelegate.h"
 #include "pageview.h"
 #include "pagetools.h"
+#include "printopt.h"
 #include "pagewidget.h"
 #include "pscan.h"
 #include "qxmlconfig.h"
@@ -642,4 +644,45 @@ void TestScreenshots::testDragToFolder ()
                          .translated (folders->viewport ()->mapTo (
                                          &me, QPoint ()));
    saveParts (&me, "drag-to-folder", parts);
+   }
+
+void TestScreenshots::testEmailMenu ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   Desktopview *view = me.getDesktop ()->getView ();
+
+   saveMenu (view->viewport (),
+             view->visualRect (view->currentIndex ()).center (),
+             "email-menu", "Email...");
+   }
+
+void TestScreenshots::testPrintOptions ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   /* the options are a tab of the print dialog, which is the
+      platform's own, so show them on their own, as Paperman builds them
+      for printing the stack selected */
+   Desktopview *view = me.getDesktop ()->getView ();
+   QModelIndexList list = view->getSelectedList (true, true);
+   QPrinter printer;
+   Printopt opt (&printer, list);
+
+   opt.resize (opt.sizeHint ());
+   opt.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&opt));
+
+   // the layout leaves room at the foot, which is no use in a picture
+   opt.resize (opt.width (), opt.childrenRect ().bottom () + 12);
+   settle ();
+   save (&opt, "print-options");
    }
