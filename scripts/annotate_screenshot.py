@@ -62,6 +62,31 @@ LABELS = {
         ('text', 'Text pane: the text read from the page (OCR), for '
          'finding it by what it says', 'right', (0.8, 0.4), True),
     ],
+    'drag-to-folder': [
+        ('stack', 'Press on a stack, or on any of the stacks selected, '
+         'and drag...', 'bottom', (0.85, 0.75), True),
+        ('folder', '...then let go over the folder to move them to', 'left',
+         (0.3, 0.5), True),
+    ],
+    'page-remove': [
+        ('kept', 'Kept: the green tick at the foot of the page; click it '
+         'to mark the page to be removed', 'left', (0.5, 0.5), True),
+        ('removed', 'Marked to be removed: the red mark; click it again to '
+         'keep the page after all', 'left', (0.5, 0.5), True),
+        ('save', 'Save: take out the pages marked', 'top', (0.5, 0.5),
+         True),
+        ('revert', 'Revert: forget the marks, and any other changes not '
+         'saved', 'top', (0.5, 0.5), True),
+    ],
+}
+
+
+# Drags to draw on a picture: (part dragged, part dropped on, where the
+# arrow bends towards, as fractions of the picture's width and height),
+# shown by a broad arrow curving from one to the other, round anything in
+# the way.
+DRAGS = {
+    'drag-to-folder': [('stack', 'folder', (0.30, 0.64))],
 }
 
 
@@ -293,7 +318,34 @@ def draw_labels(draw, labels, room, font):
                       line, fill=INK, font=font)
 
 
-def annotate(image_path, parts_path, specs, out_path):
+def draw_drags(draw, drags, parts, room, size):  # pylint: disable=R0914
+    """Draw each drag, as a broad arrow curving from the foot of what is
+    dragged to the side of where it is dropped
+
+    Args:
+        draw (ImageDraw.Draw): Something to draw on the sheet with
+        drags (list of tuple): (part dragged, part dropped on, bend)
+        parts (dict): Where each part is
+        room (dict): Width of each margin
+        size (tuple of int): Width and height of the screenshot
+    """
+    for src, dst, (bx, by) in drags:
+        x, y, w, h = parts[src]
+        fx, fy, fw, fh = parts[dst]
+        start = (room['left'] + x + w / 2, room['top'] + y + h + EDGE)
+        end = (room['left'] + fx + fw + EDGE, room['top'] + fy + fh / 2)
+        bend = (room['left'] + size[0] * bx, room['top'] + size[1] * by)
+        points = []
+        for step in range(41):
+            t = step / 40
+            points.append(tuple((1 - t) ** 2 * s + 2 * (1 - t) * t * b
+                                + t ** 2 * e
+                                for s, b, e in zip(start, bend, end)))
+        draw.line(points[:-1], fill=ACCENT, width=7, joint='curve')
+        arrow(draw, points[-3], end, width=7)
+
+
+def annotate(image_path, parts_path, specs, out_path, drags=()):  # pylint: disable=R0914
     """Write a labelled copy of a screenshot
 
     Args:
@@ -301,6 +353,7 @@ def annotate(image_path, parts_path, specs, out_path):
         parts_path (str): Where its parts are, as saved by the tests
         specs (list of tuple): Labels, as in LABELS
         out_path (str): Where to write the labelled picture
+        drags (list of tuple): Drags to draw, as in DRAGS
     """
     shot = Image.open(image_path).convert('RGB')
     with open(parts_path, encoding='utf-8') as inf:
@@ -322,6 +375,7 @@ def annotate(image_path, parts_path, specs, out_path):
     for label in labels:
         label.target = (label.target[0] + left, label.target[1] + top)
     place(labels, room, shot.size)
+    draw_drags(draw, drags, parts, room, shot.size)
     draw_labels(draw, labels, room, font)
     sheet.save(out_path, optimize=True)
 
@@ -337,7 +391,8 @@ def main():
     for name in args.names or LABELS:
         base = os.path.join(args.dir, name)
         out = f'{base}-labelled.png'
-        annotate(f'{base}.png', f'{base}.json', LABELS[name], out)
+        annotate(f'{base}.png', f'{base}.json', LABELS[name], out,
+                 DRAGS.get(name, ()))
         print(f'saved {out}')
 
 

@@ -50,6 +50,27 @@ private slots:
    //! The scan panel, and the folders it suggests scanning into
    void testScanPanel();
 
+   //! The menu of things to do with a stack, on a right click
+   void testStackMenu();
+
+   //! The menu of things to do with a folder, on a right click
+   void testFolderMenu();
+
+   //! The ways of duplicating a stack, from the stack menu
+   void testDuplicateMenu();
+
+   //! Moving a stack to another folder, chosen by part of its name
+   void testMoveToFolder();
+
+   //! The stacks of a folder, filtered by name
+   void testFilter();
+
+   //! A page marked to be removed, beside one kept
+   void testRemovePage();
+
+   //! Where a stack is dragged to, to move it to another folder
+   void testDragToFolder();
+
 private:
    /** open the window on the repository, showing a folder
 
@@ -58,6 +79,11 @@ private:
        \param stack   name of a stack to select, or empty for none */
    void open(Mainwindow *me, const QString &folder,
              const QString &stack = QString());
+
+   /** right-click \p pos in \p widget and save a picture of the menu
+       which comes up as \p name, or of its submenu \p sub if given */
+   void saveMenu (QWidget *widget, QPoint pos, const QString &name,
+                  const QString &sub = QString ());
 
    //! wait for the stacks' images and the page to be drawn
    void settle();
