@@ -68,6 +68,11 @@ LABELS = {
         ('folder', '...then let go over the folder to move them to', 'left',
          (0.3, 0.5), True),
     ],
+    'server': [
+        ('repository', 'A repository on a server: its name, then the '
+         "server's address", 'left', (0.3, 0.5), True),
+        ('connection', 'Server status (see below)', 'bottom', (0.8, 0.5), True),
+    ],
     'page-remove': [
         ('kept', 'Kept: the green tick at the foot of the page; click it '
          'to mark the page to be removed', 'left', (0.5, 0.5), True),

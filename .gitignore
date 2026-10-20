@@ -55,3 +55,4 @@ doc/images/*.json
 # screenshots which are only drawn into their labelled versions
 doc/images/drag-to-folder.png
 doc/images/page-remove.png
+doc/images/server.png
