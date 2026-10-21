@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QStringList>
 #include <QTcpServer>
 
 class QTcpSocket;
@@ -36,12 +37,15 @@ class SearchServer;
 /** A server for people to try Paperman with, which gives each of them a
     copy of some papers of their own.
 
-    Logging in with any name and the server's password starts a session:
-    a copy of the papers in the template folder, served to the token the
-    login returns by a SearchServer of its own. So each visitor can file,
-    rename and scan as they like, and sees nothing of anyone else's. A
-    session ends once it has been quiet for a while, and its copy is
-    deleted.
+    Logging in starts a session: a copy of the papers in the template
+    folder, served by a SearchServer of its own to the token the login
+    returns. The name and password given choose the session, so logging
+    in with them again, as from a phone beside the desktop, joins it, and
+    both see the same papers, changing as either changes them. Anyone
+    else, with another name or password, has a session of their own, so
+    each visitor can file, rename and scan as they like, and sees nothing
+    of anyone else's. A session ends once it has been quiet for a while,
+    and its copy is deleted.
 
     Each connection is looked at before it is handed on: the request's
     headers are peeked at, without being read, to find its token, then
@@ -71,7 +75,8 @@ public:
                           folder's name is the repository's
       \param sessionDir   where the sessions' copies go: everything in it
                           is deleted when the server starts
-      \param password     the password which starts a session
+      \param password     the password which logs in, or an empty string
+                          to let any in
       \param port         the port to listen on, on the loopback address
       \param parent       the parent object */
    DemoServer (const QString &templateDir, const QString &sessionDir,
@@ -110,6 +115,7 @@ private:
 
    struct Session
       {
+      QStringList tokens;       //!< those it was given, the newest last
       QString dir;              //!< the session's folder
       QString repo;             //!< its copy of the papers
       SearchServer *server = nullptr;  //!< serves the copy
@@ -128,14 +134,18 @@ private:
    //! answer a login on @p fd, starting a session
    void login (qintptr fd);
 
-   /** Start a session
+   /** Join the session which a name and password choose, starting it if
+       it is not under way
 
-      \param token  returns its token
-      \returns an empty string if it started, else what went wrong */
-   QString startSession (QString &token);
+      \param user      the name
+      \param password  the password
+      \param token     returns a new token for the session
+      \returns an empty string if it worked, else what went wrong */
+   QString joinSession (const QString &user, const QString &password,
+                        QString &token);
 
-   //! end a session, deleting its copy
-   void endSession (const QString &token);
+   //! end the session with @p key, deleting its copy
+   void endSession (const QString &key);
 
    //! answer on @p fd and close it, the connection not having been read
    void reply (qintptr fd, int code, const QByteArray &body);
@@ -150,7 +160,9 @@ private:
    Limits _limits;
    SearchServer *_status;       //!< serves the template, for the status
    QList<Pending> _pending;
-   QHash<QString, Session> _sessions;  //!< by token
+   //! by key, which comes from the name and password
+   QHash<QString, Session> _sessions;
+   QHash<QString, QString> _tokens;    //!< the key of each token's session
    QTimer *_poll;
    QTimer *_reap;
    };
