@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart' show ApiException, ApiService;
+import '../services/credential_store.dart';
 import 'browse_screen.dart';
 
 class ConnectionScreen extends StatefulWidget {
@@ -47,7 +48,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     _urlController.text = prefs.getString('server_url') ?? '';
     _localUrlController.text = prefs.getString('local_url') ?? '';
     _userController.text = prefs.getString('username') ?? '';
-    _passController.text = prefs.getString('password') ?? '';
+    _passController.text = await CredentialStore().readPassword(prefs);
     // Auto-connect if we have a saved URL (unless returning from disconnect)
     if (widget.autoConnect &&
         (_urlController.text.isNotEmpty ||
@@ -114,7 +115,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       await prefs.setString('server_url', url);
       await prefs.setString('local_url', localUrl);
       await prefs.setString('username', user);
-      await prefs.setString('password', pass);
+      await CredentialStore().writePassword(pass);
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(

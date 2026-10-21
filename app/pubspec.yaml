@@ -43,6 +43,7 @@ dependencies:
   pdf: ^3.0.0
   printing: ^5.13.0
   cunning_document_scanner: ^3.0.3
+  flutter_secure_storage: ^10.3.4
 
 dev_dependencies:
   flutter_test:
