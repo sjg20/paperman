@@ -53,6 +53,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QStringList>
 #include <QBitArray>
 #include <QHash>
+#include <QJsonObject>
 #include <QMap>
 #include <QDateTime>
 #include <QFileInfo>
@@ -135,6 +136,35 @@ public:
      * @return true if started successfully, false otherwise
      */
     bool start();
+
+    /** Get ready to serve, as start() does once it is listening: read the
+     *  page counts, start the text index and the page readers, list the
+     *  folders and walk the stacks.  A server given its connections by
+     *  another, through takeConnection(), calls this instead of start() */
+    void prepare();
+
+    /** Serve a connection which another server accepted
+     *  @param socketDescriptor  the connection, which this now owns */
+    void takeConnection(qintptr socketDescriptor)
+        { incomingConnection(socketDescriptor); }
+
+    //! the number of connections open, including event streams
+    int clientCount() const { return _clients.size(); }
+
+    /** Refuse an upload which would take a repository over @p bytes in
+     *  all; 0, at first, sets no limit */
+    void setMaxRepoBytes(qint64 bytes) { _maxRepoBytes = bytes; }
+
+    //! what GET /v1/status answers
+    QJsonObject statusObject() const;
+
+    //! the size of the files in @p dir and below, in bytes
+    static qint64 folderBytes(const QString &dir);
+
+    /** Remove what the server keeps on this machine about a repository,
+     *  its text index and its note of the pages read, once the
+     *  repository has gone and no server is serving it */
+    static void removeDataFiles(const QString &root);
 
     /**
      * Stop the server
@@ -764,6 +794,7 @@ private:
     QHash<QString, RepoReader *> _readers;  //!< by repository name
 
     bool _textIndex = false;         //!< see setTextIndex()
+    qint64 _maxRepoBytes = 0;        //!< see setMaxRepoBytes()
     int _idleMs = 30000;             //!< see setIdleTimeout()
     int _folderListMs = 60000;       //!< see setFolderListAge()
     int _stackWalkMs = 600000;       //!< see setStackWalk()

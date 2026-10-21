@@ -185,6 +185,13 @@ bool SearchServer::start()
 
     qDebug() << "SearchServer: Listening on port" << _port;
     qDebug() << "SearchServer: Repository root:" << _rootPath;
+    prepare();
+    return true;
+}
+
+
+void SearchServer::prepare()
+{
     loadPageCounts();
     startIndexes();
     startReaders();
@@ -205,7 +212,85 @@ bool SearchServer::start()
         });
         walk->start(_stackWalkMs);
     }
-    return true;
+}
+
+
+QJsonObject SearchServer::statusObject() const
+{
+    QJsonObject obj;
+    obj["status"] = "running";
+    obj["apiVersion"] = PAPERMAN_API_VERSION;
+    obj["serverId"] = _serverId;
+    obj["version"] = CONFIG_version_str;
+    /* What a client can rely on beyond the base API.  Clients
+       feature-detect rather than version-detect.
+         pages: /v1/repos/{repo}/stacks/{path}/info and
+                /pages/{n}, so a stack can be fetched a page at
+                a time rather than as a whole file */
+    QJsonArray features;
+    features.append("pages");
+    features.append("convert");
+    features.append("folders");
+    features.append("makeFolders");
+    features.append("layout");
+    if (!_indexes.isEmpty())
+        features.append("textSearch");
+    if (!_readers.isEmpty())
+        features.append("readPages");
+    obj["features"] = features;
+    obj["thumbnails"] = kThumbnailVersion;
+
+    /* how far the server has got indexing the text of each
+       repository, when it does */
+    if (!_indexes.isEmpty()) {
+        QJsonObject indexing;
+
+        for (auto it = _indexes.constBegin(); it != _indexes.constEnd();
+             ++it) {
+            RepoIndex::Status st = (*it)->status();
+            QJsonObject r;
+
+            r["syncing"] = st.syncing;
+            r["ready"] = st.ready;
+            r["done"] = st.done;
+            r["total"] = st.total;
+            indexing[it.key()] = r;
+        }
+        obj["indexing"] = indexing;
+    }
+
+    /* how far the server has got reading the pages of each
+       repository, when it reads them */
+    if (!_readers.isEmpty()) {
+        QJsonObject reading;
+
+        for (auto it = _readers.constBegin(); it != _readers.constEnd();
+             ++it) {
+            RepoReader::Status st = (*it)->status();
+            QJsonObject r;
+
+            r["scanning"] = st.scanning;
+            r["pending"] = st.pending;
+            r["stacks"] = st.stacks;
+            r["pages"] = st.pages;
+            r["written"] = st.written;
+            reading[it.key()] = r;
+        }
+        obj["reading"] = reading;
+    }
+    return obj;
+}
+
+
+void SearchServer::removeDataFiles(const QString &root)
+{
+    for (const char *kind : {"index", "read"}) {
+        QString path = dataFile(kind, root);
+
+        // SQLite keeps a journal and shared memory beside the database
+        for (const char *end : {"", "-wal", "-shm", "-journal"})
+            QFile::remove(path + end);
+    }
 }
 
 
@@ -845,68 +930,7 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         return buildHttpResponse(200, "OK", "application/json", data);
     }
     else if (path == "/v1/status") {
-        QJsonObject obj;
-        obj["status"] = "running";
-        obj["apiVersion"] = PAPERMAN_API_VERSION;
-        obj["serverId"] = _serverId;
-        obj["version"] = CONFIG_version_str;
-        /* What a client can rely on beyond the base API.  Clients
-           feature-detect rather than version-detect.
-             pages: /v1/repos/{repo}/stacks/{path}/info and
-                    /pages/{n}, so a stack can be fetched a page at
-                    a time rather than as a whole file */
-        QJsonArray features;
-        features.append("pages");
-        features.append("convert");
-        features.append("folders");
-        features.append("makeFolders");
-        features.append("layout");
-        if (!_indexes.isEmpty())
-            features.append("textSearch");
-        if (!_readers.isEmpty())
-            features.append("readPages");
-        obj["features"] = features;
-        obj["thumbnails"] = kThumbnailVersion;
-
-        /* how far the server has got indexing the text of each
-           repository, when it does */
-        if (!_indexes.isEmpty()) {
-            QJsonObject indexing;
-
-            for (auto it = _indexes.constBegin(); it != _indexes.constEnd();
-                 ++it) {
-                RepoIndex::Status st = (*it)->status();
-                QJsonObject r;
-
-                r["syncing"] = st.syncing;
-                r["ready"] = st.ready;
-                r["done"] = st.done;
-                r["total"] = st.total;
-                indexing[it.key()] = r;
-            }
-            obj["indexing"] = indexing;
-        }
-
-        /* how far the server has got reading the pages of each
-           repository, when it reads them */
-        if (!_readers.isEmpty()) {
-            QJsonObject reading;
-
-            for (auto it = _readers.constBegin(); it != _readers.constEnd();
-                 ++it) {
-                RepoReader::Status st = (*it)->status();
-                QJsonObject r;
-
-                r["scanning"] = st.scanning;
-                r["pending"] = st.pending;
-                r["stacks"] = st.stacks;
-                r["pages"] = st.pages;
-                r["written"] = st.written;
-                reading[it.key()] = r;
-            }
-            obj["reading"] = reading;
-        }
-        QJsonDocument doc(obj);
+        QJsonDocument doc(statusObject());
         return buildHttpResponse(200, "OK", "application/json",
                                  QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
     }
@@ -2491,6 +2515,20 @@ QByteArray SearchServer::handleStack(const QString &path,
                              buildJsonResponse(true, "", ""));
 }
 
+qint64 SearchServer::folderBytes(const QString &dir)
+{
+    qint64 total = 0;
+    QDirIterator it(dir, QDir::Files | QDir::Hidden | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+
+    while (it.hasNext()) {
+        it.next();
+        total += it.fileInfo().size();
+    }
+    return total;
+}
+
+
 QByteArray SearchServer::handleUpload(const QString &path,
                                       const QHash<QString, QString> &params,
                                       const QString &authedUser)
@@ -2512,6 +2550,12 @@ QByteArray SearchServer::handleUpload(const QString &path,
         return buildHttpResponse(400, "Bad Request", "application/json",
                                  buildJsonResponse(false, "",
                                      "Empty upload body"));
+
+    if (_maxRepoBytes > 0
+        && folderBytes(target.repoPath) + bytes.size() > _maxRepoBytes)
+        return buildHttpResponse(413, "Payload Too Large", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "The repository has no room for it"));
 
     QFileInfo fi(target.fullPath);
     if (!QDir(fi.absolutePath()).exists())
