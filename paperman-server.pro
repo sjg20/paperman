@@ -34,6 +34,7 @@ HEADERS += builddate.h \
     localbackend.h \
     desklayout.h \
     searchserver.h \
+    demoserver.h \
     serverlog.h \
     tokenstore.h \
     reporeader.h \
@@ -60,6 +61,7 @@ HEADERS += builddate.h \
     config.h
 
 SOURCES += searchserver.cpp \
+    demoserver.cpp \
     backend.cpp \
     desklayout.cpp \
     localbackend.cpp \

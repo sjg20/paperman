@@ -342,6 +342,7 @@ test {
       test/test_pscan.cpp \
       test/test_qscanner.cpp \
       test/test_searchserver.cpp \
+      test/test_demoserver.cpp \
       test/test_ocrsearch.cpp \
       test/test_localbackend.cpp \
       test/test_clientconf.cpp \
@@ -352,6 +353,7 @@ test {
       test/test_screenshots.cpp \
       desklayout.cpp \
       searchserver.cpp \
+      demoserver.cpp \
       serverlog.cpp \
       tokenstore.cpp \
       reporeader.cpp \
@@ -371,6 +373,7 @@ test {
       test/test_qscanner.h \
       test/test_utils.h \
       test/test_searchserver.h \
+      test/test_demoserver.h \
       test/test_ocrsearch.h \
       test/test_localbackend.h \
       test/test_clientconf.h \
@@ -383,6 +386,7 @@ test {
       test/scansettings.h \
       desklayout.h \
       searchserver.h \
+      demoserver.h \
       serverlog.h \
       tokenstore.h \
       reporeader.h \
