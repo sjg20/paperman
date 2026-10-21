@@ -10,6 +10,7 @@
 #include <QRegularExpression>
 #include <QToolButton>
 #include <QFile>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -27,6 +28,7 @@
 #include "desktopmodel.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
+#include "dirmodel.h"
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -39,6 +41,7 @@
 #include "qxmlconfig.h"
 #include "fakescan/fakescan.h"
 #include "test_fakescan.h"
+#include "backendstats.h"
 #include "remoteharness.h"
 #include "test_screenshots.h"
 
@@ -78,6 +81,10 @@ void TestScreenshots::init ()
              "screenshots");
    QVERIFY (QDir ().mkpath (_out));
    Appearance::setMode (Appearance::Mode_light);
+
+   /* a text box's cursor is drawn or not as it blinks, so keep it on,
+      or the pictures differ from one run to the next */
+   QApplication::setCursorFlashTime (0);
    }
 
 void TestScreenshots::cleanup ()
@@ -731,7 +738,21 @@ void TestScreenshots::testServer ()
    sizes [2] -= 90;
    sizes [0] += 90;
    desktop->setSizes (sizes);
-   settle ();
+
+   /* the stacks' page counts and pictures come from the server a few at
+      a time, and the stack pane grows as they arrive, so wait until it
+      has answered everything for a second */
+   BackendStats *stats = desktop->_model->stats ();
+   QElapsedTimer timer;
+
+   timer.start ();
+   for (int quiet = 0; quiet < 5 && timer.elapsed () < 30000; )
+      {
+      QTest::qWait (200);
+      quiet = stats->activeRequests () ? 0 : quiet + 1;
+      }
+   QCOMPARE (stats->activeRequests (), 0);
+   desktop->getView ()->doItemsLayout ();
    settle ();
    save (&me, "server");
 
