@@ -30,12 +30,13 @@ AppImage
 --------
 
 For other Linux distributions, each release, from 1.4.0 on, has an
-AppImage, which runs without being installed:
+AppImage, which runs without being installed. Download the one for your
+machine, from the latest release:
 
-``Paperman-VERSION-x86_64.AppImage``
+`Paperman-x86_64.AppImage <https://github.com/sjg20/paperman/releases/latest/download/Paperman-x86_64.AppImage>`__
    for most PCs
 
-``Paperman-VERSION-aarch64.AppImage``
+`Paperman-aarch64.AppImage <https://github.com/sjg20/paperman/releases/latest/download/Paperman-aarch64.AppImage>`__
    for 64-bit Arm machines
 
 It needs a Linux at least as recent as Debian 12, Ubuntu 24.04 or
@@ -51,10 +52,7 @@ SANE: it uses the scanner back ends installed on the machine, as other
 scanning programs do, so install SANE from the distribution
 (``libsane1`` on Debian and Ubuntu, ``sane-backends`` on Fedora and Arch)
 and check that ``scanimage -L`` lists the scanner. For reading the text
-of pages, install ``tesseract`` too. To try something not yet released,
-the latest `CI run
-<https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on master
-has AppImages as artifacts.
+of pages, install ``tesseract`` too.
 
 Snap
 ----
@@ -128,22 +126,18 @@ Windows
 -------
 
 Paperman runs on Windows 10 (version 1809 or later) and Windows 11.
-Each release, from 1.4.0 on, has two installers:
+Download the installer for your PC, from the latest release:
 
-``paperman-setup-VERSION.exe``
+`paperman-setup.exe <https://github.com/sjg20/paperman/releases/latest/download/paperman-setup.exe>`__
    for ordinary (x64) PCs
 
-``paperman-setup-VERSION-arm64.exe``
+`paperman-setup-arm64.exe <https://github.com/sjg20/paperman/releases/latest/download/paperman-setup-arm64.exe>`__
    for Windows on Arm; the x64 installer works there too, more slowly
 
 The installer needs no administrator: it puts Paperman in your own
 programs folder, with a Start menu entry and, if you like, a desktop
 shortcut and ``.max`` files opening in it. It can be installed for
-everyone on the machine instead from the choice at the start. Every
-change to the code also has installers built for it, as artifacts of its
-`CI run <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on
-GitHub, which is where to get one to try something before it is
-released.
+everyone on the machine instead from the choice at the start.
 
 Until the releases are signed, Windows warns that it protected the PC
 from an unrecognised app: choose **More info** and then **Run anyway**.
@@ -153,20 +147,18 @@ To scan, install the scanner's 64-bit TWAIN driver; see :doc:`scanning`.
 macOS
 -----
 
-Each release, from 1.4.0 on, has a disk image for each kind of Mac:
+Download the disk image for your Mac, from the latest release:
 
-``Paperman-VERSION-arm64.dmg``
+`Paperman-arm64.dmg <https://github.com/sjg20/paperman/releases/latest/download/Paperman-arm64.dmg>`__
    for Apple Silicon (M1 and later)
 
-``Paperman-VERSION-x86_64.dmg``
+`Paperman-x86_64.dmg <https://github.com/sjg20/paperman/releases/latest/download/Paperman-x86_64.dmg>`__
    for Intel Macs
 
 Open it and drag **Paperman** to **Applications**. Everything it needs is
 inside, including the scanner back ends for the Ricoh fi-series, so there
 is nothing else to install; other scanners SANE supports can be used by
-building from source. To try something not yet released, the latest
-`CI run <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_ on
-master has disk images as artifacts.
+building from source.
 
 If macOS says it cannot verify the developer, open it with a right-click
 and **Open** the first time, or allow it in **System Settings > Privacy &
@@ -174,6 +166,20 @@ Security**. Releases which are signed and notarised by Apple open without
 this.
 
 Paperman also builds from source on macOS: see :doc:`build`.
+
+Other versions
+--------------
+
+The links above always get the latest release. Each release, from 1.4.0
+on, has the same files with its version in their names too, such as
+``paperman-setup-1.4.0.exe``, on the `releases page
+<https://github.com/sjg20/paperman/releases>`_, with the earlier
+releases.
+
+To try something not yet released, every change to the code has
+installers, disk images and AppImages built for it, as artifacts of its
+`CI run <https://github.com/sjg20/paperman/actions/workflows/ci.yml>`_
+on GitHub. Downloading them needs a GitHub account.
 
 Building from Source
 --------------------

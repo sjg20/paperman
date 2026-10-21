@@ -176,9 +176,16 @@ jobs:
         if: env.SIGN == 'true'
         run: cp signed-installer/paperman-setup-*.exe packaging/windows/
 
+      # with a copy named without the version, which the documentation
+      # links to as releases/latest/download/paperman-setup.exe, so that
+      # the link always gets the newest release
       - name: Add it to the release
         shell: pwsh
-        run: gh release upload $env:GITHUB_REF_NAME (Get-Item packaging/windows/paperman-setup-*.exe)
+        run: |
+          $f = Get-Item packaging/windows/paperman-setup-*.exe
+          $plain = Join-Path $env:RUNNER_TEMP ($f.Name -replace '-\d+(\.\d+)*', '')
+          Copy-Item $f $plain
+          gh release upload $env:GITHUB_REF_NAME $f $plain
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -254,8 +261,13 @@ jobs:
           make -f Makefile -j$(sysctl -n hw.ncpu)
           SANE_PREFIX=$HOME/sane scripts/mac-package.sh
 
+      # with a copy named without the version, as for Windows
       - name: Add it to the release
-        run: gh release upload $GITHUB_REF_NAME dist/Paperman-*.dmg
+        run: |
+          f=$(ls dist/Paperman-*.dmg)
+          plain=$RUNNER_TEMP/$(basename "$f" | sed -E 's/-[0-9]+(\.[0-9]+)*-/-/')
+          cp "$f" "$plain"
+          gh release upload $GITHUB_REF_NAME "$f" "$plain"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -291,9 +303,13 @@ jobs:
       - name: Build the app and the AppImage
         run: scripts/appimage.sh
 
+      # with a copy named without the version, as for Windows
       - name: Add it to the release
         run: |
-          gh release upload "$GITHUB_REF_NAME" dist/Paperman-*.AppImage \
+          f=$(ls dist/Paperman-*.AppImage)
+          plain=$RUNNER_TEMP/$(basename "$f" | sed -E 's/-[0-9]+(\.[0-9]+)*-/-/')
+          cp "$f" "$plain"
+          gh release upload "$GITHUB_REF_NAME" "$f" "$plain" \
             -R "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
