@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSettings>
 
 #include "appearance.h"
+#include "mailer.h"
 #include "ocrreader.h"
 #include "options.h"
 
@@ -118,6 +119,9 @@ void Options::init()
 
    group->setText(qs.value("files/group").toString());
 
+   // the entries are in the order of Mailer::e_how
+   emailHow->setCurrentIndex (Mailer::how ());
+
    // the entries are in the order of Appearance::e_mode
    appearance->setCurrentIndex (Appearance::mode ());
 
@@ -144,6 +148,7 @@ void Options::ok_clicked()
    QSettings qs;
 
    qs.setValue("files/group", group->text());
+   Mailer::setHow ((Mailer::e_how)emailHow->currentIndex ());
 
    if (appearance->currentIndex () != Appearance::mode ())
       Appearance::setMode ((Appearance::e_mode)appearance->currentIndex ());

@@ -5,6 +5,7 @@
 #include <QSplitter>
 #include <QSettings>
 #include <QToolButton>
+#include <QUrlQuery>
 #include <QtTest/QtTest>
 
 #include "test.h"
@@ -17,6 +18,7 @@
 #include "ocrpage.h"
 #include "dirmodel.h"
 #include "filemax.h"
+#include "mailer.h"
 #include "utils.h"
 #include "dirview.h"
 #include "mainwidget.h"
@@ -787,9 +789,21 @@ void TestDesktopUi::testDirTreeNavigation()
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
 }
 
-/* URLs which the email operations would open in a browser are captured
-   here instead, so tests never launch anything */
+/* URLs which the email operations would open in a browser, and files
+   they would give the mail program, are captured here instead, so tests
+   never launch anything */
 static QUrl s_opened_url;
+static QString s_mailed_file;
+
+//! email as @how, capturing what would be opened rather than opening it
+static void captureEmail(Mailer::e_how how)
+{
+   Mailer::setHow(how);
+   Mailer::url_capture = &s_opened_url;
+   Mailer::file_capture = &s_mailed_file;
+   s_opened_url = QUrl();
+   s_mailed_file.clear();
+}
 
 void TestDesktopUi::testRotateActions()
 {
@@ -1048,8 +1062,7 @@ void TestDesktopUi::testEmailSingleStack()
    Mainwindow me;
 
    setupShown(&me, model, repo_ind);
-   Desktopmodel::url_capture = &s_opened_url;
-   s_opened_url = QUrl();
+   captureEmail(Mailer::How_program);
 
    Desktopwidget *desktop = me.getDesktop();
    Desktopview *view = desktop->getView();
@@ -1073,9 +1086,36 @@ void TestDesktopUi::testEmailSingleStack()
    // The original file must still exist for the email program to use
    QVERIFY(QFile::exists(mime->urls()[0].toLocalFile()));
 
-   // A Gmail compose window should have been requested
-   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+   // the mail program is given the file, and no browser is opened
+   QCOMPARE(s_mailed_file, mime->urls()[0].toLocalFile());
+   QVERIFY(s_opened_url.isEmpty());
+}
 
+void TestDesktopUi::testEmailWithGmail()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   captureEmail(Mailer::How_gmail);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   clickItem(view, 0);
+   desktop->_act_email->trigger();
+
+   // the file is on the clipboard, to paste into Gmail's compose page
+   const QMimeData *mime = QApplication::clipboard()->mimeData();
+   QVERIFY(mime);
+   QVERIFY(mime->hasUrls());
+   QString file = mime->urls()[0].toLocalFile();
+
+   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+   QCOMPARE(QUrlQuery(s_opened_url).queryItemValue("su"),
+            QFileInfo(file).fileName());
+   QVERIFY(s_mailed_file.isEmpty());
 }
 
 void TestDesktopUi::testEmailMultipleStacksZips()
@@ -1085,8 +1125,7 @@ void TestDesktopUi::testEmailMultipleStacksZips()
    Mainwindow me;
 
    setupShown(&me, model, repo_ind);
-   Desktopmodel::url_capture = &s_opened_url;
-   s_opened_url = QUrl();
+   captureEmail(Mailer::How_program);
 
    Desktopwidget *desktop = me.getDesktop();
    Desktopview *view = desktop->getView();
@@ -1105,7 +1144,7 @@ void TestDesktopUi::testEmailMultipleStacksZips()
    QVERIFY(QFile::exists(zip));
    QVERIFY(QFileInfo(zip).size() > 0);
 
-   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+   QCOMPARE(s_mailed_file, zip);
 
    QFile::remove(zip);
 }
@@ -1117,8 +1156,7 @@ void TestDesktopUi::testEmailAsPdfConverts()
    Mainwindow me;
 
    setupShown(&me, model, repo_ind);
-   Desktopmodel::url_capture = &s_opened_url;
-   s_opened_url = QUrl();
+   captureEmail(Mailer::How_program);
 
    Desktopwidget *desktop = me.getDesktop();
    Desktopview *view = desktop->getView();
@@ -1142,7 +1180,7 @@ void TestDesktopUi::testEmailAsPdfConverts()
    QCOMPARE(fil.read(4), QByteArray("%PDF"));
    fil.close();
 
-   QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
+   QCOMPARE(s_mailed_file, pdf);
 
    QFile::remove(pdf);
 }
@@ -1154,8 +1192,7 @@ void TestDesktopUi::testCopyAsPdf()
    Mainwindow me;
 
    setupShown(&me, model, repo_ind);
-   Desktopmodel::url_capture = &s_opened_url;
-   s_opened_url = QUrl();
+   captureEmail(Mailer::How_program);
 
    // start with an empty clipboard so we can be sure copy fills it
    QApplication::clipboard()->clear();
@@ -1197,8 +1234,9 @@ void TestDesktopUi::testCopyAsPdf()
    QVERIFY(gnome.startsWith("copy\n"));
    QVERIFY(gnome.contains(QUrl::fromLocalFile(pdf).toEncoded()));
 
-   // copying does not open a browser window, unlike emailing
+   // copying does not start a message, unlike emailing
    QVERIFY(s_opened_url.isEmpty());
+   QVERIFY(s_mailed_file.isEmpty());
 
    QFile::remove(pdf);
 }

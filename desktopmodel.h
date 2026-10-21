@@ -995,11 +995,6 @@ public:
    void sendFilesLater (const QModelIndexList &slist, File::e_type type,
                         bool clipboard, OpDone done);
 
-   /** when non-null, URLs which would be opened in the browser (e.g.
-       the email compose window) are stored here instead. Used by
-       tests to check the URL without launching anything */
-   static QUrl *url_capture;
-
 #if 0 //p
    Desktopitem *itemFind (const QPoint & opos, int &which);
    Desk *getDesk () { return _desk; }

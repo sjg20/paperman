@@ -35,8 +35,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QClipboard>
 #include <QDataStream>
 #include <QDebug>
-#include <QDesktopServices>
 #include <QFile>
+#include <QFileInfo>
 #include <QEventLoop>
 #include <QElapsedTimer>
 #include <QJsonDocument>
@@ -58,6 +58,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "op.h"
 #include "filemax.h"
+#include "mailer.h"
 #include "remotebackend.h"
 #include "utils.h"
 
@@ -1869,11 +1870,11 @@ err_info *Desktopmodel::copyFilesToClipboard (QString &fname,
 
    QUrl url = QUrl::fromLocalFile (fname);
 
-   // Put the file on the clipboard as a text/uri-list so Gmail compose
-   // (and any other webmail that accepts file paste) treats Ctrl+V as a
-   // file attach.  mailto: URLs cannot carry attachments per RFC 6068,
-   // so this is the only path that lands a real attachment in Gmail
-   // without a per-user OAuth dance.
+   // Put the file on the clipboard as a text/uri-list so that a message
+   // being written in a mail program or in webmail, such as Gmail's
+   // compose page, takes Ctrl+V as attaching it.  mailto: URLs cannot
+   // carry attachments per RFC 6068, so this is the only way to attach
+   // the file to a message which a mail program cannot be given it for.
    QMimeData *mime = new QMimeData ();
    mime->setUrls (QList<QUrl> () << url);
 
@@ -1893,17 +1894,10 @@ err_info *Desktopmodel::copyFilesToClipboard (QString &fname,
 
 err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool &can_delete)
 {
+   /* the file goes on the clipboard however the message is started, to
+      paste into it where it cannot be attached */
    CALL (copyFilesToClipboard (fname, fnamelist, can_delete));
-
-   // Open Gmail's compose URL with a pre-filled subject and body.  The
-   // attachment cannot ride on the URL, but the user pastes it with
-   // Ctrl+V once the compose window is up.
-   QUrl compose ("https://mail.google.com/mail/?view=cm&fs=1"
-                 "&su=Files&body=see+attachment+(paste+with+Ctrl%2BV)");
-   if (url_capture)
-      *url_capture = compose;
-   else
-      QDesktopServices::openUrl (compose);
+   Mailer::compose (fname, QFileInfo (fname).fileName ());
 
    return NULL;
 }
