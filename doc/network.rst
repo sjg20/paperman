@@ -21,6 +21,22 @@ phone, by putting them on a Paperman server.
 A single computer needs no server: the desktop program works on its own
 repositories without one.
 
+Trying it
+---------
+
+To try working with a server before setting one up, connect to the demo
+server at ``demo.getpaperman.com``, which has the papers of a made-up
+household:
+
+- In the desktop program: ``paperman --server demo.getpaperman.com``
+- In the app: enter ``demo.getpaperman.com`` as the server
+
+When asked, choose any name and password. Give the same ones to the
+desktop program and the app to work on the same papers from both, each
+seeing what the other does. No one else sees your papers, which are a
+copy for you alone: file, rename and scan as you like. They are deleted
+once nothing has been connected to them for an hour.
+
 Setting up a server
 -------------------
 
