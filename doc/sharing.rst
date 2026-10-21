@@ -64,14 +64,33 @@ selected:
    * - **Copy as PDF** (Ctrl+C)
      - Put them on the clipboard as PDFs, to paste anywhere (see below)
 
-Paperman makes the file, puts it on the clipboard and opens a new
-message in Gmail in your web browser. Click in the message and press
-**Ctrl+V** to attach the file. More than one stack is packed into a
-single zip file first, since a message takes one file pasted at a time.
+Paperman makes the file and opens a new message in your mail program,
+with the file attached, for you to address and send. More than one stack
+is packed into a single zip file first.
 
-The clipboard is the only way to attach a file to a message opened from
-another program, so the same works with other webmail which takes a
-pasted file, such as Outlook on the web or Fastmail.
+- On Windows, the mail program must take files from other programs, as
+  Outlook (classic) and Thunderbird do. The new Outlook does not, so
+  with it the message opens without the file, and you paste it in as
+  below.
+- On macOS, it is the one chosen in Mail's settings.
+- On Linux, Paperman gives the file to the mail program with
+  ``xdg-email``, which can attach it in Thunderbird, Evolution or KMail.
+
+The file is put on the clipboard too. When the message opens without
+it, as when no mail program can be given the file, click in the message
+and press **Ctrl+V** to attach it.
+
+Gmail and other webmail
+~~~~~~~~~~~~~~~~~~~~~~~
+
+To write messages in Gmail in your web browser instead, open the
+**Files** tab of **File > Options** and set **Email with** to **Gmail in
+your web browser**. Paperman then opens a new message on Gmail's page:
+click in it and press **Ctrl+V** to attach the file.
+
+Pasting the file in works with other webmail too, such as Outlook on the
+web or Fastmail, since the clipboard is the only way to attach a file to
+a message opened from another program.
 
 Copying
 -------

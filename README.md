@@ -44,7 +44,7 @@ Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
 - move stacks between directories
 - double click to view full size page image (also on right pane)
 - print stacks and pages, including page annotations
-- email files as PDF via Gmail (Ctrl+Shift+E, paste with Ctrl+V)
+- email files as PDF with your mail program, or Gmail (Ctrl+Shift+E)
 - copy files as PDF to the clipboard (Ctrl+C, paste anywhere)
 - full undo/redo
 - fast scanning from sheet-fed scanners, through SANE on Linux and macOS
