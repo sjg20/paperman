@@ -63,5 +63,5 @@ Features
   :doc:`server`)
 - Android and iPhone app for browsing, searching and reading a server's
   repositories, with an offline demo mode (see :doc:`app`)
-- Email files as PDF via Gmail (see :doc:`sharing`)
+- Email files as PDF with your mail program or Gmail (see :doc:`sharing`)
 - Linux, Windows (x64 and Arm) and macOS
