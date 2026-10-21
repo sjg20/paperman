@@ -217,10 +217,7 @@ void DemoServer::dispatch (qintptr fd, const QByteArray &header)
    if (method == "POST" && path == "/v1/auth/login")
       login (fd);
    else if (it != _sessions.end ())
-      {
-      it->quiet.restart ();
       it->server->takeConnection (fd);
-      }
    else if (path == "/v1/status")
       reply (fd, 200, QJsonDocument (_status->statusObject ())
                          .toJson (QJsonDocument::Compact));
@@ -372,7 +369,6 @@ QString DemoServer::joinSession (const QString &user,
       _tokens.insert (token, key);
       while (it->tokens.size () > kMaxTokens)
          _tokens.remove (it->tokens.takeFirst ());
-      it->quiet.restart ();
       return QString ();
       }
 
@@ -395,7 +391,7 @@ QString DemoServer::joinSession (const QString &user,
    sess.server->setTextIndex (true);
    sess.server->setMaxRepoBytes (_limits.maxBytes);
    sess.server->prepare ();
-   sess.quiet.start ();
+   sess.age.start ();
    sess.tokens.append (token);
 
    _sessions.insert (key, sess);
@@ -432,19 +428,17 @@ void DemoServer::reap ()
       {
       Session &sess = _sessions[key];
 
-      /* a session is in use while anything is connected to it, as an
-         event stream is while a client shows it */
-      if (sess.server->clientCount ())
-         sess.quiet.restart ();
-
-      bool idle = sess.quiet.elapsed () > _limits.idleMs;
+      /* a client left open keeps asking to hear of changes, so a session
+         is in use only while it is asked for other things */
+      bool idle = sess.server->msSinceRequest () > _limits.idleMs;
+      bool old = sess.age.elapsed () > _limits.lifetimeMs;
 
       /* uploads are refused beyond the limit, but copying stacks is not:
          a session which grows well past it is ended */
       bool big = SearchServer::folderBytes (sess.dir)
                  > _limits.maxBytes + _limits.maxBytes / 2;
 
-      if (idle || big)
+      if (idle || old || big)
          endSession (key);
       }
    }

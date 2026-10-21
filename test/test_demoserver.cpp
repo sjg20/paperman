@@ -238,6 +238,71 @@ void TestDemoServer::testQuietSessionEnds ()
    }
 
 
+void TestDemoServer::testListeningIsNotUse ()
+   {
+   DemoServer::Limits limits;
+
+   /* with room to spare either side, so that a slow machine still sees
+      the same */
+   limits.idleMs = 1000;
+   _demo = new DemoServer (_papers, _dir->path () + "/sessions", "", 0);
+   _demo->setLimits (limits);
+   startDemo ();
+
+   QString token = login ();
+
+   // a request now and then keeps it going
+   QTest::qWait (500);
+   QVERIFY (request ("GET", "/repos", token).startsWith ("HTTP/1.1 200"));
+   QTest::qWait (500);
+   _demo->reap ();
+   QCOMPARE (_demo->sessionCount (), 1);
+
+   // as a client does while it shows a folder, listen for changes
+   QTcpSocket events;
+
+   events.connectToHost (QHostAddress::LocalHost, _demo->serverPort ());
+   QVERIFY (QTest::qWaitFor ([&] {
+      return events.state () == QAbstractSocket::ConnectedState; }, 5000));
+   events.write ("GET /v1/repos/Paperman/events HTTP/1.1\r\n"
+                 "Host: localhost\r\nAuthorization: Bearer "
+                 + token.toLatin1 () + "\r\n\r\n");
+   QVERIFY (QTest::qWaitFor ([&] {
+      return events.bytesAvailable () > 0; }, 5000));
+
+   // that alone is not use
+   QTest::qWait (1500);
+   QCOMPARE (events.state (), QAbstractSocket::ConnectedState);
+   _demo->reap ();
+   QCOMPARE (_demo->sessionCount (), 0);
+   QVERIFY (QTest::qWaitFor ([&] {
+      return events.state () == QAbstractSocket::UnconnectedState; }, 5000));
+   }
+
+
+void TestDemoServer::testOldSessionEnds ()
+   {
+   DemoServer::Limits limits;
+
+   limits.lifetimeMs = 300;
+   _demo = new DemoServer (_papers, _dir->path () + "/sessions", "", 0);
+   _demo->setLimits (limits);
+   startDemo ();
+
+   QString token = login ();
+
+   // used all the while, it still ends at its age
+   for (int i = 0; i < 4; i++)
+      {
+      QTest::qWait (100);
+      QVERIFY (request ("GET", "/repos", token).startsWith ("HTTP/1.1"));
+      _demo->reap ();
+      }
+   QCOMPARE (_demo->sessionCount (), 0);
+   QVERIFY (request ("GET", "/repos", token).startsWith ("HTTP/1.1 401"));
+   }
+
+
 void TestDemoServer::testSessionLimit ()
    {
    DemoServer::Limits limits;

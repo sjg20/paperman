@@ -105,6 +105,7 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
     }
 
     _serverId = loadOrCreateServerId();
+    _lastRequest.start();
 
     // Clean old thumbnails from cache
     cleanThumbnailCache();
@@ -150,6 +151,7 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
     }
 
     _serverId = loadOrCreateServerId();
+    _lastRequest.start();
 
     // Clean old thumbnails from cache
     cleanThumbnailCache();
@@ -802,6 +804,12 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
      * there being users. */
     if (_users.reloadIfChanged())
         qInfo() << "SearchServer: read" << _users.filePath() << "again";
+
+    /* note when the server was last asked for something, leaving out the
+       event stream, which a client keeps open, and opens again, for as
+       long as it shows a folder, whether anyone is using it or not */
+    if (!path.endsWith("/events"))
+        _lastRequest.restart();
 
     /* Logging in must work without a token, so handle it before the auth
        check below.  Other POST routes fall through and are dispatched

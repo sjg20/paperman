@@ -42,6 +42,13 @@ private slots:
    //! a session quiet for long enough ends, and its copy goes
    void testQuietSessionEnds ();
 
+   /** a client left open, listening for changes, does not keep a session
+       going, though one asking for things does */
+   void testListeningIsNotUse ();
+
+   //! a session ends at its age, however much it is used
+   void testOldSessionEnds ();
+
    //! no more sessions start than the limit allows
    void testSessionLimit ();
 
