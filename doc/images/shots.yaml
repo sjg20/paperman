@@ -130,3 +130,46 @@ shots:
     script: scripts/draw_diagram.py
     shows: ['@window', '@papers', scripts/draw_diagram.py,
             app/assets/icon.png]
+
+  # emailing on Windows, with the demo papers and a demo mail account
+  # in Thunderbird and in a Chrome profile of its own, never a real one
+  email-menu-windows.png:
+    made: hand
+    platform: Windows 11
+    steps:
+      - open the demo papers, with the window maximised
+      - right-click power bill in bills/2026/10oct and point at Email...
+      - capture the screen and crop it to the stacks and the menus
+    shows: [desktopwidget.cpp, '@papers']
+  email-options-windows.png:
+    made: hand
+    platform: Windows 11
+    steps:
+      - open File > Options, at the Files tab
+      - click Email with, so that its list is open
+      - capture the dialog and the list
+    shows: [options.ui, options.cpp]
+  email-thunderbird-windows.png:
+    made: hand
+    platform: Windows 11, with Thunderbird as the default mail program
+    steps:
+      - set Email with to Your mail program
+      - choose Email... > as PDF on power bill
+      - capture Thunderbird's new message
+    shows: [mailer.cpp, dmop.cpp]
+  email-gmail-windows.png:
+    made: hand
+    platform: Windows 11, with Gmail open in Chrome
+    steps:
+      - set Email with to Gmail in your web browser
+      - choose Email... > as PDF on power bill
+      - capture Chrome's window, checking that it shows the demo account
+    shows: [mailer.cpp, dmop.cpp]
+  email-gmail-pasted-windows.png:
+    made: hand
+    platform: Windows 11, with Gmail open in Chrome
+    steps:
+      - as email-gmail-windows.png, then click in the message, press
+        Ctrl+V and wait for the attachment to upload
+      - capture Chrome's window
+    shows: [mailer.cpp, dmop.cpp]
