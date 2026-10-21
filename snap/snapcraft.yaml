@@ -22,7 +22,7 @@ name: paperman
 title: Paperman
 base: core24
 adopt-info: paperman
-summary: Electronic filing cabinet - scan, print, stack, arrange
+summary: Electronic filing cabinet - scan paper, file it and find it again
 description: |
   Paperman is an electronic filing cabinet: it scans paper into stacks of
   pages, filed in folders, and lets you view, arrange, annotate, print,
@@ -40,19 +40,34 @@ description: |
     size, such as receipts, scanned whole
   - a misfeed or jam waits to be cleared, and loses no pages
 
+  **Finding**:
+
+  - the text of each page is read (OCR) in the background as it is
+    scanned
+  - search every stack by the words on its pages, or by its name
+  - the PDFs Paperman makes carry the text, so other programs can search
+    them too
+
   **Filing**:
 
   - a simple view of stacks and pages, with previews
-  - move pages in and out of stacks, and stacks between folders
-  - print stacks and pages, including their annotations
+  - move pages in and out of stacks, and stacks between folders, and go
+    to a folder by typing part of its name
+  - folders for each year and month, with this month's offered for the
+    next scan
   - convert to and from PDF, JPEG and TIFF, and unfold scanned booklets
-  - read the text of pages (OCR) and search it
-  - email or copy files as PDF
   - full undo and redo
 
-  Paperman's search server can keep papers on another machine, which the
-  desktop shows beside its own, and which an Android or iPhone app can
-  browse.
+  **Sharing**:
+
+  - print stacks and pages, including their notes
+  - email stacks as PDFs, with your mail program or Gmail
+  - copy them to the clipboard, to paste into a message or anywhere else
+
+  **Across machines**: Paperman's server keeps your papers on one machine,
+  and the desktop program on the others shows them beside its own. The
+  app for Android and iPhone browses, searches and reads them, and scans
+  new papers with the phone's camera.
 
   **Setting up**: to scan from a USB scanner, and to print to the
   machine's printers, connect the snap to them:
@@ -63,9 +78,12 @@ description: |
   A network scanner which is not found by searching the network can be
   named in a file of the back end's configuration, in
   ~/snap/paperman/common/sane.d, such as finet.conf with the address of a
-  Ricoh fi-series scanner. See https://paperman.readthedocs.io
+  Ricoh fi-series scanner.
+
+  See https://getpaperman.com, and the documentation at
+  https://paperman.readthedocs.io
 license: GPL-2.0-or-later
-website: https://github.com/sjg20/paperman
+website: https://getpaperman.com
 source-code: https://github.com/sjg20/paperman
 issues: https://github.com/sjg20/paperman/issues
 contact: https://github.com/sjg20/paperman/issues
