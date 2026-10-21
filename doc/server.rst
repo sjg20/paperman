@@ -95,6 +95,42 @@ repository. Set up users before letting anything but the local machine
 reach it, and run it behind a reverse proxy (nginx or Apache) with HTTPS
 for use from outside (see :doc:`deployment`).
 
+A demo for anyone to try
+------------------------
+
+With ``--demo``, the server lets anyone try Paperman on some papers of
+their own. Logging in with any name and the demo's password starts a
+session: a copy of the repository given, for that login alone. Each
+visitor can file, rename, delete and scan as they like, without seeing
+anything of anyone else's, and the repository given is never changed. A
+session ends once nothing has been connected to it for a while, and its
+copy is deleted.
+
+.. code:: bash
+
+   ./paperman-server -p 8095 --demo /srv/pmdemo/sessions /srv/pmdemo/Paperman
+
+The folder given to ``--demo`` holds the sessions' copies: everything in
+it is deleted when the server starts, so give it a folder of its own.
+These set the limits:
+
+-  ``--demo-password <pw>`` - the password (default: ``demo``)
+-  ``--demo-sessions <n>`` - sessions at once (default: 100); a login
+   beyond them is told to try again later
+-  ``--demo-idle <min>`` - how long a session may be quiet (default: 60)
+-  ``--demo-space <mb>`` - space for each session (default: 200); an
+   upload beyond it is refused, and a session which grows to half as much
+   again is ended
+
+A demo listens on the loopback address only, and has no users of its own.
+Put it behind a web server with HTTPS, which also limits how much each
+client may send and how often (see :doc:`deployment`), and run it as a
+user of its own, which can write only to the sessions' folder. It needs
+Linux or another Unix.
+
+The desktop program and the app reach it as they do any server, and ask
+for a user and password the first time.
+
 Connecting Clients
 ------------------
 

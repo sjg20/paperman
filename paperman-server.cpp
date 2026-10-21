@@ -29,6 +29,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "builddate.h"
 #include "config.h"
+#include <QSocketNotifier>
+
+#include "demoserver.h"
 #include "searchserver.h"
 #include "userstore.h"
 
@@ -43,9 +46,50 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <io.h>
 #define isatty _isatty
 #else
+#include <csignal>
 #include <termios.h>
 #include <unistd.h>
 #endif
+
+#ifndef _WIN32
+static int quitPipe[2];
+
+static void onQuitSignal(int)
+{
+    char ch = 1;
+
+    // all a signal handler may safely do: say so to the event loop
+    (void)!write(quitPipe[1], &ch, 1);
+}
+#endif
+
+
+/* Quit the event loop on SIGTERM or SIGINT, as systemd stops a service,
+ * rather than being killed: the demo's sessions are then ended and their
+ * copies deleted, as the server is destroyed */
+static void quitOnSignals(QCoreApplication &app)
+{
+#ifndef _WIN32
+    if (pipe(quitPipe))
+        return;
+
+    auto *notifier = new QSocketNotifier(quitPipe[0], QSocketNotifier::Read,
+                                         &app);
+
+    QObject::connect(notifier, &QSocketNotifier::activated, &app,
+                     &QCoreApplication::quit);
+
+    struct sigaction act = {};
+
+    act.sa_handler = onQuitSignal;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGTERM, &act, nullptr);
+    sigaction(SIGINT, &act, nullptr);
+#else
+    Q_UNUSED(app);
+#endif
+}
+
 
 void printUsage(const char *progName)
 {
@@ -64,6 +108,15 @@ void printUsage(const char *progName)
               << "  -r, --read-pages <n> Read the pages of every stack in the\n"
               << "                       background (OCR), n stacks at a time,\n"
               << "                       keeping the words with the pages\n"
+              << "  --demo <dir>         Serve a demo: each login, with any name\n"
+              << "                       and the demo password, gets a copy of\n"
+              << "                       the repository of its own, kept in\n"
+              << "                       <dir> until it is quiet for a while.\n"
+              << "                       It listens on the loopback address only\n"
+              << "  --demo-password <pw> The demo's password (default: demo)\n"
+              << "  --demo-sessions <n>  Sessions at once (default: 100)\n"
+              << "  --demo-idle <min>    Minutes a session may be quiet (default: 60)\n"
+              << "  --demo-space <mb>    Space for each session (default: 200)\n"
               << "  -h, --help           Show this help message\n"
               << "\n"
               << "Example:\n"
@@ -262,6 +315,9 @@ int main(int argc, char *argv[])
     bool skipCache = false;
     int readWorkers = 0;
     bool textIndex = false;
+    QString demoDir;
+    QString demoPassword = "demo";
+    DemoServer::Limits demoLimits;
 
     for (int i = 1; i < args.size(); i++) {
         if (args[i] == "-h" || args[i] == "--help") {
@@ -298,6 +354,35 @@ int main(int argc, char *argv[])
                 return 1;
             }
         }
+        else if (args[i].startsWith("--demo")) {
+            bool ok = true;
+
+            if (i + 1 >= args.size()) {
+                std::cerr << "Error: " << args[i].toStdString()
+                          << " needs a value" << std::endl;
+                return 1;
+            }
+            QString opt = args[i], val = args[++i];
+
+            if (opt == "--demo")
+                demoDir = val;
+            else if (opt == "--demo-password")
+                demoPassword = val;
+            else if (opt == "--demo-sessions")
+                demoLimits.sessions = val.toInt(&ok);
+            else if (opt == "--demo-idle")
+                demoLimits.idleMs = val.toLongLong(&ok) * 60000;
+            else if (opt == "--demo-space")
+                demoLimits.maxBytes = val.toLongLong(&ok) * 1024 * 1024;
+            else
+                ok = false;
+            if (!ok || demoLimits.sessions < 1 || demoLimits.idleMs < 1
+                || demoLimits.maxBytes < 1) {
+                std::cerr << "Error: Invalid " << opt.toStdString()
+                          << std::endl;
+                return 1;
+            }
+        }
         else if (!args[i].startsWith('-')) {
             repositoryPath = args[i];
         }
@@ -323,6 +408,23 @@ int main(int argc, char *argv[])
     }
 
     repositoryPath = repoDir.absolutePath();
+
+    if (!demoDir.isEmpty()) {
+        DemoServer demo(repositoryPath, demoDir, demoPassword, port);
+        QString error;
+
+        demo.setLimits(demoLimits);
+        if (!demo.start(error)) {
+            std::cerr << "Error: Failed to start the demo: "
+                      << error.toStdString() << std::endl;
+            return 1;
+        }
+        std::cout << "Serving a demo of " << repositoryPath.toStdString()
+                  << " on 127.0.0.1:" << port << ", with sessions in "
+                  << demoDir.toStdString() << std::endl;
+        quitOnSignals(app);
+        return app.exec();
+    }
 
     // Create and start server
     std::cout << "Starting Paperman Search Server v" CONFIG_version_str

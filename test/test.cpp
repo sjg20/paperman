@@ -23,6 +23,7 @@
 #include "test_localbackend.h"
 #include "test_ocrsearch.h"
 #include "test_screenshots.h"
+#include "test_demoserver.h"
 
 //QTEST_MAIN(TestPaperman)
 
@@ -37,6 +38,7 @@ static TestPagewidget TEST_PAGEWIDGET("pagewidget");
 static TestPscan TEST_PSCAN("pscan");
 static TestQscanner TEST_QSCANNER("qscanner");
 static TestSearchServer TEST_SEARCHSERVER("searchserver");
+static TestDemoServer TEST_DEMOSERVER("demoserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
 static TestLocalBackend TEST_LOCALBACKEND("localbackend");
 static TestClientConf TEST_CLIENTCONF("clientconf");
