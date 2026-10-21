@@ -1,4 +1,5 @@
 #include <QClipboard>
+#include <QKeySequence>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
@@ -1114,8 +1115,18 @@ void TestDesktopUi::testEmailWithGmail()
 
    QCOMPARE(s_opened_url.host(), QString("mail.google.com"));
    QCOMPARE(QUrlQuery(s_opened_url).queryItemValue("su"),
-            QFileInfo(file).fileName());
+            QFileInfo(file).completeBaseName());
    QVERIFY(s_mailed_file.isEmpty());
+
+   /* the note says how to paste, with the key as the platform shows it,
+      such as Ctrl+V, and with any '+' encoded, as Gmail reads one left
+      as it is as a space */
+   QString paste = QKeySequence(QKeySequence::Paste)
+                      .toString(QKeySequence::NativeText);
+
+   QVERIFY(QUrlQuery(s_opened_url).queryItemValue("body", QUrl::FullyDecoded)
+              .endsWith(paste));
+   QVERIFY(!s_opened_url.query(QUrl::FullyEncoded).contains('+'));
 }
 
 void TestDesktopUi::testEmailMultipleStacksZips()
@@ -1182,7 +1193,29 @@ void TestDesktopUi::testEmailAsPdfConverts()
 
    QCOMPARE(s_mailed_file, pdf);
 
-   QFile::remove(pdf);
+   // it goes by the stack's name
+   QModelIndex src_ind = model->index(0, 0, repo_ind);
+   QString name = QFileInfo(model->data(src_ind, Desktopmodel::Role_filename)
+                               .toString()).completeBaseName() + ".pdf";
+
+   QCOMPARE(QFileInfo(pdf).fileName(), name);
+
+   // emailed again, it goes by the same name, though the first is there
+   clickItem(view, 0);
+   desktop->_act_email_pdf->trigger();
+   mime = QApplication::clipboard()->mimeData();
+   QVERIFY(mime && mime->hasUrls());
+   QString again = mime->urls()[0].toLocalFile();
+
+   QVERIFY(again != pdf);
+   QCOMPARE(QFileInfo(again).fileName(), name);
+   QCOMPARE(s_mailed_file, again);
+
+   for (const QString &path : {pdf, again}) {
+      QFile::remove(path);
+      if (QFileInfo(path).dir().dirName().startsWith("paperman-"))
+         QDir().rmdir(QFileInfo(path).absolutePath());
+   }
 }
 
 void TestDesktopUi::testCopyAsPdf()
