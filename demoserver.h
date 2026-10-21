@@ -45,7 +45,10 @@ class SearchServer;
     else, with another name or password, has a session of their own, so
     each visitor can file, rename and scan as they like, and sees nothing
     of anyone else's. A session ends once it has been quiet for a while,
-    and its copy is deleted.
+    and its copy is deleted. Being quiet means being asked for nothing, as
+    a client left open asks only to hear of changes; however busy, a
+    session ends a day after it started, so that one kept in use by a
+    script does not go on for ever.
 
     Each connection is looked at before it is handed on: the request's
     headers are peeked at, without being read, to find its token, then
@@ -65,7 +68,11 @@ public:
    struct Limits
       {
       int sessions = 100;      //!< sessions at once, at most
-      qint64 idleMs = 3600000; //!< how long a session may be quiet
+      /** how long a session may go without being asked for anything but
+          its event stream, which a client keeps open whether it is used
+          or not */
+      qint64 idleMs = 3600000;
+      qint64 lifetimeMs = 24 * 3600000LL;  //!< how long a session may last
       qint64 maxBytes = 200LL * 1024 * 1024;  //!< space for each session
       };
 
@@ -99,7 +106,8 @@ public:
    //! the folder of the session with @p token, or an empty string
    QString sessionDir (const QString &token) const;
 
-   //! end the sessions which have been quiet too long, or use too much
+   /** end the sessions which have been quiet too long, are too old or
+       use too much */
    void reap ();
 
 protected:
@@ -119,7 +127,7 @@ private:
       QString dir;              //!< the session's folder
       QString repo;             //!< its copy of the papers
       SearchServer *server = nullptr;  //!< serves the copy
-      QElapsedTimer quiet;      //!< since anything was last connected
+      QElapsedTimer age;        //!< since it started
       };
 
    //! look at each pending connection, handing on those with a request

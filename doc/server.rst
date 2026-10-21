@@ -120,7 +120,11 @@ These set the limits:
    any)
 -  ``--demo-sessions <n>`` - sessions at once (default: 100); a login
    beyond them is told to try again later
--  ``--demo-idle <min>`` - how long a session may be quiet (default: 60)
+-  ``--demo-idle <min>`` - how long a session may go without being asked
+   for anything (default: 60); a client left open, which only listens
+   for changes, does not count
+-  ``--demo-lifetime <h>`` - how long a session may last, however much
+   it is used (default: 24)
 -  ``--demo-space <mb>`` - space for each session (default: 200); an
    upload beyond it is refused, and a session which grows to half as much
    again is ended

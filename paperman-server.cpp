@@ -117,7 +117,9 @@ void printUsage(const char *progName)
               << "  --demo-password <pw> Let only this password log in\n"
               << "                       (default: any)\n"
               << "  --demo-sessions <n>  Sessions at once (default: 100)\n"
-              << "  --demo-idle <min>    Minutes a session may be quiet (default: 60)\n"
+              << "  --demo-idle <min>    Minutes a session may go unused, with\n"
+              << "                       nothing asked of it (default: 60)\n"
+              << "  --demo-lifetime <h>  Hours a session may last (default: 24)\n"
               << "  --demo-space <mb>    Space for each session (default: 200)\n"
               << "  -h, --help           Show this help message\n"
               << "\n"
@@ -374,12 +376,14 @@ int main(int argc, char *argv[])
                 demoLimits.sessions = val.toInt(&ok);
             else if (opt == "--demo-idle")
                 demoLimits.idleMs = val.toLongLong(&ok) * 60000;
+            else if (opt == "--demo-lifetime")
+                demoLimits.lifetimeMs = val.toLongLong(&ok) * 3600000;
             else if (opt == "--demo-space")
                 demoLimits.maxBytes = val.toLongLong(&ok) * 1024 * 1024;
             else
                 ok = false;
             if (!ok || demoLimits.sessions < 1 || demoLimits.idleMs < 1
-                || demoLimits.maxBytes < 1) {
+                || demoLimits.lifetimeMs < 1 || demoLimits.maxBytes < 1) {
                 std::cerr << "Error: Invalid " << opt.toStdString()
                           << std::endl;
                 return 1;

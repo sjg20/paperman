@@ -151,6 +151,10 @@ public:
     //! the number of connections open, including event streams
     int clientCount() const { return _clients.size(); }
 
+    /** the time since the server was last asked for anything but an
+     *  event stream, or since it was made, in milliseconds */
+    qint64 msSinceRequest() const { return _lastRequest.elapsed(); }
+
     /** Refuse an upload which would take a repository over @p bytes in
      *  all; 0, at first, sets no limit */
     void setMaxRepoBytes(qint64 bytes) { _maxRepoBytes = bytes; }
@@ -795,6 +799,7 @@ private:
 
     bool _textIndex = false;         //!< see setTextIndex()
     qint64 _maxRepoBytes = 0;        //!< see setMaxRepoBytes()
+    QElapsedTimer _lastRequest;      //!< see msSinceRequest()
     int _idleMs = 30000;             //!< see setIdleTimeout()
     int _folderListMs = 60000;       //!< see setFolderListAge()
     int _stackWalkMs = 600000;       //!< see setStackWalk()
