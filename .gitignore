@@ -51,3 +51,7 @@ build-appimage/
 
 # where each part of a screenshot is, for annotate_screenshot.py
 doc/images/*.json
+
+# screenshots which are only drawn into their labelled versions
+doc/images/drag-to-folder.png
+doc/images/page-remove.png
