@@ -9,6 +9,7 @@ Paperman
 
    introduction
    install
+   getpaperman.com <https://getpaperman.com>
 
 .. toctree::
    :maxdepth: 2

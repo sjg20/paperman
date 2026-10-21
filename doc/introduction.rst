@@ -6,6 +6,9 @@ pages, and lets you view, arrange, annotate, print, search and send them.
 It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
 format.
 
+Paperman's website, `getpaperman.com <https://getpaperman.com>`__, has an
+overview of what it does and the downloads for each platform.
+
 Paperman has three parts:
 
 The desktop program
