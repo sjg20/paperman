@@ -29,7 +29,9 @@ Features
    reviewers)
 -  **Dark mode** follows the system theme
 -  **Local URL** for fast downloads when on the same LAN as the server
--  Credentials and server URL saved locally for auto-reconnect
+-  Server URL and user name saved locally for auto-reconnect, with the
+   password in the phone's secure storage (the Android Keystore or the
+   iPhone's Keychain)
 
 Scanning
 --------
