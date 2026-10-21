@@ -108,12 +108,14 @@ void printUsage(const char *progName)
               << "  -r, --read-pages <n> Read the pages of every stack in the\n"
               << "                       background (OCR), n stacks at a time,\n"
               << "                       keeping the words with the pages\n"
-              << "  --demo <dir>         Serve a demo: each login, with any name\n"
-              << "                       and the demo password, gets a copy of\n"
-              << "                       the repository of its own, kept in\n"
-              << "                       <dir> until it is quiet for a while.\n"
+              << "  --demo <dir>         Serve a demo: each name and password\n"
+              << "                       logged in with gets a copy of the\n"
+              << "                       repository of its own, kept in <dir>\n"
+              << "                       until it is quiet for a while, which\n"
+              << "                       logging in with them again joins.\n"
               << "                       It listens on the loopback address only\n"
-              << "  --demo-password <pw> The demo's password (default: demo)\n"
+              << "  --demo-password <pw> Let only this password log in\n"
+              << "                       (default: any)\n"
               << "  --demo-sessions <n>  Sessions at once (default: 100)\n"
               << "  --demo-idle <min>    Minutes a session may be quiet (default: 60)\n"
               << "  --demo-space <mb>    Space for each session (default: 200)\n"
@@ -316,7 +318,7 @@ int main(int argc, char *argv[])
     int readWorkers = 0;
     bool textIndex = false;
     QString demoDir;
-    QString demoPassword = "demo";
+    QString demoPassword;
     DemoServer::Limits demoLimits;
 
     for (int i = 1; i < args.size(); i++) {

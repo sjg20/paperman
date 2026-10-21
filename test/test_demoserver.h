@@ -27,8 +27,14 @@ private slots:
    //! the status is there without a login, but nothing else is
    void testStatusWithoutLogin ();
 
-   //! the demo's password starts a session, with a copy of the papers
+   //! a name and password start a session, with a copy of the papers
    void testLoginStartsSession ();
+
+   //! a demo with a password of its own lets in only that one
+   void testPasswordRequired ();
+
+   //! logging in with the same name and password joins the session
+   void testSessionShared ();
 
    //! what is done in one session is not seen in another
    void testSessionsApart ();
@@ -42,14 +48,15 @@ private slots:
    //! an upload which takes a session over its space is refused
    void testUploadLimit ();
 
-   /** the client the desktop program uses logs in and works with its own
-       session, apart from another client's */
+   /** clients, such as the desktop program and the phone, which log in
+       with the same name and password share a session, and see each
+       other's changes; another client works apart from them */
    void testClient ();
 
 private:
-   /** Start a demo server on a copy of a few test stacks, with @p limits
-       if given */
-   void startDemo ();
+   /** Start a demo server on a copy of a few test stacks, letting in only
+       @p password, or any if it is empty */
+   void startDemo (const QString &password = QString ());
 
    /** Send a request to the demo server
 

@@ -99,12 +99,14 @@ A demo for anyone to try
 ------------------------
 
 With ``--demo``, the server lets anyone try Paperman on some papers of
-their own. Logging in with any name and the demo's password starts a
-session: a copy of the repository given, for that login alone. Each
-visitor can file, rename, delete and scan as they like, without seeing
-anything of anyone else's, and the repository given is never changed. A
-session ends once nothing has been connected to it for a while, and its
-copy is deleted.
+their own. Logging in with a name and a password of your choosing starts
+a session: a copy of the repository given, for that name and password.
+Logging in with the same name and password again, as from a phone beside
+the desktop program, joins the session, and each sees what the other
+does. Anyone else has a session of their own, and can file, rename,
+delete and scan as they like, without seeing anything of anyone else's.
+The repository given is never changed. A session ends once nothing has
+been connected to it for a while, and its copy is deleted.
 
 .. code:: bash
 
@@ -114,7 +116,8 @@ The folder given to ``--demo`` holds the sessions' copies: everything in
 it is deleted when the server starts, so give it a folder of its own.
 These set the limits:
 
--  ``--demo-password <pw>`` - the password (default: ``demo``)
+-  ``--demo-password <pw>`` - let only this password log in (default:
+   any)
 -  ``--demo-sessions <n>`` - sessions at once (default: 100); a login
    beyond them is told to try again later
 -  ``--demo-idle <min>`` - how long a session may be quiet (default: 60)
@@ -129,7 +132,8 @@ user of its own, which can write only to the sessions' folder. It needs
 Linux or another Unix.
 
 The desktop program and the app reach it as they do any server, and ask
-for a user and password the first time.
+for a user and password the first time. Give each the same name and
+password to work on the same papers from both.
 
 Connecting Clients
 ------------------

@@ -21,6 +21,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
@@ -74,10 +75,10 @@ DemoServer::DemoServer (const QString &templateDir,
 
 DemoServer::~DemoServer ()
    {
-   const QStringList tokens = _sessions.keys ();
+   const QStringList keys = _sessions.keys ();
 
-   for (const QString &token : tokens)
-      endSession (token);
+   for (const QString &key : keys)
+      endSession (key);
 #ifdef Q_OS_UNIX
    for (int i = 0; i < _pending.size (); i++)
       ::close (_pending[i].fd);
@@ -128,7 +129,7 @@ bool DemoServer::start (QString &error)
 
 QString DemoServer::sessionDir (const QString &token) const
    {
-   auto it = _sessions.constFind (token);
+   auto it = _sessions.constFind (_tokens.value (token));
 
    return it == _sessions.constEnd () ? QString () : it->dir;
    }
@@ -211,7 +212,7 @@ void DemoServer::dispatch (qintptr fd, const QByteArray &header)
          }
       }
 
-   auto it = _sessions.find (QString::fromLatin1 (token));
+   auto it = _sessions.find (_tokens.value (QString::fromLatin1 (token)));
 
    if (method == "POST" && path == "/v1/auth/login")
       login (fd);
@@ -230,7 +231,8 @@ void DemoServer::dispatch (qintptr fd, const QByteArray &header)
       /* the same words as SearchServer's, which a client takes as a
          sign to log in */
       reply (fd, 401, "{\"success\":false,\"error\":\"Invalid or missing "
-             "credentials. Log in with any name and the demo's password\"}");
+             "credentials. Log in to start a session, or to join one with "
+             "its name and password\"}");
    }
 
 
@@ -275,17 +277,19 @@ void DemoServer::login (qintptr fd)
       QJsonObject in = QJsonDocument::fromJson (
                           got->mid (end + 4, want)).object ();
       QString user = in.value ("user").toString ();
+      QString password = in.value ("password").toString ();
       QString token;
 
       sock->setProperty ("answered", true);
-      if (user.isEmpty () || in.value ("password").toString () != _password)
+      if (user.isEmpty () || password.isEmpty ()
+          || (!_password.isEmpty () && password != _password))
          {
          reply (sock, 401, "{\"success\":false,"
                 "\"error\":\"Invalid credentials\"}");
          return;
          }
 
-      QString err = startSession (token);
+      QString err = joinSession (user, password, token);
 
       if (!err.isEmpty ())
          {
@@ -347,8 +351,31 @@ static QString randomHex (int bytes)
    }
 
 
-QString DemoServer::startSession (QString &token)
+//! the tokens a session keeps, as logging in again gives another
+static const int kMaxTokens = 20;
+
+
+QString DemoServer::joinSession (const QString &user,
+                                 const QString &password, QString &token)
    {
+   /* the name and password choose the session; keep neither, nor what a
+      key is made from */
+   QString key = QString::fromLatin1 (QCryptographicHash::hash (
+                    (user + QChar (0) + password).toUtf8 (),
+                    QCryptographicHash::Sha256).toHex ());
+   auto it = _sessions.find (key);
+
+   token = randomHex (32);
+   if (it != _sessions.end ())
+      {
+      it->tokens.append (token);
+      _tokens.insert (token, key);
+      while (it->tokens.size () > kMaxTokens)
+         _tokens.remove (it->tokens.takeFirst ());
+      it->quiet.restart ();
+      return QString ();
+      }
+
    if (_sessions.size () >= _limits.sessions)
       reap ();
    if (_sessions.size () >= _limits.sessions)
@@ -369,21 +396,24 @@ QString DemoServer::startSession (QString &token)
    sess.server->setMaxRepoBytes (_limits.maxBytes);
    sess.server->prepare ();
    sess.quiet.start ();
+   sess.tokens.append (token);
 
-   token = randomHex (32);
-   _sessions.insert (token, sess);
+   _sessions.insert (key, sess);
+   _tokens.insert (token, key);
    qInfo () << "DemoServer: started a session in" << sess.dir << "with"
             << _sessions.size () << "under way";
    return QString ();
    }
 
 
-void DemoServer::endSession (const QString &token)
+void DemoServer::endSession (const QString &key)
    {
-   Session sess = _sessions.take (token);
+   Session sess = _sessions.take (key);
 
    if (!sess.server)
       return;
+   for (const QString &token : sess.tokens)
+      _tokens.remove (token);
 
    // the server's connections are its children, so close with it
    delete sess.server;
@@ -396,11 +426,11 @@ void DemoServer::endSession (const QString &token)
 
 void DemoServer::reap ()
    {
-   const QStringList tokens = _sessions.keys ();
+   const QStringList keys = _sessions.keys ();
 
-   for (const QString &token : tokens)
+   for (const QString &key : keys)
       {
-      Session &sess = _sessions[token];
+      Session &sess = _sessions[key];
 
       /* a session is in use while anything is connected to it, as an
          event stream is while a client shows it */
@@ -415,7 +445,7 @@ void DemoServer::reap ()
                  > _limits.maxBytes + _limits.maxBytes / 2;
 
       if (idle || big)
-         endSession (token);
+         endSession (key);
       }
    }
 

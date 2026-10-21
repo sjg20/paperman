@@ -45,12 +45,12 @@ void TestDemoServer::cleanup ()
    }
 
 
-void TestDemoServer::startDemo ()
+void TestDemoServer::startDemo (const QString &password)
    {
    QString error;
 
    if (!_demo)
-      _demo = new DemoServer (_papers, _dir->path () + "/sessions", "demo",
+      _demo = new DemoServer (_papers, _dir->path () + "/sessions", password,
                               0);
    QVERIFY2 (_demo->start (error), qPrintable (error));
    }
@@ -127,8 +127,9 @@ void TestDemoServer::testLoginStartsSession ()
    {
    startDemo ();
 
-   QCOMPARE (login ("test", "wrong"), QString ());
+   // a name and a password are both needed
    QCOMPARE (login ("", "demo"), QString ());
+   QCOMPARE (login ("test", ""), QString ());
    QCOMPARE (_demo->sessionCount (), 0);
 
    QString token = login ();
@@ -148,13 +149,49 @@ void TestDemoServer::testLoginStartsSession ()
    }
 
 
+void TestDemoServer::testPasswordRequired ()
+   {
+   startDemo ("demo");
+
+   QCOMPARE (login ("test", "wrong"), QString ());
+   QCOMPARE (_demo->sessionCount (), 0);
+   QVERIFY (!login ("test", "demo").isEmpty ());
+   QCOMPARE (_demo->sessionCount (), 1);
+   }
+
+
+void TestDemoServer::testSessionShared ()
+   {
+   startDemo ();
+
+   // as from a desktop, then from a phone
+   QString first = login ("daniel", "secret");
+   QString second = login ("daniel", "secret");
+
+   QVERIFY (!first.isEmpty () && !second.isEmpty ());
+   QVERIFY (first != second);
+   QCOMPARE (_demo->sessionCount (), 1);
+   QCOMPARE (_demo->sessionDir (first), _demo->sessionDir (second));
+
+   // what one does, the other sees
+   QByteArray resp = request ("POST",
+      "/v1/repos/Paperman/stacks/bills/one.max/delete", first);
+
+   QVERIFY2 (resp.startsWith ("HTTP/1.1 200"), resp.constData ());
+   resp = request ("GET", "/browse?repo=Paperman&path=bills", second);
+   QVERIFY (resp.startsWith ("HTTP/1.1 200"));
+   QVERIFY (!bodyOf (resp).contains ("one.max"));
+   QVERIFY (bodyOf (resp).contains ("two.max"));
+   }
+
+
 void TestDemoServer::testSessionsApart ()
    {
    startDemo ();
 
-   // two people may give the same name
-   QString first = login ("test");
-   QString second = login ("test");
+   // two people may give the same name, but not the same password too
+   QString first = login ("test", "first");
+   QString second = login ("test", "second");
 
    QVERIFY (!first.isEmpty () && !second.isEmpty ());
    QVERIFY (first != second);
@@ -184,6 +221,7 @@ void TestDemoServer::testQuietSessionEnds ()
    startDemo ();
 
    QString token = login ();
+   QString again = login ();
    QString dir = _demo->sessionDir (token);
 
    QVERIFY (QFileInfo::exists (dir));
@@ -194,8 +232,9 @@ void TestDemoServer::testQuietSessionEnds ()
    QCOMPARE (_demo->sessionCount (), 0);
    QVERIFY (!QFileInfo::exists (dir));
 
-   // its token no longer works
+   // none of its tokens works
    QVERIFY (request ("GET", "/repos", token).startsWith ("HTTP/1.1 401"));
+   QVERIFY (request ("GET", "/repos", again).startsWith ("HTTP/1.1 401"));
    }
 
 
@@ -216,6 +255,10 @@ void TestDemoServer::testSessionLimit ()
 
    QVERIFY (resp.startsWith ("HTTP/1.1 503"));
    QVERIFY (bodyOf (resp).contains ("busy"));
+   QCOMPARE (_demo->sessionCount (), 1);
+
+   // the session under way can still be joined
+   QVERIFY (!login ().isEmpty ());
    QCOMPARE (_demo->sessionCount (), 1);
    }
 
@@ -266,23 +309,23 @@ void TestDemoServer::testClient ()
    startDemo ();
 
    QUrl url (QString ("http://127.0.0.1:%1").arg (_demo->serverPort ()));
-   RemoteBackend first (url);
-   RemoteBackend second (url);
+   RemoteBackend desktop (url);
+   RemoteBackend phone (url);
+   RemoteBackend other (url);
    const QStringList both = {"one.max", "two.max"};
 
-   // nothing is shown without the demo's password
-   QVERIFY (!first.login ("daniel", "wrong"));
-   QVERIFY (billNames (first).isEmpty ());
+   // nothing is shown without logging in
+   QVERIFY (billNames (desktop).isEmpty ());
 
-   // the same name twice gives two sessions
-   QVERIFY (first.login ("daniel", "demo"));
-   QVERIFY (second.login ("daniel", "demo"));
+   // the same name and password share a session; another password not
+   QVERIFY (desktop.login ("daniel", "secret"));
+   QVERIFY (phone.login ("daniel", "secret"));
+   QVERIFY (other.login ("daniel", "another"));
    QCOMPARE (_demo->sessionCount (), 2);
-   QCOMPARE (billNames (first), both);
-   QCOMPARE (billNames (second), both);
+   QCOMPARE (billNames (desktop), both);
 
-   // what one does, the other does not see
-   QVERIFY (first.deleteStack ("Paperman", "bills/one.max"));
-   QCOMPARE (billNames (first), QStringList {"two.max"});
-   QCOMPARE (billNames (second), both);
+   // what one does, the other in the session sees, but no one else
+   QVERIFY (desktop.deleteStack ("Paperman", "bills/one.max"));
+   QCOMPARE (billNames (phone), QStringList {"two.max"});
+   QCOMPARE (billNames (other), both);
    }
