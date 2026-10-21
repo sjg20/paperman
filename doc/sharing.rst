@@ -64,29 +64,71 @@ selected:
    * - **Copy as PDF** (Ctrl+C)
      - Put them on the clipboard as PDFs, to paste anywhere (see below)
 
-Paperman makes the file and opens a new message in your mail program,
-with the file attached, for you to address and send. More than one stack
-is packed into a single zip file first.
+Paperman makes the file, named after the stack, and starts a message
+with the stack's name as its subject, for you to address and send. More
+than one stack is packed into a single zip file first. The file is put
+on the clipboard too, ready to paste into the message if it is not
+attached already.
 
-- On Windows, the mail program must take files from other programs, as
-  Outlook (classic) and Thunderbird do. The new Outlook does not, so
-  with it the message opens without the file, and you paste it in as
-  below.
+How the message is written is set by **Email with**, in the **Files**
+tab of **File > Options**:
+
+.. image:: images/email-options-windows.png
+   :alt: The Files tab of the options, with Email with set to Your mail program or Gmail in your web browser
+
+- **Your mail program**, at first: the message opens in the mail program
+  on your computer, with the file attached.
+- **Gmail in your web browser**: the message opens on Gmail's page, and
+  you paste the file in.
+
+With your mail program
+~~~~~~~~~~~~~~~~~~~~~~
+
+Select the stacks and choose **Email... > as PDF**, or another form:
+
+.. image:: images/email-menu-windows.png
+   :alt: The Email submenu of a stack, on Windows
+
+A new message opens in your mail program, here Thunderbird on Windows,
+with the PDF attached:
+
+.. image:: images/email-thunderbird-windows.png
+   :alt: A new message in Thunderbird, with the subject power bill and power bill.pdf attached
+   :target: _images/email-thunderbird-windows.png
+
+Which mail program opens depends on the computer:
+
+- On Windows, it is the default mail program, which must take files from
+  other programs, as Outlook (classic) and Thunderbird do. The new
+  Outlook does not, so with it the message opens without the file:
+  click in the message and press **Ctrl+V** to attach it.
 - On macOS, it is the one chosen in Mail's settings.
 - On Linux, Paperman gives the file to the mail program with
   ``xdg-email``, which can attach it in Thunderbird, Evolution or KMail.
+  Other mail programs open the message without the file, to paste in.
 
-The file is put on the clipboard too. When the message opens without
-it, as when no mail program can be given the file, click in the message
-and press **Ctrl+V** to attach it.
+With Gmail
+~~~~~~~~~~
 
-Gmail and other webmail
-~~~~~~~~~~~~~~~~~~~~~~~
+With **Email with** set to **Gmail in your web browser**, choose
+**Email... > as PDF** as before. A new message opens on Gmail's page in
+your web browser, saying that the file is on the clipboard:
 
-To write messages in Gmail in your web browser instead, open the
-**Files** tab of **File > Options** and set **Email with** to **Gmail in
-your web browser**. Paperman then opens a new message on Gmail's page:
-click in it and press **Ctrl+V** to attach the file.
+.. image:: images/email-gmail-windows.png
+   :alt: A new message on Gmail's page, with the subject power bill and a note to paste the file with Ctrl+V
+   :target: _images/email-gmail-windows.png
+
+Click in the message and press **Ctrl+V** (**⌘V** on a Mac). The file
+is attached:
+
+.. image:: images/email-gmail-pasted-windows.png
+   :alt: The same message, with power bill.pdf attached
+   :target: _images/email-gmail-pasted-windows.png
+
+Gmail opens in the account your web browser is signed in to first. If
+you use more than one, give the one to send from a browser profile of
+its own, and use it last: a link from another program opens in the
+profile used last.
 
 Pasting the file in works with other webmail too, such as Outlook on the
 web or Fastmail, since the clipboard is the only way to attach a file to
