@@ -109,6 +109,9 @@ private slots:
    void testScanNameTaken ();
    void testReopenPscan ();
 
+   //! A stack being scanned is shown without an error before its pages come
+   void testScanShowsNoError ();
+
    //! While the scan panel is open, Ctrl+F and F4 choose its folder
    void testFindFolderKeys ();
 

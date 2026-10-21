@@ -2294,6 +2294,11 @@ QString Desktopmodel::imageInfo (const QModelIndex &ind, int pagenum, bool extra
       return extra ? f->filename () : QString ();
 
    e = f->getImageInfo (pagenum, size, trueSize, bpp, num_bytes, csize, dt);
+
+   /* nor has a stack being scanned before its first page comes, which is
+      no error; asking has read the stack, so its count of pages is right */
+   if (e && !f->pagecount ())
+      return extra ? f->filename () : QString ();
    if (e)
       return QString (tr ("Error: %1")).arg (e->errstr);
 
