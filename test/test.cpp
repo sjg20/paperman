@@ -63,9 +63,10 @@ int test_run(int, char **in_argv, QApplication *,
    }
    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
                       settings_dir.path());
-#ifdef Q_OS_MACOS
-   /* the native settings on macOS are preferences, kept by a service
-      which takes no notice of setPath(), so use files there instead */
+#if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
+   /* the native settings are kept in the registry on Windows, and on
+      macOS as preferences, by a service; neither takes any notice of
+      setPath(), so use files there instead */
    QSettings::setDefaultFormat(QSettings::IniFormat);
    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
                       settings_dir.path());
