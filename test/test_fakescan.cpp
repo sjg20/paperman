@@ -469,6 +469,7 @@ struct ScanRun
    QStringList titles;        //!< and their titles
    QList<QSize> dpis;         //!< and the resolution each was stored at
    QList<bool> blank;         //!< which of them paperman found blank
+   QStringList messages;      //!< what the status bar was given meanwhile
    };
 
 }
@@ -506,6 +507,11 @@ static void scanStack (ScanRun &run)
                      [&run] (const QString &, bool blank)
       {
       run.blank << blank;
+      });
+   QObject::connect (desktop, &Desktopwidget::newContents,
+                     [&run] (const QString &message)
+      {
+      run.messages << message;
       });
 
    QTimer person;
@@ -584,6 +590,27 @@ static void scanStack (const QMap<QString, QString> &options,
 
 /* The whole way through: sheets in the hopper become pages of a stack,
    each where it belongs */
+void TestFakescan::testScanShowsNoError ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+
+   ScanRun run;
+
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (run.pages.size (), 2);
+
+   /* the new stack is shown before its first page comes, which is not
+      to be reported as a page out of range */
+   for (const QString &message : run.messages)
+      QVERIFY2 (!message.contains ("out of range"), qPrintable (message));
+}
+
+
 void TestFakescan::testScanIntoStack ()
 {
    // a black band across the top of one sheet and the foot of the other
