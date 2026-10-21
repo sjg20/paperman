@@ -23,10 +23,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QStringList>
 #include <QDesktopServices>
 #include <QKeySequence>
 #include <QSettings>
-#include <QUrlQuery>
 
 #include "mailer.h"
 
@@ -117,14 +117,26 @@ static QString pasteNote ()
    }
 
 
+/** give a URL a query of names and values, with the values fully
+    encoded: a '+' left as it is is read as a space by Gmail and by many
+    mail programs */
+static void setQuery (QUrl &url,
+                      const QList<QPair<QString, QString>> &items)
+   {
+   QStringList parts;
+
+   for (const auto &item : items)
+      parts << item.first + "="
+               + QString::fromLatin1 (QUrl::toPercentEncoding (item.second));
+   url.setQuery (parts.join ('&'), QUrl::StrictMode);
+   }
+
+
 void Mailer::composeWithoutFile (const QString &subject)
    {
    QUrl url ("mailto:");
-   QUrlQuery query;
 
-   query.addQueryItem ("subject", subject);
-   query.addQueryItem ("body", pasteNote ());
-   url.setQuery (query);
+   setQuery (url, {{"subject", subject}, {"body", pasteNote ()}});
    open (url);
    }
 
@@ -134,13 +146,9 @@ void Mailer::composeWithGmail (const QString &subject)
    /* Gmail's compose page takes no attachment, but the browser treats a
       file pasted into it from the clipboard as one */
    QUrl url ("https://mail.google.com/mail/");
-   QUrlQuery query;
 
-   query.addQueryItem ("view", "cm");
-   query.addQueryItem ("fs", "1");
-   query.addQueryItem ("su", subject);
-   query.addQueryItem ("body", pasteNote ());
-   url.setQuery (query);
+   setQuery (url, {{"view", "cm"}, {"fs", "1"}, {"su", subject},
+                   {"body", pasteNote ()}});
    open (url);
    }
 

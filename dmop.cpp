@@ -40,6 +40,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QEventLoop>
 #include <QElapsedTimer>
 #include <QJsonDocument>
+#include <QTemporaryDir>
 #include <QTimer>
 #include <QJsonObject>
 #include <QMimeData>
@@ -1854,6 +1855,50 @@ void Desktopmodel::opTransformPageRemote (File *file, Desk *desk,
    }
 
 
+/** give a file made in the temporary folder the name it should go by
+
+   A file made there is given a number when another of the same name is
+   there already, so that a stack sent twice goes as "power bill2.pdf".
+   Move it into a folder of its own, under @p name, unless it has that
+   name already
+
+   \param path   the file
+   \param name   the name it should go by
+   \returns the file's path now */
+static QString nameInFolder (const QString &path, const QString &name)
+{
+   if (QFileInfo (path).fileName () == name)
+      return path;
+
+   QTemporaryDir dir (QDir::tempPath () + "/paperman-XXXXXX");
+
+   if (!dir.isValid ())
+      return path;
+   QString dest = dir.path () + "/" + name;
+
+   // Windows cannot rename a file which something still has open
+   if (!QFile::rename (path, dest))
+      {
+      if (!QFile::copy (path, dest))
+         return path;
+      QFile::remove (path);
+      }
+   dir.setAutoRemove (false);   // the file is wanted until it is sent
+   return dest;
+}
+
+
+//! remove a file made for sending, with its folder if it had its own
+static void removeSent (const QString &path)
+{
+   QFileInfo info (path);
+
+   QFile::remove (path);
+   if (info.dir ().dirName ().startsWith ("paperman-"))
+      QDir ().rmdir (info.absolutePath ());
+}
+
+
 err_info *Desktopmodel::copyFilesToClipboard (QString &fname,
       QStringList &fnamelist, bool &can_delete)
 {
@@ -1866,7 +1911,12 @@ err_info *Desktopmodel::copyFilesToClipboard (QString &fname,
       can_delete = false;   // we need to keep the file on the clipboard
       }
    else
+      {
+      QString name = QFileInfo (fname).completeBaseName () + ".zip";
+
       CALL (util_buildZip (fname, fnamelist));
+      fname = nameInFolder (fname, name);
+      }
 
    QUrl url = QUrl::fromLocalFile (fname);
 
@@ -1897,7 +1947,7 @@ err_info *Desktopmodel::emailFiles (QString &fname, QStringList &fnamelist, bool
    /* the file goes on the clipboard however the message is started, to
       paste into it where it cannot be attached */
    CALL (copyFilesToClipboard (fname, fnamelist, can_delete));
-   Mailer::compose (fname, QFileInfo (fname).fileName ());
+   Mailer::compose (fname, QFileInfo (fname).completeBaseName ());
 
    return NULL;
 }
@@ -1918,8 +1968,9 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
    foreach (QModelIndex ind, slist)
    {
       File *f = getFile (ind);
-      File *fnew;
+      File *fnew = nullptr;
       File *copy = nullptr;
+      QString leaf = f->leaf ();   // the stack's name, without the type
 
       /* a remote stack may not be here, or only some of its pages, so
          work from the copy of the whole of it fetched first */
@@ -1952,7 +2003,15 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
       // if just copying, then get the filename
       if (type == File::Type_other)
          {
-         fname_list << (copy ? copy->pathname () : f->pathname ());
+         if (copy)
+            {
+            QString named = nameInFolder (copy->pathname (), f->filename ());
+
+            tmp_list.replace (tmp_list.indexOf (copy->pathname ()), named);
+            fname_list << named;
+            }
+         else
+            fname_list << f->pathname ();
          delete copy;   // the file stays, until it has been sent
          }
 
@@ -1968,6 +2027,10 @@ err_info *Desktopmodel::packageFiles (QModelIndexList &slist,
          if (copy)
             dropWorkCopy (copy);
          CALL (err);
+
+         // let go of the new file, which may hold it open
+         delete fnew;
+         uniq = nameInFolder (uniq, leaf + ext);
          fname_list << uniq;
          tmp_list << uniq;
       }
@@ -2067,7 +2130,7 @@ err_info *Desktopmodel::sendFiles (QModelIndexList &slist, File::e_type type,
       server which was not used */
    if (can_delete)
       for (const QString &name : tmp_list)
-         QFile::remove (name);
+         removeSent (name);
    for (const QString &copy : copies)
       if (!tmp_list.contains (copy))
          QFile::remove (copy);
