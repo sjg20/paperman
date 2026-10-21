@@ -51,6 +51,8 @@ build-appimage/
 
 # where each part of a screenshot is, for annotate_screenshot.py
 doc/images/*.json
+# but not the note of when each picture was last checked
+!doc/images/shots-checked.json
 
 # screenshots which are only drawn into their labelled versions
 doc/images/drag-to-folder.png
