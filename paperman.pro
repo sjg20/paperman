@@ -72,7 +72,7 @@ LIBS += -ltiff -ljpeg -lz
 win32 {
     INCLUDEPATH += win32
     SOURCES += win32/twainsane.cpp
-    LIBS += -luser32 -lole32
+    LIBS += -luser32 -lole32 -lshell32
 } else {
     LIBS += -lsane -ldl
 }
@@ -161,6 +161,7 @@ HEADERS += desktopwidget.h \
  pagedelegate.h \
  utils.h \
  appearance.h \
+ mailer.h \
  ocr.h \
  file.h \
  filemax.h \
@@ -259,6 +260,7 @@ SOURCES += desktopwidget.cpp \
  pagedelegate.cpp \
  utils.cpp \
  appearance.cpp \
+ mailer.cpp \
  ocr.cpp \
  dmop.cpp \
  dmuserop.cpp \
@@ -412,6 +414,10 @@ MOC_DIR = .moc
 OBJECTS_DIR = .obj
 
 macx {
+    # the mail program is reached through AppKit's share services
+    OBJECTIVE_SOURCES += mailer_mac.mm
+    LIBS += -framework AppKit
+
     # Homebrew keeps its libraries under its own prefix, which qmake does
     # not search, and has no Poppler with the Qt bindings, which is built
     # separately; pkg-config finds them all
