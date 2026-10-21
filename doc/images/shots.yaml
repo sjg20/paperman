@@ -1,0 +1,132 @@
+# The pictures in the user guide: how each is made and what it shows, so
+# that scripts/stale_shots.py can say which may need taking again after
+# the window changes. Every picture kept in doc/images must be here.
+#
+# Each entry is keyed by the picture's path in doc/images:
+#
+#   made:   test    taken by make_screenshots.sh, with the test function
+#                   (TestScreenshots) in 'test'
+#           script  drawn by a script, named in 'script'
+#           hand    taken by hand, with the platform in 'platform' and
+#                   the steps in 'steps'
+#   shows:  the files whose look the picture shows, and the groups
+#           below (named with @); a picture changed before one of them
+#           may be out of date. A directory stands for all in it
+
+groups:
+  # the main window, as most pictures show some of it
+  window:
+    - mainwindow.ui
+    - mainwindow.cpp
+    - toolbar.ui
+    - desktopwidget.cpp
+    - desktopdelegate.cpp
+    - desktopview.cpp
+    - dirview.cpp
+    - pagewidget.cpp
+    - pagetools.ui
+    - pageview.cpp
+    - pagedelegate.cpp
+    - ocrbar.ui
+    - appearance.cpp
+    - images/icons/
+  # the demo papers which the pictures show
+  papers:
+    - scripts/make_demo_corpus.py
+    - scripts/corpus/
+  # the labels and arrows drawn on a picture
+  labels:
+    - scripts/annotate_screenshot.py
+  # the dialogs which find a folder by part of its name
+  folders:
+    - move.ui
+    - folderlist.cpp
+    - foldersel.h
+
+shots:
+  desktop.png:
+    made: test
+    test: testDesktop
+    shows: ['@window', '@papers']
+  desktop-labelled.png:
+    made: test
+    test: testDesktop
+    shows: ['@window', '@papers', '@labels']
+  desktop-dark.png:
+    made: test
+    test: testDesktopDark
+    shows: ['@window', '@papers']
+  icons/:
+    made: test
+    test: testToolbarIcons
+    shows: [mainwindow.ui, toolbar.ui, pagetools.ui, images/icons/]
+  page-view.png:
+    made: test
+    test: testPageView
+    shows: ['@window', '@papers']
+  search-dialog.png:
+    made: test
+    test: testSearch
+    shows: [search.ui]
+  search-results.png:
+    made: test
+    test: testSearch
+    shows: ['@window', '@papers']
+  go-to-folder.png:
+    made: test
+    test: testGoToFolder
+    shows: ['@folders', '@papers']
+  scan-panel.png:
+    made: test
+    test: testScanPanel
+    shows: [pscan.ui, pscan.cpp]
+  scan-folders.png:
+    made: test
+    test: testScanPanel
+    shows: [pscan.ui, pscan.cpp, folderlist.cpp, '@papers']
+  stack-menu.png:
+    made: test
+    test: testStackMenu
+    shows: [desktopwidget.cpp]
+  duplicate-menu.png:
+    made: test
+    test: testDuplicateMenu
+    shows: [desktopwidget.cpp]
+  folder-menu.png:
+    made: test
+    test: testFolderMenu
+    shows: [dirview.cpp]
+  move-to-folder.png:
+    made: test
+    test: testMoveToFolder
+    shows: ['@folders', '@papers']
+  filter.png:
+    made: test
+    test: testFilter
+    shows: ['@window', '@papers']
+  page-remove-labelled.png:
+    made: test
+    test: testRemovePage
+    shows: [pagewidget.cpp, pagetools.ui, pageview.cpp, pagedelegate.cpp,
+            '@papers', '@labels']
+  drag-to-folder-labelled.png:
+    made: test
+    test: testDragToFolder
+    shows: ['@window', '@papers', '@labels']
+  email-menu.png:
+    made: test
+    test: testEmailMenu
+    shows: [desktopwidget.cpp]
+  print-options.png:
+    made: test
+    test: testPrintOptions
+    shows: [printopt.ui]
+  server-labelled.png:
+    made: test
+    test: testServer
+    shows: ['@window', '@papers', '@labels']
+  parts.png:
+    made: script
+    script: scripts/draw_diagram.py
+    shows: ['@window', '@papers', scripts/draw_diagram.py,
+            app/assets/icon.png]

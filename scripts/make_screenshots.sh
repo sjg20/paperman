@@ -4,7 +4,9 @@
 # Take the screenshots for the documentation and the website
 #
 # Some are also drawn with their parts labelled, by annotate_screenshot.py,
-# and draw_diagram.py draws how Paperman's parts work together.
+# and draw_diagram.py draws how Paperman's parts work together. Each is
+# listed in doc/images/shots.yaml, and stale_shots.py says which may need
+# taking again after the window changes.
 #
 # They show the demo corpus (see doc/corpus.rst), which is made first if
 # it is not there, and read by OCR so that its text can be shown and
@@ -71,7 +73,18 @@ HOME=$home QT_QPA_PLATFORM=offscreen QTEST_FUNCTION_TIMEOUT=120000 \
 	PAPERMAN_SHOTS_DIR=$(realpath "$out") \
 	"${clock[@]}" "$paperman" -t TestScreenshots 2>&1 |
 	grep -E '^(PASS|FAIL|Totals)|saved'
+status=${PIPESTATUS[0]}
 
 # and label the parts of those which say where they are
 "$(dirname "$0")/annotate_screenshot.py" "$out"
 "$(dirname "$0")/draw_diagram.py" "$out"
+
+# note that the pictures taken here are up to date, even those which come
+# out the same, unless a test failed, or they went elsewhere
+if [ "$status" -ne 0 ]; then
+	echo "Some screenshots failed, so none are noted as up to date" >&2
+	exit 1
+fi
+if [ "$(realpath "$out")" = "$(realpath "$(dirname "$0")/../doc/images")" ]; then
+	"$(dirname "$0")/stale_shots.py" --checked --made test script
+fi

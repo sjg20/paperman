@@ -148,6 +148,33 @@ suite skips unless ``PAPERMAN_SHOTS_REPO`` and ``PAPERMAN_SHOTS_DIR`` are
 set, as the script sets them, so it does nothing in an ordinary test run.
 To show something new, add a test to ``test/test_screenshots.cpp``.
 
+Keeping them up to date
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Each picture kept in ``doc/images`` is listed in ``doc/images/shots.yaml``
+with how it is made, by the script or by hand, and the files whose look
+it shows, such as the forms and the code drawing the window.
+``scripts/stale_shots.py`` lists the pictures which may be out of date:
+those changed before a later change to one of their files, with those
+changes and how to take each again, including the steps for one taken by
+hand:
+
+.. code:: bash
+
+   scripts/stale_shots.py
+
+``make_screenshots.sh`` notes in ``doc/images/shots-checked.json`` that
+the pictures it takes are up to date, so that one which comes out the
+same, and so is not changed, is not listed again. After taking a picture
+by hand which comes out the same, note it in the same way:
+
+.. code:: bash
+
+   scripts/stale_shots.py --checked email-thunderbird.png
+
+The checker fails if a picture is kept but not listed, so add each new
+one to ``shots.yaml``.
+
 Sources
 -------
 
