@@ -37,6 +37,8 @@
 #include <QMimeData>
 #include <QClipboard>
 #include <QBuffer>
+#include <thread>
+
 #include <QFont>
 #include <QImage>
 #include <QPainter>
@@ -2112,6 +2114,55 @@ void TestSearchServer::testDesktopRemoteOpenStack()
     int tbpp;
     QVERIFY(!model3.getImage(stack3, 0, false, turned, tsz1, tsz2, tbpp));
     QCOMPARE(turned.size(), QSize(before.height(), before.width()));
+
+    server.stop();
+}
+
+
+void TestSearchServer::testMoveWhileOpen()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QString stack = tmpDir.path() + "/busy.max";
+
+    {
+        QFile f(stack);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("contents");
+    }
+    QVERIFY(QDir(tmpDir.path()).mkdir("sub"));
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    /* something else has the stack open for a moment, as a virus checker
+       may have a file just made; on Windows it cannot be renamed until
+       that lets go, so the server must wait a little rather than fail.
+       It is held by another thread, as the server and this test share
+       this one */
+    QAtomicInt opened = 0;
+    std::thread holder([&stack, &opened] {
+        QFile f(stack);
+
+        if (f.open(QIODevice::ReadOnly)) {
+            opened = 1;
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        } else {
+            opened = -1;
+        }
+    });
+
+    QTRY_VERIFY(opened.loadRelaxed() != 0);
+    QCOMPARE(opened.loadRelaxed(), 1);
+
+    auto r = postJson(QString("/v1/repos/%1/stacks/busy.max/move").arg(repo),
+                      R"({"destDir":"sub"})");
+    holder.join();
+    QVERIFY2(r.header.contains("200"), qPrintable(r.header + r.body));
+    QVERIFY(QFile::exists(tmpDir.path() + "/sub/busy.max"));
+    QVERIFY(!QFile::exists(stack));
 
     server.stop();
 }
