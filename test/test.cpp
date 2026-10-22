@@ -23,6 +23,7 @@
 #include "test_localbackend.h"
 #include "test_ocrsearch.h"
 #include "test_screenshots.h"
+#include "test_video.h"
 #include "test_demoserver.h"
 
 //QTEST_MAIN(TestPaperman)
@@ -46,6 +47,7 @@ static TestAsync TEST_ASYNC("async");
 static TestTraffic TEST_TRAFFIC("traffic");
 static TestFakescan TEST_FAKESCAN("fakescan");
 static TestScreenshots TEST_SCREENSHOTS("screenshots");
+static TestVideo TEST_VIDEO("video");
 
 int test_run(int, char **in_argv, QApplication *,
              const char *filter)
