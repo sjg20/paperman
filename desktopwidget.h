@@ -90,6 +90,7 @@ class Desktopwidget : public QSplitter //QWidget
    friend class TestDesktopUi;
    friend class TestOps;
    friend class TestScreenshots;
+   friend class TestVideo;
 
 public:
    /** construct a desktop widget */

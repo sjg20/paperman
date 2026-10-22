@@ -351,6 +351,7 @@ test {
       test/remoteharness.cpp \
       test/test_fakescan.cpp \
       test/test_screenshots.cpp \
+      test/test_video.cpp \
       desklayout.cpp \
       searchserver.cpp \
       demoserver.cpp \
@@ -382,6 +383,7 @@ test {
       test/remoteharness.h \
       test/test_fakescan.h \
       test/test_screenshots.h \
+      test/test_video.h \
       test/fakescan/fakescan.h \
       test/scansettings.h \
       desklayout.h \

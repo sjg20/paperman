@@ -139,6 +139,7 @@ class Pagewidget : public QWidget
    friend class TestPagewidget;
    friend class TestTraffic;
    friend class TestScreenshots;
+   friend class TestVideo;
 
 public:
    /** which mode the viewer is in */

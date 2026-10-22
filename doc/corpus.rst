@@ -175,6 +175,24 @@ by hand which comes out the same, note it in the same way:
 The checker fails if a picture is kept but not listed, so add each new
 one to ``shots.yaml``.
 
+Video
+-----
+
+``scripts/make_video.sh`` records a short video of Paperman being used on
+the corpus, for the website: browsing, scanning with the fake scanner,
+searching and filing, with a caption for each:
+
+.. code:: bash
+
+   scripts/make_video.sh paperman-demo.mp4
+
+The ``TestVideo`` suite plays it at a person's pace, moving the pointer
+to each thing it clicks and typing a letter at a time, while the script
+records a display of its own (Xvfb, with the metacity window manager)
+with ffmpeg, then puts the captions on. Like the screenshot suite it
+skips unless the script sets its variables. It works on a copy of the
+corpus, since it scans into it and moves a stack.
+
 Sources
 -------
 
