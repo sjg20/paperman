@@ -1423,6 +1423,26 @@ static bool parseJsonBody(const QHash<QString, QString> &params,
     return true;
 }
 
+/* Rename @from to @to. On Windows a file cannot be renamed while anything
+   has it open, as a virus checker or the text index may have one for a
+   moment, just after it is made or changed, so try again for a moment
+   there if the rename fails while @from is still there and @to is not */
+static bool renameFile(const QString &from, const QString &to)
+{
+#ifdef Q_OS_WIN
+    for (int tries = 0; ; tries++) {
+        if (QFile::rename(from, to))
+            return true;
+        if (tries >= 10 || !QFile::exists(from) || QFile::exists(to))
+            return false;
+        QThread::msleep(50);
+    }
+#else
+    return QFile::rename(from, to);
+#endif
+}
+
+
 QByteArray SearchServer::handleRename(const QString &path,
                                       const QHash<QString, QString> &params,
                                       const QString &authedUser)
@@ -1469,7 +1489,7 @@ QByteArray SearchServer::handleRename(const QString &path,
                                          "No unique name available"));
     }
     if (newName != fi.fileName()
-        && !QFile::rename(target.fullPath, dir + "/" + newName))
+        && !renameFile(target.fullPath, dir + "/" + newName))
         return buildHttpResponse(500, "Internal Server Error",
                                  "application/json",
                                  buildJsonResponse(false, "",
@@ -1541,7 +1561,7 @@ QByteArray SearchServer::handleMove(const QString &path,
     }
 
     bool ok = copy ? QFile::copy(target.fullPath, destPath + "/" + name)
-                   : QFile::rename(target.fullPath, destPath + "/" + name);
+                   : renameFile(target.fullPath, destPath + "/" + name);
     if (!ok)
         return buildHttpResponse(500, "Internal Server Error",
                                  "application/json",

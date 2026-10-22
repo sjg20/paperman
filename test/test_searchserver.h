@@ -175,6 +175,8 @@ private slots:
    void testDesktopRemoteOpenStack();
 
    //! Rename/move/delete/page-rename endpoints mutate server files
+   //! a stack is moved though something has it open for a moment
+   void testMoveWhileOpen();
    void testMutationEndpoints();
 
    //! Desktop rename/trash/delete of remote stacks, with undo
