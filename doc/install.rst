@@ -194,3 +194,18 @@ Paperman keeps papers in folders it calls repositories. On a first run
 there are none, so it asks whether to keep them in ``Paperman`` in your
 Documents folder, or another folder of your choosing. More can be added
 at any time with **File > Add repository**.
+
+Updates
+-------
+
+Once a day Paperman asks getpaperman.com for the latest version. When
+there is a newer one, a link at the bottom right of the window says so
+and opens the page to download it from. A snap is kept up to date by
+the Snap Store, so it shows no link.
+
+The request carries only the version in use, the operating system, the
+processor and the kind of package, such as AppImage or snap: nothing
+identifies you, your computer or your papers. Counting these requests
+shows roughly how many people use Paperman. To turn the check off, clear
+**Check for a newer version once a day** in the **Updates** tab of the
+options.

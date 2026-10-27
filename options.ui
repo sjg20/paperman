@@ -312,6 +312,37 @@ file to attach, or with Gmail in your web browser, pasting the file in</string>
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="updates">
+      <attribute name="title">
+       <string>Updates</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_updates">
+       <item>
+        <widget class="QCheckBox" name="checkUpdates">
+         <property name="text">
+          <string>Check for a newer version once a day</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="checkUpdatesNote">
+         <property name="text">
+          <string>Paperman asks getpaperman.com for the latest version, sending only the version in use, the operating system, the processor and the kind of package. Nothing identifies you or your papers.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_updates">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item>
