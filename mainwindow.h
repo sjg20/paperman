@@ -141,6 +141,12 @@ public slots:
 
     void welcome ();
 
+    /** show a link to a newer version of paperman in the status bar
+
+       \param version  its version, such as "1.5.0"
+       \param url      the page to download it from */
+    void newerVersion (const QString &version, const QUrl &url);
+
     void undoChanged (void);
 
     void on_actionDirFilter_triggered(bool state);
@@ -178,6 +184,7 @@ private:
 
     QProgressBar *_progress;
     QLabel *_label;
+    QLabel *_newer = nullptr;   //!< tells of a newer version, if any
 
     /** how many operations are running: one shows the progress bar and
         the last one to finish takes it away again, since an operation

@@ -65,6 +65,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTimer>
 #include "mainwindow.h"
 #include "pagewidget.h"
+#include "updatecheck.h"
 #include "utils.h"
 #include "qxmlconfig.h"
 
@@ -458,6 +459,12 @@ void Mainwindow::runGui(QApplication& app, QStringList args,
     me->startup(args, serverUrl);
     me->offerRepository();
 
+    // see whether there is a newer version, once a day
+    UpdateCheck *check = new UpdateCheck(me);
+
+    connect(check, &UpdateCheck::newer, me, &Mainwindow::newerVersion);
+    check->start();
+
     // once the window is up, as opening the scanner takes a while
     QTimer::singleShot(0, me, [me]() { me->_main->reopenPscan(); });
     app.exec();
@@ -488,6 +495,23 @@ void Mainwindow::welcome ()
       statusBar()->showMessage (tr ("Welcome to Paperman, a scanning and filing application to help you manage your paper mountain"), 5000);
       _welcome_shown = true;
       }
+   }
+
+void Mainwindow::newerVersion (const QString &version, const QUrl &url)
+   {
+   if (!_newer)
+      {
+      _newer = new QLabel (this);
+      _newer->setOpenExternalLinks (true);
+      _newer->setTextFormat (Qt::RichText);
+      // on the left of the connection to a server, if any
+      statusBar ()->insertPermanentWidget (0, _newer);
+      }
+   _newer->setText (QString ("<a href=\"%1\">%2</a>")
+                    .arg (url.toString ().toHtmlEscaped (),
+                          tr ("Paperman %1 is available").arg (version)
+                          .toHtmlEscaped ()));
+   _newer->setToolTip (tr ("Open the page to download it from"));
    }
 
 /*

@@ -25,6 +25,7 @@
 #include "test_screenshots.h"
 #include "test_video.h"
 #include "test_demoserver.h"
+#include "test_updatecheck.h"
 
 //QTEST_MAIN(TestPaperman)
 
@@ -43,6 +44,7 @@ static TestDemoServer TEST_DEMOSERVER("demoserver");
 static TestOcrSearch TEST_OCRSEARCH("ocrsearch");
 static TestLocalBackend TEST_LOCALBACKEND("localbackend");
 static TestClientConf TEST_CLIENTCONF("clientconf");
+static TestUpdateCheck TEST_UPDATECHECK("updatecheck");
 static TestAsync TEST_ASYNC("async");
 static TestTraffic TEST_TRAFFIC("traffic");
 static TestFakescan TEST_FAKESCAN("fakescan");

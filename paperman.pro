@@ -161,6 +161,7 @@ HEADERS += desktopwidget.h \
  pagedelegate.h \
  utils.h \
  appearance.h \
+ updatecheck.h \
  mailer.h \
  ocr.h \
  file.h \
@@ -260,6 +261,7 @@ SOURCES += desktopwidget.cpp \
  pagedelegate.cpp \
  utils.cpp \
  appearance.cpp \
+ updatecheck.cpp \
  mailer.cpp \
  ocr.cpp \
  dmop.cpp \
@@ -346,6 +348,7 @@ test {
       test/test_ocrsearch.cpp \
       test/test_localbackend.cpp \
       test/test_clientconf.cpp \
+      test/test_updatecheck.cpp \
       test/test_async.cpp \
       test/test_traffic.cpp \
       test/remoteharness.cpp \
@@ -378,6 +381,7 @@ test {
       test/test_ocrsearch.h \
       test/test_localbackend.h \
       test/test_clientconf.h \
+      test/test_updatecheck.h \
       test/test_async.h \
       test/test_traffic.h \
       test/remoteharness.h \

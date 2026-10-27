@@ -44,6 +44,14 @@ Release Checklist
 
       make release-upload
 
+6. Once the release has its files, set the new version in
+   ``latest.json`` on getpaperman.com, which Paperman's daily check for a
+   newer version reads::
+
+      {"version": "1.5.0", "url": "https://getpaperman.com/download/"}
+
+   Until then, people are not told of the new version.
+
 What the Workflow Does
 ----------------------
 

@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mailer.h"
 #include "ocrreader.h"
 #include "options.h"
+#include "updatecheck.h"
 
 #include <qvariant.h>
 #include <qimage.h>
@@ -125,6 +126,8 @@ void Options::init()
    // the entries are in the order of Appearance::e_mode
    appearance->setCurrentIndex (Appearance::mode ());
 
+   checkUpdates->setChecked (UpdateCheck::enabled ());
+
    connect (threshold, SIGNAL (signalValueChanged(int)), this, SLOT (updateThreshold (int)));
    connect (limit, SIGNAL (toggled(bool)), single, SLOT (setEnabled(bool)));
    connect (stackLimit, SIGNAL (toggled(bool)), stackCount, SLOT (setEnabled(bool)));
@@ -152,6 +155,8 @@ void Options::ok_clicked()
 
    if (appearance->currentIndex () != Appearance::mode ())
       Appearance::setMode ((Appearance::e_mode)appearance->currentIndex ());
+
+   UpdateCheck::setEnabled (checkUpdates->isChecked ());
 
    close ();
 }
