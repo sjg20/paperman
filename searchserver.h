@@ -527,10 +527,11 @@ private:
 
     /**
      * Get file list for a directory
+     * @param repoPath Repository root path
      * @param dirPath  Directory path (relative to root)
      * @return JSON response with file list
      */
-    QString listFiles(const QString &dirPath);
+    QString listFiles(const QString &repoPath, const QString &dirPath);
 
     /**
      * Get list of all repositories.
