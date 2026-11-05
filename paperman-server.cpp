@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QDebug>
 #include <cstdio>
 #include <cstring>
@@ -93,7 +94,7 @@ static void quitOnSignals(QCoreApplication &app)
 
 void printUsage(const char *progName)
 {
-    std::cout << "Usage: " << progName << " [options] <repository-path>\n"
+    std::cout << "Usage: " << progName << " [options] <repository-path>...\n"
               << "       " << progName << " useradd <name>\n"
               << "       " << progName << " passwd <name>\n"
               << "       " << progName << " userdel <name>\n"
@@ -122,6 +123,9 @@ void printUsage(const char *progName)
               << "  --demo-lifetime <h>  Hours a session may last (default: 24)\n"
               << "  --demo-space <mb>    Space for each session (default: 200)\n"
               << "  -h, --help           Show this help message\n"
+              << "\n"
+              << "A repository may be a folder within another, to give a user\n"
+              << "that folder alone with 'usermod <name> --repos <folder>'.\n"
               << "\n"
               << "Example:\n"
               << "  " << progName << " -p 9000 /home/user/Documents\n"
@@ -314,7 +318,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    QString repositoryPath;
+    QStringList repositoryPaths;
     quint16 port = 8080;
     bool skipCache = false;
     int readWorkers = 0;
@@ -390,7 +394,7 @@ int main(int argc, char *argv[])
             }
         }
         else if (!args[i].startsWith('-')) {
-            repositoryPath = args[i];
+            repositoryPaths << args[i];
         }
         else {
             std::cerr << "Error: Unknown option: " << args[i].toStdString() << std::endl;
@@ -399,22 +403,38 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Validate repository path
-    if (repositoryPath.isEmpty()) {
+    // Validate the repository paths
+    if (repositoryPaths.isEmpty()) {
         std::cerr << "Error: Repository path is required" << std::endl;
         printUsage(args[0].toUtf8().constData());
         return 1;
     }
 
-    QDir repoDir(repositoryPath);
-    if (!repoDir.exists()) {
-        std::cerr << "Error: Repository path does not exist: "
-                  << repositoryPath.toStdString() << std::endl;
+    QStringList names;
+    for (QString &path : repositoryPaths) {
+        QDir repoDir(path);
+        if (!repoDir.exists()) {
+            std::cerr << "Error: Repository path does not exist: "
+                      << path.toStdString() << std::endl;
+            return 1;
+        }
+        path = repoDir.absolutePath();
+
+        // clients and the users file know a repository by its name
+        QString name = QFileInfo(path).fileName();
+        if (names.contains(name)) {
+            std::cerr << "Error: Two repositories are named "
+                      << name.toStdString() << std::endl;
+            return 1;
+        }
+        names << name;
+    }
+    QString repositoryPath = repositoryPaths.first();
+
+    if (!demoDir.isEmpty() && repositoryPaths.size() > 1) {
+        std::cerr << "Error: A demo serves one repository" << std::endl;
         return 1;
     }
-
-    repositoryPath = repoDir.absolutePath();
-
     if (!demoDir.isEmpty()) {
         DemoServer demo(repositoryPath, demoDir, demoPassword, port);
         QString error;
@@ -435,10 +455,11 @@ int main(int argc, char *argv[])
     // Create and start server
     std::cout << "Starting Paperman Search Server v" CONFIG_version_str
               << " (built " SERVER_BUILD_DATE ")" << std::endl;
-    std::cout << "Repository: " << repositoryPath.toStdString() << std::endl;
+    for (const QString &path : repositoryPaths)
+        std::cout << "Repository: " << path.toStdString() << std::endl;
     std::cout << "Port: " << port << std::endl;
 
-    SearchServer server(repositoryPath, port, nullptr, skipCache);
+    SearchServer server(repositoryPaths, port, nullptr, skipCache);
     server.setReadPages(readWorkers);
     server.setTextIndex(textIndex);
     if (!server.start()) {

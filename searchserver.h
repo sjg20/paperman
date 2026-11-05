@@ -122,12 +122,19 @@ public:
 
     /**
      * Constructor for multiple repositories
+     *
+     * A repository may be a folder within another, so that a user can be
+     * given that folder alone (see UserStore::setRepos()). Its papers are
+     * then in both, and a change made through either is told to the
+     * clients of both
+     *
      * @param rootPaths List of root paths to paper repositories
      * @param port      Port to listen on (default 8080)
      * @param parent    Parent QObject
+     * @param skipCache Skip building file cache at startup
      */
     explicit SearchServer(const QStringList &rootPaths, quint16 port = 8080,
-                         QObject *parent = nullptr);
+                         QObject *parent = nullptr, bool skipCache = false);
 
     virtual ~SearchServer();
 
@@ -873,6 +880,38 @@ private:
 
     /** Send @p frame to each client following changes to @p repoName */
     void sendEvent(const QString &repoName, const QByteArray &frame);
+
+    /** The other repositories which one is within, or which are within
+     *  it, so that a change in one is a change in each of them */
+    QStringList nestedWith(const QString &repoName) const;
+
+    /** True if the repository at @p root is within another, so that it is
+     *  only listed to a user given it by name */
+    bool isNested(const QString &root) const;
+
+    /** A path in one repository as a path in another, e.g.
+     *  "letters/a.max" in "acme" is "work/acme/letters/a.max"
+     *  in the repository holding it
+     *
+     *  @param from     Name of the repository @p relPath is in
+     *  @param to       Name of the repository wanted
+     *  @param relPath  Path within @p from, empty for its top
+     *  @param inside   Returns false if it is not within @p to
+     *  @return the path within @p to, empty for its top */
+    QString pathIn(const QString &from, const QString &to,
+                   const QString &relPath, bool *inside) const;
+
+    /** Tell the clients of the repositories nested with @p repoName of a
+     *  change to a stack, as notifyStackEvent() does for its own: one
+     *  moved into or out of another is arriving or going there */
+    void relayStackEvent(const QString &repoName, const QString &op,
+                         const QString &path, const QString &newPath,
+                         const QString &name, const QString &clientId);
+
+    /** Send a stackChanged event to the clients of @p repoName */
+    void sendStackEvent(const QString &repoName, const QString &op,
+                        const QString &path, const QString &name,
+                        const QString &clientId);
 
     /** GET /v1/repos/{repo}/folders: every folder in the repository, by
      *  its path within it, for a client to find one by name */

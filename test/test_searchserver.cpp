@@ -717,6 +717,207 @@ void TestSearchServer::testFirstRepoNeedsAccess()
            .contains(" 400 "));
 }
 
+/* POST JSON with an Authorization: Bearer header */
+static TestSearchServer::Response postWithBearer(const QString &path,
+                                                 const QByteArray &body,
+                                                 const QString &token)
+{
+   QByteArray req;
+   req += "POST " + path.toUtf8() + " HTTP/1.1\r\n";
+   req += "Host: localhost\r\n";
+   req += "Authorization: Bearer " + token.toUtf8() + "\r\n";
+   req += "Content-Type: application/json\r\n";
+   req += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+   req += "Connection: close\r\n";
+   req += "\r\n";
+   req += body;
+   return sendRaw(req, TestSearchServer::PORT, 5000);
+}
+
+/* Follow a repository's events as a user, on a socket of its own */
+static bool followEvents(QTcpSocket &sock, const QString &repo,
+                         const QString &token)
+{
+   sock.connectToHost("localhost", TestSearchServer::PORT);
+   if (!sock.waitForConnected(2000))
+      return false;
+   sock.write(QString("GET /v1/repos/%1/events HTTP/1.1\r\nHost: localhost"
+                      "\r\nAuthorization: Bearer %2\r\n\r\n")
+              .arg(repo, token).toUtf8());
+   return true;
+}
+
+void TestSearchServer::testNestedRepo()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgFile = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation)
+                     + "/paperman-server/users.json";
+   QFile::remove(cfgFile);
+
+   /* the owner's papers, with a business's in a folder of them, which is
+      served as a repository too */
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   QString outer = tmp.path();
+   QString inner = outer + "/work/acme";
+   QVERIFY(QDir().mkpath(inner + "/invoices"));
+   QVERIFY(QDir().mkpath(outer + "/private/2026"));
+   QVERIFY(copyTestFile("testfile.max", outer) > 0);
+   QVERIFY(QFile::rename(outer + "/testfile.max", outer + "/secret.max"));
+   QVERIFY(copyTestFile("testfile.max", inner) > 0);
+   QString outerName = QFileInfo(outer).fileName();
+
+   {
+      UserStore store;
+      QVERIFY(store.addUser("owner", "pw"));
+      QVERIFY(store.addUser("biz", "pw"));
+      QVERIFY(store.setRepos("biz", {"acme"}));
+   }
+
+   SearchServer server({outer, inner}, PORT);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+
+   auto login = [&](const QString &user) {
+      auto resp = postJson(
+          "/v1/auth/login",
+          QString(R"({"user":"%1","password":"pw"})").arg(user).toUtf8());
+      Q_ASSERT(resp.ok());
+      return QJsonDocument::fromJson(resp.body).object()["token"].toString();
+   };
+   QString owner = login("owner");
+   QString biz = login("biz");
+
+   // the owner's papers hold the business's already, so it is not listed
+   QJsonObject repos = QJsonDocument::fromJson(
+       getWithBearer("/repos", owner).body).object();
+   QCOMPARE(repos["count"].toInt(), 1);
+   QCOMPARE(repos["repositories"].toArray()[0].toObject()["name"].toString(),
+            outerName);
+
+   // the business sees its own, without where it is on the server
+   repos = QJsonDocument::fromJson(getWithBearer("/repos", biz).body).object();
+   QCOMPARE(repos["count"].toInt(), 1);
+   QJsonObject only = repos["repositories"].toArray()[0].toObject();
+   QCOMPARE(only["name"].toString(), QString("acme"));
+   QCOMPARE(only["path"].toString(), QString("acme"));
+
+   Response r = getWithBearer("/browse?repo=acme", biz);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QVERIFY(r.body.contains("testfile.max"));
+   QVERIFY(!r.body.contains("secret.max"));
+   r = getWithBearer("/list?repo=acme", biz);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QVERIFY(r.body.contains("testfile.max"));
+   QVERIFY(!r.body.contains("secret.max"));
+   r = getWithBearer("/search?q=secret&repo=acme", biz);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QVERIFY(!r.body.contains("secret.max"));
+
+   // and cannot reach the rest of the owner's papers, however it asks
+   const QStringList refused = {
+      "/browse?repo=" + outerName, "/list", "/list?repo=" + outerName,
+      "/list?repo=acme&path=../..", "/browse?repo=acme&path=../..",
+      "/file?repo=acme&path=../../secret.max",
+      "/thumbnail?repo=acme&path=../../secret.max",
+      "/v1/repos/acme/stacks/../../secret.max/info",
+      "/v1/repos/acme/stacks/..%2F..%2Fsecret.max/info",
+      "/v1/repos/" + outerName + "/stacks/secret.max/info",
+      "/v1/repos/" + outerName + "/folders",
+      "/v1/repos/" + outerName + "/events"};
+   for (const QString &route : refused) {
+      r = getWithBearer(route, biz);
+      QVERIFY2(!r.header.contains(" 200 ") && !r.body.contains("secret"),
+               qPrintable(route + ": " + r.header));
+   }
+   r = postWithBearer("/v1/repos/acme/stacks/testfile.max/move",
+                      R"({"destDir":"../.."})", biz);
+   QVERIFY2(r.header.contains(" 400 "), qPrintable(r.header));
+   QVERIFY(QFile::exists(inner + "/testfile.max"));
+
+   // a change by the business reaches the owner, at the path the owner has
+   QTcpSocket ownerEvents, bizEvents;
+   QVERIFY(followEvents(ownerEvents, outerName, owner));
+   QVERIFY(followEvents(bizEvents, "acme", biz));
+   QTRY_COMPARE(server.eventClientCount(), 2);
+   r = postWithBearer("/v1/repos/acme/stacks/testfile.max/rename",
+                      R"({"newName":"renamed.max"})", biz);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QByteArray stream;
+   QTRY_VERIFY((stream += ownerEvents.readAll()).contains("stackChanged"));
+   QVERIFY2(stream.contains(R"("op":"rename")"), stream.constData());
+   QVERIFY2(stream.contains(R"("path":"work/acme/testfile.max")"),
+            stream.constData());
+   r = getWithBearer("/search?q=renamed&repo=" + outerName, owner);
+   QVERIFY(r.body.contains("work/acme/renamed.max"));
+
+   // the owner moving it out of the business's folder takes it away there
+   bizEvents.readAll();
+   r = postWithBearer("/v1/repos/" + outerName
+                      + "/stacks/work/acme/renamed.max/move",
+                      R"({"destDir":""})", owner);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   stream.clear();
+   QTRY_VERIFY((stream += bizEvents.readAll()).contains("stackChanged"));
+   QVERIFY2(stream.contains(R"("op":"delete")"), stream.constData());
+   QVERIFY2(stream.contains(R"("path":"renamed.max")"), stream.constData());
+
+   // and moving it back in brings it, as if it were uploaded
+   r = postWithBearer("/v1/repos/" + outerName + "/stacks/renamed.max/move",
+                      R"({"destDir":"work/acme/invoices"})", owner);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   stream.clear();
+   QTRY_VERIFY((stream += bizEvents.readAll()).contains("stackChanged"));
+   QVERIFY2(stream.contains(R"("op":"upload")"), stream.constData());
+   QVERIFY2(stream.contains(R"("path":"invoices/renamed.max")"),
+            stream.constData());
+   r = getWithBearer("/search?q=renamed&repo=acme", biz);
+   QVERIFY(r.body.contains("invoices/renamed.max"));
+
+   // a stack copied out is still there, so nothing is told
+   stream.clear();
+   r = postWithBearer("/v1/repos/" + outerName
+                      + "/stacks/work/acme/invoices/renamed.max/move",
+                      R"({"destDir":"","copy":true})", owner);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QTest::qWait(300);
+   QVERIFY(!(stream += bizEvents.readAll()).contains("stackChanged"));
+
+   /* the folders a search for a folder looks in: the business has its
+      own, by their paths within it, and none of the owner's */
+   auto folders = [&](const QString &repo, const QString &token) {
+      QStringList out;
+      for (const QJsonValue &v : QJsonDocument::fromJson(
+               getWithBearer("/v1/repos/" + repo + "/folders", token).body)
+               .object()["folders"].toArray())
+         out << v.toString();
+      out.sort();
+      return out;
+   };
+   QTRY_COMPARE(folders("acme", biz), QStringList({"invoices"}));
+   QTRY_COMPARE(folders(outerName, owner),
+                QStringList({"private", "private/2026", "work", "work/acme",
+                             "work/acme/invoices"}));
+
+   // a folder the business makes is listed to both
+   r = postWithBearer("/v1/repos/acme/folders", R"({"path":"contracts"})",
+                      biz);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QTRY_COMPARE(folders("acme", biz),
+                QStringList({"contracts", "invoices"}));
+   QTRY_VERIFY(folders(outerName, owner).contains("work/acme/contracts"));
+
+   // nor can it make one outside its own
+   r = postWithBearer("/v1/repos/acme/folders", R"({"path":"../../escape"})",
+                      biz);
+   QVERIFY2(!r.ok(), qPrintable(r.header));
+   QVERIFY(!QFileInfo::exists(outer + "/escape"));
+}
+
 void TestSearchServer::testRemoteBackendEndToEnd()
 {
    /* Full client→server→client round-trip: spin up a real

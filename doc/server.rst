@@ -27,11 +27,14 @@ desktop program does (see :doc:`install`).
 Running the Server
 ------------------
 
-Give it the repository to serve:
+Give it the repository to serve, or several:
 
 .. code:: bash
 
    ./paperman-server /home/user/Documents/papers
+
+Clients know each repository by the name of its folder, so no two may
+have the same name.
 
 Options
 ~~~~~~~
@@ -94,6 +97,42 @@ A server without users lets anyone who can reach it read and change its
 repository. Set up users before letting anything but the local machine
 reach it, and run it behind a reverse proxy (nginx or Apache) with HTTPS
 for use from outside (see :doc:`deployment`).
+
+Each user can see every repository, or only those named for them:
+
+.. code:: bash
+
+   paperman-server useradd alice            # asks for a password
+   paperman-server usermod alice --repos work,personal   # 'all' for every one
+   paperman-server userlist
+
+The server follows changes to the users at once, without a restart.
+
+Giving someone a folder of their own
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To let someone, such as a business you keep papers for, use one folder
+of your papers and nothing else, serve that folder as a repository too,
+then give them only that one:
+
+.. code:: bash
+
+   ./paperman-server /home/user/papers /home/user/papers/work/acme
+   paperman-server useradd acme
+   paperman-server usermod acme --repos acme
+
+They see a repository called ``acme``, holding what is in that folder,
+and can browse, search, scan into it, make folders and move stacks
+within it, from the desktop program or the app, as with any repository.
+Nothing outside it can be reached, nor is where it is on the server shown
+to them.
+
+You see the folder where it is in your own repository: a repository
+within another is only listed to users given it by name. Changes made
+through either are shown to the clients of both as they happen, so you
+see a scan of theirs arrive, and they see a stack you move into their
+folder. A stack deleted through their repository goes to its own trash,
+in the folder's hidden ``.maxview-trash``.
 
 A demo for anyone to try
 ------------------------
