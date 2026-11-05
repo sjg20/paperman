@@ -979,7 +979,20 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     }
     else if (path == "/list") {
         QString dirPath = params.value("path", "");
-        QString result = listFiles(dirPath);
+        QString repoName = params.value("repo", "");
+        QString repoPath = repoName.isEmpty() ? _rootPath
+            : _backend->rootPathForName(repoName);
+
+        if (repoPath.isEmpty())
+            return buildHttpResponse(404, "Not Found", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Repository not found: "
+                                         + repoName));
+        if (dirPath.startsWith('/') || dirPath.split('/').contains(".."))
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                     buildJsonResponse(false, "",
+                                                       "Invalid path"));
+        QString result = listFiles(repoPath, dirPath);
         return buildHttpResponse(200, "OK", "application/json", result);
     }
     else if (path == "/browse") {
@@ -3495,9 +3508,10 @@ QString SearchServer::searchFiles(const QString &repoPath, const QString &search
 #endif
 }
 
-QString SearchServer::listFiles(const QString &dirPath)
+QString SearchServer::listFiles(const QString &repoPath,
+                                const QString &dirPath)
 {
-    QString fullPath = _rootPath;
+    QString fullPath = repoPath;
     if (!dirPath.isEmpty()) {
         fullPath += "/" + dirPath;
     }

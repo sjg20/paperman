@@ -703,6 +703,18 @@ void TestSearchServer::testFirstRepoNeedsAccess()
    // bob still reaches his own, by name
    QVERIFY(getWithBearer("/search?q=test&repo=" + nameB, bob).ok());
    QVERIFY(getWithBearer("/browse?repo=" + nameB, bob).ok());
+
+   // and naming it lists his own files, not those of the first
+   QVERIFY(QFile::copy(repoA.path() + "/testfile.max",
+                       repoA.path() + "/alice-only.max"));
+   Response r = getWithBearer("/list?repo=" + nameB, bob);
+   QVERIFY2(r.ok(), qPrintable(r.header));
+   QVERIFY(r.body.contains("testfile.max"));
+   QVERIFY(!r.body.contains("alice-only.max"));
+   QVERIFY(getWithBearer("/list?repo=" + nameA, alice).body
+           .contains("alice-only.max"));
+   QVERIFY(getWithBearer("/list?repo=" + nameB + "&path=..", bob).header
+           .contains(" 400 "));
 }
 
 void TestSearchServer::testRemoteBackendEndToEnd()
