@@ -46,6 +46,10 @@ private slots:
    //! leaving out ?repo=
    void testFirstRepoNeedsAccess();
 
+   //! a folder served as a repository of its own gives a user that folder
+   //! alone, with changes told to the clients of both
+   void testNestedRepo();
+
    //! users.json is written privately and whole, and a file which
    //! cannot be read leaves the users as they were
    void testUserStoreFile();

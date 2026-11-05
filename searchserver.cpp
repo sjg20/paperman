@@ -127,7 +127,8 @@ SearchServer::SearchServer(const QString &rootPath, quint16 port,
 
 }
 
-SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *parent)
+SearchServer::SearchServer(const QStringList &rootPaths, quint16 port,
+                           QObject *parent, bool skipCache)
     : QTcpServer(parent)
     , _port(port)
 {
@@ -155,6 +156,11 @@ SearchServer::SearchServer(const QStringList &rootPaths, quint16 port, QObject *
 
     // Clean old thumbnails from cache
     cleanThumbnailCache();
+
+    if (skipCache) {
+        qDebug() << "SearchServer: Skipping file cache build (--no-cache)";
+        return;
+    }
 
     QElapsedTimer cacheTimer;
     cacheTimer.start();
@@ -2755,6 +2761,11 @@ QByteArray SearchServer::handleMakeFolder(const QString &path,
                                      "Cannot make folder: " + folder));
     utilSetDirGroup(full);
 
+    /* a repository nested with this one lists its folders again, the
+       next time it is asked for them */
+    for (const QString &other : nestedWith(repoName))
+        _folderLists[other].age.invalidate();
+
     // the folders kept for listing have it at once, with any made above it
     FolderList &list = _folderLists[repoName];
 
@@ -2851,18 +2862,30 @@ QByteArray SearchServer::handleLayout(const QString &path,
            older one takes it as a change to the folder's layout file,
            and fetches that again */
         QString file = DeskLayout::fileName();
-        QJsonObject data;
-        data["repo"] = repoName;
-        data["op"] = "layout";
-        data["path"] = dir.isEmpty() ? file : dir + "/" + file;
-        data["dir"] = dir;
-        data["stacks"] = moved;
         QString clientId = params.value("__client_id__");
-        if (!clientId.isEmpty())
-            data["origin"] = clientId;
-        sendEvent(repoName, "event: layoutChanged\ndata: "
-                  + QJsonDocument(data).toJson(QJsonDocument::Compact)
-                  + "\n\n");
+        QStringList repos = QStringList(repoName) << nestedWith(repoName);
+
+        // the folder is in any repository nested with this one too
+        for (const QString &repo : repos) {
+            bool inside = true;
+            QString in = repo == repoName ? dir
+                : pathIn(repoName, repo, dir, &inside);
+
+            if (!inside)
+                continue;
+
+            QJsonObject data;
+            data["repo"] = repo;
+            data["op"] = "layout";
+            data["path"] = in.isEmpty() ? file : in + "/" + file;
+            data["dir"] = in;
+            data["stacks"] = moved;
+            if (!clientId.isEmpty())
+                data["origin"] = clientId;
+            sendEvent(repo, "event: layoutChanged\ndata: "
+                      + QJsonDocument(data).toJson(QJsonDocument::Compact)
+                      + "\n\n");
+        }
     }
 
     QJsonObject out;
@@ -3154,6 +3177,85 @@ void SearchServer::layoutRename(const QString &repoName,
 }
 
 
+QStringList SearchServer::nestedWith(const QString &repoName) const
+{
+    QStringList out;
+    QString root = _backend->rootPathForName(repoName);
+
+    if (root.isEmpty())
+        return out;
+    for (const QString &other : _rootPaths)
+        if (other != root && (other.startsWith(root + "/")
+                              || root.startsWith(other + "/")))
+            out << QFileInfo(other).fileName();
+    return out;
+}
+
+
+bool SearchServer::isNested(const QString &root) const
+{
+    for (const QString &other : _rootPaths)
+        if (root.startsWith(other + "/"))
+            return true;
+    return false;
+}
+
+
+QString SearchServer::pathIn(const QString &from, const QString &to,
+                             const QString &relPath, bool *inside) const
+{
+    QString fromRoot = _backend->rootPathForName(from);
+    QString toRoot = _backend->rootPathForName(to);
+    QString full = relPath.isEmpty() || relPath == "."
+        ? fromRoot : fromRoot + "/" + relPath;
+
+    *inside = !fromRoot.isEmpty() && !toRoot.isEmpty();
+    if (*inside && full == toRoot)
+        return QString();
+    *inside = *inside && full.startsWith(toRoot + "/");
+    return *inside ? full.mid(toRoot.size() + 1) : QString();
+}
+
+
+void SearchServer::relayStackEvent(const QString &repoName, const QString &op,
+                                   const QString &path,
+                                   const QString &newPath,
+                                   const QString &name,
+                                   const QString &clientId)
+{
+    for (const QString &other : nestedWith(repoName)) {
+        bool was, now = false;
+        QString from = pathIn(repoName, other, path, &was);
+        QString to = newPath.isEmpty() ? QString()
+            : pathIn(repoName, other, newPath, &now);
+
+        if (op == "move" && was && !now) {
+            /* it has gone from there, as if deleted, unless it was copied
+               rather than moved, which this event is also given for */
+            QString root = _backend->rootPathForName(other);
+
+            if (QFileInfo::exists(root + "/" + from))
+                continue;
+            touchStack(other, from);
+            sendStackEvent(other, "delete", from, QString(), clientId);
+        } else if (op == "move" && !was && now) {
+            // it has arrived, as if uploaded
+            touchStack(other, to);
+            sendStackEvent(other, "upload", to, QFileInfo(to).fileName(),
+                           clientId);
+        } else if (was) {
+            /* anything else keeps to the stack's folder, so its name stays
+               as it is; a move gives the new path */
+            touchStack(other, from);
+            if (now)
+                touchStack(other, to);
+            sendStackEvent(other, op, from, op == "move" ? to : name,
+                           clientId);
+        }
+    }
+}
+
+
 void SearchServer::notifyStackEvent(const QString &repoName,
                                     const QString &op, const QString &path,
                                     const QString &name,
@@ -3181,6 +3283,15 @@ void SearchServer::notifyStackEvent(const QString &repoName,
     if (!newPath.isEmpty())
         touchStack(repoName, newPath);
 
+    sendStackEvent(repoName, op, path, name, clientId);
+    relayStackEvent(repoName, op, path, newPath, name, clientId);
+}
+
+
+void SearchServer::sendStackEvent(const QString &repoName, const QString &op,
+                                  const QString &path, const QString &name,
+                                  const QString &clientId)
+{
     if (_eventClients.isEmpty())
         return;
 
@@ -3566,6 +3677,11 @@ QString SearchServer::listRepositories(const QString &user)
 {
     QList<RepositoryInfo> repos = _backend->listRepositories();
 
+    /* a user given only some repositories, who may be someone else, such
+       as a business given a folder of its own */
+    const UserStore::User *u = user.isEmpty() ? nullptr : _users.lookup(user);
+    bool restricted = u && !u->repos.isEmpty();
+
     QJsonArray jsonArray;
     int count = 0;
     for (const RepositoryInfo &r : repos) {
@@ -3577,8 +3693,14 @@ QString SearchServer::listRepositories(const QString &user)
         if (!user.isEmpty() && !_users.repoAllowed(user, r.name))
             continue;
 
+        /* a repository within another has its papers there already, so
+           it is only listed to a user given it by name */
+        if (!restricted && isNested(r.path))
+            continue;
+
         QJsonObject repoObj;
-        repoObj["path"]   = r.path;
+        /* nor is where it is on the server any business of such a user */
+        repoObj["path"]   = restricted ? r.name : r.path;
         repoObj["exists"] = r.exists;
         repoObj["name"]   = r.name;
         jsonArray.append(repoObj);
