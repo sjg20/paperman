@@ -193,6 +193,7 @@ parts:
       - libcurl4t64
       - libxml2
     override-build: |
+      . $CRAFT_PROJECT_DIR/snap/local/system-tools.sh
       ./autogen.sh
       ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc \
          --localstatedir=/var --disable-locking --disable-nls \
@@ -228,6 +229,7 @@ parts:
       - tesseract-ocr
       - tesseract-ocr-eng
     override-build: |
+      . $CRAFT_PROJECT_DIR/snap/local/system-tools.sh
       craftctl set version=$(sed -n 's/.*CONFIG_version_str "\(.*\)".*/\1/p' config.h)
       # SANE and Poppler as built above, for the fake scanner's back end,
       # which paperman.pro builds as a project of its own, as well
