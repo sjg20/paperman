@@ -372,11 +372,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # KDE's build snap, which the kde-neon-6 extension builds with, has
+      # been missing from the store for an architecture at times: skip
+      # the build then, with a warning, rather than fail every run
+      - name: Check that KDE's build snap is in the store
+        id: sdk
+        run: |
+          url="https://api.snapcraft.io/v2/snaps/info/kde-qt6-core24-sdk"
+          if curl -fsS -H 'Snap-Device-Series: 16' \
+                "$url?architecture=${{ matrix.arch }}" \
+              | jq -e --arg arch "${{ matrix.arch }}" \
+                  '."channel-map" | any(.channel.architecture == $arch
+                                        and .channel.name == "stable")' \
+                  > /dev/null; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::kde-qt6-core24-sdk is not in the store for" \
+                 "${{ matrix.arch }}, so the snap is not built"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # snapcraft builds in an LXD container, for the runner's architecture
       - uses: snapcore/action-build@v1
+        if: steps.sdk.outputs.available == 'true'
         id: snap
 
       - uses: actions/upload-artifact@v4
+        if: steps.sdk.outputs.available == 'true'
         with:
           name: paperman-snap-${{ matrix.arch }}
           path: ${{ steps.snap.outputs.snap }}
