@@ -150,11 +150,16 @@ Desktopmodel::~Desktopmodel()
 
 #define MAX_ID 10240  // maximum ID we can assign to a 'desk' node
 
+bool Desktopmodel::isDeskId (quintptr id)
+   {
+   return id < MAX_ID;
+   }
+
 /** index points to a Desk */
-#define IS_DESK(ind) ((unsigned)(ind).internalId () < MAX_ID)
+#define IS_DESK(ind) (isDeskId ((ind).internalId ()))
 
 /** index points to a File */
-#define IS_FILE(ind) ((unsigned)(ind).internalId () >= MAX_ID)
+#define IS_FILE(ind) (!isDeskId ((ind).internalId ()))
 
 #define DESK_INDEX(row) createIndex (row, 0, row + 10)
 

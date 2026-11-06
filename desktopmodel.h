@@ -1192,6 +1192,14 @@ private slots:
                             const QHash<QString, QPoint> &stacks);
 
 private:
+   /** whether an index's internal ID is a desk's, which is a small
+       number, rather than a stack's, which is the address of its File.
+       The whole ID counts: a 64-bit address may have a small lower half
+
+      \param id  the index's internalId()
+      \returns true for a desk */
+   static bool isDeskId (quintptr id);
+
    /** Issue async thumbnail fetches for every file in @p desk via
     *  the provided RemoteBackend.  No-op if @p backend is null.
     *  @p dirInRepo is the file's parent path relative to the repo

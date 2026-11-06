@@ -21,6 +21,10 @@ public:
    using Suite::Suite;
 
 private slots:
+   //! a stack is told from a desk by the whole of its index's ID, which
+   //! is a 64-bit address whose lower half may be small
+   void testStackIndexId();
+
    //! a stack's page number is drawn on the desk's own background
    void testPageNumberBackground();
 

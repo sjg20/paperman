@@ -2106,3 +2106,17 @@ void TestDesktopUi::testPageNumberBackground()
             qPrintable(QString("%1 of %2 pixels are the button colour")
                        .arg(filled).arg(total)));
 }
+
+
+void TestDesktopUi::testStackIndexId()
+{
+   // a desk's ID is a small number
+   QVERIFY(Desktopmodel::isDeskId(0));
+   QVERIFY(Desktopmodel::isDeskId(12));
+
+   /* a stack's is the address of its File, here one which a desktop
+      once had, whose lower 32 bits are small enough to be a desk's */
+   if (sizeof(quintptr) == 8)
+      QVERIFY(!Desktopmodel::isDeskId(quintptr(0x7f5a00002120ULL)));
+   QVERIFY(!Desktopmodel::isDeskId(quintptr(0x10000)));
+}
