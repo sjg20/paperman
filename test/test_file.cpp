@@ -2936,3 +2936,49 @@ void TestFile::testLazyPageRecords()
    delete max;
    IoStats::reset();
 }
+
+
+void TestFile::testSlowExiftool()
+{
+#ifdef Q_OS_WIN
+   QSKIP("needs a shell script in place of exiftool");
+#else
+   QString real = QStandardPaths::findExecutable("exiftool");
+   if (real.isEmpty())
+      QSKIP("exiftool is not installed");
+
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   // an exiftool which takes over a second, as one can on a busy machine
+   QDir().mkpath(dir + "bin");
+   QFile slow(dir + "bin/exiftool");
+   QVERIFY(slow.open(QIODevice::WriteOnly));
+   slow.write(QString("#!/bin/sh\nsleep 1.2\nexec '%1' \"$@\"\n")
+              .arg(real).toUtf8());
+   slow.close();
+   QVERIFY(slow.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                               | QFileDevice::ExeOwner));
+
+   QByteArray path = qgetenv("PATH");
+   qputenv("PATH", (dir + "bin:").toUtf8() + path);
+   auto restore = qScopeGuard([path] { qputenv("PATH", path); });
+
+   QImage img(80, 60, QImage::Format_RGB32);
+   img.fill(Qt::white);
+   QVERIFY(img.save(dir + "photo.jpg", "JPG"));
+
+   Filejpeg jf(dir, "photo.jpg", nullptr);
+   QVERIFY(jf.load() == nullptr);
+   QHash<int, QString> updates;
+   updates[File::Annot_author] = "An Author";
+   QVERIFY(jf.putAnnot(updates) == nullptr);
+
+   Filejpeg again(dir, "photo.jpg", nullptr);
+   QVERIFY(again.load() == nullptr);
+   QString text;
+   QVERIFY(again.getAnnot(File::Annot_author, text) == nullptr);
+   QCOMPARE(text, QString("An Author"));
+#endif
+}

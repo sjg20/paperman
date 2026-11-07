@@ -181,14 +181,25 @@ QString Filejpeg::toTag (File::e_annot annot)
    return tags [annot];
    }
 
+/* how long exiftool may take: it is a Perl script, which on a busy or
+   slow machine can take a second or more just to start */
+static const int exiftool_ms = 10000;
+
 static err_info *run_exiftool (QProcess &process, const char *operation,
                                QStringList &args)
    {
    qDebug () << args;
    process.start ("exiftool", args);
 
-   if (!process.waitForFinished(500) ||
-         process.exitStatus () != QProcess::NormalExit ||
+   bool finished = process.waitForFinished (exiftool_ms);
+
+   // rather than leave it running, with its answer lost
+   if (!finished && process.state () != QProcess::NotRunning)
+      {
+      process.kill ();
+      process.waitForFinished ();
+      }
+   if (!finished || process.exitStatus () != QProcess::NormalExit ||
          process.exitCode () != 0)
       {
       QByteArray ba = process.readAllStandardError () + process.readAllStandardOutput ();

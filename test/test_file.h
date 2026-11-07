@@ -15,6 +15,9 @@ private slots:
    //! typeFromName maps extensions (and unknown extensions) to e_type
    void testTypeFromName();
 
+   //! a slow exiftool is waited for, rather than its answer lost
+   void testSlowExiftool();
+
    //! what reading a stack costs is counted with the stack's file
    void testStackIo();
 
