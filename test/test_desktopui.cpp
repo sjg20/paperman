@@ -2120,3 +2120,26 @@ void TestDesktopUi::testStackIndexId()
       QVERIFY(!Desktopmodel::isDeskId(quintptr(0x7f5a00002120ULL)));
    QVERIFY(!Desktopmodel::isDeskId(quintptr(0x10000)));
 }
+
+
+void TestDesktopUi::testFolderIo()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   const IoMeasure &io = model->folderIo();
+   QVERIFY(io.isActive());
+   QVERIFY2(io.what().startsWith("folder "), qPrintable(io.what()));
+
+   /* the stacks are read as they are drawn, and the reading of each is
+      measured with it */
+   QString path = model->getFile(model->index(0, 0, repo_ind))->pathname();
+   QTRY_VERIFY(io.byPath().value(path).reads > 0);
+   QVERIFY(io.byPath().value(path).opens > 0);
+   QVERIFY(io.counts().readBytes >= io.byPath().value(path).readBytes);
+   QVERIFY2(io.report().contains(QFileInfo(path).fileName() + ": read "),
+            qPrintable(io.report()));
+}
