@@ -12,6 +12,7 @@
 
 #include <cstring>
 
+#include "desk.h"
 #include "err.h"
 #include "file.h"
 #include "filejpeg.h"
@@ -2858,5 +2859,36 @@ void TestFile::testStackIo()
       QCOMPARE(each.readBytes, each.opens * QFileInfo(path).size());
       }
    QCOMPARE(IoStats::byPath().size(), 3);
+   IoStats::reset();
+}
+
+
+void TestFile::testDeskIo()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   // a layout which places the stack
+   QString layout = dir + ".paperdesk";
+   QFile file(layout);
+   QVERIFY(file.open(QIODevice::WriteOnly));
+   file.write("[Files]\ntestfile.max=10,20,0\n");
+   file.close();
+   qint64 size = file.size();
+
+   IoStats::reset();
+   Desk *desk = new Desk(dir, dir);
+   IoStats::Counts got = IoStats::forPath(layout);
+   QCOMPARE(got.opens, qint64(1));
+   QCOMPARE(got.readBytes, size);
+   QCOMPARE(got.writes, qint64(0));
+
+   QVERIFY(desk->writeDesk());
+   got = IoStats::forPath(layout);
+   QCOMPARE(got.writes, qint64(1));
+   QCOMPARE(got.writeBytes, QFileInfo(layout).size());
+   delete desk;
    IoStats::reset();
 }

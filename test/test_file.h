@@ -18,6 +18,9 @@ private slots:
    //! what reading a stack costs is counted with the stack's file
    void testStackIo();
 
+   //! a folder's layout file is counted as it is read and written
+   void testDeskIo();
+
    //! a scanned colour page is kept, greyed or made mono by its pixels
    void testAutoColour();
 
