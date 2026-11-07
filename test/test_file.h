@@ -21,6 +21,10 @@ private slots:
    //! a folder's layout file is counted as it is read and written
    void testDeskIo();
 
+   //! a stack's pages' records are read as they are needed, not all on
+   //! opening it, and are right when they are
+   void testLazyPageRecords();
+
    //! a scanned colour page is kept, greyed or made mono by its pixels
    void testAutoColour();
 

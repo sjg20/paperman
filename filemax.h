@@ -470,6 +470,13 @@ private:
 
    err_info *page_read_roswell (page_info &page);
 
+   /** read a page's record (roswell) if it has not been read yet: the
+       records are read as they are needed, not all when the file is opened
+
+      \param page  the page
+      \returns error, or NULL if OK */
+   err_info *ensure_roswell (page_info &page);
+
    err_info *setup_max (void);
 
    char *max_get_shell_filename (void);

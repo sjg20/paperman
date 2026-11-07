@@ -2892,3 +2892,47 @@ void TestFile::testDeskIo()
    delete desk;
    IoStats::reset();
 }
+
+
+void TestFile::testLazyPageRecords()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QString path = copyFixture("100pp_from_pdf.max", tmp.path());
+   QVERIFY(!path.isEmpty());
+
+   // the page titles, as they are when every record is read
+   QStringList titles;
+   {
+      Filemax all(dir, "100pp_from_pdf.max", nullptr);
+      QVERIFY(all.load() == nullptr);
+      for (int i = 0; i < all.pagecount(); i++)
+         titles << all.pageTitle(i);
+   }
+   QCOMPARE(titles.size(), 100);
+
+   /* showing a stack on the desk reads its page table and the record and
+      preview of the page shown, not a record for each of its 100 pages */
+   IoStats::reset();
+   Filemax *max = new Filemax(dir, "100pp_from_pdf.max", nullptr);
+   QVERIFY(max->load() == nullptr);
+   QCOMPARE(max->pagecount(), 100);
+   QVERIFY(!max->pixmap(true).isNull());
+   IoStats::Counts got = IoStats::forPath(path);
+   QVERIFY2(got.reads < 30, qPrintable(IoStats::describe(got)));
+
+   // a page further on has its record read when it is wanted
+   QCOMPARE(max->pageTitle(99), titles[99]);
+   QVERIFY(IoStats::forPath(path).reads > got.reads);
+   QCOMPARE(max->pageTitle(50), titles[50]);
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(max->getImage(99, false, image, size, trueSize, bpp, false)
+           == nullptr);
+   QVERIFY(!image.isNull());
+   delete max;
+   IoStats::reset();
+}
