@@ -19,6 +19,7 @@
 #include "fileother.h"
 #include "filepdf.h"
 #include "imageadjust.h"
+#include "iostats.h"
 #include "ocrpage.h"
 
 #include "pdfio.h"   // for Poppler, for Qt 5 or 6
@@ -2811,4 +2812,34 @@ void TestFile::testOldStackDates()
    QVERIFY(!check.load());
    QVERIFY(!check.getPageOcr(1, ocr));
    QCOMPARE(ocr, ocrFor("one page"));
+}
+
+
+void TestFile::testStackIo()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QString maxPath = copyFixture("100pp_from_pdf.max", tmp.path());
+   QVERIFY(!maxPath.isEmpty());
+
+   IoStats::reset();
+
+   // as the desk reads one: its page count, then its preview
+   Filemax *max = new Filemax(dir, "100pp_from_pdf.max", nullptr);
+   QVERIFY(max->load() == nullptr);
+   QVERIFY(!max->pixmap(true).isNull());
+   delete max;
+
+   /* a .max is read in parts, so less than the whole of it, but each part
+      counts, with the opens, and nothing is written */
+   IoStats::Counts got = IoStats::forPath(maxPath);
+   QVERIFY(got.opens >= 1);
+   QVERIFY(got.reads > 0);
+   QVERIFY(got.readBytes > 0);
+   QVERIFY2(got.readBytes < QFileInfo(maxPath).size(),
+            qPrintable(IoStats::describe(got)));
+   QCOMPARE(got.writes, qint64(0));
+   QCOMPARE(IoStats::total().readBytes, got.readBytes);
+   IoStats::reset();
 }

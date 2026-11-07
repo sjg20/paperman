@@ -59,6 +59,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "desk.h"
 #include "filemax.h"
+#include "iostats.h"
 #include "ocrpage.h"
 
 #include <QJsonArray>
@@ -667,6 +668,7 @@ err_info *Filemax::getworde (int pos, int *wordp)
    else
       {
       printf ("   - getworde %x\n", pos);
+      IoStats::read (_pathname, 4);
       fseek (_fin, pos, SEEK_SET);
       word = fgetc (_fin);
       if (word == EOF)
@@ -703,6 +705,7 @@ err_info *Filemax::gethwe (int pos, int *valuep)
       word = *p | (p [1] << 8);
    else
       {
+      IoStats::read (_pathname, 2);
       fseek (_fin, pos, SEEK_SET);
       word = fgetc (_fin);
       word |= fgetc (_fin) << 8;
@@ -734,6 +737,7 @@ err_info *Filemax::getbytee (int pos, int *bytep)
       *bytep = *data;
    else
       {
+      IoStats::read (_pathname, 1);
       fseek (_fin, pos, SEEK_SET);
       *bytep = fgetc (_fin);
       }
@@ -774,6 +778,7 @@ err_info *Filemax::max_cache_data (cache_info &cache, int pos,
       return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1().constData());
    fseek (_fin, pos, SEEK_SET);
    n = fread (cache.buff.data (), 1, size, _fin);
+   IoStats::read (_pathname, n);
    if (n != size)
       {
       if (n >= min)
@@ -837,6 +842,7 @@ err_info *Filemax::max_read_data (int pos, byte *buf, int size)
    // read the data
    fseek (_fin, pos, SEEK_SET);
    count = fread (buf, 1, size, _fin);
+   IoStats::read (_pathname, count);
    return count == size ? NULL : merr_make (ERRFN, ERR_failed_to_read_bytes1, size);
    }
 
@@ -857,6 +863,7 @@ err_info *Filemax::max_write_data (int pos, byte *data, int size)
    // write the data
    fseek (_fin, pos, SEEK_SET);
    count = fwrite (data, 1, size, _fin);
+   IoStats::wrote (_pathname, count);
    max_clear_cache (_scache, pos, size);
    max_clear_cache (_cache, pos, size);
 
@@ -2947,6 +2954,7 @@ err_info *Filemax::ensure_open()
          if (!_fin)
             return err_make (ERRFN, ERR_cannot_open_file1, _pathname.toLatin1().constData());
       }
+      IoStats::opened (_pathname);
    }
    _open_count++;
    return nullptr;
@@ -5349,6 +5357,7 @@ err_info *Filemax::write_max (FILE *f)
 
    if ((int)fwrite (_hdr.data (), 1, _hdr.size (), f) != _hdr.size ())
       return err_make (ERRFN, ERR_failed_to_write_bytes1, _hdr.size ());
+   IoStats::wrote (_pathname, _hdr.size ());
 
    // and then the chunks one by one
    for (i = 0; i < _chunks.size (); i++)
@@ -5358,6 +5367,7 @@ err_info *Filemax::write_max (FILE *f)
       debug2 (("%d  %lx  %x  %x\n", i, ftell (f), chunk.start, chunk.size));
       if ((int)fwrite (chunk.buf, 1, chunk.size, f) != chunk.size)
          return err_make (ERRFN, ERR_failed_to_write_bytes1, chunk.size);
+      IoStats::wrote (_pathname, chunk.size);
       }
    debug1 (("size %lx %x\n", ftell (f), _size));
 
@@ -6424,6 +6434,7 @@ err_info *Filemax::create (void)
    if (!_fin)
       return err_make (ERRFN, ERR_cannot_open_file1,
                        fname.constData());
+   IoStats::opened (_pathname);
 
    utilSetGroup(fname.constData());
 
