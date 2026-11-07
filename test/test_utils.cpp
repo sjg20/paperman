@@ -25,6 +25,7 @@ extern "C" {
 #include "../appearance.h"
 #include "../desktopview.h"
 #include "../desktopwidget.h"
+#include "../iostats.h"
 #include <QAbstractScrollArea>
 #include <QAction>
 #include <QApplication>
@@ -1036,4 +1037,83 @@ void TestUtils::testReplaceFile()
    QCOMPARE(held.readAll(), QByteArray("first"));
    QCOMPARE(contents(to), QByteArray("second"));
 #endif
+}
+
+
+void TestUtils::testIoStats()
+{
+   IoStats::reset();
+
+   // something read before the action starts is not part of it
+   IoStats::read("/papers/one.max", 4096);
+
+   IoMeasure measure;
+   QVERIFY(!measure.isActive());
+   measure.start("opening");
+   QVERIFY(measure.isActive());
+   QCOMPARE(measure.what(), QString("opening"));
+
+   IoStats::opened("/papers/one.max");
+   IoStats::read("/papers/one.max", 1000);
+   IoStats::read("/papers/one.max", 500);
+   IoStats::spent("/papers/one.max", 25);
+   IoStats::opened("/papers/two.pdf");
+   IoStats::read("/papers/two.pdf", 3000);
+   IoStats::wrote("/papers/.paperdesk", 120);
+
+   // each file has what was counted for it, and the totals have it all
+   IoStats::Counts one = IoStats::forPath("/papers/one.max");
+   QCOMPARE(one.readBytes, qint64(5596));
+   QCOMPARE(one.reads, qint64(3));
+   QCOMPARE(one.opens, qint64(1));
+   QCOMPARE(one.ms, qint64(25));
+   QCOMPARE(IoStats::total().readBytes, qint64(8596));
+   QCOMPARE(IoStats::total().writeBytes, qint64(120));
+
+   // the action has what was counted since it started
+   IoStats::Counts got = measure.counts();
+   QCOMPARE(got.readBytes, qint64(4500));
+   QCOMPARE(got.reads, qint64(3));
+   QCOMPARE(got.writeBytes, qint64(120));
+   QCOMPARE(got.writes, qint64(1));
+   QCOMPARE(got.opens, qint64(2));
+   QHash<QString, IoStats::Counts> files = measure.byPath();
+   QCOMPARE(files.size(), 3);
+   QCOMPARE(files["/papers/one.max"].readBytes, qint64(1500));
+   QCOMPARE(files["/papers/one.max"].reads, qint64(2));
+
+   QCOMPARE(IoStats::describe(files["/papers/one.max"]),
+            QString("read 1.5 KB in 2 reads, 1 opens, 25 ms"));
+   QCOMPARE(IoStats::describe(files["/papers/.paperdesk"]),
+            QString("read 0 B in 0 reads, wrote 120 B in 1 writes, "
+                    "0 opens"));
+
+   // the files which cost most, by what was read and by time taken
+   QStringList lines = measure.report().split('\n');
+   QVERIFY2(lines.value(0).startsWith("opening: 3 files in "),
+            qPrintable(lines.value(0)));
+   QVERIFY(lines.value(0).endsWith(" ms: read 4.5 KB in 3 reads, "
+                                   "wrote 120 B in 1 writes, 2 opens, "
+                                   "25 ms"));
+   QCOMPARE(lines.mid(1), QStringList({
+      "  most read:",
+      "    two.pdf: read 3.0 KB in 1 reads, 1 opens",
+      "    one.max: read 1.5 KB in 2 reads, 1 opens, 25 ms",
+      "  slowest:",
+      "    one.max: read 1.5 KB in 2 reads, 1 opens, 25 ms"}));
+
+   // and a later action starts from nothing
+   IoMeasure later;
+   later.start("later");
+   QVERIFY(later.counts().isEmpty());
+   QVERIFY(later.byPath().isEmpty());
+
+   QCOMPARE(IoStats::size(812), QString("812 B"));
+   QCOMPARE(IoStats::size(3200), QString("3.2 KB"));
+   QCOMPARE(IoStats::size(1400000), QString("1.4 MB"));
+   QCOMPARE(IoStats::size(2500000000LL), QString("2.50 GB"));
+
+   IoStats::reset();
+   QVERIFY(IoStats::total().isEmpty());
+   QVERIFY(IoStats::byPath().isEmpty());
 }
