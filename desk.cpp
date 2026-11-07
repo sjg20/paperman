@@ -47,6 +47,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "backend.h"
 #include "desk.h"
+#include "iostats.h"
 #include "file.h"
 #include "remotebackend.h"
 #include "filemax.h"
@@ -698,7 +699,12 @@ void Desk::readDesk (bool read_sizes, const QSet<QString> *allowed)
    File *f;
    int pos;
 
-   if (file.open (QIODevice::ReadOnly)) while (!stream.atEnd())
+   if (file.open (QIODevice::ReadOnly))
+      {
+      IoStats::opened (file.fileName ());
+      IoStats::read (file.fileName (), file.size ());
+      }
+   if (file.isOpen ()) while (!stream.atEnd())
       {
       line = stream.readLine(); // line of text excluding '\n'
 
@@ -810,6 +816,8 @@ bool Desk::writeDesk (bool wait)
       if (!same && (!file.open (QIODevice::WriteOnly)
                     || file.write (content) != content.size ()))
          return false;
+      if (!same)
+         IoStats::wrote (file.fileName (), content.size ());
       file.close ();
       _dirty = false;
       return sendMoves (wait);
@@ -835,6 +843,7 @@ bool Desk::writeDesk (bool wait)
       file.remove ();
    if (!file.open (QIODevice::WriteOnly) || file.write (content) != content.size ())
       return false;
+   IoStats::wrote (file.fileName (), content.size ());
 
    utilSetGroup(file.fileName());
 
