@@ -522,6 +522,7 @@ err_info *Filemax::ensure_titlestr (int, page_info &page)
 
    if (page.title_loaded)
       return NULL;
+   CALL (ensure_roswell (page));
    page.title_loaded = page.title_saved = true;
    *title = '\0';
    if (page.title)
@@ -563,6 +564,7 @@ err_info *Filemax::find_page (int pagenum, page_info* &page)
    if (pagenum < 0 || pagenum >= _pages.size ())
       return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum, _pages.size () - 1);
    page = &_pages [pagenum];
+   CALL (ensure_roswell (*page));
    return NULL;
    }
 
@@ -626,6 +628,8 @@ static int make_err (const char *func, int err)
 
 void Filemax::debug_page (page_info *page)
    {
+   // a debug aid, so any error, reported as it is made, is left there
+   (void)ensure_roswell (*page);
    printf ("id %05x roswell %05x image %05x title %05x\n",
       page->chunkid, page->roswell, page->image, page->title);
    }
@@ -2342,6 +2346,7 @@ err_info *Filemax::update_titlestr (page_info *page, const QString &title)
    bool temp;
    int j;
 
+   CALL (ensure_roswell (*page));
    if (!page->title)
       return NULL;
 
@@ -2430,6 +2435,19 @@ err_info *Filemax::page_read_roswell (page_info &page)
 //    printf ("page_read_roswell: page = %d, timestamp = %d\n", page.title, page.timestamp);
    page.have_roswell = true;
    return NULL;
+   }
+
+
+err_info *Filemax::ensure_roswell (page_info &page)
+   {
+   if (page.have_roswell || !page.roswell)
+      return NULL;
+
+   // the file may have been closed since it was opened to set up
+   Open open (this);
+
+   CALL (open.err ());
+   return page_read_roswell (page);
    }
 
 
@@ -2551,7 +2569,10 @@ err_info *Filemax::setup_max (void)
       }
    else
       {
-      // first read the page info, then the roswell info (more cache-efficient)
+      /* the page table is together, but each page's record (roswell) is
+         beside its page, so reading them all is a small read for each
+         page in the stack, where showing it needs the one for the page
+         shown; each is read when it is first needed (ensure_roswell()) */
       for (i = 0, pos += POS_bermuda_pageinfo; i < page_count;
            i++, pos += 12)
          {
@@ -2560,15 +2581,8 @@ err_info *Filemax::setup_max (void)
          page.chunkid = gethw (pos);
          page.roswell = getword (pos + 4);
          page.titlestr = "";
-
-         // get roswell info
          page.have_roswell = false;
-         //printf ("   page %d, chunkid %d, image %d\n", i, page.chunkid,
-         //        page.image);
          }
-
-      for (i = 0; i < page_count; i++)
-         CALL (page_read_roswell (_pages [i]));
       }
    CALL (max_checkerr ());
 
@@ -3081,6 +3095,10 @@ err_info *Filemax::show_file (FILE *f)
    {
    int i, j, pos;
    const char *name;
+
+   // the dump shows every page's record
+   for (page_info &page : _pages)
+      CALL (ensure_roswell (page));
 
    fprintf (f, "\nfile: %s\n", _filename.toLatin1 ().constData());
    fprintf (f, "chunk0 start %x\n", _chunk0_start);
@@ -4705,6 +4723,7 @@ err_info *Filemax::max_replace_page (page_info &page, Filemaxpage &mp)
    Open open (this);
 
    CALL (open.err ());
+   CALL (ensure_roswell (page));
    page.chunkid = _chunkid_next;
    page.titlestr = mp.name ();
    CALL (max_setup_page (page, mp));
@@ -5049,7 +5068,10 @@ err_info *Filemax::restore_chunknum (int pos)
 void Filemax::page_init (page_info &page)
    {
    page.chunkid = page.roswell = 0;
-   page.have_roswell = false;
+
+   /* a new page's fields are what they are, with nothing on the disk to
+      read; setup_max() marks those of a page read from the file unread */
+   page.have_roswell = true;
    page.image = page.noti1 = page.noti2 = page.title = page.text = 0;
    page.ocr = 0;
    page.title_loaded = page.title_saved = false;
@@ -5270,6 +5292,8 @@ err_info *Filemax::create_roswell (page_info &page)
    chunk_info chunk;
    byte *buf;
 
+   // the record is written from the page's fields, so they must be known
+   CALL (ensure_roswell (page));
    chunk_init (chunk);
    chunk.chunkid = page.chunkid;
    chunk.type = CT_roswell;
@@ -5283,6 +5307,9 @@ err_info *Filemax::create_roswell (page_info &page)
 
    CALL (insert_chunk (chunk, &page.roswell));
 
+   // the record is the page's fields, which may not be on the disk yet
+   page.have_roswell = true;
+
    return NULL;
    }
 
@@ -5292,8 +5319,7 @@ err_info *Filemax::create_title (page_info &page)
    chunk_info chunk;
    byte *buf;
 
-   if (!page.have_roswell && page.roswell)
-      CALL (page_read_roswell (page));
+   CALL (ensure_roswell (page));
    chunk_init (chunk);
    chunk.chunkid = page.chunkid;
    chunk.type = CT_title;
@@ -5315,6 +5341,7 @@ err_info *Filemax::create_ocr (page_info &page, const QByteArray &data)
    chunk_info chunk;
    byte *buf;
 
+   CALL (ensure_roswell (page));
    chunk_init (chunk);
    chunk.chunkid = page.chunkid;
    chunk.type = CT_ocr;
@@ -5513,6 +5540,8 @@ err_info *Filemax::flush (void)
 err_info *Filemax::merge_chunks (Filemax *src,
            page_info &dstpage, page_info &srcpage)
    {
+   // the source page's chunks are found from its record, in its own file
+   CALL (src->ensure_roswell (srcpage));
    CALL (merge_chunk (src, srcpage.image, &dstpage.image));
    CALL (merge_chunk (src, srcpage.title, &dstpage.title));
    CALL (merge_chunk (src, srcpage.text, &dstpage.text));
@@ -5523,6 +5552,8 @@ err_info *Filemax::merge_chunks (Filemax *src,
 
 err_info *Filemax::free_page (page_info &page)
    {
+   // the chunks to free are found from the record
+   CALL (ensure_roswell (page));
    page.titlestr.clear ();
    CALL (remove_chunknum (page.roswell));
    CALL (remove_chunknum (page.image));
@@ -5535,6 +5566,7 @@ err_info *Filemax::free_page (page_info &page)
 
 err_info *Filemax::restore_page (page_info &page)
    {
+   CALL (ensure_roswell (page));
    CALL (restore_chunknum (page.roswell));
    CALL (restore_chunknum (page.image));
    CALL (restore_chunknum (page.title));
@@ -6018,8 +6050,7 @@ err_info *Filemax::getPageOcr (int pagenum, OcrPage &out)
 
    CALL (open.err ());
    CALL (find_page (pagenum, page));
-   if (!page->have_roswell && page->roswell)
-      CALL (page_read_roswell (*page));
+   CALL (ensure_roswell (*page));
    if (!page->ocr)
       return NULL;
    CALL (chunk_find (page->ocr, chunk, &temp));
@@ -6075,8 +6106,7 @@ err_info *Filemax::putPageOcr (int pagenum, const OcrPage &ocr)
    CALL (open.err ());
    CALL (ensure_all_chunks ());
    CALL (find_page (pagenum, page));
-   if (!page->have_roswell && page->roswell)
-      CALL (page_read_roswell (*page));
+   CALL (ensure_roswell (*page));
    if (ocr.isEmpty ())
       {
       if (!page->ocr)
@@ -6673,8 +6703,7 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
 
    /* the words' boxes no longer match the page, so drop them; the page
       is read again the right way up */
-   if (!info->have_roswell && info->roswell)
-      CALL (page_read_roswell (*info));
+   CALL (ensure_roswell (*info));
    if (info->ocr)
       {
       Open open (this);
