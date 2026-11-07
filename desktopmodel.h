@@ -59,6 +59,7 @@ struct max_page_info;
 
 #include "desk.h"
 #include "file.h"
+#include "iostats.h"
 
 #include "qabstractitemmodel.h"
 
@@ -1455,6 +1456,9 @@ public:
    //! returns the current directory path being displayed
    QString &getDirPath (void);
 
+   //! what opening the folder shown has read and written so far
+   const IoMeasure &folderIo () const { return _ioFolder; }
+
    /** clear the current directory path */
    void resetDirPath (void);
 
@@ -2092,6 +2096,15 @@ private:
    mutable QPixmap _waiting;  //!< see waitingPixmap()
    QStringList _persistent_filenames;  //!< list of filename for each persistent model index (used when saving)
    QList<QPersistentModelIndex> _pending_scan_list; //!< list of stacks which need to be scanned
+
+   //! what opening the folder shown has read and written (see IoStats)
+   IoMeasure _ioFolder;
+
+   //! what had been counted when _ioFolder was last logged
+   IoStats::Counts _ioLogged;
+
+   //! log what opening the folder has cost so far (PAPERMAN_IOSTATS)
+   void logFolderIo (void);
 
    /** this field should not be required any more. With the previous model
        revision, files were deleted in opDeleteStacks() before they were

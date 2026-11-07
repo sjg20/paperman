@@ -23,6 +23,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <assert.h>
 
+#include <QElapsedTimer>
+
 #include "config.h"
 #include "backend.h"
 #include "dirmodel.h"
@@ -775,6 +777,11 @@ void Desktopmodel::buildItem (QModelIndex index)
       return;
       }
 
+   // how long it takes to read, for IoStats
+   QElapsedTimer timer;
+
+   timer.start ();
+
    // if we can't load it, still mark it as valid otherwise we will keep loading it
    if (f->load ())
       f->setValid (true);
@@ -783,6 +790,7 @@ void Desktopmodel::buildItem (QModelIndex index)
       This happens during scanning */
    if (f->pagenum () < f->pagecount ())
       f->pixmap (true);   // regenerate the pixmap
+   IoStats::spent (f->pathname (), timer.elapsed ());
 
    /* tell the view that the data has changed. The view will request the
       new data. Note that if we don't have information about the item
@@ -1474,6 +1482,7 @@ void Desktopmodel::nextUpdate (void)
       {
       // nothing to do, so finish
       _updateTimer->stop ();
+      logFolderIo ();
       emit updateDone ();
       }
    else
@@ -1486,6 +1495,21 @@ void Desktopmodel::nextUpdate (void)
       _updateTimer->start (DELAY_TIME);
       }
    }
+
+void Desktopmodel::logFolderIo (void)
+   {
+   IoStats::Counts now = _ioFolder.counts ();
+
+   /* the stacks are read as they are drawn, so this is called each time
+      those to be read run out; say what the folder has cost so far, if
+      anything has been read since it was last said */
+   if (!IoStats::logging () || !_ioFolder.isActive ()
+       || (now - _ioLogged).isEmpty ())
+      return;
+   _ioLogged = now;
+   qInfo ().noquote () << "io:" << _ioFolder.report ();
+   }
+
 
 void Desktopmodel::stopUpdate (void)
    {
@@ -1582,6 +1606,10 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
    Desk *desk;
 
    flushAllDesks ();
+
+   // measure what showing it reads and writes, from here
+   _ioFolder.start ("folder " + _dirPath);
+   _ioLogged = IoStats::Counts ();
 
    ind = index(dirPath, QModelIndex ());
    if (ind.isValid()) {
