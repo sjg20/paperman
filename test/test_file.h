@@ -15,6 +15,9 @@ private slots:
    //! typeFromName maps extensions (and unknown extensions) to e_type
    void testTypeFromName();
 
+   //! what reading a stack costs is counted with the stack's file
+   void testStackIo();
+
    //! a scanned colour page is kept, greyed or made mono by its pixels
    void testAutoColour();
 

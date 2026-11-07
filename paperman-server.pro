@@ -43,6 +43,7 @@ HEADERS += builddate.h \
     userstore.h \
     file.h \
     filemax.h \
+    iostats.h \
     filejpeg.h \
     filepdf.h \
     fileother.h \
@@ -74,6 +75,7 @@ SOURCES += searchserver.cpp \
     paperman-server.cpp \
     file.cpp \
     filemax.cpp \
+    iostats.cpp \
     filejpeg.cpp \
     filepdf.cpp \
     fileother.cpp \
