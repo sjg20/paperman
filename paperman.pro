@@ -161,6 +161,7 @@ HEADERS += desktopwidget.h \
  pagedelegate.h \
  utils.h \
  appearance.h \
+ iostats.h \
  updatecheck.h \
  mailer.h \
  ocr.h \
@@ -261,6 +262,7 @@ SOURCES += desktopwidget.cpp \
  pagedelegate.cpp \
  utils.cpp \
  appearance.cpp \
+ iostats.cpp \
  updatecheck.cpp \
  mailer.cpp \
  ocr.cpp \

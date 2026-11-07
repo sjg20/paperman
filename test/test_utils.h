@@ -17,6 +17,9 @@ public:
 
 private slots:
    //! Test that the user name is found without a controlling terminal
+   //! what is read and written is counted, in all, by file and by action
+   void testIoStats();
+
    void testUserName();
 
    void testTimeStr();
