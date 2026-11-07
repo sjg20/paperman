@@ -61,6 +61,23 @@ right-click menu.
 **Changes made outside Paperman do not show.** Use **Refresh**, or
 **Refresh cache**, in the folder's right-click menu.
 
+**A folder or a stack is slow to show.** Start Paperman with
+``PAPERMAN_IOSTATS=1`` set to have it log what each folder opened and
+each stack shown has read from the disk and written to it: in all, then
+for the stacks which were read most and took longest. For example::
+
+   PAPERMAN_IOSTATS=1 paperman
+
+   io: folder /home/me/papers/books: 12 files in 9310 ms: read 41.2 MB in 9812 reads, 37 opens, 9204 ms
+     most read:
+       manual.max: read 8.1 MB in 1934 reads, 3 opens, 1876 ms
+     ...
+
+Clicking a stack logs a line once its page is drawn, and another once
+the strip of its pages is full. Many reads for few bytes point to the
+time going on the disk, or the network for a network share, answering
+each one.
+
 Servers
 -------
 

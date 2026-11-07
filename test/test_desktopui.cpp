@@ -2143,3 +2143,36 @@ void TestDesktopUi::testFolderIo()
    QVERIFY2(io.report().contains(QFileInfo(path).fileName() + ": read "),
             qPrintable(io.report()));
 }
+
+
+void TestDesktopUi::testStackIo()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   Pagewidget *page = desktop->_page;
+
+   // the folder's stacks are read first, so they do not count below
+   QModelIndex stack = model->index(0, 0, repo_ind);
+   QTRY_VERIFY(model->folderIo().byPath().value(
+                  model->getFile(stack)->pathname()).reads > 0);
+
+   clickItem(view, 0);
+   QTRY_VERIFY(!page->_image.isNull());
+
+   // showing it is measured from the click, and drawing its page reads it
+   QString name = model->data(stack).toString();
+   QVERIFY(page->_ioShow.isActive());
+   QCOMPARE(page->_ioShow.what(), "stack " + name);
+   QVERIFY(page->_ioShow.counts().reads > 0);
+
+   // as is filling the strip with its pages
+   const IoMeasure &strip = page->_pagemodel->_ioStrip;
+   QVERIFY(strip.isActive());
+   QCOMPARE(strip.what(), "page strip of " + name);
+   QTRY_VERIFY(strip.counts().reads > 0);
+}

@@ -47,6 +47,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMutex>
 #include <QWaitCondition>
 #include <QPersistentModelIndex>
+#include "iostats.h"
 
 
 class QPixmap;
@@ -479,6 +480,10 @@ private:
    QTimer *_updateTimer;   //!< timer for background scaling operations
    int _update_upto;       //!< where we are up to with updating
    bool _rescaling;        //!< true if we are rescaling in the background
+
+   //! what filling the strip with the stack's pages has read and written
+   IoMeasure _ioStrip;
+   bool _ioStripLogged = false;  //!< _ioStrip has been logged
    PageRenderer *_renderer;   //!< background image decoder
    quint64 _generation;       //!< bumped when the page set changes, to
                               //!< drop render results that are now stale
