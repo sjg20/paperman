@@ -29,12 +29,15 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 /* PoDoFo 1.x's span.hpp uses std::terminate without including <exception>,
    which libc++ 23 no longer brings in by other means */
 #include <exception>
+#include <QFileInfo>
+
 #include "podofo/podofo.h"
 
 #include "err.h"
 #include "file.h"
 #include "ocrpage.h"
 #include "pdfio.h"
+#include "iostats.h"
 #include "utils.h"
 
 
@@ -164,6 +167,15 @@ err_info *Pdfio::find_page (int pagenum, std::unique_ptr<Poppler::Page> &page)
 #endif
 
 
+/* poppler and PoDoFo each read the file, how much of it being up to
+   them, so count the whole file each time */
+static void noteRead (const QString &path)
+   {
+   IoStats::opened (path);
+   IoStats::read (path, QFileInfo (path).size ());
+   }
+
+
 err_info *Pdfio::open (void)
    {
    /* a document from an earlier open() or create() would otherwise leak,
@@ -183,6 +195,7 @@ err_info *Pdfio::open (void)
    if (!_pop)
       return err_make (ERRFN, ERR_cannot_open_file1,
                        _pathname.toLatin1 ().constData());
+   noteRead (_pathname);
    if (_pop->isLocked ())
       return err_make (ERRFN, ERR_cannot_open_document_as_it_is_locked1,
                        _pathname.toLatin1 ().constData());
@@ -193,6 +206,7 @@ err_info *Pdfio::open (void)
       {
       doc = new PdfMemDocument ();
       doc->Load (_pathname.toLatin1 ().constData());
+      noteRead (_pathname);
       }
    catch (const PdfError &eCode)
       {

@@ -27,7 +27,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QImage>
 #include <QProcess>
 
+#include <QFileInfo>
+
 #include "filejpeg.h"
+#include "iostats.h"
 #include "utils.h"
 
 
@@ -733,6 +736,9 @@ err_info *Filejpegpage::load (const QString &dir)
 
    if (!_image.load (path, "JPG"))
       return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (path));
+   // the whole file is read each time
+   IoStats::opened (path);
+   IoStats::read (path, QFileInfo (path).size ());
 
    _changed = false;
 

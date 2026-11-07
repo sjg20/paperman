@@ -2840,6 +2840,23 @@ void TestFile::testStackIo()
    QVERIFY2(got.readBytes < QFileInfo(maxPath).size(),
             qPrintable(IoStats::describe(got)));
    QCOMPARE(got.writes, qint64(0));
-   QCOMPARE(IoStats::total().readBytes, got.readBytes);
+
+   // a PDF or JPEG is read whole by a library, each time it is opened
+   for (const QString &name : {QString("testpdf.pdf"),
+                               QString("greyscale_gradient.jpg")})
+      {
+      QString path = copyFixture(name, tmp.path());
+      QVERIFY(!path.isEmpty());
+
+      File *f = File::createFile(dir, name, nullptr,
+                                 File::typeFromName(name));
+      QVERIFY(f->load() == nullptr);
+      delete f;
+
+      IoStats::Counts each = IoStats::forPath(path);
+      QVERIFY2(each.opens >= 1, qPrintable(name));
+      QCOMPARE(each.readBytes, each.opens * QFileInfo(path).size());
+      }
+   QCOMPARE(IoStats::byPath().size(), 3);
    IoStats::reset();
 }
