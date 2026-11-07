@@ -24,6 +24,9 @@ private slots:
    //! what opening a folder reads is measured, stack by stack
    void testFolderIo();
 
+   //! what showing a stack reads is measured, to its page and its strip
+   void testStackIo();
+
    //! a stack is told from a desk by the whole of its index's ID, which
    //! is a 64-bit address whose lower half may be small
    void testStackIndexId();

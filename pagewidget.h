@@ -56,6 +56,7 @@ struct file_info;
 #include "qgraphicsview.h"
 #include "desk.h"
 #include "file.h"
+#include "iostats.h"
 
 struct err_info;
 
@@ -512,6 +513,10 @@ private:
        the stack's OCR annotation, so it is not saved as the annotation */
    bool _ocr_page = false;
    bool _committing;          //!< true if currently committing a stack
+
+   //! what showing the current stack has read and written (see IoStats)
+   IoMeasure _ioShow;
+   bool _ioShowLogged = false;  //!< _ioShow has been logged
    };
 
 #endif

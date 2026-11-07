@@ -181,6 +181,11 @@ void Pagemodel::reset (const Desktopmodel *model, const QModelIndex &index,
     QAbstractItemModel::beginResetModel ();
    _contents = model;
    _stackindex = index;
+   if (model && index.isValid ())
+      {
+      _ioStrip.start ("page strip of " + model->data (index).toString ());
+      _ioStripLogged = false;
+      }
    if (model)
       connect (const_cast<Desktopmodel *> (model),
                &Desktopmodel::pagePreviewReady, this,
@@ -557,6 +562,13 @@ void Pagemodel::nextUpdate (void)
          // nothing to do, so stop updating
          _updateTimer->stop ();
          _rescaling = false;
+
+         // say what filling the strip has cost, once it is full
+         if (IoStats::logging () && _ioStrip.isActive () && !_ioStripLogged)
+            {
+            _ioStripLogged = true;
+            qInfo ().noquote () << "io:" << _ioStrip.report ();
+            }
          break;
          }
       }

@@ -733,6 +733,10 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
       _model = model;
       _index = index;
 
+      // measure what showing it reads and writes, from here
+      _ioShow.start ("stack " + model->data (index).toString ());
+      _ioShowLogged = false;
+
       /* save the current page if there are any changes
          this may cause the current stack to be changed. For example removing
          blank pages will call slotStackChanged() and thus showPages()
@@ -877,6 +881,13 @@ void Pagewidget::slotPreviewPage (const QModelIndex &ind)
    err = contents->getImage (sindex, _pagenum, false,
                   _image, size, scaledSize, bpp);
    _imageScale = 1.0;
+
+   // say what the stack has cost to show, once its page is drawn
+   if (IoStats::logging () && _ioShow.isActive () && !_ioShowLogged)
+      {
+      _ioShowLogged = true;
+      qInfo ().noquote () << "io:" << _ioShow.report ();
+      }
    if (!err)
       updateViewport (true, false, false);
    else
