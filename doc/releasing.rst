@@ -13,7 +13,8 @@ Release Checklist
 
 1. Update the version and changelog entry at the top of
    ``debian/changelog.in``.  The first line sets the version used for
-   tagging, packaging and uploading.
+   tagging, packaging and uploading. In ``doc/history.rst``, give the
+   changes not yet released a heading for the new version.
 
 2. Set the same version in ``CONFIG_version_str`` in ``config.h``, which
    is what the program reports and what the Windows installers, macOS

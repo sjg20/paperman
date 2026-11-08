@@ -9,6 +9,7 @@ Paperman
 
    introduction
    install
+   history
    getpaperman.com <https://getpaperman.com>
 
 .. toctree::
