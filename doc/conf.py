@@ -15,3 +15,16 @@ html_theme_options = {
 
 html_static_path = ['_static']
 html_css_files = ['custom.css']
+
+latex_documents = [
+    ('manual', 'paperman.tex', 'Paperman User Manual', author, 'manual'),
+]
+
+# Symbols which the default fonts do not have go in the preamble
+latex_elements = {
+    'extraclassoptions': 'openany,oneside',     # no blank pages on screen
+    'preamble': r'''
+\DeclareUnicodeCharacter{2318}{Cmd+}
+\DeclareUnicodeCharacter{21C5}{\ensuremath{\uparrow\!\downarrow}}
+''',
+}
