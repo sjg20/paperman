@@ -590,11 +590,12 @@ void Pagemodel::slotPagePreview (const QModelIndex &stack, int pagenum,
 
       if (dm && dm->requestPage (_stackindex, pagenum))
          return;
-      _pages [row].setPixmap (QPixmap ());
+      _pages [row].setPixmap (QPixmap (), _pagesize);
       return;
       }
    _pages [row].setPixmap (QPixmap::fromImage (
-      image.scaled (_pagesize, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+      image.scaled (_pagesize, Qt::KeepAspectRatio, Qt::SmoothTransformation)),
+      _pagesize);
 
    QModelIndex ind = index (row, 0, QModelIndex ());
 
@@ -609,7 +610,9 @@ void Pagemodel::slotRendered (int itemnum, QImage image, quint64 gen)
    if (gen == _generation && itemnum >= 0 && itemnum < _count
        && !image.isNull ())
       {
-      _pages [itemnum].setPixmap (QPixmap::fromImage (image));
+      /* the generation is the same, so the page size is the one it was
+         rendered for */
+      _pages [itemnum].setPixmap (QPixmap::fromImage (image), _pagesize);
       QModelIndex ind = index (itemnum, 0, QModelIndex ());
       emit dataChanged (ind, ind);
       }
