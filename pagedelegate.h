@@ -113,6 +113,17 @@ public:
    void getPagePart (const QStyleOptionViewItem &option,
       const QModelIndex &index, int start_line, int height, QRect &rect) const;
 
+public:
+   /** check whether a point is on a page's image
+
+      \param index   the page
+      \param option  the view options, with the page's rect
+      \param pos     the point, in the same coordinates as the rect
+      \returns true if it is on the image, rather than around it or on the
+               page's caption */
+   bool onImage (const QModelIndex &index, const QStyleOptionViewItem &option,
+                 const QPoint &pos) const;
+
 signals:
    /** indicate that an item has been clicked
 

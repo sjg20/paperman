@@ -64,6 +64,9 @@ public:
       \param allow      allow dragging of items to change order */
    void allowMove (bool allow);
 
+   //! true if pages can be moved, by dragging them or with the keys
+   bool moveAllowed (void) const { return _moveAllowed; }
+
    /** gets the options used in a view */
    const QStyleOptionViewItem getViewOptions (void) {
 #if QT_VERSION >= 0x060000
@@ -111,6 +114,10 @@ protected:
        or later, as dragging them does (see pagesMoved()) */
    void keyPressEvent (QKeyEvent *event) override;
 
+   /* a drag which starts on a page's image moves pages; one which starts
+      anywhere else, such as its caption, sweeps out a selection */
+   void mousePressEvent (QMouseEvent *event) override;
+
    /* pages dragged within the view are moved, which the view leaves to
       whoever follows pagesMoved(), rather than moving them itself */
    void dragEnterEvent (QDragEnterEvent *event) override;
@@ -154,6 +161,7 @@ private:
    QTimer _relayoutTimer;  //!< coalesces re-layouts after pixmap updates
    int _scale_down;     //!< scale factor to use (1/n)
    bool _follow;        //!< true to follow the end of the view (a scan is shown)
+   bool _moveAllowed = false;  //!< see moveAllowed()
    bool _autoscroll;    //!< true if the user has not scrolled away from the end
    bool _ignore_scroll; //!< true to ignore any scrolls (they are machine-generated)
    };
