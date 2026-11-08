@@ -26,6 +26,9 @@ cd "$build"
 "$qmake" "$src/paperman.pro" CONFIG+=test CONFIG+=coverage
 make -j"$jobs"
 
+# The tests need these, and this build is the one which is here to make them
+PAPERMAN="$build/paperman" python3 "$src/scripts/make_test_files.py"
+
 # Old counts would understate coverage of a re-run
 find "$build" -name '*.gcda' -delete
 
