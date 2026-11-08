@@ -142,6 +142,105 @@ void Pageview::currentChanged (const QModelIndex &index, const QModelIndex &prev
    }
 
 
+/* where an event which carries a drag is, as Qt 6 and Qt 5 each say it */
+static QPoint dropPos (const QDropEvent *event)
+   {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+   return event->position ().toPoint ();
+#else
+   return event->pos ();
+#endif
+   }
+
+
+bool Pageview::pagesInColumn (void) const
+   {
+   QAbstractItemModel *pages = model ();
+
+   return !pages || pages->rowCount () < 2
+       || visualRect (pages->index (0, 0)).left ()
+          == visualRect (pages->index (1, 0)).left ();
+   }
+
+
+QLine Pageview::dropLine (const QPoint &pos) const
+   {
+   int rows = model () ? model ()->rowCount () : 0;
+
+   if (!rows)
+      return QLine ();
+
+   int row = dropRow (pos);
+   int gap = spacing () / 2;
+   QRect before = row > 0 ? visualRect (model ()->index (row - 1, 0)) : QRect ();
+   QRect after = row < rows ? visualRect (model ()->index (row, 0)) : QRect ();
+
+   if (pagesInColumn ())
+      {
+      QRect page = after.isValid () ? after : before;
+      int y = !after.isValid () ? before.bottom () + gap
+            : !before.isValid () ? after.top () - gap
+            : (before.bottom () + after.top ()) / 2;
+
+      return QLine (page.left (), y, page.right (), y);
+      }
+
+   /* the pages run on to the next row, so between the last of one row and
+      the first of the next, go beside whichever the pointer is level with */
+   QRect page = before;
+   int x;
+
+   if (before.isValid () && after.isValid () && before.top () == after.top ())
+      x = (before.right () + after.left ()) / 2;
+   else if (after.isValid ()
+            && (!before.isValid () || pos.y () > before.bottom ()))
+      {
+      page = after;
+      x = after.left () - gap;
+      }
+   else
+      x = before.right () + gap;
+   return QLine (x, page.top (), x, page.bottom ());
+   }
+
+
+void Pageview::setDropLine (const QLine &line)
+   {
+   auto area = [] (const QLine &l) {
+      return QRect (l.p1 (), l.p2 ()).normalized ().adjusted (-3, -3, 3, 3);
+   };
+
+   if (line == _dropLine)
+      return;
+   if (!_dropLine.isNull ())
+      viewport ()->update (area (_dropLine));
+   _dropLine = line;
+   if (!_dropLine.isNull ())
+      viewport ()->update (area (_dropLine));
+   }
+
+
+void Pageview::paintEvent (QPaintEvent *event)
+   {
+   QListView::paintEvent (event);
+   if (_dropLine.isNull ())
+      return;
+
+   QPainter painter (viewport ());
+
+   painter.setPen (QPen (palette ().color (QPalette::Highlight), 3,
+                         Qt::SolidLine, Qt::RoundCap));
+   painter.drawLine (_dropLine);
+   }
+
+
+void Pageview::dragLeaveEvent (QDragLeaveEvent *event)
+   {
+   setDropLine (QLine ());
+   QAbstractItemView::dragLeaveEvent (event);
+   }
+
+
 int Pageview::dropRow (const QPoint &pos) const
    {
    int rows = model () ? model ()->rowCount () : 0;
@@ -166,18 +265,8 @@ int Pageview::dropRow (const QPoint &pos) const
       where the pages are side by side and its top half where they are in
       a column, as in a narrow page list */
    QRect rect = visualRect (index);
-   bool across = false;
-
-   for (int row : {index.row () - 1, index.row () + 1})
-      {
-      QModelIndex other = model ()->index (row, 0);
-
-      if (other.isValid () && visualRect (other).top () == rect.top ())
-         across = true;
-      }
-
-   bool after = across ? pos.x () > rect.center ().x ()
-                       : pos.y () > rect.center ().y ();
+   bool after = pagesInColumn () ? pos.y () > rect.center ().y ()
+                                 : pos.x () > rect.center ().x ();
 
    return index.row () + (after ? 1 : 0);
    }
@@ -203,6 +292,7 @@ void Pageview::dragMoveEvent (QDragMoveEvent *event)
    // this scrolls the view near its edges
    QAbstractItemView::dragMoveEvent (event);
    event->acceptProposedAction ();
+   setDropLine (dropLine (dropPos (event)));
    }
 
 
@@ -292,11 +382,9 @@ void Pageview::dropEvent (QDropEvent *event)
    for (const QModelIndex &index : selectionModel ()->selectedIndexes ())
       rows << index.row ();
    std::sort (rows.begin (), rows.end ());
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-   QPoint pos = event->position ().toPoint ();
-#else
-   QPoint pos = event->pos ();
-#endif
+   QPoint pos = dropPos (event);
+
+   setDropLine (QLine ());
 
    // the view itself moves nothing: the pages come back in their new places
    event->setDropAction (Qt::IgnoreAction);

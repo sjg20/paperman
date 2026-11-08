@@ -24,6 +24,9 @@ private slots:
    //! pages being dragged are shown small, however many there are
    void testDragImage();
 
+   //! the marker shows where a drop goes, in a column and in rows of pages
+   void testDropMarker();
+
    //! the view mode chosen is the one shown after a restart
    void testViewModeRestored();
 

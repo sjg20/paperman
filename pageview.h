@@ -107,6 +107,10 @@ public slots:
        before, or the number of rows to go after the last */
    int dropRow (const QPoint &pos) const;
 
+   /** the marker showing where pages dropped at @p pos go: a line across
+       the gap between two pages, or at the end of the pages */
+   QLine dropLine (const QPoint &pos) const;
+
    /** the image shown while dragging pages: a small copy of one page, with
        how many there are when there are several
 
@@ -135,6 +139,11 @@ protected:
    /* the view would drag an image of all the pages selected, laid out as
       they are, which can fill the screen */
    void startDrag (Qt::DropActions supportedActions) override;
+
+   void dragLeaveEvent (QDragLeaveEvent *event) override;
+
+   //! draws the pages, then the marker of where a drop goes
+   void paintEvent (QPaintEvent *event) override;
 
    //! update the view size based on the items within it
    void updateGeometries (void);
@@ -174,6 +183,13 @@ private:
    int _scale_down;     //!< scale factor to use (1/n)
    bool _follow;        //!< true to follow the end of the view (a scan is shown)
    bool _moveAllowed = false;  //!< see moveAllowed()
+   QLine _dropLine;     //!< the marker of where a drop goes, if any
+
+   //! true if the pages are in a single column, as in a narrow list
+   bool pagesInColumn (void) const;
+
+   //! show the marker at @p line, or take it away if that is null
+   void setDropLine (const QLine &line);
    bool _autoscroll;    //!< true if the user has not scrolled away from the end
    bool _ignore_scroll; //!< true to ignore any scrolls (they are machine-generated)
    };
