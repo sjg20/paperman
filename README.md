@@ -49,7 +49,7 @@ Following the desktop's dark theme | Scanning, with presets
 
 - simple GUI based around stacks and pages
 - view previews and browse through pages
-- move pages in and out of stacks
+- move pages in and out of stacks, and drag them into a new order
 - navigate through directories
 - move stacks between directories
 - double click to view full size page image (also on right pane)
@@ -69,9 +69,9 @@ Following the desktop's dark theme | Scanning, with presets
   by the words on their pages, and the PDFs paperman makes can be searched
   and their text copied
 - a search server whose repositories the desktop can show and change over
-  the network
+  the network, with user accounts which can be limited to some repositories
 - an app for Android and iPhone, for browsing, searching and reading the
-  server's repositories
+  server's repositories, and scanning into them with the phone's camera
 
 
 new in 0.4:
@@ -193,14 +193,26 @@ new since 1.4.0 (not yet released)
   found stack turned to the page which matches best
 * the PDFs paperman makes, and those the server makes, have an invisible
   layer of text, so they can be searched and their text copied
+* a stack's pages can be dragged into a new order in the page list
+* opening a folder of long stacks reads far less of each file, which is
+  most noticeable over a network
+* each view mode of the page list keeps its own layout, and the one last
+  chosen is used at the next start
+* a server's users can be limited to a part of a repository
+* a check once a day for a newer version, which can be turned off in the
+  options
 
 ## Command-line usage
+
+These are the main options. `paperman --help` lists them all and the
+[command-line guide](https://paperman.readthedocs.io/en/latest/cli.html)
+goes through them.
 
 ### -j <file>
 
 Convert a file to .jpg, the JPEG image file. This produces a separate file for
 each page of the document, with a _p<n> addition. So a two-page document called
-fred,max will produce fred_p1.jpg and fred_p2.jpg
+fred.max will produce fred_p1.jpg and fred_p2.jpg
 
 ### -m <file>
 
@@ -209,7 +221,7 @@ but with a .max extension.
 
 ### -p <file>
 
-Convert a file to PDF, The new file has the same name but with a .pdf extension.
+Convert a file to PDF. The new file has the same name but with a .pdf extension.
 
 ### -s <file>
 
@@ -217,7 +229,7 @@ Does an MD5 checksum of every page in every .max file in a directory. The
 results are written to a file called 'checksums.md5' in the current directory.
 For example:
 
-    maxview -s /paper
+    paperman -s /paper
 
 The file format is a line for each page, containing space-separated fields:
 
@@ -477,6 +489,11 @@ installing or operating it.
 
 See [the full policy](doc/code-signing.rst) for how releases are signed.
 
+## Building
+
+The [build guide](https://paperman.readthedocs.io/en/latest/build.html)
+covers each platform and component.
+
 ## Testing
 
 Paperman includes a comprehensive test suite to verify functionality. Tests are built
@@ -510,18 +527,15 @@ Run one suite, or one test, by naming its class:
 The tests which run tesseract are skipped if it is not installed. All tests use
 temporary directories and clean up after themselves.
 
+`make coverage` measures how much of the C++ code the tests run; master's
+report is [published](https://sjg20.github.io/paperman/coverage/).
+
 
 ## Future Features
 
 Here's what I'd like it to support:
 
 - more operations on images
-- support for more image types (at the moment only JPEG is supported)
 
-If you have other ideas then feel free to let me know on the mailing list.
-
-
-
-Simon Glass
-sjg@chromium.org
-Aug 2020
+If you have other ideas or find a problem, please open an
+[issue](https://github.com/sjg20/paperman/issues).
