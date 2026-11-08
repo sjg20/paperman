@@ -607,6 +607,53 @@ err_info *Filejpeg::unstackPages (int pagenum, int pagecount, bool remove,
    }
 
 
+err_info *Filejpeg::reorderPages (const QVector<int> &order)
+   {
+   CALL (checkOrder (order));
+
+   /* each page's number is in its file's name, so a page which moves is
+      renamed; all go to a name of their own first, so that none takes a
+      name which is still another's */
+   QList<Filejpegpage *> pages;
+   QStringList moving;
+
+   for (int pagenum : order)
+      pages << _pages [pagenum];
+   for (int i = 0; i < pages.size (); i++)
+      {
+      QString fname = pages [i]->filename ();
+      QString tmp;
+
+      if (order [i] != i && !fname.isEmpty ())
+         {
+         tmp = QString (".reorder-%1-%2").arg (i).arg (fname);
+         if (!QFile::rename (_dir + fname, _dir + tmp))
+            return err_make (ERRFN, ERR_could_not_rename_file2,
+                             qPrintable (_dir + fname),
+                             qPrintable (_dir + tmp));
+         }
+      moving << tmp;
+      }
+
+   _pages = pages;
+   _pagenum = order.indexOf (_pagenum);
+   for (int i = 0; i < _pages.size (); i++)
+      {
+      if (moving [i].isEmpty ())
+         continue;
+
+      QString fname = encodePageNumber (_base_fname, i);
+
+      if (!QFile::rename (_dir + moving [i], _dir + fname))
+         return err_make (ERRFN, ERR_could_not_rename_file2,
+                          qPrintable (_dir + moving [i]),
+                          qPrintable (_dir + fname));
+      CALL (setFilename (i, fname));
+      }
+   return NULL;
+   }
+
+
 err_info *Filejpeg::stackStack (File *fsrc)
    {
    Filejpeg *src = (Filejpeg *)fsrc;

@@ -18,6 +18,9 @@ private slots:
    //! a slow exiftool is waited for, rather than its answer lost
    void testSlowExiftool();
 
+   //! a stack's pages can be put in a new order, which is kept in its file
+   void testReorderPages();
+
    //! what reading a stack costs is counted with the stack's file
    void testStackIo();
 

@@ -29,6 +29,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 /* PoDoFo 1.x's span.hpp uses std::terminate without including <exception>,
    which libc++ 23 no longer brings in by other means */
 #include <exception>
+#include <algorithm>
+#include <vector>
+
 #include <QFileInfo>
 
 #include "podofo/podofo.h"
@@ -1333,6 +1336,62 @@ err_info *Pdfio::insertPages (Pdfio *from, int start, int count)
       _doc->GetPages ().AppendDocumentPages (*from->_doc, start, count);
 #else
       _doc->InsertPages (*from->_doc, start, count);
+#endif
+      }
+#ifdef EXCEPTIONS
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+#endif
+   // close and write changes
+   return close ();
+}
+
+
+err_info *Pdfio::reorderPages (const QVector<int> &order)
+{
+   mytry
+      {
+#ifdef PODOFO_1X
+      /* once every page is a kid of the top of the page tree, the order
+         of the pages is the order of its kids */
+      PdfPageCollection &pages = _doc->GetPages ();
+
+      pages.FlattenStructure ();
+
+      PdfArray &kids = pages.GetDictionary ().MustFindKey ("Kids")
+                          .GetArray ();
+      std::vector<PdfObject> was;
+
+      for (unsigned i = 0; i < kids.GetSize (); i++)
+         was.push_back (kids [i]);
+      for (int i = 0; i < order.size (); i++)
+         kids [i] = was [order [i]];
+#else
+      // move each page into its new place in turn, in the page tree
+      PdfPagesTree *tree = _doc->GetPagesTree ();
+      std::vector<PdfObject *> now;
+
+      for (int i = 0; i < tree->GetTotalNumberOfPages (); i++)
+         now.push_back (tree->GetPage (i)->GetObject ());
+
+      const std::vector<PdfObject *> was = now;
+
+      for (int i = 0; i < order.size (); i++)
+         {
+         PdfObject *page = was [order [i]];
+         int at = std::find (now.begin (), now.end (), page) - now.begin ();
+
+         if (at == i)
+            continue;
+         tree->DeletePage (at);
+         now.erase (now.begin () + at);
+         tree->InsertPage (i ? i - 1
+                             : ePdfPageInsertionPoint_InsertBeforeFirstPage,
+                           page);
+         now.insert (now.begin () + i, page);
+         }
 #endif
       }
 #ifdef EXCEPTIONS

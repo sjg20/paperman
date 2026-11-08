@@ -2982,3 +2982,105 @@ void TestFile::testSlowExiftool()
    QCOMPARE(text, QString("An Author"));
 #endif
 }
+
+
+/* the image of a page, as the page view gets it */
+static QImage pageImage(File *f, int pagenum)
+{
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+
+   if (f->getImage(pagenum, false, image, size, trueSize, bpp, false))
+      return QImage();
+   return image;
+}
+
+void TestFile::testReorderPages()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   // the third page first, then the first, second, fourth and fifth
+   const QVector<int> order = {2, 0, 1, 3, 4};
+
+   for (const QString &name : {QString("100pp_from_pdf.max"),
+                               QString("testpdf.pdf")})
+      {
+      QVERIFY(!copyFixture(name, tmp.path()).isEmpty());
+      File::e_type type = File::typeFromName(name);
+
+      File *f = File::createFile(dir, name, nullptr, type);
+      QVERIFY(f->load() == nullptr);
+      int count = f->pagecount();
+      QVector<int> all(count);
+      for (int i = 0; i < count; i++)
+         all[i] = i < order.size() ? order[i] : i;
+
+      QList<QImage> before;
+      for (int i = 0; i < order.size(); i++)
+         before << pageImage(f, i);
+      // the pages moved differ, or the test could not tell
+      QVERIFY(!before[0].isNull() && before[0] != before[2]);
+      QVERIFY(before[1] != before[2]);
+
+      // an order which leaves out a page, or names one twice, is refused
+      QVector<int> twice = all;
+      twice[1] = twice[0];
+      QVERIFY(f->reorderPages(twice) != nullptr);
+      QVERIFY(f->reorderPages(all.mid(1)) != nullptr);
+
+      // the page shown goes with it
+      f->setPagenum(2);
+      QVERIFY2(f->reorderPages(all) == nullptr, qPrintable(name));
+      QCOMPARE(f->pagenum(), 0);
+      QCOMPARE(f->pagecount(), count);
+      delete f;
+
+      // the file has the new order, read afresh
+      File *again = File::createFile(dir, name, nullptr, type);
+      QVERIFY(again->load() == nullptr);
+      QCOMPARE(again->pagecount(), count);
+      for (int i = 0; i < order.size(); i++)
+         QVERIFY2(pageImage(again, i) == before[order[i]],
+                  qPrintable(QString("%1 page %2").arg(name).arg(i)));
+      delete again;
+      }
+
+   // a JPEG stack is a file for each page, whose names follow the order
+   const QList<QColor> colours = {Qt::red, Qt::green, Qt::blue};
+   for (int i = 0; i < colours.size(); i++)
+      {
+      QImage img(40, 30, QImage::Format_RGB32);
+      img.fill(colours[i]);
+      QVERIFY(img.save(dir + QString("scan_p%1.jpg").arg(i + 1), "JPG", 100));
+      }
+   auto colourOf = [&](const QString &fname) {
+      return QImage(dir + fname).pixelColor(20, 15);
+   };
+   auto similar = [](const QColor &a, const QColor &b) {
+      return qAbs(a.red() - b.red()) < 30 && qAbs(a.green() - b.green()) < 30
+             && qAbs(a.blue() - b.blue()) < 30;
+   };
+
+   Filejpeg jf(dir, "scan_p1.jpg", nullptr);
+   QVERIFY(jf.load() == nullptr);
+   QString base, ext;
+   int pagenum = 0;
+   for (const QString &fname : {QString("scan_p2.jpg"), QString("scan_p3.jpg")})
+      {
+      QVERIFY(File::decodePageNumber(fname, base, pagenum, ext));
+      QVERIFY(jf.claimFileAsNewPage(fname, base, pagenum));
+      }
+   QCOMPARE(jf.pagecount(), 3);
+   QVERIFY(jf.reorderPages({2, 0, 1}) == nullptr);
+   QVERIFY(similar(colourOf("scan_p1.jpg"), Qt::blue));
+   QVERIFY(similar(colourOf("scan_p2.jpg"), Qt::red));
+   QVERIFY(similar(colourOf("scan_p3.jpg"), Qt::green));
+   QStringList left = QDir(dir).entryList({"*.jpg"}, QDir::Files);
+   left.sort();
+   QCOMPARE(left, QStringList({"scan_p1.jpg", "scan_p2.jpg", "scan_p3.jpg"}));
+   QVERIFY(QDir(dir).entryList({".reorder-*"}, QDir::Files | QDir::Hidden)
+           .isEmpty());
+}
