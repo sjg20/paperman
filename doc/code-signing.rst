@@ -46,11 +46,15 @@ multi-factor authentication for GitHub and for SignPath.
 Privacy
 -------
 
-This program will not transfer any information to other networked
-systems unless specifically requested by the user or the person
-installing or operating it.  Paperman only connects to a paperman
-server which its user attaches, and only sends mail or opens a web page
-when its user asks it to.
+Once a day the desktop program asks getpaperman.com whether there is a
+newer version, sending its version, the operating system, the processor
+and the kind of package; this can be turned off in the options. Otherwise
+this program will not transfer any information to other networked systems
+unless specifically requested by the user or the person installing or
+operating it: Paperman otherwise only connects to a paperman server which
+its user attaches, and only sends mail or opens a web page when its user
+asks it to. See the `privacy policy
+<https://getpaperman.com/privacy-policy/>`_.
 
 Setting it Up
 -------------
