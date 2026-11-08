@@ -1308,6 +1308,22 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches,
    return final;
 }
 
+QStringList utilYearFolders(const QDate& date, const QStringList& matches)
+{
+   QStringList found;
+
+   foreach (const QString& item, matches) {
+      int ypos = 0, mpos;
+      int year = utilDetectYear(item, ypos);
+
+      if ((year == date.year() || year == date.year() - 1)
+          && ypos + 4 == item.size() && !utilDetectMonth(item, mpos))
+         found << item;
+   }
+
+   return found;
+}
+
 #ifndef QT_NO_WIDGETS
 bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes)
 {
@@ -1446,6 +1462,21 @@ TreeItem *TreeItem::findItemW(QString path)
     return (TreeItem *)findItem(path);
 }
 
+bool TreeItem::sameDirs(const QStringList& names) const
+{
+   int count = 0;
+
+   foreach (const TreeItem *item, m_childItems) {
+      if (!item->isDir())
+         continue;
+      if (!names.contains(item->dirName()))
+         return false;
+      count++;
+   }
+
+   return count == names.size();
+}
+
 void TreeItem::dump(int indent) const {
    foreach (TreeItem *item, m_childItems) {
       qInfo() << QString("%1").arg(' ', indent) << item->dirName();
@@ -1560,6 +1591,21 @@ static void scanDir(const QString &dirPath, TreeItem *parent, Operation *op)
       if (op)
          op->setProgress(i);
    }
+}
+
+QStringList utilListDirs(const QString& dirPath)
+{
+   QDir dir(dirPath);
+   QStringList names;
+
+   dir.setFilter(QDir::Dirs | QDir::NoSymLinks);
+   foreach (const QString& name, dir.entryList()) {
+      // as scanDir(): these are not listed
+      if (!name.startsWith(' ') && !name.startsWith('.'))
+         names << name;
+   }
+
+   return names;
 }
 
 TreeItem *utilScanDir(QString dirPath, Operation *op)
