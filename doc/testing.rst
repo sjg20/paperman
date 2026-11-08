@@ -245,6 +245,9 @@ master's, how much of the changed code the tests run and which changed lines
 they do not; the annotated report is in its ``coverage-report`` artifact.  This
 is for information and does not fail the pull request.
 
+The report for master is published at
+https://sjg20.github.io/paperman/coverage/ and updated once CI has finished.
+
 Flutter Widget Tests
 --------------------
 

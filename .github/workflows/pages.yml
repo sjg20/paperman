@@ -3,9 +3,15 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [master]
+  # CI measures the test coverage, so the site is rebuilt to show it
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -16,6 +22,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push'
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
@@ -40,6 +47,18 @@ jobs:
           cp site/index.html _site/
           mkdir -p _site/images
           cp doc/*.jpeg doc/*.png _site/images/
+
+      - name: Add the latest coverage report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run in $(gh run list --workflow ci.yml --branch master \
+                --event push --limit 10 --json databaseId \
+                --jq '.[].databaseId' || true); do
+            if gh run download "$run" -n coverage-report -D _site/coverage; then
+              break
+            fi
+          done
 
       - uses: actions/configure-pages@v5
 
