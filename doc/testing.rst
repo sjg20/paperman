@@ -212,6 +212,23 @@ every platform with no scanner, fake or real:
 ``changed`` is called whenever a setting changes, as the main window
 refreshes the panel when the scanner says an option has changed.
 
+Measuring a Scanner
+-------------------
+
+To measure the scanner itself, ``tools/psip-bench.py`` talks the fi-8950's
+network protocol directly, with neither the SANE back end nor Paperman in
+the way. It scans a number of sides (default 50) as fast as the scanner will
+hand them over, prints the timing of every side with ``-v``, and reports the
+rate, how long the scanner made it wait for each side and how far the feeder
+ran ahead. Options vary the resolution, pre-pick, divided delivery and
+end-of-page detection. It always stops the feeder and closes the session, so
+it can be interrupted with Ctrl-C.
+
+``tools/sane-bench.py`` does the same through SANE with ``scanimage``, so it
+works over USB (fujitsu back end) as well as the network, timing each side as
+it completes. For a fujitsu device it adds ``buffermode=On`` and, in colour,
+``compression=JPEG``, which the fi-8950 needs to run at speed over USB.
+
 Code Coverage
 -------------
 
