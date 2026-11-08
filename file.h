@@ -322,6 +322,14 @@ public:
 
    virtual err_info *getPageTitle (int pagenum, QString &title) = 0;
 
+   /** get the title of every page, an empty one for a page without one.
+       This asks getPageTitle() for each page; a type whose titles are
+       costly to read one at a time reads them all together
+
+      \param titles  returns the titles, one for each page
+      \returns error, or NULL if OK */
+   virtual err_info *getPageTitles (QStringList &titles);
+
    virtual err_info *getAnnot (e_annot type, QString &text)= 0;
 
    virtual err_info *putAnnot (QHash<int, QString> &updates) = 0;
@@ -543,6 +551,10 @@ eturns error, or NULL if ok */
    void setPos (QPoint pos);
 
    QString pageTitle (int pagenum);
+
+   /** the name of every page, as pageTitle() gives each: its title, or
+       "Page n" for a page without one */
+   QStringList pageTitles (void);
 
    e_type type (void);
 

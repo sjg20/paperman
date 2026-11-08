@@ -179,6 +179,9 @@ public:
 
    virtual err_info *getPageTitle (int pagenum, QString &title);
 
+   //! with the file opened once for them all, rather than for each page
+   virtual err_info *getPageTitles (QStringList &titles) override;
+
    virtual err_info *getAnnot (e_annot type, QString &text);
 
    virtual err_info *putAnnot (QHash<int, QString> &updates);

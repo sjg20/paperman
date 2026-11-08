@@ -519,6 +519,33 @@ QDateTime File::time (void) const
    }
 
 
+err_info *File::getPageTitles (QStringList &titles)
+   {
+   titles.clear ();
+   for (int i = 0; i < pagecount (); i++)
+      {
+      QString title;
+
+      CALL (getPageTitle (i, title));
+      titles << title;
+      }
+   return NULL;
+   }
+
+
+QStringList File::pageTitles (void)
+   {
+   QStringList titles;
+
+   if (_valid && getPageTitles (titles))
+      titles.clear ();
+   for (int i = 0; i < titles.size (); i++)
+      if (titles [i].isEmpty ())
+         titles [i] = QString (tr ("Page %1")).arg (i + 1);
+   return titles;
+   }
+
+
 QString File::pageTitle (int pagenum)
    {
    err_info *err;

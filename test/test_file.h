@@ -15,6 +15,9 @@ private slots:
    //! typeFromName maps extensions (and unknown extensions) to e_type
    void testTypeFromName();
 
+   //! every page's title is read at once, with one opening of a .max
+   void testPageTitles();
+
    //! what reading a stack costs is counted with the stack's file
    void testStackIo();
 

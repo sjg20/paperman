@@ -2936,3 +2936,39 @@ void TestFile::testLazyPageRecords()
    delete max;
    IoStats::reset();
 }
+
+
+void TestFile::testPageTitles()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+
+   for (const QString &name : {QString("100pp_from_pdf.max"),
+                               QString("testpdf.pdf")})
+      {
+      QString path = copyFixture(name, tmp.path());
+      QVERIFY(!path.isEmpty());
+
+      // as asked of each page in turn
+      QStringList each;
+      {
+         File *f = File::createFile(dir, name, nullptr,
+                                    File::typeFromName(name));
+         QVERIFY(f->load() == nullptr);
+         for (int i = 0; i < f->pagecount(); i++)
+            each << f->pageTitle(i);
+         delete f;
+      }
+      QVERIFY(!each.isEmpty());
+
+      File *f = File::createFile(dir, name, nullptr,
+                                 File::typeFromName(name));
+      QVERIFY(f->load() == nullptr);
+      IoStats::Counts before = IoStats::forPath(path);
+      QCOMPARE(f->pageTitles(), each);
+      if (name.endsWith(".max"))
+         QCOMPARE(IoStats::forPath(path).opens - before.opens, qint64(1));
+      delete f;
+      }
+}

@@ -6185,6 +6185,34 @@ err_info *Filemax::getPageTitle (int pagenum, QString &title)
    }
 
 
+err_info *Filemax::getPageTitles (QStringList &titles)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   titles.clear ();
+   if (isSparse ())
+      {
+      // filled from info.json
+      for (const page_info &page : _pages)
+         titles << page.titlestr;
+      return NULL;
+      }
+
+   Open open (this);
+
+   CALL (open.err ());
+   for (int i = 0; i < _pages.size (); i++)
+      {
+      page_info &page = _pages [i];
+
+      CALL (ensure_roswell (page));
+      CALL (ensure_titlestr (i, page));
+      titles << page.titlestr;
+      }
+   return NULL;
+   }
+
+
 err_info *Filemax::stackStack (File *fsrc)
    {
    QMutexLocker locker (&_file_mutex);
