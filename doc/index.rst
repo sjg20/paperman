@@ -12,6 +12,7 @@ The manual is also available as a `PDF
 
    introduction
    install
+   history
    getpaperman.com <https://getpaperman.com>
 
 .. toctree::
