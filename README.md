@@ -1,4 +1,5 @@
 [![CI](https://github.com/sjg20/paperman/actions/workflows/ci.yml/badge.svg)](https://github.com/sjg20/paperman/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fsjg20.github.io%2Fpaperman%2Fcoverage%2Fsummary.json&query=%24.line_percent&suffix=%25&label=coverage)](https://sjg20.github.io/paperman/coverage/)
 
 # Paper Manager
 
