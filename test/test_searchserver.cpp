@@ -1474,18 +1474,25 @@ void TestSearchServer::testChangeWaitsForThumbnail()
    QVERIFY(!client.serverId().isEmpty());
 
    // a large image of a page, which comes from the page itself
-   QStringList order;
+   QStringList got;
+   QString thumb = server.thumbnailPath(tmpDir.path(), fname, 1, "large");
+
    connect(&client, &RemoteBackend::thumbnailReady, this,
            [&](quint64, const QByteArray &bytes) {
-      order << (bytes.isEmpty() ? "no thumbnail" : "thumbnail");
+      got << (bytes.isEmpty() ? "no thumbnail" : "thumbnail");
    });
    client.fetchThumbnailAsync(repo, fname, 1, "large");
+
+   /* the replies come on separate connections, so either may arrive first:
+      what matters is that the stack went only once the thumbnail was made */
    client.deleteStack(repo, fname, this,
                       [&](const RemoteBackend::Result &result) {
-      order << (result.ok ? "deleted" : "not deleted");
+      got << (!result.ok ? "not deleted" : QFile::exists(thumb)
+              ? "deleted" : "deleted before the thumbnail was made");
    });
-   QTRY_COMPARE(order.size(), 2);
-   QCOMPARE(order, QStringList({"thumbnail", "deleted"}));
+   QTRY_COMPARE(got.size(), 2);
+   got.sort();
+   QCOMPARE(got, QStringList({"deleted", "thumbnail"}));
    QVERIFY(!QFile::exists(tmpDir.path() + "/" + fname));
 }
 
