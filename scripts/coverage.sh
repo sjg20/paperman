@@ -4,8 +4,10 @@
 # Builds the test binary with gcov instrumentation in build-coverage/,
 # runs the full test suite and writes a report:
 #
-#   build-coverage/coverage.html   - annotated per-file report
+#   build-coverage/report/         - annotated per-file report, index.html,
+#                                    with its figures in summary.json
 #   build-coverage/coverage.txt    - plain-text summary (also printed)
+#   build-coverage/coverage.json   - the count for each line
 #
 # Environment:
 #   QMAKE     qmake to use (default: qmake from PATH)
@@ -35,14 +37,23 @@ find "$build" -name '*.gcda' -delete
 # Isolate settings and use the offscreen platform so the GUI tests run
 # headless; fixtures load relative to the source directory
 scratch="$(mktemp -d)"
+status=0
 cd "$src"
 QT_QPA_PLATFORM=offscreen HOME="$scratch/home" XDG_CONFIG_HOME="$scratch/config" \
-    "$build/paperman" -t $SUITE || true
+    "$build/paperman" -t $SUITE || status=$?
 rm -rf "$scratch"
+
+# Coverage is still worth having when a test fails, but a crash loses
+# the counts of everything which ran before it
+if [ "$status" -ne 0 ]; then
+    echo "Warning: the tests exit with status $status, so coverage may read low"
+fi
 
 # Report on the application code: leave out the tests themselves,
 # generated moc/qrc/ui files and the bundled QuiteInsane scanner code
 cd "$build"
+rm -rf report
+mkdir report
 # --gcov-ignore-parse-errors: newer gcc emits per-block lines that
 # some gcovr versions do not understand; they carry no line counts
 gcovr --root "$src" --object-directory "$build" \
@@ -51,9 +62,12 @@ gcovr --root "$src" --object-directory "$build" \
     --exclude "$src/qi/" \
     --exclude '.*/moc_.*' --exclude '.*/qrc_.*' --exclude '.*/ui_.*' \
     --exclude-unreachable-branches \
-    --html-details coverage.html \
+    --html-title 'Paperman C++ test coverage' \
+    --html-details report/index.html \
+    --json-summary report/summary.json \
+    --json coverage.json \
     --txt coverage.txt \
     --print-summary
 
 echo
-echo "Full report: $build/coverage.html"
+echo "Full report: $build/report/index.html"
