@@ -3,11 +3,15 @@
 
 # Paper Manager
 
+Visit **[getpaperman.com](https://getpaperman.com)** to
+[download Paperman](https://getpaperman.com/download/),
+[see what it does](https://getpaperman.com/features/) or
+[try the demo](https://getpaperman.com/server-and-app/#try-it).
+
 Paperman is an electronic filing cabinet: it scans paper into stacks of
 pages and lets you view, arrange, annotate, print, search and send them.
 It reads and writes PDF, JPEG and its own variant of PaperPort's .max file
-format. Its website, [getpaperman.com](https://getpaperman.com), has
-downloads and a tour of what it does.
+format.
 
 It has three parts: the desktop program, for Linux, Windows and macOS; a
 search server, `paperman-server`, which serves repositories over the
@@ -28,13 +32,17 @@ master. See the
 
 Full documentation is available at https://paperman.readthedocs.io
 
-Desktop view | Select scanner | Dated files | Open file | Preview | Preview2
------------- | -------------- | ----------- | --------- | ------- | --------
-![1](doc/1.jpeg) | ![2](doc/2.jpeg) | ![3](doc/3.jpeg) | ![4](doc/4.jpeg) | ![5](doc/5.png) | ![6](doc/all.png)
+## Screenshots
 
-Scanning | Fast folder finding | Scanning dialog | Side-by-side preview & OCR
--------- | ------------------- | --------------- | --------------------------
-![7](doc/6.png) | ![8](doc/7.png) | ![9](doc/8.png) | ![10](doc/9.png)
+![The desktop, with folders, stacks, a stack's pages and the page's text](doc/images/desktop.png)
+
+A long stack, with each page's text | Finding stacks by the words on their pages
+----------------------------------- | -----------------------------------------
+![A 63-page stack open at a signed page](doc/images/page-view.png) | ![Stacks found by a word on their pages](doc/images/search-results.png)
+
+Following the desktop's dark theme | Scanning, with presets
+---------------------------------- | ----------------------
+![The desktop in a dark theme](doc/images/desktop-dark.png) | ![The scanning panel](doc/images/scan-panel.png)
 
 ## Features
 
