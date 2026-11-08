@@ -224,7 +224,7 @@ To see how much of the C++ code the tests exercise, run:
 This builds the test binary with gcov instrumentation in
 ``build-coverage/`` (a shadow build, so the normal build directories are
 untouched), runs the whole suite headless and writes an annotated
-per-file report to ``build-coverage/coverage.html`` plus a plain-text
+per-file report to ``build-coverage/report/index.html`` plus a plain-text
 summary to ``build-coverage/coverage.txt``.  The report covers the
 application code only: the tests themselves, generated moc/qrc/ui files
 and the bundled QuiteInsane scanner code under ``qi/`` are excluded.
