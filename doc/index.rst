@@ -1,6 +1,9 @@
 Paperman
 ========
 
+The manual is also available as a `PDF
+<https://paperman.readthedocs.io/_/downloads/en/latest/pdf/>`_.
+
 .. include:: introduction.rst
 
 .. toctree::
