@@ -455,6 +455,49 @@ void UCDeletePages::undo (void)
    }
 
 
+UCReorderPages::UCReorderPages (Desktopmodel *model, QModelIndex &ind,
+                                const QVector<int> &order)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (ind.parent ());
+   _filename = model->data (ind, Desktopmodel::Role_filename).toString ();
+   _order = order;
+   setText (QApplication::translate ("UCReorderPages", "Reorder pages"));
+   }
+
+
+void UCReorderPages::reorder (const QVector<int> &order)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _filename;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opReorderPages (ind, order, done);
+   });
+   }
+
+
+void UCReorderPages::redo (void)
+   {
+   reorder (_order);
+   }
+
+
+void UCReorderPages::undo (void)
+   {
+   // the page now at _order [i] goes back to place _order [i]
+   QVector<int> back (_order.size ());
+
+   for (int i = 0; i < _order.size (); i++)
+      back [_order [i]] = i;
+   reorder (back);
+   }
+
+
 UCStackStacks::UCStackStacks (Desktopmodel *model, QModelIndex &dest,
       QModelIndexList &list, int pagenum, QList<QPoint> *poslist)
       : Desktopundocmd (model)

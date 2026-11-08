@@ -256,6 +256,26 @@ private:
    };
 
 
+/** put a stack's pages in a new order. Undo puts them back, with the
+reverse order */
+
+class UCReorderPages : public Desktopundocmd
+   {
+public:
+   UCReorderPages (Desktopmodel *model, QModelIndex &ind,
+                   const QVector<int> &order);
+   void redo();
+   void undo();
+private:
+   //! apply @p order to the stack
+   void reorder (const QVector<int> &order);
+
+   QString _dir;           //!< desk directory
+   QString _filename;      //!< the filename of the stack
+   QVector<int> _order;    //!< the old number of each page, in its new place
+   };
+
+
 /** stack one or more stacks into a destination stack, inserting them at
 a given page number. This records the destination filename and the filenames
 of all the stacked items, so that we can unstack them. It also records the

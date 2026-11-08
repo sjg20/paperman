@@ -530,6 +530,66 @@ void TestOps::testRenamePage()
             "Page 1");
 }
 
+/* the image of each page of a stack, as the page view gets it */
+static QList<QImage> stackImages(File *f)
+{
+   QList<QImage> images;
+
+   for (int i = 0; i < f->pagecount(); i++)
+      {
+      QImage image;
+      QSize size, trueSize;
+      int bpp;
+
+      if (f->getImage(i, false, image, size, trueSize, bpp, false))
+         image = QImage();
+      images << image;
+      }
+   return images;
+}
+
+void TestOps::testReorderPages()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   QModelIndex max_ind = model->index(0, 0, repo_ind);
+   File *max = model->getFile(max_ind);
+   QVERIFY(max);
+   max->load();
+   QCOMPARE(max->pagecount(), 5);
+   QList<QImage> before = stackImages(max);
+   QVERIFY(before[0] != before[3]);
+
+   // a stack of several pages, here and in a file which can, can be
+   QVERIFY(model->canReorderPages(max_ind));
+
+   // the fourth page first, with the stack showing it
+   QVERIFY(model->setData(max_ind, 3, Desktopmodel::Role_pagenum));
+   const QVector<int> order = {3, 0, 1, 2, 4};
+   model->reorderPages(max_ind, order);
+
+   max = model->getFile(max_ind);
+   QList<QImage> after = stackImages(max);
+   for (int i = 0; i < order.size(); i++)
+      QVERIFY2(after[i] == before[order[i]], qPrintable(QString::number(i)));
+   QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagenum).toInt(), 0);
+
+   // undo puts them back, and the page shown with them
+   Desktopundostack *stk = model->getUndoStack();
+   QVERIFY(stk->canUndo());
+   QCOMPARE(stk->undoText(), QString("Reorder pages"));
+   stk->undo();
+   QCOMPARE(stackImages(model->getFile(max_ind)), before);
+   QCOMPARE(model->data(max_ind, Desktopmodel::Role_pagenum).toInt(), 3);
+
+   stk->redo();
+   QCOMPARE(stackImages(model->getFile(max_ind)), after);
+}
+
 void TestOps::testFindHidesTrash()
 {
    Mainwindow me;

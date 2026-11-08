@@ -158,6 +158,28 @@ void Desktopmodel::deletePages (QModelIndex &ind, QBitArray &pages)
    }
 
 
+void Desktopmodel::reorderPages (QModelIndex &ind, const QVector<int> &order)
+   {
+   QModelIndexList list;
+
+   _modelconv->assertIsSource (ind.model (), &ind, 0);
+   list << ind;
+   if (checkScanStack (list, ind.parent ()))
+      _undo->push (new UCReorderPages (this, ind, order));
+   }
+
+
+bool Desktopmodel::canReorderPages (const QModelIndex &ind)
+   {
+   File *f = getFile (ind);
+
+   if (!f || remoteForFile (f) || f->pagecount () < 2)
+      return false;
+   return f->type () == File::Type_max || f->type () == File::Type_pdf
+       || f->type () == File::Type_jpeg;
+   }
+
+
 void Desktopmodel::moveToDir (QModelIndexList &list, QModelIndex parent, QString &dir,
          QStringList &trashlist, bool copy)
    {

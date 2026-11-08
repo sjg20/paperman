@@ -501,6 +501,19 @@ public:
       \param pages   the page numbers to unstack, bit n is true to unstack page n */
    void deletePages (QModelIndex &ind, QBitArray &pages);
 
+   /** put a stack's pages in a new order. Supports undo.
+
+      Commits any pending scan
+
+      \param ind    the index of the stack
+      \param order  the old number of each page, in its new place */
+   void reorderPages (QModelIndex &ind, const QVector<int> &order);
+
+   /** true if a stack's pages can be put in a new order: it has more than
+       one, in a type of file which can, and is not on a server, which
+       has no way to do it yet */
+   bool canReorderPages (const QModelIndex &ind);
+
    /** create and execute a new undo record to move stacks to a new position.
        Supports undo
 
@@ -809,6 +822,11 @@ public:
    void opUndeletePages (const QModelIndex &ind, const QBitArray &pages,
                          std::shared_ptr<QByteArray> del_info, int count,
                          OpDone done);
+
+   /** put a stack's pages in a new order (see File::reorderPages()); the
+       page shown stays shown. A stack on a server cannot be reordered yet */
+   void opReorderPages (const QModelIndex &ind, const QVector<int> &order,
+                        OpDone done);
 
    //! delete stacks, as the other opDeleteStacks() does
    void opDeleteStacks (const QModelIndexList &list, const QModelIndex &parent,
@@ -2114,7 +2132,7 @@ private:
    bool _model_invalid;  //!< model is temporarily invalid and cannot be accessed
 
    bool _minor_change;   //!< true if a dataChanged() signal is only for a minor change (no image data)
-   bool _pagenum_change; //!< true if a dataChanged() signal is for a change of the current page (navigation)
+   bool _pagenum_change; //!< true if a dataChanged() signal is for a change of the current page, by navigation or by its moving
 
    QTimer *_flushTimer;    //!< time to indicate when we need to flush the desks
    QModelIndex _subdirs_index;      //!< model index for our subdirectory search desk

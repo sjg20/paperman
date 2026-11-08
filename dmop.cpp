@@ -752,6 +752,32 @@ void Desktopmodel::opDeletePages (const QModelIndex &ind,
    }
 
 
+void Desktopmodel::opReorderPages (const QModelIndex &ind,
+                                   const QVector<int> &order, OpDone done)
+   {
+   File *f = getFile (ind);
+   err_info *e = NULL;
+
+   if (f && remoteForFile (f))
+      e = err_make (ERRFN, ERR_remote_op_failed2, "page reorder",
+                    "the server cannot reorder pages");
+   else if (f)
+      {
+      e = f->reorderPages (order);
+      if (!e)
+         {
+         /* the pages are shown again in their new order, with the page
+            shown before, which has moved with them */
+         _pagenum_change = true;
+         buildItem (ind);
+         _pagenum_change = false;
+         getDesk (ind.parent ())->dirty ();
+         }
+      }
+   done (e);
+   }
+
+
 err_info *Desktopmodel::opUndeletePages (QModelIndex &ind, QBitArray &pages,
       QByteArray &del_info, int count)
    {
