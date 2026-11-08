@@ -41,15 +41,20 @@ Other Options
 -------------
 
 ``-s, --sum <dir>``
-   Compute MD5 checksums for all files in a directory.
+   Compute an MD5 checksum of every page of every .max file in a directory,
+   writing them to ``checksums.md5`` in the current directory (see
+   `Checksums`_).
 
 ``-o, --ocr <dir>``
    Run OCR on all .max files in a directory (recursive). Each page not
-   already read is read, and its words are kept with the page, then the
-   text is indexed in ``.paperindex`` in the directory.
+   already read is read, so an interrupted run carries on where it stopped,
+   and its words are kept with the page, then the text is indexed in
+   ``.paperindex`` in the directory, with that of any PDFs.
 
-``-q, --search <query>``
-   Search the OCR index for a query string, in SQLite's FTS5 syntax.
+``-q, --search <query> [dir]``
+   Search the OCR index of a directory, by default the current one, for a
+   query in SQLite's FTS5 syntax, with porter stemming. Run ``--ocr`` on
+   the directory first to make the index (see `Searching`_).
 
 ``-t, --test``
    Run the built-in unit tests.
@@ -88,7 +93,8 @@ and the exit code is 0 if at least one page was scanned.
      - Stop after N sides (default: when the feeder is empty)
    * - ``--set NAME=VALUE``
      - Set a scanner option by its SANE name, e.g. ``resolution=200`` or
-       ``source="ADF Duplex"``; may be repeated
+       ``source="ADF Duplex"``, with fixed-point values in their units as
+       in ``page-height=355.6``; may be repeated
    * - ``--auto-colour``
      - Store pages without colour as grey, or mono if they have no
        shading either
@@ -100,9 +106,18 @@ and the exit code is 0 if at least one page was scanned.
        sheets) or ``all`` (default: as set in the Options dialog)
 
 Before every scan Paperman turns on the fast-transfer settings a back end
-offers (``buffermode=On``, and ``compression=JPEG`` in colour), which a
-Fujitsu scanner on USB needs to run at full speed. ``--set`` overrides
-either.
+offers: ``buffermode=On``, so a scanner with memory scans ahead instead
+of stopping after each sheet, and in colour ``compression=JPEG``, so a
+side arrives as under 1 MB rather than 25 MB. A Fujitsu scanner on USB
+needs these to run at full speed. A ``None`` chosen for compression in
+the scan panel is respected, and ``--set`` overrides either.
+
+For a benchmark, or a test scan which should not end up in a real
+repository, scan into a throwaway directory:
+
+.. code:: bash
+
+   mkdir -p /tmp/bench && paperman --scan --repo /tmp/bench --pages 50
 
 Diagnostics
 -----------
@@ -126,12 +141,57 @@ Diagnostics
      - List the pages of a stack with their size, depth and compressed
        size
    * - ``--snap DIR``
-     - Save a snapshot of the window every second into DIR, to set what
-       was on screen against a log (X11 only); ``--clean-snaps`` first
-       empties DIR
+     - Save a snapshot of the window as it appears on screen every second
+       into DIR, as ``snap-NNNN-<seconds>s.jpg``, to set what was on screen
+       against a log; ``--clean-snaps`` first empties DIR. The same as
+       ``PAPERMAN_SNAP=DIR`` and ``PAPERMAN_SNAP_CLEAN=1``. It misses the
+       moments Paperman is busy and needs X11: on Wayland the snapshots
+       come out empty
    * - ``--fake-scanner DIR``
      - Linux only: offer a fake Fujitsu scanner fed from pictures in
        ``DIR/hopper`` (see :doc:`testing`)
+
+Checksums
+---------
+
+``paperman -s /paper`` writes a line for each page to ``checksums.md5``,
+with these fields separated by spaces:
+
+- the length of the file name in characters
+- the file name
+- the page number
+- the image size in bytes
+- the MD5 checksum, grouped by 32-bit words
+
+For example::
+
+   14 power bill.max 0 1093872 a3eb8cd8 b0cffff0 b845833c e370368e
+   14 power bill.max 1 1093872 40f34c34 ae5f9549 158f97ab d6c1e6a8
+
+Searching
+---------
+
+``paperman --ocr`` makes the index which ``paperman --search`` reads. The
+desktop keeps its own, at the top of each repository, up to date each time
+it searches.
+
+.. code:: bash
+
+   paperman --ocr /paper/2024
+   paperman --search "invoice" /paper/2024
+
+The matches are ranked, each with its file, page and a snippet of the text
+around the words found::
+
+   Found 2 results:
+
+   [1] expenses-jan.max (page 2)
+       Path: /paper/2024/01jan/expenses-jan.max
+       ...payment details for <b>invoice</b> #12345...
+
+   [2] receipts.max (page 1)
+       Path: /paper/2024/02feb/receipts.max
+       ...<b>invoice</b> dated February 15th...
 
 Parallel PDF-to-max Conversion
 ------------------------------
