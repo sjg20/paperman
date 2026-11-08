@@ -282,6 +282,13 @@ public slots:
    /** show information about a page in the status bar */
    void slotShowInfo (const QModelIndex &index);
 
+   /** the user has moved pages in the strip: put the stack's pages in
+       that order, with the marks of those to be removed going with them
+
+      \param rows  the rows of the pages moved
+      \param dest  the row they go before, or the number of rows for last */
+   void slotPagesMoved (const QList<int> &rows, int dest);
+
    /** reset the view and model so no pages are shown. Also existing page
        will be committed */
    void slotReset (void);

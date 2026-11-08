@@ -112,6 +112,10 @@ Page view
 
    * - **Esc**
      - Go back to the desktop view
+   * - **Ctrl+Left**, **Ctrl+Up**
+     - Move the pages selected in the page list one place earlier
+   * - **Ctrl+Right**, **Ctrl+Down**
+     - Move the pages selected one place later
 
 Scan panel
 ----------
