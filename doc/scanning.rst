@@ -133,15 +133,25 @@ with a report.
 Some environment variables help too:
 
 ``PAPERMAN_SCAN_STATS=1``
-   Print statistics at the end of each scan: time per side, and how far
-   the display fell behind the scanner. The first thing to look at if
-   scanning seems slow.
+   Print statistics at the end of each scan, in the window as well as with
+   ``--scan``: sides scanned, time per side, CPU used by the display and
+   scanning threads, and how far the display fell behind the scanner. The
+   first thing to look at if scanning seems slow.
 
 ``PAPERMAN_TWAIN_DEBUG=1`` (Windows)
    Log every TWAIN operation and the capabilities the driver reports.
 
 ``PAPERMAN_TWAIN_RGB=1`` (Windows)
    For a driver which swaps red and blue.
+
+``PAPERMAN_TWAIN_DUMP=<file>`` (Windows)
+   Write the first scanned image as a PBM, PGM or PPM, exactly as the back
+   end hands it to Paperman, which separates driver problems from filing
+   problems.
+
+``PAPERMAN_TWAIN_LEGACY=1`` (Windows)
+   Use the ``twain_32.dll`` shipped with Windows rather than the TWAIN 2
+   data source manager, ``TWAINDSM.dll``, installed with any current driver.
 
 A fake scanner
 --------------

@@ -89,86 +89,20 @@ Paperman can also be used without its window, for example:
 [command-line guide](https://paperman.readthedocs.io/en/latest/cli.html)
 goes through them.
 
-## Windows
+## Building and testing
 
-There is an installer for x64 PCs (`paperman-setup-VERSION.exe`) and one
-for Windows on Arm (`paperman-setup-VERSION-arm64.exe`), with each release
-from 1.4.0 on, and built by every CI run; it needs
-Windows 10 version 1809 or later, and no administrator. To scan, install
-the scanner's 64-bit TWAIN driver: for the Ricoh fi-series that is
-PaperStream IP (TWAIN x64), a separate download from the 32-bit one.
-Sign out and back in after installing it, since PaperStream only sets the
-scanner up for TWAIN when the user logs in.
+The [developer guide](https://paperman.readthedocs.io/en/latest/develop.html)
+lists what is needed, and the
+[build guide](https://paperman.readthedocs.io/en/latest/build.html) covers
+each platform. To build on Linux with Qt 6 and run the tests:
 
-To build it, use the MSYS2 MinGW64 toolchain, which is also what the CI
-job uses. In a MINGW64 shell:
+    qmake6 paperman.pro CONFIG+=test -o Makefile
+    make -f Makefile paperman
+    env QT_QPA_PLATFORM=offscreen ./paperman -t
 
-```
-pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
-    mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml mingw-w64-x86_64-qt6-svg \
-    mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
-    mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
-    mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
-qmake6 paperman.pro -o Makefile.win
-make -f Makefile.win
-```
-
-`make -f Makefile.win installer` builds the installer too, with Inno
-Setup installed.
-
-Scanners are driven through TWAIN rather than SANE: every TWAIN data
-source installed on the machine appears in the device list. The TWAIN
-back end lives in win32/twainsane.cpp and presents the same options as
-SANE's fujitsu backend.
-
-When bringing up a new scanner, run paperman from a shell with
-`PAPERMAN_TWAIN_DEBUG=1` set: it logs every TWAIN operation and the
-capabilities the driver reports to stderr. If colours come out with red and
-blue swapped, set `PAPERMAN_TWAIN_RGB=1`. `PAPERMAN_TWAIN_DUMP=<file>` writes
-the first scanned image as a PBM/PGM/PPM, exactly as the back end hands it to
-paperman, which separates driver problems from filing problems. Only the TWAIN 2 data source
-manager (TWAINDSM.dll, installed with any current driver) is used; set
-`PAPERMAN_TWAIN_LEGACY=1` to fall back to the twain_32.dll shipped with
-Windows.
-
-## macOS
-
-There is a disk image for Apple Silicon (`Paperman-VERSION-arm64.dmg`) and
-one for Intel Macs (`Paperman-VERSION-x86_64.dmg`), with each release from
-1.4.0 on, and built by every CI run. It carries its own
-SANE, with the fujitsu and finet back ends from the fork which knows the
-fi-8950; `scripts/mac-package.sh` makes it from a built `paperman.app`.
-
-Paperman builds on macOS with Qt 6 and Homebrew. Homebrew's Poppler has
-no Qt bindings, so Poppler is built separately:
-
-```
-brew install pkgconf podofo libtiff jpeg-turbo sane-backends cmake ninja \
-    openjpeg little-cms2 fontconfig
-# Qt 6 from qt.io, or with aqtinstall:
-#    aqt install-qt mac desktop 6.11.3 clang_64 -m qtscxml -O ~/Qt
-curl -LO https://poppler.freedesktop.org/poppler-26.09.0.tar.xz
-tar xf poppler-26.09.0.tar.xz
-cmake -S poppler-26.09.0 -B pbuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$HOME/poppler \
-    -DCMAKE_PREFIX_PATH="$HOME/Qt/6.11.3/macos;$(brew --prefix)" \
-    -DENABLE_QT5=OFF -DENABLE_GLIB=OFF -DENABLE_NSS3=OFF \
-    -DENABLE_GPGME=OFF -DENABLE_LIBCURL=OFF -DENABLE_BOOST=OFF \
-    -DENABLE_HARFBUZZ=OFF
-ninja -C pbuild install
-export PKG_CONFIG_PATH=$HOME/poppler/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig
-~/Qt/6.11.3/macos/bin/qmake6 paperman.pro -o Makefile
-make -f Makefile
-```
-
-That makes `paperman.app`; a build with `CONFIG+=test` makes a plain
-`paperman` instead, for the tests. Use `make -f Makefile`, since the
-GNUmakefile in the repository builds the other programs too. Scanners
-are reached through SANE, as on Linux, from Homebrew's sane-backends;
-a scanner too recent for that release, such as the fi-8950, needs a
-newer SANE built from source.
-On an Intel Mac, Homebrew has no ready-built packages for the latest
-macOS, so `brew install` needs `--build-from-source`.
+The [testing guide](https://paperman.readthedocs.io/en/latest/testing.html)
+has more, and master's test
+[coverage](https://sjg20.github.io/paperman/coverage/) is published.
 
 ## Icons
 
@@ -195,48 +129,6 @@ unless specifically requested by the user or the person installing or
 operating it. See the [privacy policy](https://getpaperman.com/privacy-policy/).
 
 See [the full policy](doc/code-signing.rst) for how releases are signed.
-
-## Building
-
-The [build guide](https://paperman.readthedocs.io/en/latest/build.html)
-covers each platform and component.
-
-## Testing
-
-Paperman includes a comprehensive test suite to verify functionality. Tests are built
-using the Qt Test framework.
-
-### Building with Tests
-
-To build paperman with test support enabled:
-
-    qmake6 paperman.pro CONFIG+=test -o Makefile
-    make -f Makefile paperman
-
-### Running Tests
-
-Run all tests:
-
-    env QT_QPA_PLATFORM=offscreen ./paperman -t
-
-This will run all test suites including:
-- **utils** - Utility function tests
-- **ops** - File operation tests (duplicate, stack, unstack, rename, etc.)
-- **file** - Reading and writing each file type
-- **searchserver** - HTTP search server tests
-- **ocrsearch** - OCR and the search index
-
-Run one suite, or one test, by naming its class:
-
-    env QT_QPA_PLATFORM=offscreen ./paperman -t TestOcrSearch
-    env QT_QPA_PLATFORM=offscreen ./paperman -t TestOcrSearch::testOcrSearch
-
-The tests which run tesseract are skipped if it is not installed. All tests use
-temporary directories and clean up after themselves.
-
-`make coverage` measures how much of the C++ code the tests run; master's
-report is [published](https://sjg20.github.io/paperman/coverage/).
-
 
 ## Future Features
 
