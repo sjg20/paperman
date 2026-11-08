@@ -3152,3 +3152,50 @@ void TestFile::testReorderTouchesTable()
    IoStats::reset();
 }
 
+
+void TestFile::testImageInfoOneChunk()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   const QString name = "100pp_from_pdf.max";
+   QString path = copyFixture(name, tmp.path());
+   QVERIFY(!path.isEmpty());
+
+   struct Info {
+      QSize size, trueSize, dpi;
+      int bpp = 0, bytes = 0, compressed = 0;
+      QDateTime when;
+   };
+   auto info = [](Filemax &f, int pagenum, Info &out) {
+      QVERIFY(f.getImageInfo(pagenum, out.size, out.trueSize, out.bpp,
+                             out.bytes, out.compressed, out.when) == nullptr);
+      QVERIFY(f.getDpi(pagenum, out.dpi) == nullptr);
+   };
+
+   Filemax f(dir, name, nullptr);
+   QVERIFY(f.load() == nullptr);
+
+   // far fewer reads than the pages in the stack, each with its chunk
+   IoStats::reset();
+   Info quick;
+   info(f, 50, quick);
+   QVERIFY(!f._all_chunks_loaded);
+   IoStats::Counts got = IoStats::forPath(path);
+   QVERIFY2(got.reads < 20, qPrintable(IoStats::describe(got)));
+   QVERIFY(quick.size.isValid());
+
+   // and the answers are the same as with every chunk read
+   QVERIFY(f.ensure_all_chunks() == nullptr);
+   Info full;
+   info(f, 50, full);
+   QCOMPARE(quick.size, full.size);
+   QCOMPARE(quick.trueSize, full.trueSize);
+   QCOMPARE(quick.dpi, full.dpi);
+   QCOMPARE(quick.bpp, full.bpp);
+   QCOMPARE(quick.bytes, full.bytes);
+   QCOMPARE(quick.compressed, full.compressed);
+   QCOMPARE(quick.when, full.when);
+   IoStats::reset();
+}
+

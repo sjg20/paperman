@@ -15,6 +15,9 @@ private slots:
    //! typeFromName maps extensions (and unknown extensions) to e_type
    void testTypeFromName();
 
+   //! a page's details are read from its own chunk, not by walking them all
+   void testImageInfoOneChunk();
+
    //! moving a .max's pages reads and writes only its page table
    void testReorderTouchesTable();
 
