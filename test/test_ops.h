@@ -55,6 +55,9 @@ private slots:
    //! Test renaming a page
    void testRenamePage();
 
+   //! a stack's pages can be put in a new order, and back with undo
+   void testReorderPages();
+
    //! Test creating a dir
    void testCreateDir();
 
