@@ -128,7 +128,12 @@ public:
    QPixmap pixmap (bool &dodgy);
    int pagenum (void) { return _pagenum; }
    int itemnum (void) { return _itemnum; }
-   QString pagename (void) { return _pagename; }
+
+   /** the page has moved to item number @p itemnum: its number follows,
+       and its name, which may be made from its place, is found again when
+       next wanted, since that can mean reading the file */
+   void moveTo (int itemnum);
+   QString pagename (void);
 
    /** mark the page as invalid so that it will be recreated. This happens
        when we change the stack that is being used */
@@ -225,6 +230,7 @@ private:
    const Pagemodel *_model; //!< page model
    int _pagenum;           //!< the page number
    QString _pagename;      //!< the page name
+   bool _pagename_stale = false;  //!< _pagename is to be found again
 //   int _scale_down;          //!< scale factor at which the pixmap was done (e.g. 24 means 1/24)
    QSize _size;            //!< image size
    bool _rescale;          //!< true if this page's pixmap needs to be rescaled
@@ -451,6 +457,13 @@ public:
       \param type    type to update (MAXA_...)
       \param str     string */
    void updateAnnot (int type, QString str);
+
+   /** put the pages in a new order, as a stack's pages have just been,
+       keeping each page's image and mark, so that nothing is read again.
+       A page coming into a list showing only part of a stack starts afresh
+
+      \param order  the old number of each page, in its new place */
+   void movePages (const QVector<int> &order);
 
 protected:
    /** ensures that the given item number is set up ready for use, and

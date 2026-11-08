@@ -2237,6 +2237,10 @@ void TestDesktopUi::testReorderInStrip()
    QCOMPARE(pageview->dropRow(QPoint(last.right() + 2, last.bottom() + 40)),
             5);
 
+   // the pages move as they are, with nothing read again for the others
+   QSignalSpy resets(pages, &QAbstractItemModel::modelReset);
+   QSignalSpy moves(pages, &QAbstractItemModel::layoutChanged);
+
    // Ctrl+Left moves the fourth page, shown, one earlier, and keeps it shown
    QTest::mouseClick(pageview->viewport(), Qt::LeftButton, Qt::NoModifier,
                      pageview->visualRect(pages->index(3, 0)).center());
@@ -2246,6 +2250,17 @@ void TestDesktopUi::testReorderInStrip()
    QCOMPARE(after, QList<QImage>({before[0], before[1], before[3], before[2],
                                   before[4]}));
    QTRY_COMPARE(page->getCurrentPage(), 2);
+
+   // each page is numbered and named for where it is now
+   for (int row = 0; row < 5; row++)
+      {
+      QModelIndex ind = pages->index(row, 0);
+      Pageinfo *info = pages->data(ind, Pagemodel::Role_pageinfo)
+                          .value<Pageinfo *>();
+
+      QCOMPARE(info->pagenum(), row + 1);
+      QCOMPARE(info->pagename(), pages->data(ind).toString());
+      }
    QVERIFY(pageview->selectionModel()->isRowSelected(2, QModelIndex()));
 
    // Ctrl+Left at the start, or Ctrl+Right at the end, does nothing
@@ -2264,9 +2279,12 @@ void TestDesktopUi::testReorderInStrip()
       QCOMPARE(pages->data(pages->index(row, 0),
                            Pagemodel::Role_remove).toBool(), row == 4);
 
-   // and undo puts them back
+   // and undo puts them back, and the marks with them
    Desktopundostack *stk = model->getUndoStack();
    stk->undo();
+   QVERIFY(pages->data(pages->index(0, 0), Pagemodel::Role_remove).toBool());
    stk->undo();
    QCOMPARE(stripImages(model->getFile(stack)), before);
+   QCOMPARE(resets.count(), 0);
+   QCOMPARE(moves.count(), 4);
 }

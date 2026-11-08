@@ -1181,6 +1181,12 @@ signals:
        operate on it */
    void commitScanStack (void);
 
+   /** a stack's pages have been put in a new order
+
+      \param stack  the stack
+      \param order  the old number of each page, in its new place */
+   void pagesReordered (const QModelIndex &stack, const QVector<int> &order);
+
    /** request an update to the repository list
 
      \param dirpath        Directory to add to / delete from list

@@ -289,6 +289,14 @@ public slots:
       \param dest  the row they go before, or the number of rows for last */
    void slotPagesMoved (const QList<int> &rows, int dest);
 
+   /** a stack's pages have a new order: if it is the stack shown, move
+       its pages to match, keeping what is known about each
+
+      \param stack  the stack (in the Desktopmodel)
+      \param order  the old number of each page, in its new place */
+   void slotPagesReordered (const QModelIndex &stack,
+                            const QVector<int> &order);
+
    /** reset the view and model so no pages are shown. Also existing page
        will be committed */
    void slotReset (void);

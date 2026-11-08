@@ -375,6 +375,9 @@ void Desktopwidget::createPage(void)
    // and when we want to commit the stack
    connect (_contents, SIGNAL (commitScanStack ()),
       _page, SLOT (slotCommitScanStack ()));
+
+   connect (_contents, &Desktopmodel::pagesReordered, _page,
+            &Pagewidget::slotPagesReordered);
    }
 
 
