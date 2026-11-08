@@ -116,7 +116,7 @@ Android
 
 iPhone and iPad
    The app is built with Xcode on a Mac and installed on the device from
-   there; see :doc:`app`.
+   there; see :doc:`app-develop`.
 
 In the app, enter the server's address, and a user and password if the
 server asks for them. Without a server, the demo mode shows some sample
