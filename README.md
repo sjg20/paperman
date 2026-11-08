@@ -26,7 +26,8 @@ something not yet released, from the artifacts of the latest
 master. See the
 [installation guide](https://paperman.readthedocs.io/en/latest/install.html).
 
-Full documentation is available at https://paperman.readthedocs.io
+Full documentation is available at https://paperman.readthedocs.io, and
+the manual as a [PDF](https://paperman.readthedocs.io/_/downloads/en/latest/pdf/).
 
 Desktop view | Select scanner | Dated files | Open file | Preview | Preview2
 ------------ | -------------- | ----------- | --------- | ------- | --------
