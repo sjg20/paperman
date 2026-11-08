@@ -92,6 +92,63 @@ jobs:
       - name: Run parallel conversion test
         run: scripts/test_parallel.sh
 
+  coverage:
+    name: C++ test coverage
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read     # to fetch the figures from master's latest run
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2      # a pull request's changes are HEAD^..HEAD
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential gcovr \
+            qmake6 qt6-base-dev qt6-base-dev-tools libqt6sql6-sqlite \
+            libpoppler-qt6-dev libpodofo-dev \
+            qt6-scxml-dev libqt6statemachine6 qt6-svg-dev \
+            libtiff-dev libsane-dev libjpeg-dev zlib1g-dev \
+            imagemagick tesseract-ocr tesseract-ocr-eng libimage-exiftool-perl \
+            python3-reportlab python3-pil python3-numpy \
+            poppler-utils
+
+      - name: Test the summary script
+        run: python3 scripts/test_coverage_summary.py
+
+      - name: Measure coverage
+        run: QMAKE=qmake6 scripts/coverage.sh
+
+      - name: Fetch master's figures
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run in $(gh run list --workflow ci.yml --branch master \
+                --event push --limit 10 --json databaseId \
+                --jq '.[].databaseId' || true); do
+            if gh run download "$run" -n coverage-report -D base; then
+              break
+            fi
+          done
+
+      - name: Write the run's summary
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            git diff -U0 HEAD^ HEAD > changes.diff
+          fi
+          python3 scripts/coverage_summary.py build-coverage/report/summary.json \
+            --base base/summary.json --full build-coverage/coverage.json \
+            --diff changes.diff >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build-coverage/report
+
   windows:
     name: Windows (MSYS2 MinGW64, Qt6) desktop app + server + C++ tests
     runs-on: windows-latest
