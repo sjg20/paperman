@@ -24,6 +24,9 @@ private slots:
    //! the view mode chosen is the one shown after a restart
    void testViewModeRestored();
 
+   //! each view mode starts with its own layout, not the last one used
+   void testViewModeLayout();
+
    //! what opening a folder reads is measured, stack by stack
    void testFolderIo();
 

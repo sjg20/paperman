@@ -653,7 +653,7 @@ private:
 
    /** the mode whose first-run sizes the panes are waiting to be given,
        once there is a width to share, or -1 if none */
-   int _default_mode;
+   int _default_mode = -1;
 
    /** this is the model for the directories tree */
    Dirmodel *_model;

@@ -154,6 +154,9 @@ public:
       Mode_none            //!< mode not set
       };
 
+   //! the mode the view is in
+   e_mode mode (void) const { return _mode; }
+
    /** create a new page widget
 
       \param modelconv     conversion class for changing from proxy to source models
