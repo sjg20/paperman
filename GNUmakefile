@@ -69,7 +69,7 @@ test-parallel: paperman
 	scripts/test_parallel.sh
 
 # Build with gcov instrumentation, run the C++ suite and report
-coverage: test-setup
+coverage:
 	scripts/coverage.sh
 
 .PHONY: coverage

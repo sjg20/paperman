@@ -16,7 +16,8 @@ from reportlab.pdfgen import canvas
 
 # All generated files go here
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'test', 'files')
-PAPERMAN = os.path.join(os.path.dirname(__file__), '..', 'paperman')
+PAPERMAN = os.environ.get('PAPERMAN') or os.path.join(
+    os.path.dirname(__file__), '..', 'paperman')
 if os.name == 'nt':
     PAPERMAN += '.exe'
 
