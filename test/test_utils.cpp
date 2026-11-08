@@ -337,6 +337,61 @@ void TestUtils::testImageDepth()
    QCOMPARE(utilImageDepth(indexed), 8);
 }
 
+void TestUtils::testYearFolders()
+{
+   QStringList matches = {"bills", "bills/2026", "bills/us/2025",
+                          "bills/2024", "bills/2026/10oct", "bills/2026/misc",
+                          "bills/2026 taxes"};
+
+   QCOMPARE(utilYearFolders(QDate(2026, 11, 8), matches),
+            QStringList({"bills/2026", "bills/us/2025"}));
+   QCOMPARE(utilYearFolders(QDate(2026, 11, 8), QStringList()), QStringList());
+
+   // the year before matters in January, for its December
+   QCOMPARE(utilYearFolders(QDate(2025, 1, 2), matches),
+            QStringList({"bills/us/2025", "bills/2024"}));
+}
+
+void TestUtils::testSameDirs()
+{
+   TreeItem root({"root"});
+   TreeItem *dir = new TreeItem({"09sep"}, &root);
+   TreeItem *file = new TreeItem({"10oct"}, &root);
+
+   dir->setDir(true);
+   root.appendChild(dir);
+   root.appendChild(file);
+
+   QVERIFY(root.sameDirs({"09sep"}));
+
+   // a folder has appeared, even with the name of a file; and one has gone
+   QVERIFY(!root.sameDirs({"09sep", "10oct"}));
+   QVERIFY(!root.sameDirs({}));
+   QVERIFY(!root.sameDirs({"10oct"}));
+}
+
+void TestUtils::testListDirs()
+{
+   QTemporaryDir tmp;
+
+   QVERIFY(tmp.isValid());
+   QDir dir(tmp.path());
+
+   QVERIFY(dir.mkdir("09sep"));
+   QVERIFY(dir.mkdir("10oct"));
+   QVERIFY(dir.mkdir(".trash"));
+   QVERIFY(dir.mkdir(" spaced"));
+   QFile file(tmp.path() + "/a file");
+   QVERIFY(file.open(QIODevice::WriteOnly));
+   file.close();
+
+   QStringList names = utilListDirs(tmp.path());
+
+   names.sort();
+   QCOMPARE(names, QStringList({"09sep", "10oct"}));
+   QCOMPARE(utilListDirs(tmp.path() + "/missing"), QStringList());
+}
+
 void TestUtils::testFindItem()
 {
     const TreeItem *chk;

@@ -26,6 +26,16 @@ private slots:
    void testDetectYear();
    void testDetectMonth();
    void testDetectMatches();
+
+   //! Only the folders holding the months in question are picked out
+   void testYearFolders();
+
+   //! A tree item's subdirectories are compared, leaving out its files
+   void testSameDirs();
+
+   //! Subdirectories are listed by the rules which a scan uses
+   void testListDirs();
+
    void testScanDir();
    void testAdopt();
    void testFindItem();

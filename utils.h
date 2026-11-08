@@ -102,6 +102,13 @@ public:
     /* returns a writeable TreeItem */
     TreeItem *findItemW(QString path);
 
+    /**
+     * @brief See whether this item's subdirectories are the ones given
+     * @param names  Leaf names of the subdirectories, in any order
+     * Return: true if they are the same; files are not considered
+     */
+    bool sameDirs(const QStringList& names) const;
+
 private:
     QVector<TreeItem*> m_childItems;
     QVector<QVariant> m_itemData;
@@ -357,6 +364,15 @@ QStringList utilDetectMatches(const QDate& date, QStringList& matches,
                               bool keep_other_dates = false);
 
 /**
+ * @brief Find the folders whose months utilDetectMatches() will look at
+ * @param date     Date to use
+ * @param matches  Folders to look through
+ * @return Those named for the year of @date or the year before, with the
+ *         year as the last part of the path
+ */
+QStringList utilYearFolders(const QDate& date, const QStringList& matches);
+
+/**
  * @brief Check if a particular drop event is supported by Paperman
  * @param event         Event to check
  * @param allowedTypes  List of allowed types, e.g.
@@ -375,6 +391,13 @@ bool utilDropSupported(QDropEvent *event, const QStringList& allowedTypes);
  *     @dirPath
  */
 TreeItem *utilScanDir(QString dirPath, Operation *op);
+
+/**
+ * @brief List the subdirectories that utilScanDir() would find in a directory
+ * @param dirPath  Path to look in, without trailing "/"
+ * @return Their leaf names, without looking inside them
+ */
+QStringList utilListDirs(const QString& dirPath);
 
 /**
  * @brief Write a tree to a text file
