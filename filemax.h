@@ -265,6 +265,8 @@ public:
    virtual err_info *restorePages (QBitArray &pages,
       QByteArray &del_info, int count);
 
+   virtual err_info *reorderPages (const QVector<int> &order) override;
+
    virtual err_info *unstackPages (int pagenum, int pagecount, bool remove,
                File *dest);
 

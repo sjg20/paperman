@@ -519,6 +519,30 @@ QDateTime File::time (void) const
    }
 
 
+err_info *File::reorderPages (const QVector<int> &)
+   {
+   return not_impl ();
+   }
+
+
+err_info *File::checkOrder (const QVector<int> &order)
+   {
+   QVector<bool> seen (pagecount ());
+
+   if (order.size () != pagecount ())
+      return err_make (ERRFN, ERR_page_number_out_of_range2,
+                       order.size (), pagecount ());
+   for (int pagenum : order)
+      {
+      if (pagenum < 0 || pagenum >= seen.size () || seen [pagenum])
+         return err_make (ERRFN, ERR_page_number_out_of_range2, pagenum,
+                          pagecount () - 1);
+      seen [pagenum] = true;
+      }
+   return NULL;
+   }
+
+
 QString File::pageTitle (int pagenum)
    {
    err_info *err;

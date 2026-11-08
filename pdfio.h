@@ -174,6 +174,13 @@ public :
       \param count   number of pages to delete */
    err_info *deletePages (int start, int count);
 
+   /** put the pages of a pdf file in a new order, and write it
+
+      \param order  the old number of each page, in its new place, e.g.
+                    {1, 0, 2} swaps the first two pages
+      \returns error, or NULL if ok */
+   err_info *reorderPages (const QVector<int> &order);
+
 protected:
 #ifdef CONFIG_use_poppler
    /** finds the given page

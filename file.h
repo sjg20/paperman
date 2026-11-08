@@ -502,6 +502,19 @@ eturns error, or NULL if ok */
    virtual err_info *restorePages (QBitArray &pages,
       QByteArray &del_info, int count) = 0;
 
+   /** put the pages in a new order. The page shown stays shown, wherever
+       it goes. A type which cannot returns not_impl()
+
+      \param order  the old number of each page, in its new place, which
+                    names every page once, e.g. {1, 0, 2} swaps the first
+                    two of three pages
+      \returns error, or NULL if OK */
+   virtual err_info *reorderPages (const QVector<int> &order);
+
+   /** check that @p order names each of the pages once, as reorderPages()
+       needs, returning an error if not */
+   err_info *checkOrder (const QVector<int> &order);
+
    /** unstack a range of pages from a stack, creating them as a new stack.
 
       \param pagenum    first page number to unstack

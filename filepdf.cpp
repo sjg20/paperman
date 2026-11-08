@@ -363,6 +363,15 @@ err_info *Filepdf::unstackPages (int pagenum, int pagecount, bool remove,
 
 
 
+err_info *Filepdf::reorderPages (const QVector<int> &order)
+   {
+   CALL (checkOrder (order));
+   CALL (_pdfio->reorderPages (order));
+   _pagenum = order.indexOf (_pagenum);
+   return NULL;
+   }
+
+
 err_info *Filepdf::stackStack (File *fsrc)
    {
    Filepdf *src = (Filepdf *)fsrc;

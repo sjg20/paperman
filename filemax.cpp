@@ -6369,6 +6369,27 @@ err_info *Filemax::removePages (QBitArray &pages,
    }
 
 
+err_info *Filemax::reorderPages (const QVector<int> &order)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   if (isSparse ())
+      return not_impl ();
+   CALL (checkOrder (order));
+
+   QVector<page_info> pages;
+
+   pages.reserve (_pages.size ());
+   for (int pagenum : order)
+      pages << _pages [pagenum];
+   _pages = pages;
+   _pagenum = order.indexOf (_pagenum);
+
+   // the page table lists the pages in their order
+   return flush ();
+   }
+
+
 err_info *Filemax::restorePages (QBitArray &pages,
       QByteArray &del_info, int count)
    {
