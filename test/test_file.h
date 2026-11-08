@@ -15,6 +15,9 @@ private slots:
    //! typeFromName maps extensions (and unknown extensions) to e_type
    void testTypeFromName();
 
+   //! moving a .max's pages reads and writes only its page table
+   void testReorderTouchesTable();
+
    //! a slow exiftool is waited for, rather than its answer lost
    void testSlowExiftool();
 

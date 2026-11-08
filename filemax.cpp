@@ -6382,11 +6382,57 @@ err_info *Filemax::reorderPages (const QVector<int> &order)
    pages.reserve (_pages.size ());
    for (int pagenum : order)
       pages << _pages [pagenum];
+
+   /* the page table lists the pages in their order, so that is all which
+      changes. Saving the file would first walk every chunk in it, a small
+      read for each, so do that only if the file has something else to
+      save or, being an old one, is to be upgraded */
+   bool table_only = _version != 0 && !_all_chunks_loaded;
+
+   for (const page_info &page : _pages)
+      if (page.title_loaded && !page.title_saved)
+         table_only = false;
+
+   if (table_only)
+      CALL (write_page_order (pages));
    _pages = pages;
    _pagenum = order.indexOf (_pagenum);
+   if (!table_only)
+      return flush ();
 
-   // the page table lists the pages in their order
-   return flush ();
+   // as flush() does, since a page number now means another page
+   _xform_page = -1;
+   _xform_image = QImage ();
+   return NULL;
+   }
+
+
+err_info *Filemax::write_page_order (const QVector<page_info> &pages)
+   {
+   static const int entry_size = 0xc;
+   Open open (this);
+
+   CALL (open.err ());
+
+   // each entry may hold more than these two, so change only them
+   int pos = _bermuda + POS_bermuda_pageinfo;
+   QByteArray table (pages.size () * entry_size, 0);
+   byte *entry = (byte *)table.data ();
+
+   CALL (max_read_data (pos, entry, table.size ()));
+   for (const page_info &page : pages)
+      {
+      entry [0] = page.chunkid;
+      entry [1] = page.chunkid >> 8;
+      entry [4] = page.roswell;
+      entry [5] = page.roswell >> 8;
+      entry [6] = page.roswell >> 16;
+      entry [7] = page.roswell >> 24;
+      entry += entry_size;
+      }
+   CALL (max_write_data (pos, (byte *)table.data (), table.size ()));
+   fflush (_fin);
+   return NULL;
    }
 
 

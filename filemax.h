@@ -479,6 +479,13 @@ private:
       \returns error, or NULL if OK */
    err_info *ensure_roswell (page_info &page);
 
+   /** write the file's page table with the pages in a new order, changing
+       nothing else in the file
+
+      \param pages  the pages, in their new order
+      \returns error, or NULL if OK */
+   err_info *write_page_order (const QVector<page_info> &pages);
+
    err_info *setup_max (void);
 
    char *max_get_shell_filename (void);
