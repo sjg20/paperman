@@ -33,6 +33,10 @@ Pass the class name after ``-t`` to run only that suite:
 
    QT_QPA_PLATFORM=offscreen ./paperman -t TestSearchServer
 
+or give one test as ``-t TestOcrSearch::testOcrSearch``. The tests which run
+tesseract are skipped if it is not installed. All tests use temporary
+directories and clean up after themselves.
+
 Leaving Suites Out
 ------------------
 

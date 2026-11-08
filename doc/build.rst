@@ -194,14 +194,16 @@ CI uses. In a MINGW64 shell (CLANGARM64 on Windows on Arm):
        mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
        mingw-w64-x86_64-qt6-svg \
        mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
-       mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo
+       mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
+       mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
    qmake6 paperman.pro -o Makefile.win
    make -f Makefile.win -j$(nproc)
 
 With `Inno Setup <https://jrsoftware.org/isinfo.php>`_ installed,
 ``make -f Makefile.win installer`` also builds the installer; see
 :doc:`releasing`. Scanners are reached through TWAIN rather than SANE,
-by ``win32/twainsane.cpp``.
+by ``win32/twainsane.cpp``, which presents the same options as SANE's
+fujitsu back end.
 
 macOS
 -----
@@ -233,3 +235,9 @@ That makes ``paperman.app``; a build with ``CONFIG+=test`` makes a plain
 ``GNUmakefile`` builds the other programs too. On an Intel Mac with the
 latest macOS, Homebrew has no ready-built packages, so each needs
 ``brew install --build-from-source``.
+
+Scanners are reached through SANE, as on Linux, from Homebrew's
+sane-backends. A scanner too recent for that release, such as the fi-8950,
+needs a newer SANE built from source. ``scripts/mac-package.sh`` makes the
+disk image from a built ``paperman.app``, carrying its own SANE with the
+fujitsu and finet back ends from the fork which knows the fi-8950.
