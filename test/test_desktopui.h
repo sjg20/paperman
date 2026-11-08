@@ -21,6 +21,9 @@ public:
    using Suite::Suite;
 
 private slots:
+   //! the view mode chosen is the one shown after a restart
+   void testViewModeRestored();
+
    //! what opening a folder reads is measured, stack by stack
    void testFolderIo();
 
