@@ -482,9 +482,12 @@ signed, by its release workflow, once an approver approves each
 release. Committers, reviewers and approvers: Simon Glass
 ([@sjg20](https://github.com/sjg20)).
 
-This program will not transfer any information to other networked
-systems unless specifically requested by the user or the person
-installing or operating it.
+Once a day the desktop program asks getpaperman.com whether there is a
+newer version, sending its version, the operating system, the processor
+and the kind of package; this can be turned off in the options. Otherwise
+this program will not transfer any information to other networked systems
+unless specifically requested by the user or the person installing or
+operating it. See the [privacy policy](https://getpaperman.com/privacy-policy/).
 
 See [the full policy](doc/code-signing.rst) for how releases are signed.
 
