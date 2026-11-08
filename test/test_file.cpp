@@ -11,6 +11,7 @@
 #include <QStandardPaths>
 
 #include <cstring>
+#include <utility>
 
 #include "desk.h"
 #include "err.h"
@@ -3084,3 +3085,70 @@ void TestFile::testReorderPages()
    QVERIFY(QDir(dir).entryList({".reorder-*"}, QDir::Files | QDir::Hidden)
            .isEmpty());
 }
+
+
+void TestFile::testReorderTouchesTable()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   const QString name = "100pp_from_pdf.max";
+   QString path = copyFixture(name, tmp.path());
+   QVERIFY(!path.isEmpty());
+
+   auto contents = [&]() {
+      QFile file(path);
+
+      return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+   };
+   const QByteArray before = contents();
+
+   Filemax *max = new Filemax(dir, name, nullptr);
+   QVERIFY(max->load() == nullptr);
+   int count = max->pagecount();
+   QVector<int> swap(count);
+   for (int i = 0; i < count; i++)
+      swap[i] = i;
+   std::swap(swap[0], swap[1]);
+
+   // one read of the table and one write, whatever the length of the stack
+   IoStats::reset();
+   QVERIFY(max->reorderPages(swap) == nullptr);
+   IoStats::Counts got = IoStats::forPath(path);
+   QCOMPARE(got.reads, qint64(1));
+   QCOMPARE(got.writes, qint64(1));
+   QCOMPARE(got.writeBytes, qint64(count * 12));
+
+   // the file changes in that table, and is the same size
+   const QByteArray moved = contents();
+   QCOMPARE(moved.size(), before.size());
+   QVERIFY(moved != before);
+   int first = 0, last = before.size() - 1;
+   while (moved[first] == before[first])
+      first++;
+   while (moved[last] == before[last])
+      last--;
+   QVERIFY2(last - first < 24, qPrintable(QString::number(last - first)));
+
+   // moving them back puts back the file as it was, read afresh or not
+   QVERIFY(max->reorderPages(swap) == nullptr);
+   QVERIFY(contents() == before);
+   delete max;
+
+   /* a stack with all its chunks in memory is saved as it always was,
+      and has the same order */
+   Filemax *loaded = new Filemax(dir, name, nullptr);
+   QVERIFY(loaded->load() == nullptr);
+   QImage first_page = pageImage(loaded, 0);
+   QImage second_page = pageImage(loaded, 1);
+   QVERIFY(loaded->ensure_all_chunks() == nullptr);
+   QVERIFY(loaded->reorderPages(swap) == nullptr);
+   delete loaded;
+
+   Filemax again(dir, name, nullptr);
+   QVERIFY(again.load() == nullptr);
+   QVERIFY(pageImage(&again, 0) == second_page);
+   QVERIFY(pageImage(&again, 1) == first_page);
+   IoStats::reset();
+}
+
