@@ -22,7 +22,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <algorithm>
+
 #include <QDebug>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QScrollBar>
 #include <QTimer>
 #include <QKeyEvent>
@@ -132,6 +136,97 @@ void Pageview::currentChanged (const QModelIndex &index, const QModelIndex &prev
    {
    UNUSED (previous);
    emit showInfo (index);
+   }
+
+
+int Pageview::dropRow (const QPoint &pos) const
+   {
+   int rows = model () ? model ()->rowCount () : 0;
+   QModelIndex index = indexAt (pos);
+
+   /* between pages, or past the last: before the first page which comes
+      after the drop, in reading order */
+   if (!index.isValid ())
+      {
+      for (int row = 0; row < rows; row++)
+         {
+         QRect rect = visualRect (model ()->index (row, 0));
+
+         if (rect.top () > pos.y ()
+             || (rect.bottom () >= pos.y () && rect.left () > pos.x ()))
+            return row;
+         }
+      return rows;
+      }
+
+   /* on a page: before it if on its nearer half, which is its left half
+      where the pages are side by side and its top half where they are in
+      a column, as in a narrow page list */
+   QRect rect = visualRect (index);
+   bool across = false;
+
+   for (int row : {index.row () - 1, index.row () + 1})
+      {
+      QModelIndex other = model ()->index (row, 0);
+
+      if (other.isValid () && visualRect (other).top () == rect.top ())
+         across = true;
+      }
+
+   bool after = across ? pos.x () > rect.center ().x ()
+                       : pos.y () > rect.center ().y ();
+
+   return index.row () + (after ? 1 : 0);
+   }
+
+
+void Pageview::dragEnterEvent (QDragEnterEvent *event)
+   {
+   if (event->source () == this && dragEnabled ())
+      event->acceptProposedAction ();
+   else
+      event->ignore ();
+   }
+
+
+void Pageview::dragMoveEvent (QDragMoveEvent *event)
+   {
+   if (event->source () != this || !dragEnabled ())
+      {
+      event->ignore ();
+      return;
+      }
+
+   // this scrolls the view near its edges
+   QAbstractItemView::dragMoveEvent (event);
+   event->acceptProposedAction ();
+   }
+
+
+void Pageview::dropEvent (QDropEvent *event)
+   {
+   if (event->source () != this || !dragEnabled ())
+      {
+      event->ignore ();
+      return;
+      }
+
+   QList<int> rows;
+
+   for (const QModelIndex &index : selectionModel ()->selectedIndexes ())
+      rows << index.row ();
+   std::sort (rows.begin (), rows.end ());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+   QPoint pos = event->position ().toPoint ();
+#else
+   QPoint pos = event->pos ();
+#endif
+
+   // the view itself moves nothing: the pages come back in their new places
+   event->setDropAction (Qt::IgnoreAction);
+   event->accept ();
+   if (!rows.isEmpty ())
+      emit pagesMoved (rows, dropRow (pos));
    }
 
 
@@ -251,6 +346,27 @@ void Pageview::slotUserScrolled ()
 
 void Pageview::keyPressEvent (QKeyEvent *event)
    {
+   bool earlier = event->key () == Qt::Key_Left || event->key () == Qt::Key_Up;
+   bool later = event->key () == Qt::Key_Right || event->key () == Qt::Key_Down;
+
+   if (dragEnabled () && event->modifiers () == Qt::ControlModifier
+       && (earlier || later))
+      {
+      QList<int> rows;
+
+      for (const QModelIndex &index : selectionModel ()->selectedIndexes ())
+         rows << index.row ();
+      std::sort (rows.begin (), rows.end ());
+
+      // before the page before the first, or after the page after the last
+      int dest = rows.isEmpty () ? 0 : earlier ? rows.first () - 1
+                                               : rows.last () + 2;
+
+      if (!rows.isEmpty () && dest >= 0 && dest <= model ()->rowCount ())
+         emit pagesMoved (rows, dest);
+      event->accept ();
+      return;
+      }
    QListView::keyPressEvent (event);
 
    /* moving around with the keys scrolls the view without the scrollbar

@@ -120,6 +120,11 @@ The green tick by each page in the page list marks it to keep: click it
 to mark the page to be removed instead, as the blank pages from a scan
 can be.
 
+Drag pages in the page list to put them in a new order: select one, or
+Ctrl-click to select more, and drag them to where they should go. Ctrl
+with an arrow key moves the pages selected one place earlier or later.
+**Undo** puts them back. A stack on a server cannot be reordered yet.
+
 Page toolbar
 ~~~~~~~~~~~~
 
@@ -129,7 +134,7 @@ Page toolbar
    * - |page-selectmode|
      - Select pages: click one, and Ctrl-click to add more
    * - |page-movemode|
-     - Reorder pages: drag those selected to where they should go
+     - Select and reorder pages, as the select tool does
    * - |page-scanmode|
      - Show each page as it is scanned
    * - |page-infomode|

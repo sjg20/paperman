@@ -100,9 +100,22 @@ public:
 public slots:
    void slotPagePartChanged (const QModelIndex &index, const QImage &image, int scaled_linenum);
 
+   /** where pages dropped at @p pos go: the row of the page they go
+       before, or the number of rows to go after the last */
+   int dropRow (const QPoint &pos) const;
+
 protected:
    void scrollContentsBy (int dx, int dy);
+
+   /** Ctrl with an arrow key moves the selected pages one place earlier
+       or later, as dragging them does (see pagesMoved()) */
    void keyPressEvent (QKeyEvent *event) override;
+
+   /* pages dragged within the view are moved, which the view leaves to
+      whoever follows pagesMoved(), rather than moving them itself */
+   void dragEnterEvent (QDragEnterEvent *event) override;
+   void dragMoveEvent (QDragMoveEvent *event) override;
+   void dropEvent (QDropEvent *event) override;
 
    //! update the view size based on the items within it
    void updateGeometries (void);
@@ -114,6 +127,13 @@ signals:
    void signalNewScale (int new_scale);
 
    void showInfo (const QModelIndex &index);
+
+   /** the user has moved some pages, by dragging them or with the keys
+
+      \param rows  the rows of the pages moved, in order
+      \param dest  the row of the page they go before, as the rows are
+                   before the move, or the number of rows to go last */
+   void pagesMoved (const QList<int> &rows, int dest);
 
 public:
    void setModel (QAbstractItemModel *model) override;

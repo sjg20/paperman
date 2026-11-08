@@ -212,6 +212,8 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
 //       this, SLOT (slotPreviewPage (const QModelIndex &)));
    connect (_pageview, SIGNAL (showInfo (const QModelIndex &)),
       this, SLOT (slotShowInfo (const QModelIndex &)));
+   connect (_pageview, &Pageview::pagesMoved, this,
+            &Pagewidget::slotPagesMoved);
 
    connect (_pagemodel, SIGNAL (pagePartChanged (const QModelIndex &, const QImage &, int)),
       _pageview, SLOT (slotPagePartChanged (const QModelIndex &, const QImage &, int)));
@@ -321,7 +323,8 @@ void Pagewidget::setMode (e_mode mode)
    _prescan_mode = mode;
    if (_mode != Mode_none)
       {
-      _pageview->allowMove (mode == Mode_move);
+      // pages can be dragged into a new order, but not while scanning
+      _pageview->allowMove (mode == Mode_select || mode == Mode_move);
       _pagedelegate->setDisplayOptions (mode == Mode_scan
             ? Pagedelegate::Display_coverage : Pagedelegate::Display_none);
       _stack->setCurrentWidget (mode == Mode_info ? _textframe : _splitter);
@@ -1178,6 +1181,99 @@ void Pagewidget::toggleRemove (const QModelIndex &index)
    }
 
 
+void Pagewidget::slotPagesMoved (const QList<int> &rows, int dest)
+   {
+   Desktopmodel *contents = _model ? _modelconv->getDesktopmodel (_model)
+                                   : nullptr;
+   QModelIndex sindex = _index;
+   QAbstractItemModel *pages = _pagemodel;
+
+   if (!contents || _scanning || rows.isEmpty ())
+      return;
+   _modelconv->indexToSource (_model, sindex);
+   if (!sindex.isValid ())
+      return;
+   if (!contents->canReorderPages (sindex))
+      {
+      emit newContents (tr ("The pages of this stack cannot be moved"));
+      return;
+      }
+
+   /* the strip may show only some of the stack's pages, from _start: the
+      pages moved go before the page at dest, among those which stay */
+   int pagecount = contents->data (sindex, Desktopmodel::Role_pagecount)
+                      .toInt ();
+   QVector<int> moving, staying;
+
+   for (int row : rows)
+      moving << _start + row;
+   for (int pagenum = 0; pagenum < pagecount; pagenum++)
+      if (!moving.contains (pagenum))
+         staying << pagenum;
+
+   int at = 0;
+
+   while (at < staying.size () && staying [at] < _start + dest)
+      at++;
+
+   QVector<int> order = staying.mid (0, at) + moving + staying.mid (at);
+   bool same = true;
+
+   for (int i = 0; i < order.size () && same; i++)
+      same = order [i] == i;
+   if (same)
+      return;
+
+   // the pages marked to be removed, which keep their marks as they move
+   QList<int> marked;
+
+   for (int row = 0; row < pages->rowCount (); row++)
+      if (pages->data (pages->index (row, 0),
+                            Pagemodel::Role_remove).toBool ())
+         marked << row;
+
+   int shown = _pagenum;
+   QPersistentModelIndex index = _index;
+
+   /* the model commits any scan first, and is told not to reset this view
+      for it, which would save the pages marked to be removed, removing
+      them */
+   _committing = true;
+   contents->reorderPages (sindex, order);
+   _committing = false;
+   if (!_model || _index != index)
+      return;
+
+   /* show the pages afresh in their new order, with the page shown before
+      wherever it went, then put back the marks, which that clears */
+   int now = order.indexOf (shown) - _start;
+
+   showPages (_model, _index, _start, _count,
+              now >= 0 && now < _count ? now : 0, true);
+   for (int row : marked)
+      {
+      int now = order.indexOf (_start + row) - _start;
+
+      if (now >= 0 && now < pages->rowCount ())
+         pages->setData (pages->index (now, 0), true,
+                              Pagemodel::Role_remove);
+      }
+
+   // the pages moved stay selected, to be moved again
+   QItemSelection selection;
+
+   for (int i = 0; i < moving.size (); i++)
+      {
+      QModelIndex index = pages->index (at + i - _start, 0);
+
+      if (index.isValid ())
+         selection.select (index, index);
+      }
+   _pageview->selectionModel ()->select (selection,
+                                         QItemSelectionModel::ClearAndSelect);
+   }
+
+
 void Pagewidget::slotShowInfo (const QModelIndex &index)
    {
    Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
@@ -1324,8 +1420,8 @@ void Pagewidget::slotStackChanged (const QModelIndex &from, const QModelIndex &t
          resolves to that), which may have been moved by an edit in
          another view.  Only follow the current page when it changed
          deliberately, i.e. page navigation. */
-      int curpage = !minor ? 0
-            : contents->isPagenumChange () ? -1 : _pagenum;
+      int curpage = contents->isPagenumChange () ? -1
+            : !minor ? 0 : _pagenum;
       showPages (_model, _index, 0, -1, curpage, !minor);
       }
    }

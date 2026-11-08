@@ -80,9 +80,9 @@ Putting pages together and apart
   (Ctrl+I), as a stack of its own, which can then be stacked with another.
 - A pile of single sheets scanned as one stack comes apart with
   **Unstack all** (Ctrl+U).
-- The pages of a stack are put in a new order with the reorder tool in
-  the page toolbar (see :doc:`desktop`): select pages, then drag them
-  to where they should go.
+- The pages of a stack are put in a new order by dragging them in the
+  page list (see :doc:`desktop`): select pages, then drag them to where
+  they should go, or move them with Ctrl and an arrow key.
 - A page not wanted, such as a blank one, is taken out as below.
 
 Removing pages

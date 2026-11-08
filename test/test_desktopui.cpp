@@ -2176,3 +2176,97 @@ void TestDesktopUi::testStackIo()
    QCOMPARE(strip.what(), "page strip of " + name);
    QTRY_VERIFY(strip.counts().reads > 0);
 }
+
+
+/* the image of each page of a stack, as the page view gets it */
+static QList<QImage> stripImages(File *f)
+{
+   QList<QImage> images;
+
+   for (int i = 0; i < f->pagecount(); i++)
+      {
+      QImage image;
+      QSize size, trueSize;
+      int bpp;
+
+      if (f->getImage(i, false, image, size, trueSize, bpp, false))
+         image = QImage();
+      images << image;
+      }
+   return images;
+}
+
+void TestDesktopUi::testReorderInStrip()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   /* the page list beside the desk, which follows the model's changes and
+      its commits of a scan, as the user sees it */
+   setupShown(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+   Pagewidget *page = desktop->_page;
+   clickItem(desktop->getView(), 0);
+
+   Pageview *pageview = page->_pageview;
+   QAbstractItemModel *pages = pageview->model();
+   QTRY_COMPARE(pages->rowCount(), 5);
+   QModelIndex stack = model->index(0, 0, repo_ind);
+   QList<QImage> before = stripImages(model->getFile(stack));
+
+   // pages can be dragged in the usual mode
+   QVERIFY(pageview->dragEnabled());
+
+   /* a drop on the near half of a page goes before it, else after it: the
+      left half where the pages are side by side, the top half in a column,
+      as here; between pages, before the next */
+   QRect rect = pageview->visualRect(pages->index(2, 0));
+   bool across = pageview->visualRect(pages->index(3, 0)).top() == rect.top();
+   QPoint nearHalf = across ? QPoint(rect.left() + 2, rect.center().y())
+                            : QPoint(rect.center().x(), rect.top() + 2);
+   QPoint farHalf = across ? QPoint(rect.right() - 2, rect.center().y())
+                           : QPoint(rect.center().x(), rect.bottom() - 2);
+   QPoint gap = across ? QPoint(rect.right() + 2, rect.center().y())
+                       : QPoint(rect.center().x(), rect.bottom() + 2);
+   QCOMPARE(pageview->dropRow(nearHalf), 2);
+   QCOMPARE(pageview->dropRow(farHalf), 3);
+   QVERIFY(!pageview->indexAt(gap).isValid());
+   QCOMPARE(pageview->dropRow(gap), 3);
+   QRect last = pageview->visualRect(pages->index(4, 0));
+   QCOMPARE(pageview->dropRow(QPoint(last.right() + 2, last.bottom() + 40)),
+            5);
+
+   // Ctrl+Left moves the fourth page, shown, one earlier, and keeps it shown
+   QTest::mouseClick(pageview->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     pageview->visualRect(pages->index(3, 0)).center());
+   QCOMPARE(page->getCurrentPage(), 3);
+   QTest::keyClick(pageview, Qt::Key_Left, Qt::ControlModifier);
+   QList<QImage> after = stripImages(model->getFile(stack));
+   QCOMPARE(after, QList<QImage>({before[0], before[1], before[3], before[2],
+                                  before[4]}));
+   QTRY_COMPARE(page->getCurrentPage(), 2);
+   QVERIFY(pageview->selectionModel()->isRowSelected(2, QModelIndex()));
+
+   // Ctrl+Left at the start, or Ctrl+Right at the end, does nothing
+   pageview->selectionModel()->select(pages->index(0, 0),
+                                      QItemSelectionModel::ClearAndSelect);
+   QTest::keyClick(pageview, Qt::Key_Up, Qt::ControlModifier);
+   QCOMPARE(stripImages(model->getFile(stack)), after);
+
+   /* a page dropped at the end goes last, its mark for removal with it;
+      the others have none */
+   QVERIFY(pages->setData(pages->index(0, 0), true, Pagemodel::Role_remove));
+   page->slotPagesMoved({0}, 5);
+   QCOMPARE(stripImages(model->getFile(stack)),
+            QList<QImage>({after[1], after[2], after[3], after[4], after[0]}));
+   for (int row = 0; row < 5; row++)
+      QCOMPARE(pages->data(pages->index(row, 0),
+                           Pagemodel::Role_remove).toBool(), row == 4);
+
+   // and undo puts them back
+   Desktopundostack *stk = model->getUndoStack();
+   stk->undo();
+   stk->undo();
+   QCOMPARE(stripImages(model->getFile(stack)), before);
+}

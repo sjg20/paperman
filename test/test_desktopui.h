@@ -27,6 +27,10 @@ private slots:
    //! what showing a stack reads is measured, to its page and its strip
    void testStackIo();
 
+   //! pages are put in a new order by dragging them in the page list, or
+   //! with Ctrl and an arrow key, taking their marks for removal with them
+   void testReorderInStrip();
+
    //! a stack is told from a desk by the whole of its index's ID, which
    //! is a 64-bit address whose lower half may be small
    void testStackIndexId();
