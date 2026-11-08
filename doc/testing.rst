@@ -238,6 +238,13 @@ environment variables; set ``SUITE`` to a suite name (as accepted by
 
    SUITE=TestSearchServer scripts/coverage.sh
 
+CI measures coverage on Linux with Qt 6 for every pull request and every
+push to master, leaving out code which only builds on other platforms.  A
+pull request's run says in its summary how the overall figure compares with
+master's, how much of the changed code the tests run and which changed lines
+they do not; the annotated report is in its ``coverage-report`` artifact.  This
+is for information and does not fail the pull request.
+
 Flutter Widget Tests
 --------------------
 
