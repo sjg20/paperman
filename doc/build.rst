@@ -2,7 +2,7 @@ Building
 ========
 
 This page is a quick reference for building all paperman components.  See
-:doc:`develop` for prerequisites and project layout, and :doc:`app` for
+:doc:`develop` for prerequisites and project layout, and :doc:`app-develop` for
 Flutter-specific setup (Java, Flutter SDK, Android SDK).
 
 Environment

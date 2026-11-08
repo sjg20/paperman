@@ -50,6 +50,7 @@ The manual is also available as a `PDF
    server-internals
    api
    build
+   app-develop
    releasing
    code-signing
    ppa
