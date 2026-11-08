@@ -2469,3 +2469,66 @@ void TestDesktopUi::testDragImage()
    // and only several say how many
    QVERIFY(one.toImage() != five.toImage());
 }
+
+
+void TestDesktopUi::testDropMarker()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+   clickItem(desktop->getView(), 0);
+
+   Pageview *pageview = desktop->_page->_pageview;
+   QAbstractItemModel *pages = pageview->model();
+   QTRY_COMPARE(pages->rowCount(), 5);
+   auto rect = [&](int row) {
+      return pageview->visualRect(pages->index(row, 0));
+   };
+
+   // in a column: a line across the gap above the page dropped on
+   QVERIFY(rect(0).left() == rect(1).left());
+   QLine line = pageview->dropLine(QPoint(rect(2).center().x(),
+                                          rect(2).top() + 2));
+   QCOMPARE(line.y1(), line.y2());
+   QVERIFY(line.y1() >= rect(1).bottom() && line.y1() <= rect(2).top());
+   QCOMPARE(line.x1(), rect(2).left());
+   QCOMPARE(line.x2(), rect(2).right());
+
+   // or below the last, past the end
+   line = pageview->dropLine(QPoint(rect(4).center().x(),
+                                    rect(4).bottom() + 40));
+   QCOMPARE(line.y1(), line.y2());
+   QVERIFY(line.y1() >= rect(4).bottom());
+
+   // widen the list to rows of a few pages, which run on to the next row
+   pageview->setFixedWidth(rect(0).width() * 3 + 40);
+   QTRY_VERIFY(rect(0).top() == rect(1).top()
+               && rect(0).top() != rect(4).top());
+   int wrap = 1;
+   while (rect(wrap).top() == rect(0).top())
+      wrap++;
+
+   // a line down the gap between two pages side by side
+   line = pageview->dropLine(QPoint(rect(0).right() - 2, rect(0).center().y()));
+   QCOMPARE(line.x1(), line.x2());
+   QVERIFY(line.x1() >= rect(0).right() && line.x1() <= rect(1).left());
+   QCOMPARE(line.y1(), rect(0).top());
+
+   // past the last of a row, beside it, and not by the first of the next
+   QPoint end(rect(wrap - 1).right() - 2, rect(wrap - 1).center().y());
+   QCOMPARE(pageview->dropRow(end), wrap);
+   line = pageview->dropLine(end);
+   QCOMPARE(line.x1(), line.x2());
+   QVERIFY(line.x1() >= rect(wrap - 1).right());
+   QCOMPARE(line.y1(), rect(wrap - 1).top());
+
+   // and before the first of the next, beside that
+   QPoint start(rect(wrap).left() + 2, rect(wrap).center().y());
+   QCOMPARE(pageview->dropRow(start), wrap);
+   line = pageview->dropLine(start);
+   QVERIFY(line.x1() <= rect(wrap).left());
+   QCOMPARE(line.y1(), rect(wrap).top());
+}

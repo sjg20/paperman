@@ -122,8 +122,8 @@ can be.
 
 Drag pages by their images in the page list to put them in a new order:
 select one, or Ctrl-click to select more, and drag them to where they
-should go. To select several at once, drag across them starting from a
-caption or a gap between pages. Ctrl with an arrow key moves the pages
+should go, shown by a line between the pages. To select several at once,
+drag across them starting from a caption or a gap between pages. Ctrl with an arrow key moves the pages
 selected one place earlier or later.
 **Undo** puts them back. A stack on a server cannot be reordered yet.
 
