@@ -285,11 +285,21 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    QList<int> size;
 
-   _default_mode = -1;
-   if (getSettingsSizes ("desktopwidget/", size))
-      setSizes (size);
-   else
-      _default_mode = Pagewidget::Mode_select;
+   /* the page view has set the sizes of its mode, if it has any: those
+      saved at the last exit may be another mode's, so are only for when
+      this one has none yet. Without either, the default waits for the
+      window to have its size (see showEvent()) */
+   int mode = _page->mode ();
+
+   if (!getSettingsSizes (QString ("desktopwidget/mode%1/").arg (mode), size))
+      {
+      _default_mode = mode;
+      if (getSettingsSizes ("desktopwidget/", size))
+         {
+         setSizes (size);
+         _default_mode = -1;
+         }
+      }
 
    connect (_view, SIGNAL (popupMenu (QModelIndex &)),
          this, SLOT (slotPopupMenu (QModelIndex &)));

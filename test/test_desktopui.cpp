@@ -2325,3 +2325,62 @@ void TestDesktopUi::testViewModeRestored()
       QVERIFY(page->_tools->selectMode->isChecked());
    });
 }
+
+
+void TestDesktopUi::testViewModeLayout()
+{
+   auto tidy = qScopeGuard([] {
+      QSettings qs;
+
+      qs.remove("desktopwidget");
+      qs.remove("mainwidget");
+   });
+   auto similar = [](const QList<int> &got, const QList<int> &want) {
+      if (got.size() != want.size())
+         return false;
+      for (int i = 0; i < got.size(); i++)
+         if (qAbs(got[i] - want[i]) > 40)
+            return false;
+      return true;
+   };
+   QList<int> select, move;
+
+   // a layout for each of two modes, quitting in the second
+   {
+      Mainwindow me;
+
+      me.resize(1600, 1000);
+      me.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&me));
+      Desktopwidget *desktop = me.getDesktop();
+
+      desktop->setSizes({200, 800, 600});
+      select = desktop->sizes();
+      desktop->_page->_tools->moveMode->click();
+      desktop->setSizes({200, 300, 1100});
+      move = desktop->sizes();
+      QVERIFY(!similar(select, move));
+      me.close();
+   }
+
+   /* starting in the other mode, as settings saved before the mode was do,
+      gives that mode's layout, not the one left at the last exit */
+   QSettings().remove("desktopwidget/mode");
+   {
+      Mainwindow me;
+
+      me.resize(1600, 1000);
+      me.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&me));
+      Desktopwidget *desktop = me.getDesktop();
+
+      QCOMPARE(desktop->_page->_mode, Pagewidget::Mode_select);
+      QVERIFY2(similar(desktop->sizes(), select),
+               qPrintable(QString("%1,%2,%3").arg(desktop->sizes()[0])
+                          .arg(desktop->sizes()[1]).arg(desktop->sizes()[2])));
+
+      // and the mode left is as it was
+      desktop->_page->_tools->moveMode->click();
+      QVERIFY(similar(desktop->sizes(), move));
+   }
+}
