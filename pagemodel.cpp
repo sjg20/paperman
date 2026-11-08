@@ -235,6 +235,48 @@ void Pagemodel::updatePage (int pagenum)
    }
 
 
+void Pagemodel::movePages (const QVector<int> &order)
+   {
+   // anything being drawn would land on the page which was at that row
+   _renderer->flush ();
+   _generation++;
+   emit layoutAboutToBeChanged ();
+
+   QVector<Pageinfo> was = _pages;
+
+   for (int row = 0; row < _count; row++)
+      {
+      int old = order.value (_start + row, -1) - _start;
+
+      if (old >= 0 && old < _count)
+         {
+         _pages [row] = was [old];
+         _pages [row].moveTo (row);
+         }
+      else
+         _pages [row].invalidate ();
+      }
+
+   // the selection and the current page go with their pages
+   const QModelIndexList from = persistentIndexList ();
+   QModelIndexList to;
+
+   for (const QModelIndex &ind : from)
+      {
+      int row = order.indexOf (_start + ind.row ()) - _start;
+
+      to << (row >= 0 && row < _count ? index (row, 0, QModelIndex ())
+                                      : QModelIndex ());
+      }
+   changePersistentIndexList (from, to);
+   emit layoutChanged ();
+
+   // a page whose drawing was dropped above is asked for again
+   if (_rescaling)
+      _updateTimer->start (0);
+   }
+
+
 void Pagemodel::keepAllPages (void)
    {
    for (int i = 0; i < _count; i++)
@@ -940,8 +982,35 @@ void Pageinfo::setup (const Pagemodel *model, int itemnum)
       _pagename = model->data (ind, Qt::DisplayRole).toString ();
       _pagenum = model->data (ind, Pagemodel::Role_pagenum).toInt ();
       }
+   _pagename_stale = false;
    // we are now ready for action
    _valid = true;
+   }
+
+
+void Pageinfo::moveTo (int itemnum)
+   {
+   _itemnum = itemnum;
+   if (_valid && !_scanning)
+      {
+      QModelIndex ind = _model->index (_itemnum, 0, QModelIndex ());
+
+      _pagenum = _model->data (ind, Pagemodel::Role_pagenum).toInt ();
+      _pagename_stale = true;
+      }
+   }
+
+
+QString Pageinfo::pagename (void)
+   {
+   if (_pagename_stale)
+      {
+      QModelIndex ind = _model->index (_itemnum, 0, QModelIndex ());
+
+      _pagename = _model->data (ind, Qt::DisplayRole).toString ();
+      _pagename_stale = false;
+      }
+   return _pagename;
    }
 
 

@@ -766,11 +766,12 @@ void Desktopmodel::opReorderPages (const QModelIndex &ind,
       e = f->reorderPages (order);
       if (!e)
          {
-         /* the pages are shown again in their new order, with the page
-            shown before, which has moved with them */
-         _pagenum_change = true;
+         /* whoever shows the pages moves them; the stack itself only needs
+            its preview brought up to date */
+         emit pagesReordered (ind, order);
+         _minor_change = true;
          buildItem (ind);
-         _pagenum_change = false;
+         _minor_change = false;
          getDesk (ind.parent ())->dirty ();
          }
       }
