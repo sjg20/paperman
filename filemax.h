@@ -486,6 +486,10 @@ private:
       \returns error, or NULL if OK */
    err_info *write_page_order (const QVector<page_info> &pages);
 
+   /** true if every chunk is in the file, so that one can be read from
+       there: a page being scanned may so far be only in memory */
+   bool allChunksSaved (void) const;
+
    err_info *setup_max (void);
 
    char *max_get_shell_filename (void);

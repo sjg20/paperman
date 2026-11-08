@@ -2280,8 +2280,12 @@ err_info *Filemax::chunk_ensure (chunk_info &chunk)
 
 err_info *Filemax::chunk_find (int pos, chunk_info *&chunkp, bool *tempp)
    {
+   /* without temporary loading the chunk must be in memory, as for
+      find_page_chunk() */
    if (tempp)
       *tempp = false;
+   else
+      CALL (ensure_all_chunks ());
    chunkp = NULL;
    if (_all_chunks_loaded) for (int i = 0; i < _chunks.size (); i++)
       {
@@ -2846,6 +2850,15 @@ err_info *Filemax::putAnnot (QHash<int, QString> &updates)
    }
 
 
+bool Filemax::allChunksSaved (void) const
+   {
+   for (const chunk_info &chunk : _chunks)
+      if (chunk.loaded && !chunk.saved)
+         return false;
+   return true;
+   }
+
+
 err_info *Filemax::getDpi (int pagenum, QSize &dpi)
    {
    QMutexLocker locker (&_file_mutex);
@@ -2854,11 +2867,18 @@ err_info *Filemax::getDpi (int pagenum, QSize &dpi)
    if (!_valid)
        return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (_filename));
 
+   bool temp = false;   // chunk is only for here
    CALL (ensure_open ());
-   err_info *err = find_page_chunk (pagenum, chunk, NULL, NULL);
+   err_info *err = find_page_chunk (pagenum, chunk,
+                                    allChunksSaved () ? &temp : NULL, NULL);
    ensure_closed ();
    CALL (err);
    dpi = QSize (chunk->dpi.x, chunk->dpi.y);
+   if (temp)
+      {
+      chunk_free (*chunk);
+      delete chunk;
+      }
    return NULL;
    }
 
@@ -2898,8 +2918,13 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
    if (!_valid)
        return err_make (ERRFN, ERR_file_not_loaded_yet1, qPrintable (_filename));
 
+   bool temp = false;   // chunk is only for here
+
+   /* this is asked each time a stack is selected, so read just this page's
+      chunk rather than every chunk in the file */
    CALL(ensure_open());
-   CALL (find_page_chunk (pagenum, chunk, NULL, &page));
+   CALL (find_page_chunk (pagenum, chunk, allChunksSaved () ? &temp : NULL,
+                          &page));
    ensure_closed();
    size = QSize (chunk->image_size.x, chunk->image_size.y);
    compressed_size = chunk->size;
@@ -2911,6 +2936,11 @@ err_info *Filemax::getImageInfo (int pagenum, QSize &size,
    line_bytes = (line_bytes + 3) & ~3;
    image_size = line_bytes * chunk->image_size.y;
    timestamp = page->timestamp;
+   if (temp)
+      {
+      chunk_free (*chunk);
+      delete chunk;
+      }
    return NULL;
    }
 
@@ -6738,7 +6768,9 @@ err_info *Filemax::getImage (int pagenum, bool,
 
    chunk_info *chunk;
    bool temp;  //!< chunk is temporarily allocated
+   Open open (this);
 
+   CALL (open.err ());
    CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
    CALL(ensure_open());
    CALL (decode_image (*chunk, imagep, &trueSize));

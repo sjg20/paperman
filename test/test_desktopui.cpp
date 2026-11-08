@@ -2281,7 +2281,12 @@ void TestDesktopUi::testReorderInStrip()
    QTest::mouseClick(pageview->viewport(), Qt::LeftButton, Qt::NoModifier,
                      pageview->visualRect(pages->index(3, 0)).center());
    QCOMPARE(page->getCurrentPage(), 3);
+   QString stackPath = model->getFile(stack)->pathname();
+   IoStats::reset();
    QTest::keyClick(pageview, Qt::Key_Left, Qt::ControlModifier);
+
+   // selecting a stack has not read all of it, so only its table is written
+   QCOMPARE(IoStats::forPath(stackPath).writes, qint64(1));
    QList<QImage> after = stripImages(model->getFile(stack));
    QCOMPARE(after, QList<QImage>({before[0], before[1], before[3], before[2],
                                   before[4]}));
