@@ -157,9 +157,14 @@ public:
    //! mark that a background render has been dispatched for this page
    void markRendering (void) { _rescale = false; }
 
-   //! store a pixmap produced by the background render thread
-   void setPixmap (const QPixmap &pm)
-      { _pixmap = pm; _rescale = false; _provisional = false; }
+   /** store a pixmap made elsewhere, such as by the background render
+       thread, with the page size it was made for, so that it is scaled
+       when it is shown at another
+
+      \param pm    the pixmap
+      \param size  the page size it was made for */
+   void setPixmap (const QPixmap &pm, QSize size)
+      { _pixmap = pm; _size = size; _rescale = false; _provisional = false; }
 
    /** If this page is still showing the preview built up while it was
        scanned, ask for the proper thumbnail to be generated instead

@@ -88,6 +88,31 @@ void TestPagewidget::testThumbnailClickShowsPage()
    QCOMPARE(page->getCurrentPage(), 0);
 }
 
+void TestPagewidget::testRenderedAtOtherSize()
+{
+   Pagemodel model(nullptr);
+   const QSize small(100, 140), large(400, 560);
+
+   // a page set up at the size of one view
+   model.setPagesize(small);
+   Pageinfo page;
+   page.setup(&model, 0);
+
+   /* drawn by the render thread for another view, with larger pages, such
+      as the scan view */
+   model.setPagesize(large);
+   QPixmap drawn(large);
+   drawn.fill(Qt::white);
+   page.setPixmap(drawn, large);
+
+   // back in the first view, it is shown at that view's size, not its own
+   model.setPagesize(small);
+   bool dodgy = false;
+   QPixmap shown = page.pixmap(dodgy);
+   QVERIFY2(shown.width() <= small.width() && shown.height() <= small.height(),
+            qPrintable(QString("%1x%2").arg(shown.width()).arg(shown.height())));
+}
+
 void TestPagewidget::testOpenAtCurrentPage()
 {
    Desktopmodel *model;

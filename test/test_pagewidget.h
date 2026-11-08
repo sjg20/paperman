@@ -24,6 +24,10 @@ private slots:
    //! Test that clicking a page thumbnail displays that page
    void testThumbnailClickShowsPage();
 
+   //! a page drawn at one size and then shown at another, as when moving
+   //! from the scan view, is scaled to the size it is shown at
+   void testRenderedAtOtherSize();
+
    //! Test that opening a stack shows the stack's current page
    void testOpenAtCurrentPage();
 
