@@ -338,6 +338,17 @@ enum Pagedelegate::e_point Pagedelegate::find_which (const QModelIndex &index,
    }
 
 
+bool Pagedelegate::onImage (const QModelIndex &index,
+      const QStyleOptionViewItem &option, const QPoint &pos) const
+   {
+   pmeasure_info measure;
+   QPoint offset = option.rect.topLeft ();
+
+   measureItem (option, index, measure, &offset);
+   return measure.pixmapRect.contains (pos);
+   }
+
+
 bool Pagedelegate::editorEvent (QEvent * event, QAbstractItemModel *model,
          const QStyleOptionViewItem &option, const QModelIndex &index)
    {

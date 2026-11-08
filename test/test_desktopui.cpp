@@ -2215,8 +2215,41 @@ void TestDesktopUi::testReorderInStrip()
    QModelIndex stack = model->index(0, 0, repo_ind);
    QList<QImage> before = stripImages(model->getFile(stack));
 
-   // pages can be dragged in the usual mode
-   QVERIFY(pageview->dragEnabled());
+   // pages can be moved in the usual mode
+   QVERIFY(pageview->moveAllowed());
+
+   /* a press on a page's image can start a drag, and a press on its
+      caption or between pages sweeps out a selection */
+   auto mouse = [&](QEvent::Type type, const QPoint &pos,
+                    Qt::MouseButton button) {
+      QPointF at(pos);
+      QPointF global(pageview->viewport()->mapToGlobal(pos));
+      QMouseEvent event(type, at, global,
+                        button, type == QEvent::MouseMove ? Qt::LeftButton
+                                                          : button,
+                        Qt::NoModifier);
+      QApplication::sendEvent(pageview->viewport(), &event);
+   };
+   auto caption = [&](int row) {
+      QRect rect = pageview->visualRect(pages->index(row, 0));
+      return QPoint(rect.center().x(), rect.bottom() - 6);
+   };
+   QRect first = pageview->visualRect(pages->index(0, 0));
+   QPoint image(first.center().x(), first.top() + first.height() / 3);
+
+   // the image has to have come for there to be one to press on
+   QTRY_VERIFY((mouse(QEvent::MouseButtonPress, image, Qt::LeftButton),
+                mouse(QEvent::MouseButtonRelease, image, Qt::LeftButton),
+                pageview->dragEnabled()));
+
+   mouse(QEvent::MouseButtonPress, caption(0), Qt::LeftButton);
+   QVERIFY(!pageview->dragEnabled());
+   mouse(QEvent::MouseMove, caption(0) + QPoint(0, 20), Qt::NoButton);
+   mouse(QEvent::MouseMove, caption(1), Qt::NoButton);
+   mouse(QEvent::MouseButtonRelease, caption(1), Qt::LeftButton);
+   QVERIFY(pageview->selectionModel()->isRowSelected(0, QModelIndex()));
+   QVERIFY(pageview->selectionModel()->isRowSelected(1, QModelIndex()));
+   QVERIFY(!pageview->selectionModel()->isRowSelected(2, QModelIndex()));
 
    /* a drop on the near half of a page goes before it, else after it: the
       left half where the pages are side by side, the top half in a column,

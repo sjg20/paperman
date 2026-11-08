@@ -182,7 +182,7 @@ int Pageview::dropRow (const QPoint &pos) const
 
 void Pageview::dragEnterEvent (QDragEnterEvent *event)
    {
-   if (event->source () == this && dragEnabled ())
+   if (event->source () == this && _moveAllowed)
       event->acceptProposedAction ();
    else
       event->ignore ();
@@ -191,7 +191,7 @@ void Pageview::dragEnterEvent (QDragEnterEvent *event)
 
 void Pageview::dragMoveEvent (QDragMoveEvent *event)
    {
-   if (event->source () != this || !dragEnabled ())
+   if (event->source () != this || !_moveAllowed)
       {
       event->ignore ();
       return;
@@ -205,7 +205,7 @@ void Pageview::dragMoveEvent (QDragMoveEvent *event)
 
 void Pageview::dropEvent (QDropEvent *event)
    {
-   if (event->source () != this || !dragEnabled ())
+   if (event->source () != this || !_moveAllowed)
       {
       event->ignore ();
       return;
@@ -236,6 +236,27 @@ void Pageview::allowMove (bool allow)
    setDropIndicatorShown (false);
    setDragDropMode (allow ? InternalMove : NoDragDrop);
    setDragEnabled (allow);
+   _moveAllowed = allow;
+   }
+
+
+void Pageview::mousePressEvent (QMouseEvent *event)
+   {
+   if (_moveAllowed)
+      {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+      QPoint pos = event->position ().toPoint ();
+#else
+      QPoint pos = event->pos ();
+#endif
+      QModelIndex index = indexAt (pos);
+      QStyleOptionViewItem option = getViewOptions ();
+      const Pagedelegate *del = (Pagedelegate *)itemDelegate ();
+
+      option.rect = visualRect (index);
+      setDragEnabled (index.isValid () && del->onImage (index, option, pos));
+      }
+   QListView::mousePressEvent (event);
    }
 
 
@@ -349,7 +370,7 @@ void Pageview::keyPressEvent (QKeyEvent *event)
    bool earlier = event->key () == Qt::Key_Left || event->key () == Qt::Key_Up;
    bool later = event->key () == Qt::Key_Right || event->key () == Qt::Key_Down;
 
-   if (dragEnabled () && event->modifiers () == Qt::ControlModifier
+   if (_moveAllowed && event->modifiers () == Qt::ControlModifier
        && (earlier || later))
       {
       QList<int> rows;
