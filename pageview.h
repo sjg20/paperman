@@ -107,6 +107,14 @@ public slots:
        before, or the number of rows to go after the last */
    int dropRow (const QPoint &pos) const;
 
+   /** the image shown while dragging pages: a small copy of one page, with
+       how many there are when there are several
+
+      \param index  the page to show
+      \param count  how many pages are being dragged
+      \returns the image */
+   QPixmap dragPixmap (const QModelIndex &index, int count) const;
+
 protected:
    void scrollContentsBy (int dx, int dy);
 
@@ -123,6 +131,10 @@ protected:
    void dragEnterEvent (QDragEnterEvent *event) override;
    void dragMoveEvent (QDragMoveEvent *event) override;
    void dropEvent (QDropEvent *event) override;
+
+   /* the view would drag an image of all the pages selected, laid out as
+      they are, which can fill the screen */
+   void startDrag (Qt::DropActions supportedActions) override;
 
    //! update the view size based on the items within it
    void updateGeometries (void);

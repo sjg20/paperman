@@ -25,15 +25,18 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <algorithm>
 
 #include <QDebug>
+#include <QDrag>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QScrollBar>
 #include <QTimer>
 #include <QKeyEvent>
+#include <QPainter>
 #include <QWheelEvent>
 
 #include "desktopmodel.h"
 #include "pagedelegate.h"
+#include "pagemodel.h"
 #include "pageview.h"
 
 
@@ -200,6 +203,79 @@ void Pageview::dragMoveEvent (QDragMoveEvent *event)
    // this scrolls the view near its edges
    QAbstractItemView::dragMoveEvent (event);
    event->acceptProposedAction ();
+   }
+
+
+QPixmap Pageview::dragPixmap (const QModelIndex &index, int count) const
+   {
+   static const int page_size = 64;   // the longer side of the page
+   static const int badge_size = 20;  // the height of the count
+
+   Pageinfo *info = index.data (Pagemodel::Role_pageinfo).value<Pageinfo *> ();
+   bool dodgy = false;
+   QPixmap page = info ? info->pixmap (dodgy) : QPixmap ();
+   QSize size = page.isNull () ? QSize (page_size * 3 / 4, page_size)
+      : page.size ().scaled (page_size, page_size, Qt::KeepAspectRatio);
+
+   // room for the count, which overlaps a corner of the page
+   qreal ratio = devicePixelRatioF ();
+   int margin = badge_size / 2;
+   QSize whole = size + QSize (margin, margin);
+   QPixmap out (whole * ratio);
+
+   out.setDevicePixelRatio (ratio);
+   out.fill (Qt::transparent);
+
+   QPainter painter (&out);
+   QRect rect (QPoint (0, 0), size);
+
+   painter.setRenderHint (QPainter::Antialiasing);
+   painter.setRenderHint (QPainter::SmoothPixmapTransform);
+   painter.fillRect (rect, Qt::white);
+   if (!page.isNull ())
+      painter.drawPixmap (rect, page);
+   painter.setPen (palette ().color (QPalette::Dark));
+   painter.setBrush (Qt::NoBrush);
+   painter.drawRect (rect.adjusted (0, 0, -1, -1));
+
+   if (count > 1)
+      {
+      QString text = QString::number (count);
+      int width = qMax (badge_size,
+                        fontMetrics ().horizontalAdvance (text) + 10);
+      QRect badge (whole.width () - width, whole.height () - badge_size,
+                   width, badge_size);
+
+      painter.setPen (Qt::NoPen);
+      painter.setBrush (palette ().color (QPalette::Highlight));
+      painter.drawRoundedRect (badge, badge_size / 2, badge_size / 2);
+      painter.setPen (palette ().color (QPalette::HighlightedText));
+      painter.drawText (badge, Qt::AlignCenter, text);
+      }
+   return out;
+   }
+
+
+void Pageview::startDrag (Qt::DropActions)
+   {
+   const QModelIndexList selected = selectionModel ()->selectedIndexes ();
+
+   if (selected.isEmpty ())
+      return;
+
+   // show the page taken hold of
+   QModelIndex shown = selected.contains (currentIndex ()) ? currentIndex ()
+                                                           : selected.first ();
+   QPixmap image = dragPixmap (shown, selected.size ());
+   QDrag *drag = new QDrag (this);
+
+   drag->setMimeData (model ()->mimeData (selected));
+   drag->setPixmap (image);
+   drag->setHotSpot (QPoint (image.width (), image.height ())
+                     / image.devicePixelRatio () / 2);
+
+   // dropEvent() moves the pages, so there is nothing to do when it returns
+   drag->exec (Qt::MoveAction);
    }
 
 

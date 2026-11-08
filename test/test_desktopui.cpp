@@ -2435,3 +2435,37 @@ void TestDesktopUi::testViewModeLayout()
       QVERIFY(similar(desktop->sizes(), move));
    }
 }
+
+
+void TestDesktopUi::testDragImage()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+   clickItem(desktop->getView(), 0);
+
+   Pageview *pageview = desktop->_page->_pageview;
+   QAbstractItemModel *pages = pageview->model();
+   QTRY_COMPARE(pages->rowCount(), 5);
+
+   // the image of the page has to have come for it to be shown
+   QModelIndex first = pages->index(0, 0);
+   Pageinfo *info = first.data(Pagemodel::Role_pageinfo).value<Pageinfo *>();
+   bool dodgy = true;
+   QTRY_VERIFY((info->pixmap(dodgy), !dodgy));
+
+   /* a small page, the same size however many are dragged, which is more
+      than the one page's image would be */
+   QPixmap one = pageview->dragPixmap(first, 1);
+   QPixmap five = pageview->dragPixmap(first, 5);
+   QVERIFY(!one.isNull());
+   QCOMPARE(five.size(), one.size());
+   QVERIFY2(one.width() < 100 && one.height() < 100,
+            qPrintable(QString("%1x%2").arg(one.width()).arg(one.height())));
+
+   // and only several say how many
+   QVERIFY(one.toImage() != five.toImage());
+}
