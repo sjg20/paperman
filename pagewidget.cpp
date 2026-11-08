@@ -241,12 +241,22 @@ Pagewidget::~Pagewidget ()
 
 void Pagewidget::init (void)
    {
-   setMode (Mode_select);
+   int mode = QSettings ().value (_settings_base + "mode", Mode_select).toInt ();
+
+   // settings from elsewhere may say anything
+   if (mode < Mode_select || mode >= Mode_none)
+      mode = Mode_select;
+   setMode ((e_mode)mode);
+   modeToTool ((e_mode)mode)->setChecked (true);
    }
 
 
 void Pagewidget::closing (void)
    {
+   /* the tool chosen, which is the one to go back to if a scan has switched
+      to the scan tool for now */
+   if (_prescan_mode != Mode_none)
+      QSettings ().setValue (_settings_base + "mode", _prescan_mode);
    setMode (Mode_none);
 //    if (_mode == Mode_none)
 //       return;

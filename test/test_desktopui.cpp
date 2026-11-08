@@ -1,3 +1,5 @@
+#include <functional>
+
 #include <QClipboard>
 #include <QKeySequence>
 #include <QLineEdit>
@@ -29,6 +31,7 @@
 #include "pageview.h"
 #include "paperstack.h"
 #include "pagewidget.h"
+#include "pagetools.h"
 #include "searchserver.h"
 #include "qxmlconfig.h"
 #include <QScrollBar>
@@ -2269,4 +2272,56 @@ void TestDesktopUi::testReorderInStrip()
    stk->undo();
    stk->undo();
    QCOMPARE(stripImages(model->getFile(stack)), before);
+}
+
+
+void TestDesktopUi::testViewModeRestored()
+{
+   auto tidy = qScopeGuard([] {
+      QSettings qs;
+
+      qs.remove("desktopwidget");
+      qs.remove("mainwidget");
+   });
+
+   // open a window and give it to @p fn, then close it, as on quitting
+   auto session = [&](const std::function<void(Pagewidget *)> &fn) {
+      Mainwindow me;
+
+      me.resize(1600, 1000);
+      me.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&me));
+      fn(me.getDesktop()->_page);
+      me.close();
+   };
+
+   // the first time, the pointer
+   session([&](Pagewidget *page) {
+      QCOMPARE(page->_mode, Pagewidget::Mode_select);
+      QVERIFY(page->_tools->selectMode->isChecked());
+      page->_tools->moveMode->click();
+      QCOMPARE(page->_mode, Pagewidget::Mode_move);
+   });
+
+   // the hand comes back, with its tool shown as chosen
+   session([&](Pagewidget *page) {
+      QCOMPARE(page->_mode, Pagewidget::Mode_move);
+      QVERIFY(page->_tools->moveMode->isChecked());
+      QVERIFY(!page->_tools->selectMode->isChecked());
+
+      // quitting during a scan, the tool to come back to is the one chosen
+      page->_tools->scanMode->setChecked(true);
+      page->_prescan_mode = Pagewidget::Mode_move;
+      QCOMPARE(page->_mode, Pagewidget::Mode_scan);
+   });
+   session([&](Pagewidget *page) {
+      QCOMPARE(page->_mode, Pagewidget::Mode_move);
+   });
+
+   // and a setting which makes no sense is the pointer
+   QSettings().setValue("desktopwidget/mode", 99);
+   session([&](Pagewidget *page) {
+      QCOMPARE(page->_mode, Pagewidget::Mode_select);
+      QVERIFY(page->_tools->selectMode->isChecked());
+   });
 }
