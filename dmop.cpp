@@ -1093,6 +1093,73 @@ void Desktopmodel::opTransformPage (const QModelIndex &index, int pagenum,
    }
 
 
+void Desktopmodel::opCropPage (const QModelIndex &index, int pagenum,
+                               const QRectF &area,
+                               std::shared_ptr<QByteArray> undo, OpDone done)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+   File *f = getFile (index);
+   err_info *e = NULL;
+
+   if (f)
+      {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         opCropPageRemote (f, f->desk (), remote, pagenum, area, undo, done);
+         return;
+         }
+      f->load ();
+      if (!f->pagecount ())
+         e = err_make (ERRFN, ERR_stack_has_no_pages);
+      else if (pagenum >= f->pagecount ())
+         e = f->not_impl ();
+      else
+         {
+         e = f->cropPages (pagenum, area, *undo);
+         if (pagenum >= 0)
+            f->setPagenum (pagenum);
+
+         // as in opTransformPage()
+         _minor_change = true;
+         buildItem (index);
+         _minor_change = false;
+         if (!e)
+            emit pageContentChanged (index, pagenum);
+         }
+      }
+   done (e);
+   }
+
+
+void Desktopmodel::opUncropPage (const QModelIndex &index, int pagenum,
+                                 std::shared_ptr<QByteArray> undo, OpDone done)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+   File *f = getFile (index);
+   err_info *e = NULL;
+
+   if (f)
+      {
+      RemoteBackend *remote = remoteForFile (f);
+
+      if (remote)
+         {
+         opUncropPageRemote (f, f->desk (), remote, pagenum, undo, done);
+         return;
+         }
+      e = f->uncropPages (*undo);
+      _minor_change = true;
+      buildItem (index);
+      _minor_change = false;
+      if (!e)
+         emit pageContentChanged (index, pagenum);
+      }
+   done (e);
+   }
+
+
 RemoteBackend *Desktopmodel::remoteForFile (File *file) const
    {
    Desk *desk = file ? file->desk () : NULL;
@@ -1794,6 +1861,119 @@ err_info *Desktopmodel::remoteStackChanged (const QModelIndex &ind,
    buildItem (ind);
    _minor_change = false;
    return NULL;
+   }
+
+
+void Desktopmodel::opCropPageRemote (File *file, Desk *desk,
+      RemoteBackend *backend, int pagenum, const QRectF &area,
+      std::shared_ptr<QByteArray> undo, OpDone done)
+   {
+   QString dir = desk->dir ();
+   QString fname = file->filename ();
+
+   backend->cropPages (desk->repoName (), remoteStackPath (desk, file),
+                       pagenum < 0 ? 0 : pagenum + 1, area, this,
+                       [this, dir, fname, pagenum, area, undo, done] (
+                          const RemoteBackend::Result &result) {
+      if (_closing)
+         return;      // the model is going, with what it showed
+      if (!result.ok)
+         {
+         done (err_make (ERRFN, ERR_remote_op_failed2, "crop",
+                         qPrintable (result.error)));
+         return;
+         }
+
+      QModelIndex index = stackFor (dir, fname);
+      File *file = getFile (index);
+      QByteArray local;
+
+      undo->clear ();
+      if (file)
+         {
+         Desk *desk = file->desk ();
+         RemoteBackend *backend = remoteForFile (file);
+
+         // as in opTransformPageRemote()
+         if (sparseFor (file, backend, desk))
+            {
+            QList<int> pages;
+
+            if (pagenum >= 0)
+               pages << pagenum;
+            stackChangedLater (index, pages);
+            }
+         else if (!file->valid () || !file->pagecount ()
+                  || file->cropPages (pagenum, area, local))
+            {
+            local.clear ();
+            backend->invalidateCachedFile (desk->repoName (),
+                                           remoteStackPath (desk, file));
+            file->setRemoteChecked (false);
+            }
+         refreshRemoteThumbnail (desk, backend, file);
+         emit pageContentChanged (index, pagenum);
+         }
+
+      QDataStream out (undo.get (), QIODevice::WriteOnly);
+
+      out << result.json ().value ("undoId").toString () << local;
+      done (NULL);
+   });
+   }
+
+
+void Desktopmodel::opUncropPageRemote (File *file, Desk *desk,
+      RemoteBackend *backend, int pagenum, std::shared_ptr<QByteArray> undo,
+      OpDone done)
+   {
+   QString dir = desk->dir ();
+   QString fname = file->filename ();
+   QString undoId;
+   QByteArray local;
+   QDataStream in (undo.get (), QIODevice::ReadOnly);
+
+   in >> undoId >> local;
+   backend->uncropPages (desk->repoName (), remoteStackPath (desk, file),
+                         undoId, this,
+                         [this, dir, fname, pagenum, local, done] (
+                            const RemoteBackend::Result &result) {
+      if (_closing)
+         return;      // the model is going, with what it showed
+      if (!result.ok)
+         {
+         done (err_make (ERRFN, ERR_remote_op_failed2, "crop undo",
+                         qPrintable (result.error)));
+         return;
+         }
+
+      QModelIndex index = stackFor (dir, fname);
+      File *file = getFile (index);
+
+      if (file)
+         {
+         Desk *desk = file->desk ();
+         RemoteBackend *backend = remoteForFile (file);
+
+         if (sparseFor (file, backend, desk))
+            {
+            QList<int> pages;
+
+            if (pagenum >= 0)
+               pages << pagenum;
+            stackChangedLater (index, pages);
+            }
+         else if (local.isEmpty () || file->uncropPages (local))
+            {
+            backend->invalidateCachedFile (desk->repoName (),
+                                           remoteStackPath (desk, file));
+            file->setRemoteChecked (false);
+            }
+         refreshRemoteThumbnail (desk, backend, file);
+         emit pageContentChanged (index, pagenum);
+         }
+      done (NULL);
+   });
    }
 
 

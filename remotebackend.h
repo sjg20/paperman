@@ -388,6 +388,15 @@ public:
     void deletePages(const QString &repo, const QString &path,
                      const QList<int> &pages, QObject *context, Done done);
 
+    /** crop a page of a stack, or every page if @p page is below 1.
+     *  @p area is as for File::cropPage().  The reply's undoId is what
+     *  uncropPages() needs to put them back */
+    void cropPages(const QString &repo, const QString &path, int page,
+                   const QRectF &area, QObject *context, Done done);
+    //! put back the pages changed by cropPages()
+    void uncropPages(const QString &repo, const QString &path,
+                     const QString &undoId, QObject *context, Done done);
+
     //! bring back pages deleted by deletePages()
     void undeletePages(const QString &repo, const QString &path,
                        const QString &undoId, QObject *context, Done done);

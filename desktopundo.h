@@ -415,6 +415,31 @@ private:
    };
 
 
+/** crop a page of a stack, or every page. Undo puts back what was there */
+
+class UCCropPage : public Desktopundocmd
+   {
+public:
+   /** create an undo record for cropping, and execute it
+
+      \param model    model to work with
+      \param ind      model index of stack
+      \param pagenum  page to crop, or -1 for every page
+      \param area     as for Desktopmodel::cropPage() */
+   UCCropPage (Desktopmodel *model, const QModelIndex &ind, int pagenum,
+         const QRectF &area);
+   void redo();
+   void undo();
+private:
+   QString _dir;       //!< desk directory
+   QString _fname;     //!< filename of stack
+   int _pagenum;       //!< the page number to crop
+   QRectF _area;       //!< the part to keep
+   //! what is needed to put the pages back, once cropped
+   std::shared_ptr<QByteArray> _undo;
+   };
+
+
 /** update stack annotations. To redo this we write the updatein the
 maxdesk layer. To undo we write the old details */
 
