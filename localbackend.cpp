@@ -12,6 +12,12 @@ License: GPL-2
 #include <QTextStream>
 
 
+static QString joinPath(const QString &rootPath, const QString &dir)
+{
+   return dir.isEmpty() ? rootPath : rootPath + "/" + dir;
+}
+
+
 LocalBackend::LocalBackend(const QStringList &rootPaths)
    : _rootPaths(rootPaths)
 {
@@ -42,16 +48,14 @@ QString LocalBackend::rootPathForName(const QString &repo) const
 }
 
 
-DirectoryListing LocalBackend::browseDirectory(const QString &repo,
-                                               const QString &dir)
+QString LocalBackend::browseRoot(const QString &repo, const QString &dir,
+                                 DirectoryListing &out) const
 {
-   DirectoryListing out;
-
    /* Reject absolute paths and any traversal attempt before touching
     * the filesystem. */
    if (dir.contains("..") || dir.startsWith("/")) {
       out.error = "invalid path";
-      return out;
+      return QString();
    }
 
    QString rootPath = repo.isEmpty()
@@ -61,24 +65,26 @@ DirectoryListing LocalBackend::browseDirectory(const QString &repo,
    if (rootPath.isEmpty()) {
       out.error    = "repository not found: " + repo;
       out.notFound = true;
-      return out;
+      return QString();
    }
 
-   QString fullPath = rootPath;
-   if (!dir.isEmpty())
-      fullPath += "/" + dir;
-
-   QDir d(fullPath);
-   if (!d.exists()) {
+   if (!QDir(joinPath(rootPath, dir)).exists()) {
       out.error    = "directory not found";
       out.notFound = true;
-      return out;
+      return QString();
    }
 
+   return rootPath;
+}
+
+
+void LocalBackend::addFolders(const QString &rootPath, const QString &dir,
+                              DirectoryListing &out) const
+{
    /* Subdirectories from the live filesystem (the cache only tracks
     * files, not empty directory shells). */
-   QFileInfoList subdirs =
-       d.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+   QFileInfoList subdirs = QDir(joinPath(rootPath, dir))
+       .entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
    for (const QFileInfo &sub : subdirs) {
       if (sub.fileName().startsWith('.'))
          continue;
@@ -90,6 +96,33 @@ DirectoryListing LocalBackend::browseDirectory(const QString &repo,
       e.count = countFilesRecursive(rootPath, e.path);
       out.entries.append(e);
    }
+}
+
+
+DirectoryListing LocalBackend::browseFolders(const QString &repo,
+                                             const QString &dir)
+{
+   DirectoryListing out;
+   QString rootPath = browseRoot(repo, dir, out);
+
+   if (!rootPath.isEmpty()) {
+      addFolders(rootPath, dir, out);
+      out.ok = true;
+   }
+   return out;
+}
+
+
+DirectoryListing LocalBackend::browseDirectory(const QString &repo,
+                                               const QString &dir)
+{
+   DirectoryListing out;
+   QString rootPath = browseRoot(repo, dir, out);
+
+   if (rootPath.isEmpty())
+      return out;
+
+   addFolders(rootPath, dir, out);
 
    /* Files from a fresh filesystem scan of just this directory.
     * (The repo-wide _fileCache is built lazily — the server's
@@ -99,6 +132,7 @@ DirectoryListing LocalBackend::browseDirectory(const QString &repo,
    QStringList nameFilters;
    nameFilters << "*.max" << "*.pdf" << "*.jpg" << "*.jpeg"
                << "*.tiff" << "*.tif";
+   QDir d(joinPath(rootPath, dir));
    QFileInfoList files = d.entryInfoList(nameFilters,
        QDir::Files | QDir::NoSymLinks | QDir::Readable, QDir::Name);
    for (const QFileInfo &f : files) {

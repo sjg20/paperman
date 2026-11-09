@@ -20,6 +20,7 @@ private slots:
    //! Directory browsing lists dirs first, hides dotfiles and
    //! reports unknown paths
    void testBrowse();
+   void testBrowseFolders();
 
    //! Whole-file reads return the bytes, with 404-style errors for
    //! missing files
