@@ -19,6 +19,8 @@
 #include "remotebackend.h"
 #include "pscan.h"
 #include "qscanner.h"
+#include "qscannersetupdlg.h"
+#include "qxmlconfig.h"
 #include "utils.h"
 
 #include <functional>
@@ -1973,6 +1975,41 @@ void TestFakescan::testButtonsLeftAloneOnceWedged ()
    main->_scanner->close ();
    main->checkButtons ();
    QVERIFY (main->_watchButtons);
+}
+
+
+/* The list of scanners can take seconds to find, so it is only asked for
+   if the scanner used last cannot simply be opened */
+void TestFakescan::testOpenLastWithoutListing ()
+{
+   Mainwindow me;
+   Scansettings settings (0, FAKESCAN_DEVICE);
+
+   // with no window there would be no list to fill in anyway
+   bool was_headless = utilHeadless ();
+
+   utilSetHeadless (false);
+   auto headless = qScopeGuard ([was_headless]
+      { utilSetHeadless (was_headless); });
+
+   {
+      QScanner *none = nullptr;
+      QScannerSetupDlg ssd (none, 0);
+
+      QVERIFY (ssd.setupLast ());
+      QVERIFY (ssd.scanner ()->isOpen ());
+      QCOMPARE (Fakescan::log ().filter ("get devices").size (), 0);
+      ssd.uninitScanner ();
+   }
+
+   xmlConfig->setStringValue ("LAST_DEVICE", FAKESCAN_BACKEND ":nosuch");
+
+   QScanner *none = nullptr;
+   QScannerSetupDlg ssd (none, 0);
+
+   QVERIFY (!ssd.setupLast ());
+   QCOMPARE (Fakescan::log ().filter ("get devices").size (), 1);
+   ssd.uninitScanner ();
 }
 
 

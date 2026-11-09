@@ -90,6 +90,8 @@ private:
   QTreeWidgetItem* mpLastItem;
   /**  */
   int mQueryType;
+  /** true once the list of scanners has been filled in */
+  bool mListed;
   /**  */
   QPushButton* mpSelectButton;
   /** */
@@ -106,6 +108,8 @@ private://methods
   /**  */
 
   void createContents(bool intcall);
+  /** Fill in the list of scanners, the first time it is wanted */
+  void listDevices();
   /**  */
   void createWhatsThisHelp();
   /** Open the device settings file, if it exists at all.
