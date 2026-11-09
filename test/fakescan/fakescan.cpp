@@ -1254,6 +1254,11 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
          {
          QMutexLocker locker (&machine.lock);
 
+         if (machine.wedged)
+            {
+            locker.unlock ();
+            return noted ("get button", SANE_STATUS_IO_ERROR);
+            }
          look_at_dir ();
          *word = machine.pressed.remove (s->opt [option].name);
          break;
