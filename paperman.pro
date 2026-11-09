@@ -168,6 +168,7 @@ HEADERS += desktopwidget.h \
  file.h \
  filemax.h \
  imageadjust.h \
+ imagetrim.h \
  filepdf.h \
  fileother.h \
  pdfio.h \
@@ -271,6 +272,7 @@ SOURCES += desktopwidget.cpp \
  file.cpp \
  filemax.cpp \
  imageadjust.cpp \
+ imagetrim.cpp \
  filepdf.cpp \
  fileother.cpp \
  pdfio.cpp \
@@ -334,6 +336,7 @@ test {
    # which opens a console window beside paperman's own
    QT += testlib
    SOURCES += test/test_utils.cpp \
+      test/test_imagetrim.cpp \
       test/test.cpp \
       test/suite.cpp \
       test/test_desktopui.cpp \
@@ -378,6 +381,7 @@ test {
       test/test_pscan.h \
       test/test_qscanner.h \
       test/test_utils.h \
+      test/test_imagetrim.h \
       test/test_searchserver.h \
       test/test_demoserver.h \
       test/test_ocrsearch.h \
