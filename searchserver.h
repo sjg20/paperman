@@ -301,6 +301,25 @@ private:
                                const QHash<QString, QString> &params,
                                const QString &authedUser);
 
+    /** POST /v1/repos/R/stacks/P/crop
+     *
+     * Body {page, area}.  Crops a page (or every page, if page is
+     * absent) to area, which is [left, top, width, height] as
+     * proportions of the page; without one, each page is fitted to its
+     * content.  Returns {undoId}, an opaque token for uncrop.
+     */
+    QByteArray handleCrop(const QString &path,
+                          const QHash<QString, QString> &params,
+                          const QString &authedUser);
+
+    /** POST /v1/repos/R/stacks/P/uncrop
+     *
+     * Body {undoId}.  Puts back the pages changed by the matching crop.
+     */
+    QByteArray handleUncrop(const QString &path,
+                            const QHash<QString, QString> &params,
+                            const QString &authedUser);
+
     /** Target of a per-stack mutation URL. */
     struct StackTarget {
         QString repoName;   //!< repository basename
@@ -1022,6 +1041,14 @@ private:
         int count;          //!< Number of removed pages
     };
     QHash<QString, PageUndo> _pageUndos;  //!< Keyed by undoId
+
+    /** Recovery data held for a crop call until its undoId is redeemed
+     *  (or the server restarts) */
+    struct CropUndo {
+        QString fullPath;   //!< Absolute path of the mutated file
+        QByteArray data;    //!< Opaque recovery blob from cropPages()
+    };
+    QHash<QString, CropUndo> _cropUndos;  //!< Keyed by undoId
 };
 
 #endif // __searchserver_h
