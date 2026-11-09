@@ -591,6 +591,23 @@ private:
       \param mp      new maxpage to replace it with */
    err_info *max_replace_page (page_info &page, Filemaxpage &mp);
 
+   /** read the resolution a page is recorded at
+
+      \param pagenum  page to look at
+      \param dpi      returns dots per inch across and down
+      \returns error, or NULL if ok */
+   err_info *page_dpi (int pagenum, QPoint &dpi);
+
+   /** replace the image of a page, keeping its details
+
+      \param info     the page
+      \param pagenum  its number
+      \param image    the new image
+      \param dpi      the resolution to record for it
+      \returns error, or NULL if ok */
+   err_info *store_image (page_info &info, int pagenum, const QImage &image,
+                          const QPoint &dpi);
+
    /** compress a page image and store the info in mp->chunk
 
       \param mp   holds information about width, height, etc.

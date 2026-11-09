@@ -29,6 +29,9 @@
 #include "op.h"
 #include "paperstack.h"
 
+#include <memory>
+
+#include "../imagetrim.h"
 #include "test_file.h"
 
 QString TestFile::copyFixture(const QString &name, const QString &destDir)
@@ -595,6 +598,36 @@ static bool nearlySame(const QImage &a, const QImage &b)
          total += qAbs(int(pa[x]) - int(pb[x]));
    }
    return count && total / count < 8;
+}
+
+void TestFile::testTransformKeepsDpi()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   copyFixture("testfile.max", tmp.path());
+   Filemax max(tmp.path() + "/", "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   // record a resolution which is different across and down
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QPoint dpi;
+   page_info *info;
+
+   QVERIFY(!max.find_page(0, info));
+   QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+   QVERIFY(!max.store_image(*info, 0, image, QPoint(200, 100)));
+   QVERIFY(!max.page_dpi(0, dpi));
+   QCOMPARE(dpi, QPoint(200, 100));
+
+   // a quarter turn swaps them; a mirror does not
+   QVERIFY(!max.transformPage(0, File::Transform_rotate90));
+   QVERIFY(!max.page_dpi(0, dpi));
+   QCOMPARE(dpi, QPoint(100, 200));
+   QVERIFY(!max.transformPage(0, File::Transform_hflip));
+   QVERIFY(!max.page_dpi(0, dpi));
+   QCOMPARE(dpi, QPoint(100, 200));
 }
 
 void TestFile::testTransformPage()
