@@ -747,6 +747,31 @@ void RemoteBackend::transformPage(const QString &repo, const QString &path,
 }
 
 
+void RemoteBackend::cropPages(const QString &repo, const QString &path,
+                              int page, const QRectF &area, QObject *context,
+                              Done done)
+{
+   QJsonObject body;
+
+   body["page"] = page;
+   if (!area.isNull())
+      body["area"] = QJsonArray({ area.x(), area.y(), area.width(),
+                                  area.height() });
+   postStackOp(repo, path, "/crop", body, context, done);
+}
+
+
+void RemoteBackend::uncropPages(const QString &repo, const QString &path,
+                                const QString &undoId, QObject *context,
+                                Done done)
+{
+   QJsonObject body;
+
+   body["undoId"] = undoId;
+   postStackOp(repo, path, "/uncrop", body, context, done);
+}
+
+
 void RemoteBackend::deletePages(const QString &repo, const QString &path,
                                 const QList<int> &pages, QObject *context,
                                 Done done)

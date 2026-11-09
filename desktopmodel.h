@@ -28,6 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSet>
 #include <QMutex>
 #include <QQueue>
+#include <QRectF>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QRecursiveMutex>
 #endif
@@ -114,6 +115,7 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCRenameStack;
    friend class UCRenamePage;
    friend class UCTransformPage;
+   friend class UCCropPage;
    friend class UCDeletePages;
    friend class UCUpdateAnnot;
    friend class UCAddRepository;
@@ -571,6 +573,14 @@ public:
    void transformPage (const QModelIndex &index, int pagenum,
          File::e_transform op);
 
+   /** crop a page of a stack, with undo
+
+      \param index    index of stack
+      \param pagenum  page to crop, or -1 for every page
+      \param area     the part to keep, as proportions of the page, or a
+                      null rectangle to fit each page to its content */
+   void cropPage (const QModelIndex &index, int pagenum, const QRectF &area);
+
    /** add a new repository to the list. Supports undo.
 
      \param dirPath  path to repository */
@@ -797,6 +807,20 @@ public:
    //! rename a page, as the other opRenamePage() does
    void opRenamePage (const QModelIndex &index, int pagenum,
                       const QString &newname, OpDone done);
+
+   /** crop a page, or every page
+
+      \param index    index of stack
+      \param pagenum  page to crop, or -1 for every page
+      \param area     as for cropPage()
+      \param undo     returns what opUncropPage() needs
+      \param done     called when finished */
+   void opCropPage (const QModelIndex &index, int pagenum, const QRectF &area,
+                    std::shared_ptr<QByteArray> undo, OpDone done);
+
+   //! put back the pages changed by opCropPage()
+   void opUncropPage (const QModelIndex &index, int pagenum,
+                      std::shared_ptr<QByteArray> undo, OpDone done);
 
    //! transform a page, as the other opTransformPage() does
    void opTransformPage (const QModelIndex &index, int pagenum,
@@ -1363,6 +1387,17 @@ private:
 
    void refreshRemoteThumbnail(Desk *desk, class RemoteBackend *backend,
                                File *file);
+
+   /** Crop a page of a remote stack by asking the server to do it, then
+    *  keep any copy here in step.  See opCropPage() */
+   void opCropPageRemote (File *file, Desk *desk, RemoteBackend *backend,
+                          int pagenum, const QRectF &area,
+                          std::shared_ptr<QByteArray> undo, OpDone done);
+
+   //! put back pages cropped by opCropPageRemote()
+   void opUncropPageRemote (File *file, Desk *desk, RemoteBackend *backend,
+                            int pagenum, std::shared_ptr<QByteArray> undo,
+                            OpDone done);
 
    /** Transform a page of a remote stack by asking the server to do
     *  it, then refresh the thumbnail.  See opTransformPage(). */

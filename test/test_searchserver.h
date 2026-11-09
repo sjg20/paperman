@@ -173,6 +173,7 @@ private slots:
    void testTransformEndpoint();
    void testCropEndpoint();
    void testCropEndpointErrors();
+   void testDesktopRemoteCrop();
    void testTransformEndpointErrors();
    void testRemoteBackendTransform();
    void testDesktopRemoteTransform();

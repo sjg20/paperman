@@ -224,6 +224,15 @@ void Desktopmodel::transformPage (const QModelIndex &index, int pagenum,
    }
 
 
+void Desktopmodel::cropPage (const QModelIndex &index, int pagenum,
+      const QRectF &area)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+
+   _undo->push (new UCCropPage (this, index, pagenum, area));
+   }
+
+
 void Desktopmodel::renamePage (const QModelIndex &index, QString newname)
    {
    _modelconv->assertIsSource (0, &index, 0);

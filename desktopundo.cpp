@@ -669,6 +669,55 @@ void UCTransformPage::transform (File::e_transform op)
    }
 
 
+UCCropPage::UCCropPage (Desktopmodel *model, const QModelIndex &ind,
+      int pagenum, const QRectF &area)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (ind.parent ());
+   _fname = model->data (ind, Desktopmodel::Role_filename).toString ();
+   _pagenum = pagenum;
+   _area = area;
+   _undo = std::make_shared<QByteArray> ();
+   setText (QApplication::translate ("UCCropPage",
+      pagenum == -1 ? "Crop stack" : "Crop page"));
+   }
+
+
+void UCCropPage::redo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+   int pagenum = _pagenum;
+   QRectF area = _area;
+   auto undo = _undo;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opCropPage (ind, pagenum, area, undo, done);
+   });
+   }
+
+
+void UCCropPage::undo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+   int pagenum = _pagenum;
+   auto undo = _undo;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opUncropPage (ind, pagenum, undo, done);
+   });
+   }
+
+
 UCRenamePage::UCRenamePage (Desktopmodel *model, const QModelIndex &ind,
       QString newname)
       : Desktopundocmd (model)

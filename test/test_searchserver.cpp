@@ -2182,6 +2182,54 @@ void TestSearchServer::testCropEndpointErrors()
     server.stop();
 }
 
+void TestSearchServer::testDesktopRemoteCrop()
+{
+    // a remote stack is cropped by the server, and undone there too
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QSize before = serverTestPageSize(dir, "testfile.max", 0);
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err), err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas, true);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    model.cropPage(stack, 0, QRectF(0, 0, 0.5, 1));
+    WAIT_OPS(model);
+    QSize after = serverTestPageSize(dir, "testfile.max", 0);
+    QVERIFY(qAbs(after.width() - before.width() / 2) <= 1);
+
+    model.getUndoStack()->undo();
+    WAIT_OPS(model);
+    QCOMPARE(serverTestPageSize(dir, "testfile.max", 0), before);
+
+    model.getUndoStack()->redo();
+    WAIT_OPS(model);
+    after = serverTestPageSize(dir, "testfile.max", 0);
+    QVERIFY(qAbs(after.width() - before.width() / 2) <= 1);
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpoint()
 {
     QTemporaryDir tmpDir;
