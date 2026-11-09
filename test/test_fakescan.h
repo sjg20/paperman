@@ -159,6 +159,7 @@ private slots:
 
    //! A scanner which stops answering keeps the pages already scanned
    void testStopsAnswering ();
+   void testButtonsLeftAloneOnceWedged ();
 
    //! A spoilt JPEG is still stored
    void testCorruptJpegStored ();
