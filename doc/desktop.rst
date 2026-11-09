@@ -153,6 +153,8 @@ Page toolbar
      - Flip the page from left to right
    * - |page-vflip|
      - Flip the page upside down
+   * - |page-crop|
+     - Cut away the edges of the page: see `Cropping`_
    * - |page-zoomfit|
      - Fit the whole page in the page viewer
    * - |page-zoomorig|
@@ -178,6 +180,50 @@ Text pane
      - Clear the text
    * - **Copy**
      - Copy the text to the clipboard
+
+Cropping
+--------
+
+Press |page-crop| to crop the page shown. A box appears around the whole
+page. Drag on the page to draw a new box around the part to keep, and
+anything outside it is shaded. Drag an edge or corner to adjust the box,
+or use these buttons to set it:
+
+.. list-table::
+   :widths: 20 80
+
+   * - |page-crop-content|
+     - Put the box around what is printed on the page. Where the scanner's
+       dark background shows around the sheet, the box stops at the edge
+       of the paper instead
+   * - |page-crop-full|
+     - Put the box around the whole page
+
+Then use the buttons on the right of the bar:
+
+.. list-table::
+   :widths: 20 80
+
+   * - |page-crop-page|
+     - **Crop page**: crop just this page. Pressing Enter does the same
+   * - |page-crop-stack|
+     - **Crop stack**: crop every page in the stack to the same part of the
+       page. Pressing Shift+Enter does the same
+   * - |page-crop-trim|
+     - **Trim stack to content**: crop every page to what is printed on that
+       page. A page with little on it ends up small
+   * - |page-crop-cancel|
+     - **Cancel**: leave the page as it is. Pressing Escape does the same
+
+**Edit > Undo** puts back everything a crop removed. The words read from a
+``.max`` page are dropped when it is cropped, since some may have been cut
+away, and undo brings them back.
+
+.. note::
+
+   A crop is not a safe way to remove something private. A PDF keeps the
+   whole page and only shows part of it, and a ``.max`` stack keeps the old
+   page in the file so that it can be brought back.
 
 Page view
 ---------
@@ -221,6 +267,13 @@ other whatever the desktop does, use **File > Options**, *Appearance*.
 .. |page-rright| image:: images/icons/page-rright.png
 .. |page-hflip| image:: images/icons/page-hflip.png
 .. |page-vflip| image:: images/icons/page-vflip.png
+.. |page-crop| image:: images/icons/page-crop.png
+.. |page-crop-content| image:: images/icons/page-crop-content.png
+.. |page-crop-full| image:: images/icons/page-crop-full.png
+.. |page-crop-page| image:: images/icons/page-crop-page.png
+.. |page-crop-stack| image:: images/icons/page-crop-stack.png
+.. |page-crop-trim| image:: images/icons/page-crop-trim.png
+.. |page-crop-cancel| image:: images/icons/page-crop-cancel.png
 .. |page-zoomfit| image:: images/icons/page-zoomfit.png
 .. |page-zoomorig| image:: images/icons/page-zoomorig.png
 .. |page-zoomout| image:: images/icons/page-zoomout.png
