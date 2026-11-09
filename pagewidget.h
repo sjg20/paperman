@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #define __pagewidget_h
 
 #include <QAbstractScrollArea>
+#include <QLabel>
 #include <QModelIndex>
 #include <QScrollArea>
 #include <QStackedWidget>
@@ -36,6 +37,8 @@ class QPixmap;
 class QSplitter;
 class QTextEdit;
 class QTimer;
+class QFrame;
+class QShortcut;
 class QToolButton;
 class QWidget;
 
@@ -61,11 +64,32 @@ struct file_info;
 struct err_info;
 
 
+/* a hint which uses only the space left over, showing nothing when its text
+   does not fit, so it never holds the window wide */
+
+class HintLabel : public QLabel
+   {
+   Q_OBJECT
+
+public:
+   HintLabel (const QString &text, QWidget *parent);
+
+   QSize minimumSizeHint () const override;
+
+   //! true if all of the text fits in the space given
+   bool fits () const;
+
+protected:
+   void paintEvent (QPaintEvent *event) override;
+   };
+
+
 /* this class manages a scrolling page image. It supports scaling by holding ctrl and moving the wheel */
 
 class MyScrollArea : public QAbstractScrollArea
    {
    Q_OBJECT
+   friend class TestPagewidget;
 
 public:
    /** constructor
@@ -92,6 +116,23 @@ public:
 
       \param size    the pixmap size */
    void setSize (QSize &size);
+
+   /** start letting the user mark the part of the page to keep
+
+      \param area    the part to start with, as proportions of the page */
+   void startCrop (const QRectF &area);
+
+   //! stop marking the part of the page to keep
+   void endCrop (void);
+
+   //! change the part of the page marked
+   void setCropArea (const QRectF &area);
+
+   //! the part of the page marked, as proportions of the page
+   QRectF cropArea (void) const { return _crop; }
+
+   //! true if the user is marking the part of the page to keep
+   bool isCropping (void) const { return _cropping; }
 
 signals:
    /* signal emitted when the user changes the scale */
@@ -120,7 +161,41 @@ protected:
 
    void mouseMoveEvent ( QMouseEvent * e );
 
+   void mouseReleaseEvent ( QMouseEvent * e );
+
 private:
+   //! what a drag of the crop rectangle is changing
+   enum
+      {
+      Crop_left = 1,
+      Crop_right = 2,
+      Crop_top = 4,
+      Crop_bottom = 8,
+      Crop_new = 16
+      };
+
+   //! where the crop rectangle is in the viewport
+   QRectF cropOnScreen (void) const;
+
+   //! which part of the crop rectangle is at a point: Crop_... flags
+   int cropHit (const QPoint &pos) const;
+
+   //! where a point is, as proportions of the page
+   QPointF pageFraction (const QPoint &pos) const;
+
+   //! apply a drag of the crop rectangle to a new position
+   void dragCrop (const QPoint &pos);
+
+   //! show what a press at this point would do
+   void updateCropCursor (const QPoint &pos);
+
+   //! draw the crop rectangle and shade what is outside it
+   void paintCrop (QPainter &painter);
+
+   bool _cropping;   //!< true if marking the part of the page to keep
+   QRectF _crop;     //!< the part marked, as proportions of the page
+   QRectF _crop_start;  //!< the part marked when the drag began
+   int _crop_drag;   //!< Crop_... flags for the drag going on, else 0
    double _scale;    //!< scale of the image
    QPixmap _pixmap;  //!< current pixmap being displayed
    QImage _image;    //!< current image being displayed, for when the pixmap is too big
@@ -359,6 +434,13 @@ protected slots:
    void slotNewScale (double scale, bool delay_smoothing);
    void updateWindow (void);
    void slotDelayedUpdate (void);
+   void slotCropTool (bool on);
+   void slotCropFit (void);
+   void slotCropFull (void);
+   void slotCropPage (void);
+   void slotCropAll (void);
+   void slotCropEach (void);
+   void slotCropCancel (void);
    void slotZoomFit (void);
    void slotZoomOrig (void);
    void slotZoomIn (void);
@@ -454,6 +536,21 @@ public slots:
    void slotPageRead (File *file, int pagenum);
 
 private:
+   //! create the buttons shown while cropping
+   void createCropBar (void);
+
+   //! the part of the page with something on it, as proportions of _image
+   QRectF contentArea (void) const;
+
+   //! the part of the page marked, as proportions of the page
+   QRectF markedArea (void) const;
+
+   /** stop cropping and crop a page, or every page
+
+      \param pagenum  page to crop, or -1 for every page
+      \param area     as for Desktopmodel::cropPage() */
+   void cropTo (int pagenum, const QRectF &area);
+
    QScrollArea *_page;
    const QAbstractItemModel *_model;   // model containing the stacks
    QPersistentModelIndex _index;        // index of current stack displayed
@@ -479,6 +576,9 @@ private:
        1 while an image of a remote page made for display stands in for
        the page itself */
    double _imageScale = 1.0;
+   QSize _page_size;          //!< size of the page, as _image may be padded
+   QFrame *_crop_bar;         //!< the buttons shown while cropping
+   QList<QShortcut *> _crop_keys;   //!< the keys which work while cropping
 //    QGraphicsScene *_scene;
 //    QGraphicsPixmapItem *_pitem;
 //    QGraphicsView *_view;

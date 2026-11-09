@@ -1,6 +1,13 @@
 <RCC>
     <qresource prefix="/images">
         <file>images/paperman.png</file>
+        <file>images/icons/cancel.svg</file>
+        <file>images/icons/crop.svg</file>
+        <file>images/icons/crop-content.svg</file>
+        <file>images/icons/crop-full.svg</file>
+        <file>images/icons/crop-page.svg</file>
+        <file>images/icons/crop-stack.svg</file>
+        <file>images/icons/crop-trim.svg</file>
         <file>images/icons/document-revert.svg</file>
         <file>images/icons/document-save.svg</file>
         <file>images/icons/hand.svg</file>
