@@ -2093,6 +2093,95 @@ static QSize serverTestPageSize(const QString &dir, const QString &fname,
     return result;
 }
 
+void TestSearchServer::testCropEndpoint()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QString dir = tmpDir.path() + "/";
+    QString base = QString("/v1/repos/%1/stacks/testfile.max").arg(repo);
+
+    QSize before0 = serverTestPageSize(dir, "testfile.max", 0);
+    QSize before1 = serverTestPageSize(dir, "testfile.max", 1);
+    QVERIFY(!before0.isEmpty());
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    // the left half of the first page only
+    auto resp = postJson(base + "/crop", R"({"page":1,"area":[0,0,0.5,1]})");
+    QVERIFY2(resp.ok(), resp.header.toUtf8().constData());
+    QJsonObject reply = QJsonDocument::fromJson(resp.body).object();
+    QVERIFY(reply["success"].toBool());
+    QString undoId = reply["undoId"].toString();
+    QVERIFY(!undoId.isEmpty());
+
+    QSize after0 = serverTestPageSize(dir, "testfile.max", 0);
+    QVERIFY(qAbs(after0.width() - before0.width() / 2) <= 1);
+    QCOMPARE(after0.height(), before0.height());
+    QCOMPARE(serverTestPageSize(dir, "testfile.max", 1), before1);
+
+    // undo puts it back, and only once
+    QString body = QString(R"({"undoId":"%1"})").arg(undoId);
+    auto undo = postJson(base + "/uncrop", body.toUtf8());
+    QVERIFY2(undo.ok(), undo.header.toUtf8().constData());
+    QCOMPARE(serverTestPageSize(dir, "testfile.max", 0), before0);
+    auto again = postJson(base + "/uncrop", body.toUtf8());
+    QVERIFY(again.header.contains("410"));
+
+    // no page means every page; no area means fit each to its content
+    auto all = postJson(base + "/crop", R"({})");
+    QVERIFY2(all.ok(), all.header.toUtf8().constData());
+    QSize fit = serverTestPageSize(dir, "testfile.max", 1);
+    QVERIFY(fit.width() <= before1.width());
+
+    server.stop();
+}
+
+void TestSearchServer::testCropEndpointErrors()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QString dir = tmpDir.path() + "/";
+    QString base = QString("/v1/repos/%1/stacks/testfile.max").arg(repo);
+    QSize before = serverTestPageSize(dir, "testfile.max", 0);
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+
+    QVERIFY(postJson(base + "/crop", "not json").header.contains("400"));
+    QVERIFY(postJson(base + "/crop", R"({"area":[0,0,2,1]})")
+            .header.contains("400"));
+    QVERIFY(postJson(base + "/crop", R"({"area":[0,0,0,1]})")
+            .header.contains("400"));
+    QVERIFY(postJson(base + "/crop", R"({"area":[0,0,1]})")
+            .header.contains("400"));
+    QVERIFY(postJson(base + "/crop", R"({"area":"all"})")
+            .header.contains("400"));
+    QVERIFY(postJson(base + "/crop", R"({"page":999,"area":[0,0,0.5,1]})")
+            .header.contains("400"));
+    QCOMPARE(serverTestPageSize(dir, "testfile.max", 0), before);
+
+    // an undo token only works on the stack it came from
+    QVERIFY(QFile::copy(dir + "testfile.max", dir + "other.max"));
+    auto resp = postJson(base + "/crop", R"({"page":1,"area":[0,0,0.5,1]})");
+    QVERIFY(resp.ok());
+    QString undoId = QJsonDocument::fromJson(resp.body).object()["undoId"]
+          .toString();
+    QString other = QString("/v1/repos/%1/stacks/other.max/uncrop").arg(repo);
+    QVERIFY(postJson(other, QString(R"({"undoId":"%1"})").arg(undoId)
+                     .toUtf8()).header.contains("410"));
+    QVERIFY(postJson(base + "/uncrop", R"({"undoId":"nope"})")
+            .header.contains("410"));
+
+    server.stop();
+}
+
 void TestSearchServer::testTransformEndpoint()
 {
     QTemporaryDir tmpDir;

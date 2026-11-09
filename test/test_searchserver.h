@@ -171,6 +171,8 @@ private slots:
    void testLargeMaxProgressive();
    void testMaxPageJpegCompression();
    void testTransformEndpoint();
+   void testCropEndpoint();
+   void testCropEndpointErrors();
    void testTransformEndpointErrors();
    void testRemoteBackendTransform();
    void testDesktopRemoteTransform();

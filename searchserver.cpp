@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "ocr.h"
 #include "ocrpage.h"
 #include "op.h"
+#include "imagetrim.h"
 #include "searchserver.h"
 #include "desklayout.h"
 #include "localbackend.h"
@@ -897,6 +898,10 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         if (path.startsWith("/v1/repos/")) {
             if (path.endsWith("/transform"))
                 return handleTransform(path, params, authedUser);
+            if (path.endsWith("/crop"))
+                return handleCrop(path, params, authedUser);
+            if (path.endsWith("/uncrop"))
+                return handleUncrop(path, params, authedUser);
             if (path.endsWith("/ocr") && path.contains("/pages/"))
                 return handleOcrPage(path, params, authedUser);
             /* the page-rename check must come before the stack rename
@@ -2378,6 +2383,139 @@ QByteArray SearchServer::handleUndeletePages(const QString &path,
 
     _log.log(ServerLog::ServeFile, target.filePath + " pages restored");
     notifyStackEvent(target.repoName, "pagesRestored", target.filePath, "",
+                     params.value("__client_id__"));
+    return buildHttpResponse(200, "OK", "application/json",
+                             buildJsonResponse(true, "", ""));
+}
+
+QByteArray SearchServer::handleCrop(const QString &path,
+                                    const QHash<QString, QString> &params,
+                                    const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/crop", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed crop path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    // Parse the body: { "page": N, "area": [left, top, width, height] }
+    QJsonObject obj;
+    if (!parseJsonBody(params, &obj))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Body must be JSON {page, area}"));
+
+    // no area means fit each page to its content
+    QRectF area;
+    if (obj.contains("area")) {
+        QJsonArray arr = obj.value("area").toArray();
+
+        if (arr.size() == 4)
+            area = QRectF(arr[0].toDouble(-1), arr[1].toDouble(-1),
+                          arr[2].toDouble(-1), arr[3].toDouble(-1));
+        if (!Imagetrim::areaValid(area))
+            return buildHttpResponse(400, "Bad Request", "application/json",
+                                     buildJsonResponse(false, "",
+                                         "Area is not within the page"));
+    }
+
+    QString openFail;
+    File *file = openTargetFile(target.fullPath, &openFail);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+
+    /* 'page' is 1-based; a value below 1 (or absent) means every page of
+       the stack. */
+    int page = obj.value("page").toInt(-1);
+    int pagecount = file->pagecount();
+    if (pagecount <= 0) {
+        delete file;
+        return buildHttpResponse(409, "Conflict", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Stack has no pages"));
+    }
+    if (page > pagecount) {
+        delete file;
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Page out of range"));
+    }
+
+    QByteArray data;
+    err_info *err = file->cropPages(page >= 1 ? page - 1 : -1, area, data);
+    delete file;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+
+    CropUndo undo;
+    undo.fullPath = target.fullPath;
+    undo.data = data;
+    QString undoId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    _cropUndos[undoId] = undo;
+
+    _log.log(ServerLog::ServeFile, target.filePath + " cropped");
+    notifyStackEvent(target.repoName, "crop", target.filePath, "",
+                     params.value("__client_id__"));
+    QJsonObject out;
+    out["success"] = true;
+    out["undoId"] = undoId;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+QByteArray SearchServer::handleUncrop(const QString &path,
+                                      const QHash<QString, QString> &params,
+                                      const QString &authedUser)
+{
+    QString repoName, filePath;
+    if (!splitStackUrl(path, "/uncrop", &repoName, &filePath))
+        return buildHttpResponse(400, "Bad Request", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Malformed uncrop path"));
+    StackTarget target;
+    QByteArray fail = resolveStackTarget(repoName, filePath, authedUser,
+                                         target);
+    if (!fail.isEmpty())
+        return fail;
+
+    QJsonObject obj;
+    QString undoId;
+    if (parseJsonBody(params, &obj))
+        undoId = obj.value("undoId").toString();
+    auto it = _cropUndos.find(undoId);
+    if (undoId.isEmpty() || it == _cropUndos.end()
+        || it->fullPath != target.fullPath)
+        return buildHttpResponse(410, "Gone", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Unknown or expired undoId"));
+
+    QString openFail;
+    File *file = openTargetFile(target.fullPath, &openFail);
+    if (!file)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", openFail));
+
+    err_info *err = file->uncropPages(it->data);
+    delete file;
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+    _cropUndos.erase(it);
+
+    _log.log(ServerLog::ServeFile, target.filePath + " crop undone");
+    notifyStackEvent(target.repoName, "crop", target.filePath, "",
                      params.value("__client_id__"));
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
@@ -4067,6 +4205,7 @@ bool SearchServer::extractPdfThumbnail(const QString &pdfPath, int page, int siz
          << "-f" << QString::number(page)
          << "-l" << QString::number(page)
          << "-scale-to" << QString::number(size)
+         << "-cropbox"
          << pdfPath
          << basePath;
     

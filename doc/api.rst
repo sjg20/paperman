@@ -805,6 +805,21 @@ repository allowlist is enforced.  Every response carries
    ``notes``/``ocr``.  Writes the fields into the stack's annotation
    block.
 
+``/crop``
+   Body ``{"page": n, "area": [left, top, width, height]}``.  Crops
+   the page (1-based), or every page if ``page`` is absent or below
+   1.  ``area`` gives the part to keep, each value a proportion of
+   the page from 0 to 1, as the page is shown.  Without ``area``,
+   each page is fitted to what is printed on it.  A PDF has its
+   ``/CropBox`` set, which leaves the whole page in the file.  Returns
+   ``{"undoId"}``, an opaque token for ``/uncrop``, which like the
+   one from ``/pages/delete`` does not survive a server restart.
+
+``/uncrop``
+   Body ``{"undoId": ...}``.  Puts back the pages changed by the
+   matching ``/crop``.  An unknown or already-redeemed token is
+   ``410 Gone``.
+
 ``/pages/delete``
    Body ``{"pages": [n, ...]}`` (1-based).  Removes the pages and
    keeps the recovery data server-side.  Returns ``{"undoId"}``, an
@@ -887,7 +902,7 @@ mutation in the repository sends a frame::
    data: {"repo": ..., "op": ..., "path": ..., "name": ..., "origin": ...}
 
 ``op`` is the operation (``rename``, ``move``, ``delete``,
-``transform``, ``annotations``, ``pagesDeleted``, ``pagesRestored``,
+``transform``, ``crop``, ``annotations``, ``pagesDeleted``, ``pagesRestored``,
 ``unstack``, ``stack``, ``duplicate``, ``upload``), ``name`` the
 resulting name where one exists, and ``origin`` echoes the
 ``X-Client-Id`` header of the originating request so a client can
