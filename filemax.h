@@ -194,6 +194,9 @@ public:
    virtual err_info *renamePage (int pagenum, QString &name);
 
    virtual err_info *transformPage (int pagenum, e_transform op);
+   virtual err_info *cropPage (int pagenum, const QRectF &area,
+                               QByteArray &undo);
+   virtual err_info *uncropPage (int pagenum, const QByteArray &undo);
 
    /** get the resolution a page was scanned at, in dots per inch, across
        and down; a page from before this was recorded says 300 */

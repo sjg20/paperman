@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QFile>
 #include <QFileInfo>
 #include <QPainter>
+#include <QDataStream>
 #include <QTransform>
 #include <QPixmap>
 #include <QTextStream>
@@ -876,6 +877,63 @@ bool File::annotFromWireName (const QString &name, e_annot &type)
    if (name == "notes")    { type = Annot_notes;    return true; }
    if (name == "ocr")      { type = Annot_ocr;      return true; }
    return false;
+   }
+
+
+err_info *File::cropPage (int, const QRectF &, QByteArray &)
+   {
+   return not_impl ();
+   }
+
+
+err_info *File::uncropPage (int, const QByteArray &)
+   {
+   return not_impl ();
+   }
+
+
+err_info *File::cropPages (int pagenum, const QRectF &area, QByteArray &undo)
+   {
+   int first = pagenum < 0 ? 0 : pagenum;
+   int last = pagenum < 0 ? pagecount () - 1 : pagenum;
+
+   undo.clear ();
+
+   QDataStream out (&undo, QIODevice::WriteOnly);
+
+   for (int page = first; page <= last; page++)
+      {
+      QByteArray one;
+      err_info *err = cropPage (page, area, one);
+
+      if (err)
+         {
+         (void)uncropPages (undo);
+         undo.clear ();
+         return err;
+         }
+      if (!one.isEmpty ())
+         out << page << one;
+      }
+   return NULL;
+   }
+
+
+err_info *File::uncropPages (const QByteArray &undo)
+   {
+   QDataStream in (undo);
+
+   while (!in.atEnd ())
+      {
+      int page;
+      QByteArray one;
+
+      in >> page >> one;
+      if (in.status () != QDataStream::Ok)
+         break;
+      CALL (uncropPage (page, one));
+      }
+   return NULL;
    }
 
 

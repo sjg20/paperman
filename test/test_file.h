@@ -148,6 +148,18 @@ private slots:
    //! a rotated max page keeps its resolution
    void testTransformKeepsDpi();
 
+   //! cropPage cuts a max page down and undo brings back all of it
+   void testCropPageMax();
+
+   //! a crop removes the words read from the page, and undo returns them
+   void testCropPageText();
+
+   //! fitting a stack crops only the pages that need it, undoably
+   void testCropPagesFit();
+
+   //! a crop survives the file being closed and opened again
+   void testCropPageReload();
+
    //! transformPage rotates and mirrors pages of each file type
    void testTransformPage();
 

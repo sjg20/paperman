@@ -398,6 +398,42 @@ public:
 eturns error, or NULL if ok */
    virtual err_info *transformPage (int pagenum, e_transform op) = 0;
 
+   /** crop a page, modifying the file
+
+      \param pagenum  page to crop
+      \param area     the part to keep, as proportions of the page, or a
+                      null rectangle to fit the page's content
+      \param undo     returns what uncropPage() needs to put it back; left
+                      empty if the page did not need to change
+      \returns error, or NULL if ok */
+   virtual err_info *cropPage (int pagenum, const QRectF &area,
+                               QByteArray &undo);
+
+   /** put back a page as it was before cropPage()
+
+      Later changes to the page must be undone first
+
+      \param pagenum  page to put back
+      \param undo     what cropPage() returned
+      \returns error, or NULL if ok */
+   virtual err_info *uncropPage (int pagenum, const QByteArray &undo);
+
+   /** crop a page, or every page
+
+      If a page cannot be cropped, those done so far are put back
+
+      \param pagenum  page to crop, or -1 for every page
+      \param area     as for cropPage()
+      \param undo     returns what uncropPages() needs to put them back
+      \returns error, or NULL if ok */
+   err_info *cropPages (int pagenum, const QRectF &area, QByteArray &undo);
+
+   /** put back the pages changed by cropPages()
+
+      \param undo   what cropPages() returned
+      \returns error, or NULL if ok */
+   err_info *uncropPages (const QByteArray &undo);
+
    virtual err_info *getImageInfo (int pagenum, QSize &size,
          QSize &true_size, int &bpp, int &image_size, int &compressed_size,
          QDateTime &timestamp) = 0;
