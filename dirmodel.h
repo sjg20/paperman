@@ -399,6 +399,14 @@ public:
 
    bool hasChildren(const QModelIndex &parent) const override;
 
+   /** True if @p parent has not been listed yet.  This also keeps a
+    *  proxy model from counting its rows, so that a folder is only
+    *  listed when it is opened and not each time its row is laid out */
+   bool canFetchMore(const QModelIndex &parent) const override;
+
+   /** List @p parent, as it is being opened */
+   void fetchMore(const QModelIndex &parent) override;
+
    /** add a new index to the recent list
 
       \param index    index to add */

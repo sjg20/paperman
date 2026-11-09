@@ -278,7 +278,10 @@ void TestTraffic::testOpenFolder ()
    connectServer ();
    traffic (QString ());
    openFolder ();
-   withinBudget (traffic ("open a folder of six stacks"), 7, 6, 23399);
+
+   /* this includes listing the repository, which is the first thing to
+      be opened */
+   withinBudget (traffic ("open a folder of six stacks"), 8, 6, 23610);
    }
 
 
