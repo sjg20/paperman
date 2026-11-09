@@ -73,11 +73,10 @@ QScannerSetupDlg::QScannerSetupDlg(QScanner *sc, QWidget *parent,
   mQueryType = -1;
   setWindowTitle(QString(tr("Welcome to Paperman ")));
   mpLastItem = 0L;
+  mListed = false;
 //  initConfig();
   initScanner();
   initDialog();
-  createContents(false);
-  loadDeviceSettings();
 }
 QScannerSetupDlg::~QScannerSetupDlg()
 {
@@ -423,7 +422,12 @@ bool QScannerSetupDlg::setupLast()
   mpScanner->setDeviceName(dev.toLatin1());
   if(!mpScanner->openDevice())
   {
-    return false;
+    /* a back end may only know a scanner once it has looked for it */
+    mpScanner->getDeviceList(false);
+    if(!mpScanner->openDevice())
+    {
+      return false;
+    }
   }
   if(!mOptionMap.isEmpty())
   {
@@ -592,9 +596,21 @@ void QScannerSetupDlg::slotLocalDevices()
   createContents(true);
   loadDeviceSettings();
 }
+/* Each back end looks for its scanners when asked for the list, some of
+   them on the network, which holds up the window for seconds. So leave
+   that until someone is going to see the list */
+void QScannerSetupDlg::listDevices()
+{
+  if(mListed)
+    return;
+  mListed = true;
+  createContents(false);
+  loadDeviceSettings();
+}
 /**  */
 void QScannerSetupDlg::show()
 {
+  listDevices();
   if(mQueryType == 3)
   {
     slotDeviceSelected();
