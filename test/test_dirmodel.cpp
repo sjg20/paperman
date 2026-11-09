@@ -4,6 +4,7 @@
 #include "utils.h"
 
 #include "dirmodel.h"
+#include "localbackend.h"
 #include "remotebackend.h"
 #include "searchserver.h"
 #include "test_dirmodel.h"
@@ -193,6 +194,62 @@ void TestDirmodel::testFindFoldersReadsOnce()
                                           nullptr);
    QVERIFY(!found.contains(year + "/later"));
 }
+
+/* A local backend which notes what it is asked for */
+class CountingBackend : public LocalBackend
+{
+public:
+   using LocalBackend::LocalBackend;
+
+   DirectoryListing browseDirectory(const QString &repo,
+                                    const QString &dir) override
+   {
+      whole++;
+      return LocalBackend::browseDirectory(repo, dir);
+   }
+
+   DirectoryListing browseFolders(const QString &repo,
+                                  const QString &dir) override
+   {
+      folders++;
+      return LocalBackend::browseFolders(repo, dir);
+   }
+
+   int whole = 0;
+   int folders = 0;
+};
+
+
+void TestDirmodel::testTreeListsOnlyFolders()
+{
+   QTemporaryDir tmp;
+
+   QVERIFY(tmp.isValid());
+   QVERIFY(QDir().mkpath(tmp.path() + "/bills"));
+   QVERIFY(QDir().mkpath(tmp.path() + "/tax"));
+   QFile stack(tmp.path() + "/bills.max");
+   QVERIFY(stack.open(QIODevice::WriteOnly));
+   stack.close();
+
+   Dirmodel model;
+   QString path = tmp.path();
+
+   QVERIFY(model.addDir(path, false));
+
+   QModelIndex root = model.index(0, 0, QModelIndex());
+   DirNode *node = static_cast<DirNode *>(root.internalPointer());
+   CountingBackend backend{QStringList{tmp.path()}};
+
+   node->backend = &backend;
+   model.refresh(root);
+
+   /* the view asks for this about each folder it lays out, so a request
+      for every stack in each one would hold up the window */
+   QCOMPARE(model.rowCount(root), 2);
+   QCOMPARE(backend.folders, 1);
+   QCOMPARE(backend.whole, 0);
+}
+
 
 void TestDirmodel::testBackendErrorSurfacing()
 {
