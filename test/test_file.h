@@ -163,6 +163,15 @@ private slots:
    //! cropPage cuts a JPEG page down and undo restores the file exactly
    void testCropPageJpeg();
 
+   //! cropPage sets a PDF page's crop box and the image follows it
+   void testCropPagePdf();
+
+   //! a PDF page whose scan does not fill it is cropped where the scan is
+   void testCropPagePdfScan();
+
+   //! a turned PDF page is cropped as it is shown
+   void testCropPagePdfRotated();
+
    //! transformPage rotates and mirrors pages of each file type
    void testTransformPage();
 

@@ -838,6 +838,150 @@ void TestFile::testCropPageJpeg()
    QCOMPARE(after.readAll(), original);
 }
 
+void TestFile::testCropPagePdf()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+
+   // one PDF drawn by poppler and one whose scans are extracted directly
+   for (const char *name : { "testpdf.pdf", "100pp.pdf" }) {
+      copyFixture(name, tmp.path());
+      Filepdf pdf(tmp.path() + "/", name, nullptr);
+      QVERIFY(pdf.load() == nullptr);
+
+      QImage orig, image;
+      QSize origSize, size, trueSize, info, infoTrue;
+      int bpp, image_size, compressed;
+      QDateTime stamp;
+      QByteArray undo;
+      QRectF area(0.25, 0, 0.5, 0.5);
+
+      QVERIFY(!pdf.getImage(0, false, orig, origSize, trueSize, bpp, false));
+      QVERIFY(!pdf.cropPage(0, area, undo));
+      QVERIFY(!undo.isEmpty());
+
+      QVERIFY(!pdf.getImage(0, false, image, size, trueSize, bpp, false));
+      QVERIFY2(qAbs(size.width() - origSize.width() / 2) <= 2,
+               qPrintable(QString("%1: %2 of %3").arg(name)
+                          .arg(size.width()).arg(origSize.width())));
+      QVERIFY(qAbs(size.height() - origSize.height() / 2) <= 2);
+
+      // the size reported without drawing the page agrees
+      QVERIFY(!pdf.getImageInfo(0, info, infoTrue, bpp, image_size,
+                                compressed, stamp));
+      QVERIFY(qAbs(info.width() - size.width()) <= 2);
+      QVERIFY(qAbs(info.height() - size.height()) <= 2);
+
+      // the part shown is the part asked for
+      QImage want = orig.copy(Imagetrim::areaToRect(origSize, area))
+            .scaled(size);
+      QVERIFY(nearlySame(image, want));
+
+      // cropping again is relative to what is shown
+      QByteArray undo2;
+      QVERIFY(!pdf.cropPage(0, QRectF(0, 0, 0.5, 1), undo2));
+      QImage half;
+      QVERIFY(!pdf.getImage(0, false, half, size, trueSize, bpp, false));
+      QVERIFY(qAbs(size.width() - origSize.width() / 4) <= 2);
+      QVERIFY(!pdf.uncropPage(0, undo2));
+
+      QVERIFY(!pdf.uncropPage(0, undo));
+      QVERIFY(!pdf.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, origSize);
+   }
+}
+
+void TestFile::testCropPagePdfScan()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   QString dir = tmp.path() + "/";
+
+   // these pages are letter size, so they leave part of an A4 page empty
+   copyFixture("testfile.max", tmp.path());
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+   std::unique_ptr<File> pdf(File::createFile(dir, "scan.pdf", nullptr,
+                                              File::Type_pdf));
+   QVERIFY(pdf);
+   QVERIFY(pdf->create() == nullptr);
+   Operation op("Convert file", 0, 0);
+   QVERIFY(max.copyTo(pdf.get(), 3, op, false) == nullptr);
+
+   QImage orig, image;
+   QSize origSize, size, trueSize, info, infoTrue;
+   int bpp, image_size, compressed;
+   QDateTime stamp;
+   QByteArray undo;
+   QRectF area(0.25, 0.1, 0.5, 0.25);
+
+   /* the page is shown as its image where PoDoFo can decode it, which
+      0.9 can, and as the whole page drawn by poppler where it cannot, as
+      1.x cannot decode JPEG. Either way the crop is of what is shown */
+   QVERIFY(!pdf->getImage(0, false, orig, origSize, trueSize, bpp, false));
+   QVERIFY(!pdf->getImageInfo(0, info, infoTrue, bpp, image_size, compressed,
+                              stamp));
+   bool extracted = info == origSize;
+   QVERIFY(!pdf->cropPage(0, area, undo));
+
+   QVERIFY(!pdf->getImage(0, false, image, size, trueSize, bpp, false));
+   QRect want = Imagetrim::areaToRect(origSize, area);
+
+   QVERIFY2(qAbs(size.width() - want.width()) <= 2,
+            qPrintable(QString::number(size.width())));
+   QVERIFY2(qAbs(size.height() - want.height()) <= 2,
+            qPrintable(QString::number(size.height())));
+   QVERIFY(nearlySame(image, orig.copy(want).scaled(size)));
+
+   // the size reported agrees with the image, where it did before
+   QVERIFY(!pdf->getImageInfo(0, info, infoTrue, bpp, image_size, compressed,
+                              stamp));
+   if (extracted) {
+      QVERIFY(qAbs(info.width() - size.width()) <= 2);
+      QVERIFY(qAbs(info.height() - size.height()) <= 2);
+   }
+
+   // the preview shows the same part of the page
+   QPixmap preview;
+   QVERIFY(!pdf->getPreviewPixmap(0, preview, false));
+   QVERIFY(qAbs(double(preview.width()) / preview.height()
+                - double(size.width()) / size.height()) < 0.1);
+
+   QVERIFY(!pdf->uncropPage(0, undo));
+   QVERIFY(!pdf->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, origSize);
+   QVERIFY(nearlySame(image, orig));
+}
+
+void TestFile::testCropPagePdfRotated()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+
+   for (const char *name : { "testpdf.pdf", "100pp.pdf" }) {
+      copyFixture(name, tmp.path());
+      Filepdf pdf(tmp.path() + "/", name, nullptr);
+      QVERIFY(pdf.load() == nullptr);
+      QVERIFY(!pdf.transformPage(0, File::Transform_rotate90));
+
+      QImage orig, image;
+      QSize origSize, size, trueSize;
+      int bpp;
+      QByteArray undo;
+      QRectF area(0, 0, 0.5, 1);    // the left half of what is shown
+
+      QVERIFY(!pdf.getImage(0, false, orig, origSize, trueSize, bpp, false));
+      QVERIFY(!pdf.cropPage(0, area, undo));
+      QVERIFY(!pdf.getImage(0, false, image, size, trueSize, bpp, false));
+      QVERIFY(qAbs(size.width() - origSize.width() / 2) <= 2);
+      QVERIFY(qAbs(size.height() - origSize.height()) <= 2);
+
+      QImage want = orig.copy(Imagetrim::areaToRect(origSize, area))
+            .scaled(size);
+      QVERIFY(nearlySame(image, want));
+   }
+}
+
 void TestFile::testTransformPage()
 {
    QTemporaryDir tmp;

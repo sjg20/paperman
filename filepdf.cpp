@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDebug>
 #include <QFile>
 
+#include "imagetrim.h"
 #include "filepdf.h"
 #include "pdfio.h"
 
@@ -209,6 +210,39 @@ int Filepdf::getSize (void)
 err_info *Filepdf::renamePage (int, QString &)
    {
    return not_impl ();
+   }
+
+
+err_info *Filepdf::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
+   {
+   QRectF keep = area;
+
+   undo.clear ();
+   CALL (load ());
+   if (area.isNull ())
+      {
+      QImage image;
+      QSize size, trueSize;
+      int bpp;
+
+      CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
+
+      QRect rect = Imagetrim::cropRect (image, area);
+
+      if (rect.isNull ())
+         return NULL;
+      keep = Imagetrim::rectToArea (image.size (), rect);
+      }
+   if (keep == QRectF (0, 0, 1, 1))
+      return NULL;
+   return _pdfio->cropPage (pagenum, keep, undo);
+   }
+
+
+err_info *Filepdf::uncropPage (int pagenum, const QByteArray &undo)
+   {
+   CALL (load ());
+   return _pdfio->uncropPage (pagenum, undo);
    }
 
 
