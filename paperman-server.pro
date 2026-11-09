@@ -29,6 +29,7 @@ LIBS += -lpodofo -ltiff -ljpeg -lz
 INCLUDEPATH += /usr/include/podofo
 
 HEADERS += builddate.h \
+    imagetrim.h \
     backend.h \
     cachedfile.h \
     localbackend.h \
@@ -75,6 +76,7 @@ SOURCES += searchserver.cpp \
     paperman-server.cpp \
     file.cpp \
     filemax.cpp \
+    imagetrim.cpp \
     iostats.cpp \
     filejpeg.cpp \
     filepdf.cpp \
