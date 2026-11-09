@@ -11,6 +11,7 @@
 #include "../userstore.h"
 
 #include <QScopeGuard>
+#include <QTreeView>
 #include <QStandardPaths>
 
 void TestDirmodel::testBase()
@@ -248,6 +249,58 @@ void TestDirmodel::testTreeListsOnlyFolders()
    QCOMPARE(model.rowCount(root), 2);
    QCOMPARE(backend.folders, 1);
    QCOMPARE(backend.whole, 0);
+}
+
+
+void TestDirmodel::testViewListsOpenFolders()
+{
+   QTemporaryDir tmp;
+
+   QVERIFY(tmp.isValid());
+   QVERIFY(QDir().mkpath(tmp.path() + "/bills/gas"));
+   QVERIFY(QDir().mkpath(tmp.path() + "/tax"));
+
+   Dirmodel model;
+   Dirproxy proxy;
+   QString path = tmp.path();
+
+   QVERIFY(model.addDir(path, false));
+
+   QModelIndex src = model.index(0, 0, QModelIndex());
+   DirNode *node = static_cast<DirNode *>(src.internalPointer());
+   CountingBackend backend{QStringList{tmp.path()}};
+
+   node->backend = &backend;
+   model.refresh(src);
+   proxy.setActive(false);
+   proxy.setSourceModel(&model);
+
+   QTreeView view;
+
+   view.setModel(&proxy);
+   view.show();
+
+   // opening the repository lists it, but not the folders shown in it
+   QModelIndex root = proxy.index(0, 0, QModelIndex());
+
+   view.setExpanded(root, true);
+   view.scrollTo(root);
+   QCOMPARE(backend.folders, 1);
+   QCOMPARE(proxy.rowCount(root), 2);
+   QCOMPARE(backend.folders, 1);
+
+   // opening one lists that one alone, once
+   QModelIndex bills = proxy.index(0, 0, root);
+
+   QCOMPARE(bills.data().toString(), QString("bills"));
+   QVERIFY(proxy.hasChildren(bills));
+   view.setExpanded(bills, true);
+   view.scrollTo(bills);
+   QCOMPARE(backend.folders, 2);
+   QCOMPARE(proxy.rowCount(bills), 1);
+   view.setExpanded(bills, false);
+   view.setExpanded(bills, true);
+   QCOMPARE(backend.folders, 2);
 }
 
 

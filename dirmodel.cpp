@@ -1268,6 +1268,26 @@ bool Dirmodel::hasChildren (const QModelIndex &parent) const
    }
 
 
+bool Dirmodel::canFetchMore (const QModelIndex &parent) const
+   {
+   if (!parent.isValid())
+      return false;
+
+   DirNode *node = nodeFromIndex(parent);
+
+   return node->backend && !node->populated && !node->loading;
+   }
+
+
+void Dirmodel::fetchMore (const QModelIndex &parent)
+   {
+   /* There are no rows to announce: until a folder is listed nothing has
+      been told how many it has, since asking is what lists it */
+   if (parent.isValid())
+      populateNode(nodeFromIndex(parent));
+   }
+
+
 QModelIndex Dirmodel::findPath (int, Diritem *item, QString path) const
    {
    DirNode *node = item->node();
