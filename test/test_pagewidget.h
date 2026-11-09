@@ -40,6 +40,20 @@ private slots:
    //! Test the rotate and flip buttons transform the displayed page
    void testRotateButtons();
 
+   //! Test the crop tool crops the page shown, with undo
+   void testCropTool();
+
+   //! Test dragging marks the part of the page to keep
+   void testCropDrag();
+
+   //! Test the crop tool can crop every page
+   void testCropStack();
+
+   //! Test leaving the crop tool changes nothing
+   void testCropCancel();
+   void testCropKeys();
+   void testCropLeavesStack();
+
    //! Test a rotated page's thumbnail is ready at once, not blanked
    void testRotateThumbnailReady();
    void testBackgroundRender();

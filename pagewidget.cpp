@@ -34,6 +34,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QGraphicsItem>
 #include <QMessageBox>
 #include <QPaintEvent>
+#include <QShortcut>
+#include <QRegion>
+#include <QLabel>
+#include <QHBoxLayout>
+#include <QFrame>
 #include <QScrollBar>
 #include <QSettings>
 #include <QSplitter>
@@ -58,6 +63,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "pagemodel.h"
 #include "pagetools.h"
 #include "pageview.h"
+#include "imagetrim.h"
 #include "pagewidget.h"
 #include "utils.h"
 #include "ocrpage.h"
@@ -74,6 +80,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 /** this is the distance we scroll in response to the mouse wheel */
 #define WHEEL_SCROLL_Y  50
+#define CROP_GRAB       6     //!< pixels from an edge which still pick it up
+#define CROP_MIN        16    //!< smallest area to mark, in pixels
+
+static const QRectF whole_page (0, 0, 1, 1);  //!< as a part of the page
 
 /** scale step (up and down) */
 #define SCALE_FACTOR 1.125
@@ -127,6 +137,7 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
    connect (_tools->rright, SIGNAL (clicked ()), this, SLOT (slotRotateRight ()));
    connect (_tools->hflip, SIGNAL (clicked ()), this, SLOT (slotFlipHorizontal ()));
    connect (_tools->vflip, SIGNAL (clicked ()), this, SLOT (slotFlipVertical ()));
+   connect (_tools->crop, SIGNAL (toggled (bool)), this, SLOT (slotCropTool (bool)));
 
    _modified = false;
 
@@ -158,6 +169,8 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
    _splitter = new QSplitter (this);
    _splitter->setObjectName ("pages");   // the list of pages and preview
    layout->addWidget (_tools);
+   createCropBar ();
+   layout->addWidget (_crop_bar);
    layout->addWidget (_stack, 1);
    setLayout (layout);
 
@@ -277,6 +290,8 @@ void Pagewidget::updatePagetools (void)
    _tools->zoomLevel->setEnabled (have_page);
    _tools->zoomOut->setEnabled (have_page);
 
+   _tools->crop->setEnabled (have_page && !_scanning);
+
 //    _tools->rLeft->setEnabled (false);
 //    _tools->rRight->setEnabled (false);
 //    _tools->hFlip->setEnabled (false);
@@ -325,6 +340,7 @@ void Pagewidget::setMode (e_mode mode)
       qs.setValue (str + "ocr_horiz", _ocr_split->orientation () == Qt::Horizontal);
       }
 
+   _tools->crop->setChecked (false);
    emit modeChanging (mode, _mode);
 
    qCDebug (logView).noquote () << QString ("view: page view now %1 (was %2)")
@@ -746,6 +762,9 @@ void Pagewidget::showPages (const QAbstractItemModel *model, const QModelIndex &
       _model = model;
       _index = index;
 
+      // what is marked belongs to the stack being left
+      _tools->crop->setChecked (false);
+
       // measure what showing it reads and writes, from here
       _ioShow.start ("stack " + model->data (index).toString ());
       _ioShowLogged = false;
@@ -856,6 +875,7 @@ void Pagewidget::slotPageView (const QModelIndex &stack, int pagenum,
    QSize trueSize = contents->pageTrueSize (sindex, pagenum);
 
    _image = image;
+   _page_size = image.size ();
    _imageScale = trueSize.isValid ()
          ? double (qMax (trueSize.width (), trueSize.height ()))
            / qMax (image.width (), image.height ()) : 1.0;
@@ -870,6 +890,9 @@ void Pagewidget::slotPreviewPage (const QModelIndex &ind)
    err_info *err = 0;
 
    Q_ASSERT (_index.isValid ());
+
+   // what was marked was marked on the page which is going away
+   _tools->crop->setChecked (false);
    Desktopmodel *contents;
    QModelIndex sindex = _index;
 
@@ -894,6 +917,7 @@ void Pagewidget::slotPreviewPage (const QModelIndex &ind)
    err = contents->getImage (sindex, _pagenum, false,
                   _image, size, scaledSize, bpp);
    _imageScale = 1.0;
+   _page_size = size;
 
    // say what the stack has cost to show, once its page is drawn
    if (IoStats::logging () && _ioShow.isActive () && !_ioShowLogged)
@@ -1426,6 +1450,7 @@ void Pagewidget::slotCommitScanStack (void)
 void Pagewidget::slotReset (void)
    {
 //    qDebug () << "slotReset, model=0";
+   _tools->crop->setChecked (false);
    slotSave ();
    _index = QModelIndex ();
    _model = 0;
@@ -1557,6 +1582,202 @@ void Pagewidget::transformPage (File::e_transform op)
 }
 
 
+HintLabel::HintLabel (const QString &text, QWidget *parent)
+      : QLabel (text, parent)
+   {
+   setSizePolicy (QSizePolicy::Ignored, QSizePolicy::Preferred);
+   }
+
+
+QSize HintLabel::minimumSizeHint () const
+   {
+   return QSize (0, QLabel::minimumSizeHint ().height ());
+   }
+
+
+bool HintLabel::fits () const
+   {
+   return width () >= sizeHint ().width ();
+   }
+
+
+void HintLabel::paintEvent (QPaintEvent *event)
+   {
+   if (fits ())
+      QLabel::paintEvent (event);
+   }
+
+
+void Pagewidget::createCropBar (void)
+   {
+   _crop_bar = new QFrame (this);
+   _crop_bar->setObjectName ("cropBar");
+
+   QHBoxLayout *lay = new QHBoxLayout (_crop_bar);
+
+   lay->setContentsMargins (4, 2, 4, 2);
+
+   auto add = [this, lay] (const char *name, const char *icon,
+                           const QString &text, const QString &tip) {
+      QToolButton *button = new QToolButton (_crop_bar);
+
+      button->setObjectName (name);
+      button->setProperty ("paperIcon", icon);
+      button->setAccessibleName (text);
+      button->setToolTip (tip);
+      button->setIconSize (QSize (24, 24));
+      lay->addWidget (button);
+      return button;
+   };
+
+   connect (add ("cropFit", "crop-content", tr ("Mark what is printed"),
+                 tr ("Mark only what is printed on this page")),
+            SIGNAL (clicked ()), this, SLOT (slotCropFit ()));
+   connect (add ("cropFull", "crop-full", tr ("Mark the whole page"),
+                 tr ("Mark the whole page")),
+            SIGNAL (clicked ()), this, SLOT (slotCropFull ()));
+   HintLabel *hint = new HintLabel (tr ("Drag a box around the part to keep, "
+                                        "or press Escape to cancel"),
+                                    _crop_bar);
+
+   hint->setObjectName ("cropHint");
+   lay->addWidget (hint, 1);
+   connect (add ("cropPage", "crop-page", tr ("Crop page"),
+                 tr ("Crop this page to the part marked (Enter)")),
+            SIGNAL (clicked ()), this, SLOT (slotCropPage ()));
+   connect (add ("cropAll", "crop-stack", tr ("Crop stack"),
+                 tr ("Crop every page in the stack to the same part as is "
+                     "marked (Shift+Enter)")),
+            SIGNAL (clicked ()), this, SLOT (slotCropAll ()));
+   connect (add ("cropEach", "crop-trim", tr ("Trim stack to content"),
+                 tr ("Crop every page in the stack to what is printed on it, "
+                     "however little that is")),
+            SIGNAL (clicked ()), this, SLOT (slotCropEach ()));
+   connect (add ("cropCancel", "cancel", tr ("Cancel"),
+                 tr ("Leave the page as it is (Escape)")),
+            SIGNAL (clicked ()), this, SLOT (slotCropCancel ()));
+   utilSetIcons (_crop_bar);
+   _crop_bar->hide ();
+
+   auto key = [this] (const QKeySequence &seq, const char *slot) {
+      QShortcut *shortcut = new QShortcut (seq, this, slot, nullptr,
+                                           Qt::WidgetWithChildrenShortcut);
+
+      shortcut->setEnabled (false);
+      _crop_keys << shortcut;
+   };
+
+   // Return is on the main keyboard and Enter on the keypad
+   key (QKeySequence (Qt::Key_Return), SLOT (slotCropPage ()));
+   key (QKeySequence (Qt::Key_Enter), SLOT (slotCropPage ()));
+   key (QKeySequence (Qt::SHIFT | Qt::Key_Return), SLOT (slotCropAll ()));
+   key (QKeySequence (Qt::SHIFT | Qt::Key_Enter), SLOT (slotCropAll ()));
+   key (QKeySequence (Qt::Key_Escape), SLOT (slotCropCancel ()));
+   }
+
+
+QRectF Pagewidget::contentArea (void) const
+   {
+   if (_image.isNull ())
+      return whole_page;
+
+   // a mono page is decoded wider than it is: see Filemax::transformPage()
+   QRect page (QPoint (0, 0), _page_size.boundedTo (_image.size ()));
+   QImage image = page.size () == _image.size () ? _image : _image.copy (page);
+   QRect rect = Imagetrim::contentBounds (image);
+
+   return rect.isNull () ? whole_page : Imagetrim::rectToArea (_image.size (), rect);
+   }
+
+
+QRectF Pagewidget::markedArea (void) const
+   {
+   QRectF area = _area->cropArea ();
+
+   if (_image.isNull () || _page_size.isEmpty ()
+       || _page_size == _image.size ())
+      return area;
+
+   // proportions of the decoded image, so of more than the page
+   double xs = double (_image.width ()) / _page_size.width ();
+   double ys = double (_image.height ()) / _page_size.height ();
+
+   return QRectF (area.x () * xs, area.y () * ys, area.width () * xs,
+                  area.height () * ys) & QRectF (0, 0, 1, 1);
+   }
+
+
+void Pagewidget::cropTo (int pagenum, const QRectF &area)
+   {
+   QModelIndex ind;
+
+   _tools->crop->setChecked (false);
+
+   // an empty area is the one which is worked out for each page
+   if (!area.isNull () && area.contains (whole_page))
+      return;
+   if (!getCurrentIndex (ind, true))
+      return;
+
+   // the display refreshes through the model's pageContentChanged() signal
+   _modelconv->getDesktopmodel (_model)->cropPage (ind, pagenum, area);
+   }
+
+
+void Pagewidget::slotCropTool (bool on)
+   {
+   _crop_bar->setVisible (on);
+   for (QShortcut *shortcut : _crop_keys)
+      shortcut->setEnabled (on);
+
+   // two shortcuts on one key cancel out, leaving Escape doing nothing
+   _returnToDesktop->setEnabled (!on);
+   if (on)
+      {
+      _area->startCrop (whole_page);
+      _area->setFocus ();
+      }
+   else
+      _area->endCrop ();
+   }
+
+
+void Pagewidget::slotCropFit (void)
+   {
+   _area->setCropArea (contentArea ());
+   }
+
+
+void Pagewidget::slotCropFull (void)
+   {
+   _area->setCropArea (whole_page);
+   }
+
+
+void Pagewidget::slotCropPage (void)
+   {
+   cropTo (_pagenum, markedArea ());
+   }
+
+
+void Pagewidget::slotCropAll (void)
+   {
+   cropTo (-1, markedArea ());
+   }
+
+
+void Pagewidget::slotCropEach (void)
+   {
+   cropTo (-1, QRectF ());
+   }
+
+
+void Pagewidget::slotCropCancel (void)
+   {
+   _tools->crop->setChecked (false);
+   }
+
+
 void Pagewidget::refreshPage (int pagenum)
    {
    _pagemodel->updatePage (pagenum);
@@ -1608,6 +1829,8 @@ MyScrollArea::MyScrollArea (QWidget *parent)
    _scale = 1.0;
    _too_big = false;
    _rotate = 0;
+   _cropping = false;
+   _crop_drag = 0;
    }
 
 
@@ -1705,6 +1928,8 @@ void MyScrollArea::paintEvent (QPaintEvent *event)
       painter.fillRect (rrect, QBrush (Qt::lightGray));
       painter.fillRect (brect, QBrush (Qt::lightGray));
       }
+   if (_cropping)
+      paintCrop (painter);
    }
 
 
@@ -1760,8 +1985,190 @@ void MyScrollArea::wheelEvent (QWheelEvent *e)
    }
 
 
+QRectF MyScrollArea::cropOnScreen (void) const
+   {
+   return QRectF (_crop.x () * _size.width ()
+                     - horizontalScrollBar ()->value (),
+                  _crop.y () * _size.height ()
+                     - verticalScrollBar ()->value (),
+                  _crop.width () * _size.width (),
+                  _crop.height () * _size.height ());
+   }
+
+
+int MyScrollArea::cropHit (const QPoint &pos) const
+   {
+   QRectF rect = cropOnScreen ();
+   bool across = pos.x () >= rect.left () - CROP_GRAB
+              && pos.x () <= rect.right () + CROP_GRAB;
+   bool down = pos.y () >= rect.top () - CROP_GRAB
+            && pos.y () <= rect.bottom () + CROP_GRAB;
+   int hit = 0;
+
+   if (down && qAbs (pos.x () - rect.left ()) <= CROP_GRAB)
+      hit |= Crop_left;
+   else if (down && qAbs (pos.x () - rect.right ()) <= CROP_GRAB)
+      hit |= Crop_right;
+   if (across && qAbs (pos.y () - rect.top ()) <= CROP_GRAB)
+      hit |= Crop_top;
+   else if (across && qAbs (pos.y () - rect.bottom ()) <= CROP_GRAB)
+      hit |= Crop_bottom;
+   return hit;
+   }
+
+
+QPointF MyScrollArea::pageFraction (const QPoint &pos) const
+   {
+   double x = double (pos.x () + horizontalScrollBar ()->value ())
+         / qMax (_size.width (), 1);
+   double y = double (pos.y () + verticalScrollBar ()->value ())
+         / qMax (_size.height (), 1);
+
+   return QPointF (qBound (0.0, x, 1.0), qBound (0.0, y, 1.0));
+   }
+
+
+void MyScrollArea::dragCrop (const QPoint &pos)
+   {
+   QPointF at = pageFraction (pos);
+   QPointF from = pageFraction (_mouse_origin);
+   double min_w = double (CROP_MIN) / qMax (_size.width (), 1);
+   double min_h = double (CROP_MIN) / qMax (_size.height (), 1);
+
+   if (_crop_drag == Crop_new)
+      _crop = QRectF (from, at).normalized ();
+   else
+      {
+      QRectF rect = _crop_start;
+
+      if (_crop_drag & Crop_left)
+         rect.setLeft (qMin (at.x (), rect.right () - min_w));
+      else if (_crop_drag & Crop_right)
+         rect.setRight (qMax (at.x (), rect.left () + min_w));
+      if (_crop_drag & Crop_top)
+         rect.setTop (qMin (at.y (), rect.bottom () - min_h));
+      else if (_crop_drag & Crop_bottom)
+         rect.setBottom (qMax (at.y (), rect.top () + min_h));
+      _crop = rect;
+      }
+   viewport ()->update ();
+   }
+
+
+void MyScrollArea::updateCropCursor (const QPoint &pos)
+   {
+   int hit = cropHit (pos);
+   Qt::CursorShape shape = Qt::CrossCursor;
+
+   if (hit == (Crop_left | Crop_top) || hit == (Crop_right | Crop_bottom))
+      shape = Qt::SizeFDiagCursor;
+   else if (hit == (Crop_right | Crop_top) || hit == (Crop_left | Crop_bottom))
+      shape = Qt::SizeBDiagCursor;
+   else if (hit & (Crop_left | Crop_right))
+      shape = Qt::SizeHorCursor;
+   else if (hit & (Crop_top | Crop_bottom))
+      shape = Qt::SizeVerCursor;
+   viewport ()->setCursor (shape);
+   }
+
+
+void MyScrollArea::paintCrop (QPainter &painter)
+   {
+   QRectF rect = cropOnScreen ();
+   QRectF page (-horizontalScrollBar ()->value (),
+                -verticalScrollBar ()->value (), _size.width (),
+                _size.height ());
+   QColor shade (0, 0, 0, 120);
+
+   // what is drawn above may be scaled and turned; this is in the viewport
+   painter.resetTransform ();
+   painter.setRenderHint (QPainter::Antialiasing, false);
+
+   QRegion outside = QRegion (page.toAlignedRect ())
+         - QRegion (rect.toAlignedRect ());
+
+   for (const QRect &part : outside)
+      painter.fillRect (part, shade);
+
+   painter.setBrush (Qt::NoBrush);
+   painter.setPen (QPen (Qt::white, 1));
+   painter.drawRect (rect);
+   painter.setPen (QPen (Qt::black, 1, Qt::DashLine));
+   painter.drawRect (rect);
+
+   // a handle at each corner and half way along each side
+   painter.setPen (QPen (Qt::black, 1));
+   painter.setBrush (Qt::white);
+   for (int x = 0; x < 3; x++)
+      for (int y = 0; y < 3; y++)
+         {
+         if (x == 1 && y == 1)
+            continue;
+         QPointF centre (rect.left () + rect.width () * x / 2,
+                         rect.top () + rect.height () * y / 2);
+
+         painter.drawRect (QRectF (centre - QPointF (3, 3), QSizeF (6, 6)));
+         }
+   }
+
+
+void MyScrollArea::startCrop (const QRectF &area)
+   {
+   _cropping = true;
+   _crop = area;
+   _crop_drag = 0;
+   viewport ()->setMouseTracking (true);
+   viewport ()->setCursor (Qt::CrossCursor);
+   viewport ()->update ();
+   }
+
+
+void MyScrollArea::endCrop (void)
+   {
+   _cropping = false;
+   _crop_drag = 0;
+   viewport ()->setMouseTracking (false);
+   viewport ()->unsetCursor ();
+   viewport ()->update ();
+   }
+
+
+void MyScrollArea::setCropArea (const QRectF &area)
+   {
+   _crop = area;
+   viewport ()->update ();
+   }
+
+
+void MyScrollArea::mouseReleaseEvent ( QMouseEvent * e )
+   {
+   if (!_cropping)
+      return;
+
+   // a click, or a tiny drag, is not a new area
+   if (_crop_drag == Crop_new
+       && (_crop.width () * _size.width () < CROP_MIN
+           || _crop.height () * _size.height () < CROP_MIN))
+      _crop = _crop_start;
+   _crop_drag = 0;
+   updateCropCursor (e->pos ());
+   viewport ()->update ();
+   }
+
+
 void MyScrollArea::mousePressEvent ( QMouseEvent * e )
    {
+   if (_cropping)
+      {
+      if (e->button () != Qt::LeftButton)
+         return;
+      _mouse_origin = e->pos ();
+      _crop_start = _crop;
+      _crop_drag = cropHit (e->pos ());
+      if (!_crop_drag)
+         _crop_drag = Crop_new;
+      return;
+      }
    _mouse_origin = e->pos ();
    _scroll_origin.setX (horizontalScrollBar()->value ());
    _scroll_origin.setY (verticalScrollBar()->value ());
@@ -1770,6 +2177,15 @@ void MyScrollArea::mousePressEvent ( QMouseEvent * e )
 
 void MyScrollArea::mouseMoveEvent ( QMouseEvent * e )
    {
+   if (_cropping)
+      {
+      if (_crop_drag)
+         dragCrop (e->pos ());
+      else
+         updateCropCursor (e->pos ());
+      return;
+      }
+
    QPoint pos;
 
    pos = e->pos () - _mouse_origin;

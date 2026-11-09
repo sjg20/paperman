@@ -1,3 +1,4 @@
+#include <QFrame>
 #include <QLineEdit>
 #include <QSignalSpy>
 #include <QTextEdit>
@@ -7,6 +8,8 @@
 #include "test.h"
 
 #include "desktopmodel.h"
+#include "desktopundo.h"
+#include "imagetrim.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "mainwidget.h"
@@ -222,6 +225,378 @@ static int meanDiff(const QImage &a, const QImage &b)
          total += qAbs(int(pa[x]) - int(pb[x]));
    }
    return total / (qint64(ga.width()) * ga.height());
+}
+
+/* QTest::mouseMove() does not reach the widget under Qt 5, so send the
+   move of a drag with the left button held */
+static void dragTo(QWidget *widget, const QPoint &pos)
+{
+   QMouseEvent event(QEvent::MouseMove, QPointF(pos),
+                     QPointF(widget->mapToGlobal(pos)), Qt::NoButton,
+                     Qt::LeftButton, Qt::NoModifier);
+   QApplication::sendEvent(widget, &event);
+}
+
+#define WAIT_OPS(model) \
+    QTRY_VERIFY_WITH_TIMEOUT(!(model).opsPending(), 10000)
+
+void TestPagewidget::testCropTool()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *apply = page->findChild<QToolButton *>("cropPage");
+   QFrame *bar = page->findChild<QFrame *>("cropBar");
+   QVERIFY(crop && apply && bar);
+   QVERIFY(!page->_area->isCropping());
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QVERIFY(f);
+
+   QImage first, last, image;
+   QSize firstSize, lastSize, size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(0, false, first, firstSize, trueSize, bpp, false));
+   QVERIFY(!f->getImage(4, false, last, lastSize, trueSize, bpp, false));
+
+   // the tool starts with the whole page marked
+   const QRectF whole(0, 0, 1, 1);
+   QTest::mouseClick(crop, Qt::LeftButton);
+   QVERIFY(page->_area->isCropping());
+   QVERIFY(!bar->isHidden());
+   QCOMPARE(page->_area->cropArea(), whole);
+
+   // the buttons mark what is printed, then all of the page again
+   QToolButton *fit = page->findChild<QToolButton *>("cropFit");
+   QToolButton *full = page->findChild<QToolButton *>("cropFull");
+   QVERIFY(fit && full);
+   QVERIFY(!fit->icon().isNull() && !full->icon().isNull());
+   QTest::mouseClick(fit, Qt::LeftButton);
+   QVERIFY(page->_area->cropArea() != whole);
+   QVERIFY(whole.contains(page->_area->cropArea()));
+   QTest::mouseClick(full, Qt::LeftButton);
+   QCOMPARE(page->_area->cropArea(), whole);
+
+   QToolButton *all = page->findChild<QToolButton *>("cropAll");
+   QVERIFY(all);
+   QVERIFY(!apply->icon().isNull() && !all->icon().isNull());
+
+   // the buttons on the right are icons alone, named for screen readers
+   for (const char *name : {"cropPage", "cropAll", "cropEach", "cropCancel"}) {
+      QToolButton *button = page->findChild<QToolButton *>(name);
+      QVERIFY(button);
+      QVERIFY(!button->icon().isNull());
+      QVERIFY(button->text().isEmpty());
+      QVERIFY(!button->accessibleName().isEmpty());
+   }
+
+   // the hint shows only when there is room, so never holds the window wide
+   HintLabel *hint = page->findChild<HintLabel *>("cropHint");
+   QVERIFY(hint);
+   QCOMPARE(hint->minimumSizeHint().width(), 0);
+   int narrow = bar->minimumSizeHint().width();
+   bar->resize(narrow, bar->height());
+   bar->layout()->activate();
+   QVERIFY(!hint->fits());
+   bar->resize(narrow + hint->sizeHint().width() + 50, bar->height());
+   bar->layout()->activate();
+   QVERIFY(hint->fits());
+
+   QRectF area(0.25, 0.25, 0.5, 0.5);
+   page->_area->setCropArea(area);
+   QTest::mouseClick(apply, Qt::LeftButton);
+   WAIT_OPS(*model);
+
+   // only the page shown changes, and the tool has finished
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(bar->isHidden());
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, Imagetrim::areaToRect(firstSize, area).size());
+   QCOMPARE(page->_image.size(), image.size());
+   QVERIFY(!f->getImage(4, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, lastSize);
+
+   // undo brings the page back, and shows it
+   model->getUndoStack()->undo();
+   WAIT_OPS(*model);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, firstSize);
+   QCOMPARE(image, first);
+   QCOMPARE(page->_image.size(), first.size());
+
+   // and redo crops it again
+   model->getUndoStack()->redo();
+   WAIT_OPS(*model);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, Imagetrim::areaToRect(firstSize, area).size());
+}
+
+void TestPagewidget::testCropDrag()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   // see all of the page, so that its edges are on the screen
+   page->findChild<QToolButton *>("zoomFit")->click();
+   QTest::qWait(50);
+   page->findChild<QToolButton *>("crop")->click();
+   page->_area->setCropArea(QRectF(0.2, 0.2, 0.2, 0.2));
+
+   QWidget *view = page->_area->viewport();
+   QRectF on = page->_area->cropOnScreen();
+   QVERIFY(view->rect().contains(on.toAlignedRect()));
+
+   // dragging the bottom-right corner leaves the top-left where it is
+   QPoint corner = on.bottomRight().toPoint();
+   QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, corner);
+   dragTo(view, corner + QPoint(20, 30));
+   QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier,
+                       corner + QPoint(20, 30));
+
+   QRectF after = page->_area->cropOnScreen();
+   QVERIFY(qAbs(after.left() - on.left()) < 1);
+   QVERIFY(qAbs(after.top() - on.top()) < 1);
+   QVERIFY(qAbs(after.right() - on.right() - 20) < 2);
+   QVERIFY(qAbs(after.bottom() - on.bottom() - 30) < 2);
+
+   // dragging inside draws a new box there, which can then be adjusted
+   on = after;
+   QPoint middle = on.center().toPoint();
+   QPoint end = middle + QPoint(30, 25);
+   QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, middle);
+   dragTo(view, end);
+   QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, end);
+   after = page->_area->cropOnScreen();
+   QVERIFY(qAbs(after.left() - middle.x()) < 2);
+   QVERIFY(qAbs(after.top() - middle.y()) < 2);
+   QVERIFY(qAbs(after.right() - end.x()) < 2);
+   QVERIFY(qAbs(after.bottom() - end.y()) < 2);
+
+   on = after;
+   QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, end);
+   dragTo(view, end + QPoint(15, 0));
+   QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier,
+                       end + QPoint(15, 0));
+   after = page->_area->cropOnScreen();
+   QVERIFY(qAbs(after.left() - on.left()) < 1);
+   QVERIFY(qAbs(after.right() - on.right() - 15) < 2);
+
+   // a click outside does not lose what is marked
+   QRectF before = page->_area->cropArea();
+   QPoint outside = QPoint(2, 2);
+   QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, outside);
+   QCOMPARE(page->_area->cropArea(), before);
+
+   // a drag outside marks a new area
+   QPoint from(5, 5), to(40, 60);
+   QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, from);
+   dragTo(view, to);
+   QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, to);
+   after = page->_area->cropOnScreen();
+   QVERIFY(qAbs(after.left() - from.x()) < 2);
+   QVERIFY(qAbs(after.bottom() - to.y()) < 2);
+
+   // it never leaves the page
+   page->findChild<QToolButton *>("crop")->click();
+   QVERIFY(!page->_area->isCropping());
+}
+
+void TestPagewidget::testCropStack()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QVERIFY(f);
+
+   QList<QSize> before;
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+
+   for (int i = 0; i < f->pagecount(); i++) {
+      QVERIFY(!f->getImage(i, false, image, size, trueSize, bpp, false));
+      before << size;
+   }
+
+   QRectF area(0, 0, 1, 0.5);
+   page->findChild<QToolButton *>("crop")->click();
+   page->_area->setCropArea(area);
+   page->findChild<QToolButton *>("cropAll")->click();
+   WAIT_OPS(*model);
+
+   for (int i = 0; i < f->pagecount(); i++) {
+      QVERIFY(!f->getImage(i, false, image, size, trueSize, bpp, false));
+      QVERIFY2(qAbs(size.height() - before[i].height() / 2) <= 1,
+               qPrintable(QString::number(i)));
+   }
+
+   // one undo covers them all
+   model->getUndoStack()->undo();
+   WAIT_OPS(*model);
+   for (int i = 0; i < f->pagecount(); i++) {
+      QVERIFY(!f->getImage(i, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, before[i]);
+   }
+
+   // fitting each page changes none of them to more than they were
+   page->findChild<QToolButton *>("crop")->click();
+   page->findChild<QToolButton *>("cropEach")->click();
+   WAIT_OPS(*model);
+   for (int i = 0; i < f->pagecount(); i++) {
+      QVERIFY(!f->getImage(i, false, image, size, trueSize, bpp, false));
+      QVERIFY(size.width() <= before[i].width());
+      QVERIFY(size.height() <= before[i].height());
+   }
+}
+
+void TestPagewidget::testCropCancel()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QImage image;
+   QSize before, size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(0, false, image, before, trueSize, bpp, false));
+   int undos = model->getUndoStack()->count();
+
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 0.5, 0.5));
+   page->findChild<QToolButton *>("cropCancel")->click();
+   QVERIFY(!crop->isChecked());
+   QVERIFY(!page->_area->isCropping());
+
+   // the second way out is the button it came in by
+   crop->click();
+   crop->click();
+   QVERIFY(!page->_area->isCropping());
+
+   // with the whole page marked there is nothing to do, nor to undo
+   crop->click();
+   page->findChild<QToolButton *>("cropPage")->click();
+   QVERIFY(!page->_area->isCropping());
+
+   WAIT_OPS(*model);
+   QCOMPARE(model->getUndoStack()->count(), undos);
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, before);
+}
+
+void TestPagewidget::testCropKeys()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+   me.activateWindow();
+   QVERIFY(QTest::qWaitForWindowActive(&me));
+
+   Mainwidget *main = Mainwidget::singleton();
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QImage image;
+   QSize before, second, size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(0, false, image, before, trueSize, bpp, false));
+   QVERIFY(!f->getImage(1, false, image, second, trueSize, bpp, false));
+
+   // Escape stops cropping, and stays in the page view
+   crop->click();
+   QTRY_VERIFY(page->_area->hasFocus());
+   QTest::keyClick(page->_area, Qt::Key_Escape);
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(!crop->isChecked());
+   QCOMPARE(main->currentWidget(), (QWidget *)page);
+
+   // Return crops the page to what is marked
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 1, 0.5));
+   QTest::keyClick(page->_area, Qt::Key_Return);
+   WAIT_OPS(*model);
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QVERIFY(qAbs(size.height() - before.height() / 2) <= 1);
+
+   // so does Enter on the keypad, leaving the other pages alone
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 1, 0.5));
+   QTest::keyClick(page->_area, Qt::Key_Enter, Qt::KeypadModifier);
+   WAIT_OPS(*model);
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QVERIFY(qAbs(size.height() - before.height() / 4) <= 2);
+   QVERIFY(!f->getImage(1, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, second);
+
+   // Shift+Return crops the whole stack
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 1, 0.5));
+   QTest::keyClick(page->_area, Qt::Key_Return, Qt::ShiftModifier);
+   WAIT_OPS(*model);
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(!f->getImage(1, false, image, size, trueSize, bpp, false));
+   QVERIFY(qAbs(size.height() - second.height() / 2) <= 1);
+
+   // with the tool gone, Escape goes back to the desktop as usual
+   QTest::keyClick(page->_area, Qt::Key_Escape);
+   QTRY_VERIFY(main->currentWidget() != (QWidget *)page);
+}
+
+void TestPagewidget::testCropLeavesStack()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QFrame *bar = page->findChild<QFrame *>("cropBar");
+
+   // choosing another stack abandons what is marked on this one
+   QModelIndex other = page->_index.sibling(page->_index.row() + 1, 0);
+   QVERIFY(other.isValid());
+   crop->click();
+   QVERIFY(page->_area->isCropping());
+   page->showPages(page->_model, other, 0, -1, -1);
+   QVERIFY(!crop->isChecked());
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(bar->isHidden());
+
+   // so does the page view being emptied, leaving no page to crop
+   crop->click();
+   QVERIFY(page->_area->isCropping());
+   page->slotReset();
+   QVERIFY(!crop->isChecked());
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(bar->isHidden());
+   QVERIFY(!crop->isEnabled());
 }
 
 void TestPagewidget::testRotateButtons()
