@@ -803,6 +803,41 @@ void TestFile::testCropPageReload()
    }
 }
 
+void TestFile::testCropPageJpeg()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   copyFixture("colour_plasma.jpg", tmp.path());
+   const QString path = tmp.path() + "/colour_plasma.jpg";
+
+   QFile before(path);
+   QVERIFY(before.open(QIODevice::ReadOnly));
+   QByteArray original = before.readAll();
+   before.close();
+
+   Filejpeg jpeg(tmp.path() + "/", "colour_plasma.jpg", nullptr);
+   QVERIFY(jpeg.load() == nullptr);
+
+   QImage orig, image;
+   QSize origSize, size, trueSize;
+   int bpp;
+   QByteArray undo;
+   QRectF area(0, 0.5, 0.5, 0.5);
+
+   QVERIFY(!jpeg.getImage(0, false, orig, origSize, trueSize, bpp, false));
+   QVERIFY(!jpeg.cropPage(0, area, undo));
+   QVERIFY(!jpeg.getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, Imagetrim::areaToRect(origSize, area).size());
+
+   QVERIFY(!jpeg.uncropPage(0, undo));
+   QVERIFY(!jpeg.getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, origSize);
+
+   QFile after(path);
+   QVERIFY(after.open(QIODevice::ReadOnly));
+   QCOMPARE(after.readAll(), original);
+}
+
 void TestFile::testTransformPage()
 {
    QTemporaryDir tmp;

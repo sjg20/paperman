@@ -102,6 +102,9 @@ public:
    // operations on files
 
    virtual err_info *transformPage (int pagenum, e_transform op);
+   virtual err_info *cropPage (int pagenum, const QRectF &area,
+                               QByteArray &undo);
+   virtual err_info *uncropPage (int pagenum, const QByteArray &undo);
 
    virtual err_info *addPage (const Filepage *mp, bool flush);
 
@@ -235,6 +238,15 @@ public:
     * \param image   New image for this page
     */
    void setImage (const QImage &image);
+
+   /**
+    * Write back the contents the page's file had before
+    *
+    * \param dir     Directory containing the page
+    * \param data    What the file held
+    * \return error, or NULL if ok
+    */
+   err_info *restore (const QString &dir, const QByteArray &data);
 
    /**
     * Return the uncompressed size of this image
