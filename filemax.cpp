@@ -6787,6 +6787,43 @@ err_info *Filemax::getImage (int pagenum, bool,
    }
 
 
+err_info *Filemax::page_dpi (int pagenum, QPoint &dpi)
+   {
+   chunk_info *chunk;
+   bool temp;
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (find_page_chunk (pagenum, chunk, &temp, NULL));
+   dpi = QPoint (chunk->dpi.x, chunk->dpi.y);
+   if (temp)
+      {
+      chunk_free (*chunk);
+      delete chunk;
+      }
+   return NULL;
+   }
+
+
+err_info *Filemax::store_image (page_info &info, int pagenum,
+                                const QImage &image, const QPoint &dpi)
+   {
+   // keep the page's title, timestamp and resolution
+   Filemaxpage page;
+   QByteArray ba = QByteArray::fromRawData ((const char *)image.constBits (),
+         image.sizeInBytes ());
+
+   page.addData (image.width (), image.height (), image.depth (),
+         image.bytesPerLine (), info.titlestr, false, false, pagenum, ba,
+         ba.size ());
+   page._timestamp = info.timestamp;
+   page.setDpi (dpi.x (), dpi.y ());
+   CALL (page.compress ());
+
+   return max_replace_page (info, page);
+   }
+
+
 err_info *Filemax::transformPage (int pagenum, e_transform op)
    {
    QMutexLocker locker (&_file_mutex);
@@ -6819,23 +6856,19 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
    if (image.size () != size)
       image = image.copy (QRect (QPoint (0, 0), size));
 
+   QPoint dpi;
+
+   CALL (page_dpi (pagenum, dpi));
+   if (op == Transform_rotate90 || op == Transform_rotate270)
+      dpi = QPoint (dpi.y (), dpi.x ());
+
    QImage out = transformImage (image, op);
 
    // the transform can promote the image, e.g. mono to 8 bit
    if (out.depth () > bpp)
       out = utilReduceDepth (out, bpp);
 
-   // keep the page's title and timestamp
-   Filemaxpage page;
-   QByteArray ba = QByteArray::fromRawData ((const char *)out.bits (),
-         out.sizeInBytes ());
-   page.addData (out.width (), out.height (), out.depth (),
-         out.bytesPerLine (), info->titlestr, false, false, pagenum, ba,
-         ba.size ());
-   page._timestamp = info->timestamp;
-   CALL (page.compress ());
-
-   CALL (max_replace_page (*info, page));
+   CALL (store_image (*info, pagenum, out, dpi));
 
    /* cache the rotated image (which max_replace_page() invalidated via
       flush()) so the display refresh can reuse it.  Skip mono pages:

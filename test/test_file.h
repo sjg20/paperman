@@ -145,6 +145,9 @@ private slots:
    //! the end of a cache window
    void testCacheBoundaryReads();
 
+   //! a rotated max page keeps its resolution
+   void testTransformKeepsDpi();
+
    //! transformPage rotates and mirrors pages of each file type
    void testTransformPage();
 
