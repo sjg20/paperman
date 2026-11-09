@@ -26,6 +26,12 @@ private slots:
    //! Check that the cache has files in it
    void testCacheFiles();
 
+   //! A month folder made outside the program still leads to the next
+   void testFindFoldersNewMonth();
+
+   //! Typing reads a year folder once, and writes nothing if it is the same
+   void testFindFoldersReadsOnce();
+
    //! refresh() must not lose the directory's existing subdirectories
    void testRefreshKeepsSubdirs();
 

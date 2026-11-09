@@ -142,6 +142,58 @@ void TestDirmodel::testRefreshKeepsSubdirs()
    QCOMPARE(after, QStringList({"a", "b"}));
 }
 
+static QString monthFolder(const QDate &date)
+{
+   return date.toString("yyyy/MM") + date.toString("MMM").toLower().left(3);
+}
+
+void TestDirmodel::testFindFoldersNewMonth()
+{
+   Dirmodel *model = setupModel();
+   QString main_path = _tempDir->path() + "/main";
+   QModelIndex main = model->index(main_path);
+   QDate date = QDate::currentDate();
+   QDate last = date.addMonths(-1);
+   QStringList missing;
+
+   QVERIFY(QDir(main_path).mkpath("bills/" + last.toString("yyyy")));
+   model->buildCache(main, nullptr);
+
+   // last month's folder is made after the cache, by something else
+   QVERIFY(QDir(main_path).mkdir("bills/" + monthFolder(last)));
+
+   model->findFolders("bil", main_path, main, missing, nullptr);
+   QCOMPARE(missing, QStringList({"bills/" + monthFolder(date)}));
+
+   // and it is remembered
+   QVERIFY(getPaperTree(main_path).contains(last.toString("MM")
+           + last.toString("MMM").toLower().left(3)));
+}
+
+void TestDirmodel::testFindFoldersReadsOnce()
+{
+   Dirmodel *model = setupModel();
+   QString main_path = _tempDir->path() + "/main";
+   QModelIndex main = model->index(main_path);
+   QDate date = QDate::currentDate();
+   QString year = "bills/" + date.toString("yyyy");
+   QStringList missing;
+
+   QVERIFY(QDir(main_path).mkpath(year));
+   model->buildCache(main, nullptr);
+
+   // the cache is the same as the disk, so has no need of being written
+   QVERIFY(QFile::remove(cacheFile(main_path)));
+   model->findFolders("bil", main_path, main, missing, nullptr);
+   QVERIFY(!QFile::exists(cacheFile(main_path)));
+
+   // the next key typed does not look at the disk again
+   QVERIFY(QDir(main_path).mkdir(year + "/later"));
+   QStringList found = model->findFolders("bil", main_path, main, missing,
+                                          nullptr);
+   QVERIFY(!found.contains(year + "/later"));
+}
+
 void TestDirmodel::testBackendErrorSurfacing()
 {
    /* Point the model at a directory that doesn't exist on disk; the
