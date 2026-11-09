@@ -1939,6 +1939,43 @@ void TestFakescan::testStopsAnswering ()
 }
 
 
+/* A scanner which has stopped answering can hold up the window for as
+   long as a USB timeout each time it is asked about its buttons, so it
+   is only asked once */
+void TestFakescan::testButtonsLeftAloneOnceWedged ()
+{
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_IO_ERROR, 1);
+
+   utilSetHeadless (true);
+
+   Mainwindow me;
+   Scansettings settings (0, FAKESCAN_DEVICE);
+   Mainwidget *main = Mainwidget::singleton ();
+
+   QVERIFY (main->ensureScanner ());
+
+   QByteArray source ("ADF Front");
+
+   QCOMPARE (main->_scanner->setOption (main->_scanner->findOption
+                                        (SANE_NAME_SCAN_SOURCE),
+                                        source.data ()), SANE_STATUS_GOOD);
+   QCOMPARE (main->_scanner->start (), SANE_STATUS_IO_ERROR);
+
+   QVERIFY (main->_watchButtons);
+   for (int i = 0; i < 3; i++)
+      main->checkButtons ();
+   QCOMPARE (Fakescan::log ().filter ("get button:").size (), 1);
+   QVERIFY (!main->_watchButtons);
+
+   // a closed scanner costs nothing to ask, so is not given up on
+   main->_watchButtons = true;
+   main->_scanner->close ();
+   main->checkButtons ();
+   QVERIFY (main->_watchButtons);
+}
+
+
 /* A JPEG with some of its data spoilt still makes a page */
 void TestFakescan::testCorruptJpegStored ()
 {

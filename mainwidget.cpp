@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "config.h"
 
@@ -225,6 +226,14 @@ void Mainwidget::checkButtons (void)
    if (!_watchButtons || !_scanner)
       return;
    buttons = _scanner->checkButtons ();
+   if (buttons == INT_MIN && _scanner->isOpen ())
+      {
+      /* This runs on the GUI thread. A scanner which is not answering
+         holds it up for a USB timeout each time, so leave the buttons
+         alone until the next scan */
+      _watchButtons = false;
+      return;
+      }
    if (buttons > 0 && (buttons & 1)) // scan
       scan ();
    }

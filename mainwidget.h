@@ -79,6 +79,7 @@ class Mainwidget : public QStackedWidget
    Q_OBJECT
    friend class TestOps;
    friend class TestQscanner;
+   friend class TestFakescan;
 public:
    Mainwidget (QWidget *parent, const char *name = 0);
    ~Mainwidget();
