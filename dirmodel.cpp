@@ -150,6 +150,33 @@ TreeItem *Diritem::ensureCache(Operation *op)
    return buildCache(op);
 }
 
+bool Diritem::readYearFolders(const QStringList &paths, Operation *op)
+{
+   const int YEAR_READ_MS = 60 * 1000;
+   bool changed = false;
+
+   if (!_dir_cache || dynamic_cast<RemoteBackend *>(backend()))
+      return false;
+
+   foreach (const QString &rel, paths) {
+      QElapsedTimer &read = _year_read[rel];
+
+      if (read.isValid() && read.elapsed() < YEAR_READ_MS)
+         continue;
+      read.start();
+
+      const QString path = _dir + "/" + rel;
+      const TreeItem *item = _dir_cache->findItem(rel);
+
+      if (item && QFileInfo::exists(path)
+          && !item->sameDirs(utilListDirs(path))
+          && refreshCache(path, op))
+         changed = true;
+   }
+
+   return changed;
+}
+
 bool Diritem::fetchFolders(QObject *context,
                            std::function<void(const QString &error)> done)
 {
@@ -1529,6 +1556,16 @@ QStringList Dirmodel::findFolders(const QString& text, const QString& dirPath,
    addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text);
 
    QDate date = QDate::currentDate();
+
+   /* which month to offer next depends on the months there are, so a
+      folder made outside this program must not be missed here: without
+      last month's folder, this month's is not offered */
+   if (_item[findIndex(root)]->readYearFolders(utilYearFolders(date, matches),
+                                               op)) {
+      tree = ensureCache(root, op);
+      matches.clear();
+      addMatches(matches, dirPath.size() + 1, dirPath + "/", tree, text);
+   }
 
    /* when the user has typed something, include directories dated with
       another year or month: a search for a folder by name must find it

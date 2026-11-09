@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QAbstractItemModel>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QSortFilterProxyModel>
 
@@ -130,6 +131,19 @@ public:
     */
    bool addFileToCache(const QString &dirPath, const QString &filename);
 
+   /**
+    * @brief Bring folders in the cache up to date with what is on disk
+    * @param paths  Folders to look in, relative to this directory
+    * @return true if the cache has changed
+    *
+    * Folders made outside this program are not in the cache until it is
+    * refreshed. This lists each folder and only scans it if its
+    * subdirectories differ. A folder is looked in at most once in
+    * YEAR_READ_MS, as this is called for each key typed. A repository on a
+    * server is left alone, since its tree comes from the server each time
+    */
+   bool readYearFolders(const QStringList &paths, Operation *op);
+
    DirNode *node() const { return _node; }
    void setNode(DirNode *node) { _node = node; }
 
@@ -161,6 +175,7 @@ private:
    QString _dir;      //!< the directory
    bool _recent;     //!< true if this item displays a 'recent' list
    TreeItem *_dir_cache;  //!< Cache of the directory tree, or 0
+   QHash<QString, QElapsedTimer> _year_read;  //!< When each folder was read
    DirNode *_node;   //!< The associated DirNode in the model tree
    std::unique_ptr<Backend> _backend;  //!< Data source for this repo
    };
