@@ -28,6 +28,8 @@ public:
     QList<RepositoryInfo> listRepositories() override;
     DirectoryListing browseDirectory(const QString &repo,
                                      const QString &dir) override;
+    DirectoryListing browseFolders(const QString &repo,
+                                   const QString &dir) override;
     FileFetch readFile(const QString &repo,
                        const QString &path) override;
 
@@ -68,6 +70,15 @@ public:
     static bool isStackName(const QString &name);
 
 private:
+    /** Find the repository root to browse @p dir within, reporting in
+     *  @p out if there is none.  Returns an empty string on failure */
+    QString browseRoot(const QString &repo, const QString &dir,
+                       DirectoryListing &out) const;
+
+    /** Add the folders in @p dir, within @p rootPath, to @p out */
+    void addFolders(const QString &rootPath, const QString &dir,
+                    DirectoryListing &out) const;
+
     static void scanDirectory(const QString &repoPath, const QString &dirPath,
                               QList<CachedFile> &fileList);
     int countFilesRecursive(const QString &repoPath,

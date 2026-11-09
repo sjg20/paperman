@@ -88,6 +88,39 @@ void TestLocalBackend::testBrowse()
 }
 
 
+void TestLocalBackend::testBrowseFolders()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   makeRepo(tmp.path());
+   QVERIFY(QDir().mkpath(tmp.path() + "/sub/inner"));
+   QVERIFY(QDir().mkpath(tmp.path() + "/.hidden"));
+   QString repo = QFileInfo(tmp.path()).fileName();
+
+   LocalBackend be(QStringList() << tmp.path());
+
+   // only the folders, with hidden ones and all the stacks left out
+   DirectoryListing root = be.browseFolders(repo, "");
+   QVERIFY2(root.ok, qPrintable(root.error));
+   QCOMPARE(root.entries.size(), 1);
+   QCOMPARE(root.entries[0].name, QString("sub"));
+   QCOMPARE(root.entries[0].path, QString("sub"));
+   QVERIFY(root.entries[0].isDir);
+
+   DirectoryListing sub = be.browseFolders(repo, "sub");
+   QVERIFY(sub.ok);
+   QCOMPARE(sub.entries.size(), 1);
+   QCOMPARE(sub.entries[0].path, QString("sub/inner"));
+
+   // it fails as browseDirectory() does
+   DirectoryListing bad = be.browseFolders(repo, "nosuchdir");
+   QVERIFY(!bad.ok);
+   QVERIFY(bad.notFound);
+   QVERIFY(!be.browseFolders("nosuchrepo", "").ok);
+   QVERIFY(!be.browseFolders(repo, "../other").ok);
+}
+
+
 void TestLocalBackend::testReadFile()
 {
    QTemporaryDir tmp;

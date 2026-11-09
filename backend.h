@@ -87,6 +87,17 @@ public:
     virtual DirectoryListing browseDirectory(const QString &repo,
                                              const QString &dir) = 0;
 
+    /** As browseDirectory(), for a caller which only wants the folders.
+     *  Finding out about each stack takes a request per stack on a
+     *  network disk, so a backend should leave them out if it can; this
+     *  default does not, so the caller must ignore what is not a
+     *  folder. */
+    virtual DirectoryListing browseFolders(const QString &repo,
+                                           const QString &dir)
+    {
+        return browseDirectory(repo, dir);
+    }
+
     /** Fetch the raw bytes of a file from a repository.  @c path is
      *  relative to the repo root.  Returned bytes are the original
      *  on-disk file (no PDF page extraction or format conversion —
