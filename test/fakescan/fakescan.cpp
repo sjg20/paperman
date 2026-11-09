@@ -1145,6 +1145,7 @@ EXPORT SANE_Status sane_fakefujitsu_get_devices (const SANE_Device ***list,
    static const SANE_Device *devices [] = { &device, nullptr };
 
    *list = devices;
+   note ("get devices");
    return SANE_STATUS_GOOD;
    }
 
