@@ -104,6 +104,23 @@ public :
       \param degrees  clockwise rotation to add: 90, 180 or 270 */
    err_info *rotatePage (int pagenum, int degrees);
 
+   /** show only part of a page, by setting its /CropBox (lossless)
+
+      What is cut away stays in the file
+
+      \param pagenum  page to crop
+      \param area     the part to keep, as proportions of the page as shown
+      \param undo     returns what uncropPage() needs to put it back
+      \returns error, or NULL if ok */
+   err_info *cropPage (int pagenum, const QRectF &area, QByteArray &undo);
+
+   /** put back the part of a page shown before cropPage()
+
+      \param pagenum  page to put back
+      \param undo     what cropPage() returned
+      \returns error, or NULL if ok */
+   err_info *uncropPage (int pagenum, const QByteArray &undo);
+
    int numPages (void);
 
    err_info *getImage (QString fname, int pagenum, QImage &image, double xscale,
@@ -236,6 +253,31 @@ protected:
       \param image    image to rotate
       \returns the rotated image */
    QImage apply_rotation (int pagenum, const QImage &image) const;
+
+   /** cut an extracted image down to the page's /CropBox
+
+      As with /Rotate, PoDoFo's image extraction takes no notice of it
+
+      \param pagenum  page the image is from
+      \param image    image of the page before it is rotated
+      \returns the part of the image which is shown */
+   QImage apply_crop (int pagenum, const QImage &image) const;
+
+   /** the part of a page's image shown, as proportions of the image
+       before it is rotated, measured from the top left
+
+      \param pagenum  page the image is from
+      \param image    size of the image
+      \returns the part shown */
+   QRectF shown_area (int pagenum, const QSize &image) const;
+
+   /** get the size of the image which getImage() will extract for a page
+
+      \param pagenum  page to look at
+      \param size     returns the size of the image
+      \returns true if a page's image is extracted, false if the page is
+               drawn by poppler instead */
+   bool extracted_size (int pagenum, QSize &size);
 
    /** returns the /Rotate value of a page, normalised to 0-359 */
    int page_rotation (int pagenum) const;

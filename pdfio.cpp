@@ -39,6 +39,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 #include "file.h"
 #include "ocrpage.h"
+#include <QDataStream>
+
+#include "imagetrim.h"
 #include "pdfio.h"
 #include "iostats.h"
 #include "utils.h"
@@ -88,6 +91,26 @@ static inline void set_page_rotation (PdfPage &page, int degrees)
    page.SetRotation (degrees);
    }
 
+//! a page's box in PDF units, as left, bottom, width and height
+static inline QRectF page_box (const PdfPage &page, bool crop)
+   {
+   // the plain boxes are turned to suit /Rotate; these are as in the file
+   Rect rect = Rect::FromCorners (crop ? page.GetCropBoxRaw ()
+                                       : page.GetMediaBoxRaw ());
+
+   return QRectF (rect.GetLeft (), rect.GetBottom (), rect.Width,
+                  rect.Height);
+   }
+
+static inline void set_crop_box (PdfPage &page, const QRectF &box)
+   {
+   PdfArray arr;
+
+   // SetCropBox() turns the box to suit /Rotate, so write it directly
+   Rect (box.x (), box.y (), box.width (), box.height ()).ToArray (arr);
+   page.GetDictionary ().AddKey (PdfName ("CropBox"), arr);
+   }
+
 static inline const PdfResources *page_resources (const PdfPage &page)
    {
    return &page.GetResources ();
@@ -116,6 +139,23 @@ static inline void set_page_rotation (PdfPage &page, int degrees)
    page.SetRotationRaw (degrees);
    }
 
+//! a page's box in PDF units, as left, bottom, width and height
+static inline QRectF page_box (const PdfPage &page, bool crop)
+   {
+   Rect rect = crop ? page.GetCropBox () : page.GetMediaBox ();
+
+   return QRectF (rect.GetLeft (), rect.GetBottom (), rect.GetWidth (),
+                  rect.GetHeight ());
+   }
+
+static inline void set_crop_box (PdfPage &page, const QRectF &box)
+   {
+   PdfArray arr;
+
+   Rect (box.x (), box.y (), box.width (), box.height ()).ToArray (arr);
+   page.GetDictionary ().AddKey (PdfName ("CropBox"), arr);
+   }
+
 static inline const PdfResources *page_resources (const PdfPage &page)
    {
    return page.GetResources ();
@@ -124,6 +164,25 @@ static inline const PdfResources *page_resources (const PdfPage &page)
 static const PdfContentReaderFlags READER_FLAGS =
       PdfContentReaderFlags::DontFollowXObjectForms;
 #endif
+
+#else
+
+//! a page's box in PDF units, as left, bottom, width and height
+static inline QRectF page_box (const PdfPage &page, bool crop)
+   {
+   PdfRect rect = crop ? page.GetCropBox () : page.GetMediaBox ();
+
+   return QRectF (rect.GetLeft (), rect.GetBottom (), rect.GetWidth (),
+                  rect.GetHeight ());
+   }
+
+static inline void set_crop_box (PdfPage &page, const QRectF &box)
+   {
+   PdfVariant var;
+
+   PdfRect (box.x (), box.y (), box.width (), box.height ()).ToVariant (var);
+   page.GetObject ()->GetDictionary ().AddKey (PdfName ("CropBox"), var);
+   }
 
 #endif
 
@@ -773,6 +832,206 @@ err_info *Pdfio::make_error (const PdfError &eCode)
 
 
 /* returns the /Rotate value of a page, normalised to 0-359 */
+/* the part of a page which is shown, in PDF units. Some files have no
+   crop box, and one may stick out past the paper */
+static QRectF visible_box (const PdfPage &page)
+   {
+   QRectF media = page_box (page, false);
+   QRectF crop = page_box (page, true).intersected (media);
+
+   return crop.isEmpty () ? media : crop;
+   }
+
+
+/* where a page's image sits on it, in PDF units. It is taken to be drawn
+   as addPage() draws it, in the bottom left corner at the largest size
+   which fits, which also covers an image that fills the page */
+static QRectF image_box (const QRectF &media, const QSize &image)
+   {
+   double scale = qMin (media.width () / image.width (),
+                        media.height () / image.height ());
+
+   return QRectF (media.left (), media.top (), image.width () * scale,
+                  image.height () * scale);
+   }
+
+
+QRectF Pdfio::shown_area (int pagenum, const QSize &image) const
+   {
+#ifdef PODOFO_1X
+   const PdfPage &page = _doc->GetPages ().GetPageAt (pagenum);
+#else
+   const PdfPage &page = *_doc->GetPage (pagenum);
+#endif
+   QRectF media = page_box (page, false);
+
+   if (media.isEmpty () || image.isEmpty ())
+      return QRectF (0, 0, 1, 1);
+
+   QRectF place = image_box (media, image);
+   QRectF shown = visible_box (page).intersected (place);
+
+   if (shown.isEmpty ())
+      return QRectF (0, 0, 1, 1);
+
+   // the file counts up from the bottom of the page, and images go down
+   return QRectF ((shown.left () - place.left ()) / place.width (),
+                  (place.bottom () - shown.bottom ()) / place.height (),
+                  shown.width () / place.width (),
+                  shown.height () / place.height ());
+   }
+
+
+QImage Pdfio::apply_crop (int pagenum, const QImage &image) const
+   {
+   if (!_doc || image.isNull ())
+      return image;
+
+   QRectF area = shown_area (pagenum, image.size ());
+
+   return area == QRectF (0, 0, 1, 1) ? image
+         : image.copy (Imagetrim::areaToRect (image.size (), area));
+   }
+
+
+bool Pdfio::extracted_size (int pagenum, QSize &size)
+   {
+   try
+      {
+      const PdfDictionary *dict;
+      const PdfObject *obj = get_image_obj (pagenum, dict);
+      int width, height, bpp;
+
+      if (!obj)
+         return false;
+      get_image_details (dict, width, height, bpp);
+
+      // this throws for a stream which getImage() would leave to poppler
+#ifdef PODOFO_1X
+      obj->MustGetStream ().GetCopy ();
+#else
+      char *buff;
+      pdf_long len;
+
+      obj->GetStream ()->GetFilteredCopy (&buff, &len);
+      podofo_free (buff);
+#endif
+      size = QSize (width, height);
+      return true;
+      }
+   catch (const PdfError &)
+      {
+      return false;
+      }
+   }
+
+
+err_info *Pdfio::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
+   {
+   undo.clear ();
+   if (!_doc)
+      CALL (open ());
+   try
+      {
+#ifdef PODOFO_1X
+      PdfPageCollection &pages = _doc->GetPages ();
+
+      if (pagenum < 0 || (unsigned)pagenum >= pages.GetCount ())
+         return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
+               pagenum + 1);
+      PdfPage &page = pages.GetPageAt (pagenum);
+#else
+      if (pagenum < 0 || pagenum >= _doc->GetPageCount ())
+         return err_make (ERRFN, ERR_could_not_find_image_chunk_for_page1,
+               pagenum + 1);
+      PdfPage &page = *_doc->GetPage (pagenum);
+#endif
+      QRectF box = visible_box (page);
+      QRectF base = box;
+      QSize image;
+      double left, top, width, height;
+
+      /* what the user sees is either the page's image, which may not
+         cover the page, or the whole page drawn by poppler */
+      if (extracted_size (pagenum, image))
+         {
+         base = box.intersected (image_box (page_box (page, false), image));
+         if (base.isEmpty ())
+            base = box;
+         }
+
+      /* the area is of the page as it is shown, which /Rotate has turned
+         clockwise, so turn it back to how the file holds the page */
+      switch (page_rotation (pagenum))
+         {
+         case 90 :
+            left = area.top ();
+            top = 1 - area.right ();
+            width = area.height ();
+            height = area.width ();
+            break;
+         case 180 :
+            left = 1 - area.right ();
+            top = 1 - area.bottom ();
+            width = area.width ();
+            height = area.height ();
+            break;
+         case 270 :
+            left = 1 - area.bottom ();
+            top = area.left ();
+            width = area.height ();
+            height = area.width ();
+            break;
+         default :
+            left = area.left ();
+            top = area.top ();
+            width = area.width ();
+            height = area.height ();
+            break;
+         }
+
+      QDataStream out (&undo, QIODevice::WriteOnly);
+
+      out << box;
+      set_crop_box (page, QRectF (base.left () + left * base.width (),
+                                  base.top () + (1 - top - height)
+                                     * base.height (),
+                                  width * base.width (),
+                                  height * base.height ()));
+      }
+   catch (const PdfError &eCode)
+      {
+      undo.clear ();
+      return make_error (eCode);
+      }
+   return flush ();
+   }
+
+
+err_info *Pdfio::uncropPage (int pagenum, const QByteArray &undo)
+   {
+   QRectF box;
+   QDataStream in (undo);
+
+   in >> box;
+   if (!_doc)
+      CALL (open ());
+   try
+      {
+#ifdef PODOFO_1X
+      set_crop_box (_doc->GetPages ().GetPageAt (pagenum), box);
+#else
+      set_crop_box (*_doc->GetPage (pagenum), box);
+#endif
+      }
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+   return flush ();
+   }
+
+
 int Pdfio::page_rotation (int pagenum) const
    {
 #ifdef PODOFO_1X
@@ -842,7 +1101,9 @@ err_info *Pdfio::getImageSize (int pagenum, bool preview, QSize &size,
          int width, height;
 
          get_image_details (dict, width, height, bpp);
-         size = QSize (width, height);
+         size = Imagetrim::areaToRect (QSize (width, height),
+                                       shown_area (pagenum,
+                                          QSize (width, height))).size ();
 
          /* a 90 or 270 degree /Rotate swaps the displayed dimensions,
             to match the rotated image apply_rotation() produces */
@@ -979,7 +1240,7 @@ err_info *Pdfio::getImage (QString fname, int pagenum, QImage &image, double xsc
             reflect the page's /Rotate attribute; apply it so the
             rendered image matches what a PDF viewer (and the poppler
             fallback) shows */
-         image = apply_rotation (pagenum, image);
+         image = apply_rotation (pagenum, apply_crop (pagenum, image));
          return NULL;
          }
       }
