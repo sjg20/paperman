@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QFileInfo>
 
+#include "imagetrim.h"
 #include "filejpeg.h"
 #include "iostats.h"
 #include "utils.h"
@@ -491,6 +492,46 @@ err_info *Filejpeg::transformPage (int pagenum, e_transform op)
    }
 
 
+err_info *Filejpeg::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
+   {
+   QImage image;
+   Filejpegpage *page;
+
+   undo.clear ();
+   CALL (load ());
+   CALL (loadPage (pagenum, image));
+   CALL (getPage (pagenum, page));
+
+   QRect rect = Imagetrim::cropRect (image, area);
+
+   if (rect.isNull ())
+      return NULL;
+
+   // the file as it is, since encoding it again would lose quality
+   QString path = page->pathname (_dir);
+   QFile file (path);
+
+   if (!file.open (QIODevice::ReadOnly))
+      return err_make (ERRFN, ERR_could_not_write_image_to_as2,
+                       qPrintable (path), "JPEG");
+   undo = file.readAll ();
+   file.close ();
+
+   page->setImage (image.copy (rect));
+   return page->flush (_dir);
+   }
+
+
+err_info *Filejpeg::uncropPage (int pagenum, const QByteArray &undo)
+   {
+   Filejpegpage *page;
+
+   CALL (load ());
+   CALL (getPage (pagenum, page));
+   return page->restore (_dir, undo);
+   }
+
+
 // operations on files
 
 err_info *Filejpeg::addPage (const Filepage *mp, bool do_flush)
@@ -816,6 +857,20 @@ err_info *Filejpegpage::flush (const QString &dir)
 
    return 0;
    }
+
+err_info *Filejpegpage::restore (const QString &dir, const QByteArray &data)
+   {
+   QString path = pathname (dir);
+   QFile file (path);
+
+   if (!file.open (QIODevice::WriteOnly) || file.write (data) != data.size ())
+      return err_make (ERRFN, ERR_could_not_write_image_to_as2,
+                       qPrintable (path), "JPEG");
+   _image.loadFromData (data);
+   _changed = false;
+   return 0;
+   }
+
 
 const QImage &Filejpegpage::getImage (void) const
 {

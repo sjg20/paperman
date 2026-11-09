@@ -160,6 +160,9 @@ private slots:
    //! a crop survives the file being closed and opened again
    void testCropPageReload();
 
+   //! cropPage cuts a JPEG page down and undo restores the file exactly
+   void testCropPageJpeg();
+
    //! transformPage rotates and mirrors pages of each file type
    void testTransformPage();
 
