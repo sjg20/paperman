@@ -325,7 +325,7 @@ void Dirmodel::populateNode(DirNode *node) const
       return;
    }
 
-   /* The path passed to browseDirectory is relative to the repo
+   /* The path passed to browseFolders is relative to the repo
     * root.  Walk up to the root to compute it; the root is the
     * DirNode whose parent is the invisible root. */
    DirNode *root = node;
@@ -365,9 +365,10 @@ void Dirmodel::populateNode(DirNode *node) const
    /* Sync path for LocalBackend: populate directly so the rowCount
     * probe that triggered us sees the right answer.  The view does
     * not need begin/endInsertRows because it is currently asking
-    * for the row count. */
+    * for the row count.  The view asks about every folder it lays out,
+    * so this must not look at the stacks in them. */
    DirectoryListing listing =
-       node->backend->browseDirectory(root->repoName, relPath);
+       node->backend->browseFolders(root->repoName, relPath);
 
    /* Mark populated unconditionally so a failed call doesn't get
     * re-issued by every rowCount() probe.  refresh() clears both

@@ -36,6 +36,7 @@ private slots:
    void testRefreshKeepsSubdirs();
 
    //! Backend failure during populate is surfaced and can be retried
+   void testTreeListsOnlyFolders();
    void testBackendErrorSurfacing();
 
    //! addRemoteRepository wires a Dirmodel to a live paperman-server
