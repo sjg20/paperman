@@ -60,6 +60,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desk.h"
 #include "filemax.h"
 #include "iostats.h"
+#include "imagetrim.h"
 #include "ocrpage.h"
 
 #include <QJsonArray>
@@ -6821,6 +6822,99 @@ err_info *Filemax::store_image (page_info &info, int pagenum,
    CALL (page.compress ());
 
    return max_replace_page (info, page);
+   }
+
+
+err_info *Filemax::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   page_info *info;
+   QPoint dpi;
+   QString title;
+
+   undo.clear ();
+   load ();
+   CALL (find_page (pagenum, info));
+   CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
+
+   // a mono page is decoded with its width padded: see transformPage()
+   if (image.size () != size)
+      image = image.copy (QRect (QPoint (0, 0), size));
+
+   QRect rect = Imagetrim::cropRect (image, area);
+
+   if (rect.isNull ())
+      return NULL;
+
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (ensure_all_chunks ());
+   CALL (page_dpi (pagenum, dpi));
+   CALL (getPageTitle (pagenum, title));
+   CALL (ensure_roswell (*info));
+   info->titlestr = title;
+
+   /* the page gets chunks of its own at the end of the file, leaving the
+      old ones where they are to be brought back. None of the text goes
+      with it, since some of the words may have been cut away; the page
+      is read again */
+   page_info old = *info;
+
+   info->image = 0;
+   info->roswell = 0;
+   info->title = 0;
+   info->text = 0;
+   info->ocr = 0;
+   CALL (store_image (*info, pagenum, image.copy (rect), dpi));
+
+   // only let go of the old page now that the new one is safely written
+   page_info freed = old;
+
+   CALL (free_page (freed));
+   CALL (flush ());
+
+   QDataStream out (&undo, QIODevice::WriteOnly);
+
+   out << old.chunkid << old.roswell << old.image << old.noti1 << old.noti2
+       << old.title << old.text << old.ocr << old.timestamp << old.titlestr;
+   return NULL;
+   }
+
+
+err_info *Filemax::uncropPage (int pagenum, const QByteArray &undo)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   page_info *info;
+   page_info old = {};
+   QDataStream in (undo);
+
+   in >> old.chunkid >> old.roswell >> old.image >> old.noti1 >> old.noti2
+      >> old.title >> old.text >> old.ocr >> old.timestamp >> old.titlestr;
+   old.have_roswell = true;
+   old.title_loaded = true;
+   old.title_saved = true;
+
+   load ();
+   CALL (find_page (pagenum, info));
+
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (ensure_all_chunks ());
+
+   // the crop's own chunks are finished with, unlike the page's noti ones
+   page_info freed = *info;
+
+   CALL (free_page (freed));
+   CALL (restore_page (old));
+   *info = old;
+   return flush ();
    }
 
 

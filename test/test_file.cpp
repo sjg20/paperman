@@ -630,6 +630,179 @@ void TestFile::testTransformKeepsDpi()
    QCOMPARE(dpi, QPoint(100, 200));
 }
 
+void TestFile::testCropPageMax()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   copyFixture("testfile.max", tmp.path());
+   Filemax max(tmp.path() + "/", "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   QImage orig, image, other;
+   QSize origSize, size, trueSize;
+   int bpp, pages = max.pagecount();
+   QString title_before, title;
+
+   QVERIFY(!max.getImage(0, false, orig, origSize, trueSize, bpp, false));
+   QVERIFY(!max.getPageTitle(0, title_before));
+   QVERIFY(!max.getImage(4, false, other, size, trueSize, bpp, false));
+
+   QByteArray undo;
+   QVERIFY(!max.cropPage(0, QRectF(0.25, 0.5, 0.5, 0.25), undo));
+   QVERIFY(!undo.isEmpty());
+   QCOMPARE(max.pagecount(), pages);
+
+   QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, Imagetrim::areaToRect(origSize,
+                                        QRectF(0.25, 0.5, 0.5, 0.25)).size());
+   QVERIFY(nearlySame(image,
+                      orig.copy(Imagetrim::areaToRect(origSize,
+                                 QRectF(0.25, 0.5, 0.5, 0.25)))));
+
+   // the rest of the stack and the page's details are left alone
+   QVERIFY(!max.getPageTitle(0, title));
+   QCOMPARE(title, title_before);
+   QImage same;
+   QVERIFY(!max.getImage(4, false, same, size, trueSize, bpp, false));
+   QCOMPARE(same, other);
+
+   // the preview is of the cropped page
+   QSize preview;
+   QVERIFY(!max.getPreviewInfo(0, preview, bpp));
+   QVERIFY(preview.width() < origSize.width() / 2);
+
+   // undo returns exactly what was stored
+   QVERIFY(!max.uncropPage(0, undo));
+   QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, origSize);
+   QCOMPARE(image, orig);
+   QVERIFY(!max.getPageTitle(0, title));
+   QCOMPARE(title, title_before);
+
+   // cropping to the whole page changes nothing
+   QVERIFY(!max.cropPage(0, QRectF(0, 0, 1, 1), undo));
+   QVERIFY(undo.isEmpty());
+}
+
+void TestFile::testCropPageText()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   copyFixture("testfile.max", tmp.path());
+   Filemax max(tmp.path() + "/", "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   OcrPage ocr, got;
+
+   ocr.size = QSize(100, 100);
+   ocr.words << OcrWord{QRect(0, 0, 8, 8), "invoice", 90, 0, 0};
+   QVERIFY(!max.putPageOcr(0, ocr));
+   QVERIFY(!max.getPageOcr(0, got));
+   QCOMPARE(got.words.size(), 1);
+
+   QByteArray undo;
+   QVERIFY(!max.cropPage(0, QRectF(0, 0, 0.5, 0.5), undo));
+   got = OcrPage();
+   QVERIFY(!max.getPageOcr(0, got));
+   QVERIFY(got.isEmpty());
+
+   QVERIFY(!max.uncropPage(0, undo));
+   QVERIFY(!max.getPageOcr(0, got));
+   QCOMPARE(got.words.size(), 1);
+   QCOMPARE(got.words[0].text, QString("invoice"));
+}
+
+void TestFile::testCropPagesFit()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   copyFixture("testfile.max", tmp.path());
+   Filemax max(tmp.path() + "/", "testfile.max", nullptr);
+   QVERIFY(max.load() == nullptr);
+
+   QList<QSize> before;
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+
+   for (int i = 0; i < max.pagecount(); i++) {
+      QVERIFY(!max.getImage(i, false, image, size, trueSize, bpp, false));
+      before << size;
+   }
+
+   // a proportion of every page, whatever size each one is
+   QByteArray undo;
+   QRectF area(0, 0, 0.5, 1);
+
+   QVERIFY(!max.cropPages(-1, area, undo));
+   for (int i = 0; i < max.pagecount(); i++) {
+      QVERIFY(!max.getImage(i, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, Imagetrim::areaToRect(before[i], area).size());
+   }
+   QVERIFY(!max.uncropPages(undo));
+   for (int i = 0; i < max.pagecount(); i++) {
+      QVERIFY(!max.getImage(i, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, before[i]);
+   }
+
+   // fitting leaves each page no bigger than it was
+   QVERIFY(!max.cropPages(-1, QRectF(), undo));
+   for (int i = 0; i < max.pagecount(); i++) {
+      QVERIFY(!max.getImage(i, false, image, size, trueSize, bpp, false));
+      QVERIFY(size.width() <= before[i].width());
+      QVERIFY(size.height() <= before[i].height());
+   }
+   QVERIFY(!max.uncropPages(undo));
+   for (int i = 0; i < max.pagecount(); i++) {
+      QVERIFY(!max.getImage(i, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, before[i]);
+   }
+}
+
+void TestFile::testCropPageReload()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   copyFixture("testfile.max", tmp.path());
+   const QString dir = tmp.path() + "/";
+
+   QImage orig, image;
+   QSize origSize, size, trueSize;
+   int bpp;
+   QByteArray undo;
+   QString title_before, title;
+
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+      QVERIFY(!max.getImage(0, false, orig, origSize, trueSize, bpp, false));
+      QVERIFY(!max.getPageTitle(0, title_before));
+      QVERIFY(!max.cropPage(0, QRectF(0, 0, 0.5, 0.5), undo));
+   }
+
+   // a fresh load sees the crop, and undo still works
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+      QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, Imagetrim::areaToRect(origSize,
+                                           QRectF(0, 0, 0.5, 0.5)).size());
+      QVERIFY(!max.getPageTitle(0, title));
+      QCOMPARE(title, title_before);
+      QVERIFY(!max.uncropPage(0, undo));
+   }
+
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(max.load() == nullptr);
+      QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+      QCOMPARE(size, origSize);
+      QCOMPARE(image, orig);
+      QVERIFY(!max.getPageTitle(0, title));
+      QCOMPARE(title, title_before);
+   }
+}
+
 void TestFile::testTransformPage()
 {
    QTemporaryDir tmp;
