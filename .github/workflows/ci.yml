@@ -427,13 +427,34 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     steps:
+      # two commits, so that a pull request's changes can be listed
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # The snap takes a while and the other jobs build and test the same
+      # code, so a pull request only builds it when something the snap is
+      # made from changes. A pull request is checked out as its merge with
+      # master, so the first parent is master
+      - name: Check whether the snap needs building
+        id: need
+        run: |
+          if [ "${{ github.event_name }}" != pull_request ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only HEAD^1 HEAD | grep -qE \
+              '^(snap/|packaging/linux/|app/macos/Runner/Assets.xcassets/|paperman\.pro$|config\.h$|\.github/workflows/ci\.yml$)'; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "nothing the snap is made from changes, so it is not built"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # KDE's build snap, which the kde-neon-6 extension builds with, has
       # been missing from the store for an architecture at times: skip
       # the build then, with a warning, rather than fail every run
       - name: Check that KDE's build snap is in the store
         id: sdk
+        if: steps.need.outputs.build == 'true'
         run: |
           url="https://api.snapcraft.io/v2/snaps/info/kde-qt6-core24-sdk"
           if curl -fsS -H 'Snap-Device-Series: 16' \
@@ -449,7 +470,10 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # snapcraft builds in an LXD container, for the runner's architecture
+      # snapcraft builds in an LXD container, for the runner's architecture.
+      # Not on the runner itself with --destructive-mode: the runner's snapd
+      # takes over 20 minutes to install KDE's build snaps, against a minute
+      # or two inside the container
       - uses: snapcore/action-build@v1
         if: steps.sdk.outputs.available == 'true'
         id: snap
