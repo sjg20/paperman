@@ -822,6 +822,59 @@ void TestQscanner::testPanelPageSizeApplied()
    too: while the scan waits it is offered again, and means carry on
    rather than start another scan */
 
+/* A scanner may give a page no width, as one did for a paper size it
+   could not take. There is nothing to scan, so the scan must say so and
+   stop: it divided by the width and crashed */
+void TestQscanner::testScanNoWidth()
+{
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+   QVERIFY (!desktop->addDir (repo.path ()));
+   QString path = repo.path ();
+   if (path.endsWith ("/"))
+      path.chop (1);
+   QModelIndex repo_ind = desktop->getDirIndex (path + "/");
+   QVERIFY (repo_ind.isValid ());
+
+   Mainwidget *main = Mainwidget::singleton ();
+   QVERIFY (main);
+
+   // only the fake scanner can be told to do this
+   if (!Fakescan::available ())
+      QSKIP (NO_SCANNER);
+   Scansettings settings (1, FAKESCAN_DEVICE);
+
+   loadLetter ();
+   QVERIFY (main->ensureScanner ());
+   QScanner *scanner = main->_scanner;
+   QVERIFY (scanner);
+
+   // a window with no width
+   int tlx = scanner->getTlxOption ();
+   int brx = scanner->getBrxOption ();
+   SANE_Word left = scanner->saneWordValue (tlx);
+
+   scanner->setOption (brx, &left);
+
+   SANE_Parameters params;
+   QCOMPARE (scanner->getParameters (&params), SANE_STATUS_GOOD);
+   QCOMPARE (params.pixels_per_line, 0);
+
+   QTest::ignoreMessage (QtWarningMsg, QRegularExpression ("^Scan status:"));
+   main->scanInto (repo_ind);
+
+   // nothing scanned, and no stack left behind
+   QStringList stacks = QDir (path).entryList (QStringList () << "*.max",
+                                               QDir::Files);
+   QCOMPARE (stacks.size (), 0);
+}
+
+
 void TestQscanner::testPscanResume()
 {
    ensureXmlConfig ();
