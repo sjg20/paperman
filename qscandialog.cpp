@@ -1699,8 +1699,9 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
      return;
   in_here = true;
 
-  // set page size if required
-  if (mpWidthOption
+  /* set page size if required. The user size has none, so leave it as it
+     is: -1 would ask the scanner for its smallest page */
+  if (mpWidthOption && sca->width () > 0 && sca->height () > 0
      && mpScanner->isOptionActive(mpWidthOption->saneOptionNumber()))
   {
 //    printf ("change slot under ADF\n");

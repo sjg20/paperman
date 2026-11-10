@@ -1360,6 +1360,58 @@ void TestQscanner::testPscanLong()
 }
 
 
+/* Full size scans the whole of what the scanner takes. Its paper size is
+   held as -1 by -1, meaning none in particular, and that went to the
+   scanner as the paper size, which took it as the smallest it could, or
+   gave pages no width at all */
+void TestQscanner::testPscanFullSize()
+{
+   ensureXmlConfig ();
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QScanner scanner;
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   int row = pscan.pageSize->findText ("Full size");
+
+   QVERIFY (row != -1);
+   pscan.pageSize->setCurrentIndex (row);
+   pscan.size_activated (row);
+
+   double width = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ())
+                  - scanner.saneWordValue (scanner.getTlxOption ()));
+   double length = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ())
+                   - scanner.saneWordValue (scanner.getTlyOption ()));
+
+   qDebug () << "full size window" << width << "x" << length << "mm";
+   QVERIFY2 (width > 200 && length > 250,
+             qPrintable (QString ("the window is %1 x %2mm").arg (width)
+                         .arg (length)));
+
+   loadLetter ();
+   SANE_Parameters params;
+
+   QCOMPARE (scanner.start (), SANE_STATUS_GOOD);
+   QCOMPARE (scanner.getParameters (&params), SANE_STATUS_GOOD);
+   scanner.cancel ();
+   QVERIFY2 (params.pixels_per_line > 0,
+             qPrintable (QString ("the page is %1 pixels wide")
+                         .arg (params.pixels_per_line)));
+}
+
+
 void TestQscanner::testPscanDeskew()
 {
    ensureXmlConfig ();
