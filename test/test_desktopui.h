@@ -61,6 +61,7 @@ private slots:
 
    //! Test that clicking a stack selects it and clicking space deselects
    void testClickSelectsStack();
+   void testFocusSelectsNothing();
 
    //! Test that ctrl-click adds a second stack to the selection
    void testCtrlClickMultiSelect();

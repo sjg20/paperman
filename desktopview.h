@@ -159,6 +159,11 @@ signals:
    void newSelection();
 
 public slots:
+   /** Show another folder, leaving nothing selected or current. Otherwise
+       the stack picked in the last folder stays selected though it is no
+       longer shown, and actions on the selection would reach it */
+   void setRootIndex (const QModelIndex &index) override;
+
    /** set up the position of each item
 
       \returns the maximum extent of the item positions (i.e. max x and max y) */
@@ -186,6 +191,12 @@ protected:
        does, though the two need not be in that order */
    QModelIndex moveCursor (CursorAction action,
                            Qt::KeyboardModifiers modifiers) override;
+
+   /** Take focus without making a stack current. QAbstractItemView makes
+       the first item current on its first focus, unless that comes from
+       the mouse, and a current stack is shown as if it were clicked, so
+       focus coming back from another window would pick one */
+   void focusInEvent (QFocusEvent *event) override;
 
    /** handle a drop event - this saves the new position of items into
        the model*/
