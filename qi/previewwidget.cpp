@@ -553,6 +553,14 @@ void PreviewWidget::slotRangeChange()
       {
          tlx = tly = 0.0;
          brx = bry = 1.0;
+
+         /* the largest paper the scanner takes, where it has a paper
+            size: -1 would ask it for the smallest */
+         if (mWidth != -1)
+         {
+            width = mWidth;
+            height = mHeight;
+         }
       }
       else if(a == 1) //user size
         tlx = tly = brx = bry = -1.0;
