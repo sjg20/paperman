@@ -124,6 +124,28 @@ void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &)
       }
    }
 
+void Desktopview::setRootIndex (const QModelIndex &index)
+   {
+   if (index != rootIndex () && selectionModel ())
+      selectionModel ()->clear ();
+   QListView::setRootIndex (index);
+   }
+
+
+void Desktopview::focusInEvent (QFocusEvent *event)
+   {
+   if (currentIndex ().isValid ())
+      {
+      QListView::focusInEvent (event);
+      return;
+      }
+
+   // Qt picks no item when the mouse brings focus, so say that it did
+   QFocusEvent mouse (event->type (), Qt::MouseFocusReason);
+
+   QListView::focusInEvent (&mouse);
+   }
+
 void Desktopview::selectionChanged(const QItemSelection &sel,
                                    const QItemSelection &desel)
 {

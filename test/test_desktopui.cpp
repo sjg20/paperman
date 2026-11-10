@@ -32,11 +32,14 @@
 #include "paperstack.h"
 #include "pagewidget.h"
 #include "pagetools.h"
+#include "pscan.h"
 #include "searchserver.h"
 #include "qxmlconfig.h"
 #include <QScrollBar>
 #include "test_desktopui.h"
 #include "test_fakescan.h"
+#include "fakescan/fakescan.h"
+#include "scansettings.h"
 
 void TestDesktopUi::setupShown(Mainwindow *me, Desktopmodel *&model,
                                QModelIndex &repo_ind)
@@ -71,10 +74,12 @@ void TestDesktopUi::clickItem(Desktopview *view, int row,
    QModelIndex ind = itemIndex(view, row);
    QVERIFY(ind.isValid());
 
-   QRect rect = view->visualRect(ind);
-   QVERIFY(rect.isValid());
+   /* the view finds a stack by the position the model gives it, which a
+      folder just opened may not have yet */
+   QTRY_VERIFY(view->visualRect(ind).isValid() &&
+               view->indexAt(view->visualRect(ind).center()) == ind);
    QTest::mouseClick(view->viewport(), Qt::LeftButton, modifiers,
-                     rect.center());
+                     view->visualRect(ind).center());
 }
 
 /* The stacks are what the window is for, so on a first run, with no
@@ -206,6 +211,97 @@ void TestDesktopUi::testClickSelectsStack()
    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
                      space);
    QVERIFY(!view->isSelection(Desktopview::SEL_at_least_one));
+}
+
+//! take focus from the stacks and give it back, in each way it can come
+static void refocus(Desktopview *view)
+{
+   for (Qt::FocusReason reason : {Qt::ActiveWindowFocusReason,
+                                  Qt::TabFocusReason,
+                                  Qt::OtherFocusReason}) {
+      QFocusEvent out(QEvent::FocusOut, reason);
+      QFocusEvent in(QEvent::FocusIn, reason);
+
+      QApplication::sendEvent(view, &out);
+      QApplication::sendEvent(view, &in);
+      QVERIFY(!view->currentIndex().isValid());
+   }
+}
+
+/* Nothing must be picked by focus coming to the stacks, as when the scan
+   panel opens and closes, whether on starting up or after moving to
+   another folder: Qt makes the first item current on the first focus, and
+   a current stack is shown as if it were clicked. Moving to another folder
+   must leave nothing picked, too, rather than the stack picked in the last
+   folder, which is no longer shown */
+void TestDesktopUi::testFocusSelectsNothing()
+{
+   Mainwindow me;
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/deepfile.max"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       path + "/main/one/otherfile.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   me.resize(1600, 1000);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+   QSignalSpy shown(view, SIGNAL(itemPreview(const QModelIndex &, int, bool)));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   QVERIFY(!view->currentIndex().isValid());
+
+   // on starting up
+   refocus(view);
+   QCOMPARE(shown.count(), 0);
+
+   // pick a stack, then move to another folder
+   clickItem(view, 0);
+   QVERIFY(view->currentIndex().isValid());
+
+   QModelIndex dir_ind = desktop->findDir(path + "/main/one");
+   QVERIFY(dir_ind.isValid());
+   Dirview *dir = desktop->_dir;
+   dir->scrollTo(dir_ind);
+   QTest::mouseClick(dir->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     dir->visualRect(dir_ind).center());
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   QCOMPARE(view->model()->data(itemIndex(view, 0),
+                                Qt::DisplayRole).toString(), "deepfile");
+   QVERIFY(!view->currentIndex().isValid());
+   QVERIFY(!view->isSelection(Desktopview::SEL_at_least_one));
+   shown.clear();
+
+   // open the scan panel and close it again, which moves focus about
+   if (Fakescan::available()) {
+      Scansettings settings(1, FAKESCAN_DEVICE);
+      Mainwidget *main = Mainwidget::singleton();
+
+      main->pscan();
+      Pscan *pscan = main->findChild<Pscan *>();
+      QVERIFY(pscan);
+      QTest::qWait(50);
+      pscan->hide();
+      me.activateWindow();
+      QTest::qWait(50);
+      QVERIFY(!view->currentIndex().isValid());
+   }
+   refocus(view);
+   QCOMPARE(shown.count(), 0);
+   QVERIFY(!view->isSelection(Desktopview::SEL_at_least_one));
+
+   // the keyboard still starts from a stack
+   QTest::keyClick(view, Qt::Key_Right);
+   QVERIFY(view->currentIndex().isValid());
+
+   // and a click still shows the stack clicked
+   shown.clear();
+   clickItem(view, 1);
+   QCOMPARE(shown.count(), 1);
 }
 
 void TestDesktopUi::testCtrlClickMultiSelect()
