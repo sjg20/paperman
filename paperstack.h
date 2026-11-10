@@ -777,6 +777,13 @@ private:
    /** start the next page, waiting out a busy scanner and a misfeed */
    SANE_Status startPage (void);
 
+   /** Read the scan parameters once the page has started, when they are
+       final, setting @bpp from them
+
+       \returns SANE_STATUS_INVAL for a page with no width, as there is
+          nothing to scan, else SANE_STATUS_GOOD */
+   SANE_Status finalParams (SANE_Parameters &parameters, int &bpp);
+
    /** wait for the user to clear a misfeed and take the scan up again
 
       \param status  what the back end said went wrong

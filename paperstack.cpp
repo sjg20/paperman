@@ -2044,6 +2044,34 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
    }
 
 
+/* bits per pixel from the scan parameters, or 0 for a page with no width,
+   as a scanner may give for a page size it cannot take */
+static int params_bpp (const SANE_Parameters &parameters)
+   {
+   if (parameters.pixels_per_line <= 0)
+      return 0;
+   return parameters.bytes_per_line * 8 / parameters.pixels_per_line;
+   }
+
+
+SANE_Status Paperscan::finalParams (SANE_Parameters &parameters, int &bpp)
+   {
+   /* the parameters are only final once the scan has started: a back end
+      may adjust the size to what the scanner delivers */
+   SANE_Parameters final;
+
+   _op = "sane_get_parameters";
+   if (_scanner->getParameters (&final) == SANE_STATUS_GOOD)
+      parameters = final;   // else carry on with the estimate
+
+   // a page with no width has nothing to scan
+   if (parameters.pixels_per_line <= 0 || parameters.bytes_per_line <= 0)
+      return SANE_STATUS_INVAL;
+   bpp = params_bpp (parameters);
+   return SANE_STATUS_GOOD;
+   }
+
+
 /* Start the next page, waiting out a scanner that says it is busy and a
    misfeed that the user has yet to clear
 
@@ -2230,7 +2258,7 @@ void Paperscan::scan ()
 
    size = 256 * 1024;
    buf = (unsigned char *)malloc (size);
-   bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
+   bpp = params_bpp (parameters);
 
    _progress_str = "Starting...";
    emit progress (_progress_str);
@@ -2266,10 +2294,9 @@ void Paperscan::scan ()
          if (status != SANE_STATUS_GOOD || isCancelled ())
             break;
 
-         /* the parameters are only final once the scan has started: a
-            back end may adjust the size to what the scanner delivers */
-         if (_scanner->getParameters (&parameters) == SANE_STATUS_GOOD)
-            bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
+         status = finalParams (parameters, bpp);
+         if (status != SANE_STATUS_GOOD)
+            break;
 
          image_bpp = parameters.format == SANE_FRAME_RGB ? 24
                                                          : parameters.depth;
@@ -2442,8 +2469,9 @@ void Paperscan::scan ()
          if (status != SANE_STATUS_GOOD || isCancelled ())
             break;
          total = 0;
-         if (_scanner->getParameters (&parameters) == SANE_STATUS_GOOD)
-            bpp = parameters.bytes_per_line * 8 / parameters.pixels_per_line;
+         status = finalParams (parameters, bpp);
+         if (status != SANE_STATUS_GOOD)
+            break;
          image_bpp = parameters.format == SANE_FRAME_RGB ? 24
                     : parameters.depth;
          is_jpeg = false;

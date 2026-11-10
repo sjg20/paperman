@@ -83,6 +83,7 @@ private slots:
 
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
+   void testScanNoWidth();
 
    //! The size the user chose is called a maximum while the scanner crops
    void testPscanMaxSize();
