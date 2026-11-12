@@ -1,3 +1,4 @@
+#include <QScrollBar>
 #include <QFrame>
 #include <QMenu>
 #include <QLineEdit>
@@ -445,6 +446,44 @@ void TestPagewidget::testCropTool()
    WAIT_OPS(*model);
    QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
    QCOMPARE(size, Imagetrim::areaToRect(firstSize, area).size());
+}
+
+void TestPagewidget::testScrollRangeResize()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   // show the page larger than the view, so that it scrolls both ways
+   for (int i = 0; i < 4; i++)
+      page->findChild<QToolButton *>("zoomIn")->click();
+   QTest::qWait(50);
+
+   MyScrollArea *area = page->_area;
+   auto reachesEdges = [area] () {
+      QSize view = area->viewport()->size();
+
+      return area->horizontalScrollBar()->maximum() ==
+                qMax(0, area->_size.width() - view.width()) &&
+             area->verticalScrollBar()->maximum() ==
+                qMax(0, area->_size.height() - view.height());
+   };
+   QVERIFY(area->_size.width() > area->viewport()->width());
+   QTRY_VERIFY(reachesEdges());
+
+   // a wider window leaves the page where it is, but the view is wider
+   int before = area->viewport()->width();
+   me.resize(1600, 900);
+   QTRY_VERIFY(area->viewport()->width() > before);
+   QTRY_VERIFY(reachesEdges());
+
+   // and a narrower one needs more scrolling to reach the edge
+   before = area->viewport()->width();
+   me.resize(800, 600);
+   QTRY_VERIFY(area->viewport()->width() < before);
+   QTRY_VERIFY(reachesEdges());
 }
 
 void TestPagewidget::testCropDrag()

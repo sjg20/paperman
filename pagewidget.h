@@ -113,10 +113,10 @@ public:
       \param too_big true to display the image instead of the pixmap */
    void setPixmapImage (QPixmap &pixmap, QImage &image, bool too_big, int rotate);
 
-   /** set the size of the pixmap, used to set up the scrollbars correctly
+   /** set the size of the page as shown, which sets the scrollbars' range
 
-      \param size    the pixmap size */
-   void setSize (QSize &size);
+      \param size    the size, as drawn at the current scale */
+   void setSize (const QSize &size);
 
    /** start letting the user mark the part of the page to keep
 
@@ -164,7 +164,13 @@ protected:
 
    void mouseReleaseEvent ( QMouseEvent * e );
 
+   //! set the scrollbars' range again for the new size of the viewport
+   void resizeEvent (QResizeEvent *event) override;
+
 private:
+   //! let the scrollbars reach each edge of the page as shown
+   void updateRange (void);
+
    //! what a drag of the crop rectangle is changing
    enum
       {
