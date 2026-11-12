@@ -572,6 +572,10 @@ void PreviewWidget::slotRangeChange()
       }
       sca = mSizeArray [mSizeArray.size() - 1];
       sca->setRange (tlx,tly,brx,bry,width, height);
+
+      /* Full size and Long are what the scanner takes, however the
+         sheets go through it, so they are never turned round */
+      sca->setScannerSized ((a == 0 || a == SIZE_LONG) && mWidth != -1);
     }
    }
 }

@@ -58,6 +58,10 @@ private slots:
    //! so that what is saved with the device is still the page size
    void testSidewaysPageSizeRestored();
 
+   //! A scan with a sideways feed leaves a window as wide as the scanner
+   //! takes, such as Full size, the way round it is
+   void testSidewaysFullWidthKept();
+
    //! A scan is the size the panel shows, whatever window the scanner
    //! was left holding
    void testPanelPageSizeApplied();
@@ -84,6 +88,10 @@ private slots:
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
    void testPscanFullSize();
+
+   //! Full size is the same window whichever way the sheets are fed
+   void testPscanFullSizeSideways();
+
    void testScanNoWidth();
 
    //! The size the user chose is called a maximum while the scanner crops

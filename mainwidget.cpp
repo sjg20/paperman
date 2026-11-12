@@ -642,8 +642,30 @@ void Mainwidget::applySidewaysPageSize (void)
          { "page-width", "page-height" },
          { "br-x", "br-y" },
       };
+   const unsigned count = sizeof (pair) / sizeof (pair [0]);
 
-   for (unsigned i = 0; i < sizeof (pair) / sizeof (pair [0]); i++)
+   /* A window as wide as the scanner takes, such as Full size or Long,
+      is the scanner's own reach rather than a page on its side. Turned
+      round, its length would go across, where the scanner caps it at
+      that width, leaving a square window which a longer sheet runs past
+      and the scanner calls a jam. The paper size decides, where there
+      is one, since the window lies within it. A size set as a share of
+      the range can come back a little short of the range's end, so
+      allow for that */
+   for (unsigned i = 0; i < count; i++)
+      {
+      int wnum = _scanner->findOption (pair [i][0]);
+
+      if (wnum < 0 || _scanner->findOption (pair [i][1]) < 0)
+         continue;
+      SANE_Word max = _scanner->getRangeMax (wnum);
+
+      if (_scanner->saneWordValue (wnum) >= max - max / 200)
+         return;
+      break;
+      }
+
+   for (unsigned i = 0; i < count; i++)
       {
       int wnum = _scanner->findOption (pair [i][0]);
       int hnum = _scanner->findOption (pair [i][1]);
