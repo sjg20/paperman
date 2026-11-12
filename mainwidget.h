@@ -151,8 +151,16 @@ public:
 
    struct err_info *operation (Desk::operation_t type, int ival);
 
-   // called when the main window is closing, to save window settings
+   /** called when the main window is closing, to save window settings.
+       A scan going on is ended, keeping the pages it has, and given up
+       on if it does not end within kQuitWaitMs */
    void closing (void);
+
+   /** How long quitting waits for the scanner, first for a scan to end
+       and then for the scanner to close. A scanner which has stopped
+       answering takes as long as its timeout over each call, which is
+       half a minute for some, so the wait is given up after this */
+   static constexpr int kQuitWaitMs = 2000;
 
    /** Open the pscan dialogue again if it was open when Paperman last
        closed, with the scanner used then, if that is there: no scanner is
@@ -473,6 +481,23 @@ private:
    /** connect up the scanner signals */
    void connectScanner (void);
 
+   /** Give up on the scan in progress if it has not ended after a while
+
+      \param ms   how long to wait from now */
+   void giveUpAfter (int ms);
+
+   /** Stop waiting for a scan which the scanner is not answering. What
+       the scanning thread has sent so far is taken in, and the stack
+       being scanned into is settled: kept if Paperman is quitting and it
+       has pages, else thrown away as a cancelled scan's is. The thread
+       is left to finish once the back end returns, keeping the scanner
+       until then, and is tidied by stuckScanDone() */
+   void leaveScan (void);
+
+   /** Tidy up a scan left by leaveScan(), once its thread has finished,
+       and make the scanner ready for the next */
+   void stuckScanDone (void);
+
    /**
     * @brief Search for directories matching a string
     * @param matches    List of matches to update
@@ -564,6 +589,13 @@ private:
    QList<pageturn> _page_turned;  //!< what applySidewaysPageSize() changed
 //   Paperstack *_stack;     //!< paper stack to scan into
    Paperscan *_scan;       //!< the current scan in progress
+   Paperscan *_stuck_scan = nullptr;  //!< a scan left in the back end
+   bool _scan_left = false;   //!< the scan in progress has been left
+   int _scan_give_up_ms = -1; //!< when to give up on it, or -1 never
+   QElapsedTimer _scan_give_up;   //!< since giveUpAfter() was asked
+   bool _quitting = false;    //!< Paperman is closing
+   bool _scan_stack_open = false; //!< a stack is being scanned into
+   int _scan_stack_pages = 0; //!< and the pages it has so far
 
    Mainwindow *_mainwindow = nullptr;
    QString _scan_path;     //!< directory path we are scanning into

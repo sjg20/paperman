@@ -159,6 +159,14 @@ private slots:
    //! Leaving SANE gives up on a scanner which does not answer
    void testExitWithin ();
 
+   //! Quitting part-way through a scan the scanner stops answering
+   //! keeps the pages and does not wait for it
+   void testQuitDuringStall_data ();
+   void testQuitDuringStall ();
+
+   //! Quitting once the scanner has stopped answering does not wait
+   void testQuitAfterStall ();
+
    //! After a jam, Scan in the panel carries the batch on
    void testResumeFromPanel ();
 

@@ -2135,6 +2135,110 @@ void TestFakescan::testBusyScanner ()
 }
 
 
+void TestFakescan::testQuitDuringStall_data ()
+{
+   QTest::addColumn<bool> ("deaf");
+
+   QTest::newRow ("interrupted") << false;
+   QTest::newRow ("deaf") << true;
+}
+
+
+/* A scanner can stop answering part-way through a batch, here as it is
+   asked to carry on after a jam, holding sane_start() up for as long as
+   its timeout. Quitting then does not wait for it, and keeps the pages
+   scanned so far. A back end which takes the cancel lets the scan end
+   there and then; one which does not is left to finish once the scanner
+   answers, keeping the scanner until then */
+void TestFakescan::testQuitDuringStall ()
+{
+   QFETCH (bool, deaf);
+
+   for (int i = 0; i < 3; i++)
+      QVERIFY (Fakescan::loadSheet (bandSheet (i), QImage (), 10));
+   Fakescan::addFault (FAKESCAN_JAM, 3);
+
+   QList<QImage> pages;
+   QElapsedTimer timer;
+   bool stalled = false;
+
+   timer.start ();
+   scanStack (QMap<QString, QString> (), pages, [&] (Mainwidget *main)
+      {
+      if (!stalled)
+         {
+         if (!Fakescan::log ().contains ("start: Jammed"))
+            return false;
+         Fakescan::clear ();
+         Fakescan::stall ("start", 60 * 1000, deaf);
+         main->resumeScan ();
+         stalled = true;
+         return false;
+         }
+      if (!Fakescan::log ().contains ("start: stalled"))
+         return false;
+      main->closing ();
+      return true;
+      });
+   auto release = qScopeGuard ([] () {
+      Fakescan::clear ();
+      QTRY_COMPARE (QScanner::callsLeft (), 0);
+   });
+   if (QTest::currentTestFailed ())
+      return;
+
+   QVERIFY (timer.elapsed () < 30 * 1000);
+   QCOMPARE (pages.size (), 2);
+   QCOMPARE (darkThird (pages [1]), 1);
+   QVERIFY (Fakescan::log ().contains ("cancel from another thread"));
+   if (!deaf)
+      {
+      QCOMPARE (QScanner::callsLeft (), 0);
+      QCOMPARE (Fakescan::log ().filter (QRegularExpression ("^close$"))
+                .size (), 1);
+      return;
+      }
+
+   // the scanning thread is still waiting, and has the scanner
+   QCOMPARE (QScanner::callsLeft (), 1);
+   QCOMPARE (Fakescan::log ().filter (QRegularExpression ("^close$")).size (),
+             0);
+
+   // once the scanner answers, both are tidied away
+   release.dismiss ();
+   Fakescan::clear ();
+   QTRY_COMPARE (QScanner::callsLeft (), 0);
+   QTRY_COMPARE (Fakescan::log ().filter (QRegularExpression ("^close$"))
+                 .size (), 1);
+}
+
+
+/* A scanner which has stopped answering holds sane_close() up for as long
+   as its timeout. Quitting leaves it to time out on its own */
+void TestFakescan::testQuitAfterStall ()
+{
+   utilSetHeadless (true);
+
+   QElapsedTimer timer;
+
+   {
+      Mainwindow me;
+      Scansettings settings (0, FAKESCAN_DEVICE);
+
+      QVERIFY (Mainwidget::singleton ()->ensureScanner ());
+      Fakescan::stall ("close", 60 * 1000);
+      timer.start ();
+   }
+   auto release = qScopeGuard ([] () {
+      Fakescan::clear ();
+      QTRY_COMPARE (QScanner::callsLeft (), 0);
+   });
+
+   QVERIFY (timer.elapsed () < 30 * 1000);
+   QCOMPARE (QScanner::callsLeft (), 1);
+}
+
+
 /* A scanner which stops answering part-way through a batch leaves the
    pages it did scan */
 void TestFakescan::testStopsAnswering ()
