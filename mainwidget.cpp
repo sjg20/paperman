@@ -26,6 +26,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <stdlib.h>
 #include <limits.h>
 
+#include <memory>
+
 #include "config.h"
 
 #include <QSettings>
@@ -161,11 +163,54 @@ Mainwidget *Mainwidget::singleton()
    return _singleton;
 }
 
+/* Leave a scan whose thread is still in the back end, with the scanner it
+   is using, to be tidied once the thread comes back. If Paperman has gone
+   by then, the process is not running the event loop and nothing is
+   tidied, which does not matter: see Mainwindow::runGui() */
+static void orphanScan (Paperscan *scan, QScanner *scanner)
+   {
+   auto once = std::make_shared<QAtomicInt> (0);
+   auto tidy = [scan, scanner, once] () {
+      if (!once->testAndSetOrdered (0, 1))
+         return;
+      scan->wait ();
+      delete scan;
+      if (scanner)
+         {
+         scanner->exitWithin (Mainwidget::kQuitWaitMs);
+         delete scanner;
+         }
+      QScanner::noteCallsLeft (-1);
+   };
+
+   QObject::connect (scan, &QThread::finished, qApp, tidy);
+
+   // it may have finished before it could say so to anyone
+   if (!scan->isRunning ())
+      tidy ();
+   }
+
+
 Mainwidget::~Mainwidget ()
    {
    delete _desktop;
-   if (_scanner)
+   if (_stuck_scan)
+      {
+      disconnect (_stuck_scan, nullptr, this, nullptr);
+      orphanScan (_stuck_scan, _scanner);
+      _stuck_scan = nullptr;
+      _scanner = nullptr;
+      }
+
+   /* A scanner which has stopped answering holds sane_close() up for as
+      long as its timeout, since closing sends it a command. Give up on
+      it after a while rather than leave the window gone and Paperman
+      still there */
+   else if (_scanner)
+      {
+      _scanner->exitWithin (kQuitWaitMs);
       delete _scanner;
+      }
    if (_scanDialog)
       delete _scanDialog;
    }
@@ -173,6 +218,19 @@ Mainwidget::~Mainwidget ()
 
 void Mainwidget::closing (void)
    {
+   /* End a scan before Paperman goes, keeping the pages it has. Waiting
+      for it to finish the batch could take minutes, so cut short what
+      the scanner is doing, as far as the back end allows, and give up
+      on it altogether if it has not ended in a while: the window is
+      closing inside the loop scanInto() runs, which goes on until then */
+   if (_scanning && !_quitting)
+      {
+      _scan->endScan ();
+      _scanner->interrupt ();
+      giveUpAfter (kQuitWaitMs);
+      }
+   _quitting = true;
+
    _desktop->closing ();
    _page->closing ();
    if (_pscan)
@@ -464,6 +522,15 @@ void Mainwidget::scanInto(QModelIndex target)
    if (_scanning)
       return;
 
+   /* a scan left in the back end has the scanner until it comes back,
+      and the back end takes one call at a time */
+   if (_stuck_scan)
+      {
+      progress (tr ("The scanner has not answered since the last scan: "
+                    "wait for it, or turn it off and on again"));
+      return;
+      }
+
    if (!ensureScanner ())
       return;
    /* the mode must be set first, since JPEG is only offered in colour;
@@ -524,31 +591,37 @@ void Mainwidget::scanInto(QModelIndex target)
         _desktop->selectDir(target);
    _scan_path = _desktop->getSelectedPath();
 
-   Paperscan scan;
+   /* on the heap, since a scan which the scanner stops answering may be
+      left to finish on its own: see leaveScan() */
+   Paperscan *scan = new Paperscan;
 
-   connect (&scan, SIGNAL (stackNew (const QString &)), this, SLOT (slotStackNew (const QString &)));
-   connect (&scan, SIGNAL (stackNewPage (const Filepage *, const QString &, const QString &)),
+   connect (scan, SIGNAL (stackNew (const QString &)), this, SLOT (slotStackNew (const QString &)));
+   connect (scan, SIGNAL (stackNewPage (const Filepage *, const QString &, const QString &)),
          this, SLOT (slotStackNewPage (const Filepage *, const QString &, const QString &)));
-   connect (&scan, SIGNAL (stackConfirm (void)), this, SLOT (slotStackConfirm (void)));
-   connect (&scan, SIGNAL (stackCancel (void)), this, SLOT (slotStackCancel (void)));
-   connect (&scan, SIGNAL (scanComplete (SANE_Status, const QString &, const err_info *)),
+   connect (scan, SIGNAL (stackConfirm (void)), this, SLOT (slotStackConfirm (void)));
+   connect (scan, SIGNAL (stackCancel (void)), this, SLOT (slotStackCancel (void)));
+   connect (scan, SIGNAL (scanComplete (SANE_Status, const QString &, const err_info *)),
          this, SLOT (slotScanComplete (SANE_Status, const QString &, const err_info *)));
-   connect (&scan, SIGNAL (progress (const QString &)), this, SLOT (progress (const QString &)));
-   connect (&scan, SIGNAL (stackPageStarting (int, const PPage *)),
+   connect (scan, SIGNAL (progress (const QString &)), this, SLOT (progress (const QString &)));
+   connect (scan, SIGNAL (stackPageStarting (int, const PPage *)),
       this, SLOT (slotStackPageStarting (int, const PPage *)));
-   connect (&scan, SIGNAL (stackPageProgress (const PPage *)),
+   connect (scan, SIGNAL (stackPageProgress (const PPage *)),
       this, SLOT (slotStackPageProgress (const PPage *)));
-   connect (&scan, SIGNAL (doubleFeedDetected (void)),
+   connect (scan, SIGNAL (doubleFeedDetected (void)),
       this, SLOT (slotDoubleFeedDetected (void)));
-   connect (&scan, SIGNAL (scanProblem (const QString &)),
+   connect (scan, SIGNAL (scanProblem (const QString &)),
       this, SLOT (slotScanProblem (const QString &)));
-   connect (&scan, SIGNAL (scanWaiting (bool)),
+   connect (scan, SIGNAL (scanWaiting (bool)),
       this, SLOT (slotScanWaiting (bool)));
 
-   scan.setup (_scanner, stack_name, page_name);
-   scan.start ();
-   _scan = &scan;
+   scan->setup (_scanner, stack_name, page_name);
+   scan->start ();
+   _scan = scan;
    _scanning = true;
+   _scan_left = false;
+   _scan_give_up_ms = -1;
+   _scan_stack_open = false;
+   _scan_stack_pages = 0;
    _scan_waiting = false;
    _scan_cancelling = false;
    _scan_ok = false;
@@ -572,10 +645,24 @@ void Mainwidget::scanInto(QModelIndex target)
       missed. The scanning thread has no event loop of its own, so nothing
       needs delivering to it. */
    while (_scanning)
+      {
       qApp->processEvents (QEventLoop::WaitForMoreEvents);
+      if (_scanning && _scan_give_up_ms >= 0
+          && _scan_give_up.hasExpired (_scan_give_up_ms))
+         leaveScan ();
+      }
+   if (_scan_left)
+      {
+      // the thread still has the scanner, so leave it be
+      _scan = 0;
+      _scan_rate_timer->stop ();
+      updatePscan ();
+      return;
+      }
+
    /* scanComplete() is emitted from the thread just before it finishes,
       so it may still be running: destroying it now would abort */
-   scan.wait ();
+   scan->wait ();
    if (getenv ("PAPERMAN_SCAN_STATS"))
       {
       double wall = _scan_stats.wall.elapsed () / 1000.0;
@@ -583,16 +670,16 @@ void Mainwidget::scanInto(QModelIndex target)
 
       qint64 t_start, t_read, t_data, t_confirm;
 
-      scan.phases (t_start, t_read, t_data, t_confirm);
+      scan->phases (t_start, t_read, t_data, t_confirm);
       qWarning ("scan stats: %d sides in %.1fs (%.0f ms/side); display "
                 "thread CPU %.2fs (%.0f%%), scanning thread CPU %.2fs "
                 "(%.0f%%); display was behind the scanner by up to %d "
                 "sides; scanner had up to %d images waiting; %d progress "
                 "messages",
                 _scan_pages, wall, _scan_pages ? wall * 1000 / _scan_pages : 0,
-                gui, wall ? gui * 100 / wall : 0, scan.cpuSeconds (),
-                wall ? scan.cpuSeconds () * 100 / wall : 0,
-                _scan_stats.max_behind, scan.maxWaiting (),
+                gui, wall ? gui * 100 / wall : 0, scan->cpuSeconds (),
+                wall ? scan->cpuSeconds () * 100 / wall : 0,
+                _scan_stats.max_behind, scan->maxWaiting (),
                 _scan_stats.progress);
       int n = _scan_pages ? _scan_pages : 1;
       qWarning ("scan phases per side: start (fetch and decode) %lld ms, "
@@ -602,6 +689,7 @@ void Mainwidget::scanInto(QModelIndex target)
                 (long long) (t_data / n), (long long) (t_confirm / n));
       }
    _scan = 0;
+   delete scan;
    restorePageSize ();
    /* leave the last rate showing, as a record of the scan */
    _scan_rate_timer->stop ();
@@ -744,6 +832,8 @@ void Mainwidget::slotStackNew (const QString &stack_name)
       err = _contents->beginScan (_view->rootIndexSource (), stack_name);
       if (err)
          _scan->cancelScan (err);
+      _scan_stack_open = !err;
+      _scan_stack_pages = 0;
       }
    }
 
@@ -756,6 +846,86 @@ double Mainwidget::threadCpuSeconds (void)
    if (clock_gettime (CLOCK_THREAD_CPUTIME_ID, &ts))
       return 0;
    return ts.tv_sec + ts.tv_nsec / 1e9;
+   }
+
+
+void Mainwidget::giveUpAfter (int ms)
+   {
+   // the first time asked stands, so that asking again does not put it off
+   if (_scan_give_up_ms < 0)
+      {
+      _scan_give_up.start ();
+      _scan_give_up_ms = ms;
+      }
+   }
+
+
+void Mainwidget::leaveScan (void)
+   {
+   Paperscan *scan = _scan;
+
+   /* Hear nothing more from it, but take in what it has said already. A
+      queued call still waiting to be delivered would otherwise arrive
+      once it is no longer the scan in progress */
+   disconnect (scan, nullptr, this, nullptr);
+   QCoreApplication::sendPostedEvents (this, QEvent::MetaCall);
+
+   /* once the back end returns, the thread is to do as little as it
+      can, since nothing is listening */
+   scan->cancelScan (err_make (ERRFN, ERR_scan_cancelled));
+
+   // it may have ended after all
+   if (!_scanning)
+      return;
+
+   if (_scan_stack_open)
+      {
+      if (_quitting && _scan_stack_pages && !_scan_cancelling)
+         slotStackConfirm ();
+      else
+         slotStackCancel ();
+      }
+   _desktop->scanComplete ();
+
+   QString msg = tr ("The scanner did not answer, so the scan was ended "
+                     "without it");
+
+   progress (msg);
+   _scan_ok = false;
+   _scan_summary = msg;
+   _scanning = false;
+   _scan_waiting = false;
+   _scan_left = true;
+
+   _stuck_scan = scan;
+   QScanner::noteCallsLeft (1);
+   connect (scan, &QThread::finished, this, &Mainwidget::stuckScanDone);
+
+   // it may have finished before it could say so
+   if (!scan->isRunning ())
+      QTimer::singleShot (0, this, &Mainwidget::stuckScanDone);
+   }
+
+
+void Mainwidget::stuckScanDone (void)
+   {
+   Paperscan *scan = _stuck_scan;
+
+   if (!scan)
+      return;
+   _stuck_scan = nullptr;
+
+   // it has said it is finishing, so this does not wait long
+   scan->wait ();
+   delete scan;
+   QScanner::noteCallsLeft (-1);
+   restorePageSize ();
+   if (!_quitting)
+      {
+      progress (tr ("The scanner has answered: ready to scan"));
+      _watchButtons = true;
+      }
+   updatePscan ();
    }
 
 
@@ -797,7 +967,7 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
    // don't report end of documents if we have managed to scan some
    if (status)
       {
-      if (utilHeadless ())
+      if (utilHeadless () || _quitting)
          qWarning () << "Scan status:" << sane_strstatus (status) << msg;
 
       /* the scanner stopping part way through a batch is the user's to
@@ -818,7 +988,7 @@ void Mainwidget::slotScanComplete (SANE_Status status, const QString &msg, const
 
    progress (msg);
 
-   if (err && err->errnum != ERR_scan_cancelled)
+   if (err && err->errnum != ERR_scan_cancelled && !_quitting)
       warn ("Error", err->errstr);
    _scan_ok = status == SANE_STATUS_GOOD && !err;
    _scan_summary = msg;
@@ -848,6 +1018,7 @@ void Mainwidget::slotStackNewPage (const Filepage *mp, const QString &coverageSt
       if (_console)
          printf ("Page %d: %s\n", _scan_pages, qPrintable (coverageStr));
       err = _contents->addPageToScan (mp, coverageStr);
+      _scan_stack_pages++;
       _scan->pageAdded (mp);
       progressSize (_contents->getScanSize ());
       if (err)
@@ -878,6 +1049,7 @@ void Mainwidget::slotStackConfirm (void)
 
       _desktop->addFileToDirmodelCache(_scan_path, fname);
       }
+   _scan_stack_open = false;
    }
 
 
@@ -889,6 +1061,7 @@ void Mainwidget::slotStackCancel (void)
    err_info *err = _contents->cancelScan ();
    if (err)
       _scan->cancelScan (err);
+   _scan_stack_open = false;
    }
 
 
