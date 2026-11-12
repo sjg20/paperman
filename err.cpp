@@ -116,6 +116,7 @@ static const char *err_msg [ERR_count] =
    "Could not fetch remote file: %s",
    "Remote %s failed: %s",
    "Cannot move stacks between repositories",
+   "Invalid page property '%s'",
    };
 
 

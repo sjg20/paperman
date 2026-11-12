@@ -98,6 +98,9 @@ don't have this value */
 // marks the position of a page's OCR chunk in its roswell chunk: "OCR1"
 #define ROSWELL_OCR_MAGIC 0x3152434f
 
+// marks the position of a page's properties chunk likewise: "PRP1"
+#define ROSWELL_PROPS_MAGIC 0x31505250
+
 
 /*
 picked up again 8/12/04
@@ -154,6 +157,11 @@ Notes removed
      ..
      ce   w   noti2_pos
      d2   w   text_pos
+     ..
+    190   w   "PRP1" if Paperman wrote the next word
+    194   w   props_pos: Paperman's chunk of the page's properties
+    198   w   "OCR1" if Paperman wrote the next word
+    19c   w   ocr_pos: Paperman's chunk of what OCR read from the page
 
    chunk format:
 
@@ -362,9 +370,19 @@ enum
    POS_roswell_ocr_magic = 0x198,
    POS_roswell_ocr       = 0x19c,
 
+   /* likewise the position of the page's properties chunk, just before;
+      Paperman writes nothing else in these eight bytes */
+   POS_roswell_props_magic = 0x190,
+   POS_roswell_props     = 0x194,
+
    // within Paperman's OCR chunk: the length of the data, then the data
    POS_ocr_size          = 0x20,
    POS_ocr_data          = 0x24,
+
+   /* within Paperman's properties chunk: the length of the data, then
+      the data, as UTF-8 text with a 'key=value' line for each */
+   POS_props_size        = 0x20,
+   POS_props_data        = 0x24,
 
    POSn_roswell_timestamp = 0x20,   // page timestamp
 
@@ -379,6 +397,7 @@ enum
    CT_annot,           // annotation chunk
    CT_env,             // envelope chunk
    CT_ocr,             // Paperman's OCR chunk: a page's words, with boxes
+   CT_props,           // Paperman's chunk of a page's properties
 
    /* part types */
    PT_colourmap = 0,
@@ -422,7 +441,8 @@ enum
    CHUNKF_bermuda = 0x8000,    // chunk contains bermuda data
    CHUNKF_annot   = 0x8002,    // chunk contains annot data
    CHUNKF_env     = 0x8004,    // chunk contains envelope data
-   CHUNKF_ocr     = 0x8010     // Paperman's own: a page's OCR words
+   CHUNKF_ocr     = 0x8010,    // Paperman's own: a page's OCR words
+   CHUNKF_props   = 0x8020     // Paperman's own: a page's properties
    };
 
 
@@ -599,6 +619,7 @@ static const char *chunk_namestr (int type)
       case CT_annot    : return "Annot";
       case CT_env      : return "Envelope";
       case CT_ocr      : return "Ocr";
+      case CT_props    : return "Props";
       default :
          sprintf (str, "t%-4x:", type);
          return str;
@@ -2186,6 +2207,10 @@ err_info *Filemax::read_chunk (chunk_info &chunk, int pos)
          chunk.type = CT_ocr;
          break;
 
+      case CHUNKF_props :
+         chunk.type = CT_props;
+         break;
+
       default :
          chunk.type = CT_unknown;
          break;
@@ -2434,6 +2459,13 @@ err_info *Filemax::page_read_roswell (page_info &page)
    if (_version >= 1
        && getword (page.roswell + POS_roswell_ocr_magic) == ROSWELL_OCR_MAGIC)
       page.ocr = getword (page.roswell + POS_roswell_ocr);
+
+   // and its properties chunk
+   page.props = 0;
+   if (_version >= 1
+       && getword (page.roswell + POS_roswell_props_magic)
+            == ROSWELL_PROPS_MAGIC)
+      page.props = getword (page.roswell + POS_roswell_props);
    page.timestamp = _timestamp;
    if (_version >= 1)
       page.timestamp.setSecsSinceEpoch(getword (page.roswell + POSn_roswell_timestamp));
@@ -4894,6 +4926,17 @@ static err_info *alloc_chunk_buf (chunk_info &chunk, byte **bufp)
    }
 
 
+/* point a page's record at its properties chunk, or at none if 'props'
+   is 0 */
+static void write_roswell_props (byte *buf, int props)
+   {
+   unsigned *idata = (unsigned *)buf;
+
+   idata [POS_roswell_props_magic / 4] = ROSWELL_PROPS_MAGIC;
+   idata [POS_roswell_props / 4] = props;
+   }
+
+
 static void write_roswell (byte *buf, page_info &page)
    {
    unsigned short *data = (unsigned short *)buf;
@@ -4913,6 +4956,7 @@ static void write_roswell (byte *buf, page_info &page)
    data [0xd2 / 2 + 1] = page.text >> 16;
    idata [POS_roswell_ocr_magic / 4] = ROSWELL_OCR_MAGIC;
    idata [POS_roswell_ocr / 4] = page.ocr;
+   write_roswell_props (buf, page.props);
    }
 
 
@@ -5104,7 +5148,7 @@ void Filemax::page_init (page_info &page)
       read; setup_max() marks those of a page read from the file unread */
    page.have_roswell = true;
    page.image = page.noti1 = page.noti2 = page.title = page.text = 0;
-   page.ocr = 0;
+   page.ocr = page.props = 0;
    page.title_loaded = page.title_saved = false;
    }
 
@@ -5389,6 +5433,28 @@ err_info *Filemax::create_ocr (page_info &page, const QByteArray &data)
    }
 
 
+err_info *Filemax::create_props (page_info &page, const QByteArray &data)
+   {
+   chunk_info chunk;
+   byte *buf;
+
+   CALL (ensure_roswell (page));
+   chunk_init (chunk);
+   chunk.chunkid = page.chunkid;
+   chunk.type = CT_props;
+   chunk.size = ALIGN_CHUNK (POS_props_data + data.size ());
+   chunk.textflag = 0;
+   chunk.flags = CHUNKF_props;
+   chunk.titletype = 0;
+   CALL (alloc_chunk_buf (chunk, &buf));
+   add_generic_chunk_header (chunk, buf);
+   *(unsigned *)(buf + POS_props_size) = data.size ();
+   memcpy (buf + POS_props_data, data.constData (), data.size ());
+   CALL (insert_chunk (chunk, &page.props));
+   return NULL;
+   }
+
+
 err_info *Filemax::page_add (int chunkid, const QString &titlestr,
           page_info *&pagep)
    {
@@ -5577,6 +5643,7 @@ err_info *Filemax::merge_chunks (Filemax *src,
    CALL (merge_chunk (src, srcpage.title, &dstpage.title));
    CALL (merge_chunk (src, srcpage.text, &dstpage.text));
    CALL (merge_chunk (src, srcpage.ocr, &dstpage.ocr));
+   CALL (merge_chunk (src, srcpage.props, &dstpage.props));
    return NULL;
    }
 
@@ -5591,6 +5658,7 @@ err_info *Filemax::free_page (page_info &page)
    CALL (remove_chunknum (page.title));
    CALL (remove_chunknum (page.text));
    CALL (remove_chunknum (page.ocr));
+   CALL (remove_chunknum (page.props));
    return NULL;
    }
 
@@ -5603,6 +5671,7 @@ err_info *Filemax::restore_page (page_info &page)
    CALL (restore_chunknum (page.title));
    CALL (restore_chunknum (page.text));
    CALL (restore_chunknum (page.ocr));
+   CALL (restore_chunknum (page.props));
 
    return NULL;
    }
@@ -6056,13 +6125,47 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
    }
 
 
+err_info *Filemax::read_sized_chunk (int pos, int type, QByteArray &data)
+   {
+   chunk_info *chunk;
+   bool temp;
+
+   CALL (chunk_find (pos, chunk, &temp));
+
+   err_info *err = NULL;
+   int size = 0;
+
+   // the OCR and properties chunks give the size in the same place
+   static_assert (POS_ocr_size == POS_props_size
+                  && POS_ocr_data == POS_props_data, "chunk layout");
+   if (chunk->type != type)
+      err = err_make (ERRFN, ERR_chunk_at_pos_not_found1, pos);
+   else
+      err = getworde (chunk->start + POS_ocr_size, &size);
+   if (!err && (size < 0 || size > chunk->size - POS_ocr_data))
+      err = err_make (ERRFN, ERR_chunk_at_pos_not_found1, pos);
+
+   data.clear ();
+   if (!err)
+      {
+      data.resize (size);
+      err = max_read_data (chunk->start + POS_ocr_data, (byte *)data.data (),
+                           size);
+      }
+   if (temp)
+      {
+      chunk_free (*chunk);
+      delete chunk;
+      }
+   return err;
+   }
+
+
 err_info *Filemax::getPageOcr (int pagenum, OcrPage &out)
    {
    QMutexLocker locker (&_file_mutex);
 
    page_info *page;
-   chunk_info *chunk;
-   bool temp;
 
    out = OcrPage ();
 
@@ -6084,33 +6187,10 @@ err_info *Filemax::getPageOcr (int pagenum, OcrPage &out)
    CALL (ensure_roswell (*page));
    if (!page->ocr)
       return NULL;
-   CALL (chunk_find (page->ocr, chunk, &temp));
-
-   err_info *err = NULL;
-   int size = 0;
-
-   if (chunk->type != CT_ocr)
-      err = err_make (ERRFN, ERR_chunk_at_pos_not_found1, page->ocr);
-   else
-      err = getworde (chunk->start + POS_ocr_size, &size);
-   if (!err && (size < 0 || size > chunk->size - POS_ocr_data))
-      err = err_make (ERRFN, ERR_chunk_at_pos_not_found1, page->ocr);
 
    QByteArray ba;
 
-   if (!err)
-      {
-      ba.resize (size);
-      err = max_read_data (chunk->start + POS_ocr_data, (byte *)ba.data (),
-                           size);
-      }
-   if (temp)
-      {
-      chunk_free (*chunk);
-      delete chunk;
-      }
-   if (err)
-      return err;
+   CALL (read_sized_chunk (page->ocr, CT_ocr, ba));
 
    // a page read by a later version of Paperman is left unread
    OcrPage::fromBytes (ba, out);
@@ -6148,6 +6228,120 @@ err_info *Filemax::putPageOcr (int pagenum, const OcrPage &ocr)
    else
       {
       CALL (create_ocr (*page, ocr.toBytes ()));
+      }
+   CALL (create_roswell (*page));
+   return flush ();
+   }
+
+
+/* a page's properties as the text kept in its chunk: a 'key=value' line
+   for each, in the order of their keys */
+static QByteArray props_to_bytes (const QMap<QString, QString> &props)
+   {
+   QString text;
+
+   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+      text += it.key () + '=' + it.value () + '\n';
+   return text.toUtf8 ();
+   }
+
+
+/* the properties in the text kept in a page's chunk; a line with no '='
+   is ignored */
+static void props_from_bytes (const QByteArray &data,
+                              QMap<QString, QString> &props)
+   {
+   const QStringList lines = QString::fromUtf8 (data).split ('\n',
+                                                Qt::SkipEmptyParts);
+
+   props.clear ();
+   for (const QString &line : lines)
+      {
+      int eq = line.indexOf ('=');
+
+      if (eq > 0)
+         props.insert (line.left (eq), line.mid (eq + 1));
+      }
+   }
+
+
+//! true if 'str' would break a 'key=value' line
+static bool props_breaks_line (const QString &str)
+   {
+   return str.contains ('\n') || str.contains ('\r');
+   }
+
+
+err_info *Filemax::getPageProps (int pagenum, QMap<QString, QString> &props)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   page_info *page;
+
+   props.clear ();
+
+   // a stack held a page at a time keeps them in each page's file
+   if (isSparse ())
+      {
+      Filemax *max;
+
+      CALL (child (pagenum, max));
+      return max->getPageProps (0, props);
+      }
+
+   // closed again however this returns, so the file is not held open
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (find_page (pagenum, page));
+   CALL (ensure_roswell (*page));
+   if (!page->props)
+      return NULL;
+
+   QByteArray ba;
+
+   CALL (read_sized_chunk (page->props, CT_props, ba));
+   props_from_bytes (ba, props);
+   return NULL;
+   }
+
+
+err_info *Filemax::putPageProps (int pagenum,
+                                 const QMap<QString, QString> &props)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   page_info *page;
+
+   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+      if (it.key ().isEmpty () || it.key ().contains ('=')
+          || props_breaks_line (it.key ()) || props_breaks_line (it.value ()))
+         return err_make (ERRFN, ERR_invalid_page_property1,
+                          qPrintable (it.key ()));
+
+   // nothing is written to a stack held a page at a time, as with OCR
+   if (isSparse ())
+      return not_impl ();
+
+   load ();
+
+   // dropping the old chunk reads it in first
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (ensure_all_chunks ());
+   CALL (find_page (pagenum, page));
+   CALL (ensure_roswell (*page));
+   if (props.isEmpty ())
+      {
+      if (!page->props)
+         return NULL;
+      CALL (remove_chunknum (page->props));
+      page->props = 0;
+      }
+   else
+      {
+      CALL (create_props (*page, props_to_bytes (props)));
       }
    CALL (create_roswell (*page));
    return flush ();
@@ -6862,7 +7056,7 @@ err_info *Filemax::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
    /* the page gets chunks of its own at the end of the file, leaving the
       old ones where they are to be brought back. None of the text goes
       with it, since some of the words may have been cut away; the page
-      is read again */
+      is read again. Its properties stay with it as they are */
    page_info old = *info;
 
    info->image = 0;
@@ -6875,6 +7069,7 @@ err_info *Filemax::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
    // only let go of the old page now that the new one is safely written
    page_info freed = old;
 
+   freed.props = 0;
    CALL (free_page (freed));
    CALL (flush ());
 
@@ -6908,12 +7103,31 @@ err_info *Filemax::uncropPage (int pagenum, const QByteArray &undo)
    CALL (open.err ());
    CALL (ensure_all_chunks ());
 
-   // the crop's own chunks are finished with, unlike the page's noti ones
+   /* the crop's own chunks are finished with, unlike the page's noti
+      ones; the properties are the page's, whatever they are now */
+   CALL (ensure_roswell (*info));
+
    page_info freed = *info;
 
+   freed.props = 0;
    CALL (free_page (freed));
    CALL (restore_page (old));
+   old.props = info->props;
    *info = old;
+
+   // the old record may point at the properties the page had before
+   if (info->roswell)
+      {
+      chunk_info *ros;
+
+      CALL (chunk_find (info->roswell, ros, NULL));
+      CALL (read_chunk_buf (*ros));
+      if (ros->size >= POS_roswell_props + 4)
+         {
+         write_roswell_props (ros->buf, info->props);
+         ros->saved = false;
+         }
+      }
    return flush ();
    }
 
@@ -6932,7 +7146,7 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
    CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
 
    /* the words' boxes no longer match the page, so drop them; the page
-      is read again the right way up */
+      is read again the right way up. Its properties stay with it */
    CALL (ensure_roswell (*info));
    if (info->ocr)
       {

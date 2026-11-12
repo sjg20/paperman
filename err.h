@@ -123,6 +123,7 @@ enum
    ERR_remote_fetch_failed1,
    ERR_remote_op_failed2,
    ERR_cannot_move_between_repositories,
+   ERR_invalid_page_property1,
 
    ERR_count
    };

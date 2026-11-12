@@ -43,6 +43,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QBitArray>
 #include <QDateTime>
 #include <QImage>
+#include <QMap>
 #include <QObject>
 
 #include "imageadjust.h"
@@ -159,13 +160,16 @@ public:
 
    static Filepage *createPage (e_type type);
 
-   /** bring along what OCR read from pages, to another file, where both
-       files can keep it; for a PDF this adds a text layer
+   /** bring along what is kept with pages, to another file, where both
+       files can keep it: what OCR read, for which a PDF gets a text
+       layer, and the pages' properties
 
       \param fnew    the file to copy to, holding the pages
-      \param pages   each page read, as a (from, to) pair of page numbers
+      \param pages   each page copied, as a (from, to) pair of page
+                     numbers
       \returns error, or NULL if ok */
-   err_info *copyOcrTo (File *fnew, const QList<QPair<int, int>> &pages);
+   err_info *copyPageDataTo (File *fnew,
+                             const QList<QPair<int, int>> &pages);
 
    err_info *copyTo (File *fnew, int odd_even, Operation &op, bool verbose = false,
                      int first_page = 0, int last_page = -1);
@@ -345,6 +349,28 @@ public:
       \param page     what was read, or an empty page to forget it
       \returns error, or NULL if ok */
    virtual err_info *putPageOcr (int pagenum, const OcrPage &page);
+
+   /** a page's properties, kept with the page as text, one 'key=value'
+       line for each
+
+      \param pagenum  the page, from 0
+      \param props    returns the properties, empty if the page has none
+      \returns error, or NULL if ok; a file type which cannot keep them
+               returns an error */
+   virtual err_info *getPageProps (int pagenum,
+                                   QMap<QString, QString> &props);
+
+   /** keep a page's properties with the page, in place of any it has
+
+      Each key is a plain identifier: one which is empty or holds '=', a
+      line feed or a carriage return is rejected, as is a value holding
+      a line feed or a carriage return, and nothing is written
+
+      \param pagenum  the page, from 0
+      \param props    the properties, or an empty map to remove them
+      \returns error, or NULL if ok */
+   virtual err_info *putPageProps (int pagenum,
+                                   const QMap<QString, QString> &props);
 
    /** gets the total size of a file in bytes. this should include data not
        yet flushed to the filesystem */
