@@ -126,6 +126,13 @@ public:
        However, if the scale has since changed, then this function will
        rescale the pixmap that it returns as a temporary measure */
    QPixmap pixmap (bool &dodgy);
+
+   /** the size the page's pixmap has at the current page size, without
+       asking for one to be made, as pixmap() does
+
+      \returns the size, or an invalid size if there is no pixmap yet */
+   QSize knownPixmapSize (void) const;
+
    int pagenum (void) { return _pagenum; }
    int itemnum (void) { return _itemnum; }
 

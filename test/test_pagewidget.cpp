@@ -116,6 +116,36 @@ void TestPagewidget::testRenderedAtOtherSize()
             qPrintable(QString("%1x%2").arg(shown.width()).arg(shown.height())));
 }
 
+/* The size of a page's pixmap can be had without asking for one to be
+   made, and is the size pixmap() would give */
+void TestPagewidget::testKnownPixmapSize()
+{
+   Pagemodel model(nullptr);
+   const QSize small(100, 140), large(400, 560);
+
+   model.setPagesize(small);
+   Pageinfo page;
+   page.setup(&model, 0);
+
+   // no pixmap yet, and asking does not ask for one
+   QVERIFY(!page.knownPixmapSize().isValid());
+   QVERIFY(!page.wantsRescale());
+
+   // a wide page drawn for this view
+   QPixmap wide(100, 25);
+   wide.fill(Qt::white);
+   page.setPixmap(wide, small);
+   QCOMPARE(page.knownPixmapSize(), QSize(100, 25));
+
+   // drawn for another view, it is the size it is shown at here
+   QPixmap drawn(400, 100);
+   drawn.fill(Qt::white);
+   page.setPixmap(drawn, large);
+   bool dodgy = false;
+   QCOMPARE(page.knownPixmapSize(), page.pixmap(dodgy).size());
+   QCOMPARE(page.knownPixmapSize(), QSize(100, 25));
+}
+
 void TestPagewidget::testOpenAtCurrentPage()
 {
    Desktopmodel *model;

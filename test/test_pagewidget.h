@@ -28,6 +28,9 @@ private slots:
    //! from the scan view, is scaled to the size it is shown at
    void testRenderedAtOtherSize();
 
+   //! the size of a page's pixmap is had without asking for one
+   void testKnownPixmapSize();
+
    //! Test that opening a stack shows the stack's current page
    void testOpenAtCurrentPage();
 

@@ -1095,6 +1095,18 @@ QPixmap Pageinfo::pixmap (bool &dodgy)
    }
 
 
+QSize Pageinfo::knownPixmapSize (void) const
+   {
+   if (_pixmap.isNull ())
+      return QSize ();
+
+   // pixmap() scales one made for another page size, so say what it gives
+   if (_model->pagesize () != _size)
+      return _pixmap.size ().scaled (_model->pagesize (), Qt::KeepAspectRatio);
+   return _pixmap.size ();
+   }
+
+
 bool Pageinfo::finishProvisional (void)
    {
    if (!_provisional)
