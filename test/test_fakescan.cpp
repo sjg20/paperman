@@ -1853,6 +1853,114 @@ void TestFakescan::testStall ()
 }
 
 
+/* A sane_start() held up by a scanner which has stopped answering shows
+   how long it has been waiting, and another thread can interrupt it. At
+   any other time there is nothing to interrupt, and a cancel would be a
+   second call made at once, so none is made */
+void TestFakescan::testInterrupt ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   QCOMPARE (scanner.callTime (), -1);
+   QVERIFY (!scanner.interrupt ());
+   QCOMPARE (Fakescan::count ("cancel"), 0);
+
+   SANE_Status status = SANE_STATUS_GOOD;
+
+   Fakescan::stall ("start", 60 * 1000);
+   std::thread thread ([&] () { status = scanner.start (); });
+   auto join = qScopeGuard ([&] () {
+      Fakescan::clear ();
+      thread.join ();
+   });
+
+   QTRY_VERIFY (Fakescan::log ().contains ("start: stalled"));
+
+   QString call;
+
+   QVERIFY (scanner.callTime (&call) >= 0);
+   QCOMPARE (call, QString ("sane_start"));
+   QVERIFY (scanner.interrupt ());
+   join.dismiss ();
+   thread.join ();
+   QCOMPARE (status, SANE_STATUS_CANCELLED);
+   QCOMPARE (scanner.callTime (), -1);
+   QVERIFY (Fakescan::log ().contains ("cancel from another thread"));
+   QVERIFY2 (!Fakescan::log ().join (" ").contains ("concurrent"),
+             qPrintable (Fakescan::log ().join ("\n")));
+
+   // telling the scanner to stop can hang too, but is not interrupted
+   Fakescan::stall ("cancel", 60 * 1000);
+   std::thread cancel ([&] () { scanner.cancel (); });
+   auto join_cancel = qScopeGuard ([&] () {
+      Fakescan::clear ();
+      cancel.join ();
+   });
+
+   QTRY_VERIFY (Fakescan::log ().contains ("cancel: stalled"));
+   QVERIFY (scanner.callTime (&call) >= 0);
+   QCOMPARE (call, QString ("sane_cancel"));
+   QVERIFY (!scanner.interrupt ());
+}
+
+
+/* Leaving SANE closes the scanner, which sends it a command. One which
+   does not answer is left to time out on a thread of its own, and is
+   counted until it does */
+void TestFakescan::testExitWithin ()
+{
+   QCOMPARE (QScanner::callsLeft (), 0);
+
+   QScanner *scanner = new QScanner;
+
+   openScanner (*scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      {
+      delete scanner;
+      return;
+      }
+   QVERIFY (scanner->exitWithin (10 * 1000));
+   QCOMPARE (QScanner::callsLeft (), 0);
+   QVERIFY (Fakescan::log ().contains ("close"));
+   QVERIFY (!scanner->isOpen ());
+   delete scanner;
+
+   scanner = new QScanner;
+   openScanner (*scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      {
+      delete scanner;
+      return;
+      }
+   Fakescan::stall ("close", 60 * 1000);
+
+   QElapsedTimer timer;
+
+   timer.start ();
+   QVERIFY (!scanner->exitWithin (100));
+   QVERIFY (timer.elapsed () < 60 * 1000);
+   QCOMPARE (QScanner::callsLeft (), 1);
+
+   // the scanner can go while the calls carry on
+   delete scanner;
+   QCOMPARE (Fakescan::log ().filter (QRegularExpression ("^close$")).size (),
+             1);
+
+   // and they finish once it answers
+   Fakescan::clear ();
+   QTRY_COMPARE (QScanner::callsLeft (), 0);
+   QCOMPARE (Fakescan::log ().filter (QRegularExpression ("^close$")).size (),
+             2);
+}
+
+
 /* a white sheet of US letter at 10dpi with a black band a fifth of the
    way down it, in the middle, or four fifths down */
 static QImage bandSheet (int where)

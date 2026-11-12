@@ -23,8 +23,11 @@ extern "C"
 #include <sane/sane.h>
 }
 
+#include <QAtomicInt>
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QMultiHash>
+#include <QMutex>
 
 
 //s #include <qarray.h>
@@ -540,7 +543,70 @@ is able to choose an option value automatically. */
                        SANE_Int max_len,
                        SANE_Int *front_len, SANE_Int *back_len);
 
+  /** Interrupt a sane_start() or sane_read() which another thread is
+      waiting in, by calling sane_cancel() as SANE allows. Any other time
+      that is an ordinary call, which must not be made while another is
+      going on, so nothing is done. It is safe to call from any thread.
+
+      A back end need not take any notice until the command it is waiting
+      for has finished, so the call may still take as long as the
+      scanner's timeout to return
+
+      \returns true if a call was interrupted */
+  bool interrupt (void);
+
+  /** How long the call being made into the back end to start a frame,
+      read it or cancel it has been going on, so that a scanner which has
+      stopped answering can be noticed while the call waits. It is safe to
+      call from any thread
+
+      \param call   if not NULL, set to the name of the call, such as
+                    "sane_start"
+      \returns the time in milliseconds, or -1 if no such call is being
+               made */
+  qint64 callTime (QString *call = nullptr) const;
+
+  /** Close the device and leave SANE, as the destructor does, but give
+      up waiting after a while. A scanner which has stopped answering
+      holds sane_close() up for as long as its timeout, since closing
+      sends it a command, so the calls are made on a thread of their own.
+      If they do not finish in time they are left to do so there, and
+      callsLeft() counts them until they do. Either way this scanner is
+      closed afterwards and may be deleted
+
+      \param ms   how long to wait
+      \returns true if SANE was left in time */
+  bool exitWithin (int ms);
+
+  /** \returns how many lots of calls into SANE are still going on after
+               being left to finish on their own, by exitWithin() or by
+               a scan which the scanner was not answering. Until they
+               finish, the process must leave alone everything they use,
+               the back end's library among it */
+  static int callsLeft (void);
+
+  /** Count calls into SANE as left to finish on their own, or as done
+
+      \param change   1 as they are left, -1 once they finish */
+  static void noteCallsLeft (int change);
+
 private: // Private attributes
+
+  /** notes a call into the back end for callTime() and interrupt() */
+  class CallScope;
+
+  /** see callTime(): the call being made, or NULL if none */
+  const char *mCall;
+  /** true if interrupt() may cancel it */
+  bool mCallInterruptible;
+  /** time since it was made */
+  QElapsedTimer mCallTimer;
+  /** guards the three above, and is held while interrupt() cancels so
+      that the call cannot end, and another begin, meanwhile */
+  mutable QMutex mCallLock;
+
+  /** see callsLeft() */
+  static QAtomicInt msCallsLeft;
 
   /** locate option numbers for common options */
   void findOptions (void);
