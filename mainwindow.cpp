@@ -21,6 +21,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <QtGui>
 #include <QDir>
 #include <QMessageBox>
@@ -65,6 +68,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTimer>
 #include "mainwindow.h"
 #include "pagewidget.h"
+#include "qscanner.h"
 #include "updatecheck.h"
 #include "utils.h"
 #include "qxmlconfig.h"
@@ -471,6 +475,22 @@ void Mainwindow::runGui(QApplication& app, QStringList args,
 
     me->shutdown();
     delete me;
+
+    /* A scanner which has stopped answering can leave calls into SANE
+       going on in a thread of their own, see QScanner::callsLeft().
+       Destroying the application, running the static destructors and
+       unloading the libraries would pull everything from under them,
+       which can crash or hang as Paperman goes, or wait for the scanner
+       after all. Everything Paperman keeps has been written by now, so
+       go at once, once what is waiting to be said has been */
+    if (QScanner::callsLeft()) {
+        qWarning() << "Paperman: not waiting for the scanner, which is"
+                   << "not answering";
+        utilReportFlush();
+        fflush(stdout);
+        fflush(stderr);
+        _Exit(0);
+    }
     }
 
 void Mainwindow::undoChanged ()
