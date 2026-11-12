@@ -208,6 +208,12 @@ public:
       \returns true if marked for removal, else false */
    bool toRemove (void) const { return _remove; }
 
+   //! true if the page is the stack's cover, as found when it was set up
+   bool isCover (void) const { return _cover; }
+
+   //! look again at whether the page is the cover, if it is set up
+   void updateCover (void);
+
    /** set if a page is to be removed
 
       \returns true if marked for removal, else false */
@@ -248,6 +254,7 @@ private:
    QString _coverage;      //!< information about page coverage
    bool _blank;            //!< true if page is blank
    bool _remove;           //!< marked for removal
+   bool _cover = false;    //!< the page is the stack's cover
    bool _scanning;         //!< true if the page is still being scanned
    };
 
@@ -285,6 +292,19 @@ public:
       \param pagenum  page which has changed */
    void updatePage (int pagenum);
 
+   /** look again at whether pages are the stack's cover, as they are
+       set up, rather than reading every page's properties
+
+      \param pagenum  page whose properties have changed, or -1 for
+                      every page */
+   void updateCover (int pagenum);
+
+   /** read from the stack whether a page is its cover
+
+      \param item  the page's row
+      \returns true if it is */
+   bool readCover (int item) const;
+
    enum e_role
       {
 /* roles available in this model:
@@ -300,6 +320,7 @@ public:
       Role_blank,                      // bool          true if page is blank
       Role_remove,                     // bool          true if page is marked to remove
       Role_scanning,                   // bool          true if the page is being scanned
+      Role_cover,                      // bool          true if the page is the stack's cover
 
       Role_count
       };

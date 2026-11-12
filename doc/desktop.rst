@@ -212,12 +212,25 @@ Then use the buttons on the right of the bar:
    * - |page-crop-trim|
      - **Trim stack to content**: crop every page to what is printed on that
        page. A page with little on it ends up small
+   * - |page-crop-cover|
+     - **Set cover**: make the part marked the stack's front cover, such as
+       the front of a book's dust jacket scanned flat, without cropping
+       anything. With the whole page marked, the whole page is the cover.
+       A stack has one cover, so this takes it from any other page. Only a
+       ``.max`` stack on this computer can have a cover for now
    * - |page-crop-cancel|
      - **Cancel**: leave the page as it is. Pressing Escape does the same
 
 **Edit > Undo** puts back everything a crop removed. The words read from a
 ``.max`` page are dropped when it is cropped, since some may have been cut
 away, and undo brings them back.
+
+The page which is the cover has a small book by it in the page list. When
+the crop bar is opened on that page, the box starts around the cover, so
+that it can be adjusted. Right-click the page in the page list and choose
+**Clear cover** for the stack to have no cover. A cover follows the page
+when it is turned, flipped or cropped, going if a crop cuts all of it
+away, and **Edit > Undo** puts back the cover there was.
 
 .. note::
 
@@ -273,6 +286,7 @@ other whatever the desktop does, use **File > Options**, *Appearance*.
 .. |page-crop-page| image:: images/icons/page-crop-page.png
 .. |page-crop-stack| image:: images/icons/page-crop-stack.png
 .. |page-crop-trim| image:: images/icons/page-crop-trim.png
+.. |page-crop-cover| image:: images/icons/page-crop-cover.png
 .. |page-crop-cancel| image:: images/icons/page-crop-cancel.png
 .. |page-zoomfit| image:: images/icons/page-zoomfit.png
 .. |page-zoomorig| image:: images/icons/page-zoomorig.png

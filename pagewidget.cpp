@@ -32,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QGraphicsItem>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPaintEvent>
 #include <QShortcut>
@@ -59,6 +60,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mainwidget.h"
 #include "maxview.h"
 #include "ocr.h"
+#include "pagecover.h"
 #include "pagedelegate.h"
 #include "pagemodel.h"
 #include "pagetools.h"
@@ -227,6 +229,15 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
       this, SLOT (slotShowInfo (const QModelIndex &)));
    connect (_pageview, &Pageview::pagesMoved, this,
             &Pagewidget::slotPagesMoved);
+
+   // the page list's menu, for the page clicked
+   _clear_cover = new QAction (tr ("Clear cover"), this);
+   _clear_cover->setObjectName ("clearCover");
+   connect (_clear_cover, &QAction::triggered, this,
+            &Pagewidget::slotClearCover);
+   _pageview->setContextMenuPolicy (Qt::CustomContextMenu);
+   connect (_pageview, &QWidget::customContextMenuRequested, this,
+            &Pagewidget::slotPageMenu);
 
    connect (_pagemodel, SIGNAL (pagePartChanged (const QModelIndex &, const QImage &, int)),
       _pageview, SLOT (slotPagePartChanged (const QModelIndex &, const QImage &, int)));
@@ -1608,6 +1619,14 @@ void HintLabel::paintEvent (QPaintEvent *event)
    }
 
 
+//! what Set cover does, for its tooltip
+static QString set_cover_tip (void)
+   {
+   return Pagewidget::tr ("Make the part marked the stack's front cover, "
+                          "or the whole page if all of it is marked");
+   }
+
+
 void Pagewidget::createCropBar (void)
    {
    _crop_bar = new QFrame (this);
@@ -1653,6 +1672,9 @@ void Pagewidget::createCropBar (void)
                  tr ("Crop every page in the stack to what is printed on it, "
                      "however little that is")),
             SIGNAL (clicked ()), this, SLOT (slotCropEach ()));
+   _set_cover = add ("setCover", "cover", tr ("Set cover"),
+                     set_cover_tip ());
+   connect (_set_cover, SIGNAL (clicked ()), this, SLOT (slotSetCover ()));
    connect (add ("cropCancel", "cancel", tr ("Cancel"),
                  tr ("Leave the page as it is (Escape)")),
             SIGNAL (clicked ()), this, SLOT (slotCropCancel ()));
@@ -1707,6 +1729,21 @@ QRectF Pagewidget::markedArea (void) const
    }
 
 
+QRectF Pagewidget::shownArea (const QRectF &area) const
+   {
+   if (_image.isNull () || _page_size.isEmpty ()
+       || _page_size == _image.size ())
+      return area;
+
+   // see markedArea()
+   double xs = double (_page_size.width ()) / _image.width ();
+   double ys = double (_page_size.height ()) / _image.height ();
+
+   return QRectF (area.x () * xs, area.y () * ys, area.width () * xs,
+                  area.height () * ys);
+   }
+
+
 void Pagewidget::cropTo (int pagenum, const QRectF &area)
    {
    QModelIndex ind;
@@ -1734,7 +1771,22 @@ void Pagewidget::slotCropTool (bool on)
    _returnToDesktop->setEnabled (!on);
    if (on)
       {
-      _area->startCrop (whole_page);
+      Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+      QModelIndex ind;
+      QString why;
+      bool can = getCurrentIndex (ind, true)
+                 && contents->canKeepPageProps (ind, &why);
+      Pagecover cover;
+      QRectF start = whole_page;
+
+      _set_cover->setEnabled (can);
+      _set_cover->setToolTip (can ? set_cover_tip () : why);
+
+      // on the cover, start with its box, so that it can be adjusted
+      if (can && !contents->getPageCover (ind, _pagenum, cover)
+          && cover.isBox ())
+         start = shownArea (cover.box ());
+      _area->startCrop (start);
       _area->setFocus ();
       }
    else
@@ -1775,6 +1827,76 @@ void Pagewidget::slotCropEach (void)
 void Pagewidget::slotCropCancel (void)
    {
    _tools->crop->setChecked (false);
+   }
+
+
+void Pagewidget::slotSetCover (void)
+   {
+   QModelIndex ind;
+
+   if (!_set_cover->isEnabled ())
+      return;
+
+   // the whole page marked, or too little to keep, is the whole page
+   Pagecover cover = Pagecover::fromBox (markedArea ());
+
+   if (cover.isNull ())
+      cover = Pagecover::wholePage ();
+   _tools->crop->setChecked (false);
+   if (!getCurrentIndex (ind, true))
+      return;
+
+   // the page list shows the badge through pagePropsChanged()
+   _modelconv->getDesktopmodel (_model)->setCover (ind, _pagenum, cover);
+   }
+
+
+QMenu *Pagewidget::pageMenu (const QModelIndex &index)
+   {
+   if (!index.isValid ()
+       || !_pagemodel->data (index, Pagemodel::Role_cover).toBool ())
+      return nullptr;
+
+   QMenu *menu = new QMenu (this);
+
+   _clear_cover->setData (
+      _pagemodel->data (index, Pagemodel::Role_pagenum).toInt () - 1);
+   menu->addAction (_clear_cover);
+   return menu;
+   }
+
+
+void Pagewidget::slotPageMenu (const QPoint &pos)
+   {
+   QMenu *menu = pageMenu (_pageview->indexAt (pos));
+
+   if (menu)
+      {
+      menu->exec (_pageview->viewport ()->mapToGlobal (pos));
+      delete menu;
+      }
+   }
+
+
+void Pagewidget::slotClearCover (void)
+   {
+   QModelIndex ind;
+
+   if (getCurrentIndex (ind, true))
+      _modelconv->getDesktopmodel (_model)->setCover (ind,
+            _clear_cover->data ().toInt (), Pagecover ());
+   }
+
+
+void Pagewidget::slotPagePropsChanged (const QModelIndex &stack, int pagenum)
+   {
+   QModelIndex sindex = _index;
+
+   if (!_model || !_index.isValid ())
+      return;
+   _modelconv->indexToSource (_model, sindex);
+   if (sindex == stack)
+      _pagemodel->updateCover (pagenum);
    }
 
 

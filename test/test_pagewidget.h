@@ -64,6 +64,27 @@ private slots:
    void testCropKeys();
    void testCropLeavesStack();
 
+   //! Set cover marks the box drawn as the cover, or else the whole page
+   void testSetCover();
+
+   //! a stack has one cover, so setting it takes it off any other page
+   void testCoverOnePerStack();
+
+   //! setting and clearing the cover can be undone and redone
+   void testCoverUndo();
+
+   //! the page list marks the cover page, and keeps up with changes
+   void testCoverBadge();
+
+   //! the page list's menu clears the cover, on the cover page only
+   void testClearCover();
+
+   //! the crop bar opens on the cover page with the cover's box marked
+   void testCoverBarStart();
+
+   //! a stack which cannot keep a cover says so, rather than offering one
+   void testCoverNotOffered();
+
    //! Test a rotated page's thumbnail is ready at once, not blanked
    void testRotateThumbnailReady();
    void testBackgroundRender();
@@ -92,6 +113,12 @@ private:
       \param page   Returns the page widget showing the stack */
    void openTestStack(Mainwindow *me, Desktopmodel *&model,
                       Pagewidget *&page);
+
+   //! whether the page list marks a page as the cover
+   static bool coverShown(Pagewidget *page, int row);
+
+   //! show a page of the stack in the page view
+   static void showPage(Pagewidget *page, int pagenum);
 };
 
 #endif // TEST_PAGEWIDGET_H

@@ -1,4 +1,5 @@
 #include <QFrame>
+#include <QMenu>
 #include <QLineEdit>
 #include <QSignalSpy>
 #include <QTextEdit>
@@ -16,6 +17,7 @@
 #include "mainwindow.h"
 #include "ocrpage.h"
 #include "ocrreader.h"
+#include "pagecover.h"
 #include "pagemodel.h"
 #include "pageview.h"
 #include "pagewidget.h"
@@ -395,7 +397,8 @@ void TestPagewidget::testCropTool()
    QVERIFY(!apply->icon().isNull() && !all->icon().isNull());
 
    // the buttons on the right are icons alone, named for screen readers
-   for (const char *name : {"cropPage", "cropAll", "cropEach", "cropCancel"}) {
+   for (const char *name : {"cropPage", "cropAll", "cropEach", "setCover",
+                            "cropCancel"}) {
       QToolButton *button = page->findChild<QToolButton *>(name);
       QVERIFY(button);
       QVERIFY(!button->icon().isNull());
@@ -704,6 +707,398 @@ void TestPagewidget::testCropLeavesStack()
    QVERIFY(!page->_area->isCropping());
    QVERIFY(bar->isHidden());
    QVERIFY(!crop->isEnabled());
+}
+
+//! a page's cover, as kept in its properties
+static QString coverOf(File *f, int pagenum)
+{
+   QMap<QString, QString> props;
+   err_info *err = f->getPageProps(pagenum, props);
+
+   if (err)
+      return QString("error: %1").arg(err->errstr);
+   return props.value("cover");
+}
+
+bool TestPagewidget::coverShown(Pagewidget *page, int row)
+{
+   QModelIndex ind = page->_pagemodel->index(row, 0, QModelIndex());
+
+   return page->_pagemodel->data(ind, Pagemodel::Role_cover).toBool();
+}
+
+void TestPagewidget::showPage(Pagewidget *page, int pagenum)
+{
+   page->slotPreviewPage(page->_pagemodel->index(pagenum, 0, QModelIndex()));
+}
+
+void TestPagewidget::testSetCover()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QImage image;
+   QSize before, size, trueSize;
+   int bpp;
+   QVERIFY(!f->getImage(0, false, image, before, trueSize, bpp, false));
+   QCOMPARE(coverOf(f, 0), QString());
+
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *set = page->findChild<QToolButton *>("setCover");
+   QFrame *bar = page->findChild<QFrame *>("cropBar");
+   QVERIFY(crop && set && bar);
+
+   // it is an icon alone, like the others in the bar
+   crop->click();
+   QVERIFY(set->isEnabled());
+   QVERIFY(!set->icon().isNull());
+   QVERIFY(set->text().isEmpty());
+   QCOMPARE(set->accessibleName(), QString("Set cover"));
+   QVERIFY(!set->toolTip().isEmpty());
+
+   // the right half of a jacket is the front cover
+   page->_area->setCropArea(QRectF(0.5, 0, 0.5, 1));
+   Pagecover expect = Pagecover::fromBox(page->markedArea());
+   QVERIFY(expect.isBox());
+   QVERIFY(qAbs(expect.box().left() - 0.5) < 0.01);
+   QVERIFY(qAbs(expect.box().right() - 1) < 0.01);
+   set->click();
+   WAIT_OPS(*model);
+
+   // the bar closes, as after cropping, and the page is not cropped
+   QVERIFY(!page->_area->isCropping());
+   QVERIFY(bar->isHidden());
+   QVERIFY(!crop->isChecked());
+   QCOMPARE(coverOf(f, 0), expect.toString());
+   QVERIFY(!f->getImage(0, false, image, size, trueSize, bpp, false));
+   QCOMPARE(size, before);
+
+   // with nothing less than the page marked, it is the whole page
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 1, 1));
+   set->click();
+   WAIT_OPS(*model);
+   QVERIFY(!page->_area->isCropping());
+   QCOMPARE(coverOf(f, 0), QString("page"));
+
+   // and once it is, setting it again adds nothing to undo
+   int undos = model->getUndoStack()->count();
+   crop->click();
+   set->click();
+   WAIT_OPS(*model);
+   QCOMPARE(model->getUndoStack()->count(), undos);
+   QCOMPARE(coverOf(f, 0), QString("page"));
+}
+
+void TestPagewidget::testCoverOnePerStack()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *set = page->findChild<QToolButton *>("setCover");
+
+   crop->click();
+   set->click();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString("page"));
+
+   // another page made the cover takes it from the first
+   showPage(page, 2);
+   QCOMPARE(page->getCurrentPage(), 2);
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 0.5, 1));
+   set->click();
+   WAIT_OPS(*model);
+   QVERIFY(coverOf(f, 2).startsWith("0.0000,0.0000,"));
+   for (int i = 0; i < f->pagecount(); i++) {
+      if (i != 2)
+         QVERIFY2(coverOf(f, i).isEmpty(), qPrintable(QString::number(i)));
+   }
+
+   // the other properties of a page which loses the cover stay
+   QMap<QString, QString> props;
+   props["cover"] = "page";
+   props["name"] = "jacket";
+   QVERIFY(!f->putPageProps(4, props));
+   showPage(page, 1);
+   crop->click();
+   set->click();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 1), QString("page"));
+   QCOMPARE(coverOf(f, 2), QString());
+   QVERIFY(!f->getPageProps(4, props));
+   QVERIFY(!props.contains("cover"));
+   QCOMPARE(props.value("name"), QString("jacket"));
+}
+
+void TestPagewidget::testCoverUndo()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *set = page->findChild<QToolButton *>("setCover");
+   QUndoStack *undo = model->getUndoStack();
+
+   crop->click();
+   page->_area->setCropArea(QRectF(0.5, 0, 0.5, 1));
+   set->click();
+   WAIT_OPS(*model);
+   const QString first = coverOf(f, 0);
+   QVERIFY(!first.isEmpty());
+   QCOMPARE(undo->undoText(), QString("Set cover"));
+
+   showPage(page, 3);
+   crop->click();
+   set->click();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString());
+   QCOMPARE(coverOf(f, 3), QString("page"));
+
+   // undo gives the first page its cover back, then takes it away
+   undo->undo();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), first);
+   QCOMPARE(coverOf(f, 3), QString());
+   undo->undo();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString());
+   QCOMPARE(coverOf(f, 3), QString());
+   QMap<QString, QString> props;
+   QVERIFY(!f->getPageProps(0, props));
+   QVERIFY(props.isEmpty());
+
+   // and redo does each again
+   undo->redo();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), first);
+   undo->redo();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString());
+   QCOMPARE(coverOf(f, 3), QString("page"));
+}
+
+void TestPagewidget::testCoverBadge()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *set = page->findChild<QToolButton *>("setCover");
+
+   for (int row = 0; row < f->pagecount(); row++)
+      QVERIFY(!coverShown(page, row));
+
+   // the cover page is marked, once it is the cover
+   crop->click();
+   page->_area->setCropArea(QRectF(0.5, 0, 0.5, 1));
+   set->click();
+   WAIT_OPS(*model);
+   QTRY_VERIFY(coverShown(page, 0));
+   QVERIFY(!coverShown(page, 1));
+
+   // the mark moves with the cover
+   showPage(page, 1);
+   crop->click();
+   set->click();
+   WAIT_OPS(*model);
+   QTRY_VERIFY(coverShown(page, 1));
+   QVERIFY(!coverShown(page, 0));
+
+   // and back again with undo
+   model->getUndoStack()->undo();
+   WAIT_OPS(*model);
+   QTRY_VERIFY(coverShown(page, 0));
+   QVERIFY(!coverShown(page, 1));
+
+   // cutting the cover away takes the mark too, and undo puts it back
+   showPage(page, 0);
+   crop->click();
+   page->_area->setCropArea(QRectF(0, 0, 0.4, 1));
+   page->findChild<QToolButton *>("cropPage")->click();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString());
+   QTRY_VERIFY(!coverShown(page, 0));
+   model->getUndoStack()->undo();
+   WAIT_OPS(*model);
+   QVERIFY(!coverOf(f, 0).isEmpty());
+   QTRY_VERIFY(coverShown(page, 0));
+
+   // the badge is drawn under the page
+   QWidget *view = page->_pageview->viewport();
+   QRect cell = page->_pageview->visualRect(
+      page->_pagemodel->index(0, 0, QModelIndex()));
+   QVERIFY(!cell.isEmpty());
+   QImage with = view->grab(cell).toImage();
+   page->_pagemodel->_pages[0]._cover = false;
+   QImage without = view->grab(cell).toImage();
+   QVERIFY(with != without);
+}
+
+void TestPagewidget::testClearCover()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   Pagemodel *pm = page->_pagemodel;
+
+   // a page which is not the cover has nothing to offer
+   QVERIFY(!page->pageMenu(pm->index(0, 0, QModelIndex())));
+
+   page->findChild<QToolButton *>("crop")->click();
+   page->findChild<QToolButton *>("setCover")->click();
+   WAIT_OPS(*model);
+   QTRY_VERIFY(coverShown(page, 0));
+   QVERIFY(!page->pageMenu(pm->index(1, 0, QModelIndex())));
+
+   // the cover page's menu has Clear cover, which takes it off
+   showPage(page, 2);
+   QMenu *menu = page->pageMenu(pm->index(0, 0, QModelIndex()));
+   QVERIFY(menu);
+   QAction *clear = page->findChild<QAction *>("clearCover");
+   QVERIFY(clear);
+   QVERIFY(menu->actions().contains(clear));
+   QCOMPARE(clear->text(), QString("Clear cover"));
+   clear->trigger();
+   delete menu;
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString());
+   QTRY_VERIFY(!coverShown(page, 0));
+   QCOMPARE(model->getUndoStack()->undoText(), QString("Clear cover"));
+
+   // which can be undone
+   model->getUndoStack()->undo();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString("page"));
+   QTRY_VERIFY(coverShown(page, 0));
+}
+
+void TestPagewidget::testCoverBarStart()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *set = page->findChild<QToolButton *>("setCover");
+   const QRectF whole(0, 0, 1, 1);
+
+   const QRectF box(0.25, 0.125, 0.5, 0.75);
+   crop->click();
+   page->_area->setCropArea(box);
+   set->click();
+   WAIT_OPS(*model);
+
+   // the bar opens with the cover marked, to be adjusted
+   crop->click();
+   QRectF area = page->_area->cropArea();
+   QVERIFY2(qAbs(area.left() - box.left()) < 0.001
+            && qAbs(area.top() - box.top()) < 0.001
+            && qAbs(area.right() - box.right()) < 0.001
+            && qAbs(area.bottom() - box.bottom()) < 0.001,
+            qPrintable(QString("%1,%2 %3x%4").arg(area.x()).arg(area.y())
+                       .arg(area.width()).arg(area.height())));
+
+   // as marked, it is the cover there was
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   File *f = model->getFile(ind);
+   const QString cover = coverOf(f, 0);
+   QCOMPARE(Pagecover::fromBox(page->markedArea()).toString(), cover);
+   page->findChild<QToolButton *>("cropCancel")->click();
+
+   // another page starts with all of it marked
+   showPage(page, 1);
+   crop->click();
+   QCOMPARE(page->_area->cropArea(), whole);
+   page->findChild<QToolButton *>("cropCancel")->click();
+
+   // as does a page which is all cover
+   showPage(page, 0);
+   crop->click();
+   page->_area->setCropArea(whole);
+   set->click();
+   WAIT_OPS(*model);
+   QCOMPARE(coverOf(f, 0), QString("page"));
+   crop->click();
+   QCOMPARE(page->_area->cropArea(), whole);
+}
+
+void TestPagewidget::testCoverNotOffered()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QToolButton *crop = page->findChild<QToolButton *>("crop");
+   QToolButton *set = page->findChild<QToolButton *>("setCover");
+
+   // the PDF beside the .max stack cannot keep properties
+   QModelIndex other = page->_index.sibling(page->_index.row() + 1, 0);
+   QVERIFY(other.isValid());
+   page->showPages(page->_model, other, 0, -1, -1);
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+   QVERIFY(model->data(ind, Desktopmodel::Role_filename).toString()
+              .endsWith(".pdf"));
+
+   crop->click();
+   QVERIFY(page->_area->isCropping());
+   QVERIFY(!set->isEnabled());
+   QVERIFY(set->toolTip().contains(".max"));
+   int undos = model->getUndoStack()->count();
+   set->click();
+   page->slotSetCover();
+   WAIT_OPS(*model);
+   QCOMPARE(model->getUndoStack()->count(), undos);
+   QVERIFY(page->_area->isCropping());
+   page->findChild<QToolButton *>("cropCancel")->click();
+
+   // nor is there a cover for the page list to show
+   QVERIFY(!coverShown(page, 0));
+   QVERIFY(!page->pageMenu(page->_pagemodel->index(0, 0, QModelIndex())));
+
+   // and back on the .max stack it is offered again
+   QModelIndex max = page->_index.sibling(page->_index.row() - 1, 0);
+   page->showPages(page->_model, max, 0, -1, -1);
+   crop->click();
+   QVERIFY(set->isEnabled());
+   QVERIFY(!set->toolTip().contains(".max"));
 }
 
 void TestPagewidget::testRotateButtons()

@@ -38,6 +38,7 @@ class QSplitter;
 class QTextEdit;
 class QTimer;
 class QFrame;
+class QMenu;
 class QShortcut;
 class QToolButton;
 class QWidget;
@@ -375,6 +376,13 @@ public slots:
    void slotPagesReordered (const QModelIndex &stack,
                             const QVector<int> &order);
 
+   /** a page's properties have changed: if it is in the stack shown,
+       show whether it is the cover
+
+      \param stack    the stack (in the Desktopmodel)
+      \param pagenum  the page, from 0 */
+   void slotPagePropsChanged (const QModelIndex &stack, int pagenum);
+
    /** reset the view and model so no pages are shown. Also existing page
        will be committed */
    void slotReset (void);
@@ -441,6 +449,16 @@ protected slots:
    void slotCropAll (void);
    void slotCropEach (void);
    void slotCropCancel (void);
+
+   /** stop cropping and make the part marked the stack's cover, or the
+       whole page if nothing less is marked */
+   void slotSetCover (void);
+
+   //! stop the page chosen from the page list's menu being the cover
+   void slotClearCover (void);
+
+   //! show the menu for the page in the page list at @p pos
+   void slotPageMenu (const QPoint &pos);
    void slotZoomFit (void);
    void slotZoomOrig (void);
    void slotZoomIn (void);
@@ -545,6 +563,19 @@ private:
    //! the part of the page marked, as proportions of the page
    QRectF markedArea (void) const;
 
+   /** where a part of the page is, as proportions of _image: the
+       opposite of markedArea()
+
+      \param area  the part, as proportions of the page */
+   QRectF shownArea (const QRectF &area) const;
+
+   /** the menu for a page in the page list
+
+      \param index  the page, in the page list
+      \returns the menu, for the caller to delete, or NULL if there is
+               nothing to offer for the page */
+   QMenu *pageMenu (const QModelIndex &index);
+
    /** stop cropping and crop a page, or every page
 
       \param pagenum  page to crop, or -1 for every page
@@ -578,6 +609,8 @@ private:
    double _imageScale = 1.0;
    QSize _page_size;          //!< size of the page, as _image may be padded
    QFrame *_crop_bar;         //!< the buttons shown while cropping
+   QToolButton *_set_cover;   //!< in the crop bar: make the part the cover
+   QAction *_clear_cover;     //!< in the page list's menu: not the cover
    QList<QShortcut *> _crop_keys;   //!< the keys which work while cropping
 //    QGraphicsScene *_scene;
 //    QGraphicsPixmapItem *_pitem;
