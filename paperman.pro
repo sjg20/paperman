@@ -169,6 +169,7 @@ HEADERS += desktopwidget.h \
  filemax.h \
  imageadjust.h \
  imagetrim.h \
+ pagecover.h \
  filepdf.h \
  fileother.h \
  pdfio.h \
@@ -273,6 +274,7 @@ SOURCES += desktopwidget.cpp \
  filemax.cpp \
  imageadjust.cpp \
  imagetrim.cpp \
+ pagecover.cpp \
  filepdf.cpp \
  fileother.cpp \
  pdfio.cpp \
@@ -337,6 +339,7 @@ test {
    QT += testlib
    SOURCES += test/test_utils.cpp \
       test/test_imagetrim.cpp \
+      test/test_pagecover.cpp \
       test/test.cpp \
       test/suite.cpp \
       test/test_desktopui.cpp \
@@ -382,6 +385,7 @@ test {
       test/test_qscanner.h \
       test/test_utils.h \
       test/test_imagetrim.h \
+      test/test_pagecover.h \
       test/test_searchserver.h \
       test/test_demoserver.h \
       test/test_ocrsearch.h \

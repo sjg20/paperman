@@ -16,6 +16,7 @@
 #include "test_qscanner.h"
 #include "test_utils.h"
 #include "test_imagetrim.h"
+#include "test_pagecover.h"
 #include "test_searchserver.h"
 #include "test_async.h"
 #include "test_traffic.h"
@@ -32,6 +33,7 @@
 
 static TestUtils TEST_UTILS("utils");
 static TestImagetrim TEST_IMAGETRIM("imagetrim");
+static TestPagecover TEST_PAGECOVER("pagecover");
 static TestOps TEST_OPS("ops");
 static TestDesktopUi TEST_DESKTOPUI("desktopui");
 static TestDirmodel TEST_DIRMODEL("dirmodel");
