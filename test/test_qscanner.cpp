@@ -1415,7 +1415,7 @@ void TestQscanner::testPscanLong()
 }
 
 
-/* Full size scans the whole of what the scanner takes. Its paper size is
+/* Full size scans the largest page the scanner takes. Its paper size is
    held as -1 by -1, meaning none in particular, and that went to the
    scanner as the paper size, which took it as the smallest it could, or
    gave pages no width at all */
@@ -1464,6 +1464,77 @@ void TestQscanner::testPscanFullSize()
    QVERIFY2 (params.pixels_per_line > 0,
              qPrintable (QString ("the page is %1 pixels wide")
                          .arg (params.pixels_per_line)));
+}
+
+
+/* On a sheet feeder which takes sheets metres long, Full size asked for
+   a window that long, so that without anything to end the page at the
+   foot of the sheet, every page came out metres long, most of it the
+   scanner's backing. It is as long as the longest paper size the
+   scanner takes, leaving the whole length to the long size, which is
+   offered while the scanner ends each page at the foot of the sheet */
+void TestQscanner::testPscanFullSizeLength()
+{
+   ensureXmlConfig ();
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QScanner scanner;
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   PreviewWidget *pv = dialog.getPreview ();
+   int hnum = scanner.findOption ("page-height");
+
+   if (hnum == -1 || pv->getPreDefLong () == -1)
+      QSKIP ("scanner takes no sheet longer than US legal");
+
+   // the longest of the paper sizes on offer
+   double longest = 0;
+
+   for (int i = 0; !pv->getSizeName (i).isEmpty (); i++)
+      {
+      ScanArea *sca = pv->getSize (i);
+
+      if (!sca->scannerSized () && sca->width () > 0)
+         longest = qMax (longest, sca->height ());
+      }
+   QVERIFY (longest > 0);
+
+   int row = pscan.pageSize->findText ("Full size");
+
+   QVERIFY (row != -1);
+   pscan.pageSize->setCurrentIndex (row);
+   pscan.size_activated (row);
+
+   int wnum = scanner.findOption ("page-width");
+   double width = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ())
+                  - scanner.saneWordValue (scanner.getTlxOption ()));
+   double length = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ())
+                   - scanner.saneWordValue (scanner.getTlyOption ()));
+   double most = SANE_UNFIX (scanner.getRangeMax (wnum));
+
+   QVERIFY2 (qAbs (width - most) < 1.0 && qAbs (length - longest) < 1.0,
+             qPrintable (QString ("the window is %1 x %2mm, not %3 x %4mm")
+                         .arg (width).arg (length).arg (most)
+                         .arg (longest)));
+
+   // the whole length is still there, as the long size
+   ScanArea *lng = pv->getSize (pv->getPreDefLong ());
+
+   QVERIFY2 (lng->height () > length + 100,
+             qPrintable (QString ("the long size is %1mm")
+                         .arg (lng->height ())));
 }
 
 

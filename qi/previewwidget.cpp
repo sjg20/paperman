@@ -504,6 +504,20 @@ void PreviewWidget::slotRangeChange()
    mPreDefLegal = -1;
 
    mPreDefLong = -1;
+
+   /* Full size on a scanner with a paper size, such as a sheet feeder,
+      is as wide as the scanner takes and as long as the longest paper
+      size it takes. A feeder may take a sheet metres long, but unless
+      something ends the page at the foot of the sheet, every page is as
+      long as the window, most of it the scanner's own backing. The long
+      size offers the whole length while the scanner does that */
+   double longest = -1.0;
+
+   if (mWidth != -1)
+      for (a = 2; a < SIZE_LONG; a++)
+         if (mPreDefs[a].width <= mWidth && mPreDefs[a].height <= mHeight)
+            longest = qMax (longest, mPreDefs[a].height);
+
    for(a=0;a<SIZES;a++)
    {
 //      printf ("w=%1.1lf  h=%1.1lf: %s\n", mPreDefs[a].width, mPreDefs[a].height, mPreDefs[a].name.toLatin1 ());
@@ -559,7 +573,7 @@ void PreviewWidget::slotRangeChange()
          if (mWidth != -1)
          {
             width = mWidth;
-            height = mHeight;
+            height = longest > 0.0 ? longest : mHeight;
          }
       }
       else if(a == 1) //user size
