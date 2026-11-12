@@ -114,8 +114,35 @@ struct fakescan_fault
 int fakescan_add_fault (const struct fakescan_fault *fault);
 
 /** Clear the paper path and shut the cover, as a person does after a
-    jam, and bring back a scanner which stopped answering */
+    jam, and bring back a scanner which stopped answering. A call held up
+    by fakescan_stall() carries on as though the scanner had answered */
 void fakescan_clear (void);
+
+/** how a stalled call takes a sane_cancel(), see fakescan_stall() */
+enum fakescan_stall_flags
+   {
+   /** take no notice of it, as the fujitsu back end does part-way through
+       a command, which runs until the scanner answers or USB gives up */
+   FAKESCAN_STALL_DEAF = 1 << 0,
+   };
+
+/** Have the scanner stop answering one kind of call, as a real one does
+    when it hangs part-way through a command. Each such call waits until
+    'ms' has passed, when it fails with SANE_STATUS_IO_ERROR as a USB
+    timeout does, or until sane_cancel() is called on the handle from
+    another thread, when it fails with SANE_STATUS_CANCELLED. SANE allows
+    that call to interrupt sane_start() and sane_read(), so a cancel
+    while one of them waits is not a call made at the same time.
+
+    It goes on until fakescan_clear() or fakescan_reset(). Each call says
+    "<call>: stalled" in the log as it starts to wait
+
+    \param call    name of the call, without sane_: "start", "read",
+                   "cancel" or "close"
+    \param ms      how long each one waits, as the USB timeout
+    \param flags   any of fakescan_stall_flags
+    \returns 0 if OK, -1 if that call cannot be stalled */
+int fakescan_stall (const char *call, int ms, int flags);
 
 /** Press a button on the scanner. It stays pressed until the front end
     has seen it, so a front end which looks from time to time does not
