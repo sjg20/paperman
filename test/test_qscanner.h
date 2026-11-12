@@ -89,6 +89,9 @@ private slots:
    void testPscanLong();
    void testPscanFullSize();
 
+   //! Full size on a feeder is as long as the longest paper it takes
+   void testPscanFullSizeLength();
+
    //! Full size is the same window whichever way the sheets are fed
    void testPscanFullSizeSideways();
 
