@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QBitArray>
 #include <QHash>
+#include <QMap>
 #include <QUndoCommand>
 #include <QModelIndexList>
 #include <QStringList>
@@ -33,6 +34,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 class Desktopmodel;
+class Pagecover;
 
 
 
@@ -437,6 +439,32 @@ private:
    QRectF _area;       //!< the part to keep
    //! what is needed to put the pages back, once cropped
    std::shared_ptr<QByteArray> _undo;
+   };
+
+
+/** make a page the stack's cover, or stop it being one. Undo puts back
+the properties of each page changed */
+
+class UCSetCover : public Desktopundocmd
+   {
+public:
+   /** create an undo record for setting the cover, and execute it
+
+      \param model    model to work with
+      \param ind      model index of stack
+      \param pagenum  the page, from 0
+      \param cover    as for Desktopmodel::setCover() */
+   UCSetCover (Desktopmodel *model, const QModelIndex &ind, int pagenum,
+         const Pagecover &cover);
+   void redo();
+   void undo();
+private:
+   QString _dir;       //!< desk directory
+   QString _fname;     //!< filename of stack
+   int _pagenum;       //!< the page to make the cover
+   QString _cover;     //!< the cover's text, or empty to clear it
+   //! the properties of each page changed, as they were before
+   std::shared_ptr<QMap<int, QMap<QString, QString>>> _old;
    };
 
 

@@ -24,6 +24,7 @@
 #include "../filemax.h"
 #include "../measure.h"
 #include "../ocrpage.h"
+#include "../pagecover.h"
 #include "../op.h"
 #include "../pagemodel.h"
 #include "../remotebackend.h"
@@ -2226,6 +2227,57 @@ void TestSearchServer::testDesktopRemoteCrop()
     WAIT_OPS(model);
     after = serverTestPageSize(dir, "testfile.max", 0);
     QVERIFY(qAbs(after.width() - before.width() / 2) <= 1);
+
+    server.stop();
+}
+
+void TestSearchServer::testDesktopRemoteCover()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+
+    // the server's copy has a cover, which the desktop must not rely on
+    {
+        Filemax max(dir, "testfile.max", nullptr);
+        QVERIFY(!max.load());
+        QMap<QString, QString> props;
+        props["cover"] = "page";
+        QVERIFY(!max.putPageProps(0, props));
+    }
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    QUrl url(QString("http://localhost:%1").arg(PORT));
+
+    Dirmodel dirmodel;
+    QString err;
+    QVERIFY2(dirmodel.addRemoteRepository(url, &err), err.toUtf8().constData());
+
+    Desktopmodel model(nullptr);
+    Desktopmodelconv conv(&model);
+    model.setModelConv(&conv);
+    model.setDirmodel(&dirmodel);
+
+    QString root = url.toString() + "/" + repo;
+    Measure meas(qApp->style(), QFont());
+    QModelIndex parent = model.showDir(root, root, &meas, true);
+    QVERIFY(parent.isValid());
+    QModelIndex stack = model.index("testfile.max", parent);
+    QVERIFY(stack.isValid());
+
+    QString why;
+    QVERIFY(!model.canKeepPageProps(stack, &why));
+    QVERIFY(why.contains("server"));
+
+    Pagecover cover = Pagecover::wholePage();
+    err_info *e = model.getPageCover(stack, 0, cover);
+    QVERIFY(e);
+    QCOMPARE(e->errnum, int(ERR_no_available_for_this_file_type));
+    QVERIFY(cover.isNull());
 
     server.stop();
 }
