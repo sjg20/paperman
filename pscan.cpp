@@ -534,8 +534,6 @@ void Pscan::sideways_activated(int how)
    if (xmlConfig)
       xmlConfig->setIntValue ("SCAN_SIDEWAYS", how);
 
-   // the long size is only for sheets fed upright
-   updateAutoSize ();
    if (_do_preset_check)
       presetCheck();
 }
@@ -717,17 +715,20 @@ void Pscan::size_activated( int id)
    window as long as the scanner takes. That is only of use while the
    scanner ends each page at the foot of the sheet: otherwise every page
    would be the whole length of the window, most of it the scanner's own
-   backing. Nor is it of use to a sheet fed sideways, whose length goes
-   across the scanner. So offer it only when it is of use, and put the
-   usual size back if it was chosen when it stops being so
+   backing. So offer it only when it is of use, and put the usual size
+   back if it was chosen when it stops being so.
+
+   It is of use however the sheets are fed: a long sheet fed sideways,
+   such as a banner printed along its length, goes through lengthways
+   all the same, and it is the size of the window, not of the page, so
+   it is not turned round
 
    \param cutting   true if the scanner is ending each page at the foot
                     of the sheet */
 void Pscan::updateLongSize (bool cutting)
 {
    int id = _ctl->sizeLong ();
-   bool sideways = xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS");
-   bool offer = cutting && !sideways && id != -1;
+   bool offer = cutting && id != -1;
    int row = _long_name.isEmpty () ? -1 : pageSize->findText (_long_name);
 
    if (offer && row == -1)

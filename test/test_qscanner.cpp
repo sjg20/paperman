@@ -1415,6 +1415,103 @@ void TestQscanner::testPscanLong()
 }
 
 
+/* A long sheet fed sideways, such as a banner printed along its length,
+   still goes through the scanner lengthways, so the long size is
+   offered with a sideways feed too. It is the scanner's window, not a
+   page, so it is not turned round: turned, its length went across the
+   scanner, which capped it at its width, and the sheet ran past the
+   foot of a square window */
+void TestQscanner::testPscanLongSideways()
+{
+   ensureXmlConfig ();
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QScanner scanner;
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   PreviewWidget *pv = dialog.getPreview ();
+
+   if (!dialog.hasAutoSize () || pv->getPreDefLong () == -1)
+      QSKIP ("scanner cannot find the foot of a sheet, or take a long one");
+
+   QString longName = pv->getSizeName (pv->getPreDefLong ());
+
+   QVERIFY (dialog.setAutoSize (true));
+   pscan.sideways_activated (2);
+   pscan.updateAutoSize ();
+   int row = pscan.pageSize->findText (longName);
+
+   QVERIFY (row != -1);
+   pscan.pageSize->setCurrentIndex (row);
+   pscan.size_activated (row);
+
+   int wnum = scanner.findOption ("page-width");
+   int hnum = scanner.findOption ("page-height");
+   double width = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ())
+                  - scanner.saneWordValue (scanner.getTlxOption ()));
+   double length = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ())
+                   - scanner.saneWordValue (scanner.getTlyOption ()));
+   double most_w = SANE_UNFIX (scanner.getRangeMax (wnum));
+   double most_h = SANE_UNFIX (scanner.getRangeMax (hnum));
+
+   QVERIFY2 (qAbs (width - most_w) < 1.0 && qAbs (length - most_h) < 1.0,
+             qPrintable (QString ("fed sideways the window is %1 x %2mm, "
+                                  "not %3 x %4mm")
+                         .arg (width).arg (length).arg (most_w)
+                         .arg (most_h)));
+
+   /* a sheet 600mm long, half as long again as US legal, comes out
+      whole, if the scanner is the fake one */
+   if (!strcmp (dev, FAKESCAN_DEVICE))
+      {
+      QImage banner (787, 2362, QImage::Format_RGB32);   // 200 x 600mm
+
+      banner.fill (Qt::white);
+      Fakescan::reset ();
+      QVERIFY (Fakescan::loadSheet (banner, QImage (), 100));
+
+      SANE_Parameters params;
+      SANE_Byte buf [65536];
+      SANE_Int len;
+      SANE_Status status;
+      int bytes = 0;
+
+      QCOMPARE (scanner.start (), SANE_STATUS_GOOD);
+      scanner.getParameters (&params);
+      while ((status = scanner.read (buf, sizeof (buf), &len))
+             == SANE_STATUS_GOOD)
+         bytes += len;
+      scanner.cancel ();
+      QCOMPARE (status, SANE_STATUS_EOF);
+
+      int lines = bytes / params.bytes_per_line;
+      int want = 600 * scanner.yResolutionDpi () / 25.4;
+
+      QVERIFY2 (qAbs (lines - want) < want / 50,
+                qPrintable (QString ("the sheet came out %1 lines long, "
+                                     "not %2").arg (lines).arg (want)));
+      }
+
+   // it goes with the cutting, as it does upright
+   QVERIFY (dialog.setAutoSize (false));
+   pscan.updateAutoSize ();
+   QCOMPARE (pscan.pageSize->findText (longName), -1);
+   pscan.sideways_activated (0);
+}
+
+
 /* Full size scans the largest page the scanner takes. Its paper size is
    held as -1 by -1, meaning none in particular, and that went to the
    scanner as the paper size, which took it as the smallest it could, or
