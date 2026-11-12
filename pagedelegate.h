@@ -64,6 +64,13 @@ public:
 
    //! get a size hint for the delegate
    QSize sizeHint (const QStyleOptionViewItem &option, const QModelIndex &index) const;
+
+   /** the size of the cell for a page whose pixmap is a given height,
+       with room for the label under it
+
+      \param option      style options
+      \param pageHeight  height of the page's pixmap */
+   QSize cellSize (const QStyleOptionViewItem &option, int pageHeight) const;
 #if 0
    //! handle an editor event
    bool editorEvent (QEvent * event, QAbstractItemModel *model,
