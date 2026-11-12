@@ -587,17 +587,7 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
    switch (_subsys)
       {
       case SUBSYS_pixmap :
-         QSize areaSize = _area->viewport ()->size ();
-
-//         printf ("too_big = %d\n", _too_big);
-//         printf ("   area %d x %d, widget %d x %d\n", areaSize.width (), areaSize.height (),
-//               widgetSize.width (), widgetSize.height ());
-//         _area->viewport ()->resize (widgetSize);
-
-         _area->verticalScrollBar()->setPageStep(areaSize.height());
-         _area->horizontalScrollBar()->setPageStep(areaSize.width());
-         _area->verticalScrollBar()->setRange(0, widgetSize.height() - areaSize.height());
-         _area->horizontalScrollBar()->setRange(0, widgetSize.width() - areaSize.width());
+         _area->setSize (finalSize);
          break;
       }
 
@@ -642,7 +632,6 @@ void Pagewidget::updateViewport (bool updateScale, bool force_smooth, bool delay
                }
             }
 
-         _area->setSize (finalSize);
          _area->setPixmapImage (_pixmap, _image, _too_big, _rotate);
          _area->setScale (_scale * _imageScale);
          _area->viewport ()->update ();
@@ -1967,9 +1956,28 @@ void MyScrollArea::setScale (double scale)
    }
 
 
-void MyScrollArea::setSize (QSize &size)
+void MyScrollArea::setSize (const QSize &size)
    {
-   _size = size;;
+   _size = size;
+   updateRange ();
+   }
+
+
+void MyScrollArea::updateRange (void)
+   {
+   QSize area = viewport ()->size ();
+
+   verticalScrollBar ()->setPageStep (area.height ());
+   horizontalScrollBar ()->setPageStep (area.width ());
+   verticalScrollBar ()->setRange (0, qMax (0, _size.height () - area.height ()));
+   horizontalScrollBar ()->setRange (0, qMax (0, _size.width () - area.width ()));
+   }
+
+
+void MyScrollArea::resizeEvent (QResizeEvent *event)
+   {
+   QAbstractScrollArea::resizeEvent (event);
+   updateRange ();
    }
 
 

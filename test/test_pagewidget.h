@@ -56,6 +56,9 @@ private slots:
    //! Test dragging marks the part of the page to keep
    void testCropDrag();
 
+   //! Test the scrollbars reach the page's edges once the view resizes
+   void testScrollRangeResize();
+
    //! Test the crop tool can crop every page
    void testCropStack();
 
