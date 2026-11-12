@@ -894,6 +894,9 @@ err_info *Filemax::max_write_data (int pos, byte *data, int size)
    max_clear_cache (_scache, pos, size);
    max_clear_cache (_cache, pos, size);
 
+   // any change may move the stack's cover, or take it away
+   coverChanged ();
+
    return count == size ? NULL : merr_make (ERRFN, ERR_failed_to_write_bytes1, size);
    }
 
@@ -2651,6 +2654,8 @@ err_info *Filemax::max_openf()
    fstat(fileno(_fin), &stat);
    _size = stat.st_size;
    _timestamp.setSecsSinceEpoch(stat.st_ctime);
+   _disk_mtime = stat.st_mtime;
+   _disk_bytes = stat.st_size;
 
    if (!_size)
       return err_make (ERRFN, ERR_signature_failure1, -1);
@@ -5479,6 +5484,7 @@ err_info *Filemax::write_max (FILE *f)
 
    // first write the header
    fseek (f, 0, SEEK_SET);
+   coverChanged ();     // as in max_write_data()
 
    if ((int)fwrite (_hdr.data (), 1, _hdr.size (), f) != _hdr.size ())
       return err_make (ERRFN, ERR_failed_to_write_bytes1, _hdr.size ());
@@ -6037,6 +6043,9 @@ err_info *Filemax::reload (void)
       return loadSparse ();
       }
 
+   // the stack has changed on disk, as far as what was found in it goes
+   coverChanged ();
+
    /* free the parsed chunk and page state; chunk_resize() and
       page_resize() insist on starting from empty lists */
    max_free ();
@@ -6303,6 +6312,52 @@ err_info *Filemax::getPageProps (int pagenum, QMap<QString, QString> &props)
 
    CALL (read_sized_chunk (page->props, CT_props, ba));
    props_from_bytes (ba, props);
+   return NULL;
+   }
+
+
+err_info *Filemax::findCover (int &pagenum, QString &text)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   pagenum = -1;
+   text.clear ();
+
+   // a stack held a page at a time has its pages on the server
+   if (isSparse ())
+      return not_impl ();
+
+   CALL (load ());
+
+   /* read each page's record, but a page's properties only if it has
+      some, with the file open once for all of them */
+   Open open (this);
+
+   CALL (open.err ());
+   for (int i = 0; i < _pages.size (); i++)
+      {
+      page_info *page;
+
+      CALL (find_page (i, page));
+      CALL (ensure_roswell (*page));
+      if (!page->props)
+         continue;
+
+      QByteArray ba;
+      QMap<QString, QString> props;
+
+      CALL (read_sized_chunk (page->props, CT_props, ba));
+      props_from_bytes (ba, props);
+
+      Pagecover cover = Pagecover::fromProps (props);
+
+      if (!cover.isNull ())
+         {
+         pagenum = i;
+         text = cover.toString ();
+         return NULL;
+         }
+      }
    return NULL;
    }
 

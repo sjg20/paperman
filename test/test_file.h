@@ -229,6 +229,13 @@ private slots:
    //! a cover which is the whole page, or not a cover, is left alone
    void testCoverLeftAlone();
 
+   //! a stack's cover is the first page with one, read with little I/O
+   void testFindCover();
+
+   //! a stack's cover is kept in the .paperdesk while the stack is as it
+   //! was, and looked for again once it changes
+   void testCoverNote();
+
    //! a stack held a page at a time gives each page's words from that
    //! page's own file, and is never written to
    void testSparseOcr();

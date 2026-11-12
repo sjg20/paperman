@@ -636,6 +636,66 @@ eturns error, or NULL if ok */
    void setPagenameMaxsize (QSize size);
    QSize pagenameMaxsize (void);
 
+   //! how much is known of which page is the stack's cover
+   enum e_cover_state
+      {
+      Cover_unknown,    //!< nothing: the pages have not been looked at
+      Cover_noted,      //!< as the folder's .paperdesk has it, unchecked
+      Cover_known,      //!< as found in the pages, which are unchanged
+      Cover_stale       //!< found in the pages, which have changed since
+      };
+
+   //! how much is known of the stack's cover
+   e_cover_state coverState (void) const { return _cover_state; }
+
+   /** the page which is the stack's cover, as last noted or found, or -1
+       for none or if nothing is known */
+   int coverPage (void) const { return _cover_page; }
+
+   //! the cover's text, as Pagecover::toString() gives, or empty if none
+   const QString &coverText (void) const { return _cover_text; }
+
+   //! how big the cover is shown, in preview pixels, if there is one
+   QSize coverSize (void) const { return _cover_size; }
+
+   /** note the stack's cover, as found in its pages
+
+      \param pagenum  the page holding it, or -1 for none
+      \param text     the cover's text, as Pagecover::toString() gives
+      \param size     how big the cover is shown, in preview pixels
+      \param keep     true to note it in the .paperdesk with the stack's
+                      time and size now, so that it need not be found
+                      again while the stack stays as it is */
+   void noteCover (int pagenum, const QString &text, const QSize &size,
+                   bool keep = true);
+
+   /** the stack has changed, so its cover may have moved or gone; what
+       was known of it stays, for showing, until it is found again */
+   void coverChanged (void);
+
+   /** whether the cover noted in the .paperdesk is for the stack as it
+       was when last opened, going by its time and size then
+
+      \returns true if it is, so it can be taken as known */
+   bool coverNoteCurrent (void) const;
+
+   //! take the cover noted as known, once coverNoteCurrent() says it is
+   void confirmCover (void);
+
+   /** look through the stack's pages for its cover: the first page whose
+       'cover' property is one
+
+      \param pagenum  returns the page, or -1 if there is none
+      \param text     returns the cover's text, or empty for none
+      \returns error, or NULL if ok; a file type which cannot keep page
+               properties returns an error */
+   virtual err_info *findCover (int &pagenum, QString &text);
+
+   /** read a stack's line in the .paperdesk, after its name and '='
+
+      \param line        its position, page shown, sizes and cover
+      \param read_sizes  true to take the sizes and cover, false to
+                         work them out again */
    void decodeFile (QString &line, bool read_sizes);
 
    void encodeFile (QTextStream &stream);
@@ -745,6 +805,12 @@ eturns error, or NULL if ok */
 protected:
    QPixmap unknownPixmap (void);
 
+   /** take the cover noted in a stack's line in the .paperdesk, which
+       is left alone if it notes none or cannot be read
+
+      \param args  what follows the sizes in the line */
+   void decodeCover (const QStringList &args);
+
    /** bring a page's cover, its 'cover' property, into line with a change
        to the page: see Pagecover
 
@@ -790,6 +856,18 @@ protected:
    QSize _preview_maxsize;     //!< max preview size for file (this is the preview pixmap)
    QSize _title_maxsize;     //!< max pixel size for file (stack) title
    QSize _pagename_maxsize;     //!< max pixel size for all page titles
+
+   // the stack's cover, as the desktop knows it
+   e_cover_state _cover_state = Cover_unknown;
+   int _cover_page = -1;       //!< see coverPage()
+   QString _cover_text;        //!< see coverText()
+   QSize _cover_size;          //!< see coverSize()
+   qint64 _cover_mtime = 0;    //!< the stack's time when it was found, or 0
+   qint64 _cover_bytes = -1;   //!< the stack's size when it was found
+
+   //! the stack's time, in seconds, and size, as it was when opened
+   qint64 _disk_mtime = 0;
+   qint64 _disk_bytes = -1;
 //   struct max_info *_max;  //!< max file info
 //   time_t _time;             //!< last modification time
    QDateTime _timestamp;
