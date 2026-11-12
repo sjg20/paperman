@@ -27,6 +27,7 @@ ScanArea::ScanArea(QString name,double tlx,double tly,double brx,double bry,
   mHeight = height;
   mName = name;
   mNumber = -1;
+  mScannerSized = false;
 }
 ScanArea::~ScanArea()
 {
@@ -74,6 +75,15 @@ double ScanArea::width()
 double ScanArea::height()
 {
 	return mHeight;
+}
+void ScanArea::setScannerSized(bool sized)
+{
+  mScannerSized = sized;
+}
+
+bool ScanArea::scannerSized()
+{
+  return mScannerSized;
 }
 /**  */
 void ScanArea::setTly(double dvalue)

@@ -42,6 +42,9 @@ private: // Private attributes
 
   /** page size */
   double mWidth, mHeight;
+
+  /** true if the size is the scanner's own reach rather than a page */
+  bool mScannerSized;
   /**  */
   QString mName;
 public:
@@ -58,6 +61,14 @@ public:
 
   double width ();
   double height ();
+
+  /** say that the size is what the scanner takes, as Full size and Long
+      are, rather than a sheet of paper. A sheet fed sideways is turned
+      round to go through the scanner, but the scanner itself is not */
+  void setScannerSized (bool sized);
+
+  /** \returns true if the size is what the scanner takes, not a page */
+  bool scannerSized ();
 
   void setTlx(double dvalue);
   /**  */

@@ -713,6 +713,61 @@ void TestQscanner::testSidewaysPageSizeRestored()
 }
 
 
+/* A window as wide as the scanner takes, such as Full size, is the
+   scanner's own reach, not a page on its side. A scan with a sideways
+   feed turned it round all the same, putting its length across the
+   scanner, which capped it at its width: a square window, which a
+   longer sheet ran past, and the scanner called that a jam */
+void TestQscanner::testSidewaysFullWidthKept()
+{
+   ensureXmlConfig ();
+   utilSetHeadless (true);
+
+   Mainwindow me;
+   Mainwidget *main = Mainwidget::singleton ();
+   QVERIFY (main);
+
+   if (!testDevice ())
+      QSKIP (NO_SCANNER);
+   Scansettings settings (1, testDevice ());
+
+   settings.setSideways (2);
+   QVERIFY (main->ensureScanner ());
+   QScanner *scanner = main->_scanner;
+   QVERIFY (scanner);
+
+   int wnum = scanner->findOption ("page-width");
+   int hnum = scanner->findOption ("page-height");
+   int brx = scanner->getBrxOption ();
+   int bry = scanner->getBryOption ();
+   QVERIFY (wnum != -1 && hnum != -1 && brx != -1 && bry != -1);
+
+   // as wide as the scanner takes, and longer than any paper
+   SANE_Word wide = scanner->getRangeMax (wnum);
+   SANE_Word tall = qMin (scanner->getRangeMax (hnum), SANE_FIX (600.0));
+
+   scanner->setOption (wnum, &wide);
+   scanner->setOption (hnum, &tall);
+   scanner->setOption (brx, &wide);
+   scanner->setOption (bry, &tall);
+
+   SANE_Word was_w = scanner->saneWordValue (wnum);
+   SANE_Word was_h = scanner->saneWordValue (hnum);
+   SANE_Word was_brx = scanner->saneWordValue (brx);
+   SANE_Word was_bry = scanner->saneWordValue (bry);
+   QVERIFY2 (was_h > was_w, "the window should be longer than it is wide");
+
+   main->applySidewaysPageSize ();
+   QCOMPARE (scanner->saneWordValue (wnum), was_w);
+   QCOMPARE (scanner->saneWordValue (hnum), was_h);
+   QCOMPARE (scanner->saneWordValue (brx), was_brx);
+   QCOMPARE (scanner->saneWordValue (bry), was_bry);
+   main->restorePageSize ();
+
+   utilSetHeadless (false);
+}
+
+
 /* The panel shows a paper size from the moment it is built, while the
    scanner holds whatever window was saved with the device, which may be
    from another session, another scanner, or one turned round for sheets
@@ -1409,6 +1464,69 @@ void TestQscanner::testPscanFullSize()
    QVERIFY2 (params.pixels_per_line > 0,
              qPrintable (QString ("the page is %1 pixels wide")
                          .arg (params.pixels_per_line)));
+}
+
+
+/* Full size is as wide as the scanner takes, whichever way the sheets
+   go through it. Turned round for a sideways feed, its length went
+   across the scanner, which capped it at its width, giving a square
+   window which a longer sheet ran past, and the scanner called that a
+   jam */
+void TestQscanner::testPscanFullSizeSideways()
+{
+   ensureXmlConfig ();
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QScanner scanner;
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog dialog (&scanner, 0);
+   Pscan pscan;
+
+   pscan.setScanDialog (&dialog);
+   pscan.scannerChanged (&scanner);
+   pscan.setPreviewWidget (dialog.getPreview ());
+
+   int row = pscan.pageSize->findText ("Full size");
+
+   QVERIFY (row != -1);
+
+   auto window = [&](double &width, double &length) {
+      width = SANE_UNFIX (scanner.saneWordValue (scanner.getBrxOption ())
+              - scanner.saneWordValue (scanner.getTlxOption ()));
+      length = SANE_UNFIX (scanner.saneWordValue (scanner.getBryOption ())
+               - scanner.saneWordValue (scanner.getTlyOption ()));
+   };
+   double up_width, up_length, width, length;
+
+   pscan.pageSize->setCurrentIndex (row);
+   pscan.size_activated (row);
+   window (up_width, up_length);
+   QVERIFY2 (up_length > up_width,
+             qPrintable (QString ("upright the window is %1 x %2mm")
+                         .arg (up_width).arg (up_length)));
+
+   // choose a paper size between, so that Full size is set afresh
+   pscan.selectPreviewSize (dialog.getPreview ()->getPreDefA4 ());
+
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 2);
+   row = pscan.pageSize->findText ("Full size");
+   QVERIFY (row != -1);
+   pscan.pageSize->setCurrentIndex (row);
+   pscan.size_activated (row);
+   window (width, length);
+   xmlConfig->setIntValue ("SCAN_SIDEWAYS", 0);
+
+   QVERIFY2 (qAbs (width - up_width) < 1.0 && qAbs (length - up_length) < 1.0,
+             qPrintable (QString ("fed sideways the window is %1 x %2mm, "
+                                  "upright %3 x %4mm")
+                         .arg (width).arg (length)
+                         .arg (up_width).arg (up_length)));
 }
 
 

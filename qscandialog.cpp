@@ -1711,8 +1711,15 @@ void QScanDialog::slotSetPredefinedSize(ScanArea* sca)
        scanner, so the size the user picked describes the page, not the
        window: hand it over the other way round. Without this a page
        longer than the paper width is cut off at the foot, and on a back
-       end that only trims the length there is nothing to put it back */
-    turned = xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS");
+       end that only trims the length there is nothing to put it back.
+
+       Full size and Long are another matter: they describe the scanner,
+       as wide as it takes, not a page. Turned round, their length would
+       go across, where the scanner caps it at its width, leaving a
+       square window which a longer sheet runs past, and the scanner
+       calls that a jam */
+    turned = xmlConfig && xmlConfig->intValue ("SCAN_SIDEWAYS")
+             && !sca->scannerSized ();
     if (turned)
       setPageSize (sca->height (), sca->width ());
     else

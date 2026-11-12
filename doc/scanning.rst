@@ -95,6 +95,8 @@ Feed
    Sheets fed sideways (**Top at left** or **Top at right**) are scanned
    the long way across the scanner and turned upright as they are stored.
    The size chosen describes the page, and the whole page is scanned.
+   **Full size** describes the scanner instead, so it is the same window
+   whichever way the sheets are fed.
 
 While a scan runs
 -----------------
