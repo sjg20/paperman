@@ -91,6 +91,56 @@ void TestPagewidget::testThumbnailClickShowsPage()
    QCOMPARE(page->getCurrentPage(), 0);
 }
 
+/* Every cell in the page list is one size, so it must hold the tallest
+   page. A stack which starts with a wide page, such as a book with its
+   jacket first, used to size every cell to that page, so the portrait
+   pages after it ran into the rows below */
+void TestPagewidget::testWideFirstPageLeavesRoom()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   Pageview *pageview = page->findChild<Pageview *>();
+   QVERIFY(pageview);
+   QAbstractItemModel *pages = pageview->model();
+   QAbstractItemDelegate *delegate = pageview->itemDelegate();
+   QVERIFY(pages->rowCount() > 1);
+
+   auto info = [pages] (int row) {
+      return pages->data(pages->index(row, 0),
+                         Pagemodel::Role_pageinfo).value<Pageinfo *>();
+   };
+   for (int row = 0; row < pages->rowCount(); row++)
+      QTRY_VERIFY(info(row)->knownPixmapSize().isValid());
+
+   // the first page becomes a wide one, far shorter than the rest
+   Pageinfo *first = info(0);
+   QSize box = info(1)->knownPixmapSize();
+   QPixmap wide(box.width(), box.width() / 4);
+
+   wide.fill(Qt::white);
+   first->setPixmap(wide, first->_model->pagesize());
+   QVERIFY(first->knownPixmapSize().height() < box.height() / 2);
+   /* lay the pages out again as the view does once a pixmap arrives,
+      without waiting for its timer */
+   QVERIFY(QMetaObject::invokeMethod(pageview, "slotRelayout"));
+
+   // each cell has room for its page
+   for (int row = 0; row < pages->rowCount(); row++)
+      {
+      QModelIndex ind = pages->index(row, 0);
+      int wanted = delegate->sizeHint(pageview->getViewOptions(), ind).height();
+      int cell = pageview->visualRect(ind).height();
+
+      QVERIFY2(cell >= wanted, qPrintable(QString("row %1: cell %2, page "
+                                                  "needs %3")
+                                          .arg(row).arg(cell).arg(wanted)));
+      }
+}
+
 void TestPagewidget::testRenderedAtOtherSize()
 {
    Pagemodel model(nullptr);

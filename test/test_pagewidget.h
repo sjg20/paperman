@@ -24,6 +24,10 @@ private slots:
    //! Test that clicking a page thumbnail displays that page
    void testThumbnailClickShowsPage();
 
+   //! every cell in the page list has room for its page, when the first
+   //! page is far wider than the rest
+   void testWideFirstPageLeavesRoom();
+
    //! a page drawn at one size and then shown at another, as when moving
    //! from the scan view, is scaled to the size it is shown at
    void testRenderedAtOtherSize();
