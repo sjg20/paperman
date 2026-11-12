@@ -167,6 +167,11 @@ private slots:
    //! Quitting once the scanner has stopped answering does not wait
    void testQuitAfterStall ();
 
+   //! A scanner which stops answering is reported, and Cancel stops
+   //! waiting for it
+   void testCancelStall_data ();
+   void testCancelStall ();
+
    //! After a jam, Scan in the panel carries the batch on
    void testResumeFromPanel ();
 

@@ -595,6 +595,12 @@ public:
       \param scale   how much to multiply the waits by */
    static void setTimeScale (double scale);
 
+   /** \returns how long a call into the back end can take before the
+                scanner is taken to have stopped answering, in ms. That
+                is well beyond what even a slow page takes, but well short
+                of the half minute a scanner's timeout can be */
+   static int stallMs (void);
+
    /** cancel scanning
 
       \param err     error to return from the scan once cancelled */
