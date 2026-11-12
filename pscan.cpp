@@ -882,16 +882,18 @@ void Pscan::on_config_clicked()
 }
 
 
-void Pscan::checkEnabled (bool scanning, bool waiting)
+void Pscan::checkEnabled (bool scanning, bool waiting, bool stuck)
    {
    /* a scan waiting for the user to clear the scanner is offered Scan
-      as well, since there it means carry on rather than start again */
+      as well, since there it means carry on rather than start again.
+      A scan left waiting for a scanner which stopped answering still has
+      it, so there is nothing to scan with until it answers */
    _waiting = waiting;
-   scan->setEnabled (!scanning || waiting);
+   scan->setEnabled ((!scanning || waiting) && !stuck);
    cancel->setEnabled (scanning);
    stop->setEnabled (scanning);
-   source->setEnabled (!scanning);
-   reset->setEnabled (!scanning);
+   source->setEnabled (!scanning && !stuck);
+   reset->setEnabled (!scanning && !stuck);
    }
 
 void Pscan::reapplyCurrentPreset()

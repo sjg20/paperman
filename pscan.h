@@ -119,7 +119,8 @@ public:
       \param scanning   true while a scan is in progress
       \param waiting    true while that scan waits for the user to
                         clear the scanner, when Scan means carry on */
-   void checkEnabled (bool scanning, bool waiting = false);
+   void checkEnabled (bool scanning, bool waiting = false,
+                      bool stuck = false);
 
    // Tell pscan that a scan is starting
    void scanStarting();

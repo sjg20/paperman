@@ -898,6 +898,13 @@ void TestQscanner::testPscanResume()
    // and the scan going on again takes the offer away
    pscan.checkEnabled (true, false);
    QVERIFY (!pscan.scan->isEnabled ());
+
+   /* a scan left waiting for a scanner which stopped answering has it
+      still, so there is nothing to scan with, nor to stop */
+   pscan.checkEnabled (false, false, true);
+   QVERIFY (!pscan.scan->isEnabled ());
+   QVERIFY (!pscan.stop->isEnabled ());
+   QVERIFY (!pscan.cancel->isEnabled ());
 }
 
 
