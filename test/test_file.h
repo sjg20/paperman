@@ -219,6 +219,16 @@ private slots:
    //! keys and values which would break a 'key=value' line are refused
    void testMaxPropsInvalid();
 
+   //! a page's cover box turns and mirrors with the page
+   void testCoverTransform();
+
+   //! cropping a page keeps what it keeps of the cover, or drops it,
+   //! and undoing the crop puts back the cover there was
+   void testCoverCrop();
+
+   //! a cover which is the whole page, or not a cover, is left alone
+   void testCoverLeftAlone();
+
    //! a stack held a page at a time gives each page's words from that
    //! page's own file, and is never written to
    void testSparseOcr();

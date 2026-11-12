@@ -44,6 +44,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 #include "file.h"
 #include "ocrpage.h"
+#include "pagecover.h"
 #include "filejpeg.h"
 #include "imageadjust.h"
 #include "filemax.h"
@@ -983,6 +984,33 @@ err_info *File::getPageProps (int, QMap<QString, QString> &)
 err_info *File::putPageProps (int, const QMap<QString, QString> &)
    {
    return not_impl ();
+   }
+
+
+err_info *File::changeCover (int pagenum,
+      const std::function<QString (const QString &)> &change)
+   {
+   QMap<QString, QString> props;
+   err_info *err = getPageProps (pagenum, props);
+
+   if (err)
+      return err->errnum == ERR_no_available_for_this_file_type ? NULL : err;
+
+   QString was = props.value (Pagecover::key);
+   QString now = change (was);
+
+   if (now == was)
+      return NULL;
+   if (now.isEmpty ())
+      props.remove (Pagecover::key);
+   else
+      props.insert (Pagecover::key, now);
+
+   // a stack held a page at a time is not written to
+   err = putPageProps (pagenum, props);
+   if (err && err->errnum != ERR_no_available_for_this_file_type)
+      return err;
+   return NULL;
    }
 
 

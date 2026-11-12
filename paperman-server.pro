@@ -57,6 +57,7 @@ HEADERS += builddate.h \
     ocr.h \
     ocrtess.h \
     ocrpage.h \
+    pagecover.h \
     zip.h \
     zip_p.h \
     zipentry_p.h \
@@ -90,6 +91,7 @@ SOURCES += searchserver.cpp \
     ocr.cpp \
     ocrtess.cpp \
     ocrpage.cpp \
+    pagecover.cpp \
     zip.cpp
 
 unix {
