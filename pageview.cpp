@@ -100,12 +100,36 @@ void Pageview::slotRelayout ()
    /* uniform item sizes cache the size measured from the first item, and
       that first measurement happens before its pixmap is ready, so it is
       the tall fallback. Once pixmaps have arrived, set the grid cell from
-      the first item's real size hint: this fixes the cell height (no gap
-      under a landscape page) and keeps layout O(1). */
+      the real size hints, as tall as the tallest page: this fixes the
+      cell height (no gap under a stack of landscape pages) and keeps
+      layout O(1). */
    if (model () && model ()->rowCount () > 0)
       {
-      QSize hint = itemDelegate ()->sizeHint (getViewOptions (),
-                                              model ()->index (0, 0));
+      QStyleOptionViewItem option = getViewOptions ();
+      QSize hint = itemDelegate ()->sizeHint (option, model ()->index (0, 0));
+      Pagedelegate *delegate = qobject_cast<Pagedelegate *> (itemDelegate ());
+
+      /* Every cell is the same size, so it must hold the tallest page, or
+         a portrait page in a stack which starts with a wide one, such as
+         a book with its jacket, runs into the row below. Only pages whose
+         pixmaps have arrived are measured, since asking for the others
+         would make them all; each that arrives brings another relayout */
+      if (delegate)
+         {
+         int tallest = 0;
+
+         for (int row = 0; row < model ()->rowCount (); row++)
+            {
+            Pageinfo *pi = model ()->data (model ()->index (row, 0),
+                  Pagemodel::Role_pageinfo).value<Pageinfo *> ();
+            QSize size = pi ? pi->knownPixmapSize () : QSize ();
+
+            if (size.isValid ())
+               tallest = qMax (tallest, size.height ());
+            }
+         if (tallest)
+            hint = hint.expandedTo (delegate->cellSize (option, tallest));
+         }
       /* with a grid the view's spacing no longer applies, so include it
          in the cell, or the pages sit edge to edge */
       if (hint.isValid ())
