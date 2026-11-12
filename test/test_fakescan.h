@@ -70,6 +70,14 @@ public:
    /** \returns how many times the front end made a call, see
                 fakescan_count() */
    static int count (const char *call);
+
+   /** Have the scanner stop answering a kind of call, see
+       fakescan_stall()
+
+       \param call    e.g. "start"
+       \param ms      how long each one waits before it fails
+       \param deaf    true if sane_cancel() does not end the wait */
+   static void stall (const char *call, int ms, bool deaf = false);
 };
 
 class TestFakescan : public Suite
@@ -141,6 +149,9 @@ private slots:
 
    //! A busy scanner takes its time saying so, until it is cleared
    void testBusy ();
+
+   //! A stalled call waits out its time, unless cancelled or cleared
+   void testStall ();
 
    //! After a jam, Scan in the panel carries the batch on
    void testResumeFromPanel ();

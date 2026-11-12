@@ -32,6 +32,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -42,6 +43,7 @@
 #include <QSet>
 #include <QStringList>
 #include <QThread>
+#include <QWaitCondition>
 
 #include <sane/sane.h>
 #include <sane/saneopts.h>
@@ -156,6 +158,13 @@ struct Sheet
    double skew;       //!< degrees askew, clockwise, as it goes through
    };
 
+/** a call which hangs, see fakescan_stall() */
+struct Stall
+   {
+   int ms;            //!< how long it waits before it gives up
+   bool deaf;         //!< takes no notice of sane_cancel()
+   };
+
 /** What is at the scanner rather than behind a SANE handle: the paper
     and the state of the machine. It outlasts sane_close() and
     sane_exit(), as they do on a real scanner */
@@ -175,6 +184,9 @@ struct Machine
    bool wedged = false;               //!< not answering at all
    int busy_ms = -1;                  //!< busy, taking this long to say so
    QSet<QString> pressed;             //!< buttons not yet seen
+   QHash<QString, Stall> stalls;      //!< calls which hang, by name
+   int stall_gen = 0;                 //!< goes up as stalls are cleared
+   QWaitCondition wake;               //!< for a stalled call to look again
    QStringList log;                   //!< see fakescan_log()
    QHash<QString, int> counts;        //!< see fakescan_count()
    QByteArray log_out;
@@ -222,6 +234,8 @@ struct Scanner
    SANE_Status stop_status;   //!< and what reading there says
    int stop_kind;             //!< and why, a fakescan_fault_kind
    QAtomicInt calls;          //!< calls in progress on this handle
+   QAtomicInt blocking;       //!< in sane_start() or sane_read()
+   QAtomicInt interrupted;    //!< sane_cancel() came while it was
    };
 
 }
@@ -926,6 +940,68 @@ private:
 }
 
 
+/* A call which SANE lets another thread interrupt with sane_cancel(),
+   from the moment it starts until it returns */
+namespace {
+class Blocking
+   {
+public:
+   Blocking (Scanner *s) : _s (s)
+      {
+      _s->interrupted.storeRelease (0);
+      _s->blocking.storeRelease (1);
+      }
+
+   ~Blocking ()
+      {
+      _s->blocking.storeRelease (0);
+      _s->interrupted.storeRelease (0);
+      }
+
+private:
+   Scanner *_s;
+   };
+}
+
+
+/* Hang as a scanner which has stopped answering does, if the call is
+   set to, see fakescan_stall()
+
+   \param s      the handle, or NULL for a call which nothing interrupts
+   \param call   name of the call
+   \returns SANE_STATUS_GOOD if the call is to carry on, as it is not
+            stalled or the scanner has been cleared, else what it fails
+            with */
+static SANE_Status stall (Scanner *s, const char *call)
+   {
+   QMutexLocker locker (&machine.lock);
+   auto it = machine.stalls.constFind (call);
+
+   if (it == machine.stalls.constEnd ())
+      return SANE_STATUS_GOOD;
+
+   Stall st = *it;
+   int gen = machine.stall_gen;
+   QElapsedTimer timer;
+
+   machine.log << QString ("%1: stalled").arg (call);
+   timer.start ();
+   while (machine.stall_gen == gen)
+      {
+      if (!st.deaf && s && s->interrupted.loadAcquire ())
+         return SANE_STATUS_CANCELLED;
+
+      qint64 left = st.ms - timer.elapsed ();
+
+      if (left <= 0)
+         return SANE_STATUS_IO_ERROR;
+      machine.wake.wait (&machine.lock, (unsigned long)left);
+      }
+
+   return SANE_STATUS_GOOD;
+   }
+
+
 /* Take the fault arranged for a side of a sheet, if there is one. With
    machine.lock held
 
@@ -1171,6 +1247,8 @@ EXPORT SANE_Status sane_fakefujitsu_open (SANE_String_Const name,
 
 EXPORT void sane_fakefujitsu_close (SANE_Handle handle)
    {
+   // the scanner is told the handle is going, which it may not answer
+   stall (nullptr, "close");
    note ("close");
    delete (Scanner *)handle;
    }
@@ -1498,6 +1576,7 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
    {
    Scanner *s = (Scanner *)handle;
    Call call (s, "start");
+   Blocking blocking (s);
    SANE_Parameters window;
    QImage picture;
    QRgb backing;
@@ -1514,6 +1593,17 @@ EXPORT SANE_Status sane_fakefujitsu_start (SANE_Handle handle)
    calc_window (s, &window);
    if (window.pixels_per_line < 1 || window.lines < 1)
       return noted ("start", SANE_STATUS_INVAL);
+
+   /* a scanner which has stopped answering ends the batch, whichever
+      way the wait ends */
+   SANE_Status stalled = stall (s, "start");
+
+   if (stalled != SANE_STATUS_GOOD)
+      {
+      s->state = Scanner::IDLE;
+      s->back_pending = false;
+      return noted ("start", stalled);
+      }
 
    {
       QMutexLocker locker (&machine.lock);
@@ -1687,9 +1777,21 @@ EXPORT SANE_Status sane_fakefujitsu_read (SANE_Handle handle, SANE_Byte *buf,
    {
    Scanner *s = (Scanner *)handle;
    Call call (s, "read");
+   Blocking blocking (s);
    int end, left;
 
    *len = 0;
+   if (s->state != Scanner::IDLE)
+      {
+      SANE_Status stalled = stall (s, "read");
+
+      if (stalled != SANE_STATUS_GOOD)
+         {
+         s->state = Scanner::IDLE;
+         s->back_pending = false;
+         return noted ("read", stalled);
+         }
+      }
    {
       QMutexLocker locker (&machine.lock);
 
@@ -1735,7 +1837,26 @@ EXPORT SANE_Status sane_fakefujitsu_read (SANE_Handle handle, SANE_Byte *buf,
 EXPORT void sane_fakefujitsu_cancel (SANE_Handle handle)
    {
    Scanner *s = (Scanner *)handle;
+
+   /* SANE lets a front end interrupt sane_start() or sane_read() by
+      calling this from another thread, and that call says only that the
+      one waiting is to give up: it is that one which ends the batch */
+   if (s->blocking.loadAcquire ())
+      {
+      QMutexLocker locker (&machine.lock);
+
+      machine.counts ["cancel"]++;
+      machine.log << "cancel from another thread";
+      s->interrupted.storeRelease (1);
+      machine.wake.wakeAll ();
+      return;
+      }
+
    Call call (s, "cancel");
+
+   /* telling the scanner to stop is a command, which it may not answer,
+      and there is nothing to interrupt it */
+   stall (nullptr, "cancel");
 
    s->state = Scanner::IDLE;
    s->back_pending = false;
@@ -1781,6 +1902,9 @@ EXPORT void fakescan_reset (void)
    machine.jammed = machine.double_feed = false;
    machine.cover_open = machine.wedged = false;
    machine.busy_ms = -1;
+   machine.stalls.clear ();
+   machine.stall_gen++;
+   machine.wake.wakeAll ();
    machine.pressed.clear ();
    machine.log.clear ();
    machine.counts.clear ();
@@ -1840,6 +1964,27 @@ EXPORT void fakescan_clear (void)
    machine.jammed = machine.double_feed = false;
    machine.cover_open = machine.wedged = false;
    machine.busy_ms = -1;
+   machine.stalls.clear ();
+   machine.stall_gen++;
+   machine.wake.wakeAll ();
+   }
+
+
+EXPORT int fakescan_stall (const char *call, int ms, int flags)
+   {
+   static const char *const calls [] = { "start", "read", "cancel", "close" };
+   bool known = false;
+
+   for (const char *name : calls)
+      known |= !strcmp (call, name);
+   if (!known || ms < 0)
+      return -1;
+
+   QMutexLocker locker (&machine.lock);
+
+   machine.stalls.insert (call, { ms, (flags & FAKESCAN_STALL_DEAF) != 0 });
+
+   return 0;
    }
 
 

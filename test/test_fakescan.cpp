@@ -24,6 +24,7 @@
 #include "utils.h"
 
 #include <functional>
+#include <thread>
 
 #include "fakescan/fakescan.h"
 #include "remoteharness.h"
@@ -45,6 +46,7 @@ struct Backdoor
    int (*press) (const char *);
    const char *(*log) (void);
    int (*count) (const char *);
+   int (*stall) (const char *, int, int);
    };
 
 Backdoor backdoor;
@@ -108,10 +110,12 @@ bool Fakescan::setup (void)
    backdoor.press = (int (*) (const char *))dlsym (handle, "fakescan_press");
    backdoor.log = (const char *(*) (void))dlsym (handle, "fakescan_log");
    backdoor.count = (int (*) (const char *))dlsym (handle, "fakescan_count");
+   backdoor.stall = (int (*) (const char *, int, int))
+      dlsym (handle, "fakescan_stall");
    ready = backdoor.reset && backdoor.loadSheet && backdoor.sheetsLeft
          && backdoor.setBacking && backdoor.addFault && backdoor.clear
          && backdoor.setSideTime && backdoor.press && backdoor.log
-         && backdoor.count;
+         && backdoor.count && backdoor.stall;
 
    return ready;
 #else
@@ -203,6 +207,12 @@ void Fakescan::press (const char *name)
 QStringList Fakescan::log (void)
 {
    return QString::fromUtf8 (backdoor.log ()).split ('\n');
+}
+
+
+void Fakescan::stall (const char *call, int ms, bool deaf)
+{
+   QCOMPARE (backdoor.stall (call, ms, deaf ? FAKESCAN_STALL_DEAF : 0), 0);
 }
 
 
@@ -1745,6 +1755,101 @@ void TestFakescan::testBusy ()
 
    Fakescan::clear ();
    QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_GOOD);
+}
+
+
+/* A scanner which has stopped answering holds each call up until USB
+   gives up on it. SANE lets another thread cut sane_start() short with
+   sane_cancel(), though a back end part-way through a command may not
+   notice, and a scanner set going again lets the call carry on */
+void TestFakescan::testStall ()
+{
+   for (int i = 0; i < 2; i++)
+      QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                    QImage (), 10));
+
+   QScanner scanner;
+
+   openScanner (scanner, "ADF Front", SANE_VALUE_SCAN_MODE_GRAY, 50);
+   if (QTest::currentTestFailed ())
+      return;
+
+   SANE_Parameters params;
+   QByteArray data;
+   QElapsedTimer timer;
+
+   // it waits out its time and fails, as a USB timeout does
+   Fakescan::stall ("start", 100);
+   timer.start ();
+   QCOMPARE (scanner.start (), SANE_STATUS_IO_ERROR);
+   QVERIFY (timer.elapsed () >= 100);
+   QVERIFY (Fakescan::log ().contains ("start: stalled"));
+
+   SANE_Status status = SANE_STATUS_GOOD;
+
+   /* Start a scan on a thread of its own, wait until the call is held
+      up, then cancel it from here as SANE allows, or set the scanner
+      going again, leaving what sane_start() said in 'status'
+
+      \param deaf    true if the back end takes no notice of the cancel
+      \param clear   true to set the scanner going rather than cancel */
+   auto stalled_start = [&] (int ms, bool deaf, bool clear) {
+      int stalls = Fakescan::log ().filter ("start: stalled").size ();
+
+      Fakescan::stall ("start", ms, deaf);
+      std::thread thread ([&] () { status = scanner.start (); });
+      auto join = qScopeGuard ([&] () {
+         Fakescan::clear ();
+         thread.join ();
+      });
+
+      QTRY_COMPARE (Fakescan::log ().filter ("start: stalled").size (),
+                    stalls + 1);
+      if (clear)
+         Fakescan::clear ();
+      else
+         scanner.cancel ();
+      join.dismiss ();
+      thread.join ();
+   };
+
+   // a cancel from another thread ends the wait, long before its time
+   timer.start ();
+   stalled_start (60 * 1000, false, false);
+   QCOMPARE (status, SANE_STATUS_CANCELLED);
+   QVERIFY (timer.elapsed () < 60 * 1000);
+   QVERIFY (Fakescan::log ().contains ("cancel from another thread"));
+
+   // unless the back end takes no notice, when it fails in its own time
+   stalled_start (200, true, false);
+   QCOMPARE (status, SANE_STATUS_IO_ERROR);
+
+   // a scanner set going again carries on with the call
+   timer.start ();
+   stalled_start (60 * 1000, false, true);
+   QCOMPARE (status, SANE_STATUS_GOOD);
+   QVERIFY (timer.elapsed () < 60 * 1000);
+   scanner.getParameters (&params);
+
+   SANE_Byte buf [4096];
+   SANE_Int len;
+
+   while ((status = scanner.read (buf, sizeof (buf), &len))
+          == SANE_STATUS_GOOD)
+      ;
+   QCOMPARE (status, SANE_STATUS_EOF);
+
+   // a read can stall too, and so can telling the scanner to stop
+   Fakescan::stall ("read", 50);
+   QCOMPARE (readFrame (scanner, params, data), SANE_STATUS_IO_ERROR);
+   Fakescan::stall ("cancel", 50);
+   timer.start ();
+   scanner.cancel ();
+   QVERIFY (timer.elapsed () >= 50);
+
+   // none of this was two calls at once on the handle
+   QVERIFY2 (!Fakescan::log ().join (" ").contains ("concurrent"),
+             qPrintable (Fakescan::log ().join ("\n")));
 }
 
 
