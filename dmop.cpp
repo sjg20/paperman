@@ -1210,12 +1210,27 @@ bool Desktopmodel::canKeepPageProps (const QModelIndex &index,
 err_info *Desktopmodel::putPageProps (File *f, const QModelIndex &index,
                                       const PagePropsMap &props)
    {
-   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+   err_info *err = NULL;
+
+   for (auto it = props.constBegin (); !err && it != props.constEnd (); ++it)
       {
-      CALL (f->putPageProps (it.key (), it.value ()));
-      emit pagePropsChanged (index, it.key ());
+      err = f->putPageProps (it.key (), it.value ());
+      if (!err)
+         emit pagePropsChanged (index, it.key ());
       }
-   return NULL;
+
+   /* the desk shows a stack by its cover, so look for it again now,
+      rather than leave the stack as it was until later */
+   if (!props.isEmpty ())
+      {
+      checkCover (index, f, true);
+      if (f->pagenum () < f->pagecount ())
+         updatePixmap (f);
+      _minor_change = true;
+      emit dataChanged (index, index);
+      _minor_change = false;
+      }
+   return err;
    }
 
 

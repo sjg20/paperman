@@ -58,6 +58,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopundo.h"
 #include "desk.h"
 #include "file.h"
+#include "imagetrim.h"
+#include "pagecover.h"
 #include "paperstack.h"
 #include "utils.h"
 #include <QMutex>
@@ -208,11 +210,11 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
          return f->pos ();
 
       case Role_preview_maxsize :
-         return f->previewMaxsize ();
+         return previewSize (f);
 
       case Role_pixmap :
          if (waitingForImage (f))
-            return waitingPixmap (f->previewMaxsize ());
+            return waitingPixmap (previewSize (f));
          return f->pixmap ();
 
       case Role_pagenum :
@@ -237,11 +239,10 @@ QVariant Desktopmodel::data(const QModelIndex &index, int role) const
 
          // use the maximum width
          // for height, use the pixmap preview plus 3 lines of text
-         size = f->previewMaxsize ();
+         size = previewSize (f);
          size = size.expandedTo (f->titleMaxsize ());
          size = size.expandedTo (f->pagenameMaxsize ());
-         size.setHeight (f->previewMaxsize ().height ()
-            + 3 * _fm->height ());
+         size.setHeight (previewSize (f).height () + 3 * _fm->height ());
          return size;
          }
 
@@ -338,8 +339,9 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
          break;
 
       case Role_preview_maxsize :
-         // the stand-in for an image still to come says nothing of its size
-         if (!waitingForImage (f))
+         /* the stand-in for an image still to come says nothing of its
+            size, and a stack shown by its cover is the cover's size */
+         if (!waitingForImage (f) && !coverShown (f))
             f->setPreviewMaxsize (value.toSize ());
          break;
 
@@ -381,7 +383,7 @@ bool Desktopmodel::setData(const QModelIndex &index, const QVariant &value, int 
       /* a remote stack's page that is not here is drawn from the
          server's thumbnail of it */
       if (!pagenum_change || !fetchRemoteThumbnail (f))
-         f->pixmap (true);
+         updatePixmap (f);
       //FIXME: better to emit our own signal which tells Desktopdelegate to just update the pixmap
       _minor_change = true;
       _pagenum_change = pagenum_change;
@@ -786,10 +788,13 @@ void Desktopmodel::buildItem (QModelIndex index)
    if (f->load ())
       f->setValid (true);
 
+   // the stack may be shown by its cover
+   checkCover (index, f, false);
+
    /* if we are asking for a page that has not been added yet, do nothing.
       This happens during scanning */
    if (f->pagenum () < f->pagecount ())
-      f->pixmap (true);   // regenerate the pixmap
+      updatePixmap (f);   // regenerate the pixmap
    IoStats::spent (f->pathname (), timer.elapsed ());
 
    /* tell the view that the data has changed. The view will request the
@@ -797,6 +802,126 @@ void Desktopmodel::buildItem (QModelIndex index)
       size or titlesize yet, this will be calculated by the view (actually
       delegate) and then stored back in the model */
    emit dataChanged (index, index);
+   }
+
+
+bool Desktopmodel::coverShown (File *f) const
+   {
+   return f->coverPage () >= 0 && !remoteForFile (f);
+   }
+
+
+QSize Desktopmodel::previewSize (File *f) const
+   {
+   return coverShown (f) ? f->coverSize () : f->previewMaxsize ();
+   }
+
+
+void Desktopmodel::checkCover (const QModelIndex &index, File *f, bool now)
+   {
+   // only a .max stack here can have a cover, for now
+   if (f->type () != File::Type_max || remoteForFile (f))
+      return;
+
+   switch (f->coverState ())
+      {
+      case File::Cover_known :
+         return;
+      case File::Cover_noted :
+         // nothing need be read if the stack is as it was when noted
+         if (f->coverNoteCurrent ())
+            {
+            f->confirmCover ();
+            return;
+            }
+         break;
+      case File::Cover_unknown :
+      case File::Cover_stale :
+         break;
+      }
+
+   if (now || f->coverPage () >= 0)
+      findCover (f);
+   else if (!_pending_cover_list.contains (index))
+      {
+      _pending_cover_list << index;
+      if (!_updateTimer->isActive ())
+         _updateTimer->start (DELAY_TIME);
+      }
+   }
+
+
+void Desktopmodel::findCover (File *f)
+   {
+   int pagenum = -1;
+   QString text;
+   QSize size;
+
+   // a stack which cannot be read is taken as having none, for now
+   err_info *err = f->findCover (pagenum, text);
+
+   if (!err && pagenum >= 0)
+      {
+      Pagecover cover;
+      QSize preview;
+      int bpp;
+
+      // the cover is shown at the scale of a preview, as the pages are
+      Pagecover::parse (text, cover);
+      err = f->getPreviewInfo (pagenum, preview, bpp);
+      if (!err && !preview.isEmpty ())
+         size = Imagetrim::areaToRect (preview, cover.box ()).size ();
+      if (size.isEmpty ())
+         pagenum = -1;
+      }
+   f->noteCover (err ? -1 : pagenum, text, size, !err);
+   }
+
+
+void Desktopmodel::laterCover (const QModelIndex &index)
+   {
+   File *f = getFile (index);
+
+   // it may have been looked through since, or gone
+   if (!f || f->coverState () == File::Cover_known)
+      return;
+
+   int before = f->coverPage ();
+
+   checkCover (index, f, true);
+   if (f->coverPage () == before && before < 0)
+      return;
+   if (f->pagenum () < f->pagecount ())
+      updatePixmap (f);
+   _minor_change = true;
+   emit dataChanged (index, index);
+   _minor_change = false;
+   }
+
+
+void Desktopmodel::updatePixmap (File *f)
+   {
+   f->pixmap (true);
+   if (!coverShown (f) || !f->hasImage ())
+      return;
+
+   QPixmap pm = f->pixmap ();
+
+   // the cover page shows just the cover
+   if (f->pagenum () == f->coverPage ())
+      {
+      Pagecover cover;
+
+      if (Pagecover::parse (f->coverText (), cover) && !cover.isWholePage ())
+         pm = pm.copy (Imagetrim::areaToRect (pm.size (), cover.box ()));
+      }
+
+   // and every page fits in the cover's size, as the stack takes that size
+   QSize bound = f->coverSize ();
+
+   if (pm.width () > bound.width () || pm.height () > bound.height ())
+      pm = pm.scaled (bound, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+   f->setThumbnail (pm);
    }
 
 
@@ -1478,7 +1603,16 @@ void Desktopmodel::nextUpdate (void)
    {
    if (_closing)
       return;
-   if (_pending_scan_list.isEmpty ())
+   if (_pending_scan_list.isEmpty () && !_pending_cover_list.isEmpty ())
+      {
+      // with every stack read, look for the covers put off
+      QModelIndex ind = _pending_cover_list.takeFirst ();
+
+      if (ind.isValid ())
+         laterCover (ind);
+      _updateTimer->start (DELAY_TIME);
+      }
+   else if (_pending_scan_list.isEmpty ())
       {
       // nothing to do, so finish
       _updateTimer->stop ();
@@ -1656,6 +1790,7 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
 
    // no pending list at present
    _pending_scan_list.clear ();
+   _pending_cover_list.clear ();
 
    return ind;
    }
@@ -2055,6 +2190,7 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
 
    // no pending list at present
    _pending_scan_list.clear ();
+   _pending_cover_list.clear ();
 
    return _subdirs_index;
 }
@@ -2107,6 +2243,7 @@ QModelIndex Desktopmodel::showFilesIn(const QString& inPath,
 
    // no pending list at present
    _pending_scan_list.clear ();
+   _pending_cover_list.clear ();
 
    return _otherdir_index;
 }

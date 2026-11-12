@@ -7,8 +7,10 @@
 
 class Desktopmodel;
 class Desktopview;
+class File;
 class Mainwindow;
 class QModelIndex;
+class QPixmap;
 
 /** Tests which drive the desktop through real UI events (mouse clicks,
     key presses and QAction triggers) rather than calling the underlying
@@ -38,6 +40,15 @@ private slots:
 
    //! what showing a stack reads is measured, to its page and its strip
    void testStackIo();
+
+   //! a stack with a cover shows the cover on its cover page, takes its
+   //! size, and shows its other pages shrunk to fit; clearing the cover
+   //! and undo each bring back how it was
+   void testDeskCover();
+
+   //! a cover on a page other than the one shown is found after the
+   //! stacks are read, and is known again next time without looking
+   void testDeskCoverFound();
 
    //! pages are put in a new order by dragging them in the page list, or
    //! with Ctrl and an arrow key, taking their marks for removal with them
@@ -198,6 +209,12 @@ private:
    //! Click the centre of the given desktop item
    void clickItem(Desktopview *view, int row,
                   Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+   //! the preview the model gives a stack on the desk
+   static QPixmap shownPixmap(Desktopmodel *model, const QModelIndex &stack);
+
+   //! a page's preview, as the stack holds it, whatever the desk shows
+   static QPixmap pagePreview(File *f, int pagenum);
 };
 
 #endif // TEST_DESKTOPUI_H
