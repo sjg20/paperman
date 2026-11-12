@@ -147,6 +147,8 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    connect (_desktop->getModel (),
       SIGNAL (pageContentChanged (const QModelIndex &, int)),
       this, SLOT (slotPageContentChanged (const QModelIndex &, int)));
+   connect (_desktop->getModel (), &Desktopmodel::pagePropsChanged, _page,
+            &Pagewidget::slotPagePropsChanged);
 
    connect (_page->_returnToDesktop, SIGNAL (triggered()), this, SLOT (showDesktop ()));
 

@@ -152,6 +152,7 @@ private:
    QPixmap _icon_remove;
    QPixmap _icon_keep;
    QPixmap _icon_blank;
+   QPixmap _icon_cover;    //!< marks the page which is the stack's cover
    };
 
 

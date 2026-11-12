@@ -902,7 +902,7 @@ void TestUtils::testIcons ()
    for (const QString &name : names)
       {
       bool status = name == "pagekeep" || name == "pageremove"
-                    || name == "pageblank";
+                    || name == "pageblank" || name == "pagecover";
 
       QApplication::setPalette (light);
       QImage l = utilIcon (name).pixmap (24, 24).toImage ();

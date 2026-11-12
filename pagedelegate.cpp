@@ -22,6 +22,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <algorithm>
+
 #include <QApplication>
 #include <QDebug>
 #include <QMouseEvent>
@@ -85,6 +87,7 @@ Pagedelegate::Pagedelegate (QObject *parent)
    _icon_remove = utilIconPixmap ("pageremove", 18);
    _icon_keep = utilIconPixmap ("pagekeep", 18);
    _icon_blank = utilIconPixmap ("pageblank", 18);
+   _icon_cover = utilIconPixmap ("pagecover", 18);
    }
 
 
@@ -109,12 +112,14 @@ typedef struct pmeasure_info
    QRect coverageRect;  //!< rect for coverage information
    QRect blankRect;     //!< rect for blank icon
    QRect removeRect;    //!< rect for remove icon
+   QRect coverRect;     //!< rect for the cover badge
    QSize size;          //!< overall size for the page
    Pageinfo *pageinfo;  //!< the page info object for this page
    QPixmap pixmap;      //!< page image pixmap
    QString coverageStr; //!< information about page coverage (amount of black on page)
    bool blank;          //!< true if the page is marked blank
    bool remove;         //!< true if the page is marked for removal
+   bool cover;          //!< true if the page is the stack's cover
    bool scanning;       //!< true if this page is being scanned
    } pmeasure_info;
 
@@ -138,6 +143,7 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
    measure.valid = true;
    QVariant value = index.model ()->data (index, Pagemodel::Role_pageinfo);
    measure.pageinfo = value.value<Pageinfo *>();
+   measure.cover = index.model ()->data (index, Pagemodel::Role_cover).toBool ();
    Pageinfo *pi = measure.pageinfo;
 
    if (!pi)
@@ -152,11 +158,19 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
    measure.blankRect = QRect (QPoint (_pagesize.width () - _icon_remove.width () * 2 - 3, 0),
       _icon_remove.size ());
    int leftmost = measure.blankRect.left ();
+
+   // the cover's badge goes before the others, only taking room if shown
+   if (measure.cover)
+      {
+      measure.coverRect = measure.blankRect.translated (
+         -_icon_cover.width () - 3, 0);
+      leftmost = measure.coverRect.left ();
+      }
    if (_display & Display_coverage)
       {
       measure.coverageRect = style->itemTextRect (fm, rect, Qt::AlignLeft,
          false, measure.coverageStr);
-      measure.coverageRect.translate (measure.blankRect.left () - measure.coverageRect.right (), 0);
+      measure.coverageRect.translate (leftmost - measure.coverageRect.right (), 0);
       leftmost = measure.coverageRect.left ();
       }
 
@@ -177,14 +191,18 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
    measure.pagenum = pi->pagenum ();
    measure.pagenumRect = style->itemTextRect (fm, rect, Qt::AlignLeft, false,
       QString ("%1").arg (measure.pagenum));
-   measure.pagenameRect = QRect (measure.pagenumRect.width () + 5, 0,
-      leftmost - 5, fmb.height ());
+   // the name stops short of the icons, so its highlight does too
+   int name_left = measure.pagenumRect.width () + 5;
+
+   measure.pagenameRect = QRect (name_left, 0,
+      std::max (leftmost - 5 - name_left, 0), fmb.height ());
 
    measure.pagenumRect.translate (0, pageHeight + LABEL_TOP);
    measure.pagenameRect.translate (0, pageHeight + LABEL_TOP);
    measure.coverageRect.translate (0, pageHeight + LABEL_TOP);
    measure.blankRect.translate (0, pageHeight);
    measure.removeRect.translate (0, pageHeight);
+   measure.coverRect.translate (0, pageHeight);
 
    if (offset)
       {
@@ -194,6 +212,7 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
       measure.coverageRect.translate (offset->x (), offset->y ());
       measure.blankRect.translate (offset->x (), offset->y ());
       measure.removeRect.translate (offset->x (), offset->y ());
+      measure.coverRect.translate (offset->x (), offset->y ());
       measure.rect.translate (offset->x (), offset->y ());
       }
    }
@@ -250,6 +269,9 @@ void Pagedelegate::paint (QPainter *painter, const QStyleOptionViewItem &option,
          utilStylePalette (style), false, measure.coverageStr,
          QPalette::WindowText);
 
+   if (measure.cover)
+      style->drawItemPixmap (painter, measure.coverRect, Qt::AlignLeft,
+                             _icon_cover);
    if (measure.blank)
       style->drawItemPixmap (painter, measure.blankRect, Qt::AlignLeft, _icon_blank);
    style->drawItemPixmap (painter, measure.removeRect, Qt::AlignLeft,

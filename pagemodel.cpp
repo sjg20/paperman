@@ -22,6 +22,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <algorithm>
+
 #include <QBitArray>
 #include <QDebug>
 #include <QIcon>
@@ -30,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTimer>
 
 #include "desktopmodel.h"
+#include "pagecover.h"
 #include "pagemodel.h"
 
 Q_DECLARE_METATYPE(QPixmap *)
@@ -230,8 +233,43 @@ void Pagemodel::updatePage (int pagenum)
    if (!_pages [row].updatePixmap ())
       _pages [row].invalidate ();   // not set up yet: rebuild lazily
 
+   // a crop or turn may have moved or dropped the cover
+   _pages [row].updateCover ();
+
    QModelIndex ind = index (row, 0, QModelIndex ());
    emit dataChanged (ind, ind);
+   }
+
+
+void Pagemodel::updateCover (int pagenum)
+   {
+   int first = pagenum == -1 ? 0 : pagenum - _start;
+   int last = pagenum == -1 ? _row_count - 1 : pagenum - _start;
+
+   for (int row = std::max (first, 0); row <= last && row < _row_count;
+        row++)
+      {
+      bool was = _pages [row].isCover ();
+
+      _pages [row].updateCover ();
+      if (_pages [row].isCover () != was)
+         {
+         QModelIndex ind = index (row, 0, QModelIndex ());
+
+         emit dataChanged (ind, ind);
+         }
+      }
+   }
+
+
+bool Pagemodel::readCover (int item) const
+   {
+   Pagecover cover;
+
+   if (!_contents || !_stackindex.isValid ())
+      return false;
+   return !_contents->getPageCover (_stackindex, _start + item, cover)
+      && !cover.isNull ();
    }
 
 
@@ -350,6 +388,9 @@ QVariant Pagemodel::data(const QModelIndex &index, int role) const
 
       case Role_scanning :
          return pi->scanning ();
+
+      case Role_cover :
+         return ((Pagemodel *)this)->ensurePage (index.row ())->isCover ();
       }
 
    return QVariant();
@@ -996,6 +1037,7 @@ void Pageinfo::setup (const Pagemodel *model, int itemnum)
       {
       _pagename = model->data (ind, Qt::DisplayRole).toString ();
       _pagenum = model->data (ind, Pagemodel::Role_pagenum).toInt ();
+      _cover = model->readCover (_itemnum);
       }
    _pagename_stale = false;
    // we are now ready for action
@@ -1029,6 +1071,13 @@ QString Pageinfo::pagename (void)
    }
 
 
+void Pageinfo::updateCover (void)
+   {
+   if (_valid && !_scanning)
+      _cover = _model->readCover (_itemnum);
+   }
+
+
 void Pageinfo::haltRescale ()
    {
    // don't bother with a previous rescaling, as we are about to get another!
@@ -1042,6 +1091,7 @@ void Pageinfo::invalidate ()
    _provisional = false;
    _coverage = "";
    _blank = _remove = _scanning = false;
+   _cover = false;
    }
 
 

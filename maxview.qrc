@@ -2,6 +2,7 @@
     <qresource prefix="/images">
         <file>images/paperman.png</file>
         <file>images/icons/cancel.svg</file>
+        <file>images/icons/cover.svg</file>
         <file>images/icons/crop.svg</file>
         <file>images/icons/crop-content.svg</file>
         <file>images/icons/crop-full.svg</file>
@@ -19,6 +20,7 @@
         <file>images/icons/no_access.svg</file>
         <file>images/icons/options.svg</file>
         <file>images/icons/pageblank.svg</file>
+        <file>images/icons/pagecover.svg</file>
         <file>images/icons/pagekeep.svg</file>
         <file>images/icons/pageremove.svg</file>
         <file>images/icons/pages.svg</file>

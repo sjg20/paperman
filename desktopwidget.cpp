@@ -388,6 +388,8 @@ void Desktopwidget::createPage(void)
 
    connect (_contents, &Desktopmodel::pagesReordered, _page,
             &Pagewidget::slotPagesReordered);
+   connect (_contents, &Desktopmodel::pagePropsChanged, _page,
+            &Pagewidget::slotPagePropsChanged);
    }
 
 
