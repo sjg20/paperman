@@ -745,6 +745,19 @@ eturns error, or NULL if ok */
 protected:
    QPixmap unknownPixmap (void);
 
+   /** bring a page's cover, its 'cover' property, into line with a change
+       to the page: see Pagecover
+
+      A file which cannot keep properties is left as it is, as is a page
+      with none
+
+      \param pagenum  the page, from 0
+      \param change   gives the cover's new text from its text now, each
+                      empty for no cover
+      \returns error, or NULL if ok */
+   err_info *changeCover (int pagenum,
+         const std::function<QString (const QString &)> &change);
+
 protected:
    e_type _type;        //!< file type
    int subtype;         //!< subtype information (where type refers to multiple file types)

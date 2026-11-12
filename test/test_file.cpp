@@ -23,6 +23,7 @@
 #include "imageadjust.h"
 #include "iostats.h"
 #include "ocrpage.h"
+#include "pagecover.h"
 
 #include "pdfio.h"   // for Poppler, for Qt 5 or 6
 
@@ -1882,6 +1883,187 @@ void TestFile::testMaxPropsInvalid()
    QVERIFY(!max.putPageProps(0, props));
    QVERIFY(!max.getPageProps(0, got));
    QCOMPARE(got, props);
+}
+
+
+//! a page's cover, as kept in its properties, or an error
+static QString coverOf(File *f, int pagenum)
+{
+   QMap<QString, QString> props;
+   err_info *err = f->getPageProps(pagenum, props);
+
+   if (err)
+      return QString("error: %1").arg(err->errstr);
+   return props.value("cover");
+}
+
+//! give a page a cover, beside a property of another kind
+static bool putCover(File *f, int pagenum, const QString &cover)
+{
+   QMap<QString, QString> props;
+
+   props["name"] = "jacket";
+   props["cover"] = cover;
+   return !f->putPageProps(pagenum, props);
+}
+
+void TestFile::testCoverTransform()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(putCover(&max, 1, "0.1000,0.2000,0.3000,0.4000"));
+
+      // a turn to the right takes the box from the left to the top
+      QVERIFY(!max.transformPage(1, File::Transform_rotate90));
+      QCOMPARE(coverOf(&max, 1), QString("0.4000,0.1000,0.4000,0.3000"));
+      QVERIFY(!max.transformPage(1, File::Transform_rotate90));
+      QCOMPARE(coverOf(&max, 1), QString("0.6000,0.4000,0.3000,0.4000"));
+      QVERIFY(!max.transformPage(1, File::Transform_rotate180));
+      QCOMPARE(coverOf(&max, 1), QString("0.1000,0.2000,0.3000,0.4000"));
+      QVERIFY(!max.transformPage(1, File::Transform_rotate270));
+      QCOMPARE(coverOf(&max, 1), QString("0.2000,0.6000,0.4000,0.3000"));
+      QVERIFY(!max.transformPage(1, File::Transform_rotate90));
+      QCOMPARE(coverOf(&max, 1), QString("0.1000,0.2000,0.3000,0.4000"));
+
+      // and a mirror swaps it across
+      QVERIFY(!max.transformPage(1, File::Transform_hflip));
+      QCOMPARE(coverOf(&max, 1), QString("0.6000,0.2000,0.3000,0.4000"));
+      QVERIFY(!max.transformPage(1, File::Transform_vflip));
+      QCOMPARE(coverOf(&max, 1), QString("0.6000,0.4000,0.3000,0.4000"));
+
+      // the other pages, and the page's other properties, stay
+      QCOMPARE(coverOf(&max, 0), QString());
+      QMap<QString, QString> props;
+      QVERIFY(!max.getPageProps(1, props));
+      QCOMPARE(props.value("name"), QString("jacket"));
+   }
+
+   // it is kept in the file
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QCOMPARE(coverOf(&max, 1), QString("0.6000,0.4000,0.3000,0.4000"));
+}
+
+void TestFile::testCoverCrop()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!max.getImage(0, false, image, size, trueSize, bpp, false));
+
+   // what a crop keeps, as proportions of the page, once in pixels
+   auto keptOf = [&size](const QRectF &area) {
+      return Imagetrim::rectToArea(size, Imagetrim::areaToRect(size, area));
+   };
+
+   // the front cover, the right half of a jacket, cut down to the cover
+   const QString front = "0.5000,0.0000,0.5000,1.0000";
+   QVERIFY(putCover(&max, 0, front));
+
+   const QRectF right(0.25, 0, 0.75, 1);
+   QByteArray undo;
+   QVERIFY(!max.cropPage(0, right, undo));
+   QVERIFY(!undo.isEmpty());
+   Pagecover expect = Pagecover::fromBox(QRectF(0.5, 0, 0.5, 1))
+      .cropped(keptOf(right));
+   QVERIFY(expect.isBox());
+   QCOMPARE(coverOf(&max, 0), expect.toString());
+   QVERIFY(qAbs(expect.box().x() - 1.0 / 3) < 0.01);
+   QVERIFY(qAbs(expect.box().right() - 1) < 0.0001);
+   {
+      Filemax again(dir, "testfile.max", nullptr);
+      QVERIFY(!again.load());
+      QCOMPARE(coverOf(&again, 0), expect.toString());
+   }
+
+   // undo brings back the box exactly as it was
+   QVERIFY(!max.uncropPage(0, undo));
+   QCOMPARE(coverOf(&max, 0), front);
+
+   // keeping just the cover leaves the whole page as the cover
+   QVERIFY(!max.cropPage(0, QRectF(0.5, 0, 0.5, 1), undo));
+   QCOMPARE(coverOf(&max, 0), QString("page"));
+   QVERIFY(!max.uncropPage(0, undo));
+   QCOMPARE(coverOf(&max, 0), front);
+
+   // cutting all of the cover away drops it, and undo brings it back
+   QVERIFY(!max.cropPage(0, QRectF(0, 0, 0.4, 1), undo));
+   QCOMPARE(coverOf(&max, 0), QString());
+   QMap<QString, QString> props;
+   QVERIFY(!max.getPageProps(0, props));
+   QCOMPARE(props.value("name"), QString("jacket"));
+   QVERIFY(!max.uncropPage(0, undo));
+   QCOMPARE(coverOf(&max, 0), front);
+
+   /* a cover given to the page after the crop is mapped back to the
+      page as it was, when the crop is undone */
+   QVERIFY(!max.cropPage(0, QRectF(0, 0, 0.5, 1), undo));
+   QCOMPARE(coverOf(&max, 0), QString());
+   QVERIFY(putCover(&max, 0, "0.0000,0.0000,0.5000,1.0000"));
+   QVERIFY(!max.uncropPage(0, undo));
+   Pagecover back = Pagecover::fromBox(QRectF(0, 0, 0.5, 1))
+      .uncropped(keptOf(QRectF(0, 0, 0.5, 1)));
+   QCOMPARE(coverOf(&max, 0), back.toString());
+   QVERIFY(qAbs(back.box().width() - 0.25) < 0.01);
+
+   // cropping every page leaves the cover on its own page
+   QVERIFY(putCover(&max, 2, front));
+   QVERIFY(!max.cropPages(-1, QRectF(0.25, 0, 0.75, 1), undo));
+   QCOMPARE(coverOf(&max, 1), QString());
+   QVERIFY(coverOf(&max, 2).startsWith("0.33"));
+   QVERIFY(!max.uncropPages(undo));
+   QCOMPARE(coverOf(&max, 2), front);
+}
+
+void TestFile::testCoverLeftAlone()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+
+   // the whole page is still the whole page, however it is changed
+   QVERIFY(putCover(&max, 0, "page"));
+   QVERIFY(!max.transformPage(0, File::Transform_rotate90));
+   QVERIFY(!max.transformPage(0, File::Transform_hflip));
+   QByteArray undo;
+   QVERIFY(!max.cropPage(0, QRectF(0, 0, 0.5, 0.5), undo));
+   QCOMPARE(coverOf(&max, 0), QString("page"));
+   QVERIFY(!max.uncropPage(0, undo));
+   QCOMPARE(coverOf(&max, 0), QString("page"));
+
+   // something else in the cover's place is not touched
+   QVERIFY(putCover(&max, 1, "front"));
+   QVERIFY(!max.transformPage(1, File::Transform_rotate90));
+   QVERIFY(!max.cropPage(1, QRectF(0, 0, 0.5, 0.5), undo));
+   QCOMPARE(coverOf(&max, 1), QString("front"));
+   QVERIFY(!max.uncropPage(1, undo));
+   QCOMPARE(coverOf(&max, 1), QString("front"));
+
+   // a page with no properties gets none
+   QVERIFY(!max.transformPage(2, File::Transform_rotate90));
+   QVERIFY(!max.cropPage(2, QRectF(0, 0, 0.5, 0.5), undo));
+   QVERIFY(!max.uncropPage(2, undo));
+   QMap<QString, QString> props;
+   QVERIFY(!max.getPageProps(2, props));
+   QVERIFY(props.isEmpty());
 }
 
 

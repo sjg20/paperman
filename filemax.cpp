@@ -62,6 +62,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "iostats.h"
 #include "imagetrim.h"
 #include "ocrpage.h"
+#include "pagecover.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -7056,7 +7057,7 @@ err_info *Filemax::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
    /* the page gets chunks of its own at the end of the file, leaving the
       old ones where they are to be brought back. None of the text goes
       with it, since some of the words may have been cut away; the page
-      is read again. Its properties stay with it as they are */
+      is read again. Its properties stay with it, its cover aside */
    page_info old = *info;
 
    info->image = 0;
@@ -7073,10 +7074,25 @@ err_info *Filemax::cropPage (int pagenum, const QRectF &area, QByteArray &undo)
    CALL (free_page (freed));
    CALL (flush ());
 
+   /* the cover keeps what of it the crop keeps, on the new page; undo
+      needs what it was before, since what was cut away is lost */
+   QRectF kept = Imagetrim::rectToArea (size, rect);
+   QString cover_was, cover_now;
+
+   CALL (changeCover (pagenum, [&] (const QString &was) {
+      Pagecover cover;
+
+      cover_was = was;
+      cover_now = Pagecover::parse (was, cover)
+         ? cover.cropped (kept).toString () : was;
+      return cover_now;
+   }));
+
    QDataStream out (&undo, QIODevice::WriteOnly);
 
    out << old.chunkid << old.roswell << old.image << old.noti1 << old.noti2
-       << old.title << old.text << old.ocr << old.timestamp << old.titlestr;
+       << old.title << old.text << old.ocr << old.timestamp << old.titlestr
+       << kept << cover_was << cover_now;
    return NULL;
    }
 
@@ -7089,8 +7105,12 @@ err_info *Filemax::uncropPage (int pagenum, const QByteArray &undo)
    page_info old = {};
    QDataStream in (undo);
 
+   QRectF kept;
+   QString cover_was, cover_now;
+
    in >> old.chunkid >> old.roswell >> old.image >> old.noti1 >> old.noti2
-      >> old.title >> old.text >> old.ocr >> old.timestamp >> old.titlestr;
+      >> old.title >> old.text >> old.ocr >> old.timestamp >> old.titlestr
+      >> kept >> cover_was >> cover_now;
    old.have_roswell = true;
    old.title_loaded = true;
    old.title_saved = true;
@@ -7128,7 +7148,18 @@ err_info *Filemax::uncropPage (int pagenum, const QByteArray &undo)
          ros->saved = false;
          }
       }
-   return flush ();
+   CALL (flush ());
+
+   /* a cover as the crop left it goes back to what it was, which may be
+      more than the crop kept; one changed since is mapped back */
+   return changeCover (pagenum, [&] (const QString &was) {
+      Pagecover cover;
+
+      if (was == cover_now)
+         return cover_was;
+      return Pagecover::parse (was, cover)
+         ? cover.uncropped (kept).toString () : was;
+   });
    }
 
 
@@ -7146,7 +7177,8 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
    CALL (getImage (pagenum, false, image, size, trueSize, bpp, false));
 
    /* the words' boxes no longer match the page, so drop them; the page
-      is read again the right way up. Its properties stay with it */
+      is read again the right way up. Its properties stay with it, with
+      its cover, if it has one, turned to match */
    CALL (ensure_roswell (*info));
    if (info->ocr)
       {
@@ -7177,6 +7209,14 @@ err_info *Filemax::transformPage (int pagenum, e_transform op)
       out = utilReduceDepth (out, bpp);
 
    CALL (store_image (*info, pagenum, out, dpi));
+
+   // a box on the page which is the cover moves with what is on it
+   CALL (changeCover (pagenum, [op] (const QString &was) {
+      Pagecover cover;
+
+      return Pagecover::parse (was, cover)
+         ? cover.transformed (op).toString () : was;
+   }));
 
    /* cache the rotated image (which max_replace_page() invalidated via
       flush()) so the display refresh can reuse it.  Skip mono pages:
