@@ -21,12 +21,14 @@
 #include "ocrpage.h"
 #include "dirmodel.h"
 #include "filemax.h"
+#include "imagetrim.h"
 #include "mailer.h"
 #include "utils.h"
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "op.h"
+#include "pagecover.h"
 #include "pagemodel.h"
 #include "pageview.h"
 #include "paperstack.h"
@@ -2274,6 +2276,232 @@ void TestDesktopUi::testStackIo()
    QVERIFY(strip.isActive());
    QCOMPARE(strip.what(), "page strip of " + name);
    QTRY_VERIFY(strip.counts().reads > 0);
+}
+
+
+#define WAIT_OPS(model) \
+    QTRY_VERIFY_WITH_TIMEOUT(!(model)->opsPending(), 10000)
+
+QPixmap TestDesktopUi::shownPixmap(Desktopmodel *model,
+                                   const QModelIndex &stack)
+{
+   return model->data(stack, Desktopmodel::Role_pixmap).value<QPixmap>();
+}
+
+QPixmap TestDesktopUi::pagePreview(File *f, int pagenum)
+{
+   QPixmap pixmap;
+
+   if (f->getPreviewPixmap(pagenum, pixmap, false))
+      return QPixmap();
+   return pixmap;
+}
+
+void TestDesktopUi::testDeskCover()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QUndoStack *undo = model->getUndoStack();
+
+   QModelIndex stack = model->index(0, 0, repo_ind);
+   File *f = model->getFile(stack);
+   QCOMPARE(f->filename(), QString("testfile.max"));
+   QModelIndex vind = itemIndex(view, 0);
+   QCOMPARE(view->model()->data(vind, Qt::DisplayRole).toString(),
+            QString("testfile"));
+
+   // once read and looked through, the stack has no cover
+   QTRY_COMPARE(f->coverState(), File::Cover_known);
+   QCOMPARE(f->coverPage(), -1);
+   const QPixmap first = pagePreview(f, 0);
+   const QPixmap second = pagePreview(f, 1);
+   QVERIFY(!first.isNull() && !second.isNull());
+   QTRY_COMPARE(shownPixmap(model, stack).size(), first.size());
+   const QSize wide = model->data(stack, Desktopmodel::Role_preview_maxsize)
+                         .toSize();
+   QVERIFY(wide.width() >= first.width());
+   QTRY_VERIFY(view->visualRect(vind).isValid());
+   const QRect before = view->visualRect(vind);
+
+   // the right half of the first page is the front cover
+   const QRectF half(0.5, 0, 0.5, 1);
+   model->setCover(stack, 0, Pagecover::fromBox(half));
+   WAIT_OPS(model);
+   const QRect box = Imagetrim::areaToRect(first.size(), half);
+   QCOMPARE(f->coverPage(), 0);
+   QCOMPARE(f->coverSize(), box.size());
+
+   // which is all the stack shows of the page, and is its size
+   QPixmap shown = shownPixmap(model, stack);
+   QCOMPARE(shown.size(), box.size());
+   QCOMPARE(shown.toImage(), first.copy(box).toImage());
+   QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize).toSize(),
+            box.size());
+   QTRY_VERIFY(view->visualRect(vind).width() < before.width());
+   const QRect covered = view->visualRect(vind);
+
+   /* stepping to the next page with the arrow on the stack shows it
+      shrunk to fit the cover, so the stack stays the same size */
+   desktop->slotItemClicked(vind, Desktopdelegate::Point_right);
+   QCOMPARE(model->data(stack, Desktopmodel::Role_pagenum).toInt(), 1);
+   shown = shownPixmap(model, stack);
+   QCOMPARE(shown.size(), second.size().scaled(box.size(),
+                                               Qt::KeepAspectRatio));
+   QVERIFY(shown.width() <= box.width() && shown.height() <= box.height());
+   QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize).toSize(),
+            box.size());
+   QTest::qWait(50);
+   QCOMPARE(view->visualRect(vind).size(), covered.size());
+
+   // and back again, the cover
+   desktop->slotItemClicked(vind, Desktopdelegate::Point_left);
+   QCOMPARE(shownPixmap(model, stack).toImage(), first.copy(box).toImage());
+   desktop->slotItemClicked(vind, Desktopdelegate::Point_right);
+
+   // with the cover cleared the page is shown whole, at the size it was
+   model->setCover(stack, 0, Pagecover());
+   WAIT_OPS(model);
+   QCOMPARE(f->coverPage(), -1);
+   QCOMPARE(shownPixmap(model, stack).size(), second.size());
+   QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize).toSize(),
+            wide);
+   QTRY_COMPARE(view->visualRect(vind).size(), before.size());
+
+   // undo gives the stack its cover again
+   QCOMPARE(undo->undoText(), QString("Clear cover"));
+   undo->undo();
+   WAIT_OPS(model);
+   QCOMPARE(f->coverPage(), 0);
+   QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize).toSize(),
+            box.size());
+   QCOMPARE(shownPixmap(model, stack).size(),
+            second.size().scaled(box.size(), Qt::KeepAspectRatio));
+   QTRY_COMPARE(view->visualRect(vind).size(), covered.size());
+
+   // and then takes it away
+   undo->undo();
+   WAIT_OPS(model);
+   QCOMPARE(f->coverPage(), -1);
+   QCOMPARE(shownPixmap(model, stack).size(), second.size());
+   QTRY_COMPARE(view->visualRect(vind).size(), before.size());
+
+   // a change to the cover page moves the cover with it
+   undo->redo();
+   WAIT_OPS(model);
+   QCOMPARE(f->coverPage(), 0);
+   model->setData(stack, 0, Desktopmodel::Role_pagenum);
+   model->cropPage(stack, 0, QRectF(0.25, 0, 0.75, 1));
+   WAIT_OPS(model);
+   QPixmap cropped = pagePreview(f, 0);
+   QRect moved = Imagetrim::areaToRect(cropped.size(),
+                                       QRectF(1.0 / 3, 0, 2.0 / 3, 1));
+   QVERIFY(qAbs(f->coverSize().width() - moved.width()) <= 1);
+   QCOMPARE(shownPixmap(model, stack).size(), f->coverSize());
+
+   // a whole page as the cover is shown whole, and sets the size
+   model->setCover(stack, 1, Pagecover::wholePage());
+   WAIT_OPS(model);
+   QCOMPARE(f->coverPage(), 1);
+   QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize).toSize(),
+            second.size());
+   QCOMPARE(shownPixmap(model, stack).size(), cropped.size());
+   QVERIFY(model->setData(stack, 1, Desktopmodel::Role_pagenum));
+   QCOMPARE(shownPixmap(model, stack).toImage(), second.toImage());
+}
+
+void TestDesktopUi::testDeskCoverFound()
+{
+   QString path = setupRepo();
+   const QRectF middle(0.25, 0.25, 0.5, 0.5);
+   QSize third;
+
+   // the middle of the third page is the cover, before the folder is opened
+   {
+      Filemax max(path + "/", "testfile.max", nullptr);
+      QMap<QString, QString> props;
+
+      QVERIFY(!max.load());
+      props["cover"] = Pagecover::fromBox(middle).toString();
+      QVERIFY(!max.putPageProps(2, props));
+      third = Imagetrim::areaToRect(pagePreview(&max, 2).size(), middle)
+                 .size();
+      QVERIFY(!third.isEmpty());
+   }
+
+   {
+      Mainwindow me;
+      Desktopwidget *desktop = me.getDesktop();
+      QVERIFY(!desktop->addDir(path));
+      me.resize(1600, 1000);
+      me.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+      Desktopmodel *model = desktop->getModel();
+      QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+      QModelIndex stack = model->index(0, 0, repo_ind);
+      File *f = model->getFile(stack);
+      QCOMPARE(f->filename(), QString("testfile.max"));
+
+      // the stack is looked through once read, and still opens at page 1
+      QTRY_COMPARE(f->coverState(), File::Cover_known);
+      QCOMPARE(f->coverPage(), 2);
+      QCOMPARE(f->coverSize(), third);
+      QCOMPARE(model->data(stack, Desktopmodel::Role_pagenum).toInt(), 0);
+      QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize)
+                  .toSize(), third);
+      QSize page = pagePreview(f, 0).size();
+      if (page.width() > third.width() || page.height() > third.height())
+         page.scale(third, Qt::KeepAspectRatio);
+      QCOMPARE(shownPixmap(model, stack).size(), page);
+
+      // the cover page shows the cover
+      QVERIFY(model->setData(stack, 2, Desktopmodel::Role_pagenum));
+      QPixmap cover = pagePreview(f, 2);
+      QCOMPARE(shownPixmap(model, stack).toImage(),
+               cover.copy(Imagetrim::areaToRect(cover.size(), middle))
+                  .toImage());
+      QVERIFY(model->setData(stack, 0, Desktopmodel::Role_pagenum));
+      desktop->closing();
+   }
+
+   // the folder's layout notes the cover, with the stack's time and size
+   QFile layout(path + "/.paperdesk");
+   QVERIFY(layout.open(QIODevice::ReadOnly));
+   QFileInfo info(path + "/testfile.max");
+   QString expect = QString(",2,%1,%2,%3,%4,%5\n")
+                       .arg(info.lastModified().toSecsSinceEpoch())
+                       .arg(info.size()).arg(third.width())
+                       .arg(third.height())
+                       .arg(Pagecover::fromBox(middle).toString());
+   QString saved = QString::fromUtf8(layout.readAll());
+   QVERIFY2(saved.contains(expect), qPrintable(saved));
+   layout.close();
+
+   /* so next time the stack has the cover's size before it is read, and
+      is not looked through again */
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex stack = model->index(0, 0, model->index(0, 0, QModelIndex()));
+   File *f = model->getFile(stack);
+   QVERIFY(!f->valid());
+   QCOMPARE(f->coverState(), File::Cover_noted);
+   QCOMPARE(model->data(stack, Desktopmodel::Role_preview_maxsize).toSize(),
+            third);
+
+   me.resize(1600, 1000);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTRY_VERIFY(f->valid() && f->hasImage());
+   QCOMPARE(f->coverState(), File::Cover_known);
+   QVERIFY(model->_pending_cover_list.isEmpty());
+   QCOMPARE(f->coverPage(), 2);
 }
 
 

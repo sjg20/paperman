@@ -1422,6 +1422,48 @@ private:
    err_info *putPageProps (File *f, const QModelIndex &index,
                            const PagePropsMap &props);
 
+   /** whether the desk shows a stack by its cover: it has one, and is
+       not on a server, whose stacks cannot have one yet */
+   bool coverShown (File *f) const;
+
+   /** the size a stack's preview is given on the desk: its cover's, if it
+       is shown by its cover, else the largest of its pages seen */
+   QSize previewSize (File *f) const;
+
+   /** make sure what is known of a stack's cover is up to date, looking
+       through its pages if not
+
+      Looking through all the pages of a stack reads each one's record,
+      so a stack which had no cover, or whose cover is not known, is
+      looked through after the stacks waiting to be read, unless @p now.
+      One which had a cover is looked through at once, which mostly
+      reads only up to its cover page, so that it does not change size
+      in between
+
+      \param index  source model index of the stack
+      \param f      the stack
+      \param now    true to look through it now if need be */
+   void checkCover (const QModelIndex &index, File *f, bool now);
+
+   /** look through a stack's pages for its cover, noting it and how big
+       it is shown
+
+      \param f  the stack */
+   void findCover (File *f);
+
+   /** look through a stack for its cover after the stacks waiting to be
+       read, as checkCover() put it off, showing the cover if found
+
+      \param index  source model index of the stack */
+   void laterCover (const QModelIndex &index);
+
+   /** make a stack's preview of the page it shows: for a stack shown by
+       its cover, the cover on the cover page and each other page shrunk
+       to fit the cover's size
+
+      \param f  the stack */
+   void updatePixmap (File *f);
+
    /** A directory path relative to a remote desk's repository root:
     *  desk->rootDir() and any surrounding slashes are stripped, so
     *  the repo root itself comes back as "". */
@@ -2228,6 +2270,9 @@ private:
    mutable QPixmap _waiting;  //!< see waitingPixmap()
    QStringList _persistent_filenames;  //!< list of filename for each persistent model index (used when saving)
    QList<QPersistentModelIndex> _pending_scan_list; //!< list of stacks which need to be scanned
+
+   //! stacks to look through for their cover once those are read
+   QList<QPersistentModelIndex> _pending_cover_list;
 
    //! what opening the folder shown has read and written (see IoStats)
    IoMeasure _ioFolder;
