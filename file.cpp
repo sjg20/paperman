@@ -163,6 +163,14 @@ File::File (File *orig, Desk *new_desk)
    _preview_maxsize = orig->_preview_maxsize;
    _title_maxsize = orig->_title_maxsize;
    _pagename_maxsize = orig->_pagename_maxsize;
+   _cover_state = orig->_cover_state;
+   _cover_page = orig->_cover_page;
+   _cover_text = orig->_cover_text;
+   _cover_size = orig->_cover_size;
+   _cover_mtime = orig->_cover_mtime;
+   _cover_bytes = orig->_cover_bytes;
+   _disk_mtime = orig->_disk_mtime;
+   _disk_bytes = orig->_disk_bytes;
    _valid = orig->_valid;
    }
 
@@ -439,7 +447,45 @@ void File::decodeFile (QString &line, bool read_sizes)
       setPreviewMaxsize (QSize (args [3].toInt (), args [4].toInt ()));
       setTitleMaxsize (QSize (args [5].toInt (), args [6].toInt ()));
       setPagenameMaxsize (QSize (args [7].toInt (), args [8].toInt ()));
+      decodeCover (args.mid (9));
       }
+   }
+
+
+void File::decodeCover (const QStringList &args)
+   {
+   // the cover's page, then the stack's time and size when it was found
+   if (args.size () < 3)
+      return;
+
+   bool ok_page, ok_mtime, ok_bytes;
+   int pagenum = args [0].toInt (&ok_page);
+   qint64 mtime = args [1].toLongLong (&ok_mtime);
+   qint64 bytes = args [2].toLongLong (&ok_bytes);
+
+   if (!ok_page || !ok_mtime || !ok_bytes || pagenum < -1 || mtime <= 0)
+      return;
+
+   // then, for a cover, how big it is shown and the cover itself
+   QSize size;
+   Pagecover cover;
+
+   if (pagenum >= 0)
+      {
+      if (args.size () < 6)
+         return;
+      size = QSize (args [3].toInt (), args [4].toInt ());
+      if (size.isEmpty ()
+          || !Pagecover::parse (QStringList (args.mid (5)).join (','),
+                                cover))
+         return;
+      }
+   _cover_state = Cover_noted;
+   _cover_page = pagenum;
+   _cover_text = cover.toString ();
+   _cover_size = size;
+   _cover_mtime = mtime;
+   _cover_bytes = bytes;
    }
 
 
@@ -449,6 +495,18 @@ void File::encodeFile (QTextStream &stream)
    stream << _preview_maxsize.width () << ',' << _preview_maxsize.height () << ',';
    stream << _title_maxsize.width () << ',' << _title_maxsize.height () << ',';
    stream << _pagename_maxsize.width () << ',' << _pagename_maxsize.height ();
+
+   /* the cover, as found in the pages, with the stack's time and size
+      then, so that it is looked for again only once the stack changes */
+   if ((_cover_state == Cover_known || _cover_state == Cover_noted)
+       && _cover_mtime)
+      {
+      stream << ',' << _cover_page << ',' << _cover_mtime << ','
+             << _cover_bytes;
+      if (_cover_page >= 0)
+         stream << ',' << _cover_size.width () << ','
+                << _cover_size.height () << ',' << _cover_text;
+      }
    stream << '\n';
    }
 
@@ -984,6 +1042,57 @@ err_info *File::getPageProps (int, QMap<QString, QString> &)
 err_info *File::putPageProps (int, const QMap<QString, QString> &)
    {
    return not_impl ();
+   }
+
+
+err_info *File::findCover (int &pagenum, QString &text)
+   {
+   pagenum = -1;
+   text.clear ();
+   return not_impl ();
+   }
+
+
+void File::noteCover (int pagenum, const QString &text, const QSize &size,
+                      bool keep)
+   {
+   _cover_state = Cover_known;
+   _cover_page = pagenum < 0 ? -1 : pagenum;
+   _cover_text = _cover_page < 0 ? QString () : text;
+   _cover_size = _cover_page < 0 ? QSize () : size;
+   _cover_mtime = 0;
+   _cover_bytes = -1;
+   if (keep)
+      {
+      QFileInfo info (_pathname);
+
+      if (info.exists ())
+         {
+         _cover_mtime = info.lastModified ().toSecsSinceEpoch ();
+         _cover_bytes = info.size ();
+         }
+      }
+   }
+
+
+void File::coverChanged (void)
+   {
+   if (_cover_state == Cover_known || _cover_state == Cover_noted)
+      _cover_state = Cover_stale;
+   }
+
+
+bool File::coverNoteCurrent (void) const
+   {
+   return _cover_state == Cover_noted && _cover_mtime
+      && _cover_mtime == _disk_mtime && _cover_bytes == _disk_bytes;
+   }
+
+
+void File::confirmCover (void)
+   {
+   if (_cover_state == Cover_noted)
+      _cover_state = Cover_known;
    }
 
 

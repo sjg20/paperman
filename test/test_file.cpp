@@ -2067,6 +2067,192 @@ void TestFile::testCoverLeftAlone()
 }
 
 
+void TestFile::testFindCover()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   const QString name = "100pp_from_pdf.max";
+   QString path = copyFixture(name, tmp.path());
+   QVERIFY(!path.isEmpty());
+   int pagenum;
+   QString text;
+
+   // a stack with no cover has every page looked at
+   qint64 every;
+   {
+      Filemax max(dir, name, nullptr);
+      QVERIFY(!max.load());
+      IoStats::reset();
+      QVERIFY(!max.findCover(pagenum, text));
+      QCOMPARE(pagenum, -1);
+      QVERIFY(text.isEmpty());
+      every = IoStats::forPath(path).reads;
+      QVERIFY(every >= 100);
+
+      // something other than a cover is passed over
+      QVERIFY(putCover(&max, 3, "front"));
+      QVERIFY(putCover(&max, 40, "0.5,0,0.5,1"));
+   }
+
+   // looking stops at the cover, with the file opened once
+   IoStats::reset();
+   Filemax max(dir, name, nullptr);
+   QVERIFY(!max.load());
+   IoStats::Counts loaded = IoStats::forPath(path);
+   QVERIFY(!max.findCover(pagenum, text));
+   QCOMPARE(pagenum, 40);
+   QCOMPARE(text, QString("0.5000,0.0000,0.5000,1.0000"));
+   IoStats::Counts got = IoStats::forPath(path);
+   QCOMPARE(got.opens - loaded.opens, qint64(1));
+   QVERIFY2((got.reads - loaded.reads) * 2 < every,
+            qPrintable(IoStats::describe(got)));
+
+   // the records read are kept, so another look reads little
+   QVERIFY(!max.findCover(pagenum, text));
+   QCOMPARE(pagenum, 40);
+   QVERIFY(IoStats::forPath(path).reads - got.reads < 5);
+   IoStats::reset();
+
+   // a file which cannot keep properties has nothing to look at
+   QVERIFY(!copyFixture("testpdf.pdf", tmp.path()).isEmpty());
+   File *pdf = File::createFile(dir, "testpdf.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!pdf->load());
+   err_info *err = pdf->findCover(pagenum, text);
+   QVERIFY(err);
+   QCOMPARE(err->errnum, int(ERR_no_available_for_this_file_type));
+   QCOMPARE(pagenum, -1);
+   delete pdf;
+}
+
+
+void TestFile::testCoverNote()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+   QVERIFY(!copyFixture("testpdf.pdf", tmp.path()).isEmpty());
+   QFile layout(dir + ".paperdesk");
+   QVERIFY(layout.open(QIODevice::WriteOnly));
+   layout.write("[Files]\ntestfile.max=10,20,0\ntestpdf.pdf=150,20,0\n");
+   layout.close();
+   auto find = [](Desk *desk, const char *name) {
+      int pos;
+      return desk->findFile(name, pos);
+   };
+
+   // nothing is known of a stack's cover at first, nor kept for it
+   Desk *desk = new Desk(dir, dir);
+   File *f = find(desk, "testfile.max");
+   QVERIFY(f);
+   QCOMPARE(f->coverState(), File::Cover_unknown);
+   QCOMPARE(f->coverPage(), -1);
+   QVERIFY(!f->load());
+
+   // a cover found is kept with the folder's layout, with the stack's size
+   QVERIFY(putCover(f, 2, "0.5,0,0.5,1"));
+   int pagenum;
+   QString text;
+   QVERIFY(!f->findCover(pagenum, text));
+   QCOMPARE(pagenum, 2);
+   f->noteCover(pagenum, text, QSize(30, 40));
+   QCOMPARE(f->coverState(), File::Cover_known);
+   QVERIFY(desk->writeDesk());
+   delete desk;
+
+   QVERIFY(layout.open(QIODevice::ReadOnly));
+   const QString saved = QString::fromUtf8(layout.readAll());
+   layout.close();
+   QFileInfo info(dir + "testfile.max");
+   QString expect = QString(",2,%1,%2,30,40,0.5000,0.0000,0.5000,1.0000\n")
+                       .arg(info.lastModified().toSecsSinceEpoch())
+                       .arg(info.size());
+   QVERIFY2(saved.contains(expect), qPrintable(saved));
+
+   // and it is taken as known while the stack stays as it was
+   desk = new Desk(dir, dir);
+   f = find(desk, "testfile.max");
+   QCOMPARE(f->coverState(), File::Cover_noted);
+   QCOMPARE(f->coverPage(), 2);
+   QCOMPARE(f->coverText(), QString("0.5000,0.0000,0.5000,1.0000"));
+   QCOMPARE(f->coverSize(), QSize(30, 40));
+   QVERIFY(!f->load());
+   QVERIFY(f->coverNoteCurrent());
+   f->confirmCover();
+   QCOMPARE(f->coverState(), File::Cover_known);
+
+   // a stack with none notes that too
+   File *pdf = find(desk, "testpdf.pdf");
+   QVERIFY(pdf);
+   pdf->noteCover(-1, QString(), QSize());
+   QCOMPARE(pdf->coverPage(), -1);
+
+   // any change to the stack may move its cover, though it is still shown
+   QVERIFY(putCover(f, 2, "page"));
+   QCOMPARE(f->coverState(), File::Cover_stale);
+   QCOMPARE(f->coverPage(), 2);
+   QVERIFY(!f->coverNoteCurrent());
+   QVERIFY(desk->writeDesk());
+   delete desk;
+
+   // and one which has changed is not kept, nor is one which is stale
+   desk = new Desk(dir, dir);
+   f = find(desk, "testfile.max");
+   QCOMPARE(f->coverState(), File::Cover_unknown);
+   pdf = find(desk, "testpdf.pdf");
+   QCOMPARE(pdf->coverState(), File::Cover_noted);
+   QCOMPARE(pdf->coverPage(), -1);
+   delete desk;
+
+   // a stack changed since its cover was noted, by anything, is looked at
+   desk = new Desk(dir, dir);
+   f = find(desk, "testfile.max");
+   QVERIFY(!f->load());
+   f->noteCover(2, "page", QSize(30, 40));
+   QVERIFY(desk->writeDesk());
+   delete desk;
+   {
+      Filemax other(dir, "testfile.max", nullptr);
+      QVERIFY(!other.load());
+      QVERIFY(putCover(&other, 2, "0.2500,0.0000,0.5000,1.0000"));
+   }
+
+   // within the second, the time may not change, so make sure it does
+   {
+      QFile file(dir + "testfile.max");
+      QVERIFY(file.open(QIODevice::ReadWrite));
+      QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(-100),
+                               QFileDevice::FileModificationTime));
+   }
+   desk = new Desk(dir, dir);
+   f = find(desk, "testfile.max");
+   QCOMPARE(f->coverState(), File::Cover_noted);
+   QVERIFY(!f->load());
+   QVERIFY(!f->coverNoteCurrent());
+
+   // as is one read again from the disk
+   f->noteCover(2, "page", QSize(30, 40));
+   QVERIFY(!f->reload());
+   QCOMPARE(f->coverState(), File::Cover_stale);
+   delete desk;
+
+   // what is not a cover is ignored
+   for (const char *rest : {",2,1,1", ",-2,1,1", ",x,1,1", ",2,1,1,0,0,page",
+                            ",2,1,1,4,4,front", ",-1,0,1"}) {
+      QVERIFY(layout.open(QIODevice::WriteOnly));
+      layout.write(QByteArray("[Files]\ntestfile.max=10,20,0,1,2,3,4,5,6")
+                   + rest + "\n");
+      layout.close();
+      desk = new Desk(dir, dir);
+      f = find(desk, "testfile.max");
+      QVERIFY2(f->coverState() == File::Cover_unknown, rest);
+      QCOMPARE(f->previewMaxsize(), QSize(1, 2));
+      delete desk;
+   }
+}
+
+
 void TestFile::testPdfTextLayer()
 {
    QTemporaryDir tmp;

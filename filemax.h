@@ -193,6 +193,7 @@ public:
                            QMap<QString, QString> &props) override;
    err_info *putPageProps (int pagenum,
                            const QMap<QString, QString> &props) override;
+   err_info *findCover (int &pagenum, QString &text) override;
 
    virtual int getSize (void);
 
