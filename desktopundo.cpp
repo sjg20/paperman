@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopundo.h"
 #include "mainwidget.h"
 #include "maxview.h"
+#include "pagecover.h"
 
 
 Desktopundostack::Desktopundostack (QObject *parent)
@@ -714,6 +715,54 @@ void UCCropPage::undo (void)
       QModelIndex ind = model->index (fname, model->deskFromDirname (path));
 
       model->opUncropPage (ind, pagenum, undo, done);
+   });
+   }
+
+
+UCSetCover::UCSetCover (Desktopmodel *model, const QModelIndex &ind,
+      int pagenum, const Pagecover &cover)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (ind.parent ());
+   _fname = model->data (ind, Desktopmodel::Role_filename).toString ();
+   _pagenum = pagenum;
+   _cover = cover.toString ();
+   _old = std::make_shared<Desktopmodel::PagePropsMap> ();
+   setText (QApplication::translate ("UCSetCover",
+      cover.isNull () ? "Clear cover" : "Set cover"));
+   }
+
+
+void UCSetCover::redo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+   int pagenum = _pagenum;
+   QString cover = _cover;
+   auto old = _old;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opSetCover (ind, pagenum, cover, old, done);
+   });
+   }
+
+
+void UCSetCover::undo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString fname = _fname;
+   auto old = _old;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (fname, model->deskFromDirname (path));
+
+      model->opPutPageProps (ind, old, done);
    });
    }
 

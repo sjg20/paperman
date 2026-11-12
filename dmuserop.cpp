@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopmodel.h"
 #include "desktopundo.h"
 #include "file.h"
+#include "pagecover.h"
 
 
 err_info *Desktopmodel::stackItems (QModelIndex dest, QModelIndexList &list,
@@ -230,6 +231,20 @@ void Desktopmodel::cropPage (const QModelIndex &index, int pagenum,
    _modelconv->assertIsSource (0, &index, 0);
 
    _undo->push (new UCCropPage (this, index, pagenum, area));
+   }
+
+
+void Desktopmodel::setCover (const QModelIndex &index, int pagenum,
+                             const Pagecover &cover)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+
+   // nothing to do, nor to undo, if the page has that cover already
+   Pagecover now;
+
+   if (!getPageCover (index, pagenum, now) && now == cover)
+      return;
+   _undo->push (new UCSetCover (this, index, pagenum, cover));
    }
 
 

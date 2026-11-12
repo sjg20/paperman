@@ -53,6 +53,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "file.h"
 #include "ocr.h"
 #include "ocrpage.h"
+#include "pagecover.h"
 #include "dirmodel.h"
 #include "searchindex.h"
 #include <QDir>
@@ -1156,6 +1157,140 @@ void Desktopmodel::opUncropPage (const QModelIndex &index, int pagenum,
       if (!e)
          emit pageContentChanged (index, pagenum);
       }
+   done (e);
+   }
+
+
+err_info *Desktopmodel::getPageCover (const QModelIndex &index, int pagenum,
+                                      Pagecover &cover) const
+   {
+   File *f = getFile (index);
+   QMap<QString, QString> props;
+
+   cover = Pagecover ();
+
+   /* a stack on a server is a copy here, so what it holds is not
+      necessarily what the server has */
+   if (!f || remoteForFile (f))
+      return File::not_impl ();
+   CALL (f->getPageProps (pagenum, props));
+   cover = Pagecover::fromProps (props);
+   return NULL;
+   }
+
+
+bool Desktopmodel::canKeepPageProps (const QModelIndex &index,
+                                     QString *why) const
+   {
+   File *f = getFile (index);
+   QMap<QString, QString> props;
+   err_info *err = NULL;
+
+   if (f && remoteForFile (f))
+      {
+      if (why)
+         *why = tr ("A stack on a server cannot have a cover yet");
+      return false;
+      }
+   if (f)
+      {
+      f->load ();
+      err = f->pagecount () ? f->getPageProps (0, props) : NULL;
+      }
+   if (!f || (err && err->errnum == ERR_no_available_for_this_file_type))
+      {
+      if (why)
+         *why = tr ("Only a .max stack can have a cover");
+      return false;
+      }
+   return true;
+   }
+
+
+err_info *Desktopmodel::putPageProps (File *f, const QModelIndex &index,
+                                      const PagePropsMap &props)
+   {
+   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+      {
+      CALL (f->putPageProps (it.key (), it.value ()));
+      emit pagePropsChanged (index, it.key ());
+      }
+   return NULL;
+   }
+
+
+void Desktopmodel::opSetCover (const QModelIndex &index, int pagenum,
+                               const QString &cover,
+                               std::shared_ptr<PagePropsMap> old,
+                               OpDone done)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+   File *f = getFile (index);
+   err_info *e = NULL;
+
+   old->clear ();
+   if (f)
+      {
+      // see getPageCover()
+      if (remoteForFile (f))
+         {
+         done (f->not_impl ());
+         return;
+         }
+      f->load ();
+      if (pagenum < 0 || pagenum >= f->pagecount ())
+         e = err_make (ERRFN, ERR_page_number_out_of_range2, pagenum,
+                       f->pagecount () - 1);
+
+      // the cover goes on this page, and off any other
+      PagePropsMap now;
+
+      for (int page = 0; !e && page < f->pagecount (); page++)
+         {
+         QMap<QString, QString> props;
+
+         e = f->getPageProps (page, props);
+         if (e)
+            break;
+
+         QMap<QString, QString> want = props;
+
+         if (page == pagenum && !cover.isEmpty ())
+            want.insert (Pagecover::key, cover);
+         else
+            want.remove (Pagecover::key);
+         if (want != props)
+            {
+            old->insert (page, props);
+            now.insert (page, want);
+            }
+         }
+      if (!e)
+         e = putPageProps (f, index, now);
+
+      // leave the stack as it was if that cannot be done
+      if (e)
+         {
+         (void)putPageProps (f, index, *old);
+         old->clear ();
+         }
+      }
+   done (e);
+   }
+
+
+void Desktopmodel::opPutPageProps (const QModelIndex &index,
+                                   std::shared_ptr<PagePropsMap> props,
+                                   OpDone done)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+   File *f = getFile (index);
+   err_info *e = NULL;
+
+   if (f && remoteForFile (f))
+      e = f->not_impl ();
+   else if (f)
+      e = putPageProps (f, index, *props);
    done (e);
    }
 

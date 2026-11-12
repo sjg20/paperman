@@ -39,6 +39,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 class OcrPage;
+class Pagecover;
 class QFontMetrics;
 
 class Desk;
@@ -116,6 +117,7 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCRenamePage;
    friend class UCTransformPage;
    friend class UCCropPage;
+   friend class UCSetCover;
    friend class UCDeletePages;
    friend class UCUpdateAnnot;
    friend class UCAddRepository;
@@ -581,6 +583,39 @@ public:
                       null rectangle to fit each page to its content */
    void cropPage (const QModelIndex &index, int pagenum, const QRectF &area);
 
+   /** make a page the stack's cover, or stop it being the cover, with
+       undo. A stack has one cover, so any other page which is the cover
+       stops being it
+
+      \param index    source model index of the stack
+      \param pagenum  the page, from 0
+      \param cover    the part of the page which is the cover, or no
+                      cover to stop it being one */
+   void setCover (const QModelIndex &index, int pagenum,
+                  const Pagecover &cover);
+
+   /** the cover a page has, from its properties
+
+      \param index    source model index of the stack
+      \param pagenum  the page, from 0
+      \param cover    returns the cover, or no cover if the page is not
+                      the cover
+      \returns error, or NULL if ok; a stack which cannot keep
+               properties, such as one on a server, gives an error */
+   err_info *getPageCover (const QModelIndex &index, int pagenum,
+                           Pagecover &cover) const;
+
+   /** whether a stack's pages can keep properties, such as a cover
+
+      \param index    source model index of the stack
+      \param why      if not NULL, returns why not, for the user
+      \returns true if they can */
+   bool canKeepPageProps (const QModelIndex &index,
+                          QString *why = nullptr) const;
+
+   //! the properties of some of a stack's pages, by page number
+   using PagePropsMap = QMap<int, QMap<QString, QString>>;
+
    /** add a new repository to the list. Supports undo.
 
      \param dirPath  path to repository */
@@ -825,6 +860,28 @@ public:
    //! transform a page, as the other opTransformPage() does
    void opTransformPage (const QModelIndex &index, int pagenum,
                          File::e_transform op, OpDone done);
+
+   /** make a page the stack's cover, as setCover() does
+
+      \param index    index of stack
+      \param pagenum  the page, from 0
+      \param cover    the cover's text, as Pagecover::toString() gives,
+                      or empty for no cover
+      \param old      returns the properties each page changed had
+                      before, for opPutPageProps() to put back
+      \param done     called when finished */
+   void opSetCover (const QModelIndex &index, int pagenum,
+                    const QString &cover, std::shared_ptr<PagePropsMap> old,
+                    OpDone done);
+
+   /** give pages of a stack the properties they had, as opSetCover()
+       returned them
+
+      \param index    index of stack
+      \param props    the properties for each page
+      \param done     called when finished */
+   void opPutPageProps (const QModelIndex &index,
+                        std::shared_ptr<PagePropsMap> props, OpDone done);
 
    //! update a stack's annotations, as the other opUpdateAnnot() does
    void opUpdateAnnot (const QModelIndex &ind,
@@ -1173,6 +1230,13 @@ signals:
       \param pagenum  page whose image changed, or -1 for every page */
    void pageContentChanged (const QModelIndex &index, int pagenum);
 
+   /** emitted when the properties of a page have changed, such as which
+       page is the cover, so views showing them can refresh
+
+      \param index    source model index of the stack
+      \param pagenum  the page whose properties changed */
+   void pagePropsChanged (const QModelIndex &index, int pagenum);
+
    /** emitted when a stack's structure or a page asked for with
        requestContent() or requestPage() has come, or failed to */
    void contentFetched ();
@@ -1348,6 +1412,15 @@ private:
     *  file is local (or detached).  Ops use this to decide whether to
     *  route a mutation to the server. */
    class RemoteBackend *remoteForFile(File *file) const;
+
+   /** give pages of a stack the properties listed, telling the views
+
+      \param f      the stack
+      \param index  its source model index
+      \param props  the properties for each page
+      \returns error, or NULL if ok */
+   err_info *putPageProps (File *f, const QModelIndex &index,
+                           const PagePropsMap &props);
 
    /** A directory path relative to a remote desk's repository root:
     *  desk->rootDir() and any surrounding slashes are stripped, so
