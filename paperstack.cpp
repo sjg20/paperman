@@ -2636,6 +2636,11 @@ void Paperscan::scan ()
    if (status == SANE_STATUS_NO_DOCS && numsides > 0)
       status = SANE_STATUS_GOOD;
 
+   /* a call which Cancel interrupted says it was cancelled, which is just
+      what was asked for */
+   if (status == SANE_STATUS_CANCELLED && isCancelled ())
+      status = SANE_STATUS_GOOD;
+
    if (status != SANE_STATUS_GOOD && !isCancelled ())
       str += "\n" + failStr (status, total_sides + 1);
 
