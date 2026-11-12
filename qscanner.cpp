@@ -68,11 +68,55 @@ extern "C"
 #include <stdlib.h>
 #include <sys/poll.h>
 
+#include <chrono>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <thread>
+
 
 
 
 
 bool QScanner::msAuthorizationCancelled = false;
+QAtomicInt QScanner::msCallsLeft;
+
+
+/* Notes a call into the back end while it is made, for callTime() and
+   interrupt(). Only the first of two made at once is noted, which is
+   the one a front end that does not make two at once is waiting in */
+class QScanner::CallScope
+   {
+public:
+   CallScope (QScanner *scanner, const char *call, bool interruptible)
+         : _scanner (scanner), _owner (false)
+      {
+      QMutexLocker locker (&_scanner->mCallLock);
+
+      if (!_scanner->mCall)
+         {
+         _scanner->mCall = call;
+         _scanner->mCallInterruptible = interruptible;
+         _scanner->mCallTimer.start ();
+         _owner = true;
+         }
+      }
+
+   ~CallScope ()
+      {
+      if (_owner)
+         {
+         QMutexLocker locker (&_scanner->mCallLock);
+
+         _scanner->mCall = nullptr;
+         _scanner->mCallInterruptible = false;
+         }
+      }
+
+private:
+   QScanner *_scanner;
+   bool _owner;
+   };
 
 QScanner::QScanner() : QObject()
 {
@@ -93,6 +137,8 @@ QScanner::QScanner() : QObject()
   mEmitSignals = true;
   mScanning = false;
   mTempFilePath = "";
+  mCall = nullptr;
+  mCallInterruptible = false;
 	initScanner();
 }
 QScanner::~QScanner()
@@ -1150,6 +1196,9 @@ SANE_Status QScanner::readDup (SANE_Byte *front_buf, SANE_Byte *back_buf,
 
    if (!fn)
       return SANE_STATUS_UNSUPPORTED;
+
+   CallScope scope (this, "sane_read_dup", true);
+
    status = fn (mDeviceHandle, front_buf, back_buf, max_len, front_len,
                 back_len);
    /* libsane's dispatcher answers for back ends that lack the entry point,
@@ -1165,10 +1214,109 @@ void QScanner::cancel()
    {
    mCancelled = true;
    if (mDeviceHandle)
+      {
+      // this sends the scanner a command, which it may not answer
+      CallScope scope (this, "sane_cancel", false);
+
       do_sane_cancel(mDeviceHandle);
+      }
    mScanning = false;
 
    emit signalScanDone ();
+   }
+
+
+bool QScanner::interrupt (void)
+   {
+   QMutexLocker locker (&mCallLock);
+
+   if (!mCall || !mCallInterruptible || !mDeviceHandle)
+      return false;
+
+   /* the lock is held throughout, so the call cannot return and another
+      begin, which this would then be made at the same time as */
+   do_sane_cancel (mDeviceHandle);
+
+   return true;
+   }
+
+
+qint64 QScanner::callTime (QString *call) const
+   {
+   QMutexLocker locker (&mCallLock);
+
+   if (!mCall)
+      return -1;
+   if (call)
+      *call = mCall;
+   return mCallTimer.elapsed ();
+   }
+
+
+namespace {
+
+/** how far the calls made by QScanner::exitWithin() have got */
+struct ExitState
+   {
+   std::mutex lock;
+   std::condition_variable cond;
+   bool done = false;
+   };
+
+}
+
+
+bool QScanner::exitWithin (int ms)
+   {
+   if (!mOpenOk && !mInitOk)
+      return true;
+
+   SANE_Handle handle = mOpenOk ? mDeviceHandle : nullptr;
+   bool init = mInitOk;
+   auto state = std::make_shared<ExitState> ();
+
+   // nothing here touches the handle again, whether or not the calls end
+   mOpenOk = false;
+   mOptionNumber = -1;
+   mDeviceHandle = nullptr;
+   mInitOk = false;
+   mpDeviceList = 0;
+
+   /* The thread has only the handle and the state, so this scanner can
+      go before it finishes. It makes the calls directly rather than
+      through do_sane_close(), which belongs to this scanner */
+   noteCallsLeft (1);
+   std::thread ([handle, init, state] () {
+      if (handle)
+         sane_close (handle);
+      if (init)
+         sane_exit ();
+
+      // counted as done before saying so, so that callsLeft() agrees
+      noteCallsLeft (-1);
+
+      std::lock_guard<std::mutex> guard (state->lock);
+
+      state->done = true;
+      state->cond.notify_all ();
+   }).detach ();
+
+   std::unique_lock<std::mutex> wait (state->lock);
+
+   return state->cond.wait_for (wait, std::chrono::milliseconds (ms),
+                                [&state] () { return state->done; });
+   }
+
+
+int QScanner::callsLeft (void)
+   {
+   return msCallsLeft.loadAcquire ();
+   }
+
+
+void QScanner::noteCallsLeft (int change)
+   {
+   msCallsLeft.fetchAndAddOrdered (change);
    }
 
 
@@ -3962,6 +4110,8 @@ const SANE_Option_Descriptor *QScanner::do_sane_get_option_descriptor
 
 SANE_Status QScanner::do_sane_start (SANE_Handle handle)
    {
+   CallScope scope (this, "sane_start", true);
+
    return sane_start (handle);
    }
 
@@ -3981,6 +4131,8 @@ SANE_Status QScanner::do_sane_set_io_mode (SANE_Handle handle, SANE_Bool nbio)
 SANE_Status QScanner::do_sane_read (SANE_Handle handle, SANE_Byte *buf,
                                     SANE_Int maxlen, SANE_Int *len)
    {
+   CallScope scope (this, "sane_read", true);
+
    return sane_read (handle, buf, maxlen, len);
    }
 

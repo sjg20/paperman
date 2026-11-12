@@ -153,6 +153,12 @@ private slots:
    //! A stalled call waits out its time, unless cancelled or cleared
    void testStall ();
 
+   //! A call held up by the scanner can be seen, and interrupted
+   void testInterrupt ();
+
+   //! Leaving SANE gives up on a scanner which does not answer
+   void testExitWithin ();
+
    //! After a jam, Scan in the panel carries the batch on
    void testResumeFromPanel ();
 
