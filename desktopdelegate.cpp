@@ -263,8 +263,25 @@ void sizeHintChanged ( const QModelIndex & index ) */
       {
       measure.pagenameRect = style->itemTextRect (fm, rect, Qt::AlignLeft,
             false, measure.pagename);
+      /* leave room for the widest page number the stack can show, so
+         that the stack keeps its width as its pages are turned */
+      QString widest = measure.pagestr;
+
+      if (measure.valid)
+         {
+         QChar digit = '0';
+
+         for (char ch = '1'; ch <= '9'; ch++)
+            if (fm.horizontalAdvance (QChar (ch)) >
+                fm.horizontalAdvance (digit))
+               digit = QChar (ch);
+         widest = QString (tr ("%1 of %2"))
+               .arg (QString (QString::number (measure.pagecount).size (),
+                              digit))
+               .arg (measure.pagecount);
+         }
       measure.pagenumRect = style->itemTextRect (fm, rect, Qt::AlignLeft,
-            false, measure.pagestr);
+            false, widest);
       measure.pagenumRect.setWidth (measure.pagenumRect.width () + 8 +
             + pleft->width () + pright->width ());
       measure.pagenumRect.setHeight (pleft->height ());
