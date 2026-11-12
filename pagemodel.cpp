@@ -488,6 +488,21 @@ void Pagemodel::setScale (int scale_down)
    }
 
 
+int Pagemodel::tallestPixmap (void) const
+   {
+   int tallest = 0;
+
+   for (int i = 0; i < _row_count && i < _pages.size (); i++)
+      {
+      QSize size = _pages [i].knownPixmapSize ();
+
+      if (size.isValid ())
+         tallest = qMax (tallest, size.height ());
+      }
+   return tallest;
+   }
+
+
 Pageinfo *Pagemodel::ensurePage (int item)
    {
    Pageinfo &pi = _pages [item];
@@ -1097,7 +1112,7 @@ QPixmap Pageinfo::pixmap (bool &dodgy)
 
 QSize Pageinfo::knownPixmapSize (void) const
    {
-   if (_pixmap.isNull ())
+   if (!_valid || _pixmap.isNull ())
       return QSize ();
 
    // pixmap() scales one made for another page size, so say what it gives

@@ -141,6 +141,33 @@ void TestPagewidget::testWideFirstPageLeavesRoom()
       }
 }
 
+/* Measuring the pages to size the cells must not set any up, since
+   setting up a page clears its pixmap, which the render thread may have
+   made already, and nothing would ask for it again */
+void TestPagewidget::testRelayoutLeavesPixmaps()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   Pageview *pageview = page->findChild<Pageview *>();
+   Pagemodel *pm = page->_pagemodel;
+   int last = pm->rowCount(QModelIndex()) - 1;
+   QVERIFY(last > 0);
+   for (int i = 0; i <= last; i++)
+      QTRY_VERIFY(pm->_pages[i]._valid && !pm->_pages[i]._pixmap.isNull());
+
+   // a page whose pixmap has come from the render thread before it is set up
+   Pageinfo &pi = pm->_pages[last];
+   pi._valid = false;
+
+   QVERIFY(QMetaObject::invokeMethod(pageview, "slotRelayout"));
+   QVERIFY(!pi._valid);
+   QVERIFY(!pi._pixmap.isNull());
+}
+
 void TestPagewidget::testRenderedAtOtherSize()
 {
    Pagemodel model(nullptr);

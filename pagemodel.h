@@ -130,7 +130,8 @@ public:
    /** the size the page's pixmap has at the current page size, without
        asking for one to be made, as pixmap() does
 
-      \returns the size, or an invalid size if there is no pixmap yet */
+      \returns the size, or an invalid size if there is no pixmap yet, or
+               the page has not been set up */
    QSize knownPixmapSize (void) const;
 
    int pagenum (void) { return _pagenum; }
@@ -435,6 +436,13 @@ public:
    int scale (void) const { return _scale_down; }
 
    QSize pagesize (void) const { return _pagesize; }
+
+   /** the height of the tallest page's pixmap, of the pages set up so
+       far, without setting any up: setting up a page clears its pixmap,
+       which may have come from the render thread already
+
+      \returns the height, or 0 if no page has a pixmap */
+   int tallestPixmap (void) const;
 
    /** gets a pixmap for the given page
 
