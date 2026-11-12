@@ -87,6 +87,10 @@ private slots:
 
    //! A sheet longer than US legal can be scanned while the scanner crops
    void testPscanLong();
+
+   //! The long size is offered for a sheet fed sideways, unturned
+   void testPscanLongSideways();
+
    void testPscanFullSize();
 
    //! Full size on a feeder is as long as the longest paper it takes

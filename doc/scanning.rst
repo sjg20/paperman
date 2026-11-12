@@ -88,17 +88,17 @@ Size
    The paper size. Alt-A selects A4 and Alt-L toggles US Letter and
    Legal. **Full size** is as wide as the scanner takes, and on a sheet
    feeder as long as the longest paper size it takes. While the scanner
-   is cutting pages to the sheet (Auto size or Straighten) and sheets
-   are fed upright, there is also a **Long** size, as wide and as long
-   as the scanner will take, for sheets longer than any paper size, such
-   as till receipts.
+   is cutting pages to the sheet (Auto size or Straighten), there is
+   also a **Long** size, as wide and as long as the scanner will take,
+   for sheets longer than any paper size, such as till receipts.
 
 Feed
    Sheets fed sideways (**Top at left** or **Top at right**) are scanned
    the long way across the scanner and turned upright as they are stored.
    The size chosen describes the page, and the whole page is scanned.
-   **Full size** describes the scanner instead, so it is the same window
-   whichever way the sheets are fed.
+   **Full size** and **Long** describe the scanner instead, so each is
+   the same window whichever way the sheets are fed: Long takes a long
+   sheet fed sideways, such as a banner printed along its length.
 
 While a scan runs
 -----------------
