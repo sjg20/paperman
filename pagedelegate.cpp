@@ -146,8 +146,6 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
       return;
       }
 
-   int lines = 1;
-
    measure.rect = QRect (0, 0, _pagesize.width (), _pagesize.height ());
    measure.removeRect = QRect (QPoint (_pagesize.width () - _icon_remove.width (), 0),
       _icon_remove.size ());
@@ -171,12 +169,7 @@ void Pagedelegate::measureItem (const QStyleOptionViewItem &option, const QModel
       arrives (see Pageview's relayout on dataChanged) */
    int pageHeight = pm.height () > 0 ? pm.height () : _pagesize.height ();
 
-   /* the label sits LABEL_TOP below the page, and the cell keeps
-      LABEL_GAP clear under it so the label does not run into the row
-      beneath */
-   measure.size = _pagesize;
-   measure.size.setHeight (pageHeight + LABEL_TOP + lines * fmb.height ()
-         + LABEL_GAP);
+   measure.size = cellSize (option, pageHeight);
    measure.pixmapRect = QRect ((_pagesize.width () - pm.width ()) / 2, 0,
          pm.width (), pm.height ());
 
@@ -287,6 +280,22 @@ QSize Pagedelegate::sizeHint (const QStyleOptionViewItem &option, const QModelIn
    // a large number for now
    return measure.size.isValid () ? measure.size : QSize (147, 226);
 //    return measure.size;
+   }
+
+
+QSize Pagedelegate::cellSize (const QStyleOptionViewItem &option,
+                              int pageHeight) const
+   {
+   QFont f = option.font;
+   f.setBold (true);
+   QFontMetrics fmb (f);
+   int lines = 1;
+
+   /* the label sits LABEL_TOP below the page, and the cell keeps
+      LABEL_GAP clear under it so the label does not run into the row
+      beneath */
+   return QSize (_pagesize.width (), pageHeight + LABEL_TOP
+                 + lines * fmb.height () + LABEL_GAP);
    }
 
 
