@@ -98,7 +98,8 @@ Stack pane
 Each stack in the folder is shown with its name, the name of the page
 shown (by default, when it was scanned) and a picture of that page.
 Below a stack of more than one page are its page count and arrows to turn
-its pages.
+its pages. A stack with a cover is shown by its cover, like a closed
+book (see `Cropping`_).
 
 - Click a stack to select it, Ctrl-click to add more, and **Edit > Select
   all** (Ctrl+A) to select every one. The arrow keys move from stack to
@@ -216,14 +217,21 @@ Then use the buttons on the right of the bar:
      - **Set cover**: make the part marked the stack's front cover, such as
        the front of a book's dust jacket scanned flat, without cropping
        anything. With the whole page marked, the whole page is the cover.
-       A stack has one cover, so this takes it from any other page. Only a
-       ``.max`` stack on this computer can have a cover for now
+       A stack has one cover, so this takes it from any other page. The
+       desktop then shows the stack by its cover. Only a ``.max`` stack on
+       this computer can have a cover for now
    * - |page-crop-cancel|
      - **Cancel**: leave the page as it is. Pressing Escape does the same
 
 **Edit > Undo** puts back everything a crop removed. The words read from a
 ``.max`` page are dropped when it is cropped, since some may have been cut
 away, and undo brings them back.
+
+On the desktop, a stack with a cover takes the cover's size. On the cover
+page it shows just the cover, and its other pages are shrunk to fit that
+size, so that the stack looks like the book when it is closed and stays
+the same size as its pages are turned. Setting a cover does not turn the
+stack to the cover page, and the page list still shows each page whole.
 
 The page which is the cover has a small book by it in the page list. When
 the crop bar is opened on that page, the box starts around the cover, so
