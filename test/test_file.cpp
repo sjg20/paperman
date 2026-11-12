@@ -1577,6 +1577,314 @@ void TestFile::testMaxOcr()
 }
 
 
+/* A page's properties, with one naming the page so that each page's can
+   be told apart */
+static QMap<QString, QString> propsFor(const QString &name)
+{
+   QMap<QString, QString> props;
+
+   props["cover"] = "front";
+   props["box"] = "0.5,0,0.5,1";
+   props["name"] = name;
+   props["note"] = "café = good";
+   return props;
+}
+
+
+static QString propsName(File *f, int pagenum)
+{
+   QMap<QString, QString> props;
+   err_info *err = f->getPageProps(pagenum, props);
+
+   if (err)
+      return QString("error: %1").arg(err->errstr);
+   return props.value("name");
+}
+
+
+void TestFile::testMaxProps()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   int count;
+
+   // each page keeps its own, and a new file sees them
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      count = max.pagecount();
+      QVERIFY(count >= 3);
+      QMap<QString, QString> props;
+      QVERIFY(!max.getPageProps(0, props));
+      QVERIFY(props.isEmpty());
+
+      // looking leaves the file closed, so that it can be moved
+      QVERIFY(!max._fin);
+
+      for (int i = 0; i < count; i++)
+         QVERIFY(!max.putPageProps(i, propsFor(QString("page%1").arg(i))));
+      QVERIFY(!max.getPageProps(1, props));
+      QCOMPARE(props, propsFor("page1"));
+   }
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QMap<QString, QString> props;
+      QVERIFY(!max.getPageProps(1, props));
+      QCOMPARE(props, propsFor("page1"));
+
+      // they can be replaced, by more, and then removed
+      QMap<QString, QString> big = propsFor("again");
+      for (int i = 0; i < 200; i++)
+         big[QString("key%1").arg(i)] = QString("value %1").arg(i);
+      QVERIFY(!max.putPageProps(2, big));
+      QVERIFY(!max.getPageProps(2, props));
+      QCOMPARE(props, big);
+      err_info *err = max.putPageProps(2, QMap<QString, QString>());
+      QVERIFY2(!err, err ? err->errstr : "");
+      QVERIFY(!max.getPageProps(2, props));
+      QVERIFY(props.isEmpty());
+      QCOMPARE(propsName(&max, 1), QString("page1"));
+
+      // removing them twice is harmless
+      QVERIFY(!max.putPageProps(2, QMap<QString, QString>()));
+   }
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QMap<QString, QString> props;
+      QVERIFY(!max.getPageProps(2, props));
+      QVERIFY(props.isEmpty());
+      QVERIFY(!max.putPageProps(2, propsFor("page2")));
+
+      // what OCR read is kept beside them, each in its own place
+      OcrPage ocr;
+      ocr.size = QSize(100, 100);
+      ocr.words << OcrWord{QRect(0, 0, 8, 8), "words", 90, 0, 0};
+      QVERIFY(!max.putPageOcr(2, ocr));
+      QCOMPARE(propsName(&max, 2), QString("page2"));
+      OcrPage got;
+      QVERIFY(!max.getPageOcr(2, got));
+      QCOMPARE(got, ocr);
+      QVERIFY(!max.putPageOcr(2, OcrPage()));
+   }
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QCOMPARE(propsName(&max, 2), QString("page2"));
+
+   // deleting a page and undoing it brings its properties back with it
+   {
+      QBitArray pages(count);
+      pages.setBit(0);
+      QByteArray del_info;
+      int del_count = 1;
+
+      QVERIFY(!max.removePages(pages, del_info, del_count));
+      QCOMPARE(propsName(&max, 0), QString("page1"));
+      QVERIFY(!max.restorePages(pages, del_info, del_count));
+      QCOMPARE(propsName(&max, 0), QString("page0"));
+      QCOMPARE(propsName(&max, 1), QString("page1"));
+   }
+
+   // unstacking a page takes its properties to the new stack
+   Filemax *dest = new Filemax(dir, "unstacked.max", nullptr);
+   QVERIFY(!dest->create());
+   QVERIFY(!max.unstackPages(1, 1, true, dest));
+   QCOMPARE(max.pagecount(), count - 1);
+   QCOMPARE(propsName(&max, 1), QString("page2"));
+   QVERIFY(!dest->load());
+   QCOMPARE(propsName(dest, 0), QString("page1"));
+   delete dest;
+   {
+      Filemax again(dir, "unstacked.max", nullptr);
+      QVERIFY(!again.load());
+      QMap<QString, QString> props;
+      QVERIFY(!again.getPageProps(0, props));
+      QCOMPARE(props, propsFor("page1"));
+   }
+
+   // and stacking it into another stack brings them along
+   dest = new Filemax(dir, "unstacked.max", nullptr);
+   QVERIFY(!dest->load());
+   QVERIFY(!max.stackStack(dest));
+   QCOMPARE(max.pagecount(), count);
+   delete dest;
+
+   QStringList names;
+   for (int i = 0; i < count; i++)
+      names << propsName(&max, i);
+   QStringList sorted = names;
+   sorted.sort();
+   QStringList expect;
+   for (int i = 0; i < count; i++)
+      expect << QString("page%1").arg(i);
+   QCOMPARE(sorted, expect);
+
+   // turning, mirroring or cropping a page keeps them
+   QVERIFY(!max.transformPage(0, File::Transform_rotate90));
+   QVERIFY(!max.transformPage(1, File::Transform_hflip));
+   for (int i = 0; i < count; i++)
+      QCOMPARE(propsName(&max, i), names[i]);
+
+   QByteArray undo;
+   QVERIFY(!max.cropPage(2, QRectF(0, 0, 0.5, 0.5), undo));
+   QVERIFY(!undo.isEmpty());
+   QCOMPARE(propsName(&max, 2), names[2]);
+   {
+      Filemax again(dir, "testfile.max", nullptr);
+      QVERIFY(!again.load());
+      for (int i = 0; i < count; i++)
+         QCOMPARE(propsName(&again, i), names[i]);
+   }
+
+   /* those set on the cropped page are kept when the crop is undone,
+      here more of them than fit in the old chunk, so that they move */
+   QMap<QString, QString> changed = propsFor("changed");
+   for (int i = 0; i < 50; i++)
+      changed[QString("key%1").arg(i)] = QString("value %1").arg(i);
+   QVERIFY(!max.putPageProps(2, changed));
+   QVERIFY(!max.uncropPage(2, undo));
+   QCOMPARE(propsName(&max, 2), QString("changed"));
+   {
+      Filemax again(dir, "testfile.max", nullptr);
+      QVERIFY(!again.load());
+      QMap<QString, QString> props;
+      QVERIFY(!again.getPageProps(2, props));
+      QCOMPARE(props, changed);
+   }
+   QVERIFY(!max.putPageProps(2, propsFor(names[2])));
+
+   // a copy keeps them, and one which cannot is still made
+   Operation op("Copy", 0, 0);
+   File *copy = File::createFile(dir, "copy.max", nullptr, File::Type_max);
+   QVERIFY(!copy->create());
+   QVERIFY(!max.copyTo(copy, 3, op, false));
+   QCOMPARE(copy->pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(propsName(copy, i), names[i]);
+   delete copy;
+
+   // as does an adjusted one
+   copy = File::createFile(dir, "adjusted.max", nullptr, File::Type_max);
+   QVERIFY(!copy->create());
+   QVERIFY(!max.copyToAdjusted(copy, op, ImageAdjust::Adjust_whiten));
+   QCOMPARE(copy->pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(propsName(copy, i), names[i]);
+   delete copy;
+
+   File *pdf = File::createFile(dir, "copy.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!pdf->create());
+   QVERIFY(!max.copyTo(pdf, 3, op, false));
+   QCOMPARE(pdf->pagecount(), count);
+   QMap<QString, QString> props;
+   err_info *err = pdf->getPageProps(0, props);
+   QVERIFY(err);
+   QCOMPARE(err->errnum, int(ERR_no_available_for_this_file_type));
+   delete pdf;
+}
+
+
+void TestFile::testMaxPropsNoMarker()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   int roswell, image;
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.putPageProps(0, propsFor("page0")));
+      QVERIFY(max._version >= 1);
+
+      page_info *page;
+      QVERIFY(!max.find_page(0, page));
+      QVERIFY(!max.ensure_roswell(*page));
+      roswell = page->roswell;
+      image = page->image;
+      QVERIFY(roswell && image);
+   }
+
+   /* PaperPort's bytes in the marker's place, and a position which is
+      some other chunk, the page's image, in the link's */
+   {
+      QFile file(dir + "testfile.max");
+      QVERIFY(file.open(QIODevice::ReadWrite));
+      QVERIFY(file.seek(roswell + 0x190));
+      QByteArray marker = file.read(4);
+      QCOMPARE(marker, QByteArray("PRP1"));
+
+      const unsigned words[2] = {0x12345678, unsigned(image)};
+      QVERIFY(file.seek(roswell + 0x190));
+      QCOMPARE(file.write((const char *)words, sizeof(words)),
+               qint64(sizeof(words)));
+   }
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QMap<QString, QString> props;
+   err_info *err = max.getPageProps(0, props);
+   QVERIFY2(!err, err ? err->errstr : "");
+   QVERIFY(props.isEmpty());
+
+   // the page's other links are left alone
+   QImage before;
+   QSize size, trueSize;
+   int bpp;
+   QVERIFY(!max.getImage(0, false, before, size, trueSize, bpp, false));
+
+   // and properties can be given to it afresh
+   QVERIFY(!max.putPageProps(0, propsFor("fresh")));
+   QCOMPARE(propsName(&max, 0), QString("fresh"));
+}
+
+
+void TestFile::testMaxPropsInvalid()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QVERIFY(!max.putPageProps(0, propsFor("page0")));
+
+   const QList<QPair<QString, QString>> bad = {
+      {"", "value"},
+      {"a=b", "value"},
+      {"two\nlines", "value"},
+      {"two\rlines", "value"},
+      {"key", "two\nlines"},
+      {"key", "two\rlines"},
+   };
+   for (const auto &pair : bad) {
+      QMap<QString, QString> props = propsFor("bad");
+      props[pair.first] = pair.second;
+      err_info *err = max.putPageProps(0, props);
+      QVERIFY2(err, qPrintable(pair.first + "=" + pair.second));
+      QCOMPARE(err->errnum, int(ERR_invalid_page_property1));
+
+      // nothing is written
+      QCOMPARE(propsName(&max, 0), QString("page0"));
+   }
+
+   // '=' in a value is just part of it
+   QMap<QString, QString> props, got;
+   props["key"] = "a=b=c";
+   props["empty"] = "";
+   QVERIFY(!max.putPageProps(0, props));
+   QVERIFY(!max.getPageProps(0, got));
+   QCOMPARE(got, props);
+}
+
+
 void TestFile::testPdfTextLayer()
 {
    QTemporaryDir tmp;

@@ -974,6 +974,18 @@ err_info *File::putPageOcr (int, const OcrPage &)
    }
 
 
+err_info *File::getPageProps (int, QMap<QString, QString> &)
+   {
+   return not_impl ();
+   }
+
+
+err_info *File::putPageProps (int, const QMap<QString, QString> &)
+   {
+   return not_impl ();
+   }
+
+
 err_info *File::addPageJpeg (const QByteArray &, int, int, bool)
    {
    return not_impl ();
@@ -1005,8 +1017,8 @@ err_info *File::processPages (File *fnew, Operation &op, page_func func,
    // process pages in batches of nthreads to limit memory use
    int out_page_count = 0;
 
-   // the pages which were read by OCR, as (from, to) page numbers
-   QList<QPair<int, int>> ocr_pages;
+   // the pages copied, as (from, to) page numbers
+   QList<QPair<int, int>> copied;
    for (int start = 0; start < page_count; start += nthreads)
       {
       int end = std::min (start + nthreads, page_count);
@@ -1137,7 +1149,7 @@ err_info *File::processPages (File *fnew, Operation &op, page_func func,
                continue;
             CALL (fnew->addPage (results[i].fp, false));
             }
-         ocr_pages << qMakePair (start + i, out_page_count);
+         copied << qMakePair (start + i, out_page_count);
          out_page_count++;
          op.incProgress (1);
          }
@@ -1147,7 +1159,7 @@ err_info *File::processPages (File *fnew, Operation &op, page_func func,
 
    // the adjustments leave the words where they were
    fnew->load ();
-   return copyOcrTo (fnew, ocr_pages);
+   return copyPageDataTo (fnew, copied);
    }
 #endif  // QT_NO_WIDGETS
 
@@ -1292,8 +1304,8 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
    // we may generate fewer pages than we receive
    int out_page_count = 0;
 
-   // the pages which were read by OCR, as (from, to) page numbers
-   QList<QPair<int, int>> ocr_pages;
+   // the pages copied, as (from, to) page numbers
+   QList<QPair<int, int>> copied;
 
    load();
    for (pagenum = first_page; pagenum <= last_page; pagenum++)
@@ -1319,34 +1331,46 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
          continue;
 
       CALL (addImageAsPage (fnew, image, bpp, out_page_count));
-      ocr_pages << qMakePair (pagenum, out_page_count);
+      copied << qMakePair (pagenum, out_page_count);
       out_page_count++;
       op.incProgress (1);
       }
    fnew->flush ();
    fnew->load ();
-   return copyOcrTo (fnew, ocr_pages);
+   return copyPageDataTo (fnew, copied);
    }
 
 
-err_info *File::copyOcrTo (File *fnew, const QList<QPair<int, int>> &pages)
+err_info *File::copyPageDataTo (File *fnew,
+                                const QList<QPair<int, int>> &pages)
    {
    /* a page which was not read, or a file which cannot keep what was
-      read, is simply left for OCR to read again */
+      read, is simply left for OCR to read again; likewise a file which
+      cannot keep properties goes without them */
    bool kept = false;
 
    for (const QPair<int, int> &pair : pages)
       {
       OcrPage ocr;
+      err_info *err;
 
-      if (getPageOcr (pair.first, ocr) || ocr.isEmpty ())
-         continue;
+      if (!getPageOcr (pair.first, ocr) && !ocr.isEmpty ())
+         {
+         err = fnew->putPageOcr (pair.second, ocr);
+         if (err && err->errnum != ERR_no_available_for_this_file_type)
+            return err;
+         kept |= !err;
+         }
 
-      err_info *err = fnew->putPageOcr (pair.second, ocr);
+      QMap<QString, QString> props;
 
-      if (err && err->errnum != ERR_no_available_for_this_file_type)
-         return err;
-      kept |= !err;
+      if (!getPageProps (pair.first, props) && !props.isEmpty ())
+         {
+         err = fnew->putPageProps (pair.second, props);
+         if (err && err->errnum != ERR_no_available_for_this_file_type)
+            return err;
+         kept |= !err;
+         }
       }
    if (kept)
       CALL (fnew->flush ());

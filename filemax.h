@@ -140,6 +140,7 @@ typedef struct page_info
    int image;
    int noti1, noti2, title, text;
    int ocr;             //!< Paperman's OCR chunk, with the page's words
+   int props;           //!< Paperman's chunk of the page's properties
    QDateTime timestamp;
 
    QString titlestr;     //!< page title
@@ -188,6 +189,10 @@ public:
    virtual err_info *getPageText (int pagenum, QString &str);
    err_info *getPageOcr (int pagenum, OcrPage &page) override;
    err_info *putPageOcr (int pagenum, const OcrPage &page) override;
+   err_info *getPageProps (int pagenum,
+                           QMap<QString, QString> &props) override;
+   err_info *putPageProps (int pagenum,
+                           const QMap<QString, QString> &props) override;
 
    virtual int getSize (void);
 
@@ -669,6 +674,18 @@ private:
 
    //! create or update a page's OCR chunk, holding what was read from it
    err_info *create_ocr (page_info &page, const QByteArray &data);
+
+   //! create or update a page's properties chunk, holding them as text
+   err_info *create_props (page_info &page, const QByteArray &data);
+
+   /** read the data of a chunk which starts with its size, as the OCR
+       and properties chunks do
+
+      \param pos   the chunk's position in the file
+      \param type  the chunk's expected type (CT_...)
+      \param data  returns the data
+      \returns error, or NULL if ok */
+   err_info *read_sized_chunk (int pos, int type, QByteArray &data);
 
    err_info *page_add (int chunkid, const QString &titlestr,
             page_info *&pagep);

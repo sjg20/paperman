@@ -209,6 +209,16 @@ private slots:
    //! what OCR read from a page stays with it through each page operation
    void testMaxOcr();
 
+   //! a page's properties stay with it through each page operation
+   void testMaxProps();
+
+   //! a page record with bytes of PaperPort's where the properties are
+   //! linked, but no marker, reads as a page with no properties
+   void testMaxPropsNoMarker();
+
+   //! keys and values which would break a 'key=value' line are refused
+   void testMaxPropsInvalid();
+
    //! a stack held a page at a time gives each page's words from that
    //! page's own file, and is never written to
    void testSparseOcr();
