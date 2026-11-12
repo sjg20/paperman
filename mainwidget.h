@@ -162,6 +162,9 @@ public:
        half a minute for some, so the wait is given up after this */
    static constexpr int kQuitWaitMs = 2000;
 
+   //! how long Cancel waits for the scanner before giving up on the scan
+   static constexpr int kCancelWaitMs = 2000;
+
    /** Open the pscan dialogue again if it was open when Paperman last
        closed, with the scanner used then, if that is there: no scanner is
        asked for as the window opens.  A scanner which is not ready, as
@@ -291,7 +294,9 @@ public slots:
    /** stop the scan in progress
 
       \param cancel  true to cancel the scan now (else just stops
-                     after current page) */
+                     after current page). The scan is given up on if
+                     the scanner has not let it stop within
+                     kCancelWaitMs */
    void stopScan (bool cancel);
 
    /** is the scan waiting for the user to clear the scanner? */
@@ -486,6 +491,10 @@ private:
       \param ms   how long to wait from now */
    void giveUpAfter (int ms);
 
+   /** Say in the panel if the scan has been waiting for the scanner far
+       longer than it should, and that Cancel stops it */
+   void checkScanStall (void);
+
    /** Stop waiting for a scan which the scanner is not answering. What
        the scanning thread has sent so far is taken in, and the stack
        being scanned into is settled: kept if Paperman is quitting and it
@@ -594,6 +603,7 @@ private:
    int _scan_give_up_ms = -1; //!< when to give up on it, or -1 never
    QElapsedTimer _scan_give_up;   //!< since giveUpAfter() was asked
    bool _quitting = false;    //!< Paperman is closing
+   bool _scan_stalled = false;    //!< said the scanner is not answering
    bool _scan_stack_open = false; //!< a stack is being scanned into
    int _scan_stack_pages = 0; //!< and the pages it has so far
 

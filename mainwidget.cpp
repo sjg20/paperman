@@ -128,7 +128,7 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _scan_rate_timer = new QTimer (this);
    _scan_rate_timer->setInterval (1000);
    connect (_scan_rate_timer, &QTimer::timeout, this,
-            [this] () { updateScanRate (); });
+            [this] () { updateScanRate (); checkScanStall (); });
    _console = false;
 //    _stack = 0;
 
@@ -480,7 +480,8 @@ static QString getDefaultPageName (void)
 void Mainwidget::updatePscan ()
    {
    if (_pscan)
-      _pscan->checkEnabled (_scanning, _scan_waiting);
+      _pscan->checkEnabled (_scanning, _scan_waiting,
+                            _stuck_scan != nullptr);
    }
 
 
@@ -619,6 +620,7 @@ void Mainwidget::scanInto(QModelIndex target)
    _scan = scan;
    _scanning = true;
    _scan_left = false;
+   _scan_stalled = false;
    _scan_give_up_ms = -1;
    _scan_stack_open = false;
    _scan_stack_pages = 0;
@@ -838,6 +840,37 @@ void Mainwidget::giveUpAfter (int ms)
    }
 
 
+void Mainwidget::checkScanStall (void)
+   {
+   if (!_scanning || !_scanner)
+      return;
+
+   QString call;
+   qint64 ms = _scanner->callTime (&call);
+
+   if (ms >= Paperscan::stallMs ())
+      {
+      int secs = (int)(ms / 1000);
+
+      _scan_stalled = true;
+      if (_scan_cancelling)
+         slotScanProblem (tr ("Stopping the scan: %1() is still waiting "
+                              "for the scanner (%2s)").arg (call)
+                          .arg (secs));
+      else
+         slotScanProblem (tr ("The scanner is not responding: %1() has "
+                              "been waiting for it for %2s. Press Cancel "
+                              "to stop the scan").arg (call).arg (secs));
+      }
+   else if (_scan_stalled)
+      {
+      // it answered in the end
+      _scan_stalled = false;
+      slotScanProblem (QString ());
+      }
+   }
+
+
 void Mainwidget::leaveScan (void)
    {
    Paperscan *scan = _scan;
@@ -865,8 +898,9 @@ void Mainwidget::leaveScan (void)
       }
    _desktop->scanComplete ();
 
-   QString msg = tr ("The scanner did not answer, so the scan was ended "
-                     "without it");
+   QString msg = tr ("The scanner is not answering, so the scan was "
+                     "stopped without it. Scan is ready again once it "
+                     "answers, or is turned off and on");
 
    progress (msg);
    _scan_ok = false;
@@ -915,6 +949,14 @@ void Mainwidget::stopScan (bool cancel)
          {
          _scan_cancelling = true;
          _scan->cancelScan (err_make (ERRFN, ERR_scan_cancelled));
+
+         /* cut short a call the scanner is not answering, if the back end
+            allows it, and if the scan still has not stopped after a while
+            stop waiting for it, so that a scanner which is not answering
+            does not keep the scan going for as long as its timeout */
+         _scanner->interrupt ();
+         giveUpAfter (kCancelWaitMs);
+         checkScanStall ();
          }
       else
          _scan->endScan ();

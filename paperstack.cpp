@@ -1933,6 +1933,13 @@ Paperscan::~Paperscan ()
    nowhere for half an hour */
 #define BUSY_WAIT_MS (5 * 1000)
 
+/* How long a call into the back end has been waiting before the scanner
+   is taken to have stopped answering. Starting a page can take a few
+   seconds, as the scanner feeds it and may read it in full before saying
+   it has started, but a scanner which has stopped answering takes as
+   long as its USB timeout, half a minute for some, over each call */
+#define STALL_MS (10 * 1000)
+
 /* the waits above, scaled so that a test need not sit through them */
 static double time_scale = 1.0;
 
@@ -1946,6 +1953,13 @@ void Paperscan::setTimeScale (double scale)
    {
    time_scale = scale;
    }
+
+
+int Paperscan::stallMs (void)
+   {
+   return scaled (STALL_MS);
+   }
+
 
 bool Paperscan::isMisfeed (SANE_Status status)
    {

@@ -2239,6 +2239,121 @@ void TestFakescan::testQuitAfterStall ()
 }
 
 
+void TestFakescan::testCancelStall_data ()
+{
+   QTest::addColumn<bool> ("deaf");
+
+   QTest::newRow ("interrupted") << false;
+   QTest::newRow ("deaf") << true;
+}
+
+
+/* A scanner which stops answering holds sane_start() up for as long as
+   its timeout. Long before that the panel says so, and Cancel ends the
+   scan: at once if the back end takes the cancel, else once a short wait
+   is over, leaving the scanning thread to finish once the scanner
+   answers. Until then there is no scanner to scan with, and afterwards
+   it scans as before */
+void TestFakescan::testCancelStall ()
+{
+   QFETCH (bool, deaf);
+
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+   utilSetHeadless (true);
+
+   QTemporaryDir repo;
+   QVERIFY (repo.isValid ());
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop ();
+
+   QVERIFY (!desktop->addDir (repo.path ()));
+
+   QString path = QDir (repo.path ()).absolutePath ();
+   QModelIndex repo_ind = desktop->getDirIndex (path + "/");
+
+   QVERIFY (repo_ind.isValid ());
+
+   Mainwidget *main = Mainwidget::singleton ();
+   Scansettings settings (0, FAKESCAN_DEVICE);
+   QStringList messages;
+
+   QVERIFY (main->ensureScanner ());
+   QObject::connect (main, &Mainwidget::newContents,
+                     [&messages] (const QString &message)
+      {
+      messages << message;
+      });
+
+   auto release = qScopeGuard ([] () {
+      Fakescan::clear ();
+      QTRY_COMPARE (QScanner::callsLeft (), 0);
+   });
+
+   Fakescan::stall ("start", 60 * 1000, deaf);
+
+   QTimer person;
+   bool cancelled = false;
+
+   person.setInterval (5);
+   QObject::connect (&person, &QTimer::timeout, [&] ()
+      {
+      if (!messages.filter ("not responding").isEmpty ())
+         {
+         main->stopScan (true);
+         cancelled = true;
+         person.stop ();
+         }
+      });
+   person.start ();
+
+   QElapsedTimer timer;
+
+   timer.start ();
+   main->scanInto (repo_ind);
+   person.stop ();
+   QVERIFY (cancelled);
+   QVERIFY (timer.elapsed () < 30 * 1000);
+   QVERIFY2 (messages.filter ("sane_start() has been waiting").size (),
+             qPrintable (messages.join ("\n")));
+   QVERIFY (!main->_scanning);
+
+   // nothing was scanned, so no stack is left
+   QTRY_COMPARE (QDir (path).entryList (QStringList () << "*.max",
+                                        QDir::Files).size (), 0);
+
+   if (deaf)
+      {
+      // the scanning thread is still waiting, with the scanner
+      QVERIFY (main->_stuck_scan);
+      QCOMPARE (QScanner::callsLeft (), 1);
+      QVERIFY (!main->_watchButtons);
+
+      // so another scan is not started
+      int starts = Fakescan::count ("start");
+
+      main->scanInto (repo_ind);
+      QCOMPARE (Fakescan::count ("start"), starts);
+
+      // until the scanner answers
+      Fakescan::clear ();
+      QTRY_VERIFY (!main->_stuck_scan);
+      QTRY_VERIFY (main->_watchButtons);
+      }
+   QCOMPARE (QScanner::callsLeft (), 0);
+
+   /* and then it scans as before. The sheet stays in the hopper if the
+      cancel was taken, and else is fed as the scanner answers */
+   Fakescan::clear ();
+   QVERIFY (Fakescan::loadSheet (bandSheet (1), QImage (), 10));
+   main->scanInto (repo_ind);
+   QVERIFY2 (main->scanOk (), qPrintable (main->scanSummary ()));
+   QCOMPARE (main->scanPages (), deaf ? 1 : 2);
+   QVERIFY2 (!Fakescan::log ().join (" ").contains ("concurrent"),
+             qPrintable (Fakescan::log ().join ("\n")));
+}
+
+
 /* A scanner which stops answering part-way through a batch leaves the
    pages it did scan */
 void TestFakescan::testStopsAnswering ()
