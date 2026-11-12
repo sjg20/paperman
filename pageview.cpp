@@ -108,28 +108,19 @@ void Pageview::slotRelayout ()
       QStyleOptionViewItem option = getViewOptions ();
       QSize hint = itemDelegate ()->sizeHint (option, model ()->index (0, 0));
       Pagedelegate *delegate = qobject_cast<Pagedelegate *> (itemDelegate ());
+      Pagemodel *pages = qobject_cast<Pagemodel *> (model ());
 
       /* Every cell is the same size, so it must hold the tallest page, or
          a portrait page in a stack which starts with a wide one, such as
          a book with its jacket, runs into the row below. Only pages whose
-         pixmaps have arrived are measured, since asking for the others
-         would make them all; each that arrives brings another relayout */
-      if (delegate)
-         {
-         int tallest = 0;
+         pixmaps have arrived are measured, and none is set up, since that
+         would clear a pixmap the render thread has already made, or ask
+         for every page to be made; each that arrives brings another
+         relayout */
+      int tallest = pages ? pages->tallestPixmap () : 0;
 
-         for (int row = 0; row < model ()->rowCount (); row++)
-            {
-            Pageinfo *pi = model ()->data (model ()->index (row, 0),
-                  Pagemodel::Role_pageinfo).value<Pageinfo *> ();
-            QSize size = pi ? pi->knownPixmapSize () : QSize ();
-
-            if (size.isValid ())
-               tallest = qMax (tallest, size.height ());
-            }
-         if (tallest)
-            hint = hint.expandedTo (delegate->cellSize (option, tallest));
-         }
+      if (delegate && tallest)
+         hint = hint.expandedTo (delegate->cellSize (option, tallest));
       /* with a grid the view's spacing no longer applies, so include it
          in the cell, or the pages sit edge to edge */
       if (hint.isValid ())

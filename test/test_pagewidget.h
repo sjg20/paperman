@@ -28,6 +28,9 @@ private slots:
    //! page is far wider than the rest
    void testWideFirstPageLeavesRoom();
 
+   //! sizing the cells sets up no page, which would clear its pixmap
+   void testRelayoutLeavesPixmaps();
+
    //! a page drawn at one size and then shown at another, as when moving
    //! from the scan view, is scaled to the size it is shown at
    void testRenderedAtOtherSize();
