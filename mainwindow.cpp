@@ -55,6 +55,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qstring.h"
 
 #include "blockwatch.h"
+#include "camera.h"
 #include "clientconf.h"
 #include "config.h"
 
@@ -133,6 +134,8 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
 
    addAction(actionPscan);
    addAction(actionScango);
+   addAction(actionCamera);
+   updateCameraAction();
 
    /* with PAPERMAN_SNAP=<dir>, save what is on screen once a second (or
       every PAPERMAN_SNAP_MS milliseconds), to see what the display
@@ -786,6 +789,31 @@ void Mainwindow::on_actionScango_triggered(bool)
 void Mainwindow::on_actionPscan_triggered(bool)
 {
    _main->pscan ();
+}
+
+
+bool Mainwindow::event(QEvent *event)
+{
+   if (event->type() == QEvent::WindowActivate)
+      updateCameraAction();
+   return QMainWindow::event(event);
+}
+
+
+void Mainwindow::on_actionCamera_triggered(bool)
+{
+   _main->camera ();
+}
+
+
+void Mainwindow::updateCameraAction()
+{
+   bool have = Camera::present();
+
+   actionCamera->setEnabled(have);
+   actionCamera->setToolTip(have
+      ? tr("Photograph pages with a camera (F7)")
+      : tr("No camera found: plug one in to photograph pages"));
 }
 
 

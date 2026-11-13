@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/images">
         <file>images/paperman.png</file>
+        <file>images/icons/camera.svg</file>
         <file>images/icons/cancel.svg</file>
         <file>images/icons/cover.svg</file>
         <file>images/icons/crop.svg</file>

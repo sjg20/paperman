@@ -110,6 +110,7 @@ public slots:
     virtual void statusUpdate(QString str);
     virtual void on_actionScango_triggered(bool);
     virtual void on_actionPscan_triggered(bool);
+    virtual void on_actionCamera_triggered(bool);
     virtual void on_actionReconnectScanner_triggered(bool);
     virtual void on_actionSelectall_triggered(bool);
     virtual void on_actionByPosition_triggered(bool);
@@ -133,6 +134,13 @@ public slots:
 
        \param shown   true if the scan panel is shown, false if hidden */
     void scanPanelShown(bool shown);
+
+    /** Offer the camera only when there may be one
+
+       The camera button is greyed out, and says why, when no camera is
+       plugged in. This is checked as the window opens and each time it
+       becomes the active one, which is cheap and opens no device */
+    void updateCameraAction();
     virtual void on_actionDownloads_triggered(bool);
     virtual void on_actionAddRepository_triggered(bool);
     virtual void on_actionDocuments_triggered(bool);
@@ -158,6 +166,9 @@ public slots:
 protected slots:
     virtual void languageChange();
     void closeEvent(QCloseEvent *event);
+
+    //! check for a camera as the window becomes the active one
+    bool event(QEvent *event) override;
 
     /** Handle the operationProgress() signal from Operation */
     void updateProgress(enum Operation::state_t state, int percent,
