@@ -1306,3 +1306,77 @@ void TestCamera::testPages()
    QCOMPARE(done.count(), 1);
    QCOMPARE(maker.pending(), 0);
 }
+
+void TestCamera::testKeep()
+{
+   QString dir = setupRepo();
+   QByteArray first = FakeCamera::makeJpeg(QSize(640, 480), 1);
+   QByteArray second = FakeCamera::makeJpeg(QSize(800, 600), 2);
+
+   // nothing is made until there is a picture
+   CameraKeep keep(dir, "book_camera", "leaf_", 200);
+
+   QVERIFY(keep.filename().isEmpty());
+   QCOMPARE(keep.dir(), dir + "/");
+   QVERIFY(!QFile::exists(dir + "/book_camera.max"));
+
+   // one which is not a picture is refused, and makes nothing
+   QVERIFY(keep.add("junk"));
+   QVERIFY(!QFile::exists(dir + "/book_camera.max"));
+
+   // each picture is on the disk as soon as it is added
+   QVERIFY(!keep.add(first));
+   QCOMPARE(keep.filename(), QString("book_camera.max"));
+   QCOMPARE(keep.count(), 1);
+   {
+      Filemax max(dir + "/", "book_camera.max", nullptr);
+
+      QVERIFY(!max.load());
+      QCOMPARE(max.pagecount(), 1);
+   }
+   QVERIFY(!keep.add(second));
+   QCOMPARE(keep.count(), 2);
+   keep.finish();
+
+   // each as it was given, with its name and the resolution
+   Filemax max(dir + "/", "book_camera.max", nullptr);
+   QString title;
+   QSize dpi;
+
+   QVERIFY(!max.load());
+   QCOMPARE(max.pagecount(), 2);
+   QVERIFY(!max.getPageTitle(1, title));
+   QCOMPARE(title, QString("leaf_2"));
+   QVERIFY(!max.getDpi(0, dpi));
+   QCOMPARE(dpi, QSize(200, 200));
+
+   QFile stored(dir + "/book_camera.max");
+
+   QVERIFY(stored.open(QIODevice::ReadOnly));
+
+   QByteArray all = stored.readAll();
+   int at = all.indexOf(first);
+
+   QVERIFY(at >= 0);
+   QVERIFY(all.indexOf(second, at) > at);
+   stored.close();
+
+   // another of the same name gets a name of its own, and can be removed
+   CameraKeep again(dir, "book_camera", "leaf_", 200);
+
+   QVERIFY(!again.add(first));
+   QVERIFY(again.filename() != QString("book_camera.max"));
+
+   QString other = dir + "/" + again.filename();
+
+   QVERIFY(QFile::exists(other));
+   QVERIFY(!again.cancel());
+   QVERIFY(!QFile::exists(other));
+   QCOMPARE(again.count(), 0);
+   QVERIFY(QFile::exists(dir + "/book_camera.max"));
+
+   // with nothing added there is nothing to remove
+   CameraKeep none(dir, "none", "leaf_", 200);
+
+   QVERIFY(!none.cancel());
+}

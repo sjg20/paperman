@@ -58,6 +58,15 @@ public:
                const QString &stack_name, const QString &page_name,
                int dpi);
 
+   /** make the stack now, if it has not been made, rather than when
+       its first page arrives: for when its name is needed before then
+
+      \returns error, or NULL if none */
+   err_info *begin (void);
+
+   /** \returns the stack, NULL if it has not been made or is finished */
+   File *file (void) const;
+
    /** add a picture to the stack, making the stack if this is the first
 
       \param jpeg   the picture, a whole JPEG file
@@ -94,6 +103,63 @@ private:
    int _dpi;
    bool _open = false;
    int _pages = 0;
+   };
+
+
+/** keeps the pictures a camera takes, just as it took them, in a stack
+    of their own
+
+When pages are made of a camera's pictures, by cutting them out and
+making them upright, the pictures themselves are worth keeping, so that
+a page which came out badly can be made again. They go in a second stack
+beside the first, each stored as the camera's own JPEG.
+
+This stack is written straight to its file, not through the model, which
+can have only one stack being scanned into. It is written to disk as
+each picture is added. The stack is not on the desk until finish(), when
+the caller adds it */
+class CameraKeep
+   {
+public:
+   /** \param dir        the folder to put the stack in
+       \param name       what to call it; another name is found if
+                         there is a stack of that name
+       \param page_name  what to call its pages, as for CameraScan
+       \param dpi        the resolution to record for each page */
+   CameraKeep (const QString &dir, const QString &name,
+               const QString &page_name, int dpi);
+   ~CameraKeep ();
+
+   /** add a picture, making the stack if this is the first
+
+      \param jpeg   the picture, a whole JPEG file
+      \returns error, or NULL if none */
+   err_info *add (const QByteArray &jpeg);
+
+   //! let go of the stack, which stays where it is
+   void finish (void);
+
+   /** remove the stack
+      \returns error, or NULL if none */
+   err_info *cancel (void);
+
+   //! the folder the stack is in, ending in /
+   QString dir (void) const { return _dir; }
+
+   //! the stack's filename, empty if no picture has been added
+   QString filename (void) const { return _fname; }
+
+   //! the number of pictures added so far
+   int count (void) const { return _count; }
+
+private:
+   QString _dir;
+   QString _name;
+   QString _page_name;    //!< the name the next picture is filed under
+   QString _fname;
+   int _dpi;
+   File *_file = nullptr;
+   int _count = 0;
    };
 
 #endif
