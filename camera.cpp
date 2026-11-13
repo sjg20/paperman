@@ -26,6 +26,10 @@ License: GPL-2
 
 #include "camera.h"
 
+#ifdef Q_OS_LINUX
+#include "camera_v4l2.h"
+#endif
+
 //! the fake cameras on offer, while they are in use
 static QList<FakeCamera::Spec> fake_specs;
 static bool fake_in_use;
@@ -49,7 +53,23 @@ QList<CameraInfo> Camera::list (void)
    {
    if (FakeCamera::inUse ())
       return FakeCamera::cameras ();
+#ifdef Q_OS_LINUX
+   return V4l2Camera::cameras ();
+#else
    return QList<CameraInfo> ();
+#endif
+   }
+
+
+bool Camera::present (void)
+   {
+   if (FakeCamera::inUse ())
+      return !FakeCamera::cameras ().isEmpty ();
+#ifdef Q_OS_LINUX
+   return V4l2Camera::present ();
+#else
+   return false;
+#endif
    }
 
 
@@ -57,6 +77,11 @@ Camera *Camera::create (const QString &id, QObject *parent)
    {
    if (FakeCamera::inUse ())
       return FakeCamera::make (id, parent);
+#ifdef Q_OS_LINUX
+   for (const CameraInfo &info : V4l2Camera::cameras ())
+      if (info.id == id)
+         return new V4l2Camera (id, parent);
+#endif
    return nullptr;
    }
 

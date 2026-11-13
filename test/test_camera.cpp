@@ -179,6 +179,7 @@ void TestCamera::testList()
    // with the fake cameras in use and none offered, there are none
    QVERIFY(FakeCamera::inUse());
    QVERIFY(Camera::list().isEmpty());
+   QVERIFY(!Camera::present());
    QVERIFY(!Camera::create("fake0"));
 
    FakeCamera::use({fakeSpec("fake0"), fakeSpec("fake1")});
@@ -186,6 +187,7 @@ void TestCamera::testList()
    QList<CameraInfo> list = Camera::list();
 
    QCOMPARE(list.size(), 2);
+   QVERIFY(Camera::present());
    QCOMPARE(list[0].id, QString("fake0"));
    QCOMPARE(list[1].name, QString("Fake camera fake1"));
    QVERIFY(!Camera::create("other"));

@@ -69,6 +69,15 @@ public:
                platform has no way to reach one */
    static QList<CameraInfo> list (void);
 
+   /** whether there may be a camera
+
+      This opens nothing, so it is cheap enough to ask often and does
+      not disturb a camera which is in use, but it can say yes when
+      list() then finds no camera which can be used
+
+      \returns true if list() is worth calling */
+   static bool present (void);
+
    /** make the object for a camera, which starts off closed
 
       \param id      the camera, from list()
