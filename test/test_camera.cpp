@@ -22,6 +22,7 @@ License: GPL-2
 #include <QSignalSpy>
 #include <QTest>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QPushButton>
@@ -78,6 +79,9 @@ void TestCamera::init()
    // nothing remembered from the test before
    QSettings().remove("camera");
    QSettings().remove("camerapanel");
+
+   // each picture is its own page, unless a test says otherwise
+   QSettings().setValue("camera/pages", Pagefind::Mode_whole);
 }
 
 void TestCamera::cleanup()
@@ -1176,6 +1180,20 @@ QByteArray TestCamera::bookJpeg(double gutter)
    return jpeg;
 }
 
+void TestCamera::choose(Camerapanel *panel, const QString &list,
+                        const QString &text)
+{
+   QComboBox *combo = panel->findChild<QComboBox *>(list);
+
+   QVERIFY(combo);
+
+   int index = combo->findText(text);
+
+   QVERIFY2(index >= 0, qPrintable(text));
+   combo->setCurrentIndex(index);
+   emit combo->activated(index);
+}
+
 void TestCamera::testPagesCurved()
 {
    QImage image = TestPagefind::mat(QSize(1600, 1200));
@@ -1211,6 +1229,19 @@ void TestCamera::testPagesCurved()
    QCOMPARE(pages.size(), 2);
    QVERIFY(QImage::fromData(pages[0], "JPG").width() >
            left.width() * 1.1);
+
+   // in the camera's view each page is outlined along its own edges
+   CameraView view;
+
+   view.setPages(Pagefind::Mode_auto);
+   view.setFrame(image.scaled(800, 600));
+   QCOMPARE(view.outlines().size(), 2);
+   QCOMPARE(view.outlines()[0].size(), 2 * Pagefind::CurvePoints);
+
+   // the top of a page is higher in the middle than at its ends
+   QPolygonF outline = view.outlines()[0];
+
+   QVERIFY(outline[Pagefind::CurvePoints / 2].y() < outline[0].y() - 8);
 }
 
 void TestCamera::testPages()
@@ -1490,4 +1521,287 @@ void TestCamera::testSessionPages()
    QDir dir(QFileInfo(file->pathname()).path());
 
    QCOMPARE(dir.entryList({"*_camera*.max"}).size(), 1);
+}
+
+void TestCamera::testPanelPages()
+{
+   FakeCamera::Spec spec = fakeSpec();
+   QByteArray whole = FakeCamera::makeJpeg(QSize(1600, 1200), 7);
+
+   // two pictures of a book, then one with no page to find in it
+   spec.stills = {bookJpeg(0.46), bookJpeg(0.5), whole};
+   FakeCamera::use({spec});
+   QSettings().remove("camera/pages");
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+
+   CameraView *view = panel->findChild<CameraView *>("viewfinder");
+   QComboBox *pages = panel->findChild<QComboBox *>("pages");
+   QCheckBox *keep = panel->findChild<QCheckBox *>("keep");
+   QLabel *count = panel->findChild<QLabel *>("count");
+   QLabel *status = panel->findChild<QLabel *>("status");
+
+   QVERIFY(view && pages && keep && count && status);
+
+   // left to itself it chooses, and keeps the camera's pictures
+   QCOMPARE(pages->currentText(), QString("Auto"));
+   QVERIFY(keep->isChecked());
+   QVERIFY(keep->isEnabled());
+
+   // the pages which would be cut out are marked in the camera's view
+   QTRY_COMPARE(view->outlines().size(), 2);
+   QVERIFY(view->outlines()[0].boundingRect().right()
+           <= view->outlines()[1].boundingRect().left() + 2);
+   QVERIFY(QRectF(view->frame().rect()).adjusted(-2, -2, 2, 2)
+           .contains(view->outlines()[0].boundingRect()));
+
+   // with the whole picture kept there is nothing to mark, or to keep
+   choose(panel, "pages", "Whole picture");
+   QVERIFY(view->outlines().isEmpty());
+   QVERIFY(!keep->isEnabled());
+   choose(panel, "pages", "One page");
+   QTRY_COMPARE(view->outlines().size(), 1);
+   QVERIFY(keep->isEnabled());
+   choose(panel, "pages", "Two pages");
+   QTRY_COMPARE(view->outlines().size(), 2);
+
+   // each picture of the book gives two pages
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 2);
+   QCOMPARE(count->text(), QString("2 pages"));
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 4);
+   QTRY_COMPARE(main->cameraPending(), 0);
+   QCOMPARE(status->text(), QString());
+
+   // only the stack of pages is on the desk so far
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // a picture with no page to be found is kept whole
+   choose(panel, "pages", "Auto");
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 5);
+   QCOMPARE(count->text(), QString("5 pages"));
+
+   // and a book is split without being told that it is one
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 7);
+
+   QTest::mouseClick(panel->findChild<QPushButton *>("done"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(main->cameraPages(), 0);
+
+   // now there are two stacks: the pages, and the camera's pictures
+   QCOMPARE(model->rowCount(parent), rows + 2);
+
+   File *file = stackWithPages(model, parent, 7);
+   File *kept = stackWithPages(model, parent, 4);
+
+   QVERIFY(file);
+   QVERIFY(kept);
+   QCOMPARE(kept->filename(),
+            QFileInfo(file->filename()).completeBaseName()
+            + "_camera.max");
+   QCOMPARE(QFileInfo(kept->pathname()).path(),
+            QFileInfo(file->pathname()).path());
+
+   // the pages are in order, the left of each pair before the right
+   const QList<double> gutters = {0.46, 0.5, 0, 0.46};
+
+   for (int i = 0; i < 8; i++) {
+      // the picture kept whole comes between them
+      if (i / 2 == 2)
+         continue;
+
+      QImage image;
+      QSize size, true_size;
+      int bpp;
+
+      QVERIFY(!file->getImage(i < 4 ? i : i - 1, false, image, size,
+                              true_size, bpp, false));
+      image = image.copy(QRect(QPoint(0, 0), size));
+
+      double share = i % 2 ? 1 - gutters[i / 2] : gutters[i / 2];
+
+      QVERIFY2(qAbs(size.width() - 1225 * share) <= 25,
+               qPrintable(QString("page %1 is %2 wide").arg(i)
+                          .arg(size.width())));
+      QVERIFY(qAbs(size.height() - 770) <= 20);
+      QVERIFY((TestPagefind::markAt(image, true).x() > 0) == !(i % 2));
+      QVERIFY((TestPagefind::markAt(image, false).x() > 0) == (i % 2));
+   }
+
+   // and the one between is the picture itself
+   QFile stored(file->pathname());
+
+   QVERIFY(stored.open(QIODevice::ReadOnly));
+   QVERIFY(stored.readAll().contains(whole));
+
+   // the pictures kept are those the camera sent, byte for byte
+   QFile kept_file(kept->pathname());
+
+   QVERIFY(kept_file.open(QIODevice::ReadOnly));
+
+   QByteArray all = kept_file.readAll();
+   int at = 0;
+
+   for (int i = 0; i < 4; i++) {
+      const QByteArray &jpeg = spec.stills[i % 3];
+
+      at = all.indexOf(jpeg, at);
+      QVERIFY(at >= 0);
+      at += jpeg.size();
+   }
+
+   // what was chosen is remembered
+   choose(panel, "pages", "One page");
+   keep->setChecked(false);
+   QCOMPARE(openPanel(&me), panel);
+   QCOMPARE(pages->currentText(), QString("One page"));
+   QVERIFY(!keep->isChecked());
+   QCOMPARE(QSettings().value("camera/pages").toInt(),
+            (int)Pagefind::Mode_one);
+   QVERIFY(!QSettings().value("camera/keep").toBool());
+
+   // without the pictures kept there is the one stack
+   QTRY_VERIFY(view->frameCount() >= 1);
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 1);
+   QTest::mouseClick(panel->findChild<QPushButton *>("done"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(model->rowCount(parent), rows + 3);
+}
+
+void TestCamera::testPanelPagesWait()
+{
+   FakeCamera::use({fakeSpec()});
+   QSettings().setValue("camera/pages", Pagefind::Mode_two);
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+
+   QLabel *status = panel->findChild<QLabel *>("status");
+   QPushButton *capture = panel->findChild<QPushButton *>("capture");
+   QPushButton *done = panel->findChild<QPushButton *>("done");
+   QByteArray book = bookJpeg(0.5);
+
+   // pictures arrive faster than their pages can be made
+   for (int i = 0; i < 3; i++)
+      QCOMPARE(main->cameraAddPicture(book, Pagefind::Mode_two, true),
+               QString());
+   QCOMPARE(main->cameraPending(), 3);
+   QCOMPARE(main->cameraPages(), 0);
+
+   // the stack is there already, and the pictures are on the disk
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // Done waits for them, and says so
+   QTest::mouseClick(done, Qt::LeftButton);
+   QVERIFY(panel->isVisible());
+   QCOMPARE(status->text(),
+            QString("Finishing: 3 pictures still to do"));
+   QVERIFY(!done->isEnabled());
+   QVERIFY(!capture->isEnabled());
+   QVERIFY(!panel->findChild<QComboBox *>("pages")->isEnabled());
+
+   // then closes of its own accord, with every page kept
+   QTRY_VERIFY(!panel->isVisible());
+   QCOMPARE(main->cameraPending(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 2);
+   QVERIFY(stackWithPages(model, parent, 6));
+   QVERIFY(stackWithPages(model, parent, 3));
+
+   // Cancel while it waits throws them all away
+   QCOMPARE(openPanel(&me), panel);
+   for (int i = 0; i < 3; i++)
+      QCOMPARE(main->cameraAddPicture(book, Pagefind::Mode_two, true),
+               QString());
+   QTest::mouseClick(done, Qt::LeftButton);
+   QVERIFY(panel->isVisible());
+   QTest::mouseClick(panel->findChild<QPushButton *>("cancel"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(main->cameraPending(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 2);
+   QTest::qWait(500);
+   QCOMPARE(model->rowCount(parent), rows + 2);
+   QCOMPARE(main->cameraPages(), 0);
+
+   // and the panel is ready for the next stack
+   QCOMPARE(openPanel(&me), panel);
+   QVERIFY(done->isEnabled());
+   QTRY_VERIFY(capture->isEnabled());
+   QCOMPARE(status->text(), QString());
+   QTest::mouseClick(done, Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+}
+
+void TestCamera::testPanelPagesCancel()
+{
+   FakeCamera::Spec spec = fakeSpec();
+
+   spec.stills = {bookJpeg(0.5)};
+   FakeCamera::use({spec});
+   QSettings().setValue("camera/pages", Pagefind::Mode_two);
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+   for (int i = 0; i < 2; i++) {
+      QTest::keyClick(panel, Qt::Key_Space);
+      QTRY_COMPARE(main->cameraPages(), (i + 1) * 2);
+   }
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // the pictures are being kept beside the stack
+   File *file = stackWithPages(model, parent, 4);
+
+   QVERIFY(file);
+
+   QString kept = QFileInfo(file->pathname()).path() + "/"
+         + QFileInfo(file->filename()).completeBaseName() + "_camera.max";
+   QString pages_path = file->pathname();
+
+   QVERIFY(QFile::exists(kept));
+
+   // Cancel leaves neither
+   QTest::mouseClick(panel->findChild<QPushButton *>("cancel"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(model->rowCount(parent), rows);
+   QVERIFY(!QFile::exists(kept));
+   QVERIFY(!QFile::exists(pages_path));
+   QCOMPARE(main->cameraPages(), 0);
 }

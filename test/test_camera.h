@@ -63,6 +63,10 @@ private:
       \param gutter  where its gutter is, as a proportion of its width */
    static QByteArray bookJpeg(double gutter);
 
+   //! choose an entry of one of the panel's lists, as a click on it does
+   static void choose(Camerapanel *panel, const QString &list,
+                      const QString &text);
+
 private slots:
    void init();
    void cleanup();
@@ -124,7 +128,7 @@ private slots:
    //! pages are made of pictures in the background, in order
    void testPages();
 
-   //! a book whose pages curve has them made flat
+   //! a book whose pages curve has them made flat, and outlined so
    void testPagesCurved();
 
    //! the camera's own pictures are kept in a stack written as they come
@@ -132,6 +136,16 @@ private slots:
 
    //! the main widget files the pages of each picture, and its pictures
    void testSessionPages();
+
+   //! the panel files two pages for each picture of a book, and keeps
+   //! the pictures in a second stack
+   void testPanelPages();
+
+   //! Done waits for the pages still being made, and Cancel does not
+   void testPanelPagesWait();
+
+   //! Cancel leaves neither the pages nor the pictures kept
+   void testPanelPagesCancel();
 };
 
 #endif
