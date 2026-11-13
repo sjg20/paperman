@@ -328,6 +328,13 @@ linux {
     PRE_TARGETDEPS += test/fakescan/libsane-fakefujitsu.so.1
 }
 
+# Cameras are reached through V4L2, which only Linux has; elsewhere there
+# are none, but for the fake one the tests use
+linux {
+    HEADERS += camera_v4l2.h
+    SOURCES += camera_v4l2.cpp
+}
+
 # 'make appimage' builds an AppImage, with a build of its own without the
 # tests, in build-appimage, and the Qt this is built with
 linux {
