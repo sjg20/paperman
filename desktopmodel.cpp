@@ -1110,6 +1110,12 @@ void Desktopmodel::pageStarting (Paperscan &scan, const PPage *page)
    {
    UNUSED (scan);
    UNUSED (page);
+   pageStarting ();
+   }
+
+
+void Desktopmodel::pageStarting (void)
+   {
    if (_scan_err)
       return;
 //    qDebug () << "pageStarting" << scan.getPagenum (page);
