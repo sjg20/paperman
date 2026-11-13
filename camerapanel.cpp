@@ -280,6 +280,8 @@ void Camerapanel::openCamera (const QString &id)
 
    connect (_camera, &Camera::previewFrame, _view, &CameraView::setFrame);
    connect (_camera, &Camera::captured, this, &Camerapanel::stillArrived);
+   connect (_camera, &Camera::stillPushed, this,
+            &Camerapanel::stillPushed);
    connect (_camera, &Camera::failed, this, &Camerapanel::cameraFailed);
    _camera->startPreview (stillSize ());
    updateState ();
@@ -338,6 +340,15 @@ void Camerapanel::capture (void)
 void Camerapanel::stillArrived (const QByteArray &jpeg)
    {
    _busy = false;
+   _message = _main->cameraAddPage (jpeg);
+   updateState ();
+   }
+
+
+void Camerapanel::stillPushed (const QByteArray &jpeg)
+   {
+   /* the camera took this one itself, so nothing was waiting for it:
+      a still which was asked for is still on its way, if one was */
    _message = _main->cameraAddPage (jpeg);
    updateState ();
    }

@@ -73,6 +73,10 @@ stack in the folder which was shown when the first was taken. Done keeps
 the stack and Cancel throws it away; closing the panel any other way
 keeps it, so that a slip does not lose a book's worth of pages.
 
+A camera with a button of its own may take a still when that is pressed
+and send it unasked. That is added to the stack just as one taken with
+Capture is, at whatever size the camera sent it.
+
 The camera is open for as long as the panel is shown, and is let go of
 when the panel closes */
 class Camerapanel : public QDialog
@@ -116,6 +120,7 @@ private slots:
    void cameraChosen (int index);
    void sizeChosen (int index);
    void stillArrived (const QByteArray &jpeg);
+   void stillPushed (const QByteArray &jpeg);
    void cameraFailed (const QString &msg);
 
 private:

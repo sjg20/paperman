@@ -113,6 +113,9 @@ private slots:
 
    //! a still which fails is reported, and another can be taken
    void testPanelFailure();
+
+   //! a still the camera sends unasked is filed as a page
+   void testPanelPush();
 };
 
 #endif
