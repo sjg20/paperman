@@ -171,6 +171,7 @@ HEADERS += desktopwidget.h \
  imagetrim.h \
  pagecover.h \
  camera.h \
+ camerascan.h \
  filepdf.h \
  fileother.h \
  pdfio.h \
@@ -277,6 +278,7 @@ SOURCES += desktopwidget.cpp \
  imagetrim.cpp \
  pagecover.cpp \
  camera.cpp \
+ camerascan.cpp \
  filepdf.cpp \
  fileother.cpp \
  pdfio.cpp \

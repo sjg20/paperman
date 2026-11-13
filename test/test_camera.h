@@ -21,7 +21,12 @@ License: GPL-2
 #ifndef TEST_CAMERA_H
 #define TEST_CAMERA_H
 
+#include <QModelIndex>
+
 #include "suite.h"
+
+class Desktopmodel;
+class Mainwindow;
 
 class TestCamera : public Suite
 {
@@ -34,6 +39,13 @@ public:
       \param jpeg   the JPEG
       \returns the JPEG without them */
    static QByteArray withoutTables(const QByteArray &jpeg);
+
+private:
+   /** set up a repository in a window, for filing into
+      \param me       the window
+      \param model    returns the model for its stacks
+      \param parent   returns the folder which is shown */
+   void setupDesk(Mainwindow *me, Desktopmodel *&model, QModelIndex &parent);
 
 private slots:
    void init();
@@ -62,6 +74,12 @@ private slots:
 
    //! a camera which fails says so
    void testFailures();
+
+   //! each picture filed is a page of one stack, stored as it was given
+   void testFile();
+
+   //! a stack which is cancelled, or never has a page, is not left behind
+   void testFileNone();
 };
 
 #endif

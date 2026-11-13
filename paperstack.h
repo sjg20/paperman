@@ -459,7 +459,14 @@ public:
 //   void compressMax (const char *fname);
 
    /** increment the number at the end of a string */
-   void incrementName (QString &name);
+   static void incrementName (QString &name);
+
+   /** the title a page is given from the name it is scanned under
+
+      \param name   the name, which for the first page of a stack may
+                    end in _
+      \returns the title */
+   static QString pageTitle (const QString &name);
 
    /** returns the stack name */
    QString getStackName (void);

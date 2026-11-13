@@ -23,6 +23,12 @@ License: GPL-2
 #include <QTest>
 
 #include "../camera.h"
+#include "../camerascan.h"
+#include "../desktopmodel.h"
+#include "../desktopview.h"
+#include "../desktopwidget.h"
+#include "../filemax.h"
+#include "../mainwindow.h"
 #include "test_camera.h"
 
 static FakeCamera::Spec fakeSpec(const QString &id = "fake0")
@@ -358,4 +364,179 @@ void TestCamera::testFailures()
    QTRY_COMPARE(failed2.count(), 1);
    QCOMPARE(captured2.count(), 0);
    QCOMPARE(captured.count(), 0);
+}
+
+void TestCamera::setupDesk(Mainwindow *me, Desktopmodel *&model,
+                           QModelIndex &parent)
+{
+   Desktopwidget *desktop = me->getDesktop();
+
+   QVERIFY(!desktop->addDir(setupRepo()));
+   model = desktop->getModel();
+   parent = desktop->getView()->rootIndexSource();
+   QVERIFY(parent.isValid());
+}
+
+void TestCamera::testFile()
+{
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   int rows = model->rowCount(parent);
+
+   // colour, colour of another size as a camera may send it, and grey
+   QImage grey(300, 200, QImage::Format_Grayscale8);
+   QByteArray grey_jpeg, bare;
+   QBuffer buf(&grey_jpeg);
+
+   grey.fill(180);
+   QVERIFY(buf.open(QIODevice::WriteOnly));
+   QVERIFY(grey.save(&buf, "JPG"));
+   QCOMPARE(cameraStill(withoutTables(FakeCamera::makeJpeg(QSize(400, 600),
+                                                           2)), bare),
+            QString());
+
+   QList<QByteArray> jpegs = {FakeCamera::makeJpeg(QSize(640, 480), 1),
+                              bare, grey_jpeg};
+   CameraScan scan(model, parent, "book", "leaf_", 200);
+
+   // nothing is made until there is a page
+   QVERIFY(!scan.isOpen());
+   QCOMPARE(model->rowCount(parent), rows);
+   for (int i = 0; i < jpegs.size(); i++) {
+      QVERIFY(!scan.addPage(jpegs[i]));
+      QCOMPARE(scan.pageCount(), i + 1);
+      QVERIFY(scan.isOpen());
+      QCOMPARE(model->rowCount(parent), rows + 1);
+   }
+
+   QString fname;
+   File *file = nullptr;
+
+   QVERIFY(!scan.finish(&fname, &file));
+   QVERIFY(!scan.isOpen());
+   QCOMPARE(fname, QString("book.max"));
+   QVERIFY(file);
+   QCOMPARE(model->rowCount(parent), rows + 1);
+   QCOMPARE(file->pagecount(), 3);
+
+   // each page has its name, its size and the resolution given
+   const QStringList titles = {"leaf", "leaf_2", "leaf_3"};
+   const QList<QSize> sizes = {QSize(640, 480), QSize(400, 600),
+                               QSize(300, 200)};
+   const QList<int> depths = {24, 24, 8};
+   Filemax *max = dynamic_cast<Filemax *>(file);
+
+   QVERIFY(max);
+   for (int i = 0; i < 3; i++) {
+      QString title;
+      QImage image;
+      QSize size, true_size, dpi;
+      int bpp;
+
+      QVERIFY(!file->getPageTitle(i, title));
+      QCOMPARE(title, titles[i]);
+      QVERIFY(!file->getImage(i, false, image, size, true_size, bpp,
+                              false));
+      QCOMPARE(size, sizes[i]);
+      QCOMPARE(bpp, depths[i]);
+      QVERIFY(!max->getDpi(i, dpi));
+      QCOMPARE(dpi, QSize(200, 200));
+
+      // Paperman reads the page as the picture which was given
+      QImage want = QImage::fromData(jpegs[i], "JPG");
+      QPoint mid(size.width() / 2, size.height() / 2);
+
+      QVERIFY(qAbs(qGray(image.pixel(mid)) - qGray(want.pixel(mid))) < 8);
+      QVERIFY(qAbs(qGray(image.pixel(5, 5)) - qGray(want.pixel(5, 5))) < 8);
+   }
+
+   // and the file holds each picture, byte for byte
+   QFile stored(file->pathname());
+
+   QVERIFY(stored.open(QIODevice::ReadOnly));
+
+   QByteArray all = stored.readAll();
+   int at = 0;
+
+   for (const QByteArray &jpeg : jpegs) {
+      at = all.indexOf(jpeg, at);
+      QVERIFY(at >= 0);
+      at += jpeg.size();
+   }
+
+   // another stack of the same name gets a name of its own
+   CameraScan again(model, parent, "book", "leaf_", 200);
+
+   QVERIFY(!again.addPage(jpegs[0]));
+   QVERIFY(!again.finish(&fname, &file));
+   QVERIFY(fname != QString("book.max"));
+   QCOMPARE(file->pagecount(), 1);
+   QCOMPARE(model->rowCount(parent), rows + 2);
+}
+
+void TestCamera::testFileNone()
+{
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   int rows = model->rowCount(parent);
+   QString dir;
+   QByteArray jpeg = FakeCamera::makeJpeg(QSize(640, 480), 1);
+   QString fname = "x";
+   File *file = nullptr;
+
+   // no pages: nothing to keep
+   {
+      CameraScan scan(model, parent, "none", "leaf_", 300);
+
+      QVERIFY(!scan.finish(&fname, &file));
+      QVERIFY(fname.isEmpty());
+      QVERIFY(!file);
+      QVERIFY(!scan.cancel());
+      QCOMPARE(model->rowCount(parent), rows);
+   }
+
+   // a picture which is not one is refused, and makes no stack
+   {
+      CameraScan scan(model, parent, "bad", "leaf_", 300);
+
+      QVERIFY(scan.addPage("this is not a picture"));
+      QVERIFY(scan.addPage(jpeg.left(jpeg.size() / 2)));
+      QVERIFY(!scan.isOpen());
+      QCOMPARE(scan.pageCount(), 0);
+      QCOMPARE(model->rowCount(parent), rows);
+
+      // but a good one after it is kept
+      QVERIFY(!scan.addPage(jpeg));
+      QVERIFY(!scan.finish(&fname, &file));
+      QCOMPARE(fname, QString("bad.max"));
+      QCOMPARE(file->pagecount(), 1);
+      QCOMPARE(model->rowCount(parent), rows + 1);
+      dir = QFileInfo(file->pathname()).path();
+   }
+
+   // cancelled with pages: the stack goes
+   {
+      CameraScan scan(model, parent, "gone", "leaf_", 300);
+
+      QVERIFY(!scan.addPage(jpeg));
+      QVERIFY(!scan.addPage(jpeg));
+      QCOMPARE(model->rowCount(parent), rows + 2);
+      QVERIFY(!scan.cancel());
+      QVERIFY(!scan.isOpen());
+      QCOMPARE(scan.pageCount(), 0);
+      QCOMPARE(model->rowCount(parent), rows + 1);
+      QVERIFY(!dir.isEmpty());
+      QVERIFY(!QFile::exists(dir + "/gone.max"));
+      QVERIFY(QFile::exists(dir + "/bad.max"));
+   }
 }
