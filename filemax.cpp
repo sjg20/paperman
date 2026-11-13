@@ -6786,6 +6786,15 @@ err_info *Filemax::remove ()
    {
    QMutexLocker locker (&_file_mutex);
 
+   /* a stack just created is open until it is first flushed, and a
+      file which is open cannot be removed on Windows */
+   if (_fin)
+      {
+      fclose (_fin);
+      _fin = nullptr;
+      _open_count = 0;
+      }
+
    QFile file (_dir + _filename);
 
    if (!file.remove ())
