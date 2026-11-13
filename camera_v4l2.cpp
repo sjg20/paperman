@@ -404,6 +404,29 @@ V4l2Worker::Wait V4l2Worker::waitFrame (int ms, bool mind,
    }
 
 
+bool V4l2Worker::pushed (const QByteArray &jpeg, const QSize &size)
+   {
+   /* The camera sends pictures of the size it was asked for. One of
+      another size is a still it took of its own accord, as when a
+      button on it is pressed, which it sends among the others */
+   if (size != _stream_size)
+      {
+      _after_push = true;
+      emit stillPushed (jpeg);
+      return true;
+      }
+
+   // and the picture after that one is not a plain view of the page
+   if (_after_push)
+      {
+      _after_push = false;
+      emit pushFollowed (jpeg);
+      return true;
+      }
+   return false;
+   }
+
+
 void V4l2Worker::preview (const QSize &size)
    {
    QString err = startStream (size, PREVIEW_BUFFERS);
@@ -413,7 +436,9 @@ void V4l2Worker::preview (const QSize &size)
    while (err.isEmpty ())
       {
       QByteArray frame, jpeg;
-      bool damaged = false;
+      QSize got;
+      int depth;
+      bool damaged = false, has_dht;
       Wait wait = waitFrame (STALL_MS, true, frame, damaged, err);
 
       if (wait == Wait_asked)
@@ -423,10 +448,15 @@ void V4l2Worker::preview (const QSize &size)
       if (wait != Wait_frame || damaged)
          continue;
 
-      // no more often than can be shown, and only whole pictures
-      if (!first && sent.elapsed () < PREVIEW_GAP_MS)
+      // only whole pictures
+      if (!cameraStill (frame, jpeg).isEmpty ()
+          || !cameraJpegInfo (jpeg, got, depth, has_dht).isEmpty ())
          continue;
-      if (!cameraStill (frame, jpeg).isEmpty ())
+      if (pushed (jpeg, got))
+         continue;
+
+      // no more often than can be shown
+      if (!first && sent.elapsed () < PREVIEW_GAP_MS)
          continue;
 
       QImage image = QImage::fromData (jpeg, "JPG");
@@ -485,19 +515,27 @@ void V4l2Worker::still (const QSize &size)
          why = tr ("The picture was damaged on its way from the camera");
          continue;
          }
+
+      /* A still the camera took itself can arrive here too, among the
+         pictures to be left as well. One of another size is passed on
+         as that, and the still asked for is waited for, so that both
+         pages are kept. One of the size asked for cannot be told from
+         the still asked for, and is taken as it */
+      QByteArray whole;
+      QString bad = cameraStill (frame, whole);
+
+      if (bad.isEmpty ())
+         bad = cameraJpegInfo (whole, got, depth, has_dht);
+      if (bad.isEmpty () && pushed (whole, got))
+         continue;
       if (skip-- > 0)
          continue;
 
-      // keep waiting for a whole one of the right size
-      why = cameraStill (frame, jpeg);
-      if (why.isEmpty () && !cameraJpegInfo (jpeg, got, depth,
-                                             has_dht).isEmpty ())
-         jpeg.clear ();
-      else if (why.isEmpty () && got != size)
-         {
-         why = tr ("The camera sent a picture of the wrong size");
-         jpeg.clear ();
-         }
+      // keep waiting for a whole one
+      if (bad.isEmpty ())
+         jpeg = whole;
+      else
+         why = bad;
       }
    stopStream ();
 
@@ -627,6 +665,10 @@ QString V4l2Camera::open (void)
             &Camera::previewFrame);
    connect (_worker, &V4l2Worker::captured, this, &Camera::captured);
    connect (_worker, &V4l2Worker::failed, this, &Camera::failed);
+   connect (_worker, &V4l2Worker::stillPushed, this,
+            &Camera::stillPushed);
+   connect (_worker, &V4l2Worker::pushFollowed, this,
+            &Camera::pushFollowed);
    _worker->start ();
    return QString ();
    }
