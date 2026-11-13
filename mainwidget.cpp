@@ -77,6 +77,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "printopt.h"
 #include "pscan.h"
 #include "camerapanel.h"
+#include "camerapages.h"
 #include "camerascan.h"
 #include "ocrreader.h"
 #include "resource.h"
@@ -477,6 +478,14 @@ bool Mainwidget::ensureScanner (void)
 static QString getDefaultStackName (void)
    {
    return QString ("");
+   }
+
+
+/* the resolution to record for a camera's pages: a camera has none,
+   since that depends on how far it is from the page, so one is assumed */
+static int cameraDpi (void)
+   {
+   return qBound (25, QSettings ().value ("camera/dpi", 300).toInt (), 4800);
    }
 
 
@@ -1295,38 +1304,43 @@ void Mainwidget::camera (void)
    }
 
 
-QString Mainwidget::cameraAddPage (const QByteArray &jpeg)
+QString Mainwidget::cameraStart (void)
    {
    // a scan and the camera cannot both be making a stack
    if (_scanning || _stuck_scan)
       return tr ("A scan is going on: the page was not kept");
+   if (_camera_scan)
+      return QString ();
 
-   if (!_camera_scan)
+   QString stack_name = getDefaultStackName ();
+   QString page_name = getDefaultPageName ();
+
+   // the names are those a scan would use
+   if (_pscan)
       {
-      QString stack_name = getDefaultStackName ();
-      QString page_name = getDefaultPageName ();
+      QString str = _pscan->getStackName ();
 
-      // the names are those a scan would use
-      if (_pscan)
-         {
-         QString str = _pscan->getStackName ();
-
-         if (!str.isEmpty ())
-            stack_name = str;
-         str = _pscan->getPageName ();
-         if (!str.isEmpty ())
-            page_name = str;
-         }
-
-      /* a camera has no resolution, since that depends on how far it
-         is from the page, so one is assumed */
-      int dpi = qBound (25, QSettings ().value ("camera/dpi", 300).toInt (),
-                        4800);
-
-      _camera_path = _desktop->getSelectedPath ();
-      _camera_scan = new CameraScan (_contents, _view->rootIndexSource (),
-                                     stack_name, page_name, dpi);
+      if (!str.isEmpty ())
+         stack_name = str;
+      str = _pscan->getPageName ();
+      if (!str.isEmpty ())
+         page_name = str;
       }
+
+   _camera_path = _desktop->getSelectedPath ();
+   _camera_scan = new CameraScan (_contents, _view->rootIndexSource (),
+                                  stack_name, page_name, cameraDpi ());
+   _camera_page_name = page_name;
+   return QString ();
+   }
+
+
+QString Mainwidget::cameraAddPage (const QByteArray &jpeg)
+   {
+   QString problem = cameraStart ();
+
+   if (!problem.isEmpty ())
+      return problem;
 
    err_info *err = _camera_scan->addPage (jpeg);
 
@@ -1334,8 +1348,99 @@ QString Mainwidget::cameraAddPage (const QByteArray &jpeg)
    }
 
 
+QString Mainwidget::cameraAddPicture (const QByteArray &jpeg, int mode,
+                                      bool keep)
+   {
+   QString problem = cameraStart ();
+   err_info *err;
+
+   if (!problem.isEmpty ())
+      return problem;
+
+   // with nothing to do to it and nothing ahead of it, file it now
+   if (mode == Pagefind::Mode_whole && !cameraPending ())
+      return cameraAddPage (jpeg);
+
+   if (mode != Pagefind::Mode_whole && keep)
+      {
+      /* The pictures are kept beside the stack, under its name, so the
+         stack is made now to find out what that is. A stack in a folder
+         on a server is in a cache until it is uploaded, which is no
+         place to keep another */
+      err = _camera_scan->begin ();
+      if (err)
+         return QString (err->errstr);
+
+      File *file = _camera_scan->file ();
+
+      if (!_camera_keep && file && file->desk ()
+          && !_contents->isRemoteDir (file->desk ()->dir ()))
+         {
+         QFileInfo info (file->pathname ());
+
+         _camera_keep = new CameraKeep (info.path (),
+               info.completeBaseName () + "_camera", _camera_page_name,
+               cameraDpi ());
+         }
+
+      // carry on without, if it cannot be kept, but say so
+      if (_camera_keep)
+         {
+         err = _camera_keep->add (jpeg);
+         if (err)
+            problem = QString (err->errstr);
+         }
+      }
+
+   if (!_camera_pages)
+      {
+      _camera_pages = new CameraPages (this);
+      connect (_camera_pages, &CameraPages::processed, this,
+               &Mainwidget::cameraProcessed);
+      }
+   QSettings qs;
+
+   _camera_pages->add (jpeg, (Pagefind::Mode)mode,
+         qBound (10, qs.value ("camera/quality", 90).toInt (), 100),
+         qBound (0.1, qs.value ("camera/focal",
+                                Pagefind::DefaultFocal).toDouble (), 10.0));
+   return problem;
+   }
+
+
+void Mainwidget::cameraProcessed (const QByteArrayList &pages, bool found)
+   {
+   QString problem;
+
+   Q_UNUSED (found);
+   for (const QByteArray &page : pages)
+      {
+      QString bad = cameraAddPage (page);
+
+      if (!bad.isEmpty ())
+         problem = bad;
+      }
+   emit cameraFiled (problem);
+   }
+
+
+int Mainwidget::cameraPending (void) const
+   {
+   return _camera_pages ? _camera_pages->pending () : 0;
+   }
+
+
 void Mainwidget::cameraDone (void)
    {
+   if (!_camera_scan)
+      return;
+
+   /* file the pages of the pictures still being worked on, each of
+      which takes a second or so. The camera panel waits for them itself
+      before it gets here, with the user able to see why, so this is for
+      when Paperman is closing */
+   while (cameraPending ())
+      qApp->processEvents (QEventLoop::WaitForMoreEvents);
    if (!_camera_scan)
       return;
 
@@ -1355,6 +1460,22 @@ void Mainwidget::cameraDone (void)
       _desktop->scanComplete ();
    delete _camera_scan;
    _camera_scan = nullptr;
+
+   // the camera's own pictures go on the desk beside their pages
+   if (_camera_keep)
+      {
+      QStringList kept (_camera_keep->filename ());
+      QString dir = _camera_keep->dir ();
+
+      _camera_keep->finish ();
+      if (_camera_keep->count ())
+         {
+         _contents->addFilesToDesk (dir, kept);
+         _desktop->addFileToDirmodelCache (_camera_path, kept [0]);
+         }
+      delete _camera_keep;
+      _camera_keep = nullptr;
+      }
    if (err && !_quitting)
       warn ("Error", err->errstr);
    }
@@ -1362,6 +1483,8 @@ void Mainwidget::cameraDone (void)
 
 void Mainwidget::cameraCancel (void)
    {
+   if (_camera_pages)
+      _camera_pages->abandon ();
    if (!_camera_scan)
       return;
 
@@ -1372,6 +1495,15 @@ void Mainwidget::cameraCancel (void)
       _desktop->scanComplete ();
    delete _camera_scan;
    _camera_scan = nullptr;
+   if (_camera_keep)
+      {
+      err_info *keep_err = _camera_keep->cancel ();
+
+      if (!err)
+         err = keep_err;
+      delete _camera_keep;
+      _camera_keep = nullptr;
+      }
    if (err && !_quitting)
       warn ("Error", err->errstr);
    }

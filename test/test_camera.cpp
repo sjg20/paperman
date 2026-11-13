@@ -1380,3 +1380,114 @@ void TestCamera::testKeep()
 
    QVERIFY(!none.cancel());
 }
+
+void TestCamera::testSessionPages()
+{
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   QSignalSpy filed(main, &Mainwidget::cameraFiled);
+   int rows = model->rowCount(parent);
+   QByteArray book = bookJpeg(0.46);
+   QByteArray plain = FakeCamera::makeJpeg(QSize(800, 600), 3);
+
+   // kept whole with nothing ahead of it, a picture is filed at once
+   QCOMPARE(main->cameraAddPicture(plain, Pagefind::Mode_whole, true),
+            QString());
+   QCOMPARE(main->cameraPages(), 1);
+   QCOMPARE(main->cameraPending(), 0);
+   QCOMPARE(filed.count(), 0);
+
+   // a book's pages take a moment, and what follows waits its turn
+   QCOMPARE(main->cameraAddPicture(book, Pagefind::Mode_auto, true),
+            QString());
+   QCOMPARE(main->cameraAddPicture(plain, Pagefind::Mode_whole, true),
+            QString());
+   QCOMPARE(main->cameraAddPicture(plain, Pagefind::Mode_one, true),
+            QString());
+   QCOMPARE(main->cameraPending(), 3);
+   QCOMPARE(main->cameraPages(), 1);
+   QTRY_COMPARE(filed.count(), 3);
+   QCOMPARE(main->cameraPending(), 0);
+   QCOMPARE(main->cameraPages(), 5);
+   for (int i = 0; i < 3; i++)
+      QCOMPARE(filed[i][0].toString(), QString());
+
+   // one which is not a picture is reported, and nothing is filed
+   QVERIFY(!main->cameraAddPicture("junk", Pagefind::Mode_auto, true)
+           .isEmpty());
+   QTRY_COMPARE(filed.count(), 4);
+   QVERIFY(!filed[3][0].toString().isEmpty());
+   QCOMPARE(main->cameraPages(), 5);
+
+   // only the pages are on the desk until it is done
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // Done waits for what is still being made
+   QCOMPARE(main->cameraAddPicture(book, Pagefind::Mode_two, true),
+            QString());
+   QCOMPARE(main->cameraPending(), 1);
+   main->cameraDone();
+   QCOMPARE(main->cameraPending(), 0);
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 2);
+
+   // the pages: the picture, the book's two, two pictures, the book's two
+   File *file = stackWithPages(model, parent, 7);
+
+   QVERIFY(file);
+
+   // the pictures kept are those which pages were looked for in
+   QString kept_name = QFileInfo(file->filename()).completeBaseName()
+         + "_camera.max";
+   QModelIndex kept_ind = model->index(kept_name, parent);
+
+   QVERIFY(kept_ind.isValid());
+
+   File *kept = model->getFile(kept_ind);
+
+   QVERIFY(kept);
+   QTRY_COMPARE(kept->pagecount(), 3);
+
+   QFile kept_file(kept->pathname());
+
+   QVERIFY(kept_file.open(QIODevice::ReadOnly));
+
+   QByteArray all = kept_file.readAll();
+   int at = all.indexOf(book);
+
+   QVERIFY(at >= 0);
+   at = all.indexOf(plain, at + book.size());
+   QVERIFY(at >= 0);
+   QVERIFY(all.indexOf(book, at + plain.size()) > at);
+
+   // asked not to keep them, there is the one stack
+   QCOMPARE(main->cameraAddPicture(book, Pagefind::Mode_two, false),
+            QString());
+   main->cameraDone();
+   QCOMPARE(model->rowCount(parent), rows + 3);
+
+   // thrown away while pages are being made, nothing is left
+   for (int i = 0; i < 3; i++)
+      QCOMPARE(main->cameraAddPicture(book, Pagefind::Mode_two, true),
+               QString());
+   QCOMPARE(model->rowCount(parent), rows + 4);
+   main->cameraCancel();
+   QCOMPARE(main->cameraPending(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 3);
+   filed.clear();
+   QTest::qWait(500);
+   QCOMPARE(filed.count(), 0);
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 3);
+
+   // and none of its pictures are left in the folder
+   QDir dir(QFileInfo(file->pathname()).path());
+
+   QCOMPARE(dir.entryList({"*_camera*.max"}).size(), 1);
+}
