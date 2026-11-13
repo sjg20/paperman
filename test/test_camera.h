@@ -87,6 +87,9 @@ private slots:
    //! a camera which fails says so
    void testFailures();
 
+   //! a still the camera sends unasked is passed on, and not shown
+   void testPush();
+
    //! each picture filed is a page of one stack, stored as it was given
    void testFile();
 
