@@ -17,6 +17,8 @@
 #include <QJsonObject>
 #include <QMenuBar>
 #include <QStatusBar>
+#include <QBuffer>
+#include <QPainter>
 #include <QTextEdit>
 #include <QToolBar>
 #include <QLineEdit>
@@ -25,6 +27,8 @@
 #include <QtTest/QtTest>
 
 #include "appearance.h"
+#include "camera.h"
+#include "camerapanel.h"
 #include "desktopmodel.h"
 #include "desktopview.h"
 #include "desktopwidget.h"
@@ -85,11 +89,22 @@ void TestScreenshots::init ()
    /* a text box's cursor is drawn or not as it blinks, so keep it on,
       or the pictures differ from one run to the next */
    QApplication::setCursorFlashTime (0);
+
+   /* a camera, so that the toolbar's camera button is drawn as it is
+      when there is one */
+   FakeCamera::Spec spec;
+
+   spec.id = "fake";
+   spec.name = "Document camera";
+   spec.sizes = {QSize (4608, 3456), QSize (3264, 2448),
+                 QSize (1600, 1200), QSize (800, 600)};
+   FakeCamera::use ({spec});
    }
 
 void TestScreenshots::cleanup ()
    {
    Appearance::setMode (Appearance::Mode_system);
+   FakeCamera::use ({});
    }
 
 void TestScreenshots::open (Mainwindow *me, const QString &folder,
@@ -394,6 +409,77 @@ void TestScreenshots::testGoToFolder ()
       });
    me.getDesktop ()->goToFolder ();
    QVERIFY (seen);
+   }
+
+void TestScreenshots::testCameraPanel ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   // what the camera sees: a page of the stack shown, lying on a desk
+   Desktopwidget *desktop = me.getDesktop ();
+   Desktopmodel *model = desktop->getModel ();
+   QModelIndex parent = desktop->getView ()->rootIndexSource ();
+   QModelIndex ind = model->index ("power bill.max", parent);
+
+   QVERIFY (ind.isValid ());
+
+   File *file = model->getFile (ind);
+   QImage page;
+   QSize size, true_size;
+   int bpp;
+
+   QVERIFY (file);
+   QVERIFY (!file->getImage (0, false, page, size, true_size, bpp, false));
+
+   QImage seen (1600, 1200, QImage::Format_RGB888);
+   QByteArray jpeg;
+   QBuffer buf (&jpeg);
+
+   seen.fill (QColor (52, 48, 46));
+   page = page.convertToFormat (QImage::Format_RGB888)
+         .scaledToHeight (1080, Qt::SmoothTransformation);
+   {
+   QPainter p (&seen);
+
+   p.drawImage ((seen.width () - page.width ()) / 2, 60, page);
+   }
+   QVERIFY (buf.open (QIODevice::WriteOnly));
+   QVERIFY (seen.save (&buf, "JPG", 90));
+
+   FakeCamera::Spec spec;
+
+   spec.id = "fake";
+   spec.name = "Document camera";
+   spec.sizes = {QSize (4608, 3456), QSize (3264, 2448),
+                 QSize (1600, 1200), QSize (800, 600)};
+   spec.stills = {jpeg};
+   FakeCamera::use ({spec});
+
+   Mainwidget *main = Mainwidget::singleton ();
+
+   main->camera ();
+
+   Camerapanel *panel = main->findChild<Camerapanel *> ();
+
+   QVERIFY (panel);
+   QTRY_VERIFY (panel->isVisible ());
+
+   // a couple of pages in, so that the count shows
+   for (int i = 0; i < 2; i++)
+      {
+      QTest::keyClick (panel, Qt::Key_Space);
+      QTRY_COMPARE (main->cameraPages (), i + 1);
+      }
+   settle ();
+   save (panel, "camera-panel");
+
+   // leave the folder as it was
+   panel->cancel ();
+   QCOMPARE (main->cameraPages (), 0);
    }
 
 void TestScreenshots::testScanPanel ()
