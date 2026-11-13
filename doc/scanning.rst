@@ -166,6 +166,13 @@ Capture
    the book. The button shows **Capturing...** until the page arrives,
    and pressing again before then does nothing.
 
+The camera's own button
+   Some cameras have a button, on a lead or a pedal, which has the
+   camera take the page itself and send the picture. While the panel is
+   open, each such picture is added to the stack just as one taken with
+   Capture is, at the size the camera sends it, which may not be the
+   Size chosen. A camera whose button sends nothing does nothing here.
+
 Done
    Keep the stack and close the panel. Closing the panel with Escape, or
    with its window's close button, does the same.
