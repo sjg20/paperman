@@ -50,6 +50,9 @@ private slots:
    //! The scan panel, and the folders it suggests scanning into
    void testScanPanel();
 
+   //! The camera panel, with a page under the camera
+   void testCameraPanel();
+
    //! The menu of things to do with a stack, on a right click
    void testStackMenu();
 
