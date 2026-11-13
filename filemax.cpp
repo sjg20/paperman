@@ -43,6 +43,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QFileInfo>
+#include <QThread>
 #include <QHash>
 
 #include "errno.h"
@@ -6798,6 +6799,22 @@ err_info *Filemax::remove ()
    QFile file (_dir + _filename);
 
    if (!file.remove ())
+      {
+      fprintf (stderr, "DEBUGREMOVE %s failed: %s, fin %p count %d\n",
+               qPrintable (_filename), qPrintable (file.errorString ()),
+               (void *)_fin, _open_count);
+      for (int i = 0; i < 20; i++)
+         {
+         QThread::msleep (50);
+         if (file.remove ())
+            {
+            fprintf (stderr, "DEBUGREMOVE removed on retry %d\n", i);
+            return NULL;
+            }
+         }
+      fprintf (stderr, "DEBUGREMOVE never removed\n");
+      }
+   if (file.exists ())
       return err_make (ERRFN, ERR_could_not_remove_file2,
                 file.fileName ().toLatin1 ().constData(),
                 file.errorString ().toLatin1 ().constData());
