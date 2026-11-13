@@ -44,6 +44,7 @@ class Paperstack;
 class PreviewWidget;
 class Printopt;
 class Pscan;
+class Camerapanel;
 class CameraScan;
 
 typedef struct file_info file_info;
@@ -310,6 +311,9 @@ public slots:
    /** scan a page or group of pages under control of the pscan dialogue */
    void pscan (void);
 
+   /** show the camera panel, to photograph pages into a stack */
+   void camera (void);
+
    /** file a picture from a camera as the next page of the camera's
        stack. The first one starts the stack, in the folder which is
        shown, named as the scan panel has it, as a scan would be
@@ -559,6 +563,9 @@ private:
 
    /** the current pscan dialogue */
    Pscan *_pscan;
+
+   /** the camera panel, once it has been shown */
+   Camerapanel *_camera_panel = nullptr;
 
    /** the stack the camera's pages are going into, if there is one */
    CameraScan *_camera_scan = nullptr;

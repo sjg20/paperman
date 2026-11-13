@@ -76,6 +76,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "pagewidget.h"
 #include "printopt.h"
 #include "pscan.h"
+#include "camerapanel.h"
 #include "camerascan.h"
 #include "ocrreader.h"
 #include "resource.h"
@@ -234,7 +235,9 @@ void Mainwidget::closing (void)
       }
    _quitting = true;
 
-   // keep what the camera has taken
+   // keep what the camera has taken, and let go of the camera
+   if (_camera_panel)
+      _camera_panel->closing ();
    cameraDone ();
 
    _desktop->closing ();
@@ -1278,6 +1281,17 @@ void Mainwidget::pscan (void)
    _pscan->scannerChanged (_scanner);
    setupScanDialog ();
    _pscan->show ();
+   }
+
+
+void Mainwidget::camera (void)
+   {
+   if (!_camera_panel)
+      _camera_panel = new Camerapanel (this, this);
+   _camera_panel->start ();
+   _camera_panel->show ();
+   _camera_panel->raise ();
+   _camera_panel->activateWindow ();
    }
 
 

@@ -150,6 +150,7 @@
    <addaction name="actionOptions"/>
    <addaction name="actionScango"/>
    <addaction name="actionPscan"/>
+   <addaction name="actionCamera"/>
   </widget>
   <action name="actionPrint">
    <property name="paperIcon" stdset="0">
@@ -365,6 +366,23 @@
    </property>
    <property name="shortcut">
     <string>F6</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
+  </action>
+  <action name="actionCamera">
+   <property name="paperIcon" stdset="0">
+    <string>camera</string>
+   </property>
+   <property name="text">
+    <string>camera</string>
+   </property>
+   <property name="toolTip">
+    <string>Photograph pages with a camera (F7)</string>
+   </property>
+   <property name="shortcut">
+    <string>F7</string>
    </property>
    <property name="shortcutContext">
     <enum>Qt::ApplicationShortcut</enum>
