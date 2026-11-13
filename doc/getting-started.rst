@@ -46,8 +46,8 @@ Scanning your first stack
 -------------------------
 
 Put the sheets in the scanner's feeder, then press **F6** (or the scan
-button at the right of the toolbar) to open the scan panel beside the
-window. The first time, Paperman asks which scanner to use.
+button in the toolbar) to open the scan panel beside the window. The
+first time, Paperman asks which scanner to use.
 
 .. image:: images/scan-panel.png
    :alt: The scan panel, with the Monochrome 300dpi duplex preset chosen
