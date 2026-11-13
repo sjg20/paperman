@@ -22,9 +22,13 @@ License: GPL-2
 #include <QSignalSpy>
 #include <QTest>
 
+#include <QComboBox>
+#include <QLabel>
+#include <QPushButton>
 #include <QSettings>
 
 #include "../camera.h"
+#include "../camerapanel.h"
 #include "../mainwidget.h"
 #include "../camerascan.h"
 #include "../desktopmodel.h"
@@ -71,6 +75,7 @@ void TestCamera::init()
 
    // nothing remembered from the test before
    QSettings().remove("camera");
+   QSettings().remove("camerapanel");
 }
 
 void TestCamera::cleanup()
@@ -547,6 +552,33 @@ void TestCamera::testFileNone()
    }
 }
 
+Camerapanel *TestCamera::openPanel(Mainwindow *me)
+{
+   Mainwidget *main = Mainwidget::singleton();
+   QAction *act = me->findChild<QAction *>("actionCamera");
+
+   if (!me->isVisible()) {
+      me->resize(1600, 1000);
+      me->show();
+      if (!QTest::qWaitForWindowExposed(me))
+         return nullptr;
+   }
+
+   // as when the window becomes the active one
+   QEvent activate(QEvent::WindowActivate);
+
+   QCoreApplication::sendEvent(me, &activate);
+   if (!act || !act->isEnabled())
+      return nullptr;
+   act->trigger();
+
+   Camerapanel *panel = main->findChild<Camerapanel *>();
+
+   if (!panel || !QTest::qWaitForWindowExposed(panel))
+      return nullptr;
+   return panel;
+}
+
 File *TestCamera::stackWithPages(Desktopmodel *model,
                                  const QModelIndex &parent, int pages)
 {
@@ -608,4 +640,349 @@ void TestCamera::testSession()
    main->cameraCancel();
    QCOMPARE(main->cameraPages(), 0);
    QCOMPARE(model->rowCount(parent), rows + 1);
+}
+
+void TestCamera::testPanel()
+{
+   FakeCamera::Spec spec = fakeSpec();
+
+   for (int i = 0; i < 3; i++)
+      spec.stills << FakeCamera::makeJpeg(QSize(1600, 1200), 20 + i);
+   spec.capture_ms = 150;
+   FakeCamera::use({spec});
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+   QVERIFY(panel->isVisible());
+
+   CameraView *view = panel->findChild<CameraView *>("viewfinder");
+   QComboBox *cameras = panel->findChild<QComboBox *>("camera");
+   QComboBox *sizes = panel->findChild<QComboBox *>("size");
+   QLabel *count = panel->findChild<QLabel *>("count");
+   QLabel *status = panel->findChild<QLabel *>("status");
+   QPushButton *capture = panel->findChild<QPushButton *>("capture");
+   QPushButton *done = panel->findChild<QPushButton *>("done");
+
+   QVERIFY(view && cameras && sizes && count && status && capture && done);
+
+   // there is one camera, so none to choose, and the largest size
+   QVERIFY(!cameras->isVisible());
+   QCOMPARE(sizes->count(), 4);
+   QCOMPARE(sizes->currentData().toSize(), QSize(1600, 1200));
+   QVERIFY(sizes->currentText().startsWith("1600 x 1200"));
+
+   // what the camera sees is shown, whole, in its own shape
+   QTRY_VERIFY(view->frameCount() >= 2);
+   QCOMPARE(view->frame().size(), QSize(800, 600));
+
+   QRect shown = view->frameRect();
+
+   QVERIFY(view->rect().contains(shown));
+   QVERIFY(shown.width() == view->width() ||
+           shown.height() == view->height());
+   QVERIFY(qAbs(shown.width() * 3 - shown.height() * 4) <= 4);
+
+   QCOMPARE(count->text(), QString("0 pages"));
+   QVERIFY(capture->isEnabled());
+   QCOMPARE(capture->text(), QString("Capture"));
+
+   // nothing is filed until a still is taken
+   QCOMPARE(model->rowCount(parent), rows);
+
+   // the button takes one, and shows that it is doing so
+   QTest::mouseClick(capture, Qt::LeftButton);
+   QVERIFY(panel->busy());
+   QVERIFY(!capture->isEnabled());
+   QVERIFY(!done->isEnabled());
+   QCOMPARE(capture->text(), QString("Capturing..."));
+
+   // pressing again meanwhile takes no more
+   QTest::mouseClick(capture, Qt::LeftButton);
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_VERIFY(!panel->busy());
+   QCOMPARE(main->cameraPages(), 1);
+   QCOMPARE(count->text(), QString("1 page"));
+   QCOMPARE(model->rowCount(parent), rows + 1);
+   QVERIFY(capture->isEnabled());
+   QCOMPARE(capture->text(), QString("Capture"));
+   QTest::qWait(300);
+   QCOMPARE(main->cameraPages(), 1);
+
+   // then the camera's view carries on
+   int seen = view->frameCount();
+
+   QTRY_VERIFY(view->frameCount() > seen);
+
+   // the space bar takes one too
+   QTest::keyClick(panel, Qt::Key_Space);
+   QVERIFY(panel->busy());
+   QTRY_COMPARE(main->cameraPages(), 2);
+
+   // even typed at another button, which it does not press
+   done->setFocus();
+   QTest::keyClick(done, Qt::Key_Space);
+   QVERIFY(panel->isVisible());
+   QVERIFY(panel->busy());
+   QTRY_COMPARE(main->cameraPages(), 3);
+   QCOMPARE(count->text(), QString("3 pages"));
+   QCOMPARE(status->text(), QString());
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // Done keeps the stack, with the stills as its pages
+   QTest::mouseClick(done, Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   File *file = stackWithPages(model, parent, 3);
+
+   QVERIFY(file);
+
+   QFile stored(file->pathname());
+
+   QVERIFY(stored.open(QIODevice::ReadOnly));
+
+   QByteArray all = stored.readAll();
+   int at = 0;
+
+   for (const QByteArray &jpeg : spec.stills) {
+      at = all.indexOf(jpeg, at);
+      QVERIFY(at >= 0);
+      at += jpeg.size();
+   }
+
+   // the camera is let go of, so nothing more is shown
+   QCOMPARE(view->frameCount(), 0);
+   QTest::qWait(100);
+   QCOMPARE(view->frameCount(), 0);
+}
+
+void TestCamera::testPanelCancel()
+{
+   FakeCamera::use({fakeSpec()});
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+
+   CameraView *view = panel->findChild<CameraView *>("viewfinder");
+   QPushButton *cancel = panel->findChild<QPushButton *>("cancel");
+
+   QVERIFY(view && cancel);
+   QTRY_VERIFY(view->frameCount() >= 1);
+   for (int i = 0; i < 2; i++) {
+      QTest::keyClick(panel, Qt::Key_Space);
+      QTRY_COMPARE(main->cameraPages(), i + 1);
+   }
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // Cancel throws the stack away
+   QTest::mouseClick(cancel, Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows);
+
+   // with nothing taken, Done and Cancel leave nothing
+   QCOMPARE(openPanel(&me), panel);
+   QTRY_VERIFY(view->frameCount() >= 1);
+   QTest::mouseClick(panel->findChild<QPushButton *>("done"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(model->rowCount(parent), rows);
+
+   // the panel opens again on a new stack; closing it keeps the pages
+   QCOMPARE(openPanel(&me), panel);
+   QCOMPARE(panel->findChild<QLabel *>("count")->text(),
+            QString("0 pages"));
+   QTRY_VERIFY(view->frameCount() >= 1);
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 1);
+   QTest::keyClick(panel, Qt::Key_Escape);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 1);
+   QVERIFY(stackWithPages(model, parent, 1));
+}
+
+void TestCamera::testPanelNoCamera()
+{
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   QAction *act = me.findChild<QAction *>("actionCamera");
+
+   // the button is greyed out, and says why
+   QVERIFY(act);
+   QVERIFY(!openPanel(&me));
+   QVERIFY(!act->isEnabled());
+   QVERIFY(act->toolTip().contains("No camera"));
+   QVERIFY(!main->findChild<Camerapanel *>());
+
+   // plugging one in brings it back
+   FakeCamera::use({fakeSpec()});
+
+   QEvent activate(QEvent::WindowActivate);
+
+   QCoreApplication::sendEvent(&me, &activate);
+   QVERIFY(act->isEnabled());
+   QVERIFY(act->toolTip().contains("F7"));
+
+   // a camera which goes before the panel opens leaves it with nothing
+   FakeCamera::use({});
+   main->camera();
+
+   Camerapanel *panel = main->findChild<Camerapanel *>();
+
+   QVERIFY(panel);
+   QVERIFY(panel->isVisible());
+
+   QPushButton *capture = panel->findChild<QPushButton *>("capture");
+
+   QVERIFY(!capture->isEnabled());
+   QCOMPARE(panel->findChild<QLabel *>("status")->text(),
+            QString("No camera found"));
+   QCOMPARE(panel->findChild<QComboBox *>("size")->count(), 0);
+   QTest::keyClick(panel, Qt::Key_Space);
+   QVERIFY(!panel->busy());
+   QTest::mouseClick(panel->findChild<QPushButton *>("done"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(model->rowCount(parent), rows);
+}
+
+void TestCamera::testPanelChoices()
+{
+   FakeCamera::Spec other = fakeSpec("fake1");
+
+   other.sizes = {QSize(2000, 1500), QSize(1280, 720), QSize(640, 480)};
+   FakeCamera::use({fakeSpec("fake0"), other});
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+
+   CameraView *view = panel->findChild<CameraView *>("viewfinder");
+   QComboBox *cameras = panel->findChild<QComboBox *>("camera");
+   QComboBox *sizes = panel->findChild<QComboBox *>("size");
+
+   // the first camera, at its largest
+   QVERIFY(cameras->isVisible());
+   QCOMPARE(cameras->count(), 2);
+   QCOMPARE(cameras->currentText(), QString("Fake camera fake0"));
+   QCOMPARE(sizes->currentData().toSize(), QSize(1600, 1200));
+   QTRY_VERIFY(view->frameCount() >= 1);
+
+   // choose the other, which has its own sizes
+   cameras->setCurrentIndex(1);
+   emit cameras->activated(1);
+   QCOMPARE(sizes->count(), 3);
+   QCOMPARE(sizes->currentData().toSize(), QSize(2000, 1500));
+   QTRY_VERIFY(view->frameCount() >= 1);
+   QCOMPARE(view->frame().size(), QSize(640, 480));
+
+   // and a smaller size of it, whose shape the camera's view takes
+   sizes->setCurrentIndex(1);
+   emit sizes->activated(1);
+   QTRY_COMPARE(view->frame().size(), QSize(1280, 720));
+
+   // a still is of the size chosen
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_COMPARE(main->cameraPages(), 1);
+   QTest::mouseClick(panel->findChild<QPushButton *>("done"),
+                     Qt::LeftButton);
+
+   File *file = stackWithPages(model, parent, 1);
+   QImage image;
+   QSize size, true_size;
+   int bpp;
+
+   QVERIFY(file);
+   QVERIFY(!file->getImage(0, false, image, size, true_size, bpp, false));
+   QCOMPARE(size, QSize(1280, 720));
+
+   // both are remembered for next time
+   QCOMPARE(openPanel(&me), panel);
+   QCOMPARE(cameras->currentText(), QString("Fake camera fake1"));
+   QCOMPARE(sizes->currentData().toSize(), QSize(1280, 720));
+   QTRY_VERIFY(view->frameCount() >= 1);
+   QCOMPARE(view->frame().size(), QSize(1280, 720));
+   QTest::mouseClick(panel->findChild<QPushButton *>("cancel"),
+                     Qt::LeftButton);
+}
+
+void TestCamera::testPanelFailure()
+{
+   FakeCamera::Spec spec = fakeSpec();
+
+   spec.capture_err = "The lens cap is on";
+   spec.capture_ms = 100;
+   FakeCamera::use({spec});
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+
+   QLabel *status = panel->findChild<QLabel *>("status");
+   QPushButton *capture = panel->findChild<QPushButton *>("capture");
+
+   QTest::keyClick(panel, Qt::Key_Space);
+   QTRY_VERIFY(!panel->busy());
+   QCOMPARE(status->text(), QString("The lens cap is on"));
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows);
+   QVERIFY(capture->isEnabled());
+
+   // it can be tried again
+   QTest::keyClick(panel, Qt::Key_Space);
+   QVERIFY(panel->busy());
+   QCOMPARE(status->text(), QString());
+   QTRY_VERIFY(!panel->busy());
+   QCOMPARE(status->text(), QString("The lens cap is on"));
+
+   QTest::mouseClick(panel->findChild<QPushButton *>("done"),
+                     Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(model->rowCount(parent), rows);
 }

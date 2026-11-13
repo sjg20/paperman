@@ -25,6 +25,7 @@ License: GPL-2
 
 #include "suite.h"
 
+class Camerapanel;
 class Desktopmodel;
 class File;
 class Mainwindow;
@@ -47,6 +48,11 @@ private:
       \param model    returns the model for its stacks
       \param parent   returns the folder which is shown */
    void setupDesk(Mainwindow *me, Desktopmodel *&model, QModelIndex &parent);
+
+   /** show the window and open the camera panel from its toolbar
+      \param me      the window
+      \returns the panel, nullptr if it did not open */
+   Camerapanel *openPanel(Mainwindow *me);
 
    /** find the stack with a number of pages
       \returns the stack, nullptr if there is not exactly one */
@@ -89,6 +95,21 @@ private slots:
 
    //! the main widget keeps or throws away the stack of pages it is given
    void testSession();
+
+   //! the panel shows what the camera sees and files each still taken
+   void testPanel();
+
+   //! Cancel leaves no stack, and closing the panel keeps the pages
+   void testPanelCancel();
+
+   //! with no camera the button is greyed out and the panel says so
+   void testPanelNoCamera();
+
+   //! the camera and size chosen are used, and remembered
+   void testPanelChoices();
+
+   //! a still which fails is reported, and another can be taken
+   void testPanelFailure();
 };
 
 #endif
