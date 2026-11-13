@@ -117,6 +117,9 @@ private slots:
    //! how many pages to look for is as asked
    void testModes();
 
+   //! a gutter which is only a thin, broken line is seen among print
+   void testThinGutter();
+
    //! a book whose pages curve is given a box, and still split
    void testCurvedBook();
 

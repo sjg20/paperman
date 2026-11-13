@@ -408,6 +408,75 @@ void TestPagefind::testModes()
    QVERIFY(Pagefind::pages(book, Pagefind::Mode_whole).isEmpty());
 }
 
+void TestPagefind::testThinGutter()
+{
+   // a book held flat, in a picture big enough to show a thin line
+   QSize size(3600, 2280);
+   QPolygonF quad;
+
+   for (const QPointF &pt : bookQuad())
+      quad << pt * 3;
+
+   for (int pass = 0; pass < 2; pass++) {
+      QImage image = mat(QSize(4800, 3600));
+      QPolygonF flat({QPointF(0, 0), QPointF(size.width(), 0),
+                      QPointF(size.width(), size.height()),
+                      QPointF(0, size.height())});
+      QTransform map;
+
+      drawPage(image, quad, size);
+      QVERIFY(QTransform::quadToQuad(flat, quad, map));
+
+      QPainter p(&image);
+      quint32 rand = 7;
+
+      p.setTransform(map);
+
+      // the pages' inner margins, clear of the lines of 'text'
+      p.fillRect(QRectF(0.47 * size.width() - 150, 90, 300,
+                        size.height() - 180), PAPER);
+
+      // upright strokes, as print has, all over the middle of the page
+      for (int i = 0; i < 400; i++) {
+         rand = rand * 1664525u + 1013904223u;
+
+         int x = 1000 + (rand >> 8) % 1600;
+
+         rand = rand * 1664525u + 1013904223u;
+         p.fillRect(QRectF(x, 150 + (rand >> 8) % 1900, 5, 36),
+                    QColor(40, 40, 45));
+      }
+
+      /* the line where the pages meet, which leans and has gaps: too
+         thin and too faint to stand out in a small copy of the picture */
+      if (!pass) {
+         QPen pen(QColor(190, 188, 184), 2);
+
+         pen.setDashPattern({12, 4});
+         p.setPen(pen);
+         p.drawLine(QPointF(0.47 * size.width() - 18, 0),
+                    QPointF(0.47 * size.width() + 18, size.height()));
+      }
+      p.end();
+
+      Pagefind::Result res = Pagefind::find(image, Pagefind::Mode_auto);
+
+      QVERIFY(res.found);
+      if (pass) {
+         // print alone does not make a gutter
+         QVERIFY(!res.gutter);
+         QCOMPARE(res.pages.size(), 1);
+         continue;
+      }
+      QVERIFY(res.gutter);
+      QVERIFY2(qAbs(res.gutter_top - 0.465) <= 0.002,
+               qPrintable(QString::number(res.gutter_top)));
+      QVERIFY2(qAbs(res.gutter_bottom - 0.475) <= 0.002,
+               qPrintable(QString::number(res.gutter_bottom)));
+      QCOMPARE(res.pages.size(), 2);
+   }
+}
+
 void TestPagefind::testCurvedBook()
 {
    QImage image = mat(QSize(1600, 1200));

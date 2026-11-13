@@ -134,16 +134,23 @@ struct Side
    };
 
 
-//! make the small grey copy
-static Grey reduce (const QImage &picture)
+//! the picture in a format whose pixels can be read here
+static QImage readable (const QImage &picture)
+   {
+   if (picture.format () != QImage::Format_Grayscale8
+       && picture.format () != QImage::Format_RGB32
+       && picture.format () != QImage::Format_ARGB32)
+      return picture.convertToFormat (QImage::Format_RGB32);
+   return picture;
+   }
+
+
+/** make the small grey copy
+
+   \param image  the picture, as readable() gives it */
+static Grey reduce (const QImage &image)
    {
    Grey grey;
-   QImage image = picture;
-
-   if (image.format () != QImage::Format_Grayscale8
-       && image.format () != QImage::Format_RGB32
-       && image.format () != QImage::Format_ARGB32)
-      image = image.convertToFormat (QImage::Format_RGB32);
 
    int longest = qMax (image.width (), image.height ());
    int factor = qMax (1, (longest + Pagefind::SearchSize - 1)
@@ -941,6 +948,180 @@ static double find_gutter (const Grey &grey, const QPolygonF &quad,
    }
 
 
+//! the size of the finer copy of the page a thin gutter is looked for in
+static const int THIN_W = 3000, THIN_H = 800;
+
+//! how many bands down the page it is looked for in
+static const int THIN_BANDS = 40;
+
+//! how many columns either side of a line count as on it
+static const int THIN_SPREAD = 2;
+
+//! how far from it the paper beside it is looked at, of the page's width
+static const double THIN_INNER = 0.004, THIN_OUTER = 0.02;
+
+//! how much darker than the paper beside it a thin gutter is, at the least
+static const double THIN_DEPTH = 0.06;
+
+/** look for a gutter which is no more than a thin line
+
+   A book held open and flat has no shadow between its pages: only a line
+   where they meet, a few pixels wide and broken here and there. That is
+   lost in the small copy find_gutter() looks through, so this looks
+   through the middle of the picture itself, in more and smaller bands.
+   Print has strokes as dark and as thin, but they do not line up down
+   the page: the gutter is the straight line which most of the bands see
+   something dark on.
+
+   \param image    the picture, in a format reduce() can read
+   \param quad     the outline, in the picture's pixels
+   \param top      returns where the gutter meets the top of the outline,
+                   as for find_gutter()
+   \param bottom   returns where it meets the bottom
+   \returns how clear the gutter is, 0 if there is none */
+static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
+                                double &top, double &bottom)
+   {
+   QSize size = Pagefind::rectifiedSize (quad);
+   int w = qMin ((int)THIN_W, size.width ());
+   int h = qMin ((int)THIN_H, size.height ());
+   int rows = h / THIN_BANDS;
+   QTransform map;
+   QPolygonF upright ({QPointF (0, 0), QPointF (w, 0), QPointF (w, h),
+                       QPointF (0, h)});
+
+   top = bottom = 0.5;
+   if (rows < 8 || w < 400 || !QTransform::quadToQuad (upright, quad, map))
+      return 0;
+
+   int inner = qMax (2, (int)(w * THIN_INNER));
+   int outer = qMax (inner + 4, (int)(w * THIN_OUTER));
+   int first = (int)(w * GUTTER_FROM), last = (int)(w * GUTTER_TO);
+   int x0 = first - outer, cols = last + outer - x0;
+   bool colour = image.format () != QImage::Format_Grayscale8;
+   int skip = (h - rows * THIN_BANDS) / 2;
+
+   if (cols <= 2 * outer)
+      return 0;
+
+   QVector<uchar> band (cols * rows);
+   QVector<double> level (cols), near_by;
+   QVector<float> depth (THIN_BANDS * cols, 0), widened (cols);
+
+   for (int i = 0; i < THIN_BANDS; i++)
+      {
+      for (int y = 0; y < rows; y++)
+         for (int x = 0; x < cols; x++)
+            {
+            QPointF pt = map.map (QPointF (x0 + x + 0.5,
+                                           skip + i * rows + y + 0.5));
+            int px = (int)pt.x (), py = (int)pt.y ();
+            uchar value = 0;
+
+            if (px >= 0 && py >= 0 && px < image.width ()
+                && py < image.height ())
+               {
+               const uchar *line = image.constScanLine (py);
+
+               if (colour)
+                  {
+                  QRgb pix = ((const QRgb *)line) [px];
+
+                  value = (qRed (pix) * 77 + qGreen (pix) * 150
+                           + qBlue (pix) * 29) >> 8;
+                  }
+               else
+                  value = line [px];
+               }
+            band [y * cols + x] = value;
+            }
+
+      // how bright each column is
+      for (int x = 0; x < cols; x++)
+         {
+         int sum = 0;
+
+         for (int y = 0; y < rows; y++)
+            sum += band [y * cols + x];
+         level [x] = (double)sum / rows;
+         }
+
+      // and how much darker than what is on both sides of it
+      for (int x = outer; x < cols - outer; x++)
+         {
+         double paper = 255;
+
+         for (int side = -1; side <= 1; side += 2)
+            {
+            near_by.clear ();
+            for (int dx = inner; dx <= outer; dx++)
+               near_by << level [x + side * dx];
+            std::nth_element (near_by.begin (),
+                              near_by.begin () + near_by.size () / 2,
+                              near_by.end ());
+            paper = qMin (paper, near_by [near_by.size () / 2]);
+            }
+         if (paper >= 1)
+            depth [i * cols + x] = qMax (0.0, 1 - level [x] / paper);
+         }
+
+      // the line leans, so let it be a column or two either way
+      widened.fill (0);
+      for (int x = THIN_SPREAD; x < cols - THIN_SPREAD; x++)
+         for (int dx = -THIN_SPREAD; dx <= THIN_SPREAD; dx++)
+            widened [x] = qMax (widened [x], depth [i * cols + x + dx]);
+      for (int x = 0; x < cols; x++)
+         depth [i * cols + x] = widened [x];
+      }
+
+   /* Try each line down the page: where it meets the top band, and how
+      far it has moved sideways by the bottom one */
+   int lean = (int)(w * GUTTER_SLOPE * (THIN_BANDS - 1) * rows / h);
+   int best_seen = 0, best_at = 0, best_move = 0;
+   double best_sum = 0;
+
+   for (int move = -lean; move <= lean; move += THIN_SPREAD)
+      for (int at = outer; at < cols - outer; at++)
+         {
+         int end = at + move;
+         int seen = 0;
+         double sum = 0;
+
+         if (end < outer || end >= cols - outer)
+            continue;
+         for (int i = 0; i < THIN_BANDS; i++)
+            {
+            int x = at + move * i / (THIN_BANDS - 1);
+            float here = depth [i * cols + x];
+
+            if (here >= THIN_DEPTH)
+               seen++;
+            sum += here;
+            }
+         if (seen > best_seen || (seen == best_seen && sum > best_sum))
+            {
+            best_seen = seen;
+            best_sum = sum;
+            best_at = at;
+            best_move = move;
+            }
+         }
+
+   // most of the bands must see it
+   if (best_seen * 10 < THIN_BANDS * 6)
+      return 0;
+
+   // from the middle of the top band to the top of the page, and so on
+   double slope = (double)best_move / w * h / ((THIN_BANDS - 1) * rows);
+   double first_mid = (skip + 0.5 * rows) / h;
+
+   top = (x0 + best_at + 0.5) / w - slope * first_mid;
+   bottom = top + slope;
+   top = qBound (0.05, top, 0.95);
+   bottom = qBound (0.05, bottom, 0.95);
+   return best_sum / THIN_BANDS;
+   }
+
 /* How the edges of a curved page are traced
 
    Looking down each column of the patch, the first light pixel is on the
@@ -1438,7 +1619,8 @@ Pagefind::Result Pagefind::find (const QImage &picture, Mode mode)
    if (mode == Mode_whole || picture.isNull ())
       return result;
 
-   Grey grey = reduce (picture);
+   QImage image = readable (picture);
+   Grey grey = reduce (image);
    QPolygonF quad;
 
    QVector<uchar> sheet;
@@ -1454,6 +1636,25 @@ Pagefind::Result Pagefind::find (const QImage &picture, Mode mode)
 
    double top, bottom;
    double depth = find_gutter (grey, quad, top, bottom);
+
+   // a book held flat shows no more of its gutter than a line
+   if (depth < GUTTER_CLEAR)
+      {
+      QPolygonF full = quad;
+      double thin_top, thin_bottom;
+
+      for (QPointF &pt : full)
+         pt *= grey.factor;
+
+      double thin = find_thin_gutter (image, full, thin_top, thin_bottom);
+
+      if (thin > depth)
+         {
+         depth = thin;
+         top = thin_top;
+         bottom = thin_bottom;
+         }
+      }
 
    // in the copy's pixels
    QPointF gutter_top = quad [0] + (quad [1] - quad [0]) * top;
