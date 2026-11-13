@@ -45,12 +45,15 @@ class PreviewWidget;
 class Printopt;
 class Pscan;
 class Camerapanel;
+class CameraKeep;
+class CameraPages;
 class CameraScan;
 
 typedef struct file_info file_info;
 struct err_info;
 struct print_info;
 
+#include <QByteArrayList>
 #include <QElapsedTimer>
 #include <QList>
 #include <QModelIndex>
@@ -257,6 +260,11 @@ public:
 signals:
    void newContents (QString);
 
+   /** the pages of a picture given to cameraAddPicture() have been
+       filed, or could not be
+      \param problem   what went wrong, empty if nothing did */
+   void cameraFiled (const QString &problem);
+
    //* new configuration (may affect UI settings)
    void newConfig ();
 
@@ -322,12 +330,36 @@ public slots:
       \returns an empty string if OK, else what went wrong */
    QString cameraAddPage (const QByteArray &jpeg);
 
+   /** take a picture from a camera and file the page, or pages, in it
+
+       The pages are found, cut out and made upright in the background
+       and filed in the camera's stack once that is done, in the order
+       the pictures were given: cameraFiled() says when. With mode
+       Pagefind::Mode_whole the picture is the page, and if nothing is
+       waiting it is filed before this returns.
+
+       The picture itself can be kept too, in a second stack beside the
+       first, named after it with '_camera' added. That is not done for
+       a folder on a server.
+
+      \param jpeg   the picture, a whole JPEG file
+      \param mode   how many pages to look for, a Pagefind::Mode
+      \param keep   true to keep the picture as well as its pages
+      \returns an empty string if OK, else what went wrong */
+   QString cameraAddPicture (const QByteArray &jpeg, int mode, bool keep);
+
+   /** \returns the number of pictures given to cameraAddPicture() whose
+                pages are still to be filed */
+   int cameraPending (void) const;
+
    /** keep the camera's stack, as the end of a scan does: its text is
        read if that is turned on and, in a folder on a server, it is
-       uploaded. Any problem is reported */
+       uploaded. Any problem is reported. This waits for the pages of
+       any pictures still to be filed */
    void cameraDone (void);
 
-   /** throw the camera's stack away */
+   /** throw the camera's stack away, along with the pictures kept and
+       any still waiting to be made pages of */
    void cameraCancel (void);
 
    /** \returns the number of pages in the camera's stack, 0 if there
@@ -572,6 +604,25 @@ private:
 
    /** the directory that stack is in */
    QString _camera_path;
+
+   /** the name its pages are filed under, to begin with */
+   QString _camera_page_name;
+
+   /** the stack the camera's own pictures are kept in, if they are */
+   CameraKeep *_camera_keep = nullptr;
+
+   /** makes pages of the camera's pictures, once it has been needed */
+   CameraPages *_camera_pages = nullptr;
+
+   /** start the camera's stack, if it has none
+      \returns an empty string if OK, else why not */
+   QString cameraStart (void);
+
+private slots:
+   //! file the pages of a picture, which CameraPages has made
+   void cameraProcessed (const QByteArrayList &pages, bool found);
+
+private:
 
    //! whether the pscan dialogue was open is noted, as Paperman closes
    bool _pscanNoted = false;

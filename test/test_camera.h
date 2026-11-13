@@ -129,6 +129,9 @@ private slots:
 
    //! the camera's own pictures are kept in a stack written as they come
    void testKeep();
+
+   //! the main widget files the pages of each picture, and its pictures
+   void testSessionPages();
 };
 
 #endif
