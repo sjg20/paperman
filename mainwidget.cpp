@@ -76,6 +76,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "pagewidget.h"
 #include "printopt.h"
 #include "pscan.h"
+#include "camerascan.h"
 #include "ocrreader.h"
 #include "resource.h"
 #include "utils.h"
@@ -232,6 +233,9 @@ void Mainwidget::closing (void)
       giveUpAfter (kQuitWaitMs);
       }
    _quitting = true;
+
+   // keep what the camera has taken
+   cameraDone ();
 
    _desktop->closing ();
    _page->closing ();
@@ -524,6 +528,14 @@ void Mainwidget::scanInto(QModelIndex target)
    // cannot support more than one scan job at a time (yet)
    if (_scanning)
       return;
+
+   // nor one while the camera has a stack open
+   if (_camera_scan)
+      {
+      progress (tr ("The camera has a stack open: press Done or Cancel "
+                    "in the camera panel first"));
+      return;
+      }
 
    /* a scan left in the back end has the scanner until it comes back,
       and the back end takes one call at a time */
@@ -1266,6 +1278,94 @@ void Mainwidget::pscan (void)
    _pscan->scannerChanged (_scanner);
    setupScanDialog ();
    _pscan->show ();
+   }
+
+
+QString Mainwidget::cameraAddPage (const QByteArray &jpeg)
+   {
+   // a scan and the camera cannot both be making a stack
+   if (_scanning || _stuck_scan)
+      return tr ("A scan is going on: the page was not kept");
+
+   if (!_camera_scan)
+      {
+      QString stack_name = getDefaultStackName ();
+      QString page_name = getDefaultPageName ();
+
+      // the names are those a scan would use
+      if (_pscan)
+         {
+         QString str = _pscan->getStackName ();
+
+         if (!str.isEmpty ())
+            stack_name = str;
+         str = _pscan->getPageName ();
+         if (!str.isEmpty ())
+            page_name = str;
+         }
+
+      /* a camera has no resolution, since that depends on how far it
+         is from the page, so one is assumed */
+      int dpi = qBound (25, QSettings ().value ("camera/dpi", 300).toInt (),
+                        4800);
+
+      _camera_path = _desktop->getSelectedPath ();
+      _camera_scan = new CameraScan (_contents, _view->rootIndexSource (),
+                                     stack_name, page_name, dpi);
+      }
+
+   err_info *err = _camera_scan->addPage (jpeg);
+
+   return err ? QString (err->errstr) : QString ();
+   }
+
+
+void Mainwidget::cameraDone (void)
+   {
+   if (!_camera_scan)
+      return;
+
+   QString fname;
+   File *file = nullptr;
+   bool open = _camera_scan->isOpen ();
+   err_info *err = _camera_scan->finish (&fname, &file, [] (err_info *e) {
+      Mainwidget::singleton ()->complain (e);
+   });
+
+   // read the text of the new pages, as for a scan
+   if (!err && file && OcrReader::enabled () && _contents->keepsOcr (file))
+      _ocr_reader->addFile (file);
+   if (!fname.isEmpty ())
+      _desktop->addFileToDirmodelCache (_camera_path, fname);
+   if (open)
+      _desktop->scanComplete ();
+   delete _camera_scan;
+   _camera_scan = nullptr;
+   if (err && !_quitting)
+      warn ("Error", err->errstr);
+   }
+
+
+void Mainwidget::cameraCancel (void)
+   {
+   if (!_camera_scan)
+      return;
+
+   bool open = _camera_scan->isOpen ();
+   err_info *err = _camera_scan->cancel ();
+
+   if (open)
+      _desktop->scanComplete ();
+   delete _camera_scan;
+   _camera_scan = nullptr;
+   if (err && !_quitting)
+      warn ("Error", err->errstr);
+   }
+
+
+int Mainwidget::cameraPages (void) const
+   {
+   return _camera_scan ? _camera_scan->pageCount () : 0;
    }
 
 

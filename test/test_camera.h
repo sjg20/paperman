@@ -26,6 +26,7 @@ License: GPL-2
 #include "suite.h"
 
 class Desktopmodel;
+class File;
 class Mainwindow;
 
 class TestCamera : public Suite
@@ -46,6 +47,11 @@ private:
       \param model    returns the model for its stacks
       \param parent   returns the folder which is shown */
    void setupDesk(Mainwindow *me, Desktopmodel *&model, QModelIndex &parent);
+
+   /** find the stack with a number of pages
+      \returns the stack, nullptr if there is not exactly one */
+   File *stackWithPages(Desktopmodel *model, const QModelIndex &parent,
+                        int pages);
 
 private slots:
    void init();
@@ -80,6 +86,9 @@ private slots:
 
    //! a stack which is cancelled, or never has a page, is not left behind
    void testFileNone();
+
+   //! the main widget keeps or throws away the stack of pages it is given
+   void testSession();
 };
 
 #endif

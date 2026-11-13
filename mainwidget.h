@@ -44,6 +44,7 @@ class Paperstack;
 class PreviewWidget;
 class Printopt;
 class Pscan;
+class CameraScan;
 
 typedef struct file_info file_info;
 struct err_info;
@@ -309,6 +310,26 @@ public slots:
    /** scan a page or group of pages under control of the pscan dialogue */
    void pscan (void);
 
+   /** file a picture from a camera as the next page of the camera's
+       stack. The first one starts the stack, in the folder which is
+       shown, named as the scan panel has it, as a scan would be
+
+      \param jpeg   the picture, a whole JPEG file
+      \returns an empty string if OK, else what went wrong */
+   QString cameraAddPage (const QByteArray &jpeg);
+
+   /** keep the camera's stack, as the end of a scan does: its text is
+       read if that is turned on and, in a folder on a server, it is
+       uploaded. Any problem is reported */
+   void cameraDone (void);
+
+   /** throw the camera's stack away */
+   void cameraCancel (void);
+
+   /** \returns the number of pages in the camera's stack, 0 if there
+                is none */
+   int cameraPages (void) const;
+
    /** update buttons on the pscan dialogue */
    void updatePscan (void);
 
@@ -538,6 +559,12 @@ private:
 
    /** the current pscan dialogue */
    Pscan *_pscan;
+
+   /** the stack the camera's pages are going into, if there is one */
+   CameraScan *_camera_scan = nullptr;
+
+   /** the directory that stack is in */
+   QString _camera_path;
 
    //! whether the pscan dialogue was open is noted, as Paperman closes
    bool _pscanNoted = false;
