@@ -48,6 +48,9 @@ Main toolbar
      - Scan now, with the scan panel's settings (F5)
    * - |main-pscan|
      - Open the scan panel (F6)
+   * - |main-camera|
+     - Open the camera panel, to photograph pages (F7); see
+       :doc:`scanning`
 
 Folder pane
 -----------
@@ -270,6 +273,7 @@ other whatever the desktop does, use **File > Options**, *Appearance*.
 .. |main-options| image:: images/icons/main-options.png
 .. |main-scango| image:: images/icons/main-scango.png
 .. |main-pscan| image:: images/icons/main-pscan.png
+.. |main-camera| image:: images/icons/main-camera.png
 .. |stack-pprev| image:: images/icons/stack-pprev.png
 .. |stack-pnext| image:: images/icons/stack-pnext.png
 .. |stack-prev| image:: images/icons/stack-prev.png

@@ -7,6 +7,9 @@ it. It is written for sheet-fed document scanners, such as the Ricoh
 (formerly Fujitsu) fi-series, but any scanner the platform can drive will
 do.
 
+What will not go through a scanner, such as a bound book, can be
+photographed a page at a time instead: see `Scanning with a camera`_.
+
 Scanners on each platform
 -------------------------
 
@@ -118,6 +121,71 @@ Blank pages
    leave it out if it is the back of a sheet, or leave it out wherever it
    is.
 
+Scanning with a camera
+----------------------
+
+A document camera, which looks down on a page from a stand, scans what
+will not go through a feeder: a bound book, a fragile letter, something
+too big or too thick. Paperman takes one picture for each page and keeps
+them as one stack, so a book is scanned by turning a page and pressing a
+key, over and over.
+
+Cameras are reached through the kernel's video interface, on Linux only
+for now. Any UVC camera which sends its pictures as JPEG will do, which
+covers most document cameras and webcams. The page kept is the JPEG the
+camera sent, unchanged, so it is as good as the camera can make it:
+Paperman does not straighten or flatten the page, or split an open book
+into its two pages.
+
+Press |main-camera| in the main toolbar, or **F7**, to open the camera
+panel. The button is greyed out when no camera is plugged in.
+
+.. image:: images/camera-panel.png
+   :alt: The camera panel, with a bill under the camera and two pages taken
+
+Camera
+   Which camera to use. This is shown only when there is more than one.
+
+Size
+   The size of each page, in pixels, with the largest the camera can
+   take first. A larger size shows finer print, and at the largest a
+   camera may take a second or so over each page.
+
+Camera's view
+   What the camera sees, several times a second, so that the page can be
+   put straight and the light checked before it is taken. It is a small
+   picture: the page taken is much sharper.
+
+Page count
+   How many pages have been taken into the stack so far. Any problem
+   with the camera is shown beside it.
+
+Capture
+   Take a picture and add it to the stack as its next page. The space
+   bar does the same from anywhere in the panel, so one hand can stay on
+   the book. The button shows **Capturing...** until the page arrives,
+   and pressing again before then does nothing.
+
+Done
+   Keep the stack and close the panel. Closing the panel with Escape, or
+   with its window's close button, does the same.
+
+Cancel
+   Throw away the pages taken and close the panel.
+
+The stack is made in the folder shown in the main window when the first
+page is taken, and its pages appear in the page view as they are taken.
+The stack and its pages are named as the scan panel has them, or for the
+day if it has no names. With nothing taken, Done and Cancel leave no
+stack.
+
+A camera cannot tell how far it is from the page, so it does not know
+the page's resolution: each page is recorded as 300 dpi. To record
+another, set ``dpi`` in the ``[camera]`` section of Paperman's settings
+file, ``~/.config/paperman/paperman.conf``. If the first picture a
+camera takes after a pause comes out dark, set ``skip_frames`` there to
+1 or 2, to have Paperman pass over that many before it keeps one.
+
 Scanning without the window
 ---------------------------
 
@@ -164,3 +232,5 @@ On Linux, ``paperman --fake-scanner DIR`` offers a fake Fujitsu
 scanner beside the real ones, fed from pictures dropped into
 ``DIR/hopper``. It is used by the tests and is handy for trying things
 without paper; see :doc:`testing`.
+
+.. |main-camera| image:: images/icons/main-camera.png
