@@ -377,6 +377,80 @@ void TestCamera::testFailures()
    QCOMPARE(captured.count(), 0);
 }
 
+void TestCamera::testPush()
+{
+   FakeCamera::Spec spec = fakeSpec();
+
+   spec.capture_ms = 100;
+   FakeCamera::use({spec});
+
+   QByteArray still = FakeCamera::makeJpeg(QSize(1600, 1200), 40);
+   QByteArray after = FakeCamera::makeJpeg(QSize(800, 600), 41);
+
+   // nothing is there to send it
+   QVERIFY(!FakeCamera::push("fake0", still));
+
+   QScopedPointer<Camera> cam(Camera::create("fake0"));
+   QSignalSpy frames(cam.data(), &Camera::previewFrame);
+   QSignalSpy captured(cam.data(), &Camera::captured);
+   QSignalSpy pushed(cam.data(), &Camera::stillPushed);
+   QSignalSpy followed(cam.data(), &Camera::pushFollowed);
+
+   // nor is one which is not sending small pictures
+   QCOMPARE(cam->open(), QString());
+   QVERIFY(!FakeCamera::push("fake0", still));
+   cam->startPreview(QSize(1600, 1200));
+   QTRY_VERIFY(frames.count() >= 1);
+   QVERIFY(!FakeCamera::push("other", still));
+
+   // the still arrives as it was sent, and what follows it is not shown
+   QVERIFY(FakeCamera::push("fake0", still, after));
+   QTRY_COMPARE(pushed.count(), 1);
+   QCOMPARE(pushed[0][0].toByteArray(), still);
+   QTRY_COMPARE(followed.count(), 1);
+   QCOMPARE(followed[0][0].toByteArray(), after);
+   QCOMPARE(captured.count(), 0);
+
+   QImage odd = QImage::fromData(after, "JPG");
+
+   frames.clear();
+   QTRY_VERIFY(frames.count() >= 2);
+   for (int i = 0; i < frames.count(); i++)
+      QVERIFY(frames[i][0].value<QImage>() != odd);
+   QCOMPARE(followed.count(), 1);
+
+   // one as a camera may send it is made whole, and the next small
+   // picture follows it when none is given
+   QVERIFY(FakeCamera::push("fake0", withoutTables(still) +
+                            QByteArray(20, '\0')));
+   QTRY_COMPARE(pushed.count(), 2);
+   QCOMPARE(pushed[1][0].toByteArray(), still);
+   QTRY_COMPARE(followed.count(), 2);
+
+   // one which did not arrive whole is dropped
+   QVERIFY(FakeCamera::push("fake0", still.left(still.size() / 2)));
+   QTest::qWait(100);
+   QCOMPARE(pushed.count(), 2);
+   QCOMPARE(followed.count(), 2);
+
+   // one sent while a still is being taken: both arrive, each once
+   cam->capture(QSize(800, 600));
+   QVERIFY(FakeCamera::push("fake0", still));
+   QTRY_COMPARE(captured.count(), 1);
+   QTRY_COMPARE(pushed.count(), 3);
+   QVERIFY(captured[0][0].toByteArray() != still);
+   QTRY_COMPARE(followed.count(), 3);
+   QTest::qWait(100);
+   QCOMPARE(captured.count(), 1);
+   QCOMPARE(pushed.count(), 3);
+
+   // nothing arrives once it is closed
+   QVERIFY(FakeCamera::push("fake0", still));
+   cam->close();
+   QTest::qWait(100);
+   QCOMPARE(pushed.count(), 3);
+}
+
 void TestCamera::setupDesk(Mainwindow *me, Desktopmodel *&model,
                            QModelIndex &parent)
 {

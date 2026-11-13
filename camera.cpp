@@ -34,6 +34,9 @@ License: GPL-2
 static QList<FakeCamera::Spec> fake_specs;
 static bool fake_in_use;
 
+//! the fake cameras which exist, for FakeCamera::push()
+static QList<FakeCamera *> fake_live;
+
 //! how often a fake camera sends a small picture, in milliseconds
 static const int FAKE_PREVIEW_MS = 30;
 
@@ -457,11 +460,53 @@ FakeCamera::FakeCamera (const Spec &spec, QObject *parent)
    _preview = new QTimer (this);
    _preview->setInterval (FAKE_PREVIEW_MS);
    connect (_preview, &QTimer::timeout, this, &FakeCamera::sendPreview);
+   fake_live << this;
    }
 
 
 FakeCamera::~FakeCamera ()
    {
+   fake_live.removeAll (this);
+   }
+
+
+bool FakeCamera::push (const QString &id, const QByteArray &still,
+                       const QByteArray &after)
+   {
+   bool sent = false;
+
+   for (FakeCamera *cam : fake_live)
+      {
+      if (cam->_spec.id != id || !cam->_open || !cam->_preview->isActive ())
+         continue;
+      cam->_pushed << still;
+      cam->_after << after;
+
+      // it arrives in its own time, as anything from a camera does
+      QTimer::singleShot (0, cam, &FakeCamera::sendPushed);
+      sent = true;
+      }
+   return sent;
+   }
+
+
+void FakeCamera::sendPushed (void)
+   {
+   while (_open && !_pushed.isEmpty ())
+      {
+      QByteArray jpeg;
+      QByteArray frame = _pushed.takeFirst ();
+      QByteArray after = _after.takeFirst ();
+
+      // one which did not arrive whole is dropped, with what follows it
+      if (!cameraStill (frame, jpeg).isEmpty ())
+         continue;
+      _follow = true;
+      _follow_with = after;
+      emit stillPushed (jpeg);
+      }
+   _pushed.clear ();
+   _after.clear ();
    }
 
 
@@ -479,6 +524,9 @@ void FakeCamera::close (void)
    _preview->stop ();
    _open = false;
    _capturing = false;
+   _follow = false;
+   _pushed.clear ();
+   _after.clear ();
    }
 
 
@@ -534,6 +582,18 @@ void FakeCamera::sendPreview (void)
    if (!_open || _capturing || !_preview_size.isValid ())
       return;
    _previews++;
+
+   // the picture after a still it sent unasked is not for showing
+   if (_follow)
+      {
+      QByteArray jpeg = _follow_with;
+
+      if (jpeg.isEmpty ())
+         jpeg = makeJpeg (_preview_size, _previews);
+      _follow = false;
+      emit pushFollowed (jpeg);
+      return;
+      }
    if (_spec.stills.isEmpty ())
       {
       emit previewFrame (make_image (_preview_size, _previews));

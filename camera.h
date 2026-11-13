@@ -138,6 +138,24 @@ signals:
       \param jpeg   a whole JPEG file, see cameraStill() */
    void captured (const QByteArray &jpeg);
 
+   /** a still the camera sent of its own accord, as when a button on
+       it is pressed
+
+       Such a camera takes the still itself and sends it among the small
+       pictures, at whatever size it likes, which need not be one asked
+       for with capture()
+
+      \param jpeg   a whole JPEG file, see cameraStill() */
+   void stillPushed (const QByteArray &jpeg);
+
+   /** the picture which came straight after a still the camera sent of
+       its own accord. It is not a view of the page as it is: a camera
+       may light the page differently for it, so it is kept from
+       previewFrame() and given here instead, for whatever can use it
+
+      \param jpeg   a whole JPEG file, of the small pictures' size */
+   void pushFollowed (const QByteArray &jpeg);
+
    /** the camera cannot do what was asked, or has stopped sending
       \param msg   what went wrong, for the user */
    void failed (const QString &msg);
@@ -200,6 +218,18 @@ public:
    void stopPreview (void) override;
    void capture (const QSize &size) override;
 
+   /** have the fake cameras of an id send a still of their own accord,
+       as a camera whose button is pressed does. Only one which is
+       sending small pictures does so
+
+      \param id      the camera's id
+      \param still   the still to send, as a camera may send it
+      \param after   the picture to send straight after it, in place
+                     of the next small picture; empty to use that one
+      \returns true if a camera sent it */
+   static bool push (const QString &id, const QByteArray &still,
+                     const QByteArray &after = QByteArray ());
+
    //! the cameras on offer, for Camera::list()
    static QList<CameraInfo> cameras (void);
 
@@ -209,6 +239,7 @@ public:
 private slots:
    void sendPreview (void);
    void sendStill (void);
+   void sendPushed (void);
 
 private:
    Spec _spec;
@@ -221,6 +252,10 @@ private:
    int _previews = 0;       //!< how many small pictures have been sent
    QImage _view;            //!< the small picture of the still to come
    int _shown = -1;         //!< which still that is, -1 if none
+   QList<QByteArray> _pushed;   //!< stills waiting to be sent unasked
+   QList<QByteArray> _after;    //!< and the picture to follow each
+   bool _follow = false;    //!< the next small picture follows a still
+   QByteArray _follow_with; //!< what to send as it, if not empty
    };
 
 
