@@ -1060,3 +1060,101 @@ void TestCamera::testPanelFailure()
    QVERIFY(!panel->isVisible());
    QCOMPARE(model->rowCount(parent), rows);
 }
+
+void TestCamera::testPanelPush()
+{
+   FakeCamera::Spec spec = fakeSpec();
+
+   spec.capture_ms = 150;
+   FakeCamera::use({spec});
+
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+
+   // a size the panel does not offer, as the camera chooses its own
+   QByteArray first = FakeCamera::makeJpeg(QSize(2000, 1500), 50);
+   QByteArray second = FakeCamera::makeJpeg(QSize(2000, 1500), 51);
+   QByteArray odd = FakeCamera::makeJpeg(QSize(800, 600), 52);
+
+   // with the panel closed there is nothing to take it
+   QVERIFY(!FakeCamera::push("fake0", first));
+
+   Camerapanel *panel = openPanel(&me);
+
+   QVERIFY(panel);
+
+   CameraView *view = panel->findChild<CameraView *>("viewfinder");
+   QLabel *count = panel->findChild<QLabel *>("count");
+   QLabel *status = panel->findChild<QLabel *>("status");
+   QPushButton *capture = panel->findChild<QPushButton *>("capture");
+   QPushButton *done = panel->findChild<QPushButton *>("done");
+
+   QTRY_VERIFY(view->frameCount() >= 1);
+   QCOMPARE(panel->findChild<QComboBox *>("size")->currentData().toSize(),
+            QSize(1600, 1200));
+
+   // the camera's own still starts the stack, as Capture would
+   QVERIFY(FakeCamera::push("fake0", first, odd));
+   QTRY_COMPARE(main->cameraPages(), 1);
+   QCOMPARE(count->text(), QString("1 page"));
+   QCOMPARE(model->rowCount(parent), rows + 1);
+   QVERIFY(!panel->busy());
+   QVERIFY(capture->isEnabled());
+
+   // the picture after it is not shown, and the view carries on
+   QImage odd_image = QImage::fromData(odd, "JPG");
+   int seen = view->frameCount();
+
+   QTRY_VERIFY(view->frameCount() > seen + 2);
+   QVERIFY(view->frame() != odd_image);
+
+   /* one sent while Capture's still is on its way is a page of its
+      own, as is the still which was asked for, each kept once */
+   QTest::keyClick(panel, Qt::Key_Space);
+   QVERIFY(panel->busy());
+   QVERIFY(FakeCamera::push("fake0", second));
+   QTRY_COMPARE(main->cameraPages(), 3);
+   QVERIFY(!panel->busy());
+   QCOMPARE(count->text(), QString("3 pages"));
+   QCOMPARE(status->text(), QString());
+   QTest::qWait(200);
+   QCOMPARE(main->cameraPages(), 3);
+   QTest::mouseClick(done, Qt::LeftButton);
+   QVERIFY(!panel->isVisible());
+   QCOMPARE(model->rowCount(parent), rows + 1);
+
+   // the pages are the stills as sent, at their own size, in order
+   File *file = stackWithPages(model, parent, 3);
+   QImage image;
+   QSize size, true_size;
+   int bpp;
+
+   QVERIFY(file);
+   QVERIFY(!file->getImage(0, false, image, size, true_size, bpp, false));
+   QCOMPARE(size, QSize(2000, 1500));
+   QVERIFY(!file->getImage(1, false, image, size, true_size, bpp, false));
+   QCOMPARE(size, QSize(2000, 1500));
+   QVERIFY(!file->getImage(2, false, image, size, true_size, bpp, false));
+   QCOMPARE(size, QSize(1600, 1200));
+
+   QFile stored(file->pathname());
+
+   QVERIFY(stored.open(QIODevice::ReadOnly));
+
+   QByteArray all = stored.readAll();
+   int at = all.indexOf(first);
+
+   QVERIFY(at >= 0);
+   QVERIFY(all.indexOf(second, at) > at);
+
+   // once the panel has closed, nothing takes one
+   QVERIFY(!FakeCamera::push("fake0", first));
+   QCOMPARE(main->cameraPages(), 0);
+}
