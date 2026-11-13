@@ -170,6 +170,7 @@ HEADERS += desktopwidget.h \
  imageadjust.h \
  imagetrim.h \
  pagecover.h \
+ pagefind.h \
  camera.h \
  camerascan.h \
  camerapanel.h \
@@ -278,6 +279,7 @@ SOURCES += desktopwidget.cpp \
  imageadjust.cpp \
  imagetrim.cpp \
  pagecover.cpp \
+ pagefind.cpp \
  camera.cpp \
  camerascan.cpp \
  camerapanel.cpp \
@@ -353,6 +355,7 @@ test {
    SOURCES += test/test_utils.cpp \
       test/test_imagetrim.cpp \
       test/test_pagecover.cpp \
+      test/test_pagefind.cpp \
       test/test_camera.cpp \
       test/test.cpp \
       test/suite.cpp \
@@ -400,6 +403,7 @@ test {
       test/test_utils.h \
       test/test_imagetrim.h \
       test/test_pagecover.h \
+      test/test_pagefind.h \
       test/test_camera.h \
       test/test_searchserver.h \
       test/test_demoserver.h \
