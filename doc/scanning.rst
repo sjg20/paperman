@@ -126,22 +126,25 @@ Scanning with a camera
 
 A document camera, which looks down on a page from a stand, scans what
 will not go through a feeder: a bound book, a fragile letter, something
-too big or too thick. Paperman takes one picture for each page and keeps
-them as one stack, so a book is scanned by turning a page and pressing a
-key, over and over.
+too big or too thick. Paperman takes a picture each time a key is
+pressed and keeps the pages in it as one stack, so a book is scanned by
+turning a page and pressing a key, over and over.
 
 Cameras are reached through the kernel's video interface, on Linux only
 for now. Any UVC camera which sends its pictures as JPEG will do, which
-covers most document cameras and webcams. The page kept is the JPEG the
-camera sent, unchanged, so it is as good as the camera can make it:
-Paperman does not straighten or flatten the page, or split an open book
-into its two pages.
+covers most document cameras and webcams.
+
+Lay the page on a dark mat, so that Paperman can tell where it ends.
+Paperman finds the page in each picture, cuts it out and makes it
+upright, and splits an open book into its two pages. Pages which curve,
+as those of a thick book do, are made flat.
 
 Press |main-camera| in the main toolbar, or **F7**, to open the camera
 panel. The button is greyed out when no camera is plugged in.
 
 .. image:: images/camera-panel.png
-   :alt: The camera panel, with a bill under the camera and two pages taken
+   :alt: The camera panel, with a bill under the camera, outlined where
+         it will be cut out, and two pages taken
 
 Camera
    Which camera to use. This is shown only when there is more than one.
@@ -151,14 +154,61 @@ Size
    take first. A larger size shows finer print, and at the largest a
    camera may take a second or so over each page.
 
+Pages
+   What to keep of each picture.
+
+   **Whole picture** keeps it just as the camera sent it, mat and all.
+
+   **One page** finds the sheet, cuts it out and makes it upright. A
+   sheet which lies crooked, or which the camera sees from one side so
+   that it is narrower at the far end, comes out square.
+
+   **Two pages** does the same for an open book and then cuts it in two
+   down the gutter, the left page going into the stack before the right.
+   If no gutter can be seen it is cut down the middle.
+
+   **Auto**, which the panel starts with, treats what it sees as a book
+   if it is wider than it is tall and has a clear gutter, and as one
+   page if not.
+
+   Where no page can be found, as when the mat is as light as the paper
+   or the page fills the picture, the whole picture is kept.
+
+   The pages of an open book curve up from the gutter. Paperman follows
+   the top and bottom edges of each page across the picture and makes
+   the page flat from them: its lines come out level, and the part which
+   slopes down into the gutter, which the camera sees squeezed, is
+   stretched back to its width. What lies beside the page, such as the
+   flap of a jacket or the edges of the pages beneath, is left out where
+   it can be told from the page. This needs both edges of the page to be
+   seen against the mat for at least part of the way across. A page
+   which runs off the picture at one edge is still made flat, with the
+   part the camera missed left white, but one which runs off it at both
+   is only trimmed and split at the gutter, as is one whose edges
+   Paperman cannot follow. A page which curves only a little is treated
+   as a flat sheet.
+
+Keep the camera's pictures
+   Keep each picture as the camera sent it, as well as the pages cut
+   from it, so that a page which came out badly can be made again. They
+   go in a second stack, named after the first with ``_camera`` added,
+   which appears beside it when Done is pressed. This is not done for a
+   folder on a server, nor when Pages is Whole picture, since the
+   picture is then the page.
+
 Camera's view
    What the camera sees, several times a second, so that the page can be
-   put straight and the light checked before it is taken. It is a small
-   picture: the page taken is much sharper.
+   put straight and the light checked before it is taken. Each page
+   which would be cut out is outlined in blue, along its own edges if it
+   curves and will be made flat. It is a small picture:
+   the page taken is much sharper.
 
 Page count
-   How many pages have been taken into the stack so far. Any problem
-   with the camera is shown beside it.
+   How many pages are in the stack so far. Cutting the pages out of a
+   large picture takes a second or so, which is done in the background:
+   the next picture can be taken at once, and the count goes up as the
+   pages arrive. Beside it is how many pictures are still being worked
+   on, or any problem with the camera.
 
 Capture
    Take a picture and add it to the stack as its next page. The space
@@ -175,10 +225,13 @@ The camera's own button
 
 Done
    Keep the stack and close the panel. Closing the panel with Escape, or
-   with its window's close button, does the same.
+   with its window's close button, does the same. If pictures are still
+   being worked on the panel says how many and closes once their pages
+   are in the stack.
 
 Cancel
-   Throw away the pages taken and close the panel.
+   Throw away the pages taken, and the camera's pictures if they are
+   being kept, and close the panel.
 
 The stack is made in the folder shown in the main window when the first
 page is taken, and its pages appear in the page view as they are taken.
@@ -191,7 +244,16 @@ the page's resolution: each page is recorded as 300 dpi. To record
 another, set ``dpi`` in the ``[camera]`` section of Paperman's settings
 file, ``~/.config/paperman/paperman.conf``. If the first picture a
 camera takes after a pause comes out dark, set ``skip_frames`` there to
-1 or 2, to have Paperman pass over that many before it keeps one.
+1 or 2, to have Paperman pass over that many before it keeps one. The
+pages cut out of a picture are stored as JPEG at a quality of 90, which
+``quality`` there changes.
+
+How far a curved page must be stretched to make it flat depends on how
+far the camera is from it, which shows in the focal length of the
+camera's lens. Paperman takes that to be 0.7 times the width of the
+picture, a figure found by trying it with one camera. If the words near
+the gutter of a book come out wider than the rest, set ``focal`` in the
+same section to a smaller number, and if narrower to a larger one.
 
 Scanning without the window
 ---------------------------
