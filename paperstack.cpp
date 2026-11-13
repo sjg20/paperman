@@ -288,7 +288,7 @@ err_info *Paperstack::confirm (void)
 /* The title a page is given from the name it is scanned under. A name
    ending in _ is the pattern for a stack's pages: the first page's title
    leaves it off, and the rest are numbered, see Paperstack::incrementName() */
-static QString pageTitle (const QString &name)
+QString Paperstack::pageTitle (const QString &name)
    {
    return name.endsWith ("_") ? name.left (name.length () - 1) : name;
    }
@@ -1157,7 +1157,7 @@ bool PPage::addBytes (const unsigned char *buf, int size)
 err_info *PPage::confirm (const QString &pageName, bool mark_blank,
                           Filepage *mp)
    {
-   _name = pageTitle (pageName);
+   _name = Paperstack::pageTitle (pageName);
    _mark_blank = mark_blank;
    /* raw data of a height the back end did not know: it is however many
       lines arrived */

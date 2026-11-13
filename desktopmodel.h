@@ -1175,6 +1175,10 @@ public:
    /** a new page is starting to be scanned */
    void pageStarting (Paperscan &scan, const PPage *page);
 
+   /** a new page is about to be added to the stack being scanned, by
+       something other than a scanner, which has no progress to show */
+   void pageStarting (void);
+
    /** new data has arrived for the current page */
    void pageProgress (Paperscan &scan, const PPage *page);
 
