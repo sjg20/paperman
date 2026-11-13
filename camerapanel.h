@@ -22,10 +22,14 @@ License: GPL-2
 #define __camerapanel_h
 
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QImage>
+#include <QList>
+#include <QPolygonF>
 #include <QSize>
 #include <QWidget>
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPushButton;
@@ -54,6 +58,19 @@ public:
    //! where in the widget the picture is drawn
    QRect frameRect (void) const;
 
+   /** say whether to mark the pages which would be cut from the picture
+
+      The pages are looked for in a picture a few times a second and
+      their outlines drawn over the view, so that what will be kept can
+      be seen before it is taken
+
+      \param mode   how many pages to look for, a Pagefind::Mode;
+                    Pagefind::Mode_whole to mark nothing */
+   void setPages (int mode);
+
+   //! the outlines being drawn, in the picture's own pixels
+   QList<QPolygonF> outlines (void) const { return _outlines; }
+
    QSize sizeHint (void) const override;
 
 protected:
@@ -62,6 +79,9 @@ protected:
 private:
    QImage _frame;
    int _count = 0;
+   int _mode = 0;                 //!< how many pages to look for
+   QList<QPolygonF> _outlines;    //!< where they were last found
+   QElapsedTimer _looked;         //!< when they were last looked for
    };
 
 
@@ -72,6 +92,12 @@ space bar, takes a still at the size chosen and adds it as a page to a
 stack in the folder which was shown when the first was taken. Done keeps
 the stack and Cancel throws it away; closing the panel any other way
 keeps it, so that a slip does not lose a book's worth of pages.
+
+Unless the whole picture is asked for, the page is found in each still,
+cut out and made upright, and an open book is split into its two pages.
+That is done in the background, so the count of pages goes up a moment
+after each still is taken, and Done waits for what is still being done.
+The camera's own pictures can be kept as well, in a second stack.
 
 A camera with a button of its own may take a still when that is pressed
 and send it unasked. That is added to the stack just as one taken with
@@ -121,6 +147,9 @@ private slots:
    void sizeChosen (int index);
    void stillArrived (const QByteArray &jpeg);
    void stillPushed (const QByteArray &jpeg);
+   void pagesChosen (int index);
+   void keepToggled (bool on);
+   void pagesFiled (const QString &problem);
    void cameraFailed (const QString &msg);
 
 private:
@@ -139,15 +168,24 @@ private:
    //! stop the camera and hide the panel, noting where it was
    void finish (void);
 
+   //! take a still which has arrived, however it was asked for
+   void takePicture (const QByteArray &jpeg);
+
+   //! how many pages to look for in each picture, a Pagefind::Mode
+   int pagesMode (void) const;
+
    Mainwidget *_main;
    Camera *_camera = nullptr;
    bool _busy = false;       //!< a still has been asked for
    bool _stalled = false;    //!< the camera failed, so may have stopped
+   bool _finishing = false;  //!< Done was pressed with pages still to come
    QString _message;         //!< what went wrong last, if anything
 
    QLabel *_camera_label;
    QComboBox *_cameras;
    QComboBox *_sizes;
+   QComboBox *_pages;
+   QCheckBox *_keep;
    CameraView *_view;
    QLabel *_count;
    QLabel *_status;

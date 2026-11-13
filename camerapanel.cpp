@@ -18,6 +18,7 @@ License: GPL-2
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -30,6 +31,7 @@ License: GPL-2
 #include "camera.h"
 #include "camerapanel.h"
 #include "mainwidget.h"
+#include "pagefind.h"
 #include "utils.h"
 
 
@@ -41,10 +43,39 @@ CameraView::CameraView (QWidget *parent)
    }
 
 
+//! the least time between looks for the pages in the view, in ms
+static const int LOOK_MS = 250;
+
+
 void CameraView::setFrame (const QImage &image)
    {
    _frame = image;
    _count = image.isNull () ? 0 : _count + 1;
+
+   /* The small picture is quick to look through, about 20 ms, so it is
+      done here rather than in a thread, but not for every one */
+   if (image.isNull () || _mode == Pagefind::Mode_whole)
+      _outlines.clear ();
+   else if (!_looked.isValid () || _looked.elapsed () >= LOOK_MS)
+      {
+      Pagefind::Result found = Pagefind::find (image,
+                                               (Pagefind::Mode)_mode);
+
+      _outlines.clear ();
+      for (int i = 0; i < found.pages.size (); i++)
+         _outlines << found.shape (i);
+      _looked.start ();
+      }
+   update ();
+   }
+
+
+void CameraView::setPages (int mode)
+   {
+   _mode = mode;
+   _looked.invalidate ();
+   if (mode == Pagefind::Mode_whole)
+      _outlines.clear ();
    update ();
    }
 
@@ -81,7 +112,25 @@ void CameraView::paintEvent (QPaintEvent *)
       return;
       }
    p.setRenderHint (QPainter::SmoothPixmapTransform);
-   p.drawImage (frameRect (), _frame);
+
+   QRect area = frameRect ();
+
+   p.drawImage (area, _frame);
+   if (_outlines.isEmpty ())
+      return;
+
+   // each page which would be cut out, in a colour which shows on paper
+   QTransform map;
+
+   map.translate (area.x (), area.y ());
+   map.scale ((double)area.width () / _frame.width (),
+              (double)area.height () / _frame.height ());
+   p.setRenderHint (QPainter::Antialiasing);
+   p.setPen (QPen (QColor (0, 160, 255), 2));
+   p.setBrush (Qt::NoBrush);
+   p.setClipRect (area);
+   for (const QPolygonF &outline : _outlines)
+      p.drawPolygon (map.map (outline));
    }
 
 
@@ -101,6 +150,31 @@ Camerapanel::Camerapanel (Mainwidget *main, QWidget *parent)
    _sizes = new QComboBox (this);
    _sizes->setObjectName ("size");
    _sizes->setToolTip (tr ("The size of each page, in pixels"));
+
+   QLabel *pages_label = new QLabel (tr ("Pages"), this);
+
+   _pages = new QComboBox (this);
+   _pages->setObjectName ("pages");
+   _pages->setToolTip (tr ("What to keep of each picture: all of it, the "
+                           "page found in it, or the two pages of an "
+                           "open book. Auto splits a book and not a "
+                           "sheet"));
+   _pages->addItem (tr ("Whole picture"), Pagefind::Mode_whole);
+   _pages->addItem (tr ("One page"), Pagefind::Mode_one);
+   _pages->addItem (tr ("Two pages"), Pagefind::Mode_two);
+   _pages->addItem (tr ("Auto"), Pagefind::Mode_auto);
+
+   _keep = new QCheckBox (tr ("Keep the camera's pictures"), this);
+   _keep->setObjectName ("keep");
+   _keep->setToolTip (tr ("Keep each picture as the camera took it, in a "
+                          "second stack, as well as the pages cut from "
+                          "it"));
+
+   QSettings qs;
+   int mode = qs.value ("camera/pages", Pagefind::Mode_auto).toInt ();
+
+   _pages->setCurrentIndex (qMax (0, _pages->findData (mode)));
+   _keep->setChecked (qs.value ("camera/keep", true).toBool ());
 
    _view = new CameraView (this);
    _view->setObjectName ("viewfinder");
@@ -133,6 +207,9 @@ Camerapanel::Camerapanel (Mainwidget *main, QWidget *parent)
    top->addWidget (_cameras, 1);
    top->addWidget (size_label);
    top->addWidget (_sizes);
+   top->addWidget (pages_label);
+   top->addWidget (_pages);
+   top->addWidget (_keep);
    top->addStretch (1);
 
    QHBoxLayout *bottom = new QHBoxLayout;
@@ -153,19 +230,26 @@ Camerapanel::Camerapanel (Mainwidget *main, QWidget *parent)
             &Camerapanel::cameraChosen);
    connect (_sizes, QOverload<int>::of (&QComboBox::activated), this,
             &Camerapanel::sizeChosen);
+   connect (_pages, QOverload<int>::of (&QComboBox::activated), this,
+            &Camerapanel::pagesChosen);
+   connect (_keep, &QCheckBox::toggled, this, &Camerapanel::keepToggled);
+   connect (_main, &Mainwidget::cameraFiled, this,
+            &Camerapanel::pagesFiled);
    connect (_capture, &QPushButton::clicked, this, &Camerapanel::capture);
    connect (_done, &QPushButton::clicked, this, &Camerapanel::accept);
    connect (_cancel, &QPushButton::clicked, this, &Camerapanel::cancel);
 
    // see eventFilter()
-   const QList<QWidget *> watched = {this, _cameras, _sizes, _view,
-                                     _capture, _done, _cancel};
+   const QList<QWidget *> watched = {this, _cameras, _sizes, _pages,
+                                     _keep, _view, _capture, _done,
+                                     _cancel};
 
    for (QWidget *widget : watched)
       widget->installEventFilter (this);
 
    restoreGeometry (QSettings ().value ("camerapanel/geometry")
                     .toByteArray ());
+   _view->setPages (pagesMode ());
    updateState ();
    }
 
@@ -197,7 +281,8 @@ bool Camerapanel::eventFilter (QObject *obj, QEvent *event)
 
 void Camerapanel::start (void)
    {
-   if (_camera)
+   // nor while Done is waiting for the last pages
+   if (_camera || _finishing)
       return;
 
    const QList<CameraInfo> list = Camera::list ();
@@ -337,11 +422,51 @@ void Camerapanel::capture (void)
    }
 
 
+int Camerapanel::pagesMode (void) const
+   {
+   return _pages->currentData ().toInt ();
+   }
+
+
+void Camerapanel::pagesChosen (int index)
+   {
+   QSettings ().setValue ("camera/pages", _pages->itemData (index).toInt ());
+   _view->setPages (pagesMode ());
+   updateState ();
+   }
+
+
+void Camerapanel::keepToggled (bool on)
+   {
+   QSettings ().setValue ("camera/keep", on);
+   }
+
+
+void Camerapanel::takePicture (const QByteArray &jpeg)
+   {
+   // a picture kept whole is its own page, so there is no other to keep
+   _message = _main->cameraAddPicture (jpeg, pagesMode (),
+         _keep->isChecked () && pagesMode () != Pagefind::Mode_whole);
+   updateState ();
+   }
+
+
+void Camerapanel::pagesFiled (const QString &problem)
+   {
+   if (!problem.isEmpty ())
+      _message = problem;
+   updateState ();
+
+   // Done was waiting for these
+   if (_finishing && !_main->cameraPending ())
+      accept ();
+   }
+
+
 void Camerapanel::stillArrived (const QByteArray &jpeg)
    {
    _busy = false;
-   _message = _main->cameraAddPage (jpeg);
-   updateState ();
+   takePicture (jpeg);
    }
 
 
@@ -349,8 +474,7 @@ void Camerapanel::stillPushed (const QByteArray &jpeg)
    {
    /* the camera took this one itself, so nothing was waiting for it:
       a still which was asked for is still on its way, if one was */
-   _message = _main->cameraAddPage (jpeg);
-   updateState ();
+   takePicture (jpeg);
    }
 
 
@@ -365,16 +489,34 @@ void Camerapanel::cameraFailed (const QString &msg)
 
 void Camerapanel::updateState (void)
    {
-   _capture->setEnabled (_camera && !_busy);
+   int waiting = _main->cameraPending ();
+
+   _capture->setEnabled (_camera && !_busy && !_finishing);
    _capture->setText (_busy ? tr ("Capturing...") : tr ("Capture"));
 
    // so that the page on its way is not left out
-   _done->setEnabled (!_busy);
+   _done->setEnabled (!_busy && !_finishing);
+   _pages->setEnabled (!_finishing);
+   _keep->setEnabled (!_finishing && pagesMode () != Pagefind::Mode_whole);
+
    int pages = _main->cameraPages ();
 
    _count->setText (pages == 1 ? tr ("1 page")
                                : tr ("%1 pages").arg (pages));
-   _status->setText (_message);
+
+   // what went wrong comes first, then what is still being done
+   if (!_message.isEmpty ())
+      _status->setText (_message);
+   else if (_finishing)
+      _status->setText (waiting == 1
+         ? tr ("Finishing: 1 picture still to do")
+         : tr ("Finishing: %1 pictures still to do").arg (waiting));
+   else if (waiting)
+      _status->setText (waiting == 1
+         ? tr ("Working on 1 picture")
+         : tr ("Working on %1 pictures").arg (waiting));
+   else
+      _status->setText (QString ());
    }
 
 
@@ -388,6 +530,18 @@ void Camerapanel::finish (void)
 void Camerapanel::accept (void)
    {
    finish ();
+
+   /* The pages of the last pictures may still be being made, a second
+      or so each. Wait for them with the panel showing how many there
+      are, rather than with the window stuck: pagesFiled() comes back
+      here. Cancel still works meanwhile */
+   if (_main->cameraPending ())
+      {
+      _finishing = true;
+      updateState ();
+      return;
+      }
+   _finishing = false;
    _main->cameraDone ();
    updateState ();
    QDialog::accept ();
@@ -403,7 +557,9 @@ void Camerapanel::reject (void)
 void Camerapanel::cancel (void)
    {
    finish ();
+   _finishing = false;
    _main->cameraCancel ();
+   _message.clear ();
    updateState ();
    QDialog::reject ();
    }
