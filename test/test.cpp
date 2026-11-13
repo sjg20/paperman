@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "test.h"
+#include "../camera.h"
 
 #include "test_desktopui.h"
 #include "test_dirmodel.h"
@@ -17,6 +18,7 @@
 #include "test_utils.h"
 #include "test_imagetrim.h"
 #include "test_pagecover.h"
+#include "test_camera.h"
 #include "test_searchserver.h"
 #include "test_async.h"
 #include "test_traffic.h"
@@ -52,6 +54,7 @@ static TestUpdateCheck TEST_UPDATECHECK("updatecheck");
 static TestAsync TEST_ASYNC("async");
 static TestTraffic TEST_TRAFFIC("traffic");
 static TestFakescan TEST_FAKESCAN("fakescan");
+static TestCamera TEST_CAMERA("camera");
 static TestScreenshots TEST_SCREENSHOTS("screenshots");
 static TestVideo TEST_VIDEO("video");
 
@@ -86,6 +89,10 @@ int test_run(int, char **in_argv, QApplication *,
     * about the fake one in test/fakescan and nothing else. This has to
     * happen before anything asks libsane for a scanner */
    Fakescan::setup();
+
+   /* and from any camera: only the fake ones a test offers are there,
+    * so no test opens a camera which something else may be using */
+   FakeCamera::use({});
 
    // Split "Class::function" into class filter and function filter
    static char filterBuf[256];
