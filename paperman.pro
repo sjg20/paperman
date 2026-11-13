@@ -173,6 +173,7 @@ HEADERS += desktopwidget.h \
  pagefind.h \
  camera.h \
  camerascan.h \
+ camerapages.h \
  camerapanel.h \
  filepdf.h \
  fileother.h \
@@ -282,6 +283,7 @@ SOURCES += desktopwidget.cpp \
  pagefind.cpp \
  camera.cpp \
  camerascan.cpp \
+ camerapages.cpp \
  camerapanel.cpp \
  filepdf.cpp \
  fileother.cpp \

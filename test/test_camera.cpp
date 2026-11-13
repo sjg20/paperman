@@ -28,6 +28,7 @@ License: GPL-2
 #include <QSettings>
 
 #include "../camera.h"
+#include "../camerapages.h"
 #include "../camerapanel.h"
 #include "../mainwidget.h"
 #include "../camerascan.h"
@@ -37,6 +38,7 @@ License: GPL-2
 #include "../filemax.h"
 #include "../mainwindow.h"
 #include "test_camera.h"
+#include "test_pagefind.h"
 
 static FakeCamera::Spec fakeSpec(const QString &id = "fake0")
 {
@@ -1157,4 +1159,150 @@ void TestCamera::testPanelPush()
    // once the panel has closed, nothing takes one
    QVERIFY(!FakeCamera::push("fake0", first));
    QCOMPARE(main->cameraPages(), 0);
+}
+
+QByteArray TestCamera::bookJpeg(double gutter)
+{
+   QImage image = TestPagefind::mat(QSize(1600, 1200));
+   QByteArray jpeg;
+   QBuffer buf(&jpeg);
+
+   TestPagefind::drawPage(image,
+      QPolygonF({QPointF(200, 250), QPointF(1400, 230),
+                 QPointF(1420, 1000), QPointF(190, 1010)}),
+      QSize(1200, 760), gutter);
+   buf.open(QIODevice::WriteOnly);
+   image.save(&buf, "JPG", 92);
+   return jpeg;
+}
+
+void TestCamera::testPagesCurved()
+{
+   QImage image = TestPagefind::mat(QSize(1600, 1200));
+   TestPagefind::Book book;
+   double surface = TestPagefind::curvedBook(image, book);
+   QByteArray jpeg;
+   QBuffer buf(&jpeg);
+
+   QVERIFY(buf.open(QIODevice::WriteOnly));
+   QVERIFY(image.save(&buf, "JPG", 90));
+
+   // each page comes out as wide for its height as its surface is
+   bool found = false;
+   QByteArrayList pages = CameraPages::process(jpeg, Pagefind::Mode_auto,
+                                               90, found, book.focal);
+
+   QVERIFY(found);
+   QCOMPARE(pages.size(), 2);
+
+   QImage left = QImage::fromData(pages[0], "JPG");
+   double shape = surface / book.height;
+
+   QVERIFY(!left.isNull());
+   QVERIFY2(qAbs((double)left.width() / left.height() - shape) <=
+            shape * 0.03,
+            qPrintable(QString("%1x%2").arg(left.width())
+                       .arg(left.height())));
+
+   // which depends on the focal length it is told
+   pages = CameraPages::process(jpeg, Pagefind::Mode_auto, 90, found,
+                                book.focal * 3);
+   QVERIFY(found);
+   QCOMPARE(pages.size(), 2);
+   QVERIFY(QImage::fromData(pages[0], "JPG").width() >
+           left.width() * 1.1);
+}
+
+void TestCamera::testPages()
+{
+   QByteArray book = bookJpeg(0.46);
+   QByteArray plain = FakeCamera::makeJpeg(QSize(800, 600), 3);
+   bool found = false;
+
+   // an open book gives its two pages, the left one first
+   QByteArrayList pages = CameraPages::process(book, Pagefind::Mode_auto,
+                                               90, found);
+
+   QVERIFY(found);
+   QCOMPARE(pages.size(), 2);
+
+   QImage left = QImage::fromData(pages[0], "JPG");
+   QImage right = QImage::fromData(pages[1], "JPG");
+
+   QVERIFY(!left.isNull() && !right.isNull());
+   QVERIFY(left.width() < right.width());
+   QVERIFY(qAbs(left.width() + right.width() - 1225) <= 25);
+   QVERIFY(qAbs(left.height() - 770) <= 20);
+   QVERIFY(TestPagefind::markAt(left, true).x() > 0);
+   QVERIFY(TestPagefind::markAt(right, false).x() > 0);
+   QVERIFY(TestPagefind::markAt(right, true).x() < 0);
+
+   // or the one, if it is said to be one
+   pages = CameraPages::process(book, Pagefind::Mode_one, 90, found);
+   QVERIFY(found);
+   QCOMPARE(pages.size(), 1);
+   QVERIFY(qAbs(QImage::fromData(pages[0], "JPG").width() - 1225) <= 25);
+
+   // a lower quality makes a smaller page
+   QVERIFY(CameraPages::process(book, Pagefind::Mode_one, 40, found)[0]
+           .size() < pages[0].size());
+
+   // a picture kept whole, or with no page to find, is itself
+   pages = CameraPages::process(book, Pagefind::Mode_whole, 90, found);
+   QVERIFY(!found);
+   QCOMPARE(pages, QByteArrayList({book}));
+   pages = CameraPages::process(plain, Pagefind::Mode_auto, 90, found);
+   QVERIFY(!found);
+   QCOMPARE(pages, QByteArrayList({plain}));
+   pages = CameraPages::process("junk", Pagefind::Mode_auto, 90, found);
+   QVERIFY(!found);
+   QCOMPARE(pages, QByteArrayList({QByteArray("junk")}));
+
+   // a grey picture gives grey pages
+   QImage grey = QImage::fromData(book, "JPG")
+                    .convertToFormat(QImage::Format_Grayscale8);
+   QByteArray grey_jpeg;
+   QBuffer buf(&grey_jpeg);
+
+   QVERIFY(buf.open(QIODevice::WriteOnly));
+   QVERIFY(grey.save(&buf, "JPG", 92));
+   pages = CameraPages::process(grey_jpeg, Pagefind::Mode_auto, 90, found);
+   QVERIFY(found);
+   QCOMPARE(pages.size(), 2);
+   QVERIFY(QImage::fromData(pages[0], "JPG").isGrayscale());
+
+   // given several, their pages arrive in the order they were given
+   CameraPages maker;
+   QSignalSpy done(&maker, &CameraPages::processed);
+
+   QCOMPARE(maker.pending(), 0);
+   maker.add(book, Pagefind::Mode_auto, 90);
+   maker.add(plain, Pagefind::Mode_auto, 90);
+   maker.add(book, Pagefind::Mode_whole, 90);
+   maker.add(book, Pagefind::Mode_one, 90);
+   QCOMPARE(maker.pending(), 4);
+   QCOMPARE(done.count(), 0);
+   QTRY_COMPARE(done.count(), 4);
+   QCOMPARE(maker.pending(), 0);
+   QCOMPARE(done[0][0].value<QByteArrayList>().size(), 2);
+   QVERIFY(done[0][1].toBool());
+   QCOMPARE(done[1][0].value<QByteArrayList>(), QByteArrayList({plain}));
+   QVERIFY(!done[1][1].toBool());
+   QCOMPARE(done[2][0].value<QByteArrayList>(), QByteArrayList({book}));
+   QCOMPARE(done[3][0].value<QByteArrayList>().size(), 1);
+   QVERIFY(done[3][1].toBool());
+
+   // those forgotten never arrive, and it carries on with the next
+   done.clear();
+   for (int i = 0; i < 5; i++)
+      maker.add(book, Pagefind::Mode_auto, 90);
+   maker.abandon();
+   QCOMPARE(maker.pending(), 0);
+   maker.add(plain, Pagefind::Mode_auto, 90);
+   QCOMPARE(maker.pending(), 1);
+   QTRY_COMPARE(done.count(), 1);
+   QCOMPARE(done[0][0].value<QByteArrayList>(), QByteArrayList({plain}));
+   QTest::qWait(300);
+   QCOMPARE(done.count(), 1);
+   QCOMPARE(maker.pending(), 0);
 }

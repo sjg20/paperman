@@ -59,6 +59,10 @@ private:
    File *stackWithPages(Desktopmodel *model, const QModelIndex &parent,
                         int pages);
 
+   /** a picture of an open book on a mat, as a JPEG
+      \param gutter  where its gutter is, as a proportion of its width */
+   static QByteArray bookJpeg(double gutter);
+
 private slots:
    void init();
    void cleanup();
@@ -116,6 +120,12 @@ private slots:
 
    //! a still the camera sends unasked is filed as a page
    void testPanelPush();
+
+   //! pages are made of pictures in the background, in order
+   void testPages();
+
+   //! a book whose pages curve has them made flat
+   void testPagesCurved();
 };
 
 #endif
