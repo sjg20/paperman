@@ -28,6 +28,8 @@ Anywhere
      - Scan now, with the scan panel's settings
    * - **F6**
      - Open the scan panel
+   * - **F7**
+     - Open the camera panel
    * - **F11**
      - Fill the screen, or go back to a window
    * - **Alt+Shift+W**, **Alt+Shift+D**
