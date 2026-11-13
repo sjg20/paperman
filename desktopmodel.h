@@ -1172,6 +1172,9 @@ public:
        as more pages are added */
    int getScanSize (void);
 
+   /** \returns the stack being scanned into, NULL if there is none */
+   File *scanFile (void) const { return _scan_file; }
+
    /** a new page is starting to be scanned */
    void pageStarting (Paperscan &scan, const PPage *page);
 

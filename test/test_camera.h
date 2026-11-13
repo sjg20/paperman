@@ -126,6 +126,9 @@ private slots:
 
    //! a book whose pages curve has them made flat
    void testPagesCurved();
+
+   //! the camera's own pictures are kept in a stack written as they come
+   void testKeep();
 };
 
 #endif
