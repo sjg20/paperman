@@ -22,7 +22,10 @@ License: GPL-2
 #include <QSignalSpy>
 #include <QTest>
 
+#include <QSettings>
+
 #include "../camera.h"
+#include "../mainwidget.h"
 #include "../camerascan.h"
 #include "../desktopmodel.h"
 #include "../desktopview.h"
@@ -65,6 +68,9 @@ QByteArray TestCamera::withoutTables(const QByteArray &jpeg)
 void TestCamera::init()
 {
    FakeCamera::use({});
+
+   // nothing remembered from the test before
+   QSettings().remove("camera");
 }
 
 void TestCamera::cleanup()
@@ -539,4 +545,67 @@ void TestCamera::testFileNone()
       QVERIFY(!QFile::exists(dir + "/gone.max"));
       QVERIFY(QFile::exists(dir + "/bad.max"));
    }
+}
+
+File *TestCamera::stackWithPages(Desktopmodel *model,
+                                 const QModelIndex &parent, int pages)
+{
+   File *found = nullptr;
+
+   for (int row = 0; row < model->rowCount(parent); row++) {
+      File *file = model->getFile(model->index(row, 0, parent));
+
+      if (file && file->pagecount() == pages) {
+         if (found)
+            return nullptr;
+         found = file;
+      }
+   }
+   return found;
+}
+
+void TestCamera::testSession()
+{
+   Mainwindow me;
+   Desktopmodel *model = nullptr;
+   QModelIndex parent;
+
+   setupDesk(&me, model, parent);
+   QVERIFY(model);
+
+   Mainwidget *main = Mainwidget::singleton();
+   int rows = model->rowCount(parent);
+   QByteArray jpeg = FakeCamera::makeJpeg(QSize(640, 480), 1);
+
+   // with nothing taken there is nothing to keep or throw away
+   QCOMPARE(main->cameraPages(), 0);
+   main->cameraDone();
+   main->cameraCancel();
+   QCOMPARE(model->rowCount(parent), rows);
+
+   // the first page starts a stack, and a bad one is refused
+   QCOMPARE(main->cameraAddPage(jpeg), QString());
+   QCOMPARE(main->cameraPages(), 1);
+   QCOMPARE(model->rowCount(parent), rows + 1);
+   QVERIFY(!main->cameraAddPage("not a picture").isEmpty());
+   QCOMPARE(main->cameraPages(), 1);
+   QCOMPARE(main->cameraAddPage(jpeg), QString());
+   QCOMPARE(main->cameraPages(), 2);
+
+   // no scan starts while the stack is open
+   main->scan();
+   QVERIFY(!main->isScanning());
+   QCOMPARE(main->cameraPages(), 2);
+
+   main->cameraDone();
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 1);
+   QVERIFY(stackWithPages(model, parent, 2));
+
+   // the next is a stack of its own, which can be thrown away
+   QCOMPARE(main->cameraAddPage(jpeg), QString());
+   QCOMPARE(model->rowCount(parent), rows + 2);
+   main->cameraCancel();
+   QCOMPARE(main->cameraPages(), 0);
+   QCOMPARE(model->rowCount(parent), rows + 1);
 }
