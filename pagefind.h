@@ -35,9 +35,12 @@ other. An open book shows two pages, with the gutter between them.
 
 Finding the page and cutting it out are kept apart. find() says where
 the page is, as a shape with four corners for each page. rectify() makes
-an upright picture of what is inside one of those. Something which maps
-a page another way, to flatten its curve say, can take the place of
-rectify() and use the same shapes.
+an upright picture of what is inside one of those.
+
+The pages of an open book curve, and cutting a box out of the picture
+leaves them curved. For those find() also follows the top and bottom
+edges of each page, and flatten() makes a flat picture of what is
+between them. pages() does whichever suits each page.
 
 None of this needs a display: it works on pictures alone */
 class Pagefind
@@ -50,6 +53,22 @@ public:
       Mode_one,      //!< the picture shows one page
       Mode_two,      //!< it shows an open book, which is two
       Mode_auto,     //!< two if it shows a gutter and is wide, else one
+      };
+
+   /** the top and bottom edges of a page which is not flat, as they
+       curve across the picture */
+   struct Curve
+      {
+      /** true if the edges were traced, so that flatten() can make a
+          flat page of what is between them. If not, the rest is empty */
+      bool traced = false;
+
+      /** the page's top edge, and its bottom one: points in the picture,
+          in pixels, from the page's left to its right, the same number
+          in each. Point n of each is the same way across the page, so
+          that a straight line from one to the other runs up the page as
+          the gutter does */
+      QPolygonF top, bottom;
       };
 
    //! what find() found
@@ -79,6 +98,19 @@ public:
       /** each page, in reading order, with its corners as for outline.
           There is one, the outline, or two which meet at the gutter */
       QList<QPolygonF> pages;
+
+      /** for something which is not flat, the edges of each page, one
+          for each of pages. A page whose edges could not be followed,
+          because it runs off the picture say, has one which is not
+          traced, and can only be cut out as it is */
+      QList<Curve> curves;
+
+      /** the shape of a page as it is in the picture, to draw round it:
+          its edges if they were traced, and its four corners if not
+
+         \param page   which of pages
+         \returns the shape, as a line which ends where it starts */
+      QPolygonF shape (int page) const;
 
       //! true if a gutter was seen, whether or not the pages were split
       bool gutter = false;
@@ -113,14 +145,44 @@ public:
       \returns the page, or a null image if the shape is not usable */
    static QImage rectify (const QImage &picture, const QPolygonF &quad);
 
-   /** find the pages in a picture and make an upright picture of each
+   /** make a flat picture of a page which curves, as a book's does
+
+      The page is taken to bend only across its width: a line up it,
+      level with the gutter, is straight. Such lines join the two edges
+      in the curve, and the page is read along them. Where the page
+      slopes it is seen narrower than it is, and that is put right too:
+      the part of a page nearer the camera looks taller, so the height
+      of the page across its width gives its shape.
+
+      How far the page rises is known only against how far away the
+      camera is, which the picture does not say, so it has to be told.
+
+      \param picture  the picture
+      \param curve    the page's edges, as find() gives them
+      \param focal    the focal length of the camera's lens, as a
+                      proportion of the picture's width
+      \returns the page, or a null image if the edges are not usable */
+   static QImage flatten (const QImage &picture, const Curve &curve,
+                          double focal = DefaultFocal);
+
+   /** find the pages in a picture and make an upright picture of each,
+       flat if its edges could be traced
 
       \param picture  the picture
       \param mode     how many pages to look for
       \param result   if not null, returns what was found
+      \param focal    the focal length to flatten with: see flatten()
       \returns the pages in reading order, none if no page was found */
    static QList<QImage> pages (const QImage &picture, Mode mode,
-                               Result *result = nullptr);
+                               Result *result = nullptr,
+                               double focal = DefaultFocal);
+
+   /** the focal length to take a camera to have, as a proportion of its
+       picture's width, if nothing better is known */
+   static constexpr double DefaultFocal = 0.7;
+
+   //! the number of points along each edge of a Curve
+   enum { CurvePoints = 96 };
 
    //! the length of the longer side of the copy the page is looked for in
    enum { SearchSize = 1000 };

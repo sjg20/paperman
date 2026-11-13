@@ -468,6 +468,294 @@ void TestPagefind::testCurvedBook()
    QVERIFY(qAbs(left.width() - (800 - box.left())) <= 9);
 }
 
+double TestPagefind::curvedBook(QImage &image, const Book &book)
+{
+   int w = image.width(), h = image.height();
+   double cx = w / 2.0, cy = h / 2.0;
+
+   /* Work in the picture's pixels as they are at the mat, which puts the
+      camera as far above it as the focal length, in pixels */
+   double z = book.focal * w;
+   int wide = book.width;
+   double half = book.height / 2.0;
+
+   // how high the page is, this far from the gutter
+   auto high = [&](double x) {
+      double t = qAbs(x) / wide;
+
+      return book.rise * 4 * t * (1 - t);
+   };
+
+   // how far along its surface each point across it is
+   QVector<double> along(wide + 2, 0);
+
+   for (int i = 1; i < along.size(); i++)
+      along[i] = along[i - 1] + std::hypot(1.0, high(i) - high(i - 1));
+
+   for (int y = 0; y < h; y++) {
+      QRgb *line = (QRgb *)image.scanLine(y);
+
+      for (int x = 0; x < w; x++) {
+         // find the point of the book which is seen here
+         double px = x + 0.5 - cx, at = px, up = 0;
+
+         for (int i = 0; i < 12; i++) {
+            up = qAbs(at) <= wide ? high(at) : 0;
+            at = px * (z - up) / z;
+         }
+
+         double down = (y + 0.5 - cy) * (z - up) / z - book.lower;
+
+         if (qAbs(at) > wide) {
+            // the flap lies on the mat, a little shorter than the page
+            if (book.flap && qAbs(px) <= wide + 90 &&
+                qAbs(y + 0.5 - cy - book.lower) <= half - 45)
+               line[x] = qRgb(228, 224, 210);
+            continue;
+         }
+         if (qAbs(down) > half)
+            continue;
+
+         int n = (int)qAbs(at);
+         double s = along[n] + (along[n + 1] - along[n]) * (qAbs(at) - n);
+         double mark = qAbs(down) / book.height;
+         bool rule = std::fmod(s + 3, RULE) < 6 && s > RULE / 2 &&
+            (mark < 0.02 || qAbs(mark - 0.36) < 0.02);
+         bool across = qAbs(qAbs(down) - half / 2) < 3;
+
+         if (qAbs(at) < 5)
+            line[x] = qRgb(70, 68, 66);
+         else if (rule || across)
+            line[x] = qRgb(40, 40, 45);
+         else
+            line[x] = PAPER.rgb();
+      }
+   }
+   return along[wide];
+}
+
+QString TestPagefind::checkFlat(const QImage &page, bool left,
+                                double surface, const Book &book,
+                                double within)
+{
+   int w = page.width(), h = page.height();
+   double scale = w / surface;
+
+   // it is as wide for its height as the page's surface is
+   if (qAbs((double)w / h - surface / book.height) >
+       within * surface / book.height)
+      return QString("size %1x%2, surface %3").arg(w).arg(h).arg(surface);
+
+   // the marks across it are where they are on the surface
+   for (int band = 0; band < 3; band++) {
+      int y = h * (band ? band == 1 ? 50 : 86 : 14) / 100;
+      QVector<double> found;
+      int start = -1;
+
+      for (int x = 0; x <= w; x++) {
+         bool dark = x < w && qGray(page.pixel(x, y)) < 128;
+
+         if (dark && start < 0)
+            start = x;
+         if (!dark && start >= 0) {
+            found << (start + x) / 2.0;
+            start = -1;
+         }
+      }
+
+      int count = 0;
+
+      for (double s = RULE; s < surface - RULE; s += RULE) {
+         double want = left ? w - s * scale : s * scale;
+         double best = w;
+
+         for (double x : found)
+            best = qMin(best, qAbs(x - want));
+         if (best > within * w)
+            return QString("row %1: mark at %2 is %3 out, of %4")
+               .arg(y).arg(want).arg(best).arg(w);
+         count++;
+      }
+      if (count < 8)
+         return QString("only %1 marks").arg(count);
+   }
+
+   // and the lines across it are level
+   for (int n = 0; n < 2; n++) {
+      double want = h * (n ? 0.75 : 0.25);
+
+      for (int col = 1; col < 12; col++) {
+         int x = w * col / 12 + RULE * scale / 2;
+         double sum = 0;
+         int count = 0;
+
+         // between the marks
+         if (x >= w)
+            continue;
+         for (int y = qMax(0, (int)(want - h * 0.08));
+              y < qMin(h, (int)(want + h * 0.08)); y++)
+            if (qGray(page.pixel(x, y)) < 128) {
+               sum += y;
+               count++;
+            }
+         if (count > h * 0.04)
+            continue;
+         if (!count || qAbs(sum / count - want) > within * h)
+            return QString("column %1: line at %2 is at %3, of %4")
+               .arg(x).arg(want).arg(count ? sum / count : -1).arg(h);
+      }
+   }
+   return QString();
+}
+
+void TestPagefind::testFlatten()
+{
+   QImage image = mat(QSize(1600, 1200));
+   Book book;
+
+   book.flap = true;
+
+   double surface = curvedBook(image, book);
+
+   // the pages are a good deal wider than they look
+   QVERIFY(surface > book.width * 1.05);
+
+   Pagefind::Result res;
+   QList<QImage> pages = Pagefind::pages(image, Pagefind::Mode_auto, &res,
+                                         book.focal);
+
+   QVERIFY(res.found);
+   QVERIFY(!res.flat);
+   QVERIFY(res.gutter);
+   QCOMPARE(res.pages.size(), 2);
+   QCOMPARE(res.curves.size(), 2);
+   QCOMPARE(pages.size(), 2);
+   for (int i = 0; i < 2; i++) {
+      const Pagefind::Curve &curve = res.curves[i];
+
+      QVERIFY(curve.traced);
+      QCOMPARE(curve.top.size(), (int)Pagefind::CurvePoints);
+      QCOMPARE(curve.bottom.size(), (int)Pagefind::CurvePoints);
+
+      // the edges run from the page's outer edge to the gutter, or back
+      double from = i ? 800 : 800 - book.width;
+
+      QVERIFY2(qAbs(curve.top.first().x() - from) <= 8,
+               qPrintable(QString::number(curve.top.first().x())));
+      QVERIFY2(qAbs(curve.bottom.last().x() - from - book.width) <= 8,
+               qPrintable(QString::number(curve.bottom.last().x())));
+
+      // the shape to draw goes round the page, not round a box
+      QCOMPARE(res.shape(i).size(), 2 * Pagefind::CurvePoints);
+      QVERIFY(res.shape(i) != res.pages[i]);
+
+      QString problem = checkFlat(pages[i], !i, surface, book, 0.03);
+
+      QVERIFY2(problem.isEmpty(), qPrintable(problem));
+   }
+
+   /* How much larger the high part of a page looks says how high it
+      is against how far away the camera is. So with the camera taken to
+      be further away than it is the page is taken to rise further, and
+      comes out wider; with it taken to be nearer, narrower */
+   QList<QImage> far_off = Pagefind::pages(image, Pagefind::Mode_auto,
+                                           nullptr, book.focal * 3);
+   QList<QImage> close_by = Pagefind::pages(image, Pagefind::Mode_auto,
+                                            nullptr, book.focal / 3);
+
+   QCOMPARE(far_off.size(), 2);
+   QCOMPARE(close_by.size(), 2);
+   QVERIFY(far_off[0].width() > pages[0].width() * 1.1);
+   QVERIFY(close_by[0].width() < pages[0].width() * 0.97);
+   QVERIFY(!checkFlat(far_off[0], true, surface, book, 0.03).isEmpty());
+}
+
+void TestPagefind::testFlattenOffEdge()
+{
+   QImage image = mat(QSize(1600, 1000));
+   Book book;
+
+   /* the foot of each page is off the picture where the page is high,
+      and seen near the gutter and the outer edge where it is low */
+   book.rise = 130;
+   book.lower = 500 - book.height / 2 - 35;
+
+   double surface = curvedBook(image, book);
+   Pagefind::Result res;
+   QList<QImage> pages = Pagefind::pages(image, Pagefind::Mode_auto, &res,
+                                         book.focal);
+
+   QVERIFY(res.found);
+   QCOMPARE(res.curves.size(), 2);
+   QCOMPARE(pages.size(), 2);
+   for (int i = 0; i < 2; i++) {
+      const Pagefind::Curve &curve = res.curves[i];
+
+      QVERIFY(curve.traced);
+
+      // the foot is worked out to be below the picture's own
+      double lowest = 0;
+
+      for (const QPointF &pt : curve.bottom)
+         lowest = qMax(lowest, pt.y());
+      QVERIFY2(lowest > 1008 && lowest < 1035,
+               qPrintable(QString::number(lowest)));
+
+      QString problem = checkFlat(pages[i], !i, surface, book, 0.03);
+
+      QVERIFY2(problem.isEmpty(), qPrintable(problem));
+   }
+
+   // a book which runs off the picture at head and foot is only cut out
+   QImage tall = mat(QSize(1600, 1200));
+
+   book.lower = 0;
+   book.rise = 100;
+   book.height = 1190;
+   curvedBook(tall, book);
+   pages = Pagefind::pages(tall, Pagefind::Mode_two, &res, book.focal);
+   QVERIFY(res.found);
+   QCOMPARE(res.curves.size(), 2);
+   QVERIFY(!res.curves[0].traced);
+   QVERIFY(!res.curves[1].traced);
+   QCOMPARE(res.shape(0), res.pages[0]);
+   QCOMPARE(pages.size(), 2);
+   QCOMPARE(pages[0].size(), Pagefind::rectifiedSize(res.pages[0]));
+}
+
+void TestPagefind::testFlattenBad()
+{
+   QImage image = mat(QSize(400, 300));
+   Pagefind::Curve curve;
+
+   // not traced
+   QVERIFY(Pagefind::flatten(image, curve).isNull());
+
+   curve.traced = true;
+   for (int i = 0; i < 8; i++) {
+      curve.top << QPointF(50 + i * 40, 40);
+      curve.bottom << QPointF(50 + i * 40, 260);
+   }
+   QVERIFY(Pagefind::flatten(QImage(), curve).isNull());
+   QVERIFY(Pagefind::flatten(image, curve, 0).isNull());
+
+   // a page which does not rise comes out as it is
+   QImage page = Pagefind::flatten(image, curve);
+
+   QCOMPARE(page.size(), QSize(280, 220));
+
+   // grey stays grey
+   page = Pagefind::flatten(image.convertToFormat(QImage::Format_Grayscale8),
+                            curve);
+   QCOMPARE(page.format(), QImage::Format_Grayscale8);
+
+   // the edges must match, and have some height between them
+   curve.bottom.removeLast();
+   QVERIFY(Pagefind::flatten(image, curve).isNull());
+   curve.bottom = curve.top;
+   QVERIFY(Pagefind::flatten(image, curve).isNull());
+}
+
 void TestPagefind::testNotFound()
 {
    // no picture

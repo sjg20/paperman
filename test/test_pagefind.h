@@ -56,7 +56,45 @@ public:
       \returns the middle, or (-1, -1) if there is none */
    static QPointF markAt(const QImage &image, bool red);
 
+   //! how a book drawn by curvedBook() is made
+   struct Book {
+      double focal = 0.7;    //!< the lens's focal length, of the width
+      double rise = 100;     //!< how far each page rises, in pixels
+      int width = 500;       //!< how wide each page looks, lying flat
+      int height = 760;      //!< how tall it is
+      int lower = 0;         //!< how far below the middle the book lies
+      bool flap = false;     //!< true to put a jacket's flap by each page
+   };
+
+   //! how far apart the lines down a page of curvedBook() are
+   enum { RULE = 40 };
+
+   /** draw an open book whose pages curve, as a camera above it sees it
+
+      Each page rises from the gutter and falls to its outer edge. It has
+      a row of marks across it near its head, its middle and its foot,
+      one every RULE pixels of its surface from the gutter, and a line
+      across it at a quarter and at three quarters of its height.
+
+      \param image   the picture to draw on
+      \param book    how to make the book
+      \returns the width of each page's surface, which is more than how
+               wide it looks */
+   static double curvedBook(QImage &image, const Book &book);
+
 private:
+   /** check a page of curvedBook() which has been made flat
+
+      \param page     the page
+      \param left     true if it is the left page
+      \param surface  the width of its surface, from curvedBook()
+      \param book     how the book was made
+      \param within   how far a line may be from its place, as a
+                      proportion of the page's width
+      \returns what is wrong with it, empty if nothing */
+   static QString checkFlat(const QImage &page, bool left, double surface,
+                            const Book &book, double within);
+
    //! how far the corners found are from where they should be, at most
    static double cornerError(const QPolygonF &found, const QPolygonF &want);
 
@@ -81,6 +119,15 @@ private slots:
 
    //! a book whose pages curve is given a box, and still split
    void testCurvedBook();
+
+   //! a book whose pages curve comes out flat, without its jacket
+   void testFlatten();
+
+   //! and does so where its foot runs off the picture
+   void testFlattenOffEdge();
+
+   //! edges which cannot be used give nothing
+   void testFlattenBad();
 
    //! a bare mat, a picture which is all page and no picture: no page
    void testNotFound();
