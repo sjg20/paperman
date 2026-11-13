@@ -43,6 +43,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QFileInfo>
+#include <QThread>
 #include <QHash>
 
 #include "errno.h"
@@ -6796,8 +6797,18 @@ err_info *Filemax::remove ()
       }
 
    QFile file (_dir + _filename);
+   bool ok = file.remove ();
 
-   if (!file.remove ())
+#ifdef Q_OS_WIN
+   /* something else may have a new file open for a moment, such as a
+      virus scanner, and Windows will not remove it until it lets go */
+   for (int i = 0; !ok && file.exists () && i < 20; i++)
+      {
+      QThread::msleep (50);
+      ok = file.remove ();
+      }
+#endif
+   if (!ok)
       return err_make (ERRFN, ERR_could_not_remove_file2,
                 file.fileName ().toLatin1 ().constData(),
                 file.errorString ().toLatin1 ().constData());
