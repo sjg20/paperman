@@ -59,6 +59,8 @@ signals:
    void previewFrame (const QImage &image);
    void captured (const QByteArray &jpeg);
    void failed (const QString &msg);
+   void stillPushed (const QByteArray &jpeg);
+   void pushFollowed (const QByteArray &jpeg);
 
 protected:
    void run () override;
@@ -102,6 +104,19 @@ private:
    Wait waitFrame (int ms, bool mind, QByteArray &frame, bool &damaged,
                    QString &err);
 
+   /** deal with a picture which is not one of the stream's own: a
+       still the camera took of its own accord, or the picture which
+       follows one
+
+       The picture after such a still is passed over even if the stream
+       has been stopped and started for another size in between, since
+       it may arrive as the first picture of the new size
+
+      \param jpeg   the picture, a whole JPEG
+      \param size   its size
+      \returns true if it was one of those, and has been passed on */
+   bool pushed (const QByteArray &jpeg, const QSize &size);
+
    //! send small pictures until something else is asked
    void preview (const QSize &size);
 
@@ -115,6 +130,7 @@ private:
    QVector<Buffer> _buffers;
    bool _streaming = false;
    QSize _stream_size;        //!< the size the camera is sending
+   bool _after_push = false;  //!< the next picture follows a pushed still
 
    QMutex _mutex;             //!< guards what follows
    QWaitCondition _wake;      //!< told when any of it changes
