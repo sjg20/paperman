@@ -76,6 +76,10 @@ shots:
     made: test
     test: testGoToFolder
     shows: ['@folders', '@papers']
+  camera-panel.png:
+    made: test
+    test: testCameraPanel
+    shows: [camerapanel.cpp, camera.cpp, '@papers']
   scan-panel.png:
     made: test
     test: testScanPanel
