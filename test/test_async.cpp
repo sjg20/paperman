@@ -1249,6 +1249,39 @@ void TestAsync::testAddFiles ()
    }
 
 
+void TestAsync::testStackConverts ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex parent = stackIndex ().parent ();
+   QTemporaryDir other;
+   QString picture = other.path () + "/picture.jpg";
+
+   // a picture beside the stack
+   QVERIFY (QFile::copy (testSrc + "/colour_plasma.jpg", picture));
+   model->addFiles (QStringList (picture), parent, QPoint (300, 200));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks ().size (), 2);
+
+   // stacked onto it, the picture is converted and becomes a page of it
+   int pages = serverPages ("testfile.max");
+   QModelIndex dest = model->index ("testfile.max", parent);
+   QModelIndexList list;
+
+   list << model->index ("picture.jpg", parent);
+   QVERIFY (dest.isValid () && list [0].isValid ());
+   QVERIFY (!model->stackItems (dest, list, nullptr));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages + 1);
+   QTRY_COMPARE (model->rowCount (parent), 1);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
 void TestAsync::testConvert ()
    {
    connectServer ();

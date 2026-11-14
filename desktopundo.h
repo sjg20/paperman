@@ -319,7 +319,13 @@ know how many pages to put into each unstacked stack during an undo.
 
 It is also possible to pass in the list of positions for each item. This is
 used when the current positions have been updated already and we want to
-provide an earlier possition (drag & drop has this problem) */
+provide an earlier possition (drag & drop has this problem)
+
+A stack takes only pages of its own type. Where the destination is one
+which takes others' pages (see Desktopmodel::canStackOnto()), a stack of
+another type is converted to its type first: a copy of that type is made
+and stacked in its place, and the stack itself goes to the trash. Undo
+removes the copy, once it is unstacked, and brings the stack back */
 
 class UCStackStacks : public Desktopundocmd
    {
@@ -337,6 +343,11 @@ private:
    //! page number in dest to stack before, once stacked
    std::shared_ptr<int> _pagenum;
    QList<pagepos_info> _pagepos; //!< file information for each file
+   //! the names of the stacks which went in: _filenames, or their copies
+   std::shared_ptr<QStringList> _stacked;
+   //! the stacks which were converted, the copy made of each, and the
+   //! name each has in the trash
+   std::shared_ptr<QStringList> _origs, _copies, _trashed;
    };
 
 
