@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QApplication>
 #include <QDebug>
+#include <QFileInfo>
 #include <QUndoCommand>
 
 
@@ -234,15 +235,43 @@ void UCDuplicate::undo (void)
 
 
 UCAddFiles::UCAddFiles (Desktopmodel *model, const QStringList &paths,
-                        QModelIndex &parent, QPoint pos)
+                        QModelIndex &parent, QPoint pos,
+                        const QModelIndex &dest)
       : Desktopundocmd (model)
    {
    _dir = model->deskToDirname (parent);
    _paths = paths;
    _pos = pos;
+   if (dest.isValid ())
+      _destname = model->data (dest, Desktopmodel::Role_filename).toString ();
    _newnames = std::make_shared<QStringList> ();
-   setText (QApplication::translate ("UCAddFiles", "Add files (%1)")
-               .arg (paths.size ()));
+   _pagenum = std::make_shared<int> (-1);
+   _pagepos = std::make_shared<QList<pagepos_info> > ();
+
+   // how many pages they come to, which is how many undo takes out
+   _count = 0;
+   if (dest.isValid ())
+      for (const QString &path : paths)
+         {
+         QFileInfo fi (path);
+         File::e_type type = File::typeFromName (path);
+         int pages = 1;
+
+         if (type != File::Type_jpeg)
+            {
+            File *f = File::createFile (fi.path () + "/", fi.fileName (),
+                                        nullptr, type);
+
+            pages = f->load () ? 0 : f->pagecount ();
+            delete f;
+            }
+         _count += pages;
+         }
+   setText (dest.isValid ()
+      ? QApplication::translate ("UCAddFiles", "Add files to stack (%1)")
+            .arg (paths.size ())
+      : QApplication::translate ("UCAddFiles", "Add files (%1)")
+            .arg (paths.size ()));
    }
 
 
@@ -252,21 +281,157 @@ void UCAddFiles::redo (void)
    QString dir = _dir;
    QStringList paths = _paths;
    QPoint pos = _pos;
+   QString destname = _destname;
    auto newnames = _newnames;
+   auto pagenum = _pagenum;
+   auto pagepos = _pagepos;
 
    queue (dir, [=] (Desktopmodel::OpDone done) {
       QModelIndex parent = model->deskFromDirname (dir);
 
       newnames->clear ();
+      pagepos->clear ();
       model->aboutToAdd (parent);
-      model->opAddFiles (paths, parent, pos, newnames, done);
+      if (destname.isEmpty ())
+         {
+         model->opAddFiles (paths, parent, pos, newnames, done);
+         return;
+         }
+
+      /* once they are stacks, they go into the one they are for. Those
+         of another type than it are converted to its type first, as a
+         stack takes only pages of its own type */
+      auto stack = [=] (err_info *err) {
+         QModelIndex parent = model->deskFromDirname (dir);
+         QModelIndex dest = model->index (destname, parent);
+         QModelIndexList list = model->listFromFilenames (*newnames, parent);
+
+         if (err || !dest.isValid () || list.isEmpty ())
+            {
+            done (err);
+            return;
+            }
+         for (const QModelIndex &ind : list)
+            *pagepos << model->getPosData (ind);
+         model->opRestackStacks (QModelIndexList () << dest, parent,
+                                 QList<QModelIndexList> () << list, pagenum,
+                                 done);
+      };
+
+      model->opAddFiles (paths, parent, pos, newnames, [=] (err_info *err) {
+         QModelIndex parent = model->deskFromDirname (dir);
+         QModelIndex dest = model->index (destname, parent);
+         File *fdest = model->getFile (dest);
+         QStringList others;
+
+         if (err || !fdest)
+            {
+            done (err);
+            return;
+            }
+
+         File::e_type type = fdest->type ();
+
+         for (const QString &name : *newnames)
+            if (File::typeFromName (name) != type)
+               others << name;
+         if (others.isEmpty ())
+            {
+            stack (NULL);
+            return;
+            }
+
+         // each is replaced by a copy of the stack's type
+         auto copies = std::make_shared<QStringList> ();
+         QModelIndexList list = model->listFromFilenames (others, parent);
+
+         model->opDuplicateStacks (list, parent, copies, type, 3,
+                                   [=] (err_info *err) {
+            QModelIndex parent = model->deskFromDirname (dir);
+            QModelIndexList list = model->listFromFilenames (others, parent);
+
+            if (err || copies->size () != others.size ())
+               {
+               done (err);
+               return;
+               }
+            for (int i = 0; i < others.size (); i++)
+               (*newnames) [newnames->indexOf (others [i])] = (*copies) [i];
+            model->opDeleteStacks (list, parent, stack);
+         });
+      });
    });
    }
 
 
 void UCAddFiles::undo (void)
    {
-   deleteMade (_dir, _newnames);
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QString destname = _destname;
+   auto newnames = _newnames;
+   auto pagenum = _pagenum;
+   auto pagepos = _pagepos;
+
+   // the stacks made are still there, unless they went into another
+   if (destname.isEmpty ())
+      {
+      deleteMade (_dir, _newnames);
+      return;
+      }
+
+   /* they are pages of that stack now. On a server those pages are
+      deleted from it, which leaves nothing else of them */
+   int count = _count;
+
+   if (model->isRemoteDir (dir))
+      {
+      queue (dir, [=] (Desktopmodel::OpDone done) {
+         QModelIndex parent = model->deskFromDirname (dir);
+         QModelIndex dest = model->index (destname, parent);
+
+         if (!dest.isValid () || !count || pagepos->isEmpty ()
+             || *pagenum < 0)
+            {
+            done (NULL);
+            return;
+            }
+
+         QBitArray pages (*pagenum + count);
+
+         pages.fill (true, *pagenum, *pagenum + count);
+         model->opDeletePages (dest, pages, std::make_shared<QByteArray> (),
+                               std::make_shared<int> (count), done);
+      });
+      return;
+      }
+
+   /* here they come out as the stacks they were, as when stacking is
+      undone, and those are removed */
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QModelIndex parent = model->deskFromDirname (dir);
+      QModelIndex dest = model->index (destname, parent);
+      QStringList names = *newnames;
+      QList<pagepos_info> pos = *pagepos;
+
+      if (!dest.isValid () || pos.isEmpty ())
+         {
+         done (NULL);
+         return;
+         }
+
+      err_info *err = model->opUnstackFromStack (dest, names, *pagenum, pos);
+
+      if (err)
+         {
+         done (err);
+         return;
+         }
+
+      QModelIndexList list = model->listFromFilenames (names, parent);
+
+      model->opDeleteStacks (list, parent, done);
+   });
    }
 
 

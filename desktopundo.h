@@ -160,21 +160,32 @@ private:
 
 /** add copies of some files to a desk, as stacks. We record the files'
 paths and the names of the stacks made. To redo we copy the files in again;
-to undo we remove the stacks. This mirrors UCDuplicate */
+to undo we remove the stacks. This mirrors UCDuplicate
+
+The stacks made can be put into a stack which is there already. For that
+we record its name and, as UCStackStacks does, the page they go in at and
+what each of them was, so that undo can take them out of it again before
+removing them */
 
 class UCAddFiles : public Desktopundocmd
    {
 public:
    UCAddFiles (Desktopmodel *model, const QStringList &paths,
-               QModelIndex &parent, QPoint pos);
+               QModelIndex &parent, QPoint pos, const QModelIndex &dest);
    void redo();
    void undo();
 private:
    QString _dir;           //!< desk directory
    QStringList _paths;     //!< the files to add
    QPoint _pos;            //!< where the first goes on the desk
+   QString _destname;      //!< the stack they go into; empty if none
+   int _count;             //!< how many pages the files come to
    //! the names of the stacks, once made
    std::shared_ptr<QStringList> _newnames;
+   //! page number in the stack they go in before, once stacked
+   std::shared_ptr<int> _pagenum;
+   //! what each stack made was, before it went into the other
+   std::shared_ptr<QList<pagepos_info> > _pagepos;
    };
 
 

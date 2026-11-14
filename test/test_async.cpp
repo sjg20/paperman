@@ -1229,6 +1229,22 @@ void TestAsync::testAddFiles ()
       model->addFiles (QStringList (picture), parent, QPoint (300, 200));
    });
    QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+
+   // put onto the stack, it becomes a page of it, and undo takes it out
+   int pages = serverPages ("testfile.max");
+
+   model->addFiles (QStringList (picture), parent, QPoint (300, 200),
+                    stackIndex ());
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages + 1);
+   QTRY_COMPARE (model->rowCount (parent), 1);
+
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages);
+   QVERIFY (QFile::exists (picture));
    CHECK_ASYNC (check, nullptr);
    }
 
