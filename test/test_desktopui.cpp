@@ -1652,6 +1652,53 @@ void TestDesktopUi::testDropFiles()
    QVERIFY(QFile::exists(picture));
 }
 
+void TestDesktopUi::testDropFilesOnStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   int rows = view->model()->rowCount(view->rootIndex());
+
+   QTemporaryDir other;
+   QString picture = other.path() + "/picture.jpg";
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", picture));
+
+   QMimeData mime;
+   mime.setUrls({QUrl::fromLocalFile(picture)});
+
+   // Dropped on each stack, the picture becomes a page of it
+   for (int row = 0; row < rows; row++) {
+      QModelIndex ind = itemIndex(view, row);
+      QTRY_VERIFY(view->visualRect(ind).isValid() &&
+                  view->indexAt(view->visualRect(ind).center()) == ind);
+      QPoint pos = view->visualRect(ind).center();
+      QModelIndex src = ind;
+      desktop->getModelconv()->indexToSource(view->model(), src);
+      QString name = model->getFile(src)->filename();
+      int pages = model->getFile(src)->pagecount();
+
+      QVERIFY2(dropOn(view, &mime, pos), qPrintable(name));
+      QTRY_COMPARE(model->getFile(model->index(name, repo_ind))->pagecount(),
+                   pages + 1);
+      QCOMPARE(view->model()->rowCount(view->rootIndex()), rows);
+      QVERIFY(!QFile::exists(path + "/picture.jpg"));
+      QVERIFY(QFile::exists(picture));
+
+      // Undo takes the page out and leaves no stack behind
+      me.actionUndo->trigger();
+      QTRY_COMPARE(model->getFile(model->index(name, repo_ind))->pagecount(),
+                   pages);
+      QCOMPARE(view->model()->rowCount(view->rootIndex()), rows);
+      QVERIFY(!QFile::exists(path + "/picture.jpg"));
+   }
+}
+
 void TestDesktopUi::testDragDropGroupToFolder()
 {
    Mainwindow me;

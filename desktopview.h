@@ -205,6 +205,9 @@ protected:
    //! accept files dragged in from another program, if any can be added
    void dragEnterEvent (QDragEnterEvent *event) override;
 
+   //! stop showing a stack as the one a drag would go into
+   void dragLeaveEvent (QDragLeaveEvent *event) override;
+
    /** find the files which a drag from another program would add
 
       \param event   the drag or drop
