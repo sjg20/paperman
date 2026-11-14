@@ -188,6 +188,17 @@ Pages
    Paperman cannot follow. A page which curves only a little is treated
    as a flat sheet.
 
+   The two pages of a book are the same size, but one which stands
+   nearer the camera looks larger. They are made as tall as each other:
+   as tall as the one which looks smaller, so that neither is made
+   larger than the camera saw it.
+
+   A book left to lie open by itself can go down into its gutter more
+   steeply at the head of the page than at the foot. The edges of the
+   page do not show that, so the last word or two of each line beside
+   the gutter can stay a little squeezed. Holding the book open, so
+   that its pages lie nearly flat, gives the best result.
+
 Keep the camera's pictures
    Keep each picture as the camera sent it, as well as the pages cut
    from it, so that a page which came out badly can be made again. They
