@@ -323,6 +323,14 @@ void Desktopview::dragEnterEvent (QDragEnterEvent *event)
    }
 
 
+void Desktopview::dragLeaveEvent (QDragLeaveEvent *event)
+   {
+   // no stack is to take what was being dragged
+   _modelconv->getDesktopmodel (model ())->setDropTarget (QModelIndex ());
+   QListView::dragLeaveEvent (event);
+   }
+
+
 void Desktopview::dropEvent (QDropEvent* event)
    {
    // files from another program are added where they are dropped
@@ -342,8 +350,13 @@ void Desktopview::dropEvent (QDropEvent* event)
 #endif
       Desktopmodel *dmodel = _modelconv->getDesktopmodel (model ());
 
+      // on a stack which can take them, they become pages of it
+      QModelIndex dest = indexAt (pos);
+
+      _modelconv->indexToSource (model (), dest);
+      dmodel->setDropTarget (QModelIndex ());
       pos += QPoint (horizontalOffset (), verticalOffset ());
-      dmodel->addFiles (files, rootIndexSource (), pos);
+      dmodel->addFiles (files, rootIndexSource (), pos, dest);
       event->setDropAction (Qt::CopyAction);
       event->accept ();
       return;
@@ -543,6 +556,22 @@ void Desktopview::dragMoveEvent (QDragMoveEvent *event)
          event->ignore ();
          return;
          }
+
+      // show which stack would take them as pages, if one would
+#if QT_VERSION >= 0x060000
+      QModelIndex over = indexAt (event->position ().toPoint ());
+#else
+      QModelIndex over = indexAt (event->pos ());
+#endif
+      Desktopmodel *dmodel = _modelconv->getDesktopmodel (model ());
+      QModelIndex dest = over;
+
+      _modelconv->indexToSource (model (), dest);
+      if (!dmodel->canStackOnto (dest))
+         dest = QModelIndex ();
+      dmodel->setDropTarget (dest);
+      if (dest.isValid ())
+         update (over);
       event->setDropAction (Qt::CopyAction);
       event->accept ();
       return;
