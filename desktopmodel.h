@@ -108,6 +108,7 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCTrashStacks;
    friend class UCMove;
    friend class UCDuplicate;
+   friend class UCAddFiles;
    friend class UCUnfoldBooklet;
    friend class UCUnstackStacks;
    friend class UCUnstackPage;
@@ -436,8 +437,18 @@ public:
       \param paths   the files to add
       \param parent  desk to add them to
       \param pos     where the first goes on the desk; the others follow
-                     it, each a little further on */
-   void addFiles (const QStringList &paths, QModelIndex parent, QPoint pos);
+                     it, each a little further on
+      \param dest    stack to put their pages into, if valid and it can
+                     take them (see canStackOnto()): they go in at the
+                     page it is turned to, as stacks put onto it do */
+   void addFiles (const QStringList &paths, QModelIndex parent, QPoint pos,
+                  QModelIndex dest = QModelIndex ());
+
+   /** check whether files added to a desk can go into a stack as pages
+
+      \param dest    the stack
+      \returns true if it is of a type which takes the pages of others */
+   bool canStackOnto (const QModelIndex &dest);
 
    void duplicateJpeg (QModelIndexList &list, QModelIndex parent);
 

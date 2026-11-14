@@ -76,8 +76,16 @@ bool Desktopmodel::canAddFile (const QString &path)
    }
 
 
+bool Desktopmodel::canStackOnto (const QModelIndex &dest)
+   {
+   File *f = getFile (dest);
+
+   return f && (f->type () == File::Type_max || f->type () == File::Type_pdf);
+   }
+
+
 void Desktopmodel::addFiles (const QStringList &paths, QModelIndex parent,
-                             QPoint pos)
+                             QPoint pos, QModelIndex dest)
    {
    QModelIndexList none;
    QStringList wanted;
@@ -86,8 +94,11 @@ void Desktopmodel::addFiles (const QStringList &paths, QModelIndex parent,
    for (const QString &path : paths)
       if (canAddFile (path))
          wanted << path;
-   if (!wanted.isEmpty () && checkScanStack (none, parent))
-      _undo->push (new UCAddFiles (this, wanted, parent, pos));
+   if (wanted.isEmpty () || !checkScanStack (none, parent))
+      return;
+   if (dest.isValid () && !canStackOnto (dest))
+      dest = QModelIndex ();
+   _undo->push (new UCAddFiles (this, wanted, parent, pos, dest));
    }
 
 
