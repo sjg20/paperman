@@ -64,6 +64,10 @@ public:
       int height = 760;      //!< how tall it is
       int lower = 0;         //!< how far below the middle the book lies
       bool flap = false;     //!< true to put a jacket's flap by each page
+      bool level = false;    //!< true if the flap is as light as the page
+                             //!< and its head is level with the page's
+      int block = 0;         //!< how wide the pages beneath show beside
+                             //!< each page, 0 if they do not
    };
 
    //! how far apart the lines down a page of curvedBook() are
@@ -128,6 +132,9 @@ private slots:
 
    //! and does so where its foot runs off the picture
    void testFlattenOffEdge();
+
+   //! what lies beside a page and level with it is not taken for page
+   void testSheetEdge();
 
    //! edges which cannot be used give nothing
    void testFlattenBad();

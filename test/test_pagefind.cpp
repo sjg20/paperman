@@ -576,10 +576,23 @@ double TestPagefind::curvedBook(QImage &image, const Book &book)
          double down = (y + 0.5 - cy) * (z - up) / z - book.lower;
 
          if (qAbs(at) > wide) {
+            double beside = qAbs(px) - wide;
+            double from_mid = y + 0.5 - cy - book.lower;
+
+            /* the pages beneath lie level with the page, as long as it
+               is and a little darker, with the lines of their edges */
+            if (beside <= book.block && qAbs(from_mid) <= half) {
+               int v = (int)beside % 4 ? 0 : 12;
+
+               line[x] = qRgb(214 - v, 211 - v, 205 - v);
+               continue;
+            }
+
             // the flap lies on the mat, a little shorter than the page
-            if (book.flap && qAbs(px) <= wide + 90 &&
-                qAbs(y + 0.5 - cy - book.lower) <= half - 45)
-               line[x] = qRgb(228, 224, 210);
+            if (book.flap && beside <= (book.level ? 120 : 90) &&
+                from_mid <= half - 45 &&
+                from_mid >= (book.level ? -half : 45 - half))
+               line[x] = book.level ? PAPER.rgb() : qRgb(228, 224, 210);
             continue;
          }
          if (qAbs(down) > half)
@@ -790,6 +803,55 @@ void TestPagefind::testFlattenOffEdge()
    QCOMPARE(res.shape(0), res.pages[0]);
    QCOMPARE(pages.size(), 2);
    QCOMPARE(pages[0].size(), Pagefind::rectifiedSize(res.pages[0]));
+}
+
+void TestPagefind::testSheetEdge()
+{
+   for (int pass = 0; pass < 2; pass++) {
+      QImage image = mat(QSize(1600, 1200));
+      Book book;
+
+      /* First the block of pages beneath, which the page's edges run on
+         along at both its head and its foot. Then a flap as light as the
+         page, which its head runs on along but its foot does not */
+      if (pass) {
+         book.flap = true;
+         book.level = true;
+      } else {
+         book.block = 60;
+      }
+
+      double surface = curvedBook(image, book);
+      Pagefind::Result res;
+      QList<QImage> pages = Pagefind::pages(image, Pagefind::Mode_auto,
+                                            &res, book.focal);
+
+      QVERIFY(res.found);
+      QCOMPARE(res.curves.size(), 2);
+      QCOMPARE(pages.size(), 2);
+      for (int i = 0; i < 2; i++) {
+         const Pagefind::Curve &curve = res.curves[i];
+         double outer = i ? 800 + book.width : 800 - book.width;
+
+         QVERIFY(curve.traced);
+
+         // both edges end at the sheet
+         const QPointF &top = i ? curve.top.last() : curve.top.first();
+         const QPointF &bottom = i ? curve.bottom.last()
+            : curve.bottom.first();
+
+         QVERIFY2(qAbs(top.x() - outer) <= 8,
+                  qPrintable(QString("pass %1 page %2 top %3").arg(pass)
+                             .arg(i).arg(top.x())));
+         QVERIFY2(qAbs(bottom.x() - outer) <= 8,
+                  qPrintable(QString("pass %1 page %2 bottom %3").arg(pass)
+                             .arg(i).arg(bottom.x())));
+
+         QString problem = checkFlat(pages[i], !i, surface, book, 0.03);
+
+         QVERIFY2(problem.isEmpty(), qPrintable(problem));
+      }
+   }
 }
 
 void TestPagefind::testFlattenBad()
