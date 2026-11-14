@@ -134,6 +134,7 @@ private slots:
 
    //! duplicating a stack, and undoing that before the server has answered
    void testDuplicate ();
+   void testAddFiles ();
 
    //! converting a stack to PDF, and undoing that
    void testConvert ();

@@ -423,6 +423,22 @@ public:
 
    void duplicatePdf (QModelIndexList &list, QModelIndex parent);
 
+   /** check whether a file can be added to a desk as a stack
+
+      \param path    path of the file
+      \returns true if it is of a type which is shown as a stack */
+   static bool canAddFile (const QString &path);
+
+   /** add copies of files to a desk, as stacks, leaving the files where
+       they are. Files which cannot be shown as stacks are left out, and
+       nothing is added to a desk which is being scanned into
+
+      \param paths   the files to add
+      \param parent  desk to add them to
+      \param pos     where the first goes on the desk; the others follow
+                     it, each a little further on */
+   void addFiles (const QStringList &paths, QModelIndex parent, QPoint pos);
+
    void duplicateJpeg (QModelIndexList &list, QModelIndex parent);
 
    /** duplicate a file as a .max file
@@ -931,6 +947,19 @@ public:
                          const QModelIndex &parent,
                          std::shared_ptr<QList<QStringList> > newnames,
                          OpDone done);
+
+   /** add copies of files to a desk as stacks. Those added to a folder on
+       a server are uploaded, and the server names them
+
+      \param paths      the files to add
+      \param parent     desk to add them to
+      \param pos        where the first goes on the desk
+      \param namelist   returns the name of each stack made
+      \param done       called with any error once all are added, or one
+                        fails */
+   void opAddFiles (const QStringList &paths, const QModelIndex &parent,
+                    const QPoint &pos, std::shared_ptr<QStringList> namelist,
+                    OpDone done);
 
    //! duplicate or convert stacks, as the other opDuplicateStacks() does
    void opDuplicateStacks (const QModelIndexList &list,

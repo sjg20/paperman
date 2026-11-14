@@ -69,6 +69,12 @@ There are two ways to move stacks to another folder:
 Within the stack pane, drag a stack to put it where you want it. **Tools
 > Arrange** lines the stacks up by name or by date instead.
 
+A picture or document from somewhere else on the computer comes in by
+dragging it from a file manager onto the stack pane: a JPEG, PDF or max
+file becomes a stack in the folder shown, where it is dropped. The folder
+gets a copy and the file stays where it was. **Edit > Undo** takes it out
+again.
+
 Putting pages together and apart
 --------------------------------
 

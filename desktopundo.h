@@ -158,6 +158,26 @@ private:
    };
 
 
+/** add copies of some files to a desk, as stacks. We record the files'
+paths and the names of the stacks made. To redo we copy the files in again;
+to undo we remove the stacks. This mirrors UCDuplicate */
+
+class UCAddFiles : public Desktopundocmd
+   {
+public:
+   UCAddFiles (Desktopmodel *model, const QStringList &paths,
+               QModelIndex &parent, QPoint pos);
+   void redo();
+   void undo();
+private:
+   QString _dir;           //!< desk directory
+   QStringList _paths;     //!< the files to add
+   QPoint _pos;            //!< where the first goes on the desk
+   //! the names of the stacks, once made
+   std::shared_ptr<QStringList> _newnames;
+   };
+
+
 /** unfold a group of saddle-stitched booklet stacks into new stacks with the
 pages split and put into reading order. We record the original filenames and
 the new filenames. To redo we create the unfolded stacks; to undo we remove

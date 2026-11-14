@@ -3480,6 +3480,137 @@ void Desktopmodel::opDuplicateStacks (const QModelIndexList &list,
    }
 
 
+void Desktopmodel::opAddFiles (const QStringList &paths,
+                               const QModelIndex &parent, const QPoint &pos,
+                               std::shared_ptr<QStringList> namelist,
+                               OpDone done)
+   {
+   Desk *desk = getDesk (parent);
+
+   if (!desk)
+      {
+      done (NULL);     // the folder has gone
+      return;
+      }
+
+   RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
+   QString dir = desk->dir ();
+
+   /* put the stacks made on the desk, the first where it was asked for
+      and each of the others a little further on */
+   auto show = [this, dir, pos, namelist] (const QStringList &made) {
+      QModelIndex parent = deskFromDirname (dir);
+      Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+      QList<File *> flist;
+
+      *namelist << made;
+      if (!desk)
+         return;
+
+      RemoteBackend *remote = dynamic_cast<RemoteBackend *> (desk->backend ());
+      QPoint step (16, 16);
+
+      for (const QString &name : made)
+         {
+         File *fnew = desk->createFile (desk->dir (), name);
+
+         desk->newFile (fnew);
+         fnew->setPos (pos + step * int (flist.size ()));
+         if (remote)
+            refreshRemoteThumbnail (desk, remote, fnew);
+         flist << fnew;
+         }
+      if (flist.isEmpty ())
+         return;
+      insertRows (flist, parent);
+      desk->dirty ();
+
+      // the server put them after the others; they go where they are here
+      if (desk->serverLayout ())
+         desk->sendMoves (false);
+      else if (desk->isRemote ())
+         desk->flush ();
+   };
+
+   // a local desk takes a copy of each at once
+   if (!remote)
+      {
+      QStringList made;
+      err_info *err = NULL;
+
+      for (const QString &path : paths)
+         {
+         QFileInfo fi (path);
+         QString name = fi.fileName ();
+
+         // a name which is taken gives way to one which is not
+         if (QFile::exists (dir + name))
+            {
+            QString ext = "." + fi.suffix ();
+
+            name = desk->findNextFilename (fi.completeBaseName (), dir, ext)
+               + ext;
+            }
+
+         QString to = dir + name;
+
+         if (!QFile::copy (path, to))
+            {
+            err = err_make (ERRFN, ERR_could_not_copy_file2,
+                            qPrintable (path), qPrintable (to));
+            break;
+            }
+         utilSetGroup (to);
+         made << name;
+         }
+      show (made);
+      done (err);
+      return;
+      }
+
+   /* each goes up to the server, which gives it a name of its own if
+      the folder has one like it */
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString rel = remoteRelDir (desk, dir);
+   auto made = std::make_shared<QStringList> ();
+   auto steps = std::make_shared<Steps> ();
+
+   for (const QString &path : paths)
+      {
+      QString dest = rel + (rel.isEmpty () ? "" : "/")
+         + QFileInfo (path).fileName ();
+
+      steps->requests << [this, server, repo, path, dest] (
+                            RemoteBackend::Done d) {
+         if (!server)
+            return;
+
+         QFile in (path);
+
+         if (!in.open (QIODevice::ReadOnly))
+            {
+            RemoteBackend::Result result;
+
+            result.error = tr ("cannot read %1").arg (path);
+            d (result);
+            return;
+            }
+         server->uploadFile (repo, dest, in.readAll (), false, this, d);
+      };
+      }
+   steps->what = "upload";
+   steps->each = [made] (int, const RemoteBackend::Result &result) {
+      *made << result.json ().value ("name").toString ();
+   };
+   steps->finish = [show, made, done] (int, err_info *err) {
+      show (*made);
+      done (err);
+   };
+   runSteps (steps);
+   }
+
+
 void Desktopmodel::opUnfoldBooklets (const QModelIndexList &list,
                                      const QModelIndex &parent,
                                      std::shared_ptr<QStringList> namelist,
