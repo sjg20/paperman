@@ -711,6 +711,10 @@ UCStackStacks::UCStackStacks (Desktopmodel *model, QModelIndex &dest,
    _destname = model->data (dest, Desktopmodel::Role_filename).toString ();
    _filenames = model->listToFilenames (list);
    _pagenum = std::make_shared<int> (pagenum);
+   _stacked = std::make_shared<QStringList> ();
+   _origs = std::make_shared<QStringList> ();
+   _copies = std::make_shared<QStringList> ();
+   _trashed = std::make_shared<QStringList> ();
    int upto = 0;
    foreach (ind, list)
       {
@@ -734,16 +738,71 @@ void UCStackStacks::redo (void)
    QString destname = _destname;
    QStringList filenames = _filenames;
    auto pagenum = _pagenum;
+   auto stacked = _stacked;
+   auto origs = _origs;
+   auto copies = _copies;
+   auto trashed = _trashed;
 
    queue (dir, [=] (Desktopmodel::OpDone done) {
       QString path = dir;
       QModelIndex parent = model->deskFromDirname (path);
       QModelIndex dest = model->index (destname, parent);
-      QModelIndexList list = model->listFromFilenames (filenames, parent);
+      File *fdest = model->getFile (dest);
 
-      model->opRestackStacks (QModelIndexList () << dest, parent,
-                              QList<QModelIndexList> () << list, pagenum,
-                              done);
+      *stacked = filenames;
+      origs->clear ();
+      copies->clear ();
+      trashed->clear ();
+
+      auto stack = [=] (err_info *err) {
+         QModelIndex parent = model->deskFromDirname (dir);
+         QModelIndex dest = model->index (destname, parent);
+         QModelIndexList list = model->listFromFilenames (*stacked, parent);
+
+         if (err)
+            {
+            done (err);
+            return;
+            }
+         model->opRestackStacks (QModelIndexList () << dest, parent,
+                                 QList<QModelIndexList> () << list, pagenum,
+                                 done);
+      };
+
+      // those of another type than the stack are converted to its type
+      if (fdest && model->canStackOnto (dest))
+         for (const QString &name : filenames)
+            {
+            File *f = model->getFile (model->index (name, parent));
+
+            if (f && f->type () != fdest->type ())
+               *origs << name;
+            }
+      if (origs->isEmpty ())
+         {
+         stack (NULL);
+         return;
+         }
+
+      /* a copy of the stack's type goes in for each, which itself goes
+         to the trash, for undo to bring back */
+      QModelIndexList list = model->listFromFilenames (*origs, parent);
+
+      model->opDuplicateStacks (list, parent, copies, fdest->type (), 3,
+                                [=] (err_info *err) {
+         QModelIndex parent = model->deskFromDirname (dir);
+         QModelIndexList list = model->listFromFilenames (*origs, parent);
+
+         if (err || copies->size () != origs->size ())
+            {
+            done (err);
+            return;
+            }
+         for (int i = 0; i < origs->size (); i++)
+            (*stacked) [stacked->indexOf ((*origs) [i])] = (*copies) [i];
+         model->opTrashStacks (list, parent, trashed, QString (), false,
+                               stack);
+      });
    });
    }
 
@@ -756,15 +815,46 @@ void UCStackStacks::undo (void)
    QStringList filenames = _filenames;
    auto pagenum = _pagenum;
    QList<pagepos_info> pagepos = _pagepos;
+   auto stacked = _stacked;
+   auto origs = _origs;
+   auto copies = _copies;
+   auto trashed = _trashed;
 
    queue (dir, [=] (Desktopmodel::OpDone done) {
       QString path = dir;
       QModelIndex parent = model->deskFromDirname (path);
       QModelIndex dest = model->index (destname, parent);
-      QStringList names = filenames;
+      QStringList names = stacked->isEmpty () ? filenames : *stacked;
       QList<pagepos_info> pos = pagepos;
+      err_info *err = model->opUnstackFromStack (dest, names, *pagenum, pos);
 
-      done (model->opUnstackFromStack (dest, names, *pagenum, pos));
+      if (err || origs->isEmpty () || trashed->size () != origs->size ())
+         {
+         done (err);
+         return;
+         }
+
+      /* the copies made of stacks of another type have come out: remove
+         them, and bring back the stacks they were made from, each to
+         where it was */
+      QList<pagepos_info> back;
+
+      for (const QString &name : *origs)
+         back << pagepos [filenames.indexOf (name)];
+
+      QModelIndexList list = model->listFromFilenames (*copies, parent);
+
+      model->opDeleteStacks (list, parent, [=] (err_info *err) {
+         QModelIndex parent = model->deskFromDirname (dir);
+
+         if (err)
+            {
+            done (err);
+            return;
+            }
+         model->opUntrashStacks (*trashed, parent, origs, back, true,
+                                 QString (), false, done);
+      });
    });
    }
 

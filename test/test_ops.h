@@ -72,6 +72,7 @@ private slots:
 
    //! Test moving a file to a different directory
    void testMoveToDir();
+   void testStackConverts();
    void testMoveToShownDir();
 
    //! Test changing to a different directory

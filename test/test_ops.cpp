@@ -993,6 +993,52 @@ void TestOps::testCreateDirInNewParent()
    QCOMPARE(leafDir.exists(), true);
 }
 
+void TestOps::testStackConverts()
+{
+   Mainwindow me;
+
+   // A picture beside the max and PDF stacks
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", path + "/picture.jpg"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+   int rows = model->rowCount(repo_ind);
+   QStringList before = QDir(path).entryList(QDir::Files, QDir::Name);
+
+   // Stacked onto each, it is converted and becomes a page, and undo
+   // brings the picture back as it was
+   for (const QString &name : QStringList({"testfile.max", "testpdf.pdf"})) {
+      QModelIndex dest = model->index(name, repo_ind);
+      QModelIndex pic = model->index("picture.jpg", repo_ind);
+      QVERIFY2(dest.isValid() && pic.isValid(), qPrintable(name));
+      QVERIFY(!model->getFile(dest)->load());
+      int pages = model->getFile(dest)->pagecount();
+      QPoint pos = model->getFile(pic)->pos();
+      QModelIndexList list;
+
+      list << pic;
+      QVERIFY(!model->stackItems(dest, list, nullptr));
+      dest = model->index(name, repo_ind);
+      QCOMPARE(model->getFile(dest)->pagecount(), pages + 1);
+      QCOMPARE(model->rowCount(repo_ind), rows - 1);
+      QVERIFY(!QFile::exists(path + "/picture.jpg"));
+
+      model->getUndoStack()->undo();
+      dest = model->index(name, repo_ind);
+      pic = model->index("picture.jpg", repo_ind);
+      QVERIFY(pic.isValid());
+      QCOMPARE(model->getFile(dest)->pagecount(), pages);
+      QCOMPARE(model->rowCount(repo_ind), rows);
+      QCOMPARE(model->getFile(pic)->pos(), pos);
+      QCOMPARE(QDir(path).entryList(QDir::Files, QDir::Name), before);
+   }
+}
+
 void TestOps::testMoveToDir()
 {
    Mainwindow me;
