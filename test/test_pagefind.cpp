@@ -24,6 +24,7 @@ License: GPL-2
 #include <QPainter>
 #include <QPainterPath>
 #include <QTest>
+#include <QtMath>
 
 #include "../pagefind.h"
 #include "test_pagefind.h"
@@ -549,6 +550,10 @@ double TestPagefind::curvedBook(QImage &image, const Book &book,
    int wide = book.width;
    double half = book.height / 2.0;
 
+   // the book is turned about the middle of the picture
+   double turn_c = std::cos(qDegreesToRadians(book.turn));
+   double turn_s = std::sin(qDegreesToRadians(book.turn));
+
    /* how high the page is, this far from the gutter: the left page
       can be lifted as well, the more the further out */
    auto high = [&](double x) {
@@ -575,20 +580,23 @@ double TestPagefind::curvedBook(QImage &image, const Book &book,
 
       for (int x = 0; x < w; x++) {
          // find the point of the book which is seen here
-         double px = x + 0.5 - cx, at = px, up = 0;
+         double px = x + 0.5 - cx, py = y + 0.5 - cy;
+         double mat_x = turn_c * px + turn_s * py;
+         double mat_y = turn_c * py - turn_s * px;
+         double at = mat_x, up = 0;
 
          /* a page which is lifted at its outer edge is seen further
             out than it would be lying on the mat */
          for (int i = 0; i < 12; i++) {
             up = high(qBound((double)-wide, at, (double)wide));
-            at = px * (z - up) / z;
+            at = mat_x * (z - up) / z;
          }
 
-         double down = (y + 0.5 - cy) * (z - up) / z - book.lower;
+         double down = mat_y * (z - up) / z - book.lower;
 
          if (qAbs(at) > wide) {
-            double beside = qAbs(px) - wide;
-            double from_mid = y + 0.5 - cy - book.lower;
+            double beside = qAbs(mat_x) - wide;
+            double from_mid = mat_y - book.lower;
 
             /* the pages beneath lie level with the page, as long as it
                is and a little darker, with the lines of their edges */
@@ -926,6 +934,50 @@ void TestPagefind::testSheetEdge()
                   qPrintable(QString("pass %1 page %2 bottom %3").arg(pass)
                              .arg(i).arg(bottom.x())));
 
+         QString problem = checkFlat(pages[i], !i, surface, book, 0.03);
+
+         QVERIFY2(problem.isEmpty(), qPrintable(problem));
+      }
+   }
+}
+
+void TestPagefind::testGutterLine()
+{
+   /* A book which lies a little turned: its gutter leans, by less than
+      can be told in the small copy the book is found in */
+   for (int pass = 0; pass < 2; pass++) {
+      QImage image = mat(QSize(4800, 3600));
+      Book book;
+
+      book.width = 1500;
+      book.height = 2280;
+      book.rise = 300;
+      book.turn = pass ? -1.5 : 1;
+
+      double surface = curvedBook(image, book);
+      Pagefind::Result res;
+      QList<QImage> pages = Pagefind::pages(image, Pagefind::Mode_auto,
+                                            &res, book.focal);
+
+      QVERIFY(res.found);
+      QVERIFY(res.gutter);
+      QCOMPARE(pages.size(), 2);
+
+      // the gutter runs through the middle of the picture
+      QPointF top = res.outline[0] +
+         (res.outline[1] - res.outline[0]) * res.gutter_top;
+      QPointF bottom = res.outline[3] +
+         (res.outline[2] - res.outline[3]) * res.gutter_bottom;
+      double slope = -std::tan(qDegreesToRadians(book.turn));
+
+      QVERIFY2(qAbs(top.x() - 2400 - slope * (top.y() - 1800)) <= 8,
+               qPrintable(QString("pass %1 top %2").arg(pass)
+                          .arg(top.x())));
+      QVERIFY2(qAbs(bottom.x() - 2400 - slope * (bottom.y() - 1800)) <= 8,
+               qPrintable(QString("pass %1 bottom %2").arg(pass)
+                          .arg(bottom.x())));
+
+      for (int i = 0; i < 2; i++) {
          QString problem = checkFlat(pages[i], !i, surface, book, 0.03);
 
          QVERIFY2(problem.isEmpty(), qPrintable(problem));
