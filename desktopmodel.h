@@ -285,9 +285,10 @@ public:
    /** given a directory name, return an index to the desk for this directory.
        If not found then an invalid model index will be returned
 
-       \param dir    directory path to look up
+       \param dir    directory path to look up, with or without a slash at
+                     its end
        \returns the model index for that directory */
-   QModelIndex deskFromDirname (QString &dir);
+   QModelIndex deskFromDirname (const QString &dir);
 
    /** builds a filename list from the given model index list. This list
        is a string containing each filename (not full pathname) separated

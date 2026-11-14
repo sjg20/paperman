@@ -645,9 +645,13 @@ QString Desktopmodel::deskToDirname (QModelIndex parent)
    }
 
 
-QModelIndex Desktopmodel::deskFromDirname (QString &dir)
+QModelIndex Desktopmodel::deskFromDirname (const QString &dir)
    {
-   return index (dir, QModelIndex ());
+   /* a desk's directory ends with a slash, unless it has none, as with
+      the results of a search; a caller's may not */
+   bool bare = dir.isEmpty () || dir.endsWith ('/');
+
+   return index (bare ? dir : dir + "/", QModelIndex ());
    }
 
 
@@ -3087,7 +3091,7 @@ void Desktopmodel::updatePixmap (ditem_info &di, QString &pagename)
 
 void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
    {
-   QModelIndex parent = index (dir, QModelIndex ());
+   QModelIndex parent = deskFromDirname (dir);
 
    // qDebug () << "addFilesToDesk" << dir << parent;
 
@@ -3104,7 +3108,7 @@ void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
    desk->advance ();
    foreach (QString fname, fnamelist)
       {
-      File *fnew = desk->createFile (dir, fname);
+      File *fnew = desk->createFile (desk->dir (), fname);
       desk->newFile (fnew);
       flist << fnew;
       }
@@ -3114,7 +3118,7 @@ void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
 
 void Desktopmodel::releaseFilesInDesk (QString dir, QStringList &fnamelist)
    {
-   QModelIndex parent = index (dir, QModelIndex ());
+   QModelIndex parent = deskFromDirname (dir);
 
    if (!parent.isValid ())
       return;
@@ -3128,7 +3132,7 @@ void Desktopmodel::releaseFilesInDesk (QString dir, QStringList &fnamelist)
 
 void Desktopmodel::removeFilesFromDesk (QString dir, QStringList &fnamelist)
    {
-   QModelIndex parent = index (dir, QModelIndex ());
+   QModelIndex parent = deskFromDirname (dir);
 
    // if we haven't got a desk for this, don't worry
    if (!parent.isValid ())

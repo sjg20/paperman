@@ -1219,6 +1219,54 @@ void TestOps::testMoveToDir()
    QCOMPARE(testPdf->typeName(), "PDF");
 }
 
+void TestOps::testMoveToShownDir()
+{
+   Mainwindow me;
+
+   auto path = setupRepoWithExtra();
+   Desktopwidget *desktop = me.getDesktop();
+   err_info *err = desktop->addDir(path);
+   Q_ASSERT(!err);
+
+   Desktopmodel *model = desktop->getModel();
+   QString destPath = path + "/shown";
+   QModelIndex dirIndex;
+   QVERIFY(desktop->newDir(destPath, dirIndex));
+
+   // Show the folder, so that the model holds what is in it, then go back
+   QModelIndex dest_ind = model->showDir(destPath, path, nullptr);
+   QCOMPARE(model->rowCount(dest_ind), 0);
+   QModelIndex repo_ind = model->showDir(path, path, nullptr);
+   QCOMPARE(model->rowCount(repo_ind), 4);
+
+   // Move two stacks there, with the path as the move-to-folder dialog
+   // gives it, which has no slash at its end
+   QModelIndexList list;
+   list << model->index(0, 0, repo_ind) << model->index(1, 0, repo_ind);
+   QStringList names = model->listToFilenames(list);
+   QString dest = destPath;
+   QStringList sl;
+   model->moveToDir(list, repo_ind, dest, sl);
+   for (const QString &name : names)
+      QVERIFY(QFile::exists(destPath + "/" + name));
+
+   // They have gone from the one folder and are seen in the other
+   repo_ind = model->deskFromDirname(path);
+   QCOMPARE(model->rowCount(repo_ind), 2);
+   dest_ind = model->deskFromDirname(destPath);
+   QVERIFY(dest_ind.isValid());
+   QCOMPARE(model->rowCount(dest_ind), 2);
+   for (const QString &name : names)
+      QVERIFY(model->index(name, dest_ind).isValid());
+
+   // Undo puts them back, and takes them out of the folder they went to
+   model->getUndoStack()->undo();
+   QCOMPARE(model->rowCount(repo_ind), 4);
+   QCOMPARE(model->rowCount(dest_ind), 0);
+   for (const QString &name : names)
+      QVERIFY(!QFile::exists(destPath + "/" + name));
+}
+
 void TestOps::testChangeDir()
 {
    QModelIndex repo_ind;
