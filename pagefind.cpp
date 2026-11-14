@@ -1139,6 +1139,10 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
    page has been followed along one of them, and the nearer end is taken
    for both.
 
+   The block of pages beneath a page can lie so nearly level with it
+   that neither edge ends at the sheet. Its own outer edge is then looked
+   for down the page: see find_sheet_edge().
+
    Where a page runs off the picture one of its edges is missing for
    some of its length. The part of a page which is nearer the camera
    looks larger, which moves its top edge up the picture and its bottom
@@ -1183,6 +1187,182 @@ static const int EDGE_SMOOTH = 4;
 
 //! the least width of a page whose edges are worth tracing, of the width
 static const double EDGE_LEAST = 0.08;
+
+
+//! how far in from where a page's edges end its own edge is looked for
+static const double SHEET_REACH = 0.3;
+
+//! how close to where they end it is not looked for, of the page's width
+static const double SHEET_CLEAR = 0.01;
+
+//! how far each side of it the brightness is compared, of the page's width
+static const double SHEET_BESIDE = 0.015;
+
+//! how much it may lean against the line the edges end on, of the height
+static const double SHEET_LEAN = 0.06;
+
+//! how much brighter the sheet is than what lies beside it, at the least
+static const double SHEET_STEP = 0.035;
+
+//! how many bands down the page it is looked for in
+static const int SHEET_BANDS = 40;
+
+//! how many of them must see it, in hundredths
+static const int SHEET_SEEN = 85;
+
+/** how far inside where the page's edges end it may be, of the page's
+    width: further in than that it is something on the page */
+static const double SHEET_INSIDE = 0.15;
+
+//! how many columns it is looked for in, at the most
+static const int SHEET_COLS = 320;
+
+
+/** find the outer edge of the sheet on top of a book's page
+
+   The page of an open book lies on the pages beneath it, whose edges
+   show beside it as a strip a little darker than the page: the block.
+   The top and bottom edges of the page run on along the block with
+   barely a turn, so following them does not always end at the sheet.
+   Down the page, though, the sheet's own edge is a long straight step
+   in brightness, lighter on the page's side, which nearly every part of
+   the page's height shows. Print steps the other way, being darker than
+   the margin beside it. The first letters of its lines do make a dark
+   line down the page, but one narrower than the width the brightness is
+   compared over, so it is no step.
+
+   \param image    the picture, in a format reduce() can read
+   \param top      where to look in from, level with the top of the page:
+                   the outer end of what is light, in the picture's pixels
+   \param bottom   the same, level with the bottom of the page
+   \param inward   which way along a row is into the page: 1 is right
+   \param width    how wide it is from there to the page's other side,
+                   in the picture's pixels
+   \param top_in   returns how far in from 'top' the sheet's edge is,
+                   level with it
+   \param bottom_in  returns the same for 'bottom'
+   \returns true if found, false if no such edge is to be seen */
+static bool find_sheet_edge (const QImage &image, QPointF top,
+                             QPointF bottom, int inward, double width,
+                             double &top_in, double &bottom_in)
+   {
+   double height = bottom.y () - top.y ();
+   double reach = width * SHEET_REACH, clear = width * SHEET_CLEAR;
+   double pitch = qMax (1.0, reach / SHEET_COLS);
+   int beside = qMax (2, qRound (width * SHEET_BESIDE / pitch));
+   int cols = (int)((reach - clear) / pitch);
+   int rows = qMin (20, (int)(height * 0.9 / SHEET_BANDS));
+   bool colour = image.format () != QImage::Format_Grayscale8;
+
+   if (rows < 8 || cols < 6 * beside)
+      return false;
+
+   // how far in the first column is, and how far apart the rows are
+   double first = clear;
+   double band_h = height * 0.9 / SHEET_BANDS;
+   QVector<float> step (SHEET_BANDS * cols, 0), widened (cols);
+   QVector<double> level (cols), sum (cols + 1);
+
+   for (int i = 0; i < SHEET_BANDS; i++)
+      {
+      level.fill (0);
+      for (int r = 0; r < rows; r++)
+         {
+         double y = top.y () + height * 0.05
+               + (i + (r + 0.5) / rows) * band_h;
+         double edge = top.x () + (bottom.x () - top.x ())
+               * (y - top.y ()) / height;
+         int py = (int)y;
+
+         if (py < 0 || py >= image.height ())
+            continue;
+
+         const uchar *line = image.constScanLine (py);
+
+         for (int c = 0; c < cols; c++)
+            {
+            int px = (int)(edge + inward * (first + c * pitch));
+
+            if (px < 0 || px >= image.width ())
+               continue;
+            if (colour)
+               {
+               QRgb pix = ((const QRgb *)line) [px];
+
+               level [c] += (qRed (pix) * 77 + qGreen (pix) * 150
+                             + qBlue (pix) * 29) >> 8;
+               }
+            else
+               level [c] += line [px];
+            }
+         }
+
+      // how much brighter it is just inside each column than just outside
+      sum [0] = 0;
+      for (int c = 0; c < cols; c++)
+         sum [c + 1] = sum [c] + level [c];
+      for (int c = beside; c < cols - beside; c++)
+         {
+         double outer = sum [c] - sum [c - beside];
+         double inner = sum [c + beside + 1] - sum [c + 1];
+
+         if (inner > 0)
+            step [i * cols + c] = qBound (0.0, 1 - outer / inner, 0.3);
+         }
+
+      // the edge leans, so let it be a column or two either way
+      widened.fill (0);
+      for (int c = THIN_SPREAD; c < cols - THIN_SPREAD; c++)
+         for (int dc = -THIN_SPREAD; dc <= THIN_SPREAD; dc++)
+            widened [c] = qMax (widened [c], step [i * cols + c + dc]);
+      for (int c = 0; c < cols; c++)
+         step [i * cols + c] = widened [c];
+      }
+
+   /* Try each line down the page: where it meets the top band, and how
+      far it has moved sideways by the bottom one */
+   int lean = (int)(height * SHEET_LEAN / pitch);
+   int best_seen = 0, best_at = 0, best_move = 0;
+   double best_sum = 0;
+
+   for (int move = -lean; move <= lean; move += THIN_SPREAD)
+      for (int at = beside; at < cols - beside; at++)
+         {
+         int end = at + move;
+         int seen = 0;
+         double total = 0;
+
+         if (end < beside || end >= cols - beside)
+            continue;
+         for (int i = 0; i < SHEET_BANDS; i++)
+            {
+            float here = step [i * cols + at
+                               + move * i / (SHEET_BANDS - 1)];
+
+            if (here >= SHEET_STEP)
+               seen++;
+            total += here;
+            }
+         if (seen * 100 >= SHEET_BANDS * SHEET_SEEN && total > best_sum)
+            {
+            best_seen = seen;
+            best_sum = total;
+            best_at = at;
+            best_move = move;
+            }
+         }
+   if (!best_seen)
+      return false;
+
+   // from the middle of the first band and the last to the ends
+   double at_first = first + best_at * pitch;
+   double per_row = best_move * pitch / ((SHEET_BANDS - 1) * band_h);
+   double first_mid = height * 0.05 + band_h / 2;
+
+   top_in = at_first - per_row * first_mid;
+   bottom_in = top_in + per_row * height;
+   return top_in > 0 && bottom_in > 0;
+   }
 
 
 //! one edge of the patch, top or bottom, column by column
@@ -1451,7 +1631,8 @@ static bool fill_edge (QVector<QPointF> &part, const QVector<bool> &seen,
 
 /** trace the top and bottom edges of a page which is not flat
 
-   \param grey    the copy
+   \param image   the picture, in a format reduce() can read
+   \param grey    the copy of it
    \param level   the level which divides page from mat in it
    \param sheet   the pixels of the copy which are page
    \param kind    0 for the left page of two, 1 for the right, 2 for a
@@ -1460,9 +1641,9 @@ static bool fill_edge (QVector<QPointF> &part, const QVector<bool> &seen,
                   its own, a point in the middle of it
    \param gb      the gutter's bottom end
    \returns the edges, in the copy's pixels */
-static Pagefind::Curve trace_page (const Grey &grey, int level,
-                                   const QVector<uchar> &sheet, int kind,
-                                   QPointF gt, QPointF gb)
+static Pagefind::Curve trace_page (const QImage &image, const Grey &grey,
+                                   int level, const QVector<uchar> &sheet,
+                                   int kind, QPointF gt, QPointF gb)
    {
    int w = grey.w, h = grey.h;
    Edge top, bottom;
@@ -1562,26 +1743,70 @@ static Pagefind::Curve trace_page (const Grey &grey, int level,
       and the two should be level with the gutter */
    for (int side = 0; side < 2; side++)
       {
-      if (kind == side)
-         continue;      // this side of the page is the gutter
-
       int &t = side ? top.to : top.from;
       int &b = side ? bottom.to : bottom.from;
+      int inward = side ? -1 : 1;
+
+      // on the gutter's side, only leave out the gutter's own shadow
+      if (kind + side == 1)
+         {
+         t += inward * 2;
+         b += inward * 2;
+         continue;
+         }
+
       bool t_off = top.at [t] == top.limit;
       bool b_off = bottom.at [b] == bottom.limit;
-      int inward = side ? -1 : 1;
       double apart = (b - lean) - t;
+
+      /* the last pixel or two of a page with no gutter to end it are
+         part page and part mat */
+      int trim = kind == 2 ? 2 : 0;
 
       if (t_off && b_off)
          return curve;
+
+      // the end which is further out, as it is level with the top edge
+      int far = t_off ? qRound (b - lean) : t;
+
+      if (!b_off && (b - lean - far) * inward < 0)
+         far = qRound (b - lean);
       if (t_off || (!b_off && apart * inward > w * EDGE_ENDS))
          t = qRound (b - lean);
       else if (b_off || apart * inward < -w * EDGE_ENDS)
          b = qRound (t + lean);
 
-      // the last pixel or two of an edge are part page and part mat
-      t += inward * 2;
-      b += inward * 2;
+      /* The further end is where what is light ends, which may be the
+         pages beneath this one or the flap of a jacket. Look in from
+         there for the sheet's own edge, which is not far inside the
+         nearer end if it is there at all */
+      int tc = qBound (0, t, w - 1), bc = qBound (0, b, w - 1);
+      double top_in, bottom_in;
+      double wide = qAbs (far - (side ? top.from : top.to));
+
+      if (top.at [tc] >= 0 && bottom.at [bc] > top.at [tc]
+          && find_sheet_edge (image,
+                              QPointF (far + 0.5, top.at [tc]) * grey.factor,
+                              QPointF (far + lean + 0.5, bottom.at [bc])
+                                 * grey.factor,
+                              inward, wide * grey.factor, top_in,
+                              bottom_in))
+         {
+         int sheet_t = far + inward * qRound (top_in / grey.factor);
+         int sheet_b = qRound (far + lean)
+               + inward * qRound (bottom_in / grey.factor);
+
+         if ((sheet_t - t) * inward <= wide * SHEET_INSIDE
+             && (sheet_b - b) * inward <= wide * SHEET_INSIDE)
+            {
+            t = sheet_t;
+            b = sheet_b;
+            trim = 1;      // keep clear of what lies beside the sheet
+            }
+         }
+
+      t += inward * trim;
+      b += inward * trim;
       }
    top.from = qBound (0, top.from, w - 1);
    top.to = qBound (0, top.to, w - 1);
@@ -1667,7 +1892,7 @@ Pagefind::Result Pagefind::find (const QImage &picture, Mode mode)
 
       if (!squared)
          return curve;
-      curve = trace_page (grey, level, sheet, kind,
+      curve = trace_page (image, grey, level, sheet, kind,
                           kind == 2 ? middle : gutter_top,
                           kind == 2 ? middle : gutter_bottom);
       for (QPointF &pt : curve.top)
