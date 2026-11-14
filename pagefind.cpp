@@ -1195,8 +1195,10 @@ static const double EDGE_TURN_FROM = 0.15;
 //! how far from the gutter to start following an edge, of the width
 static const double EDGE_START = 0.02;
 
-//! how far apart the two edges may end, of the width
-static const double EDGE_ENDS = 0.05;
+/** how far apart the two edges may end, of the width. A page whose ends
+    are not level with the gutter comes out leaning, but a page which
+    does not lie flat can end a little out of level of itself */
+static const double EDGE_ENDS = 0.01;
 
 //! how much of an edge must be seen for the rest to be worked out
 static const double EDGE_SEEN = 0.25;
@@ -1826,6 +1828,13 @@ static Pagefind::Curve trace_page (const QImage &image, const Grey &grey,
          if ((sheet_t - t) * inward <= wide * SHEET_INSIDE
              && (sheet_b - b) * inward <= wide * SHEET_INSIDE)
             {
+            // its ends are to be level with the gutter as well
+            double sheet_apart = (sheet_b - lean) - sheet_t;
+
+            if (sheet_apart * inward > w * EDGE_ENDS)
+               sheet_t = qRound (sheet_b - lean);
+            else if (sheet_apart * inward < -w * EDGE_ENDS)
+               sheet_b = qRound (sheet_t + lean);
             t = sheet_t;
             b = sheet_b;
             trim = 1;      // keep clear of what lies beside the sheet

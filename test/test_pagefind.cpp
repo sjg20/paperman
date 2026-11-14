@@ -608,7 +608,10 @@ double TestPagefind::curvedBook(QImage &image, const Book &book,
             }
 
             // the flap lies on the mat, a little shorter than the page
-            if (book.flap && beside <= (book.level ? 120 : 90) &&
+            int flap = book.flap_wide ? book.flap_wide
+               : book.level ? 120 : 90;
+
+            if (book.flap && beside <= flap &&
                 from_mid <= half - 45 &&
                 from_mid >= (book.level ? -half : 45 - half))
                line[x] = book.level ? PAPER.rgb() : qRgb(228, 224, 210);
@@ -941,6 +944,36 @@ void TestPagefind::testSheetEdge()
    }
 }
 
+double TestPagefind::markLean(const QImage &page)
+{
+   int w = page.width(), h = page.height();
+   QVector<double> found[2];
+
+   for (int band = 0; band < 2; band++) {
+      int y = h * (band ? 86 : 14) / 100;
+      int start = -1;
+
+      for (int x = 0; x <= w; x++) {
+         bool dark = x < w && qGray(page.pixel(x, y)) < 128;
+
+         if (dark && start < 0)
+            start = x;
+         if (!dark && start >= 0) {
+            found[band] << (start + x) / 2.0;
+            start = -1;
+         }
+      }
+   }
+   if (found[0].size() < 8 || found[0].size() != found[1].size())
+      return 1;
+
+   double most = 0;
+
+   for (int i = 0; i < found[0].size(); i++)
+      most = qMax(most, qAbs(found[0][i] - found[1][i]));
+   return most / w;
+}
+
 void TestPagefind::testGutterLine()
 {
    /* A book which lies a little turned: its gutter leans, by less than
@@ -982,6 +1015,51 @@ void TestPagefind::testGutterLine()
 
          QVERIFY2(problem.isEmpty(), qPrintable(problem));
       }
+   }
+}
+
+void TestPagefind::testLevelEnds()
+{
+   /* A narrow flap as light as each page, which the page's head runs on
+      along but its foot does not: its top edge ends a little further out
+      than its bottom one, which is enough to leave the page leaning */
+   QImage image = mat(QSize(1600, 1200));
+   Book book;
+
+   book.flap = true;
+   book.level = true;
+   book.flap_wide = 34;
+
+   double surface = curvedBook(image, book);
+   Pagefind::Result res;
+   QList<QImage> pages = Pagefind::pages(image, Pagefind::Mode_auto, &res,
+                                         book.focal);
+
+   QVERIFY(res.found);
+   QCOMPARE(res.curves.size(), 2);
+   QCOMPARE(pages.size(), 2);
+
+   for (int i = 0; i < 2; i++) {
+      // both edges end at the sheet
+      const Pagefind::Curve &curve = res.curves[i];
+      double outer = i ? 800 + book.width : 800 - book.width;
+      const QPointF &top = i ? curve.top.last() : curve.top.first();
+      const QPointF &bottom = i ? curve.bottom.last()
+         : curve.bottom.first();
+
+      QVERIFY(curve.traced);
+      QVERIFY2(qAbs(top.x() - outer) <= 8,
+               qPrintable(QString("page %1 top %2").arg(i).arg(top.x())));
+      QVERIFY2(qAbs(bottom.x() - outer) <= 8,
+               qPrintable(QString("page %1 bottom %2").arg(i)
+                          .arg(bottom.x())));
+
+      QString problem = checkFlat(pages[i], !i, surface, book, 0.03);
+
+      QVERIFY2(problem.isEmpty(), qPrintable(problem));
+      QVERIFY2(markLean(pages[i]) <= 0.006,
+               qPrintable(QString("page %1 leans %2").arg(i)
+                          .arg(markLean(pages[i]))));
    }
 }
 
