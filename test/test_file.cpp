@@ -2310,6 +2310,15 @@ void TestFile::testPdfTextLayer()
       Poppler::Document::load(dir + "out.pdf"));
    QVERIFY(doc);
    std::unique_ptr<Poppler::Page> page(doc->page(0));
+
+   // the page's image is still drawn, under the text which is not
+   QImage shown = page->renderToImage(36, 36);
+   int dark = 0;
+
+   for (int y = 0; y < shown.height(); y++)
+      for (int x = 0; x < shown.width(); x++)
+         dark += qGray(shown.pixel(x, y)) < 128;
+   QVERIFY2(dark > 20, qPrintable(QString::number(dark)));
    QSizeF points = page->pageSizeF();
    double scale = qMin(points.width() / image.width(),
                        points.height() / image.height());

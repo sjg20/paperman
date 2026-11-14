@@ -795,8 +795,18 @@ err_info *Pdfio::addTextLayer (int pagenum, const OcrPage &ocr)
 #endif
       stream.SetData (bufferview (out.constData (), out.size ()));
 #else
-      page->GetContentsForAppending ()->GetStream ()->Set (out.constData (),
-                                                           out.size ());
+      /* where the page's contents are a single stream, this gives that
+         stream rather than a new one, so keep what it holds: it draws
+         the page's image */
+      PdfStream *stream = page->GetContentsForAppending ()->GetStream ();
+      char *before;
+      pdf_long before_len;
+
+      stream->GetFilteredCopy (&before, &before_len);
+      if (before_len)
+         out = QByteArray (before, before_len) + "\n" + out;
+      podofo_free (before);
+      stream->Set (out.constData (), out.size ());
       page->AddResource (PdfName ("PmOcr"), font->Reference (),
                          PdfName ("Font"));
 #endif
