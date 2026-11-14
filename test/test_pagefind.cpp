@@ -537,7 +537,8 @@ void TestPagefind::testCurvedBook()
    QVERIFY(qAbs(left.width() - (800 - box.left())) <= 9);
 }
 
-double TestPagefind::curvedBook(QImage &image, const Book &book)
+double TestPagefind::curvedBook(QImage &image, const Book &book,
+                                double *left)
 {
    int w = image.width(), h = image.height();
    double cx = w / 2.0, cy = h / 2.0;
@@ -548,18 +549,26 @@ double TestPagefind::curvedBook(QImage &image, const Book &book)
    int wide = book.width;
    double half = book.height / 2.0;
 
-   // how high the page is, this far from the gutter
+   /* how high the page is, this far from the gutter: the left page
+      can be lifted as well, the more the further out */
    auto high = [&](double x) {
       double t = qAbs(x) / wide;
 
-      return book.rise * 4 * t * (1 - t);
+      return book.rise * 4 * t * (1 - t) + (x < 0 ? book.lift * t : 0);
    };
 
-   // how far along its surface each point across it is
-   QVector<double> along(wide + 2, 0);
+   // how far along its surface each point across each page is
+   QVector<double> along[2];
 
-   for (int i = 1; i < along.size(); i++)
-      along[i] = along[i - 1] + std::hypot(1.0, high(i) - high(i - 1));
+   for (int side = 0; side < 2; side++) {
+      along[side].fill(0, wide + 2);
+      for (int i = 1; i < wide + 2; i++) {
+         int sign = side ? 1 : -1;
+
+         along[side][i] = along[side][i - 1] +
+            std::hypot(1.0, high(sign * i) - high(sign * (i - 1)));
+      }
+   }
 
    for (int y = 0; y < h; y++) {
       QRgb *line = (QRgb *)image.scanLine(y);
@@ -568,8 +577,10 @@ double TestPagefind::curvedBook(QImage &image, const Book &book)
          // find the point of the book which is seen here
          double px = x + 0.5 - cx, at = px, up = 0;
 
+         /* a page which is lifted at its outer edge is seen further
+            out than it would be lying on the mat */
          for (int i = 0; i < 12; i++) {
-            up = qAbs(at) <= wide ? high(at) : 0;
+            up = high(qBound((double)-wide, at, (double)wide));
             at = px * (z - up) / z;
          }
 
@@ -599,7 +610,8 @@ double TestPagefind::curvedBook(QImage &image, const Book &book)
             continue;
 
          int n = (int)qAbs(at);
-         double s = along[n] + (along[n + 1] - along[n]) * (qAbs(at) - n);
+         const QVector<double> &page = along[at >= 0];
+         double s = page[n] + (page[n + 1] - page[n]) * (qAbs(at) - n);
          double mark = qAbs(down) / book.height;
          bool rule = std::fmod(s + 3, RULE) < 6 && s > RULE / 2 &&
             (mark < 0.02 || qAbs(mark - 0.36) < 0.02);
@@ -613,7 +625,9 @@ double TestPagefind::curvedBook(QImage &image, const Book &book)
             line[x] = PAPER.rgb();
       }
    }
-   return along[wide];
+   if (left)
+      *left = along[0][wide];
+   return along[1][wide];
 }
 
 QString TestPagefind::checkFlat(const QImage &page, bool left,
@@ -750,6 +764,71 @@ void TestPagefind::testFlatten()
    QVERIFY(far_off[0].width() > pages[0].width() * 1.1);
    QVERIFY(close_by[0].width() < pages[0].width() * 0.97);
    QVERIFY(!checkFlat(far_off[0], true, surface, book, 0.03).isEmpty());
+}
+
+void TestPagefind::testFlattenSpread()
+{
+   /* the left page stands up from the gutter, so is nearer the camera
+      and looks a good deal larger than the right one */
+   QImage image = mat(QSize(1600, 1200));
+   Book book;
+   double left;
+
+   book.lift = 150;
+
+   double right = curvedBook(image, book, &left);
+
+   QVERIFY(left > right * 1.02);
+
+   Pagefind::Result res;
+   QList<QImage> pages = Pagefind::pages(image, Pagefind::Mode_auto, &res,
+                                         book.focal);
+
+   QCOMPARE(pages.size(), 2);
+   QCOMPARE(res.curves.size(), 2);
+   QVERIFY(res.curves[0].traced);
+   QVERIFY(res.curves[1].traced);
+
+   // left to itself, each page is as tall as its largest part looks
+   int tall[2];
+
+   for (int i = 0; i < 2; i++) {
+      tall[i] = Pagefind::flatHeight(res.curves[i]);
+
+      QImage alone = Pagefind::flatten(image, res.curves[i], book.focal);
+
+      QCOMPARE(alone.height(), tall[i]);
+   }
+   QVERIFY2(tall[0] > tall[1] * 1.08,
+            qPrintable(QString("%1 %2").arg(tall[0]).arg(tall[1])));
+
+   /* but they are the same size, so come out as tall as each other: as
+      tall as the one which looks smaller, with neither made larger */
+   QCOMPARE(pages[0].height(), tall[1]);
+   QCOMPARE(pages[1].height(), tall[1]);
+
+   // and each is still the shape of its own surface, so the wider one
+   // is wider by as much as its surface is
+   QString problem = checkFlat(pages[0], true, left, book, 0.03);
+
+   QVERIFY2(problem.isEmpty(), qPrintable(problem));
+   problem = checkFlat(pages[1], false, right, book, 0.03);
+   QVERIFY2(problem.isEmpty(), qPrintable(problem));
+
+   double ratio = (double)pages[0].width() / pages[1].width();
+
+   QVERIFY2(qAbs(ratio - left / right) <= 0.03,
+            qPrintable(QString::number(ratio)));
+
+   // a page can be made at any height, its width following
+   QImage half = Pagefind::flatten(image, res.curves[1], book.focal,
+                                   tall[1] / 2);
+
+   QCOMPARE(half.height(), tall[1] / 2);
+   QVERIFY(qAbs(half.width() * 2 - pages[1].width()) <= 2);
+
+   // edges which cannot be used have no height
+   QCOMPARE(Pagefind::flatHeight(Pagefind::Curve()), 0);
 }
 
 void TestPagefind::testFlattenOffEdge()
