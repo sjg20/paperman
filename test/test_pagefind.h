@@ -71,6 +71,7 @@ public:
       double lift = 0;       //!< how far the left page's outer edge is
                              //!< lifted above the gutter, in pixels
       double turn = 0;       //!< how far the book is turned, in degrees
+      int flap_wide = 0;     //!< how wide the flap is, 0 to leave it be
    };
 
    //! how far apart the lines down a page of curvedBook() are
@@ -104,6 +105,14 @@ private:
       \returns what is wrong with it, empty if nothing */
    static QString checkFlat(const QImage &page, bool left, double surface,
                             const Book &book, double within);
+
+   /** see how far a page of curvedBook() which has been made flat leans
+
+      \param page     the page
+      \returns how far the marks near its head are from those near its
+               foot, at most, as a proportion of its width; 1 if they
+               cannot be matched up */
+   static double markLean(const QImage &page);
 
    //! how far the corners found are from where they should be, at most
    static double cornerError(const QPolygonF &found, const QPolygonF &want);
@@ -147,6 +156,9 @@ private slots:
 
    //! the line of a gutter which leans is found closely
    void testGutterLine();
+
+   //! edges which end a little apart are made level with the gutter
+   void testLevelEnds();
 
    //! edges which cannot be used give nothing
    void testFlattenBad();
