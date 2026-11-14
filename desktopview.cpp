@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QMimeData>
 #include <QItemSelectionModel>
 #include <QScrollBar>
+#include <QUrl>
 
 #include <algorithm>
 
@@ -283,8 +284,71 @@ QModelIndex Desktopview::indexAt (const QPoint &in_point) const
    }
 
 
+QStringList Desktopview::filesToAdd (const QDropEvent *event)
+   {
+   QStringList files;
+
+   // a drag within this program moves stacks, and is not for here
+   if (event->source () || !event->mimeData ()->hasUrls ())
+      return files;
+
+   // the results of a search, say, are not a folder to add to
+   QModelIndex root = rootIndexSource ();
+   Desktopmodel *dmodel = _modelconv->getDesktopmodel (model ());
+
+   if (!root.isValid () || dmodel->deskToDirname (root).isEmpty ())
+      return files;
+
+   for (const QUrl &url : event->mimeData ()->urls ())
+      {
+      QString path = url.toLocalFile ();
+
+      if (url.isLocalFile () && Desktopmodel::canAddFile (path))
+         files << path;
+      }
+   return files;
+   }
+
+
+void Desktopview::dragEnterEvent (QDragEnterEvent *event)
+   {
+   if (!filesToAdd (event).isEmpty ())
+      {
+      // the files stay where they are; the folder gets copies
+      event->setDropAction (Qt::CopyAction);
+      event->accept ();
+      return;
+      }
+   QListView::dragEnterEvent (event);
+   }
+
+
 void Desktopview::dropEvent (QDropEvent* event)
    {
+   // files from another program are added where they are dropped
+   if (!event->source ())
+      {
+      QStringList files = filesToAdd (event);
+
+      if (files.isEmpty ())
+         {
+         event->ignore ();
+         return;
+         }
+#if QT_VERSION >= 0x060000
+      QPoint pos = event->position ().toPoint ();
+#else
+      QPoint pos = event->pos ();
+#endif
+      Desktopmodel *dmodel = _modelconv->getDesktopmodel (model ());
+
+      pos += QPoint (horizontalOffset (), verticalOffset ());
+      dmodel->addFiles (files, rootIndexSource (), pos);
+      event->setDropAction (Qt::CopyAction);
+      event->accept ();
+      return;
+      }
+
    qDebug() << "dropEvent" << event << event->possibleActions();
 
    if (!utilDropSupported(event,
@@ -471,6 +535,19 @@ void Desktopview::timerEvent (QTimerEvent *event)
 
 void Desktopview::dragMoveEvent (QDragMoveEvent *event)
    {
+   // files from another program can go anywhere in the folder
+   if (!event->source ())
+      {
+      if (filesToAdd (event).isEmpty ())
+         {
+         event->ignore ();
+         return;
+         }
+      event->setDropAction (Qt::CopyAction);
+      event->accept ();
+      return;
+      }
+
    QListView::dragMoveEvent (event);
    QAbstractItemModel *model = this->model ();
 
