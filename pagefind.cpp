@@ -963,6 +963,10 @@ static const double THIN_INNER = 0.004, THIN_OUTER = 0.02;
 //! how much darker than the paper beside it a thin gutter is, at the least
 static const double THIN_DEPTH = 0.06;
 
+/** how far from where a gutter was found in the small copy its line is
+    looked for in the finer one, of the page's width */
+static const double THIN_NEAR = 0.02;
+
 /** look for a gutter which is no more than a thin line
 
    A book held open and flat has no shadow between its pages: only a line
@@ -973,14 +977,22 @@ static const double THIN_DEPTH = 0.06;
    the page: the gutter is the straight line which most of the bands see
    something dark on.
 
+   The same serves to say just where a gutter which is clear to see runs.
+   The small copy shows that it is there, but not its line to better
+   than a hundredth of the page's width, which is enough to leave the
+   page leaning. Told where it is, this looks only close by.
+
    \param image    the picture, in a format reduce() can read
    \param quad     the outline, in the picture's pixels
    \param top      returns where the gutter meets the top of the outline,
-                   as for find_gutter()
-   \param bottom   returns where it meets the bottom
+                   as for find_gutter(); if known is true, this is where
+                   it was found to, and is left alone if no line is found
+   \param bottom   the same for where it meets the bottom
+   \param known    true to look only near where it is known to be
    \returns how clear the gutter is, 0 if there is none */
 static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
-                                double &top, double &bottom)
+                                double &top, double &bottom,
+                                bool known = false)
    {
    QSize size = Pagefind::rectifiedSize (quad);
    int w = qMin ((int)THIN_W, size.width ());
@@ -990,7 +1002,8 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
    QPolygonF upright ({QPointF (0, 0), QPointF (w, 0), QPointF (w, h),
                        QPointF (0, h)});
 
-   top = bottom = 0.5;
+   if (!known)
+      top = bottom = 0.5;
    if (rows < 8 || w < 400 || !QTransform::quadToQuad (upright, quad, map))
       return 0;
 
@@ -1007,6 +1020,7 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
    QVector<uchar> band (cols * rows);
    QVector<double> level (cols), near_by;
    QVector<float> depth (THIN_BANDS * cols, 0), widened (cols);
+   QVector<float> exact;
 
    for (int i = 0; i < THIN_BANDS; i++)
       {
@@ -1065,6 +1079,11 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
             depth [i * cols + x] = qMax (0.0, 1 - level [x] / paper);
          }
 
+      /* a gutter which is known of is to be placed as well as can be,
+         so keep how dark each column itself is */
+      if (known)
+         exact += depth.mid (i * cols, cols);
+
       // the line leans, so let it be a column or two either way
       widened.fill (0);
       for (int x = THIN_SPREAD; x < cols - THIN_SPREAD; x++)
@@ -1079,8 +1098,14 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
    int lean = (int)(w * GUTTER_SLOPE * (THIN_BANDS - 1) * rows / h);
    int best_seen = 0, best_at = 0, best_move = 0;
    double best_sum = 0;
+   double first_mid = (skip + 0.5 * rows) / h;
+   double last_mid = (skip + (THIN_BANDS - 0.5) * rows) / h;
 
-   for (int move = -lean; move <= lean; move += THIN_SPREAD)
+   // where the line known of crosses the top band, and the bottom one
+   double near_at = (top + (bottom - top) * first_mid) * w - x0;
+   double near_end = (top + (bottom - top) * last_mid) * w - x0;
+
+   for (int move = -lean; move <= lean; move += known ? 1 : THIN_SPREAD)
       for (int at = outer; at < cols - outer; at++)
          {
          int end = at + move;
@@ -1089,6 +1114,9 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
 
          if (end < outer || end >= cols - outer)
             continue;
+         if (known && (qAbs (at - near_at) > w * THIN_NEAR
+                       || qAbs (end - near_end) > w * THIN_NEAR))
+            continue;
          for (int i = 0; i < THIN_BANDS; i++)
             {
             int x = at + move * i / (THIN_BANDS - 1);
@@ -1096,7 +1124,7 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
 
             if (here >= THIN_DEPTH)
                seen++;
-            sum += here;
+            sum += known ? exact [i * cols + x] : here;
             }
          if (seen > best_seen || (seen == best_seen && sum > best_sum))
             {
@@ -1113,7 +1141,6 @@ static double find_thin_gutter (const QImage &image, const QPolygonF &quad,
 
    // from the middle of the top band to the top of the page, and so on
    double slope = (double)best_move / w * h / ((THIN_BANDS - 1) * rows);
-   double first_mid = (skip + 0.5 * rows) / h;
 
    top = (x0 + best_at + 0.5) / w - slope * first_mid;
    bottom = top + slope;
@@ -1862,15 +1889,16 @@ Pagefind::Result Pagefind::find (const QImage &picture, Mode mode)
    double top, bottom;
    double depth = find_gutter (grey, quad, top, bottom);
 
+   // the outline in the picture's own pixels, to look more closely
+   QPolygonF full = quad;
+
+   for (QPointF &pt : full)
+      pt *= grey.factor;
+
    // a book held flat shows no more of its gutter than a line
    if (depth < GUTTER_CLEAR)
       {
-      QPolygonF full = quad;
       double thin_top, thin_bottom;
-
-      for (QPointF &pt : full)
-         pt *= grey.factor;
-
       double thin = find_thin_gutter (image, full, thin_top, thin_bottom);
 
       if (thin > depth)
@@ -1879,6 +1907,11 @@ Pagefind::Result Pagefind::find (const QImage &picture, Mode mode)
          top = thin_top;
          bottom = thin_bottom;
          }
+      }
+   else
+      {
+      // it is there: see just where it runs
+      find_thin_gutter (image, full, top, bottom, true);
       }
 
    // in the copy's pixels

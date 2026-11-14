@@ -70,6 +70,7 @@ public:
                              //!< each page, 0 if they do not
       double lift = 0;       //!< how far the left page's outer edge is
                              //!< lifted above the gutter, in pixels
+      double turn = 0;       //!< how far the book is turned, in degrees
    };
 
    //! how far apart the lines down a page of curvedBook() are
@@ -143,6 +144,9 @@ private slots:
 
    //! what lies beside a page and level with it is not taken for page
    void testSheetEdge();
+
+   //! the line of a gutter which leans is found closely
+   void testGutterLine();
 
    //! edges which cannot be used give nothing
    void testFlattenBad();
