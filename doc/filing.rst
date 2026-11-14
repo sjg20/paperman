@@ -83,7 +83,9 @@ Putting pages together and apart
 - A letter scanned in two goes, or a bill and its receipt, become one
   stack with **Stack** (Ctrl+G): select the stack to keep first, turned
   to the page the others should go before, then the others, and press
-  Ctrl+G.
+  Ctrl+G. Dragging one stack onto another does the same. A stack of
+  another type, such as a JPEG picture put onto a max or PDF stack, is
+  converted to the type of the stack it joins.
 - A page which belongs elsewhere comes out with **Unstack page**
   (Ctrl+I), as a stack of its own, which can then be stacked with another.
 - A pile of single sheets scanned as one stack comes apart with
