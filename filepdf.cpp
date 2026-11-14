@@ -119,6 +119,9 @@ err_info *Filepdf::remove (void)
    // currently only works if the object is about to be destroyed
    QFile file (_dir + _filename);
 
+   // a file which is held open cannot be removed on Windows
+   release ();
+
    if (file.exists () && !file.remove ())
       return err_make (ERRFN, ERR_could_not_remove_file2,
                 file.fileName ().toLatin1 ().constData(),
