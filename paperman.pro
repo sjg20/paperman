@@ -170,6 +170,7 @@ HEADERS += desktopwidget.h \
  imageadjust.h \
  imagetrim.h \
  pagecover.h \
+ laserlines.h \
  pagefind.h \
  camera.h \
  camerascan.h \
@@ -280,6 +281,7 @@ SOURCES += desktopwidget.cpp \
  imageadjust.cpp \
  imagetrim.cpp \
  pagecover.cpp \
+ laserlines.cpp \
  pagefind.cpp \
  camera.cpp \
  camerascan.cpp \
