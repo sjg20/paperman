@@ -18,6 +18,8 @@ License: GPL-2
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <QDateTime>
+#include <QFile>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -368,6 +370,21 @@ void Camerapanel::openCamera (const QString &id)
    connect (_camera, &Camera::stillPushed, this,
             &Camerapanel::stillPushed);
    connect (_camera, &Camera::failed, this, &Camerapanel::cameraFailed);
+   // TRIAL ONLY: keep the picture which follows a pushed still
+   connect (_camera, &Camera::pushFollowed, this,
+            [] (const QByteArray &jpeg)
+      {
+      QString dir = qEnvironmentVariable ("PAPERMAN_LASER_DIR");
+      static int seq;
+
+      if (dir.isEmpty ())
+         return;
+      QFile file (QString ("%1/laser_%2_%3.jpg").arg (dir)
+            .arg (QDateTime::currentDateTime ().toString ("HHmmss"))
+            .arg (++seq));
+      if (file.open (QIODevice::WriteOnly))
+         file.write (jpeg);
+      });
    _camera->startPreview (stillSize ());
    updateState ();
    }
