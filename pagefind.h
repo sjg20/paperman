@@ -161,12 +161,25 @@ public:
       \param curve    the page's edges, as find() gives them
       \param focal    the focal length of the camera's lens, as a
                       proportion of the picture's width
+      \param height   how tall to make the page, in pixels, its width
+                      following from that; 0 to make it flatHeight()
       \returns the page, or a null image if the edges are not usable */
    static QImage flatten (const QImage &picture, const Curve &curve,
-                          double focal = DefaultFocal);
+                          double focal = DefaultFocal, int height = 0);
+
+   /** how tall flatten() makes a page if left to choose: as tall as the
+       part of it which looks largest, so that nothing in the picture is
+       lost
+
+      \param curve    the page's edges, as find() gives them
+      \returns the height in pixels, 0 if the edges are not usable */
+   static int flatHeight (const Curve &curve);
 
    /** find the pages in a picture and make an upright picture of each,
        flat if its edges could be traced
+
+      The two pages of a book are made as tall as each other: as tall
+      as the one which looks smaller.
 
       \param picture  the picture
       \param mode     how many pages to look for

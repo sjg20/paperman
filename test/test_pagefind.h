@@ -68,6 +68,8 @@ public:
                              //!< and its head is level with the page's
       int block = 0;         //!< how wide the pages beneath show beside
                              //!< each page, 0 if they do not
+      double lift = 0;       //!< how far the left page's outer edge is
+                             //!< lifted above the gutter, in pixels
    };
 
    //! how far apart the lines down a page of curvedBook() are
@@ -82,9 +84,12 @@ public:
 
       \param image   the picture to draw on
       \param book    how to make the book
-      \returns the width of each page's surface, which is more than how
-               wide it looks */
-   static double curvedBook(QImage &image, const Book &book);
+      \param left    if not null, returns the width of the left page's
+                     surface, which is the greater if that page is lifted
+      \returns the width of the right page's surface, which is more than
+               how wide it looks */
+   static double curvedBook(QImage &image, const Book &book,
+                            double *left = nullptr);
 
 private:
    /** check a page of curvedBook() which has been made flat
@@ -129,6 +134,9 @@ private slots:
 
    //! a book whose pages curve comes out flat, without its jacket
    void testFlatten();
+
+   //! the two pages of a book come out at one scale
+   void testFlattenSpread();
 
    //! and does so where its foot runs off the picture
    void testFlattenOffEdge();

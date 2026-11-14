@@ -2073,29 +2073,58 @@ QPolygonF Pagefind::Result::shape (int page) const
    }
 
 
-QImage Pagefind::flatten (const QImage &picture, const Curve &curve,
-                          double focal)
+/** work out how tall a page which curves looks, across its width
+
+   The part of the page nearer the camera looks larger, by Z / (Z - h)
+   for a camera Z above the mat and a part h above it. A line up the
+   page is as long all the way across, so how long it looks gives
+   h / Z, taking the part which looks smallest to be the lowest
+
+   \param curve  the page's edges
+   \param tall   returns how long the line up the page from each point
+                 of its top edge looks
+   \param least  returns the least of those
+   \param most   returns the most
+   \returns true if the edges are usable */
+static bool page_tall (const Pagefind::Curve &curve, QVector<double> &tall,
+                       double &least, double &most)
    {
    int count = curve.top.size ();
 
-   if (picture.isNull () || !curve.traced || count < 4
-       || curve.bottom.size () != count || focal <= 0)
-      return QImage ();
+   if (!curve.traced || count < 4 || curve.bottom.size () != count)
+      return false;
 
-   /* The part of the page nearer the camera looks larger, by Z / (Z - h)
-      for a camera Z above the mat and a part h above it. A line up the
-      page is as long all the way across, so how long it looks gives
-      h / Z, taking the part which looks smallest to be the lowest */
-   QVector<double> tall (count);
-
+   tall.resize (count);
    for (int i = 0; i < count; i++)
       tall [i] = QLineF (curve.top [i], curve.bottom [i]).length ();
    smooth (tall, 1);
 
-   double least = *std::min_element (tall.begin (), tall.end ());
-   double most = *std::max_element (tall.begin (), tall.end ());
+   least = *std::min_element (tall.begin (), tall.end ());
+   most = *std::max_element (tall.begin (), tall.end ());
+   return least >= 2;
+   }
 
-   if (least < 2)
+
+int Pagefind::flatHeight (const Curve &curve)
+   {
+   QVector<double> tall;
+   double least, most;
+
+   if (!page_tall (curve, tall, least, most))
+      return 0;
+   return qRound (most);
+   }
+
+
+QImage Pagefind::flatten (const QImage &picture, const Curve &curve,
+                          double focal, int height)
+   {
+   int count = curve.top.size ();
+   QVector<double> tall;
+   double least, most;
+
+   if (picture.isNull () || focal <= 0
+       || !page_tall (curve, tall, least, most))
       return QImage ();
 
    /* Going across the page, it moves sideways and it rises, and how far
@@ -2120,10 +2149,11 @@ QImage Pagefind::flatten (const QImage &picture, const Curve &curve,
       prev_z = z;
       }
 
-   /* make it at the size of its largest part, so that nothing in the
-      picture is lost */
-   double scale = most / least;
-   QSize size (qRound (along [count - 1] * scale), qRound (most));
+   /* unless told how tall, make it at the size of its largest part, so
+      that nothing in the picture is lost */
+   double scale = (height > 0 ? height : qRound (most)) / least;
+   QSize size (qRound (along [count - 1] * scale),
+               height > 0 ? height : qRound (most));
 
    if (size.width () < 2 || size.height () < 2
        || size.width () > MAX_RECTIFIED || size.height () > MAX_RECTIFIED)
@@ -2192,12 +2222,27 @@ QList<QImage> Pagefind::pages (const QImage &picture, Mode mode,
 
    if (result)
       *result = found;
+
+   /* The pages of an open book are the same size, but one which stands
+      nearer the camera looks larger, and left to itself comes out larger.
+      Make them as tall as the one which looks smaller, so that they come
+      out at one scale and neither is made larger than it looks */
+   int height = 0;
+
+   for (const Curve &curve : found.curves)
+      {
+      int tall = flatHeight (curve);
+
+      if (tall && (!height || tall < height))
+         height = tall;
+      }
+
    for (int i = 0; i < found.pages.size (); i++)
       {
       QImage page;
 
       if (i < found.curves.size () && found.curves [i].traced)
-         page = flatten (picture, found.curves [i], focal);
+         page = flatten (picture, found.curves [i], focal, height);
       if (page.isNull ())
          page = rectify (picture, found.pages [i]);
       if (!page.isNull ())
