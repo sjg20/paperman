@@ -152,6 +152,7 @@ private slots:
 
    //! Test dragging a stack onto a folder in the tree moves it there
    void testDragDropToFolder();
+   void testDropFiles();
 
    //! Ctrl-M moves the stacks chosen to a folder, or copies them
    void testMoveKey();

@@ -8,6 +8,10 @@
 #include <QSplitter>
 #include <QSettings>
 #include <QToolButton>
+#include <QDir>
+#include <QDragEnterEvent>
+#include <QTemporaryDir>
+#include <QUrl>
 #include <QUrlQuery>
 #include <QtTest/QtTest>
 
@@ -1569,6 +1573,83 @@ void TestDesktopUi::testDragDropToFolder()
    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
 
    delete mime;
+}
+
+/* Drop @p mime on @p view at @p pos, as a drag from another program does
+
+   \returns true if the view took the drop */
+static bool dropOn(Desktopview *view, const QMimeData *mime, QPoint pos)
+{
+   QDragEnterEvent enter(pos, Qt::CopyAction | Qt::MoveAction, mime,
+                         Qt::LeftButton, Qt::NoModifier);
+
+   QApplication::sendEvent(view->viewport(), &enter);
+   if (!enter.isAccepted())
+      return false;
+
+   QDropEvent drop(QPointF(pos), Qt::CopyAction | Qt::MoveAction, mime,
+                   Qt::LeftButton, Qt::NoModifier);
+
+   QApplication::sendEvent(view->viewport(), &drop);
+   return drop.isAccepted();
+}
+
+void TestDesktopUi::testDropFiles()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   int rows = view->model()->rowCount(view->rootIndex());
+
+   // A picture somewhere else, and a file which is not shown as a stack
+   QTemporaryDir other;
+   QString picture = other.path() + "/picture.jpg";
+   QString notes = other.path() + "/notes.txt";
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", picture));
+   QFile file(notes);
+   QVERIFY(file.open(QIODevice::WriteOnly));
+   file.write("some notes");
+   file.close();
+
+   // The notes alone are refused
+   QMimeData mime;
+   mime.setUrls({QUrl::fromLocalFile(notes)});
+   QVERIFY(!dropOn(view, &mime, QPoint(300, 200)));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), rows);
+
+   // With the picture, the picture is copied in and the notes left out
+   mime.setUrls({QUrl::fromLocalFile(picture), QUrl::fromLocalFile(notes)});
+   QVERIFY(dropOn(view, &mime, QPoint(300, 200)));
+   QTRY_VERIFY(QFile::exists(path + "/picture.jpg"));
+   QVERIFY(QFile::exists(picture));
+   QVERIFY(!QFile::exists(path + "/notes.txt"));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), rows + 1);
+
+   // It is a stack, where it was dropped
+   QModelIndex ind = model->index("picture.jpg", repo_ind);
+   QVERIFY(ind.isValid());
+   QPoint scrolled(view->horizontalScrollBar()->value(),
+                   view->verticalScrollBar()->value());
+   QCOMPARE(model->getFile(ind)->pos(), QPoint(300, 200) + scrolled);
+
+   // Another of the same name gets a name of its own
+   QVERIFY(dropOn(view, &mime, QPoint(400, 250)));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), rows + 2);
+   QCOMPARE(QDir(path).entryList({"picture*.jpg"}).size(), 2);
+
+   // Undo takes each away again, and leaves the picture where it came from
+   me.actionUndo->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), rows + 1);
+   me.actionUndo->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), rows);
+   QTRY_VERIFY(!QFile::exists(path + "/picture.jpg"));
+   QVERIFY(QFile::exists(picture));
 }
 
 void TestDesktopUi::testDragDropGroupToFolder()

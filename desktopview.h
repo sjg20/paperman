@@ -199,8 +199,19 @@ protected:
    void focusInEvent (QFocusEvent *event) override;
 
    /** handle a drop event - this saves the new position of items into
-       the model*/
+       the model, or adds files dropped from another program */
    void dropEvent (QDropEvent* event);
+
+   //! accept files dragged in from another program, if any can be added
+   void dragEnterEvent (QDragEnterEvent *event) override;
+
+   /** find the files which a drag from another program would add
+
+      \param event   the drag or drop
+      \returns the files of it which can be added to the folder shown as
+               stacks; none if the drag is from within this program, or
+               the view is not showing a folder */
+   QStringList filesToAdd (const QDropEvent *event);
 
 //    void wheelEvent (QWheelEvent *e);
 
