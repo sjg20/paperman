@@ -233,6 +233,43 @@ void UCDuplicate::undo (void)
    }
 
 
+UCAddFiles::UCAddFiles (Desktopmodel *model, const QStringList &paths,
+                        QModelIndex &parent, QPoint pos)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (parent);
+   _paths = paths;
+   _pos = pos;
+   _newnames = std::make_shared<QStringList> ();
+   setText (QApplication::translate ("UCAddFiles", "Add files (%1)")
+               .arg (paths.size ()));
+   }
+
+
+void UCAddFiles::redo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   QStringList paths = _paths;
+   QPoint pos = _pos;
+   auto newnames = _newnames;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QModelIndex parent = model->deskFromDirname (dir);
+
+      newnames->clear ();
+      model->aboutToAdd (parent);
+      model->opAddFiles (paths, parent, pos, newnames, done);
+   });
+   }
+
+
+void UCAddFiles::undo (void)
+   {
+   deleteMade (_dir, _newnames);
+   }
+
+
 UCUnfoldBooklet::UCUnfoldBooklet (Desktopmodel *model, QModelIndexList &list,
       QModelIndex &parent)
       : Desktopundocmd (model)

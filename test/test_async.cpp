@@ -7,6 +7,7 @@ License: GPL-2
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QTemporaryDir>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QTableView>
@@ -1189,6 +1190,44 @@ void TestAsync::testDuplicate ()
    QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
 
    doAndUndo ([&] () { model->duplicate (list, stackIndex ().parent ()); });
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testAddFiles ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex parent = stackIndex ().parent ();
+   QTemporaryDir other;
+   QString picture = other.path () + "/picture.jpg";
+
+   QVERIFY (QFile::copy (testSrc + "/colour_plasma.jpg", picture));
+
+   // the picture goes up to the server and is shown where it was put
+   model->addFiles (QStringList (picture), parent, QPoint (300, 200));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks ().size (), 2);
+   QVERIFY (QFile::exists (serverPath ("picture.jpg")));
+   QTRY_COMPARE (model->rowCount (parent), 2);
+
+   QModelIndex ind = model->index ("picture.jpg", parent);
+
+   QVERIFY (ind.isValid ());
+   QCOMPARE (model->getFile (ind)->pos (), QPoint (300, 200));
+
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QVERIFY (QFile::exists (picture));
+
+   doAndUndo ([&] () {
+      model->addFiles (QStringList (picture), parent, QPoint (300, 200));
+   });
    QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
    CHECK_ASYNC (check, nullptr);
    }

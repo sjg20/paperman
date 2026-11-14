@@ -33,6 +33,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <QFileInfo>
+
 #include "desktopmodel.h"
 #include "desktopundo.h"
 #include "file.h"
@@ -64,6 +66,28 @@ err_info *Desktopmodel::duplicate (QModelIndexList &list, QModelIndex parent)
    if (checkScanStack (list, parent))
       _undo->push (new UCDuplicate (this, list, parent, File::Type_other));
    return NULL;
+   }
+
+
+bool Desktopmodel::canAddFile (const QString &path)
+   {
+   return File::typeFromName (path) != File::Type_other
+      && QFileInfo (path).isFile ();
+   }
+
+
+void Desktopmodel::addFiles (const QStringList &paths, QModelIndex parent,
+                             QPoint pos)
+   {
+   QModelIndexList none;
+   QStringList wanted;
+
+   _modelconv->assertIsSource (0, &parent, 0);
+   for (const QString &path : paths)
+      if (canAddFile (path))
+         wanted << path;
+   if (!wanted.isEmpty () && checkScanStack (none, parent))
+      _undo->push (new UCAddFiles (this, wanted, parent, pos));
    }
 
 
