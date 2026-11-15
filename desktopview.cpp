@@ -121,8 +121,31 @@ void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &)
       {
       QString str = index.model ()->data (index, Desktopmodel::Role_message).toString ();
       emit newContents (str);
-      emit itemPreview (index, 0, false);
+
+      /* a press may be the start of a drag into the pages of the stack
+         now shown, so that stack stays shown until the button comes up */
+      if (_pressing)
+         _heldPreview = true;
+      else
+         emit itemPreview (index, 0, false);
       }
+   }
+
+
+void Desktopview::showHeldPreview (void)
+   {
+   if (!_heldPreview)
+      return;
+   _heldPreview = false;
+   // as when the current stack changes at any other time
+   if (currentIndex ().isValid ())
+      emit itemPreview (currentIndex (), 0, false);
+   }
+
+
+void Desktopview::cancelHeldPreview (void)
+   {
+   _heldPreview = false;
    }
 
 void Desktopview::setRootIndex (const QModelIndex &index)
@@ -902,7 +925,28 @@ void Desktopview::mousePressEvent (QMouseEvent *event)
    // if the user clicks in space, deselect everything
    if (!index.isValid () && !event->modifiers ())
       selectionModel ()->clear ();
+   _pressing = event->button () == Qt::LeftButton;
+   _heldPreview = false;
    QListView::mousePressEvent (event);
+   }
+
+
+void Desktopview::mouseReleaseEvent (QMouseEvent *event)
+   {
+   QListView::mouseReleaseEvent (event);
+   _pressing = false;
+   showHeldPreview ();
+   }
+
+
+void Desktopview::startDrag (Qt::DropActions supportedActions)
+   {
+   // the button's release goes to the drag, so the press is over
+   _pressing = false;
+   QListView::startDrag (supportedActions);
+
+   // dropped anywhere but among the pages shown, the stack is shown now
+   showHeldPreview ();
    }
 
 

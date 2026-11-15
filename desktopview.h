@@ -101,6 +101,10 @@ public:
       \param count   number of rows to select */
    void setSelectionRange (int row, int count);
 
+   /** forget the stack pressed, which was to be shown once its drag was
+       over: it has gone into the stack shown, which stays shown */
+   void cancelHeldPreview (void);
+
    /** adds the given range to the current selection
 
       \param row     first row to select
@@ -243,6 +247,12 @@ protected:
    //! handle a keypress event
    void keyReleaseEvent(QKeyEvent *event);
 
+   /* a stack pressed is shown when the button comes up, or when a drag
+      of it ends, so that it can be dragged into the pages of the stack
+      shown until then */
+   void mouseReleaseEvent (QMouseEvent *event) override;
+   void startDrag (Qt::DropActions supportedActions) override;
+
 protected slots:
    void currentChanged (const QModelIndex &current, const QModelIndex &previous);
 
@@ -252,7 +262,13 @@ protected slots:
 private:
    void checkAutoscroll (QPoint pos);
 
+   //! show the stack whose preview was held back while it was pressed
+   void showHeldPreview (void);
+
 private:
+   bool _pressing = false;      //!< true while the left button is down
+   //! true if the current stack changed while pressed and is yet to be shown
+   bool _heldPreview = false;
    QPersistentModelIndex _context_index;    //!< item that context menu was opened on
    int _timer_id;          //!< event timer
    bool _auto_scrolling;   //!< true if currently autoscrolling

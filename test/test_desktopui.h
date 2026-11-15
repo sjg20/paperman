@@ -75,6 +75,7 @@ private slots:
    void testFocusSelectsNothing();
 
    //! Test that ctrl-click adds a second stack to the selection
+   void testPressKeepsStackShown();
    void testCtrlClickMultiSelect();
 
    //! Test that double-clicking a stack opens it in the page view
