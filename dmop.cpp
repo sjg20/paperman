@@ -3203,6 +3203,92 @@ void Desktopmodel::opUnstackPage (const QModelIndex &ind,
    }
 
 
+void Desktopmodel::opUnstackFromStack (const QModelIndex &src,
+                                       std::shared_ptr<QStringList> newnames,
+                                       int srcpagenum,
+                                       const QList<pagepos_info> &pagepos,
+                                       OpDone done)
+   {
+   File *f = getFile (src);
+   RemoteBackend *remote = f ? remoteForFile (f) : nullptr;
+
+   if (!remote)
+      {
+      QModelIndex stack = src;
+      QList<pagepos_info> pos = pagepos;
+
+      done (opUnstackFromStack (stack, *newnames, srcpagenum, pos));
+      return;
+      }
+
+   /* Ask the server for each in turn: it takes the pages out into a new
+      stack, with the name asked for where that is free. Each run of
+      pages starts at the same page, as the one before it has gone */
+   Desk *desk = f->desk ();
+   QPointer<RemoteBackend> server (remote);
+   QString repo = desk->repoName ();
+   QString dir = desk->dir ();
+   QString fname = f->filename ();
+   QString path = remoteStackPath (desk, f);
+   int count = qMin (newnames->size (), pagepos.size ());
+   auto steps = std::make_shared<Steps> ();
+
+   steps->what = "unstack";
+   for (int i = 0; i < count; i++)
+      steps->requests << [=] (RemoteBackend::Done d) {
+         if (!server)
+            {
+            d (RemoteBackend::Result ());
+            return;
+            }
+         server->unstackStack (repo, path, srcpagenum + 1,
+                               qMax (pagepos [i].pagecount, 1), true,
+                               (*newnames) [i], this, d);
+      };
+   steps->each = [=] (int i, const RemoteBackend::Result &result) {
+      (*newnames) [i] = result.json ().value ("name").toString ();
+   };
+   steps->finish = [=] (int upto, err_info *err) {
+      QModelIndex ind = stackFor (dir, fname);
+      File *f = getFile (ind);
+      QList<File *> flist;
+
+      // show those which came out, each where it was
+      if (f)
+         {
+         Desk *desk = f->desk ();
+
+         for (int i = 0; i < upto; i++)
+            {
+            File *fnew = desk->createFile (desk->dir (), (*newnames) [i]);
+
+            desk->newFile (fnew);
+            fnew->setPos (pagepos [i].pos);
+            fnew->setPagenum (pagepos [i].pagenum);
+            if (server)
+               refreshRemoteThumbnail (desk, server, fnew);
+            flist << fnew;
+            }
+         if (upto)
+            stackChangedOnServer (ind);
+         if (!flist.isEmpty ())
+            {
+            insertRows (flist, ind.parent ());
+            desk->dirty ();
+
+            // the server put them after the others
+            if (desk->serverLayout ())
+               desk->sendMoves (false);
+            else if (desk->isRemote ())
+               desk->flush ();
+            }
+         }
+      done (err);
+   };
+   runSteps (steps);
+   }
+
+
 void Desktopmodel::opUnstackStacks (const QModelIndexList &list,
                                     const QModelIndex &parent,
                                     std::shared_ptr<QList<QStringList> > newnames,

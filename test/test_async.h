@@ -136,6 +136,7 @@ private slots:
    void testDuplicate ();
    void testAddFiles ();
    void testStackConverts ();
+   void testStackUndo ();
 
    //! converting a stack to PDF, and undoing that
    void testConvert ();
