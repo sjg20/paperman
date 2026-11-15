@@ -310,6 +310,49 @@ void TestDesktopUi::testFocusSelectsNothing()
    QCOMPARE(shown.count(), 1);
 }
 
+void TestDesktopUi::testPressKeepsStackShown()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   Pagewidget *page = desktop->_page;
+   QModelIndex shown;
+
+   // The first stack is clicked and shown
+   clickItem(view, 0);
+   QTRY_VERIFY(page->getCurrentIndex(shown, true));
+   QString first = model->data(shown, Desktopmodel::Role_filename).toString();
+
+   // Pressing another selects it, but leaves the first one shown, so that
+   // the other can be dragged into its pages
+   QSignalSpy preview(view,
+                      SIGNAL(itemPreview(const QModelIndex &, int, bool)));
+   QModelIndex other = itemIndex(view, 1);
+   QTRY_VERIFY(view->visualRect(other).isValid() &&
+               view->indexAt(view->visualRect(other).center()) == other);
+   QPoint pos = view->visualRect(other).center();
+
+   QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, pos);
+   QCOMPARE(view->currentIndex(), other);
+   QTest::qWait(400);   // longer than the wait before a stack is shown
+   QCOMPARE(preview.count(), 0);
+   QVERIFY(page->getCurrentIndex(shown, true));
+   QCOMPARE(model->data(shown, Desktopmodel::Role_filename).toString(),
+            first);
+
+   // Letting go shows it
+   QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, pos);
+   QVERIFY(preview.count() >= 1);
+   QTRY_VERIFY(page->getCurrentIndex(shown, true)
+               && model->data(shown, Desktopmodel::Role_filename).toString()
+                  != first);
+}
+
 void TestDesktopUi::testCtrlClickMultiSelect()
 {
    QModelIndex repo_ind;
