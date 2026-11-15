@@ -1683,10 +1683,21 @@ void TestDesktopUi::testDropFilesOnStack()
       QString name = model->getFile(src)->filename();
       int pages = model->getFile(src)->pagecount();
 
+      // Another stack is the current one
+      clickItem(view, row ? 0 : rows - 1);
+      QVERIFY(view->currentIndex() != ind);
+
       QVERIFY2(dropOn(view, &mime, pos), qPrintable(name));
       QTRY_COMPARE(model->getFile(model->index(name, repo_ind))->pagecount(),
                    pages + 1);
       QCOMPARE(view->model()->rowCount(view->rootIndex()), rows);
+
+      // The stack it went into is now the one selected and shown
+      QModelIndex joined = model->index(name, repo_ind);
+      desktop->getModelconv()->indexToProxy(model, joined);
+      QTRY_COMPARE(view->currentIndex(), joined);
+      QCOMPARE(view->selectionModel()->selectedIndexes(),
+               QModelIndexList() << joined);
       QVERIFY(!QFile::exists(path + "/picture.jpg"));
       QVERIFY(QFile::exists(picture));
 
@@ -1697,6 +1708,48 @@ void TestDesktopUi::testDropFilesOnStack()
       QCOMPARE(view->model()->rowCount(view->rootIndex()), rows);
       QVERIFY(!QFile::exists(path + "/picture.jpg"));
    }
+}
+
+void TestDesktopUi::testStackSelectsDest()
+{
+   Mainwindow me;
+
+   // A picture beside the max and PDF stacks
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", path + "/picture.jpg"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+   Desktopview *view = desktop->getView();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+
+   // The picture is the one selected, as it is when it is dragged
+   QModelIndex pic = model->index("picture.jpg", repo_ind);
+   QModelIndex shown = pic;
+   desktop->getModelconv()->indexToProxy(model, shown);
+   view->setSelectionRange(shown.row(), 1);
+   QCOMPARE(view->currentIndex(), shown);
+
+   // Stacked onto another, it leaves that one selected, not a neighbour
+   QModelIndex dest = model->index("testfile.max", repo_ind);
+   QModelIndexList list;
+
+   list << pic;
+   QVERIFY(!model->stackItems(dest, list, nullptr));
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   dest = model->index("testfile.max", repo_ind);
+   desktop->getModelconv()->indexToProxy(model, dest);
+   QTRY_COMPARE(view->currentIndex(), dest);
+   QCOMPARE(view->selectionModel()->selectedIndexes(),
+            QModelIndexList() << dest);
 }
 
 void TestDesktopUi::testDragDropGroupToFolder()

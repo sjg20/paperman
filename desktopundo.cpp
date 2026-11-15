@@ -275,6 +275,29 @@ UCAddFiles::UCAddFiles (Desktopmodel *model, const QStringList &paths,
    }
 
 
+/** make a completion which says that a stack has new pages, once they
+    are in, then passes on to another
+
+   \param model     model the stack is in
+   \param dir       directory of the stack
+   \param destname  filename of the stack
+   \param done      completion to pass on to
+   \returns the completion */
+static Desktopmodel::OpDone joined (Desktopmodel *model, const QString &dir,
+                                    const QString &destname,
+                                    Desktopmodel::OpDone done)
+   {
+   return [=] (err_info *err) {
+      QModelIndex dest = model->index (destname,
+                                       model->deskFromDirname (dir));
+
+      if (!err && dest.isValid ())
+         emit model->stackJoined (dest);
+      done (err);
+   };
+   }
+
+
 void UCAddFiles::redo (void)
    {
    Desktopmodel *model = _model;
@@ -315,7 +338,7 @@ void UCAddFiles::redo (void)
             *pagepos << model->getPosData (ind);
          model->opRestackStacks (QModelIndexList () << dest, parent,
                                  QList<QModelIndexList> () << list, pagenum,
-                                 done);
+                                 joined (model, dir, destname, done));
       };
 
       model->opAddFiles (paths, parent, pos, newnames, [=] (err_info *err) {
@@ -766,7 +789,7 @@ void UCStackStacks::redo (void)
             }
          model->opRestackStacks (QModelIndexList () << dest, parent,
                                  QList<QModelIndexList> () << list, pagenum,
-                                 done);
+                                 joined (model, dir, destname, done));
       };
 
       // those of another type than the stack are converted to its type

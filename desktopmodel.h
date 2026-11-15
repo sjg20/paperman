@@ -1285,6 +1285,12 @@ signals:
       \param pagenum  the page whose properties changed */
    void pagePropsChanged (const QModelIndex &index, int pagenum);
 
+   /** emitted when stacks or files have become pages of a stack, so that
+       a view can show that stack, with its new pages
+
+      \param index    source model index of the stack they went into */
+   void stackJoined (const QModelIndex &index);
+
    /** emitted when a stack's structure or a page asked for with
        requestContent() or requestPage() has come, or failed to */
    void contentFetched ();

@@ -234,6 +234,8 @@ Desktopwidget::Desktopwidget (QWidget *parent)
       this, SLOT (slotBeginningScan (const QModelIndex &)));
    connect (_contents, SIGNAL (endingScan (bool)),
       this, SLOT (slotEndingScan (bool)));
+   connect (_contents, &Desktopmodel::stackJoined,
+            this, &Desktopwidget::slotStackJoined);
    connect (_contents, SIGNAL(updateRepositoryList (QString &, bool)),
             this, SLOT(slotUpdateRepositoryList (QString &, bool)));
 
@@ -795,6 +797,22 @@ void Desktopwidget::slotModeChanging (int new_mode, int old_mode)
       else
          defaultSizes (new_mode);
       }
+   }
+
+
+void Desktopwidget::slotStackJoined (const QModelIndex &sind)
+   {
+   QModelIndex ind = sind;
+
+   // the view shows one folder, and this may be in another
+   _modelconv->indexToProxy (ind.model (), ind);
+   if (!ind.isValid () || ind.parent () != _view->rootIndex ())
+      return;
+
+   /* the stacks which went in are gone, leaving whichever stack was
+      beside them as the current one: show the one they went into */
+   _view->scrollTo (ind);
+   _view->setSelectionRange (ind.row (), 1);
    }
 
 
