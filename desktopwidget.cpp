@@ -813,6 +813,12 @@ void Desktopwidget::slotStackJoined (const QModelIndex &sind)
       beside them as the current one: show the one they went into */
    _view->scrollTo (ind);
    _view->setSelectionRange (ind.row (), 1);
+
+   /* if it was the current one already, nothing shows it again, and the
+      page list was cleared when the stacks which went in were removed */
+   _timer->stop ();
+   _update_index = ind;
+   slotItemPreview (ind, 0, true);
    }
 
 
