@@ -1100,6 +1100,96 @@ void TestOps::testStackOnPdf()
    }
 }
 
+void TestOps::testStackAtPage()
+{
+   Mainwindow me;
+
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   // The picture is the only page of its size
+   QImage picture(testSrc + "/colour_plasma.jpg");
+   QVERIFY(!picture.isNull());
+
+   // which page of a stack the picture is, or -1
+   auto find = [&](const QString &name) {
+      File *f = model->getFile(model->index(name, repo_ind));
+      int found = -1;
+
+      for (int pagenum = 0; pagenum < f->pagecount(); pagenum++) {
+         QSize size, trueSize;
+         int bpp, image_size, compressed_size;
+         QDateTime timestamp;
+
+         if (!f->getImageInfo(pagenum, size, trueSize, bpp, image_size,
+                              compressed_size, timestamp)
+             && size == picture.size()) {
+            if (found != -1)
+               return -2;
+            found = pagenum;
+         }
+      }
+      return found;
+   };
+
+   for (const QString &name : QStringList({"testfile.max", "testpdf.pdf"})) {
+      QModelIndex dest = model->index(name, repo_ind);
+      QVERIFY(!model->getFile(dest)->load());
+      int pages = model->getFile(dest)->pagecount();
+      int shown = model->getFile(dest)->pagenum();
+      QCOMPARE(find(name), -1);
+
+      // As a stack, it goes in before the page given, or after the last
+      for (int pagenum : {2, 0, pages}) {
+         QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg",
+                             path + "/picture.jpg"));
+         QStringList added("picture.jpg");
+         model->addFilesToDesk(path + "/", added);
+         dest = model->index(name, repo_ind);
+         QModelIndexList list;
+
+         list << model->index("picture.jpg", repo_ind);
+         QVERIFY(list[0].isValid());
+         QVERIFY(!model->stackItems(dest, list, nullptr, pagenum));
+         dest = model->index(name, repo_ind);
+         QCOMPARE(model->getFile(dest)->pagecount(), pages + 1);
+         QCOMPARE(find(name), pagenum);
+         QCOMPARE(model->getFile(dest)->pagenum(), shown);
+
+         model->getUndoStack()->undo();
+         dest = model->index(name, repo_ind);
+         QCOMPARE(model->getFile(dest)->pagecount(), pages);
+         QCOMPARE(find(name), -1);
+         QVERIFY(QFile::remove(path + "/picture.jpg"));
+         QStringList gone("picture.jpg");
+         model->removeFilesFromDesk(path + "/", gone);
+      }
+
+      // As a file from elsewhere, it does the same
+      QTemporaryDir other;
+      QString file = other.path() + "/picture.jpg";
+      QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", file));
+      for (int pagenum : {1, pages}) {
+         dest = model->index(name, repo_ind);
+         model->addFiles(QStringList(file), repo_ind, QPoint(300, 200), dest,
+                         pagenum);
+         dest = model->index(name, repo_ind);
+         QCOMPARE(model->getFile(dest)->pagecount(), pages + 1);
+         QCOMPARE(find(name), pagenum);
+
+         model->getUndoStack()->undo();
+         dest = model->index(name, repo_ind);
+         QCOMPARE(model->getFile(dest)->pagecount(), pages);
+         QCOMPARE(find(name), -1);
+      }
+   }
+}
+
 void TestOps::testMoveToDir()
 {
    Mainwindow me;

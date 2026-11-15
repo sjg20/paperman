@@ -42,11 +42,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 err_info *Desktopmodel::stackItems (QModelIndex dest, QModelIndexList &list,
-         QList<QPoint> *poslist)
+         QList<QPoint> *poslist, int pagenum)
    {
    _modelconv->assertIsSource (0, &dest, &list);
    if (checkScanStack (list, dest.parent ()))
-      _undo->push (new UCStackStacks (this, dest, list, -1, poslist));
+      _undo->push (new UCStackStacks (this, dest, list, pagenum, poslist));
    return NULL;
    }
 
@@ -85,7 +85,7 @@ bool Desktopmodel::canStackOnto (const QModelIndex &dest)
 
 
 void Desktopmodel::addFiles (const QStringList &paths, QModelIndex parent,
-                             QPoint pos, QModelIndex dest)
+                             QPoint pos, QModelIndex dest, int pagenum)
    {
    QModelIndexList none;
    QStringList wanted;
@@ -98,7 +98,7 @@ void Desktopmodel::addFiles (const QStringList &paths, QModelIndex parent,
       return;
    if (dest.isValid () && !canStackOnto (dest))
       dest = QModelIndex ();
-   _undo->push (new UCAddFiles (this, wanted, parent, pos, dest));
+   _undo->push (new UCAddFiles (this, wanted, parent, pos, dest, pagenum));
    }
 
 
