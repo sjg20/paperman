@@ -75,6 +75,7 @@ private slots:
    void testStackConverts();
    void testStackOnPdf();
    void testStackAtPage();
+   void testPagesLeaveSize();
    void testMoveToShownDir();
 
    //! Test changing to a different directory

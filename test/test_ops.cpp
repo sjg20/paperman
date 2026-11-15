@@ -1039,6 +1039,71 @@ void TestOps::testStackConverts()
    }
 }
 
+void TestOps::testPagesLeaveSize()
+{
+   Mainwindow me;
+   QModelIndex repo_ind;
+
+   duplicate(&me, repo_ind);
+
+   Desktopmodel *model = me.getDesktop()->getModel();
+   const QSize wide(5000, 400);
+
+   // The stack is as wide as a wide page which has been seen in it
+   auto widen = [&]() {
+      QModelIndex ind = model->index(0, 0, repo_ind);
+
+      model->setData(ind, wide, Desktopmodel::Role_preview_maxsize);
+      QCOMPARE(model->data(ind, Desktopmodel::Role_preview_maxsize)
+               .toSize(), wide);
+   };
+   auto width = [&]() {
+      QModelIndex ind = model->index(0, 0, repo_ind);
+
+      return model->data(ind, Desktopmodel::Role_preview_maxsize)
+            .toSize().width();
+   };
+
+   // Pages which join a stack and leave again by Undo
+   QModelIndex dest = model->index(0, 0, repo_ind);
+   QModelIndexList list;
+
+   list << model->index(2, 0, repo_ind);
+   QVERIFY(!model->getFile(list[0])->load());
+   QVERIFY(!model->stackItems(dest, list, nullptr));
+   QCOMPARE(model->getFile(model->index(0, 0, repo_ind))->pagecount(), 10);
+   widen();
+   model->getUndoStack()->undo();
+   QCOMPARE(model->getFile(model->index(0, 0, repo_ind))->pagecount(), 5);
+   QVERIFY(width() < wide.width());
+
+   // A page which is unstacked
+   QModelIndex ind = model->index(0, 0, repo_ind);
+
+   widen();
+   model->unstackPage(ind, 0, true);
+   QCOMPARE(model->getFile(model->index(0, 0, repo_ind))->pagecount(), 4);
+   QVERIFY(width() < wide.width());
+
+   // A page which is deleted
+   QBitArray pages(4);
+
+   ind = model->index(0, 0, repo_ind);
+   pages.setBit(1);
+   widen();
+   model->deletePages(ind, pages);
+   QCOMPARE(model->getFile(model->index(0, 0, repo_ind))->pagecount(), 3);
+   QVERIFY(width() < wide.width());
+
+   // Every page but one, unstacked
+   list.clear();
+   list << model->index(0, 0, repo_ind);
+   widen();
+   QVERIFY(!model->unstackStacks(list, repo_ind));
+   QCOMPARE(model->getFile(model->index(0, 0, repo_ind))->pagecount(), 1);
+   QVERIFY(width() < wide.width());
+}
+
 void TestOps::testStackOnPdf()
 {
    Mainwindow me;
