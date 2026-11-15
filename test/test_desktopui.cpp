@@ -1621,7 +1621,8 @@ void TestDesktopUi::testDragDropToFolder()
 /* Drop @p mime on @p view at @p pos, as a drag from another program does
 
    \returns true if the view took the drop */
-static bool dropOn(Desktopview *view, const QMimeData *mime, QPoint pos)
+static bool dropOn(QAbstractItemView *view, const QMimeData *mime,
+                   QPoint pos)
 {
    QDragEnterEvent enter(pos, Qt::CopyAction | Qt::MoveAction, mime,
                          Qt::LeftButton, Qt::NoModifier);
@@ -2745,6 +2746,127 @@ static QList<QImage> stripImages(File *f)
       images << image;
       }
    return images;
+}
+
+void TestDesktopUi::testDropIntoPages()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   Pagewidget *page = desktop->_page;
+   QString path = desktop->getSelectedPath();
+
+   // A picture beside the two stacks, the only page of its size
+   QImage picture(testSrc + "/colour_plasma.jpg");
+   QVERIFY(!picture.isNull());
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", path + "/picture.jpg"));
+   QStringList added("picture.jpg");
+   model->addFilesToDesk(path + "/", added);
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+
+   // which page of the max stack the picture is, or -1
+   auto find = [&]() {
+      File *f = model->getFile(model->index("testfile.max", repo_ind));
+      QList<QImage> images = stripImages(f);
+      int found = -1;
+
+      for (int i = 0; i < images.size(); i++)
+         if (images[i].size() == picture.size())
+            found = i;
+      return found;
+   };
+   auto shownName = [&]() {
+      QModelIndex shown;
+
+      return page->getCurrentIndex(shown, true)
+         ? model->data(shown, Desktopmodel::Role_filename).toString()
+         : QString();
+   };
+
+   // The max stack is the one shown
+   QModelIndex stack = model->index("testfile.max", repo_ind);
+   QModelIndex ind = stack;
+   desktop->getModelconv()->indexToProxy(model, ind);
+   clickItem(view, ind.row());
+
+   Pageview *pageview = page->_pageview;
+   QAbstractItemModel *pages = pageview->model();
+   QTRY_COMPARE(pages->rowCount(), 5);
+   QTRY_COMPARE(shownName(), QString("testfile.max"));
+   QVERIFY(pageview->moveAllowed());
+   QCOMPARE(find(), -1);
+
+   // The stack shown does not go into its own pages
+   emit pageview->stacksDropped(QStringList("testfile.max"), 1);
+   QCOMPARE(model->getFile(stack)->pagecount(), 5);
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 3);
+
+   // The picture's stack, dropped before the third page, becomes that page
+   emit pageview->stacksDropped(QStringList("picture.jpg"), 2);
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   stack = model->index("testfile.max", repo_ind);
+   QCOMPARE(model->getFile(stack)->pagecount(), 6);
+   QCOMPARE(find(), 2);
+   QTRY_COMPARE(pages->rowCount(), 6);
+   QCOMPARE(shownName(), QString("testfile.max"));
+   ind = stack;
+   desktop->getModelconv()->indexToProxy(model, ind);
+   QTRY_COMPARE(view->currentIndex(), ind);
+
+   // Undo makes it a stack again
+   me.actionUndo->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+   stack = model->index("testfile.max", repo_ind);
+   QCOMPARE(model->getFile(stack)->pagecount(), 5);
+   QCOMPARE(find(), -1);
+   QVERIFY(QFile::exists(path + "/picture.jpg"));
+
+   // A file from another program is taken too, where it is dropped
+   ind = stack;
+   desktop->getModelconv()->indexToProxy(model, ind);
+   clickItem(view, ind.row());
+   QTRY_COMPARE(pages->rowCount(), 5);
+   QTRY_COMPARE(shownName(), QString("testfile.max"));
+
+   QTemporaryDir other;
+   QString file = other.path() + "/photo.jpg";
+   QString notes = other.path() + "/notes.txt";
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", file));
+   QFile text(notes);
+   QVERIFY(text.open(QIODevice::WriteOnly));
+   text.write("some notes");
+   text.close();
+
+   QTRY_VERIFY(pageview->visualRect(pages->index(4, 0)).isValid());
+   QRect rect = pageview->visualRect(pages->index(3, 0));
+   bool across = pageview->visualRect(pages->index(4, 0)).top() == rect.top();
+   QPoint farHalf = across ? QPoint(rect.right() - 2, rect.center().y())
+                           : QPoint(rect.center().x(), rect.bottom() - 2);
+   QCOMPARE(pageview->dropRow(farHalf), 4);
+
+   // a file which cannot be a stack is refused
+   QMimeData mime;
+   mime.setUrls({QUrl::fromLocalFile(notes)});
+   QVERIFY(!dropOn(pageview, &mime, farHalf));
+
+   mime.setUrls({QUrl::fromLocalFile(file)});
+   QVERIFY(dropOn(pageview, &mime, farHalf));
+   QTRY_COMPARE(model->getFile(model->index("testfile.max", repo_ind))
+                   ->pagecount(), 6);
+   QCOMPARE(find(), 4);
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 3);
+   QVERIFY(QFile::exists(file));
+   QTRY_COMPARE(pages->rowCount(), 6);
+
+   me.actionUndo->trigger();
+   QTRY_COMPARE(model->getFile(model->index("testfile.max", repo_ind))
+                   ->pagecount(), 5);
+   QCOMPARE(find(), -1);
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 3);
 }
 
 void TestDesktopUi::testReorderInStrip()

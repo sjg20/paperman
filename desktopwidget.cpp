@@ -358,6 +358,8 @@ void Desktopwidget::createPage(void)
 
    // allow top level to see our preview messages
    connect (_page, SIGNAL (newContents (QString)), this, SIGNAL (newContents (QString)));
+   connect (_page, &Pagewidget::droppedIntoStack, _view,
+            &Desktopview::cancelHeldPreview);
 
    connect (_page, SIGNAL (modeChanging (int, int)),
       this, SLOT (slotModeChanging (int, int)));
