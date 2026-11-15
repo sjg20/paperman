@@ -154,6 +154,7 @@ private slots:
    void testDragDropToFolder();
    void testDropFiles();
    void testDropFilesOnStack();
+   void testStackSelectsDest();
 
    //! Ctrl-M moves the stacks chosen to a folder, or copies them
    void testMoveKey();

@@ -385,6 +385,12 @@ public slots:
    // indicate that a scan is about to begin
    void slotBeginningScan (const QModelIndex &sind);
 
+   /** stacks or files have become pages of a stack: select it, so that
+       it is the one shown
+
+      \param sind   source model index of the stack */
+   void slotStackJoined (const QModelIndex &sind);
+
    /** indicate that a scan is about to end
 
       \param cancel  true if the scan was cancelled (rather than
