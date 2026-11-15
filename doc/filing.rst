@@ -75,7 +75,8 @@ file becomes a stack in the folder shown, where it is dropped. The folder
 gets a copy and the file stays where it was. Dropped onto a max or PDF
 stack, which shows a pages symbol as the file passes over it, the file
 is converted to that type and its pages join the stack, at the page it
-is turned to. **Edit > Undo** takes it out again.
+is turned to. Dropped among the pages in the page list, it goes in
+where the line shows. **Edit > Undo** takes it out again.
 
 Putting pages together and apart
 --------------------------------
@@ -86,6 +87,11 @@ Putting pages together and apart
   Ctrl+G. Dragging one stack onto another does the same. A stack of
   another type, such as a JPEG picture put onto a max or PDF stack, is
   converted to the type of the stack it joins.
+- To choose where the pages go, click the stack to keep, so that its
+  pages are in the page list, then drag the other stack from the stack
+  pane into the page list. The stack to keep stays shown while the other
+  is dragged, and a line between its pages shows where the others will
+  go. Several stacks selected can be dragged in together.
 - A page which belongs elsewhere comes out with **Unstack page**
   (Ctrl+I), as a stack of its own, which can then be stacked with another.
 - A pile of single sheets scanned as one stack comes apart with
