@@ -1278,6 +1278,80 @@ void TestAsync::testStackConverts ()
    QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
    QCOMPARE (serverPages ("testfile.max"), pages + 1);
    QTRY_COMPARE (model->rowCount (parent), 1);
+
+   // undo takes the page out again and brings the picture back
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 30);
+   QStringList stacks = serverStacks ();
+
+   stacks.sort ();
+   QCOMPARE (stacks, QStringList ({"picture.jpg", "testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages);
+   QTRY_COMPARE (model->rowCount (parent), 2);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+void TestAsync::testStackUndo ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex parent = stackIndex ().parent ();
+
+   // a page taken out makes a second stack, which is put somewhere
+   QModelIndex stack = stackIndex ();
+
+   model->unstackPage (stack, 0, true);
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   QStringList stacks = serverStacks ();
+
+   QCOMPARE (stacks.size (), 2);
+   stacks.removeAll ("testfile.max");
+   QString other = stacks [0];
+   int pages = serverPages ("testfile.max");
+   QTRY_COMPARE (model->rowCount (parent), 2);
+
+   QModelIndex dest = model->index ("testfile.max", parent);
+   QModelIndexList list;
+   QList<QPoint> pos;
+
+   list << model->index (other, parent);
+   pos << QPoint (420, 310);
+   QVERIFY (dest.isValid () && list [0].isValid ());
+
+   // stacked back on, it is a page again
+   QVERIFY (!model->stackItems (dest, list, &pos));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages + 1);
+   QTRY_COMPARE (model->rowCount (parent), 1);
+
+   // undo takes it out, as a stack with the name and place it had
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   stacks = serverStacks ();
+   stacks.sort ();
+   QStringList expect ({other, "testfile.max"});
+
+   expect.sort ();
+   QCOMPARE (stacks, expect);
+   QCOMPARE (serverPages ("testfile.max"), pages);
+   QCOMPARE (serverPages (other), 1);
+   QTRY_COMPARE (model->rowCount (parent), 2);
+
+   QModelIndex back = model->index (other, parent);
+
+   QVERIFY (back.isValid ());
+   QCOMPARE (model->getFile (back)->pos (), QPoint (420, 310));
+
+   // and redo puts it back in
+   model->getUndoStack ()->redo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 20);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages + 1);
    CHECK_ASYNC (check, nullptr);
    }
 

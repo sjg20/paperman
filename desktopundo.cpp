@@ -824,36 +824,43 @@ void UCStackStacks::undo (void)
       QString path = dir;
       QModelIndex parent = model->deskFromDirname (path);
       QModelIndex dest = model->index (destname, parent);
-      QStringList names = stacked->isEmpty () ? filenames : *stacked;
-      QList<pagepos_info> pos = pagepos;
-      err_info *err = model->opUnstackFromStack (dest, names, *pagenum, pos);
+      QStringList asked = stacked->isEmpty () ? filenames : *stacked;
+      auto names = std::make_shared<QStringList> (asked);
 
-      if (err || origs->isEmpty () || trashed->size () != origs->size ())
-         {
-         done (err);
-         return;
-         }
-
-      /* the copies made of stacks of another type have come out: remove
-         them, and bring back the stacks they were made from, each to
-         where it was */
-      QList<pagepos_info> back;
-
-      for (const QString &name : *origs)
-         back << pagepos [filenames.indexOf (name)];
-
-      QModelIndexList list = model->listFromFilenames (*copies, parent);
-
-      model->opDeleteStacks (list, parent, [=] (err_info *err) {
+      model->opUnstackFromStack (dest, names, *pagenum, pagepos,
+                                 [=] (err_info *err) {
          QModelIndex parent = model->deskFromDirname (dir);
 
-         if (err)
+         if (err || origs->isEmpty () || trashed->size () != origs->size ())
             {
             done (err);
             return;
             }
-         model->opUntrashStacks (*trashed, parent, origs, back, true,
-                                 QString (), false, done);
+
+         /* the copies made of stacks of another type have come out, each
+            perhaps with a name of its own: remove them, and bring back
+            the stacks they were made from, each to where it was */
+         QList<pagepos_info> back;
+         QStringList gone;
+
+         for (const QString &name : *origs)
+            back << pagepos [filenames.indexOf (name)];
+         for (const QString &name : *copies)
+            gone << names->value (asked.indexOf (name), name);
+
+         QModelIndexList list = model->listFromFilenames (gone, parent);
+
+         model->opDeleteStacks (list, parent, [=] (err_info *err) {
+            QModelIndex parent = model->deskFromDirname (dir);
+
+            if (err)
+               {
+               done (err);
+               return;
+               }
+            model->opUntrashStacks (*trashed, parent, origs, back, true,
+                                    QString (), false, done);
+         });
       });
    });
    }

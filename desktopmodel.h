@@ -937,6 +937,13 @@ public:
    void opReorderPages (const QModelIndex &ind, const QVector<int> &order,
                         OpDone done);
 
+   /** take stacks back out of a stack, as the other opUnstackFromStack()
+       does, updating @p newnames with the name each is given */
+   void opUnstackFromStack (const QModelIndex &src,
+                            std::shared_ptr<QStringList> newnames,
+                            int srcpagenum,
+                            const QList<pagepos_info> &pagepos, OpDone done);
+
    //! delete stacks, as the other opDeleteStacks() does
    void opDeleteStacks (const QModelIndexList &list, const QModelIndex &parent,
                         OpDone done);
