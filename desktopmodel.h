@@ -1618,6 +1618,16 @@ private:
        with its thumbnail */
    void stackChangedOnServer (const QModelIndex &ind);
 
+   /**
+    * Forget the size kept for a stack's preview, as pages have left it
+    *
+    * The stack is drawn as large as the largest of its pages seen so
+    * far. Call this when pages leave, since that page may be among them.
+    *
+    * \param f   stack which pages have left (nullptr to do nothing)
+    */
+   void pagesLeft (File *f);
+
    /** Put the stacks a server made from @p sources, one each, beside them
        in the desk for @p dir, adding their names to @p namelist, then
        report @p err through @p done */

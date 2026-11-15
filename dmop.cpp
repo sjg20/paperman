@@ -87,6 +87,7 @@ err_info *Desktopmodel::opUnstackFromStack (QModelIndex &src, QStringList &newna
       flist << fnew;
       }
 
+   pagesLeft (f);
    buildItem (src);
    insertRows (flist, src.parent ());
    return e;
@@ -141,6 +142,7 @@ err_info *Desktopmodel::opUnstackStacks (QModelIndexList &list, QModelIndex pare
 //       printf ("unstack done, row %d, flist size = %d\n", ind.row (), flist.size ());
       if (flist.size ())   // any pages unstacked?
          {
+         pagesLeft (f);
          buildItem (ind);
          insertRows (flist, parent);
          }
@@ -569,7 +571,10 @@ err_info *Desktopmodel::opUnstackPage (QModelIndex &ind, int &pagenum,
       newname = fnew->filename ();
       // if removing, update the view of the source stack
       if (remove)
+         {
+         pagesLeft (f);
          buildItem (ind);
+         }
       QModelIndexList list;
       newItem (row, ind.parent (), list);
       }
@@ -715,6 +720,7 @@ void Desktopmodel::opDeletePages (const QModelIndex &ind,
             *count = pageList.size ();
             if (f && remote)
                {
+               pagesLeft (f);
                /* A stack held a page at a time is fetched again, since its
                   pages have been renumbered.  A stack fetched whole has
                   the removal mirrored onto the cached copy, so the view
@@ -746,6 +752,7 @@ void Desktopmodel::opDeletePages (const QModelIndex &ind,
          }
 
       e = f->removePages (which, *del_info, *count);
+      pagesLeft (f);
       buildItem (ind);
       getDesk (ind.parent ())->dirty ();
       }
@@ -2937,6 +2944,16 @@ void Desktopmodel::runSteps (std::shared_ptr<Steps> steps)
    }
 
 
+void Desktopmodel::pagesLeft (File *f)
+   {
+   /* The size kept is that of the largest page seen, which may be one
+      of those which went. Forget it, so that the stack takes the size of
+      the pages it has as they are shown */
+   if (f)
+      f->setPreviewMaxsize (QSize ());
+   }
+
+
 void Desktopmodel::stackChangedOnServer (const QModelIndex &ind)
    {
    File *f = getFile (ind);
@@ -2947,6 +2964,7 @@ void Desktopmodel::stackChangedOnServer (const QModelIndex &ind)
 
    // as in stackChangedLater()
    f->setListedVersion (QString ());
+   pagesLeft (f);
    Desk *desk = f->desk ();
 
    if (sparseFor (f, remote, desk))
