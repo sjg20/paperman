@@ -73,6 +73,7 @@ private slots:
    //! Test moving a file to a different directory
    void testMoveToDir();
    void testStackConverts();
+   void testStackOnPdf();
    void testMoveToShownDir();
 
    //! Test changing to a different directory

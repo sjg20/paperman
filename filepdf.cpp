@@ -412,8 +412,24 @@ err_info *Filepdf::reorderPages (const QVector<int> &order)
 err_info *Filepdf::stackStack (File *fsrc)
    {
    Filepdf *src = (Filepdf *)fsrc;
+   int before = _pdfio->numPages ();
+   int at = qBound (0, _pagenum, before);
 
-   return _pdfio->appendFrom (src->_pdfio);
+   CALL (_pdfio->appendFrom (src->_pdfio));
+
+   // they are at the end: move them to before the page shown
+   int total = _pdfio->numPages ();
+   QVector<int> order;
+
+   if (at == before || total == before)
+      return NULL;
+   for (int pagenum = 0; pagenum < at; pagenum++)
+      order << pagenum;
+   for (int pagenum = before; pagenum < total; pagenum++)
+      order << pagenum;
+   for (int pagenum = at; pagenum < before; pagenum++)
+      order << pagenum;
+   return _pdfio->reorderPages (order);
    }
 
 

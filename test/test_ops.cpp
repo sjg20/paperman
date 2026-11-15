@@ -1039,6 +1039,67 @@ void TestOps::testStackConverts()
    }
 }
 
+void TestOps::testStackOnPdf()
+{
+   Mainwindow me;
+
+   auto path = setupRepo();
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", path + "/picture.jpg"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   // The picture is the only page of its size
+   QImage picture(testSrc + "/colour_plasma.jpg");
+   QVERIFY(!picture.isNull());
+
+   // which page of the PDF the picture is, or -1
+   auto find = [&]() {
+      File *f = model->getFile(model->index("testpdf.pdf", repo_ind));
+      int found = -1;
+
+      for (int pagenum = 0; pagenum < f->pagecount(); pagenum++) {
+         QSize size, trueSize;
+         int bpp, image_size, compressed_size;
+         QDateTime timestamp;
+
+         if (!f->getImageInfo(pagenum, size, trueSize, bpp, image_size,
+                              compressed_size, timestamp)
+             && size == picture.size())
+            found = pagenum;
+      }
+      return found;
+   };
+
+   // It goes in before the page shown, whichever that is
+   for (int shown : {0, 2}) {
+      QModelIndex dest = model->index("testpdf.pdf", repo_ind);
+      QVERIFY(!model->getFile(dest)->load());
+      int pages = model->getFile(dest)->pagecount();
+      QModelIndexList list;
+
+      model->getFile(dest)->setPagenum(shown);
+      QCOMPARE(find(), -1);
+      list << model->index("picture.jpg", repo_ind);
+      QVERIFY(list[0].isValid());
+      QVERIFY(!model->stackItems(dest, list, nullptr));
+      dest = model->index("testpdf.pdf", repo_ind);
+      QCOMPARE(model->getFile(dest)->pagecount(), pages + 1);
+      QCOMPARE(find(), shown);
+
+      // Undo takes that page out, leaving the PDF's own pages
+      model->getUndoStack()->undo();
+      dest = model->index("testpdf.pdf", repo_ind);
+      QCOMPARE(model->getFile(dest)->pagecount(), pages);
+      QCOMPARE(find(), -1);
+      QVERIFY(model->index("picture.jpg", repo_ind).isValid());
+   }
+}
+
 void TestOps::testMoveToDir()
 {
    Mainwindow me;
