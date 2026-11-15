@@ -229,6 +229,10 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
       this, SLOT (slotShowInfo (const QModelIndex &)));
    connect (_pageview, &Pageview::pagesMoved, this,
             &Pagewidget::slotPagesMoved);
+   connect (_pageview, &Pageview::stacksDropped, this,
+            &Pagewidget::slotStacksDropped);
+   connect (_pageview, &Pageview::filesDropped, this,
+            &Pagewidget::slotFilesDropped);
 
    // the page list's menu, for the page clicked
    _clear_cover = new QAction (tr ("Clear cover"), this);
@@ -1262,6 +1266,92 @@ void Pagewidget::slotPagesMoved (const QList<int> &rows, int dest)
       them */
    _committing = true;
    contents->reorderPages (sindex, order);
+   _committing = false;
+   }
+
+
+bool Pagewidget::stackForDrop (int dest, Desktopmodel *&contents,
+                               QModelIndex &sindex, int &pagenum)
+   {
+   contents = _model ? _modelconv->getDesktopmodel (_model) : nullptr;
+   sindex = _index;
+   if (!contents || _scanning)
+      return false;
+   _modelconv->indexToSource (_model, sindex);
+   if (!sindex.isValid ())
+      return false;
+
+   // the strip may show only some of the stack's pages, from _start
+   int pagecount = contents->data (sindex, Desktopmodel::Role_pagecount)
+                      .toInt ();
+
+   pagenum = qBound (0, _start + dest, pagecount);
+   return true;
+   }
+
+
+void Pagewidget::slotStacksDropped (const QStringList &names, int dest)
+   {
+   Desktopmodel *contents;
+   QModelIndex sindex;
+   int pagenum;
+
+   if (!stackForDrop (dest, contents, sindex, pagenum))
+      return;
+
+   // a stack does not go into itself, and stacks elsewhere are not found
+   QString shown = contents->data (sindex, Desktopmodel::Role_filename)
+                      .toString ();
+   QModelIndexList list;
+
+   for (const QString &name : names)
+      {
+      QModelIndex ind = contents->index (name, sindex.parent ());
+
+      if (name == shown || !ind.isValid ())
+         {
+         emit newContents (name == shown
+            ? tr ("A stack cannot go into its own pages")
+            : tr ("That stack is not in this folder"));
+         return;
+         }
+      list << ind;
+      }
+   if (list.isEmpty ())
+      return;
+
+   /* the stack view shows the stack shown here once the drag is over,
+      in place of the one dragged */
+   emit droppedIntoStack ();
+
+   // as with pagesMoved(), a scan is committed without resetting this view
+   contents->sortByPosition (list);
+   _committing = true;
+   err_info *err = contents->stackItems (sindex, list, nullptr, pagenum);
+   _committing = false;
+   if (err)
+      emit newContents (err->errstr);
+   }
+
+
+void Pagewidget::slotFilesDropped (const QStringList &paths, int dest)
+   {
+   Desktopmodel *contents;
+   QModelIndex sindex;
+   int pagenum;
+
+   if (!stackForDrop (dest, contents, sindex, pagenum))
+      return;
+   if (!contents->canStackOnto (sindex))
+      {
+      emit newContents (tr ("Files cannot be added to this type of stack"));
+      return;
+      }
+   File *f = contents->getFile (sindex);
+
+   _committing = true;
+   contents->addFiles (paths, sindex.parent (), f ? f->pos () : QPoint (),
+                       sindex, pagenum);
    _committing = false;
    }
 

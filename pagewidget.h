@@ -326,6 +326,10 @@ public:
 signals:
    void newContents (QString);
 
+   /** stacks dragged from the stack view have been dropped among the
+       pages shown, and are going into the stack shown */
+   void droppedIntoStack ();
+
    /** indicate that the mode is changing - this allows the parent window
        to save and adjust its window sizes if it wants to */
    void modeChanging (int new_mode, int old_mode);
@@ -373,6 +377,20 @@ public slots:
       \param rows  the rows of the pages moved
       \param dest  the row they go before, or the number of rows for last */
    void slotPagesMoved (const QList<int> &rows, int dest);
+
+   /** stacks from the stack view have been dropped in the strip: put
+       them into the stack shown, as pages
+
+      \param names  the filename of each stack
+      \param dest   the row they go before, or the number of rows for last */
+   void slotStacksDropped (const QStringList &names, int dest);
+
+   /** files from another program have been dropped in the strip: add
+       them to the stack shown, as pages
+
+      \param paths  the path of each file
+      \param dest   the row they go before, or the number of rows for last */
+   void slotFilesDropped (const QStringList &paths, int dest);
 
    /** a stack's pages have a new order: if it is the stack shown, move
        its pages to match, keeping what is known about each
@@ -558,6 +576,18 @@ public slots:
       \param file     the stack
       \param pagenum  the page, from 0 */
    void slotPageRead (File *file, int pagenum);
+
+private:
+   /** work out where a drop among the pages shown goes
+
+      \param dest      the row dropped before, or the number of rows
+      \param contents  returns the model the stack shown is in
+      \param sindex    returns the stack shown, in that model
+      \param pagenum   returns the page of it the drop goes before, or its
+                       number of pages to go last
+      \returns true if a stack is shown which is not being scanned into */
+   bool stackForDrop (int dest, Desktopmodel *&contents, QModelIndex &sindex,
+                      int &pagenum);
 
 private:
    //! create the buttons shown while cropping

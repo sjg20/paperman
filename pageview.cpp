@@ -31,6 +31,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QScrollBar>
 #include <QTimer>
 #include <QKeyEvent>
+#include <QMimeData>
+#include <QUrl>
 #include <QPainter>
 #include <QWheelEvent>
 
@@ -287,9 +289,52 @@ int Pageview::dropRow (const QPoint &pos) const
    }
 
 
+bool Pageview::droppedFromOutside (const QDropEvent *event,
+                                   QStringList *stacks,
+                                   QStringList *files) const
+   {
+   const QMimeData *mime = event->mimeData ();
+   QStringList names, paths;
+
+   if (!_moveAllowed || event->source () == this)
+      return false;
+
+   // files from another program
+   if (!event->source ())
+      {
+      for (const QUrl &url : mime->urls ())
+         if (url.isLocalFile ()
+             && Desktopmodel::canAddFile (url.toLocalFile ()))
+            paths << url.toLocalFile ();
+      }
+
+   // stacks from the stack view; the pages of another page list are not
+   else if (!qobject_cast<Pageview *> (event->source ())
+            && mime->hasFormat ("application/vnd.text.list"))
+      {
+      QByteArray encoded = mime->data ("application/vnd.text.list");
+      QDataStream stream (&encoded, QIODevice::ReadOnly);
+
+      while (!stream.atEnd ())
+         {
+         QString name;
+
+         stream >> name;
+         names << name;
+         }
+      }
+   if (stacks)
+      *stacks = names;
+   if (files)
+      *files = paths;
+   return !names.isEmpty () || !paths.isEmpty ();
+   }
+
+
 void Pageview::dragEnterEvent (QDragEnterEvent *event)
    {
-   if (event->source () == this && _moveAllowed)
+   if ((event->source () == this && _moveAllowed)
+       || droppedFromOutside (event))
       event->acceptProposedAction ();
    else
       event->ignore ();
@@ -298,7 +343,8 @@ void Pageview::dragEnterEvent (QDragEnterEvent *event)
 
 void Pageview::dragMoveEvent (QDragMoveEvent *event)
    {
-   if (event->source () != this || !_moveAllowed)
+   if ((event->source () != this || !_moveAllowed)
+       && !droppedFromOutside (event))
       {
       event->ignore ();
       return;
@@ -386,6 +432,22 @@ void Pageview::startDrag (Qt::DropActions)
 
 void Pageview::dropEvent (QDropEvent *event)
    {
+   QStringList stacks, files;
+
+   // stacks and files become pages, where they are dropped
+   if (droppedFromOutside (event, &stacks, &files))
+      {
+      int row = dropRow (dropPos (event));
+
+      setDropLine (QLine ());
+      event->setDropAction (Qt::CopyAction);
+      event->accept ();
+      if (!stacks.isEmpty ())
+         emit stacksDropped (stacks, row);
+      else
+         emit filesDropped (files, row);
+      return;
+      }
    if (event->source () != this || !_moveAllowed)
       {
       event->ignore ();

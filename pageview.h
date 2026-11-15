@@ -131,7 +131,9 @@ protected:
    void mousePressEvent (QMouseEvent *event) override;
 
    /* pages dragged within the view are moved, which the view leaves to
-      whoever follows pagesMoved(), rather than moving them itself */
+      whoever follows pagesMoved(), rather than moving them itself. Stacks
+      dragged from the stack view, and files from another program, are
+      taken too: see stacksDropped() and filesDropped() */
    void dragEnterEvent (QDragEnterEvent *event) override;
    void dragMoveEvent (QDragMoveEvent *event) override;
    void dropEvent (QDropEvent *event) override;
@@ -156,6 +158,23 @@ signals:
 
    void showInfo (const QModelIndex &index);
 
+   /** stacks have been dragged from the stack view and dropped among the
+       pages, to become pages here
+
+      \param names  the filename of each stack
+      \param dest   the row of the page they go before, or the number of
+                    rows to go last */
+   void stacksDropped (const QStringList &names, int dest);
+
+   /** files have been dragged from another program and dropped among the
+       pages, to become pages here
+
+      \param paths  the path of each file, each of a type which can be a
+                    stack
+      \param dest   the row of the page they go before, or the number of
+                    rows to go last */
+   void filesDropped (const QStringList &paths, int dest);
+
    /** the user has moved some pages, by dragging them or with the keys
 
       \param rows  the rows of the pages moved, in order
@@ -179,6 +198,18 @@ private slots:
    void slotRangeChanged (int min, int max);
 
 private:
+   /** check a drag for what it holds which can become pages here
+
+      \param event   the drag
+      \param stacks  if not NULL, returns the filenames of the stacks held,
+                     when it is from the stack view
+      \param files   if not NULL, returns the paths of the files held which
+                     can be stacks, when it is from another program
+      \returns true if it holds either, and pages can be moved now */
+   bool droppedFromOutside (const QDropEvent *event,
+                            QStringList *stacks = nullptr,
+                            QStringList *files = nullptr) const;
+
    QTimer _relayoutTimer;  //!< coalesces re-layouts after pixmap updates
    int _scale_down;     //!< scale factor to use (1/n)
    bool _follow;        //!< true to follow the end of the view (a scan is shown)
