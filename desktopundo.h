@@ -171,7 +171,8 @@ class UCAddFiles : public Desktopundocmd
    {
 public:
    UCAddFiles (Desktopmodel *model, const QStringList &paths,
-               QModelIndex &parent, QPoint pos, const QModelIndex &dest);
+               QModelIndex &parent, QPoint pos, const QModelIndex &dest,
+               int pagenum = -1);
    void redo();
    void undo();
 private:

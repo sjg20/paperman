@@ -236,7 +236,7 @@ void UCDuplicate::undo (void)
 
 UCAddFiles::UCAddFiles (Desktopmodel *model, const QStringList &paths,
                         QModelIndex &parent, QPoint pos,
-                        const QModelIndex &dest)
+                        const QModelIndex &dest, int pagenum)
       : Desktopundocmd (model)
    {
    _dir = model->deskToDirname (parent);
@@ -245,7 +245,7 @@ UCAddFiles::UCAddFiles (Desktopmodel *model, const QStringList &paths,
    if (dest.isValid ())
       _destname = model->data (dest, Desktopmodel::Role_filename).toString ();
    _newnames = std::make_shared<QStringList> ();
-   _pagenum = std::make_shared<int> (-1);
+   _pagenum = std::make_shared<int> (pagenum);
    _pagepos = std::make_shared<QList<pagepos_info> > ();
 
    // how many pages they come to, which is how many undo takes out

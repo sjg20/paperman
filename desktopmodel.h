@@ -398,17 +398,20 @@ public:
 
    /****************** operations which support undo / redo ***************/
    /** add a number of stacks to a given stack. Stacks are added in order
-       and are inserted before the destination stack's current page.
-       Supports undo
+       and are inserted before the destination stack's current page, or
+       the page given. Supports undo
 
        Note: src MUST BE SORTED from highest row number to lowest, otherwise
        this algorithm will crash!
 
       \param dest    destination stack to add to
       \param src     list of source stacks, ordered from high row number to low
+      \param poslist the position each stack came from, if not where it is
+      \param pagenum the page they go in before, the number of pages to go
+                     after the last, or -1 for the page the stack shows
       \returns       error, or NULL if none */
    err_info *stackItems (QModelIndex dest, QModelIndexList &src,
-         QList<QPoint> *poslist);
+         QList<QPoint> *poslist, int pagenum = -1);
 
    bool checkerr (struct err_info *err);
 
@@ -439,10 +442,13 @@ public:
       \param pos     where the first goes on the desk; the others follow
                      it, each a little further on
       \param dest    stack to put their pages into, if valid and it can
-                     take them (see canStackOnto()): they go in at the
-                     page it is turned to, as stacks put onto it do */
+                     take them (see canStackOnto()): they go in as stacks
+                     put onto it do
+      \param pagenum the page of @p dest they go in before, the number of
+                     pages to go after the last, or -1 for the page it
+                     shows */
    void addFiles (const QStringList &paths, QModelIndex parent, QPoint pos,
-                  QModelIndex dest = QModelIndex ());
+                  QModelIndex dest = QModelIndex (), int pagenum = -1);
 
    /** check whether files added to a desk can go into a stack as pages
 
