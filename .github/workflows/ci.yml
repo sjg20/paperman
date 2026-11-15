@@ -260,8 +260,12 @@ jobs:
             mingw-w64-clang-aarch64-zlib
             mingw-w64-clang-aarch64-poppler
 
+      # MSYS2's pkg-config here has no .exe suffix, so qmake, which is not
+      # an MSYS2 program, cannot run it: have it run pkgconf, which it is
       - name: Build the app
-        run: qmake6 paperman.pro -o Makefile.win && make -f Makefile.win -j$(nproc)
+        run: |
+          qmake6 PKG_CONFIG=pkgconf paperman.pro -o Makefile.win
+          make -f Makefile.win -j$(nproc)
 
       # the Arm image may not have Chocolatey, so fetch Inno Setup itself;
       # it is an x86 program, which Windows on Arm runs under emulation
