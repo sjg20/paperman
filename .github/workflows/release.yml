@@ -96,8 +96,12 @@ jobs:
         if: matrix.arch == 'arm64'
         run: pacman -S --noconfirm ${{ matrix.pkg }}-llvm-tools
 
+      # MSYS2's pkg-config can lack the .exe suffix, so that qmake, which
+      # is not an MSYS2 program, cannot run it: have it run pkgconf
       - name: Build the app
-        run: qmake6 paperman.pro -o Makefile.win && make -f Makefile.win -j$(nproc)
+        run: |
+          qmake6 PKG_CONFIG=pkgconf paperman.pro -o Makefile.win
+          make -f Makefile.win -j$(nproc)
 
       - name: Gather what it needs
         run: scripts/win-stage.sh
