@@ -614,9 +614,10 @@ void Mainwindow::on_actionGotoFolder_triggered(bool)
 
 void Mainwindow::scanPanelShown(bool shown)
 {
-   // F4 as well, as the scan panel has
+   /* Ctrl-F always, and F4 as well unless the scan panel is open, as it
+      uses that for its own folder box */
    if (shown)
-      actionGotoFolder->setShortcuts({});
+      actionGotoFolder->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_F)});
    else
       actionGotoFolder->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_F),
                                       QKeySequence(Qt::Key_F4)});

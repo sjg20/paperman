@@ -124,7 +124,7 @@
         <widget class="Foldersel" name="folderName">
          <property name="toolTip">
           <string>Type here to interactively search for / create folders, then press &lt;enter&gt; to scan.
-Use Ctrl-F or F4 to quickly access this field</string>
+Use F4 to quickly access this field</string>
          </property>
         </widget>
        </item>

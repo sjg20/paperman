@@ -1095,23 +1095,46 @@ void TestFakescan::testFindFolderKeys ()
 
    QVERIFY (pscan);
 
-   /* from the main window too, as Go to folder gives up the keys, which
-      neither would have if both did */
+   /* F4 reaches the panel's folder box, from the main window too, as
+      Go to folder gives up that key, which neither would have if both
+      did */
    Desktopview *view = me.getDesktop ()->getView ();
-   const QList<QPair<Qt::Key, Qt::KeyboardModifiers>> keys = {
-      {Qt::Key_F4, Qt::NoModifier}, {Qt::Key_F, Qt::ControlModifier}};
 
-   for (const auto &key : keys)
-      {
-      me.activateWindow ();
-      QVERIFY (QTest::qWaitForWindowActive (&me));
-      view->setFocus ();
-      QTRY_VERIFY (view->hasFocus ());
-      QTest::keyClick (view, key.first, key.second);
-      QTRY_VERIFY (pscan->folderName->hasFocus ());
-      }
+   me.activateWindow ();
+   QVERIFY (QTest::qWaitForWindowActive (&me));
+   view->setFocus ();
+   QTRY_VERIFY (view->hasFocus ());
+   QTest::keyClick (view, Qt::Key_F4);
+   QTRY_VERIFY (pscan->folderName->hasFocus ());
 
-   // they go to a folder again once it is closed
+   /* Ctrl-F opens Go to folder, as it does with the panel closed; close
+      the dialogue as soon as it comes up */
+   QSignalSpy went (me.actionGotoFolder, &QAction::triggered);
+   bool closed = false;
+   QTimer closer;
+
+   connect (&closer, &QTimer::timeout, [&] () {
+      QWidget *diag = QApplication::activeModalWidget ();
+
+      if (!diag)
+         return;
+      closer.stop ();
+      closed = true;
+      diag->close ();
+   });
+   closer.start (50);
+   me.activateWindow ();
+   QVERIFY (QTest::qWaitForWindowActive (&me));
+   view->setFocus ();
+   QTRY_VERIFY (view->hasFocus ());
+   QTest::keyClick (view, Qt::Key_F, Qt::ControlModifier);
+   QTRY_VERIFY (closed);
+   closer.stop ();
+   QCOMPARE (went.count (), 1);
+   QVERIFY (!me.actionGotoFolder->shortcuts ().contains (
+               QKeySequence (Qt::Key_F4)));
+
+   // both go to a folder once the panel is closed
    pscan->close ();
    QVERIFY (me.actionGotoFolder->shortcuts ().contains (
                QKeySequence (Qt::Key_F4)));
