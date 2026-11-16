@@ -6,7 +6,9 @@
 The screenshot tests (test/test_screenshots.cpp) save, beside some
 pictures, where each part of the window is, as name.json. This puts the
 picture on a wider sheet and writes a label for each part in the margin,
-with an arrow from the label to the part, for the documentation.
+with an arrow from the label to the part, for the documentation. A label
+can instead go within the picture, on the part or near it, so that the
+picture keeps the full width of the page.
 
 Usage:
     scripts/annotate_screenshot.py doc/images desktop
@@ -30,11 +32,13 @@ MARGIN = 330                # width of the margins at the sides
 GAP = 14                    # space between labels
 PAD = 10                    # space inside a label
 EDGE = 4                    # space between an arrow's tip and its part
-LINE_HEIGHT = int(SIZE * 1.3)
 
 # What to say about each picture: (part, label, side, where to point
 # within the part as fractions of its width and height, and whether to
-# outline the part). The side is the margin the label goes in.
+# outline the part). The side is the margin the label goes in, or 'in' to
+# put the label within the picture: centred on the point, or, with a sixth
+# item, centred there (as fractions of the picture's width and height)
+# with an arrow to the point.
 LABELS = {
     'desktop': [
         ('menu', 'Menu bar', 'top', (0.1, 0.5), False),
@@ -86,6 +90,11 @@ LABELS = {
 }
 
 
+# How to draw a picture, where that is not the usual way: the size of the
+# labels' text and the width of a margin which has no labels
+OPTIONS = {
+}
+
 # Drags to draw on a picture: (part dragged, part dropped on, where the
 # arrow bends towards, as fractions of the picture's width and height),
 # shown by a broad arrow curving from one to the other, round anything in
@@ -119,6 +128,11 @@ def wrap(draw, text, font, width):
     return lines
 
 
+def line_height(font):
+    """Get the height of a line of text in a font, in pixels"""
+    return int(font.size * 1.3)
+
+
 class Label:  # pylint: disable=R0902,R0903
     """A label, where it goes and what it points at
 
@@ -127,15 +141,19 @@ class Label:  # pylint: disable=R0902,R0903
         width (int): Width of its box
         height (int): Height of its box
         target (tuple of int): The point it points at, on the sheet
-        side (str): Which margin it is in
+        side (str): Which margin it is in, or 'in' for within the picture
+        centre (tuple of float): Where its centre goes, within the picture,
+            as fractions of the picture's size; None for on its target
         outline (bool): True to outline the part it points at
         part (list of int): The part, as x, y, width and height
         x (int): Left of its box, once placed
         y (int): Top of its box, once placed
     """
 
-    def __init__(self, lines, size, target, side, part, outline):  # pylint: disable=R0913
+    def __init__(self, lines, size, target, side, part, outline,  # pylint: disable=R0913
+                 centre=None):
         self.lines = lines
+        self.centre = centre
         self.width, self.height = size
         self.target = target
         self.side = side
@@ -145,6 +163,12 @@ class Label:  # pylint: disable=R0902,R0903
 
     def attach(self):
         """Get the point on the box's edge the arrow leaves from"""
+        if self.side == 'in':
+            mid = (self.x + self.width // 2, self.y + self.height // 2)
+            edge = clip(self.target, mid,
+                        (self.x, self.y, self.x + self.width,
+                         self.y + self.height))
+            return (int(edge[0]), int(edge[1]))
         if self.side == 'left':
             return (self.x + self.width, self.y + self.height // 2)
         if self.side == 'right':
@@ -241,26 +265,33 @@ def make_labels(specs, parts, font):  # pylint: disable=R0914
     """
     measure = ImageDraw.Draw(Image.new('RGB', (1, 1)))
     labels = []
-    for name, text, side, (fx, fy), outline in specs:
+    for name, text, side, (fx, fy), outline, *centre in specs:
         width = MARGIN - 60 if side in ('left', 'right') else 260
         lines = wrap(measure, text, font, width - 2 * PAD)
         size = (max(int(measure.textlength(line, font=font))
                     for line in lines) + 2 * PAD,
-                len(lines) * LINE_HEIGHT + 2 * PAD)
+                len(lines) * line_height(font) + 2 * PAD)
         x, y, w, h = parts[name]
         labels.append(Label(lines, size, (x + int(w * fx), y + int(h * fy)),
-                            side, parts[name], outline))
+                            side, parts[name], outline,
+                            centre[0] if centre else None))
     return labels
 
 
-def margins(labels):
+def margins(labels, empty=40):
     """Work out how wide each margin must be for its labels
+
+    Args:
+        labels (list of Label): The labels
+        empty (int): Width of a margin which has no labels
 
     Returns:
         dict: side -> width in pixels
     """
-    room = {'left': 40, 'right': 40, 'top': 40, 'bottom': 40}
+    room = {'left': empty, 'right': empty, 'top': empty, 'bottom': empty}
     for label in labels:
+        if label.side == 'in':
+            continue
         if label.side in ('left', 'right'):
             room[label.side] = MARGIN
         else:
@@ -277,6 +308,15 @@ def place(labels, room, shot_size):
         shot_size (tuple of int): Width and height of the screenshot
     """
     width, height = shot_size
+    for label in labels:
+        if label.side != 'in':
+            continue
+        mid = label.target
+        if label.centre:
+            mid = (room['left'] + int(width * label.centre[0]),
+                   room['top'] + int(height * label.centre[1]))
+        label.x = mid[0] - label.width // 2
+        label.y = mid[1] - label.height // 2
     for side in room:
         group = [label for label in labels if label.side == side]
         if not group:
@@ -308,9 +348,15 @@ def draw_labels(draw, labels, room, font):
             draw.rounded_rectangle((x, y, x + w, y + h), radius=6,
                                    outline=ACCENT, width=3)
     for label in labels:
+        if label.side == 'in' and not label.centre:
+            continue
         x, y, w, h = label.part
         x += room['left']
         y += room['top']
+        if label.side == 'in':
+            # it points at the part's edge, from outside it
+            arrow(draw, label.attach(), label.target)
+            continue
         edge = clip(label.attach(), label.target,
                     (x - EDGE, y - EDGE, x + w + EDGE, y + h + EDGE))
         arrow(draw, label.attach(), edge)
@@ -319,7 +365,8 @@ def draw_labels(draw, labels, room, font):
                                 label.y + label.height), radius=8,
                                fill=PAPER, outline=ACCENT, width=2)
         for num, line in enumerate(label.lines):
-            draw.text((label.x + PAD, label.y + PAD + num * LINE_HEIGHT),
+            draw.text((label.x + PAD,
+                       label.y + PAD + num * line_height(font)),
                       line, fill=INK, font=font)
 
 
@@ -350,7 +397,8 @@ def draw_drags(draw, drags, parts, room, size):  # pylint: disable=R0914
         arrow(draw, points[-3], end, width=7)
 
 
-def annotate(image_path, parts_path, specs, out_path, drags=()):  # pylint: disable=R0914
+def annotate(image_path, parts_path, specs, out_path, drags=(),  # pylint: disable=R0913,R0914
+             options=None):
     """Write a labelled copy of a screenshot
 
     Args:
@@ -359,13 +407,15 @@ def annotate(image_path, parts_path, specs, out_path, drags=()):  # pylint: disa
         specs (list of tuple): Labels, as in LABELS
         out_path (str): Where to write the labelled picture
         drags (list of tuple): Drags to draw, as in DRAGS
+        options (dict): How to draw it, as in OPTIONS
     """
+    options = options or {}
     shot = Image.open(image_path).convert('RGB')
     with open(parts_path, encoding='utf-8') as inf:
         parts = json.load(inf)
-    font = ImageFont.truetype(FONT, SIZE)
+    font = ImageFont.truetype(FONT, options.get('size', SIZE))
     labels = make_labels(specs, parts, font)
-    room = margins(labels)
+    room = margins(labels, options.get('empty', 40))
 
     sheet = Image.new('RGB', (shot.width + room['left'] + room['right'],
                               shot.height + room['top'] + room['bottom']),
@@ -397,7 +447,7 @@ def main():
         base = os.path.join(args.dir, name)
         out = f'{base}-labelled.png'
         annotate(f'{base}.png', f'{base}.json', LABELS[name], out,
-                 DRAGS.get(name, ()))
+                 DRAGS.get(name, ()), OPTIONS.get(name))
         print(f'saved {out}')
 
 
