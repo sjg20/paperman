@@ -237,10 +237,9 @@ void Pscan::init()
 
     setupBright ();
 
-    // setup the shortcuts for finding a folder
-    QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_F), this,
-                                   nullptr, nullptr, Qt::ApplicationShortcut),
-                     &QShortcut::activated, this, &Pscan::focusFind);
+    /* setup the shortcut for finding a folder to scan into; Ctrl-F is
+       left to Go to folder, so that it does the same thing whether this
+       panel is open or not */
     QObject::connect(new QShortcut(QKeySequence(Qt::Key_F4), this,
                                    nullptr, nullptr, Qt::ApplicationShortcut),
                      &QShortcut::activated, this, &Pscan::focusFind);
