@@ -47,6 +47,10 @@ private slots:
    //! the scanner settings.
    void testPscanControls();
 
+   //! The panel copes with the scan dialog, and the preview it owns,
+   //! going away, as when another scanner is chosen
+   void testPscanDialogGone();
+
    //! The Alt-L paper-size toggle keeps the size sent to the scanner in
    //! step with the size shown in the combo, across repeated toggles.
    void testPscanPaperToggle();

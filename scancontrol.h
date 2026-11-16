@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #pragma once
 
+#include <QPointer>
 #include <QString>
 
 #include "qscanner.h"
@@ -122,7 +123,7 @@ public:
 
    void setScanner(QScanner *scanner) { _scanner = scanner; }
    void setDialog(QScanDialog *dialog) { _dialog = dialog; }
-   void setPreview(PreviewWidget *preview) { _preview = preview; }
+   void setPreview(PreviewWidget *preview);
 
    bool present() override;
    bool settable() override;
@@ -164,5 +165,7 @@ public:
 private:
    QScanner *_scanner;
    QScanDialog *_dialog;
-   PreviewWidget *_preview;
+   /* the scan dialog owns this and deletes it, so the pointer must drop
+      to null when that happens */
+   QPointer<PreviewWidget> _preview;
 };

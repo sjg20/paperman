@@ -157,6 +157,35 @@ void TestQscanner::testScanGuiTiming()
 }
 
 
+void TestQscanner::testPscanDialogGone()
+{
+   ensureXmlConfig ();
+   QScanner scanner;
+   const char *dev = testDevice ();
+
+   if (!dev)
+      QSKIP (NO_SCANNER);
+   scanner.setDeviceName (dev);
+   QVERIFY (scanner.openDevice ());
+
+   QScanDialog *dialog = new QScanDialog (&scanner, 0);
+   QPointer<PreviewWidget> preview = dialog->getPreview ();
+   Pscan pscan;
+
+   QVERIFY (preview);
+   pscan.setPreviewWidget (preview);
+   pscan.setScanDialog (dialog);
+   pscan.scannerChanged (&scanner);
+   QVERIFY (pscan.pageSize->count ());
+
+   /* the dialog takes its preview with it; the panel then asks for the
+      sizes again, and must not ask the preview which has gone */
+   delete dialog;
+   QVERIFY (!preview);
+   pscan.setScanDialog (nullptr);
+}
+
+
 void TestQscanner::testAutoSizePanel()
 {
    const char *dev = testDevice ();

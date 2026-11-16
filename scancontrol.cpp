@@ -193,6 +193,11 @@ void QScanControl::showOptions()
       _dialog->slotShowOptionsWidget();
 }
 
+void QScanControl::setPreview(PreviewWidget *preview)
+{
+   _preview = preview;
+}
+
 QString QScanControl::sizeName(int id)
 {
    return _preview && id >= 0 ? _preview->getSizeName(id) : QString();
