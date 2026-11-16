@@ -10,23 +10,46 @@ stacks in the folder chosen, and the stack selected.
 
 The parts of the window are called:
 
-Menu bar and Main toolbar
-   Across the top, for the whole window.
+Menu bar
+   Across the top: every action, for the whole window.
+
+Main toolbar
+   Below the menu bar: change the view, print and scan.
 
 Folder pane
-   On the left: each repository and the folders in it.
+   On the left: each repository and the folders in it, here a folder
+   for each month.
 
-Stack toolbar and Stack pane
-   In the middle: the stacks in the folder chosen, with the tools for
-   them above, including the **Filter**.
+Stack toolbar
+   Above the stacks: move between stacks, turn and flip their pages.
 
-Preview pane
-   On the right: the stack selected. It has a **Page toolbar** above, the
-   **Page list** of the stack's pages, the **Page viewer** showing a
-   page, and the **Text pane** below with the text read from it.
+Filter
+   In the stack toolbar: show only the stacks whose names match.
+
+Stack pane
+   In the middle: the stacks in the folder chosen.
+
+Stack
+   One document. It shows its name, the name of the page shown and the
+   page itself, with arrows to turn it. The one outlined is selected.
+
+Page toolbar
+   Above the pages: select, reorder, turn and zoom pages.
+
+Page list
+   The pages of the stack selected.
+
+Page viewer
+   The page, as it was scanned, with any notes written on it.
+
+Text pane
+   The text read from the page (OCR), for finding it by what it says.
 
 Status bar
    Along the bottom: about the stack and page selected.
+
+The Page toolbar, Page list, Page viewer and Text pane together make up
+the **Preview pane**, on the right.
 
 Beside the desktop view there is the **Page view**, which gives the
 whole window to a stack's pages, and the **Scan panel**, a window of its
