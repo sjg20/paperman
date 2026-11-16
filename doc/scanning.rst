@@ -46,7 +46,7 @@ window.
 
 Stack name, Page name and Folder
    What to call the new stack and its pages, and where to put it. Type in
-   the Folder field (Ctrl-F or F4 reaches it) to find or create a folder:
+   the Folder field (F4 reaches it) to find or create a folder:
    folders named by year and month, such as ``2026/09sep``, are matched as
    you type, and Enter scans straight into the match.
 

@@ -12,7 +12,7 @@ Anywhere
 
    * - **Ctrl+F**, **F4**
      - Go to a folder, by typing part of its name. While the scan panel
-       is open, these go to its folder box instead, from anywhere
+       is open, F4 goes to its folder box instead, from anywhere
    * - **Ctrl+S**
      - Search the folder selected and those inside it
    * - **Ctrl+Shift+F**
@@ -127,7 +127,7 @@ These work while the scan panel is open (see :doc:`scanning`).
 .. list-table::
    :widths: 30 70
 
-   * - **Ctrl+F**, **F4**
+   * - **F4**
      - Go to the folder box, to type part of the name of the folder to
        scan into
    * - **Ctrl+1** to **Ctrl+5**
