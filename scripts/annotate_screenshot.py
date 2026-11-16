@@ -42,29 +42,17 @@ EDGE = 4                    # space between an arrow's tip and its part
 LABELS = {
     'desktop': [
         ('menu', 'Menu bar', 'top', (0.1, 0.5), False),
-        ('toolbar', 'Main toolbar: change the view, print and scan', 'left',
-         (0.5, 0.5), False),
-        ('folders', 'Folder pane: each repository and the folders in it, '
-         'here a folder for each month', 'left', (0.55, 0.15), True),
-        ('status', 'Status bar: about the stack and page selected', 'left',
-         (0.15, 0.5), False),
-        ('stack-tools', 'Stack toolbar: move between stacks, turn and '
-         'flip their pages', 'top', (0.3, 0.5), False),
-        ('filter', 'Filter: show only the stacks whose names match', 'top',
-         (0.5, 0.5), False),
-        ('page-tools', 'Page toolbar: select, reorder, turn and zoom '
-         'pages', 'top', (0.5, 0.5), False),
-        ('stack', 'A stack, selected: its name, the name of the page '
-         'shown and the page, with arrows to turn it', 'bottom',
-         (0.5, 0.75), True),
-        ('stacks', 'Stack pane: the stacks in the folder', 'bottom',
-         (0.75, 0.6), False),
-        ('thumbnails', 'Page list: the pages of the stack selected',
-         'bottom', (0.5, 0.45), True),
-        ('page', 'Page viewer: the page, as it was scanned, with any notes '
-         'written on it', 'right', (0.75, 0.3), True),
-        ('text', 'Text pane: the text read from the page (OCR), for '
-         'finding it by what it says', 'right', (0.8, 0.4), True),
+        ('toolbar', 'Main toolbar', 'top', (0.6, 0.5), True),
+        ('stack-tools', 'Stack toolbar', 'top', (0.4, 0.5), False),
+        ('filter', 'Filter', 'top', (0.5, 0.5), False),
+        ('page-tools', 'Page toolbar', 'top', (0.5, 0.5), False),
+        ('folders', 'Folder pane', 'in', (0.5, 0.75), True),
+        ('stack', 'Stack', 'in', (0.5, 1.0), True, (0.281, 0.48)),
+        ('stacks', 'Stack pane', 'in', (0.5, 0.7), True),
+        ('thumbnails', 'Page list', 'in', (0.5, 0.8), True),
+        ('page', 'Page viewer', 'in', (0.5, 0.93), True),
+        ('text', 'Text pane', 'in', (0.72, 0.5), True),
+        ('status', 'Status bar', 'bottom', (0.75, 0.5), False),
     ],
     'drag-to-folder': [
         ('stack', 'Press on a stack, or on any of the stacks selected, '
@@ -93,6 +81,7 @@ LABELS = {
 # How to draw a picture, where that is not the usual way: the size of the
 # labels' text and the width of a margin which has no labels
 OPTIONS = {
+    'desktop': {'size': 27, 'empty': 12},
 }
 
 # Drags to draw on a picture: (part dragged, part dropped on, where the
