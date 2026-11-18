@@ -73,6 +73,7 @@
     <addaction name="actionAddRepository"/>
     <addaction name="separator"/>
     <addaction name="actionOptionsm"/>
+    <addaction name="actionScango"/>
     <addaction name="menuImport"/>
     <addaction name="actionPrint"/>
     <addaction name="separator"/>
@@ -148,7 +149,6 @@
    <addaction name="actionPrint"/>
    <addaction name="separator"/>
    <addaction name="actionOptions"/>
-   <addaction name="actionScango"/>
    <addaction name="actionPscan"/>
    <addaction name="actionCamera"/>
   </widget>
@@ -342,7 +342,7 @@
     <string>scan-go</string>
    </property>
    <property name="text">
-    <string>scango</string>
+    <string>Scan now</string>
    </property>
    <property name="toolTip">
     <string>Perform a scan immediately using current settings (F5)</string>
