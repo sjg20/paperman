@@ -86,6 +86,7 @@ private slots:
    void testSwapViewAction();
 
    //! Test moving between stacks with the toolbar prev/next buttons
+   void testToolbarOneScanButton();
    void testToolbarStackNavigation();
 
    //! Test flipping pages with the toolbar page prev/next buttons

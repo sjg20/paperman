@@ -436,6 +436,19 @@ void TestDesktopUi::testSwapViewAction()
    QTRY_COMPARE(main->currentWidget(), (QWidget *)desktop);
 }
 
+void TestDesktopUi::testToolbarOneScanButton()
+{
+   Mainwindow me;
+
+   /* The toolbar has the button which opens the scan panel, but not one
+      which scans at once: that is in the File menu and on F5 */
+   QVERIFY(me.toolBar->actions().contains(me.actionPscan));
+   QVERIFY(!me.toolBar->actions().contains(me.actionScango));
+   QVERIFY(me.menuFile->actions().contains(me.actionScango));
+   QCOMPARE(me.actionScango->shortcut(), QKeySequence(Qt::Key_F5));
+   QCOMPARE(me.actionScango->text(), QString("Scan now"));
+}
+
 void TestDesktopUi::testToolbarStackNavigation()
 {
    QModelIndex repo_ind;
