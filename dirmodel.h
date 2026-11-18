@@ -266,6 +266,21 @@ public:
    Backend *backendForRoot(const QString &rootPath) const;
 
    /**
+    * @brief Return the top-level repositories which are folders on this
+    *        machine, in order, leaving out those on a server.
+    *
+    * These are the ones to remember between runs: a server's are found
+    * again by asking the server.
+    */
+   QStringList localRoots() const;
+
+   /**
+    * @brief Return true if @p path is the address of a repository on a
+    *        server (http://host/repo) and not a folder on this machine.
+    */
+   static bool isServerPath(const QString &path);
+
+   /**
     * @brief Log in to a paperman-server with credentials and cache
     *        the resulting bearer token under the server's UUID so
     *        a subsequent addRemoteRepository call (or another tool)

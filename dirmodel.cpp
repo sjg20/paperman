@@ -1085,6 +1085,26 @@ Backend *Dirmodel::backendForRoot(const QString &rootPath) const
 }
 
 
+QStringList Dirmodel::localRoots() const
+{
+   QStringList roots;
+
+   for (Diritem *item : _item) {
+      if (!dynamic_cast<RemoteBackend *>(item->backend())
+          && !isServerPath(item->dir()))
+         roots << item->dir();
+   }
+   return roots;
+}
+
+
+bool Dirmodel::isServerPath(const QString &path)
+{
+   return path.startsWith("http://", Qt::CaseInsensitive)
+      || path.startsWith("https://", Qt::CaseInsensitive);
+}
+
+
 BackendStats *Dirmodel::stats()
 {
    if (!_stats)

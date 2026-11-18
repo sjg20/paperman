@@ -520,6 +520,45 @@ void TestDirmodel::testRemoteRepositoryExpandChildThroughProxy()
 }
 
 
+void TestDirmodel::testLocalRoots()
+{
+   QTemporaryDir serverDir, localDir;
+   QVERIFY(serverDir.isValid());
+   QVERIFY(localDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks"));
+
+   const quint16 port = 9882;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Dirmodel model;
+   QString err;
+   QString local = localDir.path();
+   QVERIFY2(model.addRemoteRepository(
+                QUrl(QString("http://localhost:%1").arg(port)), &err),
+            qPrintable(err));
+   QVERIFY(model.addDir(local));
+   QCOMPARE(model.rowCount(QModelIndex()), 2);
+
+   // The server's repository is not one to remember
+   QCOMPARE(model.localRoots(),
+            QStringList() << QDir(localDir.path()).canonicalPath());
+
+   // Nor is its address taken for a folder if it was saved all the same
+   QModelIndex root = model.index(0, 0, QModelIndex());
+   QString rootPath = model.data(root, Dirmodel::FilePathRole).toString();
+
+   QVERIFY(Dirmodel::isServerPath(rootPath));
+   QVERIFY(Dirmodel::isServerPath("HTTPS://example.com/papers"));
+   QVERIFY(!Dirmodel::isServerPath(local));
+   QVERIFY(!Dirmodel::isServerPath("/srv/http://odd"));
+
+   server.stop();
+}
+
+
 void TestDirmodel::testRemoteRootBackendLookup()
 {
    /* Regression test for "dir not found" on remote folder selection:
