@@ -67,8 +67,6 @@ Main toolbar
      - Print the stack selected (Ctrl+P)
    * - |main-options|
      - Change the scanning options
-   * - |main-scango|
-     - Scan now, with the scan panel's settings (F5)
    * - |main-pscan|
      - Open the scan panel (F6)
    * - |main-camera|
@@ -294,7 +292,6 @@ other whatever the desktop does, use **File > Options**, *Appearance*.
 .. |main-swap| image:: images/icons/main-swap.png
 .. |main-print| image:: images/icons/main-print.png
 .. |main-options| image:: images/icons/main-options.png
-.. |main-scango| image:: images/icons/main-scango.png
 .. |main-pscan| image:: images/icons/main-pscan.png
 .. |main-camera| image:: images/icons/main-camera.png
 .. |stack-pprev| image:: images/icons/stack-pprev.png

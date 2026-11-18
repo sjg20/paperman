@@ -44,6 +44,9 @@ The scan panel
 Pressing the scan button in the toolbar opens the scan panel beside the
 window.
 
+To scan at once with the panel's settings, without opening it, press
+**F5** or choose **File > Scan now**.
+
 Stack name, Page name and Folder
    What to call the new stack and its pages, and where to put it. Type in
    the Folder field (F4 reaches it) to find or create a folder:
