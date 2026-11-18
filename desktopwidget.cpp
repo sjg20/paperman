@@ -467,7 +467,13 @@ QList<err_info> Desktopwidget::addRepositories(const QStringList& dirs)
    int size = qs.beginReadArray ("repository");
    for (int i = 0; i < size; i++) {
       qs.setArrayIndex (i);
-      err = addDir (qs.value ("path").toString (), true);
+      QString path = qs.value ("path").toString ();
+
+      /* a repository on a server is found by asking the server; one
+         which was saved here by mistake would be taken for a folder */
+      if (Dirmodel::isServerPath (path))
+         continue;
+      err = addDir (path, true);
       if (err)
          err_list << *err;
    }
@@ -1045,17 +1051,16 @@ void Desktopwidget::addToRecent ()
 
 void Desktopwidget::updateSettings ()
    {
-   int count = _model->rowCount (QModelIndex ());
+   // only the folders on this machine: a server lists its own
+   const QStringList roots = _model->localRoots ();
    QSettings qs;
 
    qs.remove ("repository");
    qs.beginWriteArray ("repository");
-   for (int i = 0; i < count; i++)
+   for (int i = 0; i < roots.size (); i++)
       {
-      QModelIndex index = _model->index (i, 0, QModelIndex ());
-
       qs.setArrayIndex (i);
-      qs.setValue("path", _model->data (index, Dirmodel::FilePathRole));
+      qs.setValue("path", roots [i]);
       }
    qs.endArray ();
    }
