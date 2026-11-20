@@ -3,7 +3,7 @@
 # or, in an MSYS2 CLANGARM64 shell, paperman-setup-VERSION-arm64.exe for
 # Windows on Arm
 #
-# Run it in an MSYS2 MINGW64 shell once paperman.exe has been built, or
+# Run it in an MSYS2 UCRT64 shell once paperman.exe has been built, or
 # have make do both:
 #
 #    make -f Makefile.win installer

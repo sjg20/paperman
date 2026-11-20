@@ -2,7 +2,7 @@
 # Gather everything paperman needs to run on Windows into one directory,
 # ready to be handed to the installer or copied to a machine as it is.
 #
-# Run it in an MSYS2 MINGW64 shell once paperman.exe has been built:
+# Run it in an MSYS2 UCRT64 shell once paperman.exe has been built:
 #
 #    scripts/win-stage.sh [DIR]
 #
@@ -20,7 +20,7 @@
 set -e
 
 dir=${1:-dist/paperman}
-prefix=${MINGW_PREFIX:-/mingw64}
+prefix=${MINGW_PREFIX:-/ucrt64}
 
 if [ ! -f paperman.exe ]; then
    echo "no paperman.exe: build it first with" >&2
@@ -71,7 +71,7 @@ copy_deps () {
 # a window run on
 deploy=$(command -v windeployqt6 || command -v windeployqt || true)
 if [ -z "$deploy" ]; then
-   echo "no windeployqt: install mingw-w64-x86_64-qt6-base" >&2
+   echo "no windeployqt: install mingw-w64-ucrt-x86_64-qt6-base" >&2
    exit 1
 fi
 "$deploy" --release --no-translations --no-system-d3d-compiler \
