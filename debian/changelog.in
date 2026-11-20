@@ -1,3 +1,28 @@
+paperman (1.5.0-1VENDOR_VERSION) UNRELEASED; urgency=medium
+
+  * Read the text of scanned pages in the background (OCR), keep it with
+    each page and search for stacks by it
+  * Give the PDFs which paperman and the server make a layer of text, so
+    that they can be searched
+  * Crop pages, with undo, and mark a page of a stack as its cover
+  * Drag a stack's pages into a new order
+  * Take files dropped from other programs, as stacks or into a stack
+  * Move or copy stacks to a folder found by typing part of its name
+  * Send stacks by email
+  * Scan pages with a document camera (new, Linux only)
+  * Add new icons, with a light or dark look
+  * Keep the window usable while working with a server, and show the
+    state of the connection
+  * Do more in a repository on a server: scan into it, move, copy and
+    convert stacks, make folders, search the text, and undo these
+  * Attach a server from the File menu
+  * Keep each folder's layout on the server
+  * Limit a server's users to a part of a repository
+  * Check once a day for a newer version
+  * Add a user guide, also built as a PDF manual
+
+ -- Simon Glass <sjg@chromium.org>  Fri, 20 Nov 2026 12:49:04 -0700
+
 paperman (1.4.0-1VENDOR_VERSION) UNRELEASED; urgency=medium
 
   * Run on Windows 10 and 11 (x64 and Arm), with an installer and a TWAIN

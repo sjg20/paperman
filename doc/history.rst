@@ -3,8 +3,8 @@ Release History
 
 What has changed in each release of Paperman, newest first.
 
-Since 1.4.0 (not yet released)
-------------------------------
+1.5.0
+-----
 
 - the text of scanned pages is read in the background (tesseract), and each
   page keeps its words, with where each is, in its .max file, so they go
