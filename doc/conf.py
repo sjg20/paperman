@@ -16,8 +16,11 @@ html_theme_options = {
 html_static_path = ['_static']
 html_css_files = ['custom.css']
 
+# The manual is the project's, so it carries the project's site, where the
+# newest copy is, instead of a person's name
 latex_documents = [
-    ('manual', 'paperman.tex', 'Paperman User Manual', author, 'manual'),
+    ('manual', 'paperman.tex', 'Paperman User Manual', 'getpaperman.com',
+     'manual'),
 ]
 
 # Symbols which the default fonts do not have go in the preamble
