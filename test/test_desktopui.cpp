@@ -42,6 +42,7 @@
 #include "searchserver.h"
 #include "qxmlconfig.h"
 #include <QScrollBar>
+#include "clientconf.h"
 #include "test_desktopui.h"
 #include "test_fakescan.h"
 #include "fakescan/fakescan.h"
@@ -3219,4 +3220,63 @@ void TestDesktopUi::testDropMarker()
    line = pageview->dropLine(start);
    QVERIFY(line.x1() <= rect(wrap).left());
    QCOMPARE(line.y1(), rect(wrap).top());
+}
+
+
+void TestDesktopUi::testAddServer()
+{
+   QTemporaryDir serverDir, configDir;
+   QVERIFY(serverDir.isValid());
+   QVERIFY(configDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks"));
+
+   // keep the servers which the person running the test has out of it
+   qputenv("PAPERMAN_CONFIG",
+           (configDir.path() + "/client.conf").toLocal8Bit());
+   auto restoreConfig = qScopeGuard([] { qunsetenv("PAPERMAN_CONFIG"); });
+
+   const quint16 port = 9884;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Mainwindow me;
+   Dirmodel *dirs = me.getDesktop()->getDirmodel();
+   QUrl url(QString("http://localhost:%1").arg(port));
+   int before = dirs->rowCount(QModelIndex());
+   QVERIFY(me.menuFile->actions().contains(me.actionAddServer));
+
+   // A machine and port are enough: the server is looked for there
+   QString result = "pending";
+   me.addServer(QString("localhost:%1").arg(port),
+                [&](const QString &error) { result = error; });
+   QTRY_COMPARE_WITH_TIMEOUT(result, QString(), 10000);
+   QVERIFY(dirs->hasServer(url));
+   QCOMPARE(dirs->rowCount(QModelIndex()), before + 1);
+
+   // It is remembered for next time
+   QList<ServerEntry> listed = ClientConfig::load();
+   QCOMPARE(listed.size(), 1);
+   QVERIFY(ClientConfig::sameServer(listed[0].url, url));
+
+   // Adding it again changes nothing
+   result = "pending";
+   me.addServer(url.toString() + "/",
+                [&](const QString &error) { result = error; });
+   QTRY_VERIFY_WITH_TIMEOUT(result != "pending", 10000);
+   QVERIFY(!result.isEmpty());
+   QCOMPARE(dirs->rowCount(QModelIndex()), before + 1);
+   QCOMPARE(ClientConfig::load().size(), 1);
+
+   // A place with no server is reported and not remembered
+   result = "pending";
+   me.addServer(QString("http://localhost:%1").arg(port + 1),
+                [&](const QString &error) { result = error; });
+   QTRY_VERIFY_WITH_TIMEOUT(result != "pending", 10000);
+   QVERIFY(!result.isEmpty());
+   QCOMPARE(dirs->rowCount(QModelIndex()), before + 1);
+   QCOMPARE(ClientConfig::load().size(), 1);
+
+   server.stop();
 }

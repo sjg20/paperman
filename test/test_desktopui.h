@@ -199,6 +199,9 @@ private slots:
    //! progress bar away from the one still going
    void testOverlappingOperations();
 
+   //! File > Add server attaches a server and remembers it, once
+   void testAddServer();
+
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
        index of the repo root
