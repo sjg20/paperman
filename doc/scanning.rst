@@ -137,6 +137,13 @@ Cameras are reached through the kernel's video interface, on Linux only
 for now. Any UVC camera which sends its pictures as JPEG will do, which
 covers most document cameras and webcams.
 
+.. note::
+
+   Scanning with a camera is new and still being worked on. Finding the
+   page works best with a single sheet or an open book on a dark mat;
+   check the pages as you go, and keep the camera's pictures (see below)
+   for anything you cannot scan again.
+
 Lay the page on a dark mat, so that Paperman can tell where it ends.
 Paperman finds the page in each picture, cuts it out and makes it
 upright, and splits an open book into its two pages. Pages which curve,
