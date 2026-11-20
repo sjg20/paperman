@@ -559,6 +559,43 @@ void TestDirmodel::testLocalRoots()
 }
 
 
+void TestDirmodel::testHasServer()
+{
+   QTemporaryDir serverDir, localDir;
+   QVERIFY(serverDir.isValid());
+   QVERIFY(localDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks"));
+
+   const quint16 port = 9883;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   QTest::qWait(100);
+
+   Dirmodel model;
+   QString err;
+   QString base = QString("http://localhost:%1").arg(port);
+   QString local = localDir.path();
+
+   QVERIFY(model.addDir(local));
+   QVERIFY(!model.hasServer(QUrl(base)));
+
+   QVERIFY2(model.addRemoteRepository(QUrl(base), &err), qPrintable(err));
+
+   // The server is known however its address is written
+   QVERIFY(model.hasServer(QUrl(base)));
+   QVERIFY(model.hasServer(QUrl(base + "/")));
+   QVERIFY(model.hasServer(
+              QUrl(QString("http://LOCALHOST:%1").arg(port))));
+
+   // Another server is not, even on the same machine
+   QVERIFY(!model.hasServer(
+              QUrl(QString("http://localhost:%1").arg(port + 1))));
+
+   server.stop();
+}
+
+
 void TestDirmodel::testRemoteRootBackendLookup()
 {
    /* Regression test for "dir not found" on remote folder selection:
