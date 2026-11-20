@@ -25,6 +25,35 @@ Since 1.4.0 (not yet released)
   remembers it
 - a check once a day for a newer version, which can be turned off in the
   options
+- a page, or every page of a stack, can be cropped, with undo
+- a page of a stack can be marked as its cover, which is what the desk
+  then shows for the stack
+- files dropped from another program go into the folder as stacks, or
+  into the stack they are dropped on; stacks and files can be dropped
+  among a stack's pages
+- stacks can be moved or copied to a folder found by typing part of its
+  name (Ctrl+M), and Ctrl+F goes to a folder in the same way
+- stacks can be sent by email with the system's mail program or Gmail
+- pages can be scanned with a document camera, which finds each page in
+  the picture and cuts it out, including the two pages of an open book;
+  this is new and on Linux only
+- the resolution each page is scanned at is kept with it
+- new icons, with a choice of a light or dark look, or the desktop's
+- the main toolbar has one scan button; Scan now is in the File menu (F5)
+- working with a server no longer holds up the window: folders, stacks
+  and pages appear as they arrive, with the state of the connection in
+  the status bar
+- more can be done in a repository on a server: scanning into it, moving,
+  copying and converting stacks, making folders, reading and searching the
+  text of its pages, and undoing these
+- a server keeps each folder's layout, so every desktop shows the same
+- a server refuses a desktop program too old or too new for it, and the
+  desktop program says why
+- the server can serve a demo, in which each login has its own copy of a
+  repository for a while
+- the phone app logs in to a server which has users, searches the text on
+  the pages and scans pages with the phone's camera
+- a user guide, with pictures, which is also built as a PDF manual
 
 1.4.0
 -----
