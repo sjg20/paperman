@@ -79,9 +79,9 @@ Logins
 A server with users only answers a client which has logged in with
 ``POST /v1/auth/login``, which gives a bearer token lasting 30 days, or
 which gives an API key. The desktop and ``paperman-client`` keep the
-token in ``~/.config/paperman/<serverId>.token``, with 0600
-permissions, keyed by the server's own id, so ``client.conf`` holds no
-credentials.
+token in ``<serverId>.token`` beside ``client.conf`` (see
+:doc:`server` for where that is on each system), with 0600 permissions,
+keyed by the server's own id, so ``client.conf`` holds no credentials.
 
 Page Delivery
 -------------
