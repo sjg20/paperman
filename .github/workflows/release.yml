@@ -55,8 +55,8 @@ jobs:
         include:
           - arch: x64
             runner: windows-latest
-            msystem: MINGW64
-            pkg: mingw-w64-x86_64
+            msystem: UCRT64
+            pkg: mingw-w64-ucrt-x86_64
           # native, rather than the x64 one under emulation
           - arch: arm64
             runner: windows-11-arm

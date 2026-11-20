@@ -150,7 +150,7 @@ jobs:
           path: build-coverage/report
 
   windows:
-    name: Windows (MSYS2 MinGW64, Qt6) desktop app + server + C++ tests
+    name: Windows (MSYS2 UCRT64, Qt6) desktop app + server + C++ tests
     runs-on: windows-latest
     defaults:
       run:
@@ -160,37 +160,29 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
             make
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-qt6-base
-            mingw-w64-x86_64-qt6-scxml
-            mingw-w64-x86_64-qt6-svg
-            mingw-w64-x86_64-poppler-qt6
-            mingw-w64-x86_64-podofo
-            mingw-w64-x86_64-libtiff
-            mingw-w64-x86_64-libjpeg-turbo
-            mingw-w64-x86_64-zlib
-            mingw-w64-x86_64-poppler
-            mingw-w64-x86_64-ghostscript
-            mingw-w64-x86_64-tesseract-ocr
-            mingw-w64-x86_64-python
-            mingw-w64-x86_64-python-pip
-            mingw-w64-x86_64-python-pillow
-            mingw-w64-x86_64-python-numpy
-
-      # MSYS2 no longer packages these for MINGW64: the tests need
-      # reportlab to make their PDFs, and tesseract's English data to read
-      # pages
-      - name: Install what MSYS2 does not package
-        run: |
-          python3 -m pip install --break-system-packages reportlab
-          mkdir -p $MINGW_PREFIX/share/tessdata
-          curl -sSfL -o $MINGW_PREFIX/share/tessdata/eng.traineddata \
-            https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-scxml
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-poppler-qt6
+            mingw-w64-ucrt-x86_64-podofo
+            mingw-w64-ucrt-x86_64-libtiff
+            mingw-w64-ucrt-x86_64-libjpeg-turbo
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-poppler
+            mingw-w64-ucrt-x86_64-ghostscript
+            mingw-w64-ucrt-x86_64-tesseract-ocr
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-pillow
+            mingw-w64-ucrt-x86_64-python-numpy
+            mingw-w64-ucrt-x86_64-python-reportlab
+            mingw-w64-ucrt-x86_64-tesseract-data-eng
 
       - name: Build desktop app
         run: qmake6 paperman.pro CONFIG+=test -o Makefile.win && make -k -f Makefile.win -j$(nproc)
