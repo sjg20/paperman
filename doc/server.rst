@@ -184,10 +184,23 @@ Connecting Clients
 Both the desktop program (``paperman``) and the command-line client
 (``paperman-client``) find servers through a shared configuration file:
 
-.. code:: text
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
 
-   ~/.config/paperman/client.conf
+   * - System
+     - File
+   * - Linux
+     - ``~/.config/paperman/client.conf``
+   * - macOS
+     - ``~/Library/Preferences/paperman/client.conf``
+   * - Windows
+     - ``%LOCALAPPDATA%\paperman\client.conf``
 
+Set ``PAPERMAN_CONFIG`` to the name of a file to use that one instead.
+
+**File > Add server** in the desktop program and ``paperman-client
+add-server`` both add to the file, so there is seldom a need to edit it.
 List one server per line, either as a bare URL or as a name and a URL
 separated by ``=``. Blank lines and lines starting with ``#`` are
 ignored:

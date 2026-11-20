@@ -21,6 +21,8 @@ Since 1.4.0 (not yet released)
 - each view mode of the page list keeps its own layout, and the one last
   chosen is used at the next start
 - a server's users can be limited to a part of a repository
+- File > Add server attaches a server from the desktop program and
+  remembers it
 - a check once a day for a newer version, which can be turned off in the
   options
 

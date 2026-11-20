@@ -63,16 +63,24 @@ put it behind a web server with HTTPS (see :doc:`deployment`).
 Connecting the desktop
 ----------------------
 
-The desktop program attaches each server listed in
-``~/.config/paperman/client.conf`` when it starts. Add a server with:
+Choose **File > Add server** and type the name or address of the machine
+which runs the server, such as ``papers.local``. Given only a machine, as
+here, Paperman looks for the server on its usual ports; give a port
+(``papers.local:9000``) or a full address (``https://papers.example.com``)
+if the server is somewhere else. The server's repositories appear in the
+Folder pane beside your own, and Paperman attaches the server again each
+time it starts.
+
+The servers are kept in a file, ``client.conf`` (see `Connecting Clients
+<server.html#connecting-clients>`_ for where it is), which can also be
+added to from the command line:
 
 .. code:: bash
 
    paperman-client add-server papers.local
 
-Given only a host, as here, Paperman looks for the server on its usual
-ports and stores the address it finds. To attach a server just once,
-start the desktop program with ``paperman --server papers.local``. When
+To attach a server just once, start the desktop program with
+``paperman --server papers.local``. When
 the server has users, Paperman asks for a user and password the first
 time and remembers the login. See `Connecting Clients
 <server.html#connecting-clients>`_ for more.
