@@ -63,7 +63,7 @@ details */
 
 
 // version numbers
-#define CONFIG_version_str "1.4.0"
+#define CONFIG_version_str "1.5.0"
 #define CONFIG_version 131
 
 
