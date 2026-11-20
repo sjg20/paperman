@@ -66,7 +66,7 @@ What the Workflow Does
    Builds the app in an MSYS2 shell, runs ``scripts/win-stage.sh`` to
    gather it together with the libraries it needs, builds
    ``packaging/windows/paperman.iss`` with Inno Setup and adds the
-   resulting installer to the release.  It runs twice: in MinGW64 for
+   resulting installer to the release.  It runs twice: in UCRT64 for
    ``paperman-setup-VERSION.exe``, and natively on a Windows on Arm
    runner in CLANGARM64 for ``paperman-setup-VERSION-arm64.exe``.  The
    x64 installer also installs on Windows on Arm, but runs more slowly
@@ -163,7 +163,7 @@ Building the Windows Installer by Hand
 
 Every push builds the installer and keeps it as a CI artifact, so there is
 usually no need to build one locally.  To do it anyway, in an MSYS2
-MINGW64 shell with the build dependencies the ``windows`` CI job lists,
+UCRT64 shell with the build dependencies the ``windows`` CI job lists,
 and with `Inno Setup <https://jrsoftware.org/isinfo.php>`_ installed
 (``winget install JRSoftware.InnoSetup``)::
 

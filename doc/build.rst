@@ -186,16 +186,16 @@ Windows
 -------
 
 Paperman builds on Windows with the MSYS2 toolchain, which is also what
-CI uses. In a MINGW64 shell (CLANGARM64 on Windows on Arm):
+CI uses. In a UCRT64 shell (CLANGARM64 on Windows on Arm):
 
 .. code:: bash
 
-   pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf \
-       mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-scxml \
-       mingw-w64-x86_64-qt6-svg \
-       mingw-w64-x86_64-poppler-qt6 mingw-w64-x86_64-podofo \
-       mingw-w64-x86_64-libtiff mingw-w64-x86_64-libjpeg-turbo \
-       mingw-w64-x86_64-tesseract-ocr mingw-w64-x86_64-tesseract-data-eng
+   pacman -S make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-pkgconf \
+       mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-scxml \
+       mingw-w64-ucrt-x86_64-qt6-svg \
+       mingw-w64-ucrt-x86_64-poppler-qt6 mingw-w64-ucrt-x86_64-podofo \
+       mingw-w64-ucrt-x86_64-libtiff mingw-w64-ucrt-x86_64-libjpeg-turbo \
+       mingw-w64-ucrt-x86_64-tesseract-ocr mingw-w64-ucrt-x86_64-tesseract-data-eng
    qmake6 paperman.pro -o Makefile.win
    make -f Makefile.win -j$(nproc)
 
