@@ -28,41 +28,6 @@ License: GPL-2
 #include <unistd.h>
 
 
-static void usage(const char *prog)
-{
-   std::cerr <<
-      "Usage: " << prog << " [--server URL|NAME] <command> [args]\n"
-      "\n"
-      "Commands:\n"
-      "  servers                    List servers from client.conf\n"
-      "  add-server <url> [name]    Add a server to client.conf\n"
-      "  probe <host>               Look for a server on a host\n"
-      "  login <user>               Prompt for password, save token\n"
-      "  logout                     Forget the saved token\n"
-      "  status                     Show server status\n"
-      "  repos                      List repositories\n"
-      "  ls <repo> [path]           List files in a repo directory\n"
-      "  cat <repo> <path> [-o OUT] Fetch a file (stdout, or to OUT)\n"
-      "  info <repo> <stack> [--text|--json]\n"
-      "                             Show a stack's pages without fetching it\n"
-      "  page <repo> <stack> <n> [-o OUT]\n"
-      "                             Fetch one page as a one-page .max\n"
-      "\n"
-      "--server takes a URL, the name of a server listed in client.conf,\n"
-      "or a host (optionally host:port) to look for a server on.  With\n"
-      "none, $PAPERMAN_SERVER is used, else the first server in\n"
-      "client.conf, else http://localhost:8080.\n"
-      "\n"
-      "A host alone is tried on ports 8080 and 8081, then over https.\n"
-      "add-server and probe take a host in the same way.\n"
-      "\n"
-      "Servers are listed in ~/.config/paperman/client.conf, one per\n"
-      "line as \"Name = URL\" or a bare URL ($PAPERMAN_CONFIG overrides).\n"
-      "Tokens are stored per-server-id in "
-      "~/.config/paperman/<serverId>.token (0600).\n";
-}
-
-
 static QString readHidden(const QString &prompt)
 {
    std::cout << prompt.toStdString() << std::flush;
@@ -97,7 +62,6 @@ static QString tokenDir()
    QString d = QStandardPaths::writableLocation(
                    QStandardPaths::GenericConfigLocation)
                + "/paperman";
-   QDir().mkpath(d);
    return d;
 }
 
@@ -105,6 +69,43 @@ static QString tokenDir()
 static QString tokenPathFor(const QString &serverId)
 {
    return tokenDir() + "/" + serverId + ".token";
+}
+
+
+static void usage(const char *prog)
+{
+   std::cerr <<
+      "Usage: " << prog << " [--server URL|NAME] <command> [args]\n"
+      "\n"
+      "Commands:\n"
+      "  servers                    List servers from client.conf\n"
+      "  add-server <url> [name]    Add a server to client.conf\n"
+      "  probe <host>               Look for a server on a host\n"
+      "  login <user>               Prompt for password, save token\n"
+      "  logout                     Forget the saved token\n"
+      "  status                     Show server status\n"
+      "  repos                      List repositories\n"
+      "  ls <repo> [path]           List files in a repo directory\n"
+      "  cat <repo> <path> [-o OUT] Fetch a file (stdout, or to OUT)\n"
+      "  info <repo> <stack> [--text|--json]\n"
+      "                             Show a stack's pages without fetching it\n"
+      "  page <repo> <stack> <n> [-o OUT]\n"
+      "                             Fetch one page as a one-page .max\n"
+      "\n"
+      "--server takes a URL, the name of a server listed in client.conf,\n"
+      "or a host (optionally host:port) to look for a server on.  With\n"
+      "none, $PAPERMAN_SERVER is used, else the first server in\n"
+      "client.conf, else http://localhost:8080.\n"
+      "\n"
+      "A host alone is tried on ports 8080 and 8081, then over https.\n"
+      "add-server and probe take a host in the same way.\n"
+      "\n"
+      "Servers are listed in a file, one per line as \"Name = URL\" or a\n"
+      "bare URL:\n"
+      "  " << ClientConfig::configPath().toStdString() << "\n"
+      "$PAPERMAN_CONFIG names another file to use.  The token from a\n"
+      "login is kept per server, readable only by its owner, as\n"
+      "  " << tokenPathFor("<serverId>").toStdString() << "\n";
 }
 
 
@@ -120,6 +121,7 @@ static QString loadToken(const QString &serverId)
 static bool saveToken(const QString &serverId, const QString &token)
 {
    QString p = tokenPathFor(serverId);
+   QDir().mkpath(tokenDir());
    QFile f(p);
    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
       return false;

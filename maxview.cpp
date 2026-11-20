@@ -51,6 +51,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include "qmessagebox.h"
 #include "qsettings.h"
 
+#include "clientconf.h"
 #include "config.h"
 
 #include "desktopmodel.h"
@@ -518,9 +519,9 @@ static void usage (void)
    printf ("                       (the same as PAPERMAN_FAKE_SCANNER=DIR)\n");
 #endif
    printf ("   --server URL|NAME   attach a paperman-server, by URL or by the\n");
-   printf ("                       name of one listed in client.conf\n");
-   printf ("                       (~/.config/paperman/client.conf, whose\n");
-   printf ("                       servers are all attached at startup)\n");
+   printf ("                       name of one listed in client.conf, whose\n");
+   printf ("                       servers are all attached at startup:\n");
+   printf ("                       %s\n", qPrintable (ClientConfig::configPath ()));
 /*
    printf ("\n");
    printf ("If none of -p, -m, -j are specified, maxview opens in desktop "
