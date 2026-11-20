@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "backend.h"
 #include "backendstats.h"
 #include "blockwatch.h"
+#include "clientconf.h"
 #include "localbackend.h"
 #include "remotebackend.h"
 #include "qmimedata.h"
@@ -1095,6 +1096,18 @@ QStringList Dirmodel::localRoots() const
          roots << item->dir();
    }
    return roots;
+}
+
+
+bool Dirmodel::hasServer(const QUrl &url) const
+{
+   for (Diritem *item : _item) {
+      auto remote = dynamic_cast<RemoteBackend *>(item->backend());
+
+      if (remote && ClientConfig::sameServer(remote->baseUrl(), url))
+         return true;
+   }
+   return false;
 }
 
 

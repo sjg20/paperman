@@ -58,6 +58,7 @@ private slots:
 
    //! Only the folders on this machine are given as those to remember
    void testLocalRoots();
+   void testHasServer();
 
    //! Dirmodel::loginToServer caches a usable token: a follow-up
    //! addRemoteRepository against an auth-required server succeeds

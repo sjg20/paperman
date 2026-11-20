@@ -275,6 +275,12 @@ public:
    QStringList localRoots() const;
 
    /**
+    * @brief Return true if a repository of the server at @p url is in
+    *        the model, however the address is written
+    */
+   bool hasServer(const QUrl &url) const;
+
+   /**
     * @brief Return true if @p path is the address of a repository on a
     *        server (http://host/repo) and not a folder on this machine.
     */
