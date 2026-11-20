@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <functional>
+
 #include <QElapsedTimer>
 #include <QTimer>
 #include "ui_mainwindow.h"
@@ -50,6 +52,17 @@ public:
     ~Mainwindow();
 
     Desktopwidget * getDesktop();
+
+    //! called with what went wrong, or with nothing if all is well
+    using ServerAdded = std::function<void (const QString &error)>;
+
+    /** Attach a server and remember it for next time, without waiting
+
+       \param arg   the server: an address, the name of a machine to look
+                    for one on, or the name of a server already listed
+       \param done  called once the server's repositories are shown, or
+                    with why they are not */
+    void addServer(const QString &arg, ServerAdded done);
 
    // save window settings for next time (called when closing application)
    void saveSettings ();
@@ -143,6 +156,7 @@ public slots:
     void updateCameraAction();
     virtual void on_actionDownloads_triggered(bool);
     virtual void on_actionAddRepository_triggered(bool);
+    virtual void on_actionAddServer_triggered(bool);
     virtual void on_actionDocuments_triggered(bool);
     virtual void on_actionDirectory_triggered(bool);
     void on_actionFullScreen_triggered(bool);

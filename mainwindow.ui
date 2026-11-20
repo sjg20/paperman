@@ -71,6 +71,7 @@
      <addaction name="actionDirectory"/>
     </widget>
     <addaction name="actionAddRepository"/>
+    <addaction name="actionAddServer"/>
     <addaction name="separator"/>
     <addaction name="actionOptionsm"/>
     <addaction name="actionScango"/>
@@ -537,6 +538,14 @@
    </property>
    <property name="toolTip">
     <string>Add a folder to keep papers in</string>
+   </property>
+  </action>
+  <action name="actionAddServer">
+   <property name="text">
+    <string>Add server...</string>
+   </property>
+   <property name="toolTip">
+    <string>Show the papers which a Paperman server holds</string>
    </property>
   </action>
   <action name="actionDocuments">

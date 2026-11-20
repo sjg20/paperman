@@ -49,6 +49,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 *****************************************************************************/
 
 #include <QFileDialog>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QProgressBar>
 
 #include "qstatusbar.h"
@@ -686,6 +688,63 @@ void Mainwindow::on_actionAddRepository_triggered(bool)
 {
    _desktop->slotAddRepository();
 }
+
+void Mainwindow::on_actionAddServer_triggered(bool)
+{
+   bool ok;
+   QString arg = QInputDialog::getText(this, tr("Add server"),
+      tr("Name or address of the machine which runs the server:"),
+      QLineEdit::Normal, QString(), &ok).trimmed();
+
+   if (!ok || arg.isEmpty())
+      return;
+
+   statusBar()->showMessage(tr("Looking for a server at %1").arg(arg));
+   addServer(arg, [this, arg](const QString &error) {
+      statusBar()->clearMessage();
+      if (!error.isEmpty())
+         QMessageBox::warning(this, "Paperman",
+                              tr("Server %1: %2").arg(arg, error));
+   });
+}
+
+
+void Mainwindow::addServer(const QString &arg, ServerAdded done)
+{
+   /* Take what the command line's --server does: the name of a server
+      already listed, an address, or a machine to look for a server on */
+   ClientConfig::resolve(arg, this, [this, done](const QUrl &url,
+                                                 const QString &error) {
+      if (url.isEmpty()) {
+         done(error);
+         return;
+      }
+
+      // attaching it again would show each of its repositories twice
+      if (_desktop->getDirmodel()->hasServer(url)) {
+         done(tr("its papers are already shown"));
+         return;
+      }
+
+      _desktop->addRemoteServer(url, [this, url, done](const QString &err) {
+         if (!err.isEmpty()) {
+            done(err);
+            return;
+         }
+         serverAttached();
+
+         /* Remember it only now that it works, so that a mistyped
+            address does not bring a complaint at every start */
+         QString saveError;
+
+         if (!ClientConfig::add(url, QString(), &saveError))
+            done(tr("it will not be remembered: %1").arg(saveError));
+         else
+            done(QString());
+      });
+   });
+}
+
 
 void Mainwindow::on_actionDownloads_triggered(bool)
 {
