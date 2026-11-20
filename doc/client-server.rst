@@ -90,9 +90,9 @@ A server with users (``users.json``) only answers a client which has
 logged in with ``POST /v1/auth/login``, giving a bearer token which lasts
 30 days, or which gives an API key. A user may be limited to some of the
 repositories. The desktop and ``paperman-client`` keep the token in
-``~/.config/paperman/<serverId>.token``. The app logs in when the server
-asks for credentials, and otherwise sends its username and password as
-Basic auth, for a server behind a proxy which asks for them.
+``<serverId>.token``, beside ``client.conf``. The app logs in when the
+server asks for credentials, and otherwise sends its username and
+password as Basic auth, for a server behind a proxy which asks for them.
 
 Text
 ----
