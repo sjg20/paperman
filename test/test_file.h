@@ -178,6 +178,9 @@ private slots:
    //! PDF pages render correctly after rotation, mono and colour
    void testPdfMonoRender();
 
+   // a page which draws a form, not an image, is rendered
+   void testPdfFormPageRender();
+
    //! a re-rendered transformed page matches the reference image
    //! transformed in memory
    void testTransformMatchesReference();

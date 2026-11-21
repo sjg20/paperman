@@ -54,6 +54,8 @@ What has changed in each release of Paperman, newest first.
 - the phone app logs in to a server which has users, searches the text on
   the pages and scans pages with the phone's camera
 - a user guide, with pictures, which is also built as a PDF manual
+- a PDF page which draws a form, as tax forms often do, is shown, rather
+  than as a blank or red page
 
 1.4.0
 -----

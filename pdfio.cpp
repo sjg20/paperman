@@ -1546,14 +1546,29 @@ const PdfObject *Pdfio::get_xobject_image (const PdfReference &ref, const PdfDic
    const PdfObject* pObjType = dict->GetKey( "Type" );
    const PdfObject* pObjSubType = dict->GetKey( "Subtype" );
 #ifdef PODOFO_1X
-   if( ( pObjType && pObjType->IsName() && ( pObjType->GetName().GetString() == "XObject" ) ) ||
-      ( pObjSubType && pObjSubType->IsName() && ( pObjSubType->GetName().GetString() == "Image" ) ) )
-      return obj;
+   bool is_xobject = pObjType && pObjType->IsName()
+      && pObjType->GetName().GetString() == "XObject";
+   bool has_subtype = pObjSubType && pObjSubType->IsName();
+   bool is_image = has_subtype
+      && pObjSubType->GetName().GetString() == "Image";
 #else
-   if( ( pObjType && pObjType->IsName() && ( pObjType->GetName().GetName() == "XObject" ) ) ||
-      ( pObjSubType && pObjSubType->IsName() && ( pObjSubType->GetName().GetName() == "Image" ) ) )
-      return obj;
+   bool is_xobject = pObjType && pObjType->IsName()
+      && pObjType->GetName().GetName() == "XObject";
+   bool has_subtype = pObjSubType && pObjSubType->IsName();
+   bool is_image = has_subtype
+      && pObjSubType->GetName().GetName() == "Image";
 #endif
+
+   /* an XObject can also be a form, which holds drawing of its own
+      rather than an image: a page which draws one is not a scan, and
+      has to be rendered */
+   if (has_subtype && !is_image)
+      return 0;
+
+   // an image has a size; without one there is nothing to decode
+   if ((is_xobject || is_image) && dict->GetKey ("Width")
+       && dict->GetKey ("Height"))
+      return obj;
    return 0;
    }
 
