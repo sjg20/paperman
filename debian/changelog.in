@@ -20,6 +20,7 @@ paperman (1.5.0-1VENDOR_VERSION) UNRELEASED; urgency=medium
   * Limit a server's users to a part of a repository
   * Check once a day for a newer version
   * Add a user guide, also built as a PDF manual
+  * Show a PDF page which draws a form, rather than a blank page
 
  -- Simon Glass <sjg@chromium.org>  Fri, 20 Nov 2026 12:49:04 -0700
 
