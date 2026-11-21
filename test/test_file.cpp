@@ -1225,6 +1225,85 @@ void TestFile::testPdfMonoRender()
    delete pdf;
 }
 
+
+/* Write a one-page PDF whose page does nothing but draw a form XObject,
+   which in turn fills a black box across the middle of the page. This is
+   how some programs write every page of a document */
+static void writeFormPdf(const QString &fname)
+{
+   QList<QByteArray> objs;
+   QByteArray form = "0 0 0 rg 100 300 400 200 re f\n";
+   QByteArray content = "q 1 0 0 1 0 0 cm /Fm0 Do Q\n";
+
+   objs << "<< /Type /Catalog /Pages 2 0 R >>"
+        << "<< /Type /Pages /Kids [3 0 R] /Count 1 >>"
+        << "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+           "/Resources << /XObject << /Fm0 5 0 R >> >> /Contents 4 0 R >>"
+        << "<< /Length " + QByteArray::number(content.size())
+           + " >>\nstream\n" + content + "endstream"
+        << "<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Length "
+           + QByteArray::number(form.size()) + " >>\nstream\n" + form
+           + "endstream";
+
+   QByteArray out = "%PDF-1.4\n";
+   QList<int> offsets;
+
+   for (int i = 0; i < objs.size(); i++) {
+      offsets << out.size();
+      out += QByteArray::number(i + 1) + " 0 obj\n" + objs[i]
+             + "\nendobj\n";
+   }
+
+   int xref = out.size();
+
+   out += "xref\n0 " + QByteArray::number(objs.size() + 1)
+          + "\n0000000000 65535 f \n";
+   for (int offset : offsets)
+      out += QByteArray::number(offset).rightJustified(10, '0')
+             + " 00000 n \n";
+   out += "trailer\n<< /Size " + QByteArray::number(objs.size() + 1)
+          + " /Root 1 0 R >>\nstartxref\n" + QByteArray::number(xref)
+          + "\n%%EOF\n";
+
+   QFile f(fname);
+
+   QVERIFY(f.open(QIODevice::WriteOnly));
+   f.write(out);
+}
+
+
+/* A page whose content only draws an XObject looks like a scan, whose
+   image can be taken out of the file as it is. When the XObject is a
+   form there is no image to take, and the page must be rendered */
+void TestFile::testPdfFormPageRender()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+
+   writeFormPdf(dir + "form.pdf");
+
+   File *pdf = File::createFile(dir, "form.pdf", nullptr, File::Type_pdf);
+   QVERIFY(pdf);
+   QVERIFY2(pdf->load() == nullptr, "load");
+   QCOMPARE(pdf->pagecount(), 1);
+
+   QImage image;
+   QSize size, trueSize;
+   int bpp;
+   err_info *e = pdf->getImage(0, false, image, size, trueSize, bpp, false);
+
+   QVERIFY2(!e, e ? e->errstr : "");
+
+   // the whole page at 300 dpi, not a pixel or two
+   QCOMPARE(image.size(), QSize(2550, 3300));
+
+   // the box is black and the paper around it white
+   QCOMPARE(image.pixelColor(1250, 1650), QColor(Qt::black));
+   QCOMPARE(image.pixelColor(1250, 300), QColor(Qt::white));
+   QCOMPARE(image.pixelColor(100, 1650), QColor(Qt::white));
+   delete pdf;
+}
+
 /* Compare a page rendered after transformPage() against the original
    render transformed in memory. The stored page may be wider than the
    reference because of format padding, so compare the reference-sized
