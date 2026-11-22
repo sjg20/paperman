@@ -931,6 +931,37 @@ void Desktopview::mousePressEvent (QMouseEvent *event)
    }
 
 
+void Desktopview::setSelection (const QRect &rect,
+      QItemSelectionModel::SelectionFlags command)
+   {
+   // a single click, and dragging out a box, work as they are
+   if (!model () || state () == DragSelectingState
+       || (rect.width () == 1 && rect.height () == 1))
+      {
+      QListView::setSelection (rect, command);
+      return;
+      }
+
+   /* the box runs from the middle of the stack picked before to the
+      click; take the stack clicked, and each one whose middle is in it */
+   QModelIndex clicked = indexAt (rect.bottomRight ());
+   QPoint from = rect.topLeft (), to = rect.bottomRight ();
+   QRect box (QPoint (qMin (from.x (), to.x ()), qMin (from.y (), to.y ())),
+              QPoint (qMax (from.x (), to.x ()), qMax (from.y (), to.y ())));
+   int count = model ()->rowCount (rootIndex ());
+   QItemSelection selection;
+
+   for (int i = 0; i < count; i++)
+      {
+      QModelIndex ind = model ()->index (i, 0, rootIndex ());
+
+      if (ind == clicked || box.contains (visualRect (ind).center ()))
+         selection.select (ind, ind);
+      }
+   selectionModel ()->select (selection, command);
+   }
+
+
 void Desktopview::mouseReleaseEvent (QMouseEvent *event)
    {
    QListView::mouseReleaseEvent (event);

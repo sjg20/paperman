@@ -235,6 +235,16 @@ protected:
    //! handle a mouse press event
    void mousePressEvent (QMouseEvent * event);
 
+   /* A shift-click picks the stack clicked and those with their middle
+      in the box from the middle of the stack picked before to the click.
+      QListView instead takes
+      the stacks to be in rows which read like text, starting from the
+      edge of the first one's cell: stacks sit anywhere, and a long name
+      makes a stack wider than the gap to the next, so that picks a
+      neighbour on the wrong side */
+   void setSelection (const QRect &rect,
+                      QItemSelectionModel::SelectionFlags command) override;
+
    //! open a context menu
    void contextMenuEvent (QContextMenuEvent *e);
 
