@@ -1296,7 +1296,13 @@ bool Dirmodel::hasChildren (const QModelIndex &parent) const
    if (!parent.isValid())
       return _item.size () > 0;
 
-   // All directory nodes potentially have children
+   /* A folder might have subfolders until it has been listed, since
+      finding out is what lists it; after that, it is known */
+   DirNode *node = nodeFromIndex(parent);
+
+   if (node->populated && !node->loading && !node->loadFailed)
+      return !node->children.isEmpty();
+
    return true;
    }
 
@@ -1316,8 +1322,28 @@ void Dirmodel::fetchMore (const QModelIndex &parent)
    {
    /* There are no rows to announce: until a folder is listed nothing has
       been told how many it has, since asking is what lists it */
-   if (parent.isValid())
-      populateNode(nodeFromIndex(parent));
+   if (!parent.isValid())
+      return;
+
+   DirNode *node = nodeFromIndex(parent);
+
+   populateNode(node);
+
+   /* A view remembers which folders have an arrow, and has put one on
+      this one. If it turns out to have no subfolders, have the view look
+      again, once it has finished opening the folder */
+   if (node->populated && !node->loading && node->children.isEmpty())
+      {
+      QPersistentModelIndex above = parent.parent();
+
+      QMetaObject::invokeMethod(this, [this, above]
+         {
+         QList<QPersistentModelIndex> parents{above};
+
+         emit layoutAboutToBeChanged(parents);
+         emit layoutChanged(parents);
+         }, Qt::QueuedConnection);
+      }
    }
 
 

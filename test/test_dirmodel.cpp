@@ -301,6 +301,18 @@ void TestDirmodel::testViewListsOpenFolders()
    view.setExpanded(bills, false);
    view.setExpanded(bills, true);
    QCOMPARE(backend.folders, 2);
+   QVERIFY(proxy.hasChildren(bills));
+
+   /* a folder with no subfolders has an arrow only until it is opened,
+      which is when that is found out */
+   QModelIndex tax = proxy.index(1, 0, root);
+
+   QCOMPARE(tax.data().toString(), QString("tax"));
+   QVERIFY(proxy.hasChildren(tax));
+   view.setExpanded(tax, true);
+   QCOMPARE(backend.folders, 3);
+   QVERIFY(!proxy.hasChildren(tax));
+   QVERIFY(!model.hasChildren(proxy.mapToSource(tax)));
 }
 
 
