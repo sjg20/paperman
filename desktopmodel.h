@@ -340,6 +340,11 @@ public:
        left to right */
    void sortByPosition (QModelIndexList &list);
 
+   /** the order of stacks on the desk, read like a page: true if a stack
+       at @p a comes before one at @p b. Stacks at about the same height
+       are in a row, and go from left to right */
+   static bool positionBefore (const QPoint &a, const QPoint &b);
+
    /** print some progress information in the status bar */
    void progress (const char *fmt, ...);
 

@@ -724,16 +724,22 @@ typedef struct sort_info
    } sort_info;
 
 
-static bool positionLessThan (const sort_info &s1, const sort_info &s2)
+bool Desktopmodel::positionBefore (const QPoint &a, const QPoint &b)
    {
    int diff;
 
-   diff = s2.pos.y () - s1.pos.y ();
+   diff = b.y () - a.y ();
    if (diff > 80)
       return true;
    else if (diff < -80)
       return false;
-   return s1.pos.x () < s2.pos.x ();
+   return a.x () < b.x ();
+   }
+
+
+static bool positionLessThan (const sort_info &s1, const sort_info &s2)
+   {
+   return Desktopmodel::positionBefore (s1.pos, s2.pos);
    }
 
 
