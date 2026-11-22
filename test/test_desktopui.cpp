@@ -380,6 +380,63 @@ void TestDesktopUi::testCtrlClickMultiSelect()
 
 }
 
+/* Stacks sit anywhere on the desk, and one with a long name is wider
+   than the gap to the next. A shift-click must pick the stacks from the
+   one picked before to the one clicked, without a neighbour on the other
+   side whose name reaches under the first, or the rest of each row */
+void TestDesktopUi::testShiftClickSelectsRange()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   // make four stacks, the first with a long name
+   clickItem(view, 0);
+   desktop->_act_duplicate->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 3);
+   clickItem(view, 1);
+   desktop->_act_duplicate->trigger();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 4);
+   QVERIFY(view->model()->setData(itemIndex(view, 0),
+              QString("a stack with a very long name indeed"),
+              Qt::EditRole));
+
+   /* three in a row, close enough for the long name to reach the second,
+      and one below the second */
+   const QPoint pos[] = {{25, 10}, {165, 10}, {305, 10}, {165, 260}};
+
+   for (int i = 0; i < 4; i++)
+      QVERIFY(view->model()->setData(itemIndex(view, i), pos[i],
+                                     Desktopmodel::Role_position));
+   QTest::qWait(200);
+   QVERIFY(view->visualRect(itemIndex(view, 0))
+              .intersects(view->visualRect(itemIndex(view, 1))));
+
+   auto picked = [&] {
+      QList<int> rows;
+
+      for (int i = 0; i < 4; i++)
+         if (view->selectionModel()->isSelected(itemIndex(view, i)))
+            rows << i;
+      return rows;
+   };
+
+   // from the second to the third leaves the first alone
+   clickItem(view, 1);
+   clickItem(view, 2, Qt::ShiftModifier);
+   QCOMPARE(picked(), QList<int>({1, 2}));
+
+   // from the second to the one below it leaves the rest of each row
+   clickItem(view, 1);
+   clickItem(view, 3, Qt::ShiftModifier);
+   QCOMPARE(picked(), QList<int>({1, 3}));
+}
+
 void TestDesktopUi::testDoubleClickOpensStack()
 {
    QModelIndex repo_ind;
