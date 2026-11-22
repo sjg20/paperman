@@ -382,8 +382,9 @@ void TestDesktopUi::testCtrlClickMultiSelect()
 
 /* Stacks sit anywhere on the desk, and one with a long name is wider
    than the gap to the next. A shift-click must pick the stacks from the
-   one picked before to the one clicked, without a neighbour on the other
-   side whose name reaches under the first, or the rest of each row */
+   one picked before to the one clicked, in the order of the desk read
+   like a page, without a neighbour on the other side whose name reaches
+   under the first */
 void TestDesktopUi::testShiftClickSelectsRange()
 {
    QModelIndex repo_ind;
@@ -431,10 +432,21 @@ void TestDesktopUi::testShiftClickSelectsRange()
    clickItem(view, 2, Qt::ShiftModifier);
    QCOMPARE(picked(), QList<int>({1, 2}));
 
-   // from the second to the one below it leaves the rest of each row
+   /* from the second to the one below it takes the rest of the row too,
+      as that comes between them, but still not the first */
    clickItem(view, 1);
    clickItem(view, 3, Qt::ShiftModifier);
-   QCOMPARE(picked(), QList<int>({1, 3}));
+   QCOMPARE(picked(), QList<int>({1, 2, 3}));
+
+   // and the same going back up
+   clickItem(view, 3);
+   clickItem(view, 1, Qt::ShiftModifier);
+   QCOMPARE(picked(), QList<int>({1, 2, 3}));
+
+   // a shift-click on the stack already picked leaves just that one
+   clickItem(view, 2);
+   clickItem(view, 2, Qt::ShiftModifier);
+   QCOMPARE(picked(), QList<int>({2}));
 }
 
 void TestDesktopUi::testDoubleClickOpensStack()

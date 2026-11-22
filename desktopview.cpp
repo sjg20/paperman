@@ -943,20 +943,47 @@ void Desktopview::setSelection (const QRect &rect,
       }
 
    /* the box runs from the middle of the stack picked before to the
-      click; take the stack clicked, and each one whose middle is in it */
-   QModelIndex clicked = indexAt (rect.bottomRight ());
-   QPoint from = rect.topLeft (), to = rect.bottomRight ();
-   QRect box (QPoint (qMin (from.x (), to.x ()), qMin (from.y (), to.y ())),
-              QPoint (qMax (from.x (), to.x ()), qMax (from.y (), to.y ())));
+      click, or to the middle of another stack when a key moves there */
    int count = model ()->rowCount (rootIndex ());
-   QItemSelection selection;
+   QModelIndex from, to = indexAt (rect.bottomRight ());
+   QList<QPair<QPoint, QModelIndex>> items;
 
    for (int i = 0; i < count; i++)
       {
       QModelIndex ind = model ()->index (i, 0, rootIndex ());
+      QPoint middle = visualRect (ind).center ();
 
-      if (ind == clicked || box.contains (visualRect (ind).center ()))
-         selection.select (ind, ind);
+      if (middle == rect.topLeft ())
+         from = ind;
+      if (!to.isValid () && middle == rect.bottomRight ())
+         to = ind;
+      items << qMakePair (ind.data (Desktopmodel::Role_position).toPoint (),
+                          ind);
+      }
+   if (!from.isValid () || !to.isValid ())
+      {
+      QListView::setSelection (rect, command);
+      return;
+      }
+
+   // take the two stacks and all those between them, in the desk's order
+   std::stable_sort (items.begin (), items.end (),
+              [] (const QPair<QPoint, QModelIndex> &a,
+                  const QPair<QPoint, QModelIndex> &b) {
+      return Desktopmodel::positionBefore (a.first, b.first);
+   });
+
+   QItemSelection selection;
+   bool inside = false;
+
+   for (const auto &item : items)
+      {
+      bool end = item.second == from || item.second == to;
+
+      if (inside || end)
+         selection.select (item.second, item.second);
+      if (end && from != to)
+         inside = !inside;
       }
    selectionModel ()->select (selection, command);
    }
