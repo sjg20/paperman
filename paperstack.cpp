@@ -2007,6 +2007,7 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
    QString why = QString (sane_strstatus (status));
    int buttons = _scanner->checkButtons ();
    bool watch = buttons != INT_MIN;
+   int fails = 0;
    QElapsedTimer waited;
 
    /* end the frame, so that the back end is ready to start another once
@@ -2034,10 +2035,21 @@ SANE_Status Paperscan::waitForResume (SANE_Status status)
       if (!takeResume () && watch)
          {
          buttons = _scanner->checkButtons ();
-         if (buttons == INT_MIN)      // the back end has stopped telling us
+
+         /* the back end has stopped telling us, unless the scanner was
+            only settling after the user shut it */
+         if (buttons == INT_MIN)
+            {
+            if (++fails < QScanner::kButtonFailLimit)
+               continue;
             watch = false;
-         else if (!(buttons & (1 << QScanner::BUT_scan)))
-            continue;
+            }
+         else
+            {
+            fails = 0;
+            if (!(buttons & (1 << QScanner::BUT_scan)))
+               continue;
+            }
          }
       _op = "sane_start";
       status = _scanner->start ();
