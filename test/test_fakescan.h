@@ -64,6 +64,10 @@ public:
    /** press a button on the scanner, e.g. "scan" */
    static void press (const char *name);
 
+   /** have the next few reads of a button fail, see
+       fakescan_miss_buttons() */
+   static void missButtons (int count);
+
    /** \returns what the front end asked of the scanner, a call a line */
    static QStringList log (void);
 

@@ -184,6 +184,7 @@ struct Machine
    bool wedged = false;               //!< not answering at all
    int busy_ms = -1;                  //!< busy, taking this long to say so
    QSet<QString> pressed;             //!< buttons not yet seen
+   int button_misses = 0;             //!< button reads still to fail
    QHash<QString, Stall> stalls;      //!< calls which hang, by name
    int stall_gen = 0;                 //!< goes up as stalls are cleared
    QWaitCondition wake;               //!< for a stalled call to look again
@@ -1333,8 +1334,10 @@ static SANE_Status get_option (Scanner *s, SANE_Int option, void *val)
          {
          QMutexLocker locker (&machine.lock);
 
-         if (machine.wedged)
+         if (machine.wedged || machine.button_misses > 0)
             {
+            if (!machine.wedged)
+               machine.button_misses--;
             locker.unlock ();
             return noted ("get button", SANE_STATUS_IO_ERROR);
             }
@@ -1906,6 +1909,7 @@ EXPORT void fakescan_reset (void)
    machine.stall_gen++;
    machine.wake.wakeAll ();
    machine.pressed.clear ();
+   machine.button_misses = 0;
    machine.log.clear ();
    machine.counts.clear ();
    }
@@ -1998,6 +2002,14 @@ EXPORT int fakescan_press (const char *name)
    machine.pressed.insert (name);
 
    return 0;
+   }
+
+
+EXPORT void fakescan_miss_buttons (int count)
+   {
+   QMutexLocker locker (&machine.lock);
+
+   machine.button_misses = qMax (count, 0);
    }
 
 
