@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <functional>
 
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QFutureWatcher>
 #include <QImage>
 #include <QList>
@@ -125,10 +126,14 @@ private:
    //! find how a page can be recognised, returning false if it cannot
    bool markPage (File *file, int pagenum, Mark &mark);
 
+   //! the stack's path for the log, which copes with one which has gone
+   static QString pathOf (File *file);
+
    QList<Stack> _stacks;          //!< the stacks to read, the first now
    QPointer<File> _file;          //!< the stack of the page being read
    int _pagenum = -1;             //!< the page being read
    Mark _mark;                    //!< the page being read
+   QElapsedTimer _timer;          //!< how long the page has taken
    Engine _engine;
    QFutureWatcher<Result> _watcher;
    };

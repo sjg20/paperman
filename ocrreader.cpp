@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "file.h"
 #include "ocr.h"
 #include "ocrreader.h"
+#include "utils.h"
 
 
 OcrReader::OcrReader (QObject *parent)
@@ -42,7 +43,23 @@ OcrReader::OcrReader (QObject *parent)
 OcrReader::~OcrReader ()
    {
    // the engine is given a copy of the image, so it only needs to finish
-   _watcher.waitForFinished ();
+   if (_watcher.isRunning ())
+      {
+      QElapsedTimer timer;
+
+      timer.start ();
+      qCDebug (logOcr).noquote () << QString ("ocr: waiting for page %1 of "
+         "%2 to be read").arg (_pagenum + 1).arg (pathOf (_file));
+      _watcher.waitForFinished ();
+      qCDebug (logOcr).noquote () << QString ("ocr: waited %1ms")
+         .arg (timer.elapsed ());
+      }
+   }
+
+
+QString OcrReader::pathOf (File *file)
+   {
+   return file ? file->pathname () : QString ("a stack which has gone");
    }
 
 
@@ -163,6 +180,9 @@ void OcrReader::next ()
       _file = file;
       _pagenum = pagenum;
       _mark = mark;
+      _timer.start ();
+      qCDebug (logOcr).noquote () << QString ("ocr: reading page %1 of %2")
+         .arg (pagenum + 1).arg (file->pathname ());
       _watcher.setFuture (QtConcurrent::run ([engine, image] () mutable
          {
          Result result;
@@ -183,6 +203,9 @@ void OcrReader::readDone ()
    int pagenum = _pagenum;
    Mark mark;
 
+   qCDebug (logOcr).noquote () << QString ("ocr: read page %1 in %2ms, "
+      "%3 words").arg (pagenum + 1).arg (_timer.elapsed ())
+      .arg (result.page.words.size ());
    _file = nullptr;
    _pagenum = -1;
    if (!file)
