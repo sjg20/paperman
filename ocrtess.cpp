@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDataStream>
 #include <QDebug>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QProcess>
@@ -36,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "ocrtess.h"
 #include "ocrpage.h"
+#include "utils.h"
 
 
 
@@ -56,6 +58,10 @@ static QString tesseractPath (void)
    {
    return QStandardPaths::findExecutable ("tesseract");
    }
+
+
+//! how long tesseract can take over a page before the log hears of it
+static const int SLOW_MS = 60 * 1000;
 
 
 err_info *Ocrtess::init (void)
@@ -115,9 +121,27 @@ err_info *Ocrtess::imageToPage (QImage &image, OcrPage &page)
          program = nice;
          }
       }
+   QElapsedTimer timer;
+   bool finished;
+
+   timer.start ();
    proc.start (program, args);
-   bool ok = proc.waitForFinished (-1) && proc.exitStatus () == QProcess::NormalExit
+   qint64 pid = proc.processId ();
+   qCDebug (logOcr).noquote () << QString ("ocr: tesseract %1 reading %2x%3")
+      .arg (pid).arg (image.width ()).arg (image.height ());
+
+   /* say so now and then while it is reading, so that a log shows whether
+      this thread is still waiting for it, or has stopped altogether */
+   while (!(finished = proc.waitForFinished (SLOW_MS))
+          && proc.state () != QProcess::NotRunning)
+      qCDebug (logOcr).noquote ()
+         << QString ("ocr: tesseract %1 still reading after %2s")
+            .arg (pid).arg (timer.elapsed () / 1000);
+
+   bool ok = finished && proc.exitStatus () == QProcess::NormalExit
              && proc.exitCode () == 0;
+   qCDebug (logOcr).noquote () << QString ("ocr: tesseract %1 %2 in %3ms")
+      .arg (pid).arg (ok ? "done" : "failed").arg (timer.elapsed ());
    QFile::remove (tmp);
    if (!ok)
       {

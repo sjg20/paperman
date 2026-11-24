@@ -1035,6 +1035,7 @@ void utilLogDialogs (QCoreApplication *)
 Q_LOGGING_CATEGORY (logView, "paperman.view", QtWarningMsg)
 Q_LOGGING_CATEGORY (logErr, "paperman.err", QtWarningMsg)
 Q_LOGGING_CATEGORY (logBuild, "paperman.build", QtWarningMsg)
+Q_LOGGING_CATEGORY (logOcr, "paperman.ocr", QtWarningMsg)
 
 
 void utilLogEnable (void)
