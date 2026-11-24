@@ -44,6 +44,7 @@ struct Backdoor
    void (*clear) (void);
    void (*setSideTime) (int);
    int (*press) (const char *);
+   void (*missButtons) (int);
    const char *(*log) (void);
    int (*count) (const char *);
    int (*stall) (const char *, int, int);
@@ -108,13 +109,16 @@ bool Fakescan::setup (void)
    backdoor.setSideTime = (void (*) (int))
       dlsym (handle, "fakescan_set_side_time");
    backdoor.press = (int (*) (const char *))dlsym (handle, "fakescan_press");
+   backdoor.missButtons = (void (*) (int))
+      dlsym (handle, "fakescan_miss_buttons");
    backdoor.log = (const char *(*) (void))dlsym (handle, "fakescan_log");
    backdoor.count = (int (*) (const char *))dlsym (handle, "fakescan_count");
    backdoor.stall = (int (*) (const char *, int, int))
       dlsym (handle, "fakescan_stall");
    ready = backdoor.reset && backdoor.loadSheet && backdoor.sheetsLeft
          && backdoor.setBacking && backdoor.addFault && backdoor.clear
-         && backdoor.setSideTime && backdoor.press && backdoor.log
+         && backdoor.setSideTime && backdoor.press && backdoor.missButtons
+         && backdoor.log
          && backdoor.count && backdoor.stall;
 
    return ready;
@@ -201,6 +205,12 @@ void Fakescan::setSideTime (int ms)
 void Fakescan::press (const char *name)
 {
    QCOMPARE (backdoor.press (name), 0);
+}
+
+
+void Fakescan::missButtons (int count)
+{
+   backdoor.missButtons (count);
 }
 
 

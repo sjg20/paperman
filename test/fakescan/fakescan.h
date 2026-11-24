@@ -152,6 +152,13 @@ int fakescan_stall (const char *call, int ms, int flags);
     \returns 0 if OK, -1 if the scanner has no such button */
 int fakescan_press (const char *name);
 
+/** Have the next few reads of a button fail with SANE_STATUS_IO_ERROR,
+    as a real scanner's do for a moment after its cover is shut, while it
+    settles. It then answers as before
+
+    \param count   how many reads fail */
+void fakescan_miss_buttons (int count);
+
 /** What the front end has asked of the scanner since the last reset, a
     line for each call which changed something or which failed, oldest
     first. Two calls made at once on one handle, which a real back end
