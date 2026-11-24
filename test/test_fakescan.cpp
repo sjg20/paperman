@@ -2408,7 +2408,7 @@ void TestFakescan::testStopsAnswering ()
 
 /* A scanner which has stopped answering can hold up the window for as
    long as a USB timeout each time it is asked about its buttons, so it
-   is only asked once */
+   is given up on once it has missed a few in a row */
 void TestFakescan::testButtonsLeftAloneOnceWedged ()
 {
    QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
@@ -2430,9 +2430,10 @@ void TestFakescan::testButtonsLeftAloneOnceWedged ()
    QCOMPARE (main->_scanner->start (), SANE_STATUS_IO_ERROR);
 
    QVERIFY (main->_watchButtons);
-   for (int i = 0; i < 3; i++)
+   for (int i = 0; i < QScanner::kButtonFailLimit + 2; i++)
       main->checkButtons ();
-   QCOMPARE (Fakescan::log ().filter ("get button:").size (), 1);
+   QCOMPARE (Fakescan::log ().filter ("get button:").size (),
+             QScanner::kButtonFailLimit);
    QVERIFY (!main->_watchButtons);
 
    // a closed scanner costs nothing to ask, so is not given up on
@@ -2440,6 +2441,37 @@ void TestFakescan::testButtonsLeftAloneOnceWedged ()
    main->_scanner->close ();
    main->checkButtons ();
    QVERIFY (main->_watchButtons);
+}
+
+
+/* A scanner can miss a question about its buttons for a moment after
+   its cover is shut, while it settles. That is just when the user is
+   about to press Scan on it, after clearing a jam, so the buttons are
+   still watched */
+void TestFakescan::testButtonsWatchedAfterMiss ()
+{
+   QVERIFY (Fakescan::loadSheet (bandSheet (0), QImage (), 10));
+
+   utilSetHeadless (true);
+
+   Mainwindow me;
+   Scansettings settings (0, FAKESCAN_DEVICE);
+   Mainwidget *main = Mainwidget::singleton ();
+
+   QVERIFY (main->ensureScanner ());
+   main->_watchButtons = true;
+
+   // an answer between the misses means the count starts again
+   int misses = qMax (1, QScanner::kButtonFailLimit - 1);
+
+   for (int round = 0; round < 2; round++)
+      {
+      Fakescan::missButtons (misses);
+      for (int i = 0; i <= misses; i++)
+         main->checkButtons ();
+      QVERIFY (main->_watchButtons);
+      }
+   QCOMPARE (Fakescan::log ().filter ("get button:").size (), 2 * misses);
 }
 
 

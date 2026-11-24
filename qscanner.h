@@ -481,6 +481,12 @@ is able to choose an option value automatically. */
    */
   int checkButtons (void);
 
+  /** How many checkButtons() failures in a row say that the scanner has
+      stopped answering. One alone does not: a scanner can miss one for
+      a moment after its cover is shut, while it settles, just when the
+      user is about to press Scan on it */
+  static constexpr int kButtonFailLimit = 3;
+
   /** returns true if we are currently scanning
 
      \returns true if scanning */
