@@ -182,6 +182,9 @@ private slots:
    //! After a jam, Scan on the scanner carries the batch on
    void testResumeFromScanner ();
 
+   //! It still waits for Scan when the scanner misses a button check
+   void testResumeAfterMissedButton ();
+
    //! A jam nobody clears ends the batch, keeping the pages before it
    void testJamNotCleared ();
 

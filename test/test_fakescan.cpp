@@ -2102,6 +2102,53 @@ void TestFakescan::testResumeFromScanner ()
 }
 
 
+/* A scanner can miss a question about its buttons for a moment after
+   its cover is shut, while it settles. The scan still waits for Scan to
+   be pressed, rather than taking that as a scanner which cannot say and
+   starting again by itself before the user has put the paper back */
+void TestFakescan::testResumeAfterMissedButton ()
+{
+   QList<QImage> pages;
+   QElapsedTimer cleared;
+   bool missed = false;
+   bool pressed = false;
+
+   scanStack (loadJamming (), pages, [&] (Mainwidget *main)
+      {
+      if (!main->scanWaiting ())
+         return false;
+      if (!missed)
+         {
+         Fakescan::missButtons (1);
+         missed = true;
+         return false;
+         }
+      if (!cleared.isValid ())
+         {
+         if (Fakescan::log ().filter ("get button:").isEmpty ())
+            return false;
+         Fakescan::clear ();
+         cleared.start ();
+         return false;
+         }
+
+      // a few checks go by with the way clear and nothing pressed
+      if (cleared.elapsed () < 300)
+         return false;
+      Fakescan::press ("scan");
+      pressed = true;
+      return true;
+      });
+   if (QTest::currentTestFailed ())
+      return;
+
+   QVERIFY (pressed);
+   QCOMPARE (pages.size (), 2);
+   QCOMPARE (darkThird (pages [1]), 2);
+   QCOMPARE (Fakescan::sheetsLeft (), 0);
+}
+
+
 /* With nobody to clear the jam the scan gives up waiting, and the page
    scanned before it is kept */
 void TestFakescan::testJamNotCleared ()
