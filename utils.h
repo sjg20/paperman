@@ -285,11 +285,13 @@ void utilLogDialogs (QCoreApplication *app);
 void utilLogLook (void);
 
 /** Diagnostics which are only of interest when something is being
-    investigated: the view changing, errors as they are created. These are
-    quiet unless --log is used, so that a normal run says nothing */
+    investigated: the view changing, errors as they are created, pages
+    being read. These are quiet unless --log is used, so that a normal run
+    says nothing */
 Q_DECLARE_LOGGING_CATEGORY (logView)
 Q_DECLARE_LOGGING_CATEGORY (logErr)
 Q_DECLARE_LOGGING_CATEGORY (logBuild)
+Q_DECLARE_LOGGING_CATEGORY (logOcr)
 
 /** Turn on the diagnostic categories above, for when the log is wanted */
 void utilLogEnable (void);
