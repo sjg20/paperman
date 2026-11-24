@@ -156,6 +156,7 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    connect (_page->_returnToDesktop, SIGNAL (triggered()), this, SLOT (showDesktop ()));
 
    _watchButtons = false;
+   _buttonFails = 0;
    _buttonTimer = new QTimer (this);
    connect (_buttonTimer, SIGNAL(timeout()), this, SLOT (checkButtons()));
    _buttonTimer->start (500); // check buttons twice each second
@@ -292,16 +293,24 @@ void Mainwidget::checkButtons (void)
    int buttons;
 
    if (!_watchButtons || !_scanner)
+      {
+      _buttonFails = 0;
       return;
+      }
    buttons = _scanner->checkButtons ();
    if (buttons == INT_MIN && _scanner->isOpen ())
       {
       /* This runs on the GUI thread. A scanner which is not answering
          holds it up for a USB timeout each time, so leave the buttons
-         alone until the next scan */
-      _watchButtons = false;
+         alone until the next scan once it has missed a few in a row */
+      if (++_buttonFails >= QScanner::kButtonFailLimit)
+         {
+         _watchButtons = false;
+         _buttonFails = 0;
+         }
       return;
       }
+   _buttonFails = 0;
    if (buttons > 0 && (buttons & 1)) // scan
       scan ();
    }

@@ -641,6 +641,7 @@ private:
    bool _smooth;            //!< sets whether smooth scaling is used or not
    QTimer *_buttonTimer;    //!< timer to control checking scanner buttons
    bool _watchButtons;      //!< true to watch buttons
+   int _buttonFails;        //!< checks of the buttons failed in a row
 
    //! information about a print job in progress
    Printopt *_opt;         //!< our print options dialogue
