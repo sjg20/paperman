@@ -610,6 +610,24 @@ eturns error, or NULL if ok */
        Type_pdf is .pdf) */
    static QString typeExt (e_type type);
 
+   /** returns the filename for a new stack of the given type
+
+      A JPEG stack is a file for each page, and is named after the file of
+      its first page, as the desk finds it: "name" becomes "name_p1.jpg".
+      Other stacks are one file, so it becomes "name.max", for example
+
+      \param base  the name, without an extension
+      \param type  the type of the stack
+      \returns the filename */
+   static QString newStackName (const QString &base, e_type type);
+
+   /** returns the stack's name, without its extension, from which the
+       names of stacks made from it start
+
+      For a JPEG stack this also leaves out the page number which ends the
+      name of the file of its first page: "name_p1.jpg" gives "name" */
+   QString stackLeaf (void);
+
    bool extMatchesType (const QString &ext);
 
    QString getAnnotName (e_annot type);

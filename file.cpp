@@ -261,6 +261,23 @@ QString File::typeExt (e_type type)
    return QString (",.max,.pdf,.jpg").section (',', type, type);
    }
 
+QString File::newStackName (const QString &base, e_type type)
+   {
+   if (type == Type_jpeg)
+      return base + UTIL_PAGE_PREFIX "1" + typeExt (type);
+   return base + typeExt (type);
+   }
+
+QString File::stackLeaf (void)
+   {
+   QString base, ext;
+   int pagenum;
+
+   if (_type == Type_jpeg && decodePageNumber (_filename, base, pagenum, ext))
+      return base;
+   return _leaf;
+   }
+
 File::e_type extToType (const QString &in_ext)
 {
    QString ext = in_ext.toLower ();
@@ -849,8 +866,8 @@ err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
       fname = removeExtension (fname, ext);
    if (fname.isEmpty ())
       fname = pagecount == 1
-         ? QString ("%1_page_%2").arg (_leaf).arg (pagenum + 1)
-         : QString ("%1_pages_%2_to_%3").arg (_leaf).arg (pagenum + 1).arg (pagenum + pagecount);
+         ? QString ("%1_page_%2").arg (stackLeaf ()).arg (pagenum + 1)
+         : QString ("%1_pages_%2_to_%3").arg (stackLeaf ()).arg (pagenum + 1).arg (pagenum + pagecount);
    QString pagename = _desk->findNextFilename (fname);
 
    if (pagename.isNull ())
@@ -858,7 +875,7 @@ err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
                        fname.toLatin1 ().constData());
 
    // get unique filename
-   uniq = pagename + typeExt (_type);
+   uniq = newStackName (pagename, _type);
 
    // create a new file of the correct type
    dest = createFile (_dir, uniq, _desk, _type);
@@ -1347,7 +1364,9 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
       }
 
    // need to convert from the current file to whatever type is requested
-   fnew = createFile (dir, uniq + ext, desk, type);
+   QString name = newStackName (uniq, type);
+
+   fnew = createFile (dir, name, desk, type);
    if (!fnew)
       return not_impl ();
    CALL (fnew->create ());
@@ -1365,7 +1384,7 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
    }
    else if (desk)
       desk->newFile (fnew, this, 1);
-   uniq = dir + uniq + ext;   // return final file
+   uniq = dir + name;   // return final file
    return err;
    }
 
@@ -1378,7 +1397,7 @@ err_info *File::duplicateAny (File::e_type type, int odd_even, Operation &op, Fi
    QString ext = typeExt (type);
    if (ext.isEmpty ())
       ext = _ext;
-   uniq = _desk->findNextFilename (_leaf + "_copy", QString(), ext);
+   uniq = _desk->findNextFilename (stackLeaf () + "_copy", QString(), ext);
 
    return duplicateToDesk (_desk, type, uniq, odd_even, op, fnew);
    }
@@ -1389,11 +1408,12 @@ err_info *File::duplicateAdjusted (ImageAdjust::e_adjust adjust, Operation &op,
                                    File *&fnew)
    {
    QString suffix = ImageAdjust::suffix (adjust);
-   QString uniq = _desk->findNextFilename (_leaf + suffix, QString(), _ext);
+   QString uniq = _desk->findNextFilename (stackLeaf () + suffix, QString(),
+                                           _ext);
    QString dir = _desk->dir ();
    e_type type = _type;
 
-   fnew = createFile (dir, uniq + _ext, _desk, type);
+   fnew = createFile (dir, newStackName (uniq, type), _desk, type);
    if (!fnew)
       return not_impl ();
    CALL (fnew->create ());

@@ -102,6 +102,9 @@ private slots:
    //! A JPEG stack whose first pages are missing still opens
    void testJpegStackMissingPages();
 
+   //! A stack converted to JPEG is named after the file of its first page
+   void testJpegCopyName();
+
    //! A page of only a few lines, as a jam leaves behind, is stored
    void testTinyPageStored();
 
