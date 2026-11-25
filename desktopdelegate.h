@@ -110,6 +110,12 @@ public:
       \param edit_page     true to edit page name, false for stack name */
    void setEditPageHint (bool edit_page);
 
+   /** give the text which the next edit starts with, in place of the name
+       as it is, so that a suggested name can be accepted or changed
+
+      \param text    the text, used once */
+   void setEditSuggestion (const QString &text);
+
    bool userBusy (void) { return _userbusy; }
 
 signals:
@@ -155,6 +161,7 @@ private:
    QPersistentModelIndex _hit;   //!< item clicked on for popup menu
    bool _edit_page;     //!< true to edit page name (instead of stack)
    int _edit_role;      //!< role to edit
+   mutable QString _suggestion;  //!< text for the next edit to start with
    Desktopmodelconv *_modelconv; //!< convert between source and proxy models
    };
 

@@ -898,12 +898,14 @@ bool Desktopview::isSelection (enum e_sel sel)
    }
 
 
-void Desktopview::renameStack (const QModelIndex &index)
+void Desktopview::renameStack (const QModelIndex &index,
+                               const QString &suggestion)
    {
    Desktopdelegate *del = (Desktopdelegate *)itemDelegate ();
 
    setCurrentIndex (index);
    del->setEditPageHint (false);
+   del->setEditSuggestion (suggestion);
    edit (index);
    }
 

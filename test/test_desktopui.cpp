@@ -44,6 +44,7 @@
 #include "qxmlconfig.h"
 #include <QScrollBar>
 #include "clientconf.h"
+#include "test_assistant.h"
 #include "test_desktopui.h"
 #include "test_fakescan.h"
 #include "fakescan/fakescan.h"
@@ -2415,6 +2416,75 @@ void TestDesktopUi::testRenameStackViaEditor()
    me.actionUndo->trigger();
    QCOMPARE(model->data(src_ind, Qt::DisplayRole).toString(), "testfile");
    QVERIFY(QFile::exists(path + "/testfile.max"));
+}
+
+void TestDesktopUi::testSuggestName()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   // the stack with text to name it from
+   QModelIndex ind = model->index("testpdf.pdf", repo_ind);
+   QVERIFY(ind.isValid());
+   desktop->getModelconv()->indexToProxy(model, ind);
+   view->setSelectionRange(ind.row(), 1);
+
+   // it is not offered, nor does anything, until it is turned on
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+
+   desktop->_assistant = &assistant;
+   QSettings().remove("assistant");
+   desktop->updateActions();
+   QVERIFY(!desktop->_act_suggest_name->isVisible());
+   desktop->suggestName();
+   QVERIFY(backend->_prompt.isEmpty());
+   QVERIFY(!view->findChild<Desktopeditor *>());
+
+   Assistant::setEnabled(true);
+   desktop->updateActions();
+   QVERIFY(desktop->_act_suggest_name->isEnabled());
+
+   // the name suggested is in the editor, for the user to accept
+   backend->_answer["name"] = "Test document 2026";
+   desktop->suggestName();
+   QVERIFY(!backend->_prompt.isEmpty());
+   QVERIFY(backend->_prompt.contains("- testfile\n"));
+
+   Desktopeditor *editor = view->findChild<Desktopeditor *>();
+   QVERIFY(editor);
+   QCOMPARE(editor->text(), QString("Test document 2026"));
+   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
+
+   QTest::keyClick(editor, Qt::Key_Return);
+   QTRY_VERIFY(QFile::exists(path + "/Test document 2026.pdf"));
+   QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
+
+   // and undo gives the old name back
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+
+   // a failure is reported, and leaves the name alone
+   QSignalSpy said(desktop, SIGNAL(newContents(QString)));
+
+   backend->_answer = QJsonObject();
+   backend->_error = "The assistant could not answer";
+   ind = model->index("testpdf.pdf", repo_ind);
+   desktop->getModelconv()->indexToProxy(model, ind);
+   view->setSelectionRange(ind.row(), 1);
+   desktop->suggestName();
+   QCOMPARE(said.last().at(0).toString(),
+            QString("The assistant could not answer"));
+
+   desktop->_assistant = nullptr;
+   QSettings().remove("assistant");
 }
 
 void TestDesktopUi::testDirFilterHidesOtherYears()

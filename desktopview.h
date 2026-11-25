@@ -114,8 +114,13 @@ public:
    /** returns the viewer root index translated to the source model */
    QModelIndex rootIndexSource (void);
 
-   /** allow the user to edit a stack name */
-   void renameStack (const QModelIndex &index);
+   /** allow the user to edit a stack name
+
+      \param index       the stack
+      \param suggestion  name to start the edit with, or empty for the
+                         name the stack has */
+   void renameStack (const QModelIndex &index,
+                     const QString &suggestion = QString ());
 
    /** allow the user to edit the name of the current page of the current stack */
    void renamePage (const QModelIndex &index);

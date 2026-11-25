@@ -73,7 +73,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "folderlist.h"
 #include "foldersel.h"
 #include "op.h"
+#include "assistant.h"
 #include "desk.h"
+#include "file.h"
+#include "ocrpage.h"
 #include "mainwidget.h"
 #include "ocrreader.h"
 #include "searchindex.h"
@@ -110,6 +113,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
       : QSplitter (parent)
    {
    _act_duplicate = nullptr;
+   _assistant = nullptr;
    _showing_imports = false;
    _model = new Dirmodel ();
 //    _model->setLazyChildCount (true);
@@ -410,6 +414,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_reverse, "Re&verse pages", SLOT (reversePages ()), "");
    addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
    addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
+   addAction (_act_suggest_name, "Su&ggest name", SLOT (suggestName ()), "");
    addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "");
 
    addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
@@ -1657,6 +1662,11 @@ void Desktopwidget::updateActions()
    _act_delete->setEnabled (at_least_one);
    _act_rename_stack->setEnabled (at_least_one);
    _act_rename_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
+
+   // the assistant is offered only once it is turned on in the options
+   _act_suggest_name->setVisible (Assistant::enabled ());
+   _act_suggest_name->setEnabled (at_least_one
+         && !_view->isSelection (Desktopview::SEL_more_than_one));
    _act_read_text->setEnabled (at_least_one);
    _act_duplicate_page->setEnabled (at_least_one);
    _act_duplicate_max->setEnabled (at_least_one);
@@ -1696,6 +1706,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    context_menu->addAction (_act_delete);
    context_menu->addAction (_act_rename_stack);
    context_menu->addAction (_act_rename_page);
+   context_menu->addAction (_act_suggest_name);
    context_menu->addAction (_act_read_text);
 
    QMenu *submenu = context_menu->addMenu (tr ("&Duplicate..."));
@@ -2262,6 +2273,77 @@ void Desktopwidget::renameStack (void)
 
    _view->setCurrentIndex (index);
    _view->renameStack (index);
+   }
+
+
+void Desktopwidget::suggestName (void)
+   {
+   QModelIndex sind = _view->getSelectedItem (true);
+   File *f = _contents->getFile (sind);
+
+   if (!f || !Assistant::enabled ())
+      return;
+
+   // what the first pages say, as OCR read it or as the file holds it
+   QString text;
+
+   f->load ();
+   for (int i = 0; i < f->pagecount () && i < Assistant::name_pages; i++)
+      {
+      OcrPage ocr;
+      QString page;
+
+      if (!f->getPageOcr (i, ocr) && !ocr.isEmpty ())
+         page = ocr.text ();
+      else if (f->getPageText (i, page))
+         page.clear ();
+      if (!page.trimmed ().isEmpty ())
+         text += page.trimmed () + "\n\n";
+      }
+   if (text.isEmpty ())
+      {
+      emit newContents (tr ("This stack has no text to name it from: use "
+                            "Read text (OCR) first"));
+      return;
+      }
+
+   // the names beside it show how the user names things
+   QStringList examples;
+
+   if (f->desk ())
+      for (File *other : f->desk ()->files ())
+         if (other != f && examples.size () < Assistant::name_examples)
+            examples << other->stackLeaf ();
+
+   Assistant *assistant = _assistant ? _assistant
+                                     : new Assistant (nullptr, this);
+   bool mine = !_assistant;
+   QPersistentModelIndex stack (sind);
+
+   emit newContents (tr ("Asking the assistant for a name..."));
+   assistant->suggestName (text, examples, this,
+                           [this, stack, assistant, mine] (
+                              const QString &name, const QString &error) {
+      if (mine)
+         assistant->deleteLater ();
+      if (!error.isEmpty ())
+         {
+         emit newContents (error);
+         return;
+         }
+
+      // the stack may have gone, or the folder changed, meanwhile
+      QModelIndex ind = stack;
+
+      if (!ind.isValid ())
+         return;
+      _modelconv->indexToProxy (ind.model (), ind);
+      if (!ind.isValid () || ind.parent () != _view->rootIndex ())
+         return;
+      emit newContents (tr ("Suggested name: press Enter to accept it, "
+                            "or Esc to keep the old one"));
+      _view->renameStack (ind, name);
+   });
    }
 
 
