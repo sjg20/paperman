@@ -29,6 +29,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QScrollBar>
 #include <QSettings>
 #include <QShortcut>
+#include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QTableView>
 #include <QTimer>
@@ -826,6 +827,14 @@ void Pscan::progressRate( const QString &str )
 void Pscan::setupBright()
 {
     int exp, min, max;
+
+    /* This shows what the scanner has, so must not set it. One slider is
+       the threshold in mono and the brightness otherwise, whose ranges
+       differ: the new range holds the old value to it, and the slider
+       then says the value has changed, which would set the scanner to
+       the end of the range, a page of white */
+    QSignalBlocker hold_bright(bright);
+    QSignalBlocker hold_contrast(contrast);
 
     if (_ctl->present() && _ctl->format () == QScanner::mono)
     {
