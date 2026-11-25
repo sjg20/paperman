@@ -2098,11 +2098,15 @@ void MyScrollArea::paintEvent (QPaintEvent *event)
       painter.scale(_scale, _scale);
       }
 
-   QTransform m = painter.transform ();
-   QRect exposedRect = m
-                     .translate (-horizontalScrollBar()->value (), -verticalScrollBar()->value ())
-                     .inverted ()
-                     .mapRect (event->rect ())
+   /* the scroll position is in the viewport's pixels, so it moves the
+      exposed area before any scale is undone: a page drawn from its image
+      at a scale is otherwise moved by the scroll in the image's pixels,
+      so the view falls behind the scrollbars and never reaches the far
+      edge of the page */
+   QPoint scroll (horizontalScrollBar ()->value (),
+                  verticalScrollBar ()->value ());
+   QTransform toPage = painter.transform ().inverted ();
+   QRect exposedRect = toPage.mapRect (event->rect ().translated (scroll))
                      .adjusted (-1, -1, 1, 1);
 
    if (_rotate % 180 == 90)
@@ -2110,7 +2114,8 @@ void MyScrollArea::paintEvent (QPaintEvent *event)
 
    // the adjust is to account for half pixels along edges
    //qDebug () << "exposed" << exposedRect << "image" << _image.size () << "scale" << _scale << "tp" << tp;
-   QPointF target = QPointF (0, 0);
+   // where the exposed area goes, which is where it is on the page less the scroll
+   QPointF target = QPointF (exposedRect.topLeft ()) - toPage.map (QPointF (scroll));
 
    // set up the blanking rectangles so that the page is clearly visible
 

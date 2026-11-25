@@ -59,6 +59,9 @@ private slots:
    //! Test the scrollbars reach the page's edges once the view resizes
    void testScrollRangeResize();
 
+   //! Test a page drawn from its image at a scale scrolls to its far edges
+   void testScrollScaledPage();
+
    //! Test the crop tool can crop every page
    void testCropStack();
 
