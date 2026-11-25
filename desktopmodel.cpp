@@ -94,6 +94,29 @@ Desktopmodel::Desktopmodel(QObject *parent)
    connect(_flushTimer, SIGNAL(timeout()), this, SLOT(flushAllDesks()));
    _flushTimer->start(1000 * 60);  // flush every minute
 
+   /* with --log, say how the rows change, so that a log shows what the
+      views were told before a problem */
+   auto rows = [this] (const char *what, const QModelIndex &parent,
+                       int first, int last) {
+      QString where = parent.isValid () ? getDesk (parent)->dir ()
+                                        : QString ("the folders");
+
+      qCDebug (logModel).noquote ()
+         << QString ("model: rows %1 to %2 %3 '%4', now %5").arg (first)
+            .arg (last).arg (what).arg (where).arg (rowCount (parent));
+   };
+   connect (this, &QAbstractItemModel::rowsInserted, this,
+            [rows] (const QModelIndex &parent, int first, int last) {
+      rows ("added to", parent, first, last);
+   });
+   connect (this, &QAbstractItemModel::rowsRemoved, this,
+            [rows] (const QModelIndex &parent, int first, int last) {
+      rows ("removed from", parent, first, last);
+   });
+   connect (this, &QAbstractItemModel::modelReset, this, [] () {
+      qCDebug (logModel).noquote () << "model: reset";
+   });
+
    _undo = new Desktopundostack (this);
    connect (_undo, SIGNAL (undoTextChanged (const QString &)),
       this, SIGNAL (undoTextChanged (const QString &)));

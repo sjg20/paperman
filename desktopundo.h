@@ -38,14 +38,31 @@ class Pagecover;
 
 
 
-/** this is our version of an undo stack. We use this subclass so we can add
-new features to it later*/
+/** this is our version of an undo stack. It logs each command as it is
+done, undone and redone, with --log, so that a log shows the steps which
+led up to a problem */
 
 class Desktopundostack : public QUndoStack
    {
 public:
    Desktopundostack (QObject *parent = 0);
    ~Desktopundostack ();
+
+   /** do a command and put it on the stack, as QUndoStack::push() does,
+       saying so in the log
+
+      \param cmd  the command, which the stack then owns */
+   void push (QUndoCommand *cmd);
+
+private:
+   /** say which commands have been undone or redone, once the stack has
+       moved to a new place
+
+      \param index  the new place, the number of commands now done */
+   void noteIndex (int index);
+
+   int _index;          //!< the place the log last saw the stack at
+   bool _pushing;       //!< a command is being pushed, which push() logs
    };
 
 

@@ -1588,8 +1588,9 @@ void Desktopwidget::matchChange(const QString& match)
    QModelIndex ind;
 
    // update the proxy
-   // qDebug () << "match" << match;
    _contents_proxy->setFilterFixedString (match);
+   qCDebug (logView).noquote () << QString ("view: filter '%1' shows %2 stacks")
+      .arg (match).arg (_contents_proxy->rowCount (_view->rootIndex ()));
 
    // scroll to the first match
    ind = _contents_proxy->index(0, 0, _view->rootIndex ());
