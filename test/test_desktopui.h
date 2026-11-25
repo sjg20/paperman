@@ -193,6 +193,9 @@ private slots:
    //! Test renaming a stack by typing into the item editor
    void testRenameStackViaEditor();
 
+   //! A name from the assistant is offered in the name editor
+   void testSuggestName();
+
    //! Test the year/month directory filter hides other years
    void testDirFilterHidesOtherYears();
 

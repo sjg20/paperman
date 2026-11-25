@@ -589,6 +589,13 @@ void Desktopdelegate::setEditorData(QWidget *edit,
    QString value = index.model()->data(index, _edit_role).toString();
    Desktopeditor *editor = static_cast<Desktopeditor *>(edit);
 
+   // a name suggested is shown for the user to accept, once
+   if (!_suggestion.isEmpty ())
+      {
+      value = _suggestion;
+      _suggestion.clear ();
+      }
+
    editor->setText (value);
    }
 
@@ -621,6 +628,12 @@ void Desktopdelegate::slotEditingFinished (Desktopeditor *edit, bool save)
    if (save)
       emit commitData (edit);
    emit closeEditor (edit);
+   }
+
+
+void Desktopdelegate::setEditSuggestion (const QString &text)
+   {
+   _suggestion = text;
    }
 
 

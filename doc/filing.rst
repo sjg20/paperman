@@ -43,6 +43,9 @@ with it, or with all the stacks selected:
      - Give the stack a new name
    * - **Rename page** (Shift+F2)
      - Give the page shown a new name
+   * - **Suggest name**
+     - Ask an AI model for a name, from what the pages say (see
+       `Suggesting a name`_). Shown once it is turned on in the options
    * - **Read text (OCR)**
      - Redo the OCR, reading the text of the stack's pages again (see
        :doc:`finding`)
@@ -165,6 +168,31 @@ A stack scanned without a name is named for the day, such as
 To rename a stack, select it and press **F2**. To rename the page shown,
 press **Shift+F2**. Give a stack a name which says what it is, such as
 *power bill*: searching by name looks at these names.
+
+Suggesting a name
+~~~~~~~~~~~~~~~~~
+
+Paperman can ask an AI model for a name, from what the stack's pages say.
+This is off at first, since it sends text from your papers to the model.
+To turn it on, tick **Use an AI assistant to suggest names for stacks**
+in the **Assistant** tab of the options.
+
+Then right-click a stack and choose **Suggest name**. The name appears in
+the name box: press **Enter** to accept it, change it first, or press
+**Esc** to keep the old name. Undo puts the old name back.
+
+The stack needs text: one scanned before Paperman read text needs
+**Read text (OCR)** first.
+
+What is sent is the text of the stack's first two pages and the names of
+up to twenty other stacks in its folder, which show how you name things.
+Nothing is sent unless you choose **Suggest name**.
+
+The model is reached through the ``claude`` command of Claude Code, which
+must be installed and signed in; Paperman holds no key or password. It
+runs with no tools, so it can only read what it is given and answer. The
+**Command** and **Model** boxes in the same tab change which command is
+run and which model it asks.
 
 Dates
 -----
