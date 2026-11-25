@@ -448,6 +448,60 @@ void TestPagewidget::testCropTool()
    QCOMPARE(size, Imagetrim::areaToRect(firstSize, area).size());
 }
 
+/* how far apart two pictures of the same size are: the mean difference
+   between their pixels, from 0 to 255 */
+static double meanDifference(const QImage &a, const QImage &b)
+{
+   QImage ga = a.convertToFormat(QImage::Format_Grayscale8);
+   QImage gb = b.convertToFormat(QImage::Format_Grayscale8);
+   qint64 total = 0;
+
+   for (int y = 0; y < ga.height(); y++) {
+      const uchar *pa = ga.constScanLine(y);
+      const uchar *pb = gb.constScanLine(y);
+
+      for (int x = 0; x < ga.width(); x++)
+         total += qAbs(pa[x] - pb[x]);
+   }
+   return double(total) / (ga.width() * ga.height());
+}
+
+void TestPagewidget::testScrollScaledPage()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   // zoom in until the page is too big for a pixmap, so it is drawn from
+   // its image at a scale
+   MyScrollArea *area = page->_area;
+   for (int i = 0; i < 20 && !area->_too_big; i++)
+      page->findChild<QToolButton *>("zoomIn")->click();
+   QVERIFY(area->_too_big);
+   QVERIFY(area->_scale < 1);
+   QTRY_VERIFY(area->horizontalScrollBar()->maximum() > 0);
+   QTRY_VERIFY(area->verticalScrollBar()->maximum() > 0);
+
+   // the far corner of the page is in view at the end of each scrollbar
+   QScrollBar *hbar = area->horizontalScrollBar();
+   QScrollBar *vbar = area->verticalScrollBar();
+   hbar->setValue(hbar->maximum());
+   vbar->setValue(vbar->maximum());
+
+   QSize view = area->viewport()->size();
+   QImage shown = area->viewport()->grab().toImage().scaled(view);
+   QRectF corner(hbar->value() / area->_scale, vbar->value() / area->_scale,
+                 view.width() / area->_scale, view.height() / area->_scale);
+   QImage expect = area->_image.copy(corner.toAlignedRect())
+      .scaled(view, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+   QVERIFY2(meanDifference(shown, expect) < 8,
+            qPrintable(QString("difference %1")
+                       .arg(meanDifference(shown, expect))));
+}
+
 void TestPagewidget::testScrollRangeResize()
 {
    Desktopmodel *model;
