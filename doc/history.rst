@@ -3,6 +3,21 @@ Release History
 
 What has changed in each release of Paperman, newest first.
 
+1.5.1
+-----
+
+- a scan after changing the scan mode no longer comes out blank: the
+  change set the brightness to its limit
+- adding stacks after searching more than once no longer crashes
+- the scanner's Scan button keeps working after a jam
+- a large page can be scrolled to its edges in the page view
+- pages of a PDF stack can be deleted with the tick beside each, with undo
+- a JPEG stack keeps all its pages when it is copied, moved, deleted or
+  brought back, and a copy made as JPEG can be deleted
+- 'Reverse pages' in a stack's menu puts its pages in the opposite order
+- --log also logs each page OCR reads, each step done, undone and redone,
+  and the rows added to and removed from the desktop
+
 1.5.0
 -----
 
