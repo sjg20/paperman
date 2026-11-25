@@ -13,6 +13,7 @@
 #include <cstring>
 #include <utility>
 
+#include "backend.h"
 #include "desk.h"
 #include "err.h"
 #include "file.h"
@@ -2435,6 +2436,77 @@ void TestFile::testPdfTextLayer()
    three pages which have no file behind them. Those pages cannot be
    read from the disk, but asking for one is not a fault: it is simply
    blank */
+
+/* the files a desk finds in its folder, as a listing of it gives them,
+   which leaves out those whose names start with a dot, such as the
+   desk's own file: only on Unix are these hidden from QDir */
+static DirectoryListing listFolder(const QString &dir)
+{
+   DirectoryListing listing;
+
+   for (const QString &name : QDir(dir).entryList(QDir::Files)) {
+      DirectoryEntry entry;
+
+      if (name.startsWith('.'))
+         continue;
+
+      entry.name = name;
+      listing.entries << entry;
+   }
+   listing.ok = true;
+   return listing;
+}
+
+void TestFile::testJpegCopyName()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+   QFile layout(dir + ".paperdesk");
+   QVERIFY(layout.open(QIODevice::WriteOnly));
+   layout.write("[Files]\ntestfile.max=10,20,0\n");
+   layout.close();
+
+   Desk *desk = new Desk(dir, dir);
+   int pos;
+   File *max = desk->findFile("testfile.max", pos);
+   QVERIFY(max);
+   QVERIFY(!max->load());
+   int pages = max->pagecount();
+   QVERIFY(pages > 1);
+
+   /* each page is a file, the first of which the stack is named after,
+      so that the stack is the file the folder has */
+   Operation op("Copy", pages, 0);
+   File *copy = nullptr;
+   QVERIFY(!max->duplicateAny(File::Type_jpeg, 3, op, copy));
+   QVERIFY(copy);
+   QCOMPARE(copy->filename(), QString("testfile_copy_p1.jpg"));
+   QCOMPARE(copy->pagecount(), pages);
+   for (int i = 1; i <= pages; i++)
+      QVERIFY(QFile::exists(dir + QString("testfile_copy_p%1.jpg").arg(i)));
+   QVERIFY(!QFile::exists(dir + "testfile_copy.jpg"));
+
+   // a copy of that is named after it, not after the file of its first page
+   File *again = nullptr;
+   QVERIFY(!copy->duplicateAny(File::Type_jpeg, 3, op, again));
+   QVERIFY(again);
+   QCOMPARE(again->filename(), QString("testfile_copy_copy_p1.jpg"));
+   QCOMPARE(again->pagecount(), pages);
+
+   // the folder read again has the same stack, with all its pages
+   QVERIFY(desk->writeDesk());
+   delete desk;
+   desk = new Desk(dir, dir);
+   desk->addListing(listFolder(dir), dir, nullptr);
+   copy = desk->findFile("testfile_copy_p1.jpg", pos);
+   QVERIFY(copy);
+   QCOMPARE(copy->pagecount(), pages);
+   QCOMPARE(desk->files().size(), 3);
+   delete desk;
+}
+
 
 void TestFile::testJpegStackMissingPages()
 {
