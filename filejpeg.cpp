@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QImage>
 #include <QProcess>
@@ -136,6 +137,43 @@ err_info *Filejpeg::remove (void)
       }
 
    return 0;
+   }
+
+
+QStringList Filejpeg::files (void)
+   {
+   QStringList names;
+
+   load ();
+   for (const Filejpegpage *page : _pages)
+      if (page && !page->filename ().isEmpty ())
+         names << page->filename ();
+   if (names.isEmpty ())
+      names << _filename;
+   return names;
+   }
+
+
+void Filejpeg::gatherPages (void)
+   {
+   if (!_has_pagenum)
+      return;
+
+   QDir dir (_dir);
+   QString ext;
+
+   removeExtension (_filename, ext);
+   dir.setNameFilters (QStringList (_base_fname + UTIL_PAGE_PREFIX "*" + ext));
+   dir.setFilter (QDir::Files);
+   load ();
+   for (const QString &name : dir.entryList ())
+      {
+      QString base, pext;
+      int pagenum;
+
+      if (name != _filename && decodePageNumber (name, base, pagenum, pext))
+         claimFileAsNewPage (name, base, pagenum);
+      }
    }
 
 

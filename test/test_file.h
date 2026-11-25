@@ -105,6 +105,9 @@ private slots:
    //! A stack converted to JPEG is named after the file of its first page
    void testJpegCopyName();
 
+   //! Moving or copying a JPEG stack takes the file of each of its pages
+   void testJpegStackFiles();
+
    //! A page of only a few lines, as a jam leaves behind, is stored
    void testTinyPageStored();
 

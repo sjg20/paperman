@@ -61,6 +61,14 @@ public:
 
    virtual err_info *remove (void);
 
+   /** the file of each page, leaving out a page whose file has not been
+       seen, or the stack's own file if it has no pages yet */
+   virtual QStringList files (void) override;
+
+   /** find the files of the other pages, which are named as the stack's
+       own file is, with their own page numbers */
+   virtual void gatherPages (void) override;
+
    bool claimFileAsNewPage (const QString &fname, QString &base_fname,
                             int pagenum);
 
