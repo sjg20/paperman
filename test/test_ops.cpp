@@ -1288,6 +1288,60 @@ void TestOps::testStackAtPage()
    }
 }
 
+void TestOps::testReversePages()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   // the image of each page of a stack
+   auto images = [&](const QString &name) {
+      File *f = model->getFile(model->index(name, repo_ind));
+      QList<QImage> list;
+
+      for (int i = 0; i < f->pagecount(); i++) {
+         QImage image;
+         QSize size, trueSize;
+         int bpp;
+
+         if (!f->getImage(i, false, image, size, trueSize, bpp, false))
+            list << image;
+      }
+      return list;
+   };
+
+   const QStringList names = {"testfile.max", "testpdf.pdf"};
+   QModelIndexList list;
+   QList<QList<QImage>> before;
+
+   for (const QString &name : names) {
+      QModelIndex ind = model->index(name, repo_ind);
+
+      QVERIFY(!model->getFile(ind)->load());
+      list << ind;
+      before << images(name);
+      QVERIFY(before.last().size() > 1);
+      QVERIFY(before.last().first() != before.last().last());
+   }
+
+   // each stack has its last page first
+   QCOMPARE(model->reversePages(list, repo_ind), 2);
+   for (int s = 0; s < names.size(); s++) {
+      QList<QImage> after = images(names[s]);
+      QList<QImage> expect = before[s];
+
+      std::reverse(expect.begin(), expect.end());
+      QVERIFY2(after == expect, qPrintable(names[s]));
+   }
+
+   // and both go back as they were, with one undo
+   model->getUndoStack()->undo();
+   for (int s = 0; s < names.size(); s++)
+      QVERIFY2(images(names[s]) == before[s], qPrintable(names[s]));
+}
+
 void TestOps::testMoveToDir()
 {
    Mainwindow me;

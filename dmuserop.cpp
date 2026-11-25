@@ -205,6 +205,45 @@ void Desktopmodel::reorderPages (QModelIndex &ind, const QVector<int> &order)
    }
 
 
+int Desktopmodel::reversePages (QModelIndexList &list, QModelIndex parent)
+   {
+   QModelIndexList stacks;
+
+   _modelconv->assertIsSource (0, &parent, &list);
+   if (!checkScanStack (list, parent))
+      return 0;
+   for (const QModelIndex &ind : list)
+      {
+      File *f = getFile (ind);
+
+      // a stack not read yet does not know how many pages it has
+      if (f && !remoteForFile (f))
+         f->load ();
+      if (canReorderPages (ind))
+         stacks << ind;
+      }
+
+   if (stacks.size () > 1)
+      _undo->beginMacro (tr ("Reverse pages (%1)").arg (stacks.size ()));
+   for (QModelIndex ind : stacks)
+      {
+      int count = getFile (ind)->pagecount ();
+      QVector<int> order (count);
+
+      for (int i = 0; i < count; i++)
+         order [i] = count - 1 - i;
+
+      UCReorderPages *cmd = new UCReorderPages (this, ind, order);
+
+      cmd->setText (tr ("Reverse pages"));
+      _undo->push (cmd);
+      }
+   if (stacks.size () > 1)
+      _undo->endMacro ();
+   return stacks.size ();
+   }
+
+
 bool Desktopmodel::canReorderPages (const QModelIndex &ind)
    {
    File *f = getFile (ind);

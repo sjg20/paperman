@@ -497,6 +497,9 @@ private slots:
 
    void duplicateOdd (void);
 
+   //! reverse the order of the pages of each stack selected
+   void reversePages (void);
+
    // unfold a saddle-stitched booklet into sequential pages
    void unfoldBooklet (void);
 
@@ -709,7 +712,7 @@ private:
    QAction *_act_duplicate_odd, *_act_duplicate_even;
    QAction *_act_duplicate_jpeg, *_act_move;
    QAction *_act_read_text;
-   QAction *_act_unfold_booklet;
+   QAction *_act_unfold_booklet, *_act_reverse;
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
    QAction *_act_copy;
 //   QAction *_act_send, *_act_deliver_out;
