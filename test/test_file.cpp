@@ -4146,6 +4146,57 @@ static QImage pageImage(File *f, int pagenum)
    return image;
 }
 
+void TestFile::testPdfRemovePages()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testpdf.pdf", tmp.path()).isEmpty());
+
+   File *f = File::createFile(dir, "testpdf.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!f->load());
+   int count = f->pagecount();
+   QVERIFY(count >= 5);
+   QList<QImage> before;
+   for (int i = 0; i < count; i++)
+      before << pageImage(f, i);
+   QVERIFY(before[0] != before[1] && before[1] != before[2]);
+
+   // the second page, and the fourth and fifth together
+   QBitArray pages(count);
+   pages.setBit(1);
+   pages.setBit(3);
+   pages.setBit(4);
+   QByteArray del_info;
+   int del_count = 3;
+
+   QVERIFY(!f->removePages(pages, del_info, del_count));
+   QCOMPARE(del_count, 3);
+   QVERIFY(!del_info.isEmpty());
+   delete f;
+
+   // the file is without them, read afresh
+   QList<QImage> left;
+   for (int i = 0; i < count; i++)
+      if (!pages.testBit(i))
+         left << before[i];
+   f = File::createFile(dir, "testpdf.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!f->load());
+   QCOMPARE(f->pagecount(), count - 3);
+   for (int i = 0; i < left.size(); i++)
+      QVERIFY2(pageImage(f, i) == left[i], qPrintable(QString::number(i)));
+
+   // each comes back to the place it had
+   QVERIFY(!f->restorePages(pages, del_info, del_count));
+   delete f;
+   f = File::createFile(dir, "testpdf.pdf", nullptr, File::Type_pdf);
+   QVERIFY(!f->load());
+   QCOMPARE(f->pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QVERIFY2(pageImage(f, i) == before[i], qPrintable(QString::number(i)));
+   delete f;
+}
+
 void TestFile::testReorderPages()
 {
    QTemporaryDir tmp;

@@ -1691,6 +1691,108 @@ err_info *Pdfio::reorderPages (const QVector<int> &order)
 }
 
 
+/* how many pages PoDoFo's view of the file has */
+static int page_count (PdfMemDocument *doc)
+{
+#ifdef PODOFO_1X
+   return doc->GetPages ().GetCount ();
+#else
+   return doc->GetPageCount ();
+#endif
+}
+
+
+err_info *Pdfio::takePages (const QBitArray &pages, Pdfio *to, int &count)
+{
+   count = 0;
+   if (!_doc)
+      CALL (open ());
+
+   int last = qMin (page_count (_doc), (int)pages.size ());
+
+   mytry
+      {
+      // copy each run of pages, in order, then remove them from the end
+      QList<QPair<int, int>> runs;
+
+      for (int start = 0; start < last; start++)
+         {
+         if (!pages.testBit (start))
+            continue;
+
+         int end = start;
+
+         while (end + 1 < last && pages.testBit (end + 1))
+            end++;
+         runs << qMakePair (start, end - start + 1);
+         start = end;
+         }
+      for (const QPair<int, int> &run : runs)
+         {
+#ifdef PODOFO_1X
+         to->_doc->GetPages ().AppendDocumentPages (*_doc, run.first,
+                                                    run.second);
+#else
+         to->_doc->InsertPages (*_doc, run.first, run.second);
+#endif
+         count += run.second;
+         }
+      for (int i = runs.size () - 1; i >= 0; i--)
+         {
+#ifdef PODOFO_1X
+         for (int j = 0; j < runs [i].second; j++)
+            _doc->GetPages ().RemovePageAt (runs [i].first);
+#else
+         _doc->DeletePages (runs [i].first, runs [i].second);
+#endif
+         }
+      }
+#ifdef EXCEPTIONS
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+#endif
+   if (!count)
+      return NULL;
+
+   // the pages are safe in the other file before they leave this one
+   CALL (to->close ());
+   return close ();
+}
+
+
+err_info *Pdfio::putBackPages (const QBitArray &pages, Pdfio *from)
+{
+   if (!_doc)
+      CALL (open ());
+   if (!from->_doc)
+      CALL (from->open ());
+
+   int had = page_count (_doc);
+   int count = page_count (from->_doc);
+   int total = had + count;
+
+   CALL (appendPages (from));
+
+   /* they are at the end: each goes to the place it had, as the pages
+      which stayed keep their order around them */
+   QVector<int> order;
+   int kept = 0, back = had;
+
+   for (int i = 0; i < total; i++)
+      {
+      if (back < total && i < pages.size () && pages.testBit (i))
+         order << back++;
+      else if (kept < had)
+         order << kept++;
+      else
+         order << back++;
+      }
+   return reorderPages (order);
+}
+
+
 err_info *Pdfio::deletePages (int start, int count)
 {
    mytry

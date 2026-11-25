@@ -35,6 +35,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <memory>
 
+#include <QBitArray>
 #include <QImage>
 #include <QString>
 
@@ -190,6 +191,25 @@ public :
       \param start   first page to delete
       \param count   number of pages to delete */
    err_info *deletePages (int start, int count);
+
+   /** move pages from this file to the end of another, and write both
+
+      The pages go in the order they are in here. Only the pages this file
+      has are taken: a page number past its end is left out
+
+      \param pages  a bit for each page, set for those to move
+      \param to     file to put them in, as from create() or open()
+      \param count  returns how many pages were moved
+      \returns error, or NULL if ok */
+   err_info *takePages (const QBitArray &pages, Pdfio *to, int &count);
+
+   /** put back pages which takePages() moved to another file, each in the
+       place it had, and write this file
+
+      \param pages  the bits given to takePages()
+      \param from   the file the pages were moved to
+      \returns error, or NULL if ok */
+   err_info *putBackPages (const QBitArray &pages, Pdfio *from);
 
    /** put the pages of a pdf file in a new order, and write it
 

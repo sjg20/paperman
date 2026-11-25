@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QDebug>
 #include <QFile>
+#include <QTemporaryDir>
 
 #include "imagetrim.h"
 #include "filepdf.h"
@@ -365,19 +366,74 @@ err_info *Filepdf::addPageJpeg (const QByteArray &jpegData, int width,
 
 
 
-err_info *Filepdf::removePages (QBitArray &,
-      QByteArray &, int &)
+/* somewhere to keep the pages taken from a PDF, which PoDoFo writes to
+   a file of their own */
+static err_info *pages_file (QTemporaryDir &tmp, QString &path)
    {
-   return not_impl ();
+   if (!tmp.isValid ())
+      return err_make (ERRFN, ERR_could_not_create_directory1,
+                       qPrintable (tmp.path ()));
+   path = tmp.filePath ("pages.pdf");
+   return NULL;
+   }
+
+
+err_info *Filepdf::removePages (QBitArray &pages,
+      QByteArray &del_info, int &count)
+   {
+   QTemporaryDir tmp;
+   QString path;
+
+   /* the pages removed are kept as a PDF of their own, so that
+      restorePages() can put them back as they were */
+   CALL (load ());
+   CALL (pages_file (tmp, path));
+
+   Pdfio taken (path);
+
+   CALL (taken.create ());
+   CALL (_pdfio->takePages (pages, &taken, count));
+
+   QFile in (path);
+
+   del_info.clear ();
+   if (count)
+      {
+      if (!in.open (QIODevice::ReadOnly))
+         return err_make (ERRFN, ERR_cannot_open_file1, qPrintable (path));
+      del_info = in.readAll ();
+      }
+   if (_pagenum >= pagecount ())
+      _pagenum = qMax (0, pagecount () - 1);
+   return NULL;
    }
 
 
 
 
-err_info *Filepdf::restorePages (QBitArray &,
-   QByteArray &, int )
+err_info *Filepdf::restorePages (QBitArray &pages,
+   QByteArray &del_info, int )
    {
-   return not_impl ();
+   QTemporaryDir tmp;
+   QString path;
+
+   if (del_info.isEmpty ())
+      return NULL;
+   CALL (load ());
+   CALL (pages_file (tmp, path));
+
+   QFile out (path);
+
+   if (!out.open (QIODevice::WriteOnly)
+       || out.write (del_info) != del_info.size ())
+      return err_make (ERRFN, ERR_failed_to_write_bytes1,
+                       (int)del_info.size ());
+   out.close ();
+
+   Pdfio taken (path);
+
+   CALL (taken.open ());
+   return _pdfio->putBackPages (pages, &taken);
    }
 
 
