@@ -27,6 +27,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mailer.h"
 #include "ocrreader.h"
 #include "options.h"
+#include "assistant.h"
 #include "updatecheck.h"
 
 #include <qvariant.h>
@@ -128,6 +129,10 @@ void Options::init()
 
    checkUpdates->setChecked (UpdateCheck::enabled ());
 
+   assistantEnable->setChecked (Assistant::enabled ());
+   assistantCommand->setText (Assistant::command ());
+   assistantModel->setText (Assistant::model ());
+
    connect (threshold, SIGNAL (signalValueChanged(int)), this, SLOT (updateThreshold (int)));
    connect (limit, SIGNAL (toggled(bool)), single, SLOT (setEnabled(bool)));
    connect (stackLimit, SIGNAL (toggled(bool)), stackCount, SLOT (setEnabled(bool)));
@@ -157,6 +162,10 @@ void Options::ok_clicked()
       Appearance::setMode ((Appearance::e_mode)appearance->currentIndex ());
 
    UpdateCheck::setEnabled (checkUpdates->isChecked ());
+
+   Assistant::setEnabled (assistantEnable->isChecked ());
+   Assistant::setCommand (assistantCommand->text ());
+   Assistant::setModel (assistantModel->text ());
 
    close ();
 }
