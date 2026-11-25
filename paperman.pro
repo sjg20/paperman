@@ -163,6 +163,7 @@ HEADERS += desktopwidget.h \
  appearance.h \
  iostats.h \
  updatecheck.h \
+ assistant.h \
  mailer.h \
  ocr.h \
  file.h \
@@ -271,6 +272,7 @@ SOURCES += desktopwidget.cpp \
  appearance.cpp \
  iostats.cpp \
  updatecheck.cpp \
+ assistant.cpp \
  mailer.cpp \
  ocr.cpp \
  dmop.cpp \
@@ -376,6 +378,7 @@ test {
       test/test_localbackend.cpp \
       test/test_clientconf.cpp \
       test/test_updatecheck.cpp \
+      test/test_assistant.cpp \
       test/test_async.cpp \
       test/test_traffic.cpp \
       test/remoteharness.cpp \
@@ -413,6 +416,7 @@ test {
       test/test_localbackend.h \
       test/test_clientconf.h \
       test/test_updatecheck.h \
+      test/test_assistant.h \
       test/test_async.h \
       test/test_traffic.h \
       test/remoteharness.h \
