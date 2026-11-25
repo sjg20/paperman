@@ -154,6 +154,10 @@ public:
 
    /**
     * @brief Add new filenames to a desk
+    *
+    * They become rows once updateRowCount() is called, which the model
+    * does between beginInsertRows() and endInsertRows()
+    *
     * @param dirPath  Common initial path for all matches, with trailing "/"
     * @param matches  List of filenames to add, each relative to dirPath
     */
