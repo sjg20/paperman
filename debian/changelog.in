@@ -1,3 +1,18 @@
+paperman (1.5.1-1VENDOR_VERSION) UNRELEASED; urgency=medium
+
+  * Fix a blank page from a scan after changing the scan mode, which set
+    the brightness to its limit
+  * Fix a crash when adding stacks after searching more than once
+  * Keep the scanner's Scan button working after a jam
+  * Scroll to every part of a large page in the page view
+  * Delete pages from a PDF stack, with undo
+  * Keep the pages of a JPEG stack together when it is copied, moved,
+    deleted or brought back
+  * Reverse the order of a stack's pages
+  * Log OCR, undo steps and changes to the desktop's rows with --log
+
+ -- Simon Glass <sjg@chromium.org>  Wed, 25 Nov 2026 16:34:06 -0700
+
 paperman (1.5.0-1VENDOR_VERSION) UNRELEASED; urgency=medium
 
   * Read the text of scanned pages in the background (OCR), keep it with
