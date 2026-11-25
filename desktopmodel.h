@@ -557,6 +557,17 @@ public:
        has no way to do it yet */
    bool canReorderPages (const QModelIndex &ind);
 
+   /** reverse the order of the pages of each stack given, as one step to
+       undo. Supports undo
+
+      Commits any pending scan. A stack which cannot have its pages
+      reordered, as canReorderPages() says, is left as it is
+
+      \param list    the stacks
+      \param parent  parent desk
+      \returns how many stacks had their pages reversed */
+   int reversePages (QModelIndexList &list, QModelIndex parent);
+
    /** create and execute a new undo record to move stacks to a new position.
        Supports undo
 

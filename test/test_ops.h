@@ -78,6 +78,9 @@ private slots:
    void testStackConverts();
    void testStackOnPdf();
    void testStackAtPage();
+
+   //! Reversing the pages of several stacks, as one step to undo
+   void testReversePages();
    void testPagesLeaveSize();
    void testMoveToShownDir();
 

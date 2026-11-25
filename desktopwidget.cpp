@@ -407,6 +407,7 @@ void Desktopwidget::addActions(void)
    addAction (_act_stack, "&Stack", SLOT(stackPages()), "Ctrl+G");
    addAction (_act_unstack_page, "Unstack &page", SLOT(unstackPage()), "Ctrl+I");
    addAction (_act_unstack_all, "&Unstack all", SLOT(unstackStacks ()), "Ctrl+U");
+   addAction (_act_reverse, "Re&verse pages", SLOT (reversePages ()), "");
    addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
    addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
    addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "");
@@ -1650,6 +1651,7 @@ void Desktopwidget::updateActions()
    _act_stack->setEnabled (_view->isSelection (Desktopview::SEL_more_than_one));
    _act_unstack_page->setEnabled (_view->isSelection (Desktopview::SEL_one_multipage));
    _act_unstack_all->setEnabled (_view->isSelection (Desktopview::SEL_at_least_one_multipage));
+   _act_reverse->setEnabled (_view->isSelection (Desktopview::SEL_at_least_one_multipage));
    _act_duplicate->setEnabled (at_least_one);
    _act_move->setEnabled(at_least_one);
    _act_delete->setEnabled (at_least_one);
@@ -1687,6 +1689,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    context_menu->addAction (_act_stack);
    context_menu->addAction (_act_unstack_page);
    context_menu->addAction (_act_unstack_all);
+   context_menu->addAction (_act_reverse);
    context_menu->addAction (_act_duplicate);
 
    context_menu->addAction (_act_move);
@@ -1858,6 +1861,17 @@ void Desktopwidget::duplicatePdf (void)
 
    _contents->duplicatePdf (slist, parent);
    complete (parent, NULL);
+   }
+
+
+void Desktopwidget::reversePages (void)
+   {
+   QModelIndex parent = _view->rootIndexSource ();
+   QModelIndexList slist = _view->getSelectedListSource ();
+
+   if (!_contents->reversePages (slist, parent))
+      emit newContents (tr ("The pages of these stacks cannot be put in a "
+                            "new order"));
    }
 
 

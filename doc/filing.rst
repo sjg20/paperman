@@ -28,6 +28,9 @@ with it, or with all the stacks selected:
      - Take the page shown out of its stack, into a stack of its own
    * - **Unstack all** (Ctrl+U)
      - Split each stack selected into a stack for each page
+   * - **Reverse pages**
+     - Put the pages of each stack selected in the opposite order, as for
+       a pile scanned from the back. Undo puts them back
    * - **Duplicate** (Ctrl+D)
      - Make a copy of each stack selected
    * - **Move to folder** (Ctrl+M)
