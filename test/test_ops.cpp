@@ -1,3 +1,4 @@
+#include <QAbstractItemModelTester>
 #include <QDate>
 #include <QMessageBox>
 #include <QPrinter>
@@ -1176,6 +1177,11 @@ void TestOps::testStackAtPage()
    Desktopmodel *model = desktop->getModel();
    QModelIndex repo_ind = model->index(0, 0, QModelIndex());
    QVERIFY(repo_ind.isValid());
+
+   /* the model must not say that a row has changed before it has the
+      row, or the proxy over it loses track of its rows */
+   QAbstractItemModelTester check(model, QAbstractItemModelTester::
+                                  FailureReportingMode::QtTest);
 
    // The picture is the only page of its size
    QImage picture(testSrc + "/colour_plasma.jpg");
