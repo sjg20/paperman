@@ -46,6 +46,9 @@ private slots:
    //! Test deleting of one or more stacks
    void testDeleteStacks();
 
+   //! Deleting a JPEG stack, and undoing it, takes each of its pages
+   void testDeleteJpegStack();
+
    //! Deleting pages of a PDF stack, and undoing it
    void testDeletePdfPages();
 

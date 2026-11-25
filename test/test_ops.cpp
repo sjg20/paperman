@@ -793,6 +793,52 @@ void TestOps::testDeletePdfPages()
    QCOMPARE(model->getFile(ind)->pagecount(), count);
 }
 
+void TestOps::testDeleteJpegStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+   QString path = model->deskToDirname(repo_ind);
+   QModelIndexList list;
+
+   list << model->index("testfile.max", repo_ind);
+   QVERIFY(!model->getFile(list[0])->load());
+   int pages = model->getFile(list[0])->pagecount();
+   QVERIFY(pages > 1);
+
+   // a copy as JPEG is a file for each page
+   model->duplicateJpeg(list, repo_ind);
+   QString name = "testfile_copy_p1.jpg";
+   QTRY_VERIFY(model->index(name, repo_ind).isValid());
+   QCOMPARE(model->getFile(model->index(name, repo_ind))->pagecount(), pages);
+
+   // deleting it moves every page to the trash
+   QModelIndexList del;
+
+   del << model->index(name, repo_ind);
+   model->trashStacks(del, repo_ind);
+   QTRY_VERIFY(!model->index(name, repo_ind).isValid());
+   for (int i = 1; i <= pages; i++) {
+      QString page = QString("testfile_copy_p%1.jpg").arg(i);
+
+      QVERIFY2(!QFile::exists(path + page), qPrintable(page));
+      QVERIFY2(QFile::exists(trashFile(page)), qPrintable(page));
+   }
+
+   // undoing it brings the whole stack back
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(model->index(name, repo_ind).isValid());
+   QCOMPARE(model->getFile(model->index(name, repo_ind))->pagecount(), pages);
+   for (int i = 1; i <= pages; i++) {
+      QString page = QString("testfile_copy_p%1.jpg").arg(i);
+
+      QVERIFY2(QFile::exists(path + page), qPrintable(page));
+      QVERIFY2(!QFile::exists(trashFile(page)), qPrintable(page));
+   }
+}
+
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
                           QModelIndex& repo_ind)
 {

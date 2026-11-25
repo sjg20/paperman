@@ -3147,6 +3147,9 @@ void Desktopmodel::addFilesToDesk (QString dir, QStringList &fnamelist)
    foreach (QString fname, fnamelist)
       {
       File *fnew = desk->createFile (desk->dir (), fname);
+
+      // a JPEG stack's other pages are files of their own
+      fnew->gatherPages ();
       desk->newFile (fnew);
       flist << fnew;
       }
