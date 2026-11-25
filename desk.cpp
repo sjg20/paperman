@@ -1453,24 +1453,35 @@ err_info *Desk::moveFromTrash (QString &trashname, QString &filename,
 err_info *Desk::moveFromDir (QString &fromDir, QString &trashname, QString &filename,
       File *&fnew)
    {
-   QString ext;
+   QString ext, page_ext;
+   int pagenum;
 
-   // remove .max from filename
+   /* remove .max from filename, and the page number a JPEG stack is
+      named with */
    QString fname = removeExtension (filename, ext);
+
+   if (File::typeFromName (filename) == File::Type_jpeg)
+      File::decodePageNumber (filename, fname, pagenum, page_ext);
 
    // find unique name
    QString uniq = findNextFilename (fname, QString(), ext);
 
-   // move the file with the new name
-   filename = uniq + ext;
-   QDir dir;
-   QString from = fromDir + "/" + trashname;
-   QString to = _dir + filename;
-   QString error;
-   if (!utilRenameFile (from, to, &error))
-      return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (from),
-            qPrintable (to + ": " + error));
+   // the stack as it is there, with each file it is held in
+   File *from = File::createFile (fromDir + "/", trashname, nullptr,
+                                  File::typeFromName (trashname));
+   QStringList names;
+
+   from->gatherPages ();
+   names = from->files ();
+   delete from;
+
+   // move the files with the new name
+   QStringList moved;
+
+   CALL (File::moveFiles (names, fromDir, _dir, uniq, false, moved));
+   filename = moved.first ();
    fnew = createFile (_dir, filename);
+   fnew->gatherPages ();
    newFile (fnew);
    return NULL;
    }
