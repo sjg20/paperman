@@ -1437,15 +1437,17 @@ void Desktopmodel::insertRows (QList<File *> &flist, QModelIndex parent)
    int row = desk->fileCount () - flist.size ();
    // qDebug () << "beginInsertRows" << row << desk->fileCount () - 1;
    beginInsertRows (parent, row, desk->fileCount () - 1);
+   desk->updateRowCount ();
+   endInsertRows ();
+
+   /* building an item says that its row has changed, so wait until the
+      rows are there: a proxy told of a change to a row it does not have
+      yet can lose track of its rows */
    foreach (fnew, flist)
       {
       UNUSED (fnew);
-      // qDebug () << "build item" << row;
       buildItem (index (row++, 0, parent));
-//       list << createIndex (row, 0, (void *)&_items [row]);
       }
-   desk->updateRowCount ();
-   endInsertRows ();
    }
 
 
