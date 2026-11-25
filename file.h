@@ -765,9 +765,49 @@ eturns error, or NULL if ok */
 
 //    err_info *moveToTrash (QString &trashname);
 
+   /** returns the files the stack is held in, in its folder
+
+      Most stacks are a single file. A JPEG stack is a file for each page,
+      which are given in page order
+
+      \returns the filenames, without the folder */
+   virtual QStringList files (void);
+
+   /** find the files of the stack's other pages, for a stack whose files
+       have just been put in its folder
+
+      A desk gives a JPEG stack its other pages as it finds their files in
+      the folder. A stack made from one of its files alone, as when it is
+      moved or copied there, must look for them itself. Other stacks are
+      a single file, so have nothing to find */
+   virtual void gatherPages (void);
+
+   /** move or copy the files a stack is held in to another folder,
+       giving them a new name if asked
+
+      The file of each page of a JPEG stack keeps its page number when it
+      takes the new name. If one cannot be moved or copied, those which
+      were are put back, or removed, so that the stack is as it was
+
+      \param names    the files, as files() gives them
+      \param fromDir  folder they are in
+      \param toDir    folder to put them in
+      \param base     the new name, without an extension or page number,
+                      or empty to keep the names
+      \param copy     true to copy them, else they are moved
+      \param moved    returns the new names, in the same order
+      \returns error, or NULL if ok */
+   static err_info *moveFiles (const QStringList &names,
+                               const QString &fromDir, const QString &toDir,
+                               const QString &base, bool copy,
+                               QStringList &moved);
+
    /** move or copy a file into a new directory, ensuring tha the name
        is unique. If moved then you are expected to delete this file
        object as it is no longer valid
+
+      Each of the files the stack is held in goes with it, as files()
+      gives them
 
       \param newDir     directory to move/copy to
       \param newName    returns new name given to the file

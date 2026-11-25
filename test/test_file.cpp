@@ -2508,6 +2508,73 @@ void TestFile::testJpegCopyName()
 }
 
 
+void TestFile::testJpegStackFiles()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QString other = dir + "other";
+   QVERIFY(QDir(dir).mkdir("other"));
+
+   // a stack of three pages, as the desk finds it
+   QImage img(40, 30, QImage::Format_RGB32);
+   img.fill(Qt::white);
+   for (int i = 1; i <= 3; i++)
+      QVERIFY(img.save(dir + QString("scan_p%1.jpg").arg(i), "JPG"));
+   QFile layout(dir + ".paperdesk");
+   QVERIFY(layout.open(QIODevice::WriteOnly));
+   layout.write("[Files]\n");
+   layout.close();
+   Desk *desk = new Desk(dir, dir);
+   desk->addListing(listFolder(dir), dir, nullptr);
+   int pos;
+   File *f = desk->findFile("scan_p1.jpg", pos);
+   QVERIFY(f);
+   QCOMPARE(f->pagecount(), 3);
+   QCOMPARE(f->files(), QStringList({"scan_p1.jpg", "scan_p2.jpg",
+                                     "scan_p3.jpg"}));
+
+   // a plain copy has every page, as files of its own
+   Operation op("Copy", 1, 0);
+   File *copy = nullptr;
+   QVERIFY(!f->duplicateAny(File::Type_other, 3, op, copy));
+   QVERIFY(copy);
+   QCOMPARE(copy->filename(), QString("scan_copy_p1.jpg"));
+   QCOMPARE(copy->pagecount(), 3);
+   for (int i = 1; i <= 3; i++)
+      QVERIFY(QFile::exists(dir + QString("scan_copy_p%1.jpg").arg(i)));
+
+   // moving it takes every page, and leaves none behind
+   QString name;
+   QVERIFY(!copy->move(other, name, false));
+   QCOMPARE(name, QString("scan_copy_p1.jpg"));
+   for (int i = 1; i <= 3; i++) {
+      QString page = QString("scan_copy_p%1.jpg").arg(i);
+      QVERIFY(QFile::exists(other + "/" + page));
+      QVERIFY(!QFile::exists(dir + page));
+   }
+
+   // one whose name is taken there takes a new name, for every page
+   QVERIFY(QFile::copy(other + "/scan_copy_p1.jpg", other + "/scan_p1.jpg"));
+   QVERIFY(!f->move(other, name, true));
+   QCOMPARE(name, QString("scan_move_p1.jpg"));
+   for (int i = 1; i <= 3; i++)
+      QVERIFY(QFile::exists(other + QString("/scan_move_p%1.jpg").arg(i)));
+
+   /* if one page cannot go, those which went come back, so that the
+      stack is not left in two pieces */
+   QStringList moved;
+   QVERIFY(QFile::copy(dir + "scan_p2.jpg", other + "/scan_p2.jpg"));
+   QVERIFY(File::moveFiles(f->files(), dir, other, QString(), false,
+                           moved));
+   QVERIFY(moved.isEmpty());
+   for (int i = 1; i <= 3; i++)
+      QVERIFY(QFile::exists(dir + QString("scan_p%1.jpg").arg(i)));
+   QVERIFY(!QFile::exists(other + "/scan_p3.jpg"));
+   delete desk;
+}
+
+
 void TestFile::testJpegStackMissingPages()
 {
    QTemporaryDir tmp;

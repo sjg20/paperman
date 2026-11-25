@@ -793,45 +793,104 @@ err_info *File::moveToTrash (QString &trashname)
 #endif
 
 
+QStringList File::files (void)
+   {
+   return QStringList (_filename);
+   }
+
+
+void File::gatherPages (void)
+   {
+   }
+
+
+err_info *File::moveFiles (const QStringList &names, const QString &fromDir,
+                           const QString &toDir, const QString &base,
+                           bool copy, QStringList &moved)
+   {
+   QStringList done;
+   err_info *err = NULL;
+
+   moved.clear ();
+   for (const QString &name : names)
+      {
+      QString to = name;
+
+      /* a JPEG stack's files keep their page numbers, and any other file
+         its extension */
+      if (!base.isEmpty ())
+         {
+         QString stem, ext;
+         int pagenum;
+
+         if (decodePageNumber (name, stem, pagenum, ext))
+            to = QString ("%1" UTIL_PAGE_PREFIX "%2.%3").arg (base)
+                  .arg (pagenum + 1).arg (ext);
+         else
+            {
+            removeExtension (name, ext);
+            to = base + ext;
+            }
+         }
+
+      QString from = fromDir + "/" + name;
+      QString path = toDir + "/" + to;
+      QString error;
+
+      if (copy && !QFile::copy (from, path))
+         err = err_make (ERRFN, ERR_could_not_copy_file2, qPrintable (from),
+                         qPrintable (path));
+      else if (!copy && !utilRenameFile (from, path, &error))
+         err = err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (from),
+                         qPrintable (path + ": " + error));
+      if (err)
+         break;
+      utilSetGroup (path);
+      done << name;
+      moved << to;
+      }
+
+   // leave the stack as it was, rather than in two pieces
+   if (err)
+      {
+      for (int i = 0; i < done.size (); i++)
+         {
+         QString path = toDir + "/" + moved [i];
+
+         if (copy)
+            QFile::remove (path);
+         else
+            utilRenameFile (path, fromDir + "/" + done [i], nullptr);
+         }
+      moved.clear ();
+      }
+   return err;
+   }
+
+
 #ifndef QT_NO_WIDGETS
 err_info *File::move (QString &newDir, QString &newName, bool copy)
    {
-   QString old_fname = _filename;
-   QFile file (_pathname);
+   QStringList names = files ();
+   QString base;
 
-   // get the full paths for the current file, and the new file it will become
-   QString oldPath = _pathname;
-   QString newPath = newDir + "/" + _filename;
+   /* if any of its files has a name which the destination directory has
+      already, the stack takes a new name */
+   for (const QString &name : names)
+      if (QFile::exists (newDir + "/" + name) && _desk)
+         {
+         base = _desk->findNextFilename (stackLeaf () + "_move",
+                                         newDir + "/", _ext);
+         break;
+         }
 
-   // the new name will hopefully be the same as the old
-   newName = _filename;
+   if (!copy)
+      CALL (release ());
 
-   QDir dir;
+   QStringList moved;
 
-   // if the new name exists in the destination directory, rename the file
-   if (dir.exists (newPath) && _desk)
-      {
-      QString fname, ext, uniq;
-
-      // find unique name
-      uniq = _desk->findNextFilename (_leaf + "_move", newDir + "/", _ext);
-
-      // get the new path and name
-      newPath = newDir + "/" + uniq + _ext;
-      newName = uniq + _ext;
-      // printf ("new name %s\n", qPrintable (newName));
-      }
-
-   if (copy)
-      return err_subsume (ERRFN, copyFile (oldPath, newPath),
-         ERR_could_not_copy_file2, qPrintable (oldPath),
-                  qPrintable (newPath));
-   CALL (release ());
-   QString error;
-   if (!utilRenameFile (oldPath, newPath, &error))
-      return err_make (ERRFN, ERR_could_not_rename_file2, qPrintable (oldPath),
-                  qPrintable (newPath + ": " + error));
-   utilSetGroup(newPath);
+   CALL (moveFiles (names, _dir, newDir, base, copy, moved));
+   newName = moved.first ();
 
    return NULL;
    }
@@ -1347,9 +1406,11 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
 
    //   printf ("without ext '%s' (%s), copy '%s'\n", fname.latin1 (), ext.latin1 (), uniq.latin1 ());
 
-      // copy the file with the new name
-      uniq += ext;
-      CALL (copyFile (dir + _filename, dir + uniq));
+      // copy the files the stack is held in, with the new name
+      QStringList made;
+
+      CALL (moveFiles (files (), _dir, dir, uniq, true, made));
+      uniq = made.first ();
 
       // create a new max file
       if (desk)
@@ -1359,6 +1420,7 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
          }
       else
          fnew = createFile (dir, uniq, desk, type);
+      fnew->gatherPages ();
       uniq = dir + uniq;   // return final file
       return NULL;
       }
