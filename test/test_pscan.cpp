@@ -355,6 +355,39 @@ void TestPscan::testBrightShown()
    }
 }
 
+void TestPscan::testModeKeepsBright()
+{
+   /* a threshold above the most the brightness can be, as the scanner
+      starts, and a brightness below the least the threshold can be */
+   FakeControl fake;
+   Pscan pscan;
+
+   fake._format = QScanner::mono;
+   fake._exposure = 200;
+   fake._bright = 12;
+   attach(pscan, fake);
+   QCOMPARE(pscan.bright->value(), 200);
+
+   // changing to colour shows the brightness, leaving both as they were
+   pscan.on_format_idClicked(QScanner::colour);
+   QCOMPARE(fake._bright, 12);
+   QCOMPARE(fake._exposure, 200);
+   QCOMPARE(pscan.bright->value(), 12);
+
+   // and so does changing back, with a brightness below zero
+   setBright(pscan, -50);
+   pscan.on_format_idClicked(QScanner::mono);
+   QCOMPARE(fake._exposure, 200);
+   QCOMPARE(fake._bright, -50);
+   QCOMPARE(pscan.bright->value(), 200);
+
+   // Auto scans in colour, likewise
+   pscan.on_format_idClicked(Pscan::AutoId);
+   QCOMPARE(fake._bright, -50);
+   QCOMPARE(fake._exposure, 200);
+   QCOMPARE(pscan.bright->value(), -50);
+}
+
 void TestPscan::testReset()
 {
    FakeControl fake;

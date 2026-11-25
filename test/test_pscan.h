@@ -35,6 +35,9 @@ private slots:
    //! the panel shows the scanner's exposure, brightness and contrast
    void testBrightShown();
 
+   //! Changing the mode leaves the brightness and threshold as they were
+   void testModeKeepsBright();
+
    //! picking an item from the list shows a preset afterwards, not the item
    void testPresetMenu();
 
