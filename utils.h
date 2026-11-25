@@ -292,6 +292,8 @@ Q_DECLARE_LOGGING_CATEGORY (logView)
 Q_DECLARE_LOGGING_CATEGORY (logErr)
 Q_DECLARE_LOGGING_CATEGORY (logBuild)
 Q_DECLARE_LOGGING_CATEGORY (logOcr)
+Q_DECLARE_LOGGING_CATEGORY (logUndo)
+Q_DECLARE_LOGGING_CATEGORY (logModel)
 
 /** Turn on the diagnostic categories above, for when the log is wanted */
 void utilLogEnable (void);

@@ -33,16 +33,51 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "mainwidget.h"
 #include "maxview.h"
 #include "pagecover.h"
+#include "utils.h"
 
 
 Desktopundostack::Desktopundostack (QObject *parent)
       : QUndoStack (parent)
    {
+   _index = 0;
+   _pushing = false;
+   connect (this, &QUndoStack::indexChanged, this,
+            [this] (int index) { noteIndex (index); });
    }
 
 
 Desktopundostack::~Desktopundostack ()
    {
+   }
+
+
+void Desktopundostack::push (QUndoCommand *cmd)
+   {
+   qCDebug (logUndo).noquote () << QString ("undo: do '%1' (%2 done)")
+      .arg (cmd->text ()).arg (index () + 1);
+   _pushing = true;
+   QUndoStack::push (cmd);
+   _pushing = false;
+   _index = index ();
+   }
+
+
+void Desktopundostack::noteIndex (int index)
+   {
+   /* push() says what it does, and a stack being emptied undoes nothing */
+   if (_pushing)
+      return;
+   if (!count ())
+      qCDebug (logUndo).noquote () << "undo: stack cleared";
+   else if (index < _index)
+      for (int i = _index - 1; i >= index; i--)
+         qCDebug (logUndo).noquote () << QString ("undo: undo '%1' (%2 done)")
+            .arg (text (i)).arg (i);
+   else
+      for (int i = _index; i < index; i++)
+         qCDebug (logUndo).noquote () << QString ("undo: redo '%1' (%2 done)")
+            .arg (text (i)).arg (i + 1);
+   _index = index;
    }
 
 
