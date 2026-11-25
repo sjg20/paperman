@@ -46,6 +46,9 @@ private slots:
    //! Test deleting of one or more stacks
    void testDeleteStacks();
 
+   //! Deleting pages of a PDF stack, and undoing it
+   void testDeletePdfPages();
+
    //! Test unstacking stacks
    void testUnstackStacks();
 

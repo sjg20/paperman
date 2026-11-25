@@ -27,6 +27,9 @@ private slots:
    //! a stack's pages can be put in a new order, which is kept in its file
    void testReorderPages();
 
+   //! Removing pages from a PDF, and putting them back, as undo does
+   void testPdfRemovePages();
+
    //! what reading a stack costs is counted with the stack's file
    void testStackIo();
 

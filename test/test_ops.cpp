@@ -766,6 +766,33 @@ void TestOps::testOptionsDialog()
    xmlConfig->setBoolValue("SCAN_USE_JPEG", orig);
 }
 
+void TestOps::testDeletePdfPages()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+   QModelIndex ind = model->index("testpdf.pdf", repo_ind);
+   QVERIFY(ind.isValid());
+   QVERIFY(!model->getFile(ind)->load());
+   int count = model->getFile(ind)->pagecount();
+   QVERIFY(count > 2);
+
+   // the pages marked in the page view go, as one step to undo
+   QBitArray pages(count);
+
+   pages.setBit(0);
+   pages.setBit(2);
+   model->deletePages(ind, pages);
+   ind = model->index("testpdf.pdf", repo_ind);
+   QCOMPARE(model->getFile(ind)->pagecount(), count - 2);
+
+   model->getUndoStack()->undo();
+   ind = model->index("testpdf.pdf", repo_ind);
+   QCOMPARE(model->getFile(ind)->pagecount(), count);
+}
+
 void TestOps::getTestRepo(Mainwindow *me, Desktopmodel*& model,
                           QModelIndex& repo_ind)
 {
