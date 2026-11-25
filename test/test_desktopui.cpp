@@ -1,5 +1,6 @@
 #include <functional>
 
+#include <QAbstractItemModelTester>
 #include <QClipboard>
 #include <QKeySequence>
 #include <QLineEdit>
@@ -946,6 +947,14 @@ void TestDesktopUi::testRepeatedSearch()
    QTest::qWait(50);
 
    Desktopview *view = desktop->getView();
+
+   /* the model must say how its rows change, as they change, or the
+      proxy over it loses track of them */
+   QAbstractItemModelTester check(model, QAbstractItemModelTester::
+                                  FailureReportingMode::QtTest);
+   QAbstractItemModelTester check_proxy(view->model(),
+                                        QAbstractItemModelTester::
+                                        FailureReportingMode::QtTest);
 
    /* the first search creates the search desk; later searches re-use
       it. Each must show exactly the matching stacks, with no phantom

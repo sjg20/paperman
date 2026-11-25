@@ -2175,8 +2175,14 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
       desk->advance ();
       useRootBackend(desk);
       desk->addMatches(dirPath, matches, meas);
-      beginInsertRows (_subdirs_index, 0, desk->fileCount () - 1);
-      endInsertRows ();
+
+      /* the matches become rows only once the model has said so: a proxy
+         told of more rows than it finds loses track of its rows */
+      if (desk->fileCount ()) {
+         beginInsertRows (_subdirs_index, 0, desk->fileCount () - 1);
+         desk->updateRowCount ();
+         endInsertRows ();
+      }
    } else {
       /* populate the desk before inserting its row, so that the model
          (and any proxy on top of it) sees the files exactly once */
@@ -2185,6 +2191,7 @@ QModelIndex Desktopmodel::finishFileSearch(QString dirPath, QString rootPath,
       desk->advance ();
       useRootBackend(desk);
       desk->addMatches(dirPath, matches, meas);
+      desk->updateRowCount ();
       beginInsertRows (QModelIndex (), _desks.size (), _desks.size ());
       _desks << desk;
       endInsertRows ();

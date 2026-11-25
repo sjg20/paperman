@@ -262,7 +262,6 @@ void Desk::addMatches(const QString &dirPath, const QStringList& matches,
       QString fname = fi.fileName();
       addFile(fi.fileName(), dir.path() + "/", meas);
    }
-   updateRowCount();
 }
 
 void Desk::addFromDir(const QString& inPath, Measure *meas)
