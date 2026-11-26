@@ -117,6 +117,9 @@ private slots:
    //! Test combining stacks with the stack action, then menu undo/redo
    void testStackAndMenuUndo();
 
+   //! The stack pane marks the stacks found and draws the rest faintly
+   void testViewFind();
+
    //! Test typing in the filter box filters stacks, and cancel restores
    void testFilterStacks();
 

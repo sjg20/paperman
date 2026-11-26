@@ -92,6 +92,12 @@ public:
    //! how thick the mark of the keyboard focus is drawn, in pixels
    static constexpr int focus_width = 2;
 
+   //! how solid a stack is drawn which is not one of those being found
+   static constexpr double faint_opacity = 0.3;
+
+   //! how solid the mark behind the name of a stack found is, out of 255
+   static constexpr int found_alpha = 90;
+
    //! get a size hint for the delegate
    QSize sizeHint (const QStyleOptionViewItem &option, const QModelIndex &index) const;
 

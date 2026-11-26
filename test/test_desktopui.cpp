@@ -703,6 +703,116 @@ void TestDesktopUi::testStackAndMenuUndo()
 
 }
 
+/* The stack pane can pick stacks out by part of their names: those found
+   are marked and the rest drawn faintly, each where it is */
+void TestDesktopUi::testViewFind()
+{
+   Mainwindow me;
+   auto path = setupRepoWithExtra();
+   Desktopwidget *desktop = me.getDesktop();
+
+   QVERIFY(!desktop->addDir(path));
+   me.resize(1600, 1000);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   Desktopview *view = desktop->getView();
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 4);
+   view->selectionModel()->clear();
+
+   // the stacks are in the order they are read: across, then down
+   QModelIndexList order = view->inOrder();
+   QCOMPARE(int(order.size()), 4);
+   for (int i = 1; i < order.size(); i++)
+      {
+      QRect before = view->visualRect(order[i - 1]);
+      QRect after = view->visualRect(order[i]);
+
+      QVERIFY2(after.top() > before.bottom() || after.left() > before.left(),
+               qPrintable(QString("stack %1").arg(i)));
+      }
+
+   // with nothing to find, none is found
+   QVERIFY(view->find().isEmpty());
+   QVERIFY(view->found().isEmpty());
+   QVERIFY(!view->isFound(order[0]));
+
+   /* a stack which is selected shows that and nothing else, so see that
+      none is before each look; and bring the whole stack into view, as
+      its name, which is what is marked, may be off the top */
+   auto look = [&](const QModelIndex &ind) {
+      view->selectionModel()->clear();
+
+      // from the same place each time, so that a look does not depend on
+      // the one before
+      view->horizontalScrollBar()->setValue(0);
+      view->verticalScrollBar()->setValue(0);
+      view->scrollTo(ind);
+
+      // as much of it as shows, which must include its name, at the top
+      QRect rect = view->visualRect(ind);
+      QRect shown = rect.intersected(view->viewport()->rect());
+
+      return rect.top() >= 0 && shown.height() > rect.height() / 2
+            && shown.width() > rect.width() / 2
+         ? view->viewport()->grab(shown).toImage() : QImage();
+   };
+   QList<QImage> plain;
+   for (const QModelIndex &ind : order)
+      {
+      plain << look(ind);
+      QVERIFY2(!plain.last().isNull(), qPrintable(ind.data().toString()));
+      }
+
+   // stacks are found whatever the case, in the same order, and none goes
+   view->setFind("PDF");
+   QCOMPARE(view->find(), QString("PDF"));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 4);
+
+   QModelIndexList found = view->found();
+   QCOMPARE(int(found.size()), 2);
+   QVERIFY(order.indexOf(found[0]) < order.indexOf(found[1]));
+   for (const QModelIndex &ind : order)
+      QCOMPARE(view->isFound(ind),
+               ind.data().toString().contains("pdf"));
+
+   /* each stays where it is and looks different: one found has its name
+      marked, and the rest are faint */
+   QCOMPARE(view->inOrder(), order);
+   for (int i = 0; i < order.size(); i++)
+      QVERIFY2(look(order[i]) != plain[i],
+               qPrintable(order[i].data().toString()));
+
+   // one which is not found is paler than it was: nearer the background
+   int at = -1;
+   for (int i = 0; i < order.size(); i++)
+      if (!view->isFound(order[i]))
+         at = i;
+   QVERIFY(at >= 0);
+   auto contrast = [](const QImage &image) {
+      int lo = 255, hi = 0;
+
+      for (int y = 0; y < image.height(); y++)
+         for (int x = 0; x < image.width(); x++)
+            {
+            int grey = qGray(image.pixel(x, y));
+
+            lo = qMin(lo, grey);
+            hi = qMax(hi, grey);
+            }
+      return hi - lo;
+   };
+   QVERIFY(contrast(look(order[at])) < contrast(plain[at]));
+
+   // with nothing to find again, all are as they were
+   view->setFind(QString());
+   QVERIFY(view->found().isEmpty());
+   for (int i = 0; i < order.size(); i++)
+      QVERIFY2(look(order[i]) == plain[i],
+               qPrintable(order[i].data().toString()));
+}
+
 void TestDesktopUi::testFilterStacks()
 {
    QModelIndex repo_ind;
