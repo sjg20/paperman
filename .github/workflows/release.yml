@@ -3,10 +3,18 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # build the snaps again for a release which went out without them, as
+  # when KDE's build snap is missing from the store on the day
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the release to build the snaps for, e.g. v1.5.1
+        required: true
 
 jobs:
   build-deb:
     name: Build .deb and create GitHub Release
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -322,9 +330,15 @@ jobs:
     name: Build the ${{ matrix.arch }} snap, add it to the release and publish it
     runs-on: ${{ matrix.runner }}
     needs: build-deb
+    # also when run by hand, where there is no release to make first
+    if: >-
+      always() && (needs.build-deb.result == 'success'
+                   || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
     strategy:
+      # one architecture's snap failing is no reason to drop the other's
+      fail-fast: false
       matrix:
         include:
           - arch: amd64
@@ -333,14 +347,37 @@ jobs:
             runner: ubuntu-24.04-arm
     env:
       PUBLISH: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS != '' }}
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      # KDE's build snap, which the kde-neon-6 extension builds with, has
+      # been missing from the store for an architecture at times. Say so,
+      # rather than fail deep in the build: the snaps can be built once it
+      # is back, by running this workflow by hand for the tag
+      - name: Check that KDE's build snap is in the store
+        run: |
+          url="https://api.snapcraft.io/v2/snaps/info/kde-qt6-core24-sdk"
+          if ! curl -fsS -H 'Snap-Device-Series: 16' \
+                "$url?architecture=${{ matrix.arch }}" \
+              | jq -e --arg arch "${{ matrix.arch }}" \
+                  '."channel-map" | any(.channel.architecture == $arch
+                                        and .channel.name == "stable")' \
+                  > /dev/null; then
+            echo "::error::kde-qt6-core24-sdk is not in the store for" \
+                 "${{ matrix.arch }}: run this workflow by hand for $TAG" \
+                 "once it is back"
+            exit 1
+          fi
 
       - uses: snapcore/action-build@v1
         id: snap
 
+      # a run by hand may follow one which got this far
       - name: Add it to the release
-        run: gh release upload "$GITHUB_REF_NAME" "${{ steps.snap.outputs.snap }}"
+        run: gh release upload "$TAG" "${{ steps.snap.outputs.snap }}" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -356,6 +393,7 @@ jobs:
 
   ppa-upload:
     name: Sign and upload to Launchpad PPA
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

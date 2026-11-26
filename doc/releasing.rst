@@ -95,6 +95,16 @@ What the Workflow Does
    and an Arm runner, and adds ``paperman_VERSION_amd64.snap`` and
    ``paperman_VERSION_arm64.snap`` to the release. With the secret below
    it also releases them to the ``stable`` channel of the Snap Store.
+   Each architecture is built on its own, so one failing does not stop
+   the other.
+
+   The build needs KDE's ``kde-qt6-core24-sdk`` snap, which has been
+   missing from the store for an architecture at times; the job checks
+   for it first and says so if it is not there. To build the snaps for a
+   release which went out without them, run the workflow by hand with
+   the release's tag, which runs only this job::
+
+      gh workflow run release.yml -f tag=v1.5.1
 
 **ppa-upload** — Sign and upload to Launchpad PPA
    Imports the GPG signing key from repository secrets, configures
