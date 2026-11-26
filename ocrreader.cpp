@@ -170,7 +170,8 @@ QList<OcrReader::Waiting> OcrReader::waiting () const
       w.pages = stack.pages;
       if (w.pages < 0 && stack.file && stack.file->valid ())
          w.pages = stack.file->pagecount ();
-      w.left = qMax (0, w.pages - stack.next);
+      w.left = stack.some ? int (stack.only.size ())
+                          : qMax (0, w.pages - stack.next);
       }
    for (Waiting &w : list)
       w.left += w.reading;
@@ -239,7 +240,8 @@ int OcrReader::pagesLeft () const
       // one waiting its turn is not opened just to count its pages
       if (count < 0 && stack.file && stack.file->valid ())
          count = stack.file->pagecount ();
-      pages += qMax (0, count - stack.next);
+      pages += stack.some ? int (stack.only.size ())
+                          : qMax (0, count - stack.next);
       }
    return pages;
    }
@@ -254,6 +256,21 @@ static bool remembering_allowed = true;
 void OcrReader::allowRemembering (bool allow)
    {
    remembering_allowed = allow;
+   }
+
+
+//! whether a changed page may be read again; see allowRereading()
+static bool rereading_allowed = true;
+
+void OcrReader::allowRereading (bool allow)
+   {
+   rereading_allowed = allow;
+   }
+
+
+bool OcrReader::rereadingAllowed ()
+   {
+   return rereading_allowed;
    }
 
 
@@ -310,6 +327,38 @@ void OcrReader::addFile (File *file)
    }
 
 
+void OcrReader::addPage (File *file, int pagenum)
+   {
+   if (!file || pagenum < 0)
+      return;
+
+   QString path = cleanPath (file->pathname ());
+
+   for (Stack &stack : _stacks)
+      if (stack.path == path)
+         {
+         /* a stack being looked through as a whole comes to the page in
+            time, unless it is past it already */
+         if (!stack.some)
+            stack.next = qMin (stack.next, pagenum);
+         else if (!stack.only.contains (pagenum))
+            stack.only << pagenum;
+         stack.file = file;
+         next ();
+         return;
+         }
+
+   Stack stack;
+
+   stack.path = path;
+   stack.file = file;
+   stack.some = true;
+   stack.only << pagenum;
+   _stacks << stack;
+   next ();
+   }
+
+
 void OcrReader::addPath (const QString &pathname)
    {
    queue (pathname, nullptr);
@@ -326,6 +375,8 @@ void OcrReader::queue (const QString &pathname, File *file)
          {
          // look through it again, since pages may have been added
          stack.next = 0;
+         stack.some = false;
+         stack.only.clear ();
          if (file)
             stack.file = file;
          return;
@@ -508,7 +559,8 @@ void OcrReader::next ()
       Stack &stack = _stacks.first ();
       File *file = fileFor (stack.path, stack.file);
 
-      if (!file || stack.next >= file->pagecount ())
+      if (!file || (stack.some ? stack.only.isEmpty ()
+                               : stack.next >= file->pagecount ()))
          {
          _stacks.removeFirst ();
          continue;
@@ -516,7 +568,11 @@ void OcrReader::next ()
 
       stack.pages = file->pagecount ();
 
-      int pagenum = stack.next++;
+      // the next page in turn, or the next of those asked for
+      int pagenum = stack.some ? stack.only.takeFirst () : stack.next++;
+
+      if (pagenum >= file->pagecount ())
+         continue;
       OcrPage have;
 
       // a page which has been read, or a file which cannot keep it
