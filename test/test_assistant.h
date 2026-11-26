@@ -60,6 +60,9 @@ private slots:
    void testClaudeCommand();
 
    //! A command which is not there says so
+   //! a request can be stopped from the list of work going on
+   void testCommandStopped();
+
    void testCommandMissing();
 };
 

@@ -1,9 +1,11 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSettings>
+#include <QTemporaryDir>
 #include <QtTest/QtTest>
 
 #include "assistant.h"
+#include "backgroundwork.h"
 #include "test_assistant.h"
 
 void TestAssistant::init()
@@ -279,6 +281,54 @@ void TestAssistant::testClaudeCommand()
    QVERIFY(!ClaudeCommandBackend::parse("{\"is_error\":false}", answer)
                .isEmpty());
    QVERIFY(!ClaudeCommandBackend::parse("not json", answer).isEmpty());
+}
+
+/* A request is listed with the work going on while the command runs,
+   and stopping it there ends the command and says so */
+void TestAssistant::testCommandStopped()
+{
+#ifdef Q_OS_WIN
+   QSKIP("needs a shell script to stand in for the command");
+#else
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString script = tmp.path() + "/slow-assistant";
+   QFile file(script);
+   QVERIFY(file.open(QIODevice::WriteOnly));
+   file.write("#!/bin/sh\nexec sleep 60\n");
+   file.close();
+   QVERIFY(file.setPermissions(QFile::ReadOwner | QFile::WriteOwner
+                               | QFile::ExeOwner));
+
+   Backgroundwork *work = Backgroundwork::instance();
+   int before = work->jobs().size();
+   ClaudeCommandBackend backend(script, QString());
+   QString error;
+   bool called = false;
+   QElapsedTimer timer;
+
+   timer.start();
+   backend.ask("Name it", "Text", QJsonObject(), this,
+               [&](const QJsonObject &, const QString &e) {
+      error = e;
+      called = true;
+   });
+   QCOMPARE(int(work->jobs().size()), before + 1);
+
+   Backgroundjob *job = work->jobs().last();
+   QCOMPARE(job->title(), QString("Asking the assistant"));
+   QVERIFY(job->stoppable());
+   QTest::qWait(200);
+   QVERIFY(!called);
+
+   job->requestStop();
+   QVERIFY(called);
+   QCOMPARE(error, QString("Stopped asking the assistant"));
+   QVERIFY(timer.elapsed() < 30000);
+
+   // the request goes from the list once the command has gone
+   QTRY_COMPARE(int(work->jobs().size()), before);
+#endif
 }
 
 void TestAssistant::testCommandMissing()

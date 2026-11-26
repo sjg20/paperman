@@ -72,7 +72,8 @@ stay open:
   Select one and press **Stop** to give it up: a conversion stopped
   part-way leaves nothing behind, and a search stopped while the index
   is brought up to date looks through what has been indexed so far.
-  **Stop** is greyed out for work which cannot be stopped.
+  A question put to the AI assistant is listed here too, and can be
+  given up. **Stop** is greyed out for work which cannot be stopped.
 - Below, the stacks waiting to have their text read, where the reading
   can be paused or stopped.
 
