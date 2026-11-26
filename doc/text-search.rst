@@ -136,6 +136,12 @@ is one, made by ``Mainwidget``. Stacks are given to it:
 - shortly after start-up, from the list of stacks which were still
   waiting when Paperman last closed (the ``ocr/pending`` setting)
 
+One page is given to it, with ``addPage()``, when its picture changes:
+turning or cropping a page drops its words, and ``Mainwidget`` hears of
+the change through ``Desktopmodel::pageContentChanged()`` and has that
+page read again, if the option to read scanned pages is on. The stack's
+other pages are not looked at.
+
 It keeps a queue of stacks by path, so a stack can be renamed or moved
 while it waits (``stackMoved()``), and reads each page which has no
 words yet. The page images of a ``.max`` stack are decoded on the worker
@@ -249,7 +255,8 @@ What happens to a page's words when the page changes:
    * - Remove a page
      - Go with it, and come back with it on undo
    * - Turn or flip a page
-     - Are dropped, since the boxes no longer fit the image
+     - Are dropped, since the boxes no longer fit the image; the desktop
+       then reads the page again
    * - Crop a page
      - Are dropped for the new page; undo brings the old page back with
        its words
@@ -514,9 +521,10 @@ Text search does not look at:
 
 Things worth knowing before relying on it:
 
-- **Pages turned or cropped lose their words** and are not queued to be
-  read again on the desktop. They are read again by **Read text (OCR)**,
-  by the **OCR** button, by ``paperman --ocr``, or by a server's reader.
+- **Pages turned or cropped lose their words**, and are read again by
+  the desktop only if the option to read scanned pages is on. Otherwise
+  they are read again by **Read text (OCR)**, by the **OCR** button, by
+  ``paperman --ocr``, or by a server's reader.
 - **A stack on a server is never read by the desktop**. It needs the
   server run with ``--read-pages``, or its pages read one at a time.
 - **One language.** Tesseract reads with its default language, and the

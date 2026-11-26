@@ -152,6 +152,21 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _ocr_reader->setFinder ([this] (const QString &pathname) {
       return _contents->fileForPath (pathname);
    });
+   /* a page which is turned or cropped loses its words, as they are no
+      longer where they were: read it again, where pages are read at all */
+   connect (_contents, &Desktopmodel::pageContentChanged, _ocr_reader,
+            [this] (const QModelIndex &index, int pagenum) {
+      File *file = index.isValid () ? _contents->getFile (index) : nullptr;
+
+      if (!file || !OcrReader::enabled () || !OcrReader::rereadingAllowed ()
+          || !_contents->keepsOcr (file))
+         return;
+      if (pagenum < 0)
+         _ocr_reader->addFile (file);
+      else
+         _ocr_reader->addPage (file, pagenum);
+   });
+
    // what the reader reads goes in the record of activity, a stack at a time
    connect (_ocr_reader, &OcrReader::stackRead, this,
             [this] (const QString &pathname, int pages) {

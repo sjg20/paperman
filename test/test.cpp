@@ -111,6 +111,10 @@ int test_run(int, char **in_argv, QApplication *,
     * that test may be looking at */
    OcrReader::allowRemembering(false);
 
+   /* Nor is a page read again when a test turns it, which would run the
+    * engine in the background and change the file a moment later */
+   OcrReader::allowRereading(false);
+
    /* nor is anyone there to say whether to quit while pages are still
     * being read */
    Mainwindow::allowQuitQuestion(false);

@@ -20,6 +20,7 @@
 #include "backgroundwork.h"
 #include "activitylog.h"
 #include "docfacts.h"
+#include "ocrpage.h"
 #include "filemax.h"
 #include "ocrreader.h"
 #include "options.h"
@@ -1936,6 +1937,73 @@ void TestOps::testActivityRecorded()
       QVERIFY2(!acts[i].describe().isEmpty(),
                qPrintable(QString::number(i)));
    }
+}
+
+/* A page which is turned or cropped loses its words, since they are no
+   longer where they were, and is read again by itself */
+void TestOps::testTurnedPageReadAgain()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   QModelIndex ind = model->index("testfile.max", repo_ind);
+   File *f = model->getFile(ind);
+   QVERIFY(f && !f->load());
+
+   // every page has words, as after a scan has been read
+   auto words = [&](int pagenum) {
+      OcrPage ocr;
+
+      return f->getPageOcr(pagenum, ocr) ? -1 : int(ocr.words.size());
+   };
+   for (int i = 0; i < f->pagecount(); i++) {
+      OcrPage ocr;
+
+      ocr.size = QSize(100, 100);
+      ocr.words << OcrWord{QRect(1, 2, 3, 4), "before", 90, 0, 0};
+      QVERIFY(!f->putPageOcr(i, ocr));
+   }
+
+   // a reader which says what it was asked to read
+   OcrReader *reader = Mainwidget::singleton()->ocrReader();
+   QAtomicInt calls;
+
+   reader->setEngine([&calls](QImage &image, OcrPage &page) {
+      calls++;
+      page = OcrPage();
+      page.size = image.size();
+      page.words << OcrWord{QRect(1, 2, 3, 4), "again", 90, 0, 0}
+                 << OcrWord{QRect(5, 2, 3, 4), "read", 90, 0, 0};
+      return QString();
+   });
+   OcrReader::allowRereading(true);
+   auto forbid = qScopeGuard([] { OcrReader::allowRereading(false); });
+
+   // turning a page drops its words, and it alone is read again
+   model->transformPage(ind, 1, File::Transform_rotate90);
+   QTRY_COMPARE(words(1), 2);
+   QTRY_VERIFY(!reader->isBusy());
+   QCOMPARE(int(calls), 1);
+   QCOMPARE(words(0), 1);
+   QCOMPARE(words(2), 1);
+
+   // undo turns it back, which is another change, read again too
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(!reader->isBusy());
+   QTRY_COMPARE(int(calls), 2);
+   QCOMPARE(words(1), 2);
+
+   // with the reading of scanned pages turned off, nothing is read
+   OcrReader::setEnabled(false);
+   auto restore = qScopeGuard([] { QSettings().remove("ocr/background"); });
+   model->transformPage(ind, 2, File::Transform_rotate180);
+   QTest::qWait(100);
+   QVERIFY(!reader->isBusy());
+   QCOMPARE(int(calls), 2);
+   QCOMPARE(words(2), 0);
 }
 
 void TestOps::testReversePages()

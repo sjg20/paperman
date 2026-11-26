@@ -101,8 +101,8 @@ from each page's picture (optical character recognition, or OCR) with
 - Each page keeps its words, with where each one is, in the stack's
   ``.max`` file, so they go with the page when it is stacked, unstacked
   or copied. Turning or cropping a page drops its text, since the words
-  are no longer where they were: use **Read text (OCR)** to read it
-  again.
+  are no longer where they were, and the page is then read again by
+  itself, unless the reading of scanned pages is turned off.
 - **Read text (OCR)** (Ctrl+T), under **Process...** in a stack's
   right-click menu, reads stacks scanned
   before, or with the option off.
