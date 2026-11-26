@@ -59,6 +59,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qstatusbar.h"
 #include "qstring.h"
 
+#include "backgrounddialog.h"
 #include "blockwatch.h"
 #include "camera.h"
 #include "clientconf.h"
@@ -128,13 +129,19 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
                                        + 8));
    statusBar ()->setMaximumSize (size);
 
-   // how much text is still to be read in the background, when any is
-   _reading = new QLabel (this);
+   /* how much text is still to be read in the background, when any is;
+      pressing it shows the stacks waiting, where reading can be stopped */
+   _reading = new QPushButton (this);
    _reading->setObjectName ("readingStatus");
+   _reading->setFlat (true);
+   _reading->setFocusPolicy (Qt::NoFocus);
    _reading->setToolTip (tr ("Paperman reads the text of scanned pages in "
-      "the background, so that they can be found by what they say"));
+      "the background, so that they can be found by what they say. Press "
+      "to see what is waiting, or to pause or stop it"));
    _reading->hide ();
    statusBar ()->addPermanentWidget (_reading);
+   connect (_reading, &QPushButton::clicked, actionBackground,
+            &QAction::trigger);
    connect (_main->ocrReader (), &OcrReader::progress, this,
             &Mainwindow::readingChanged);
 
@@ -575,30 +582,26 @@ void Mainwindow::saveSettings ()
    }
 
 
-QString Mainwindow::readingLeft () const
+void Mainwindow::readingChanged ()
    {
    OcrReader *reader = _main->ocrReader ();
-   int stacks = reader->stacksLeft (), pages = reader->pagesLeft ();
-   QString in = stacks == 1 ? tr ("1 stack")
-                            : tr ("%1 stacks").arg (QLocale ().toString (stacks));
+   bool any = reader->stacksLeft () > 0;
 
-   // a stack not yet opened has pages too, but how many is not known
-   if (!pages)
-      return in;
-   return tr ("%1 in %2")
-      .arg (pages == 1 ? tr ("1 page")
-                       : tr ("%1 pages").arg (QLocale ().toString (pages)))
-      .arg (in);
+   if (any)
+      _reading->setText ((reader->isPaused () ? tr ("Reading text paused: %1")
+                                              : tr ("Reading text: %1"))
+                            .arg (Backgrounddialog::leftText (reader)));
+   _reading->setVisible (any);
    }
 
 
-void Mainwindow::readingChanged ()
+void Mainwindow::on_actionBackground_triggered (bool)
    {
-   bool busy = _main->ocrReader ()->isBusy ();
-
-   if (busy)
-      _reading->setText (tr ("Reading text: %1").arg (readingLeft ()));
-   _reading->setVisible (busy);
+   if (!_background)
+      _background = new Backgrounddialog (_main->ocrReader (), this);
+   _background->show ();
+   _background->raise ();
+   _background->activateWindow ();
    }
 
 
@@ -613,13 +616,18 @@ void Mainwindow::allowQuitQuestion (bool allow)
 
 bool Mainwindow::okToQuit ()
    {
-   if (_quit_agreed || !quit_question_allowed
-       || !_main->ocrReader ()->isBusy ())
+   OcrReader *reader = _main->ocrReader ();
+
+   if (_quit_agreed || !quit_question_allowed || !reader->stacksLeft ())
       return true;
 
    QMessageBox box (QMessageBox::Question, tr ("Quit Paperman"),
-      tr ("Paperman is still reading the text of scanned pages: %1.")
-         .arg (readingLeft ()), QMessageBox::NoButton, this);
+      (reader->isPaused ()
+          ? tr ("Paperman has not finished reading the text of scanned "
+                "pages: %1.")
+          : tr ("Paperman is still reading the text of scanned pages: %1."))
+         .arg (Backgrounddialog::leftText (reader)), QMessageBox::NoButton,
+      this);
 
    box.setObjectName ("quitReading");
    box.setInformativeText (tr ("It carries on from where it stopped the "
