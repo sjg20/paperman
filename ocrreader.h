@@ -110,6 +110,31 @@ public:
    //! the full path of each stack which still has pages to look at
    QStringList pending () const;
 
+   //! how many stacks still have pages to look at
+   int stacksLeft () const;
+
+   /** about how many pages are still to be looked at, some of which may
+       turn out to have been read. A stack which has not been opened yet
+       counts for none */
+   int pagesLeft () const;
+
+   /** keep a note in the settings of the stacks still to read, so that
+       restore() can carry on with them after a restart
+
+      \param remember  true to keep the note */
+   void setRemembered (bool remember);
+
+   /** queue the stacks which were still to be read when the note was
+       last kept, such as when Paperman was last closed. Each is read from
+       where it got to, since the pages read are kept in the stack */
+   void restore ();
+
+   /** allow or forbid any reader to keep the note. Tests forbid it, so
+       that stacks left unread by one test are not read during another
+
+      \param allow  true to allow it, which is how things start */
+   static void allowRemembering (bool allow);
+
 public slots:
    /** a stack has been moved or renamed, so is to be read where it is now
 
@@ -135,6 +160,9 @@ signals:
 
    //! there is nothing more to read
    void idle ();
+
+   //! what there is still to read has changed
+   void progress ();
 
 private:
    //! what tells a page apart from the others in its stack
@@ -162,6 +190,7 @@ private:
       QString path;         //!< where the stack is
       QPointer<File> file;  //!< the desktop's File for it, while it lasts
       int next = 0;         //!< the first page not yet looked at
+      int pages = -1;       //!< how many pages it has, once it is opened
       };
 
    //! a page which the engine is reading
@@ -196,6 +225,9 @@ private:
    //! let go of the File opened here, if any
    void closeOwn ();
 
+   //! note what is still to read, and tell anything which shows it
+   void changed ();
+
    //! find how a page can be recognised, returning false if it cannot
    bool markPage (File *file, int pagenum, Mark &mark);
 
@@ -211,5 +243,7 @@ private:
    File *_own = nullptr;          //!< a File opened here, for _own_path
    QString _own_path;             //!< the stack which _own is
    bool _next_posted = false;     //!< next() is due to be called again
+   bool _remember = false;        //!< keep a note of the stacks to read
+   QStringList _noted;            //!< the stacks in the note
    Engine _engine;
    };

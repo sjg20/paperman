@@ -16,6 +16,7 @@
 #include "filemax.h"
 #include <QBitArray>
 #include <QScopeGuard>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QFont>
 #include <QImage>
@@ -744,6 +745,115 @@ void TestOcrSearch::testReaderWorkers()
    // asking for none still reads a page at a time
    reader.setWorkers(0);
    QCOMPARE(reader._workers, 1);
+}
+
+
+void TestOcrSearch::testReaderRemembers()
+{
+   QTemporaryDir tmp;
+   const QString dir = tmp.path() + "/";
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "b.max"));
+   const QStringList both({dir + "a.max", dir + "b.max"});
+   const char *key = "ocr/pending";
+   int count;
+
+   // tests do not let a reader keep a note, so this one must ask
+   QSettings().remove(key);
+   OcrReader::allowRemembering(true);
+   auto forbid = qScopeGuard([] { OcrReader::allowRemembering(false); });
+
+   {
+      Filemax a(dir, "a.max", nullptr), b(dir, "b.max", nullptr);
+      QVERIFY(!a.load());
+      QVERIFY(!b.load());
+      count = a.pagecount();
+      QVERIFY(count >= 3);
+
+      // a reader which is not asked to keeps no note
+      {
+         OcrReader plain;
+         QSemaphore go;
+         plain.setEngine([&](QImage &image, OcrPage &page) {
+            go.acquire();
+            return fakeRead(image, page);
+         });
+         auto letGo = qScopeGuard([&go] { go.release(1000); });
+         plain.addFile(&a);
+         QVERIFY(plain.isBusy());
+         QVERIFY(!QSettings().contains(key));
+      }
+
+      OcrReader reader;
+      QSemaphore started, go;
+      reader.setWorkers(1);
+      reader.setRemembered(true);
+      reader.setEngine([&](QImage &image, OcrPage &page) {
+         started.release();
+         go.acquire();
+         return fakeRead(image, page);
+      });
+      auto letGo = qScopeGuard([&go] { go.release(1000); });
+      QSignalSpy progress(&reader, &OcrReader::progress);
+
+      reader.addFile(&a);
+      reader.addFile(&b);
+      QVERIFY(waitFor(started));
+      QCOMPARE(QSettings().value(key).toStringList(), both);
+      QVERIFY(progress.count() > 0);
+      QCOMPARE(reader.stacksLeft(), 2);
+      QCOMPARE(reader.pagesLeft(), count * 2);
+
+      // the first page is read, and Paperman closes during the second
+      go.release();
+      QVERIFY(waitFor(started));
+      QCOMPARE(reader.pagesLeft(), count * 2 - 1);
+      QCOMPARE(QSettings().value(key).toStringList(), both);
+   }
+   QCOMPARE(QSettings().value(key).toStringList(), both);
+
+   // the next time, the stacks are read from where they got to
+   OcrReader reader;
+   QAtomicInt calls;
+   reader.setRemembered(true);
+   reader.setEngine([&calls](QImage &image, OcrPage &page) {
+      calls++;
+      return fakeRead(image, page);
+   });
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   QVERIFY(!reader.isBusy());
+   reader.restore();
+   QVERIFY(reader.isBusy());
+   QCOMPARE(reader.stacksLeft(), 2);
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(int(calls), count * 2 - 1);
+   QCOMPARE(reader.stacksLeft(), 0);
+   QCOMPARE(reader.pagesLeft(), 0);
+
+   Filemax a(dir, "a.max", nullptr), b(dir, "b.max", nullptr);
+   QVERIFY(!a.load());
+   QVERIFY(!b.load());
+   for (int i = 0; i < count; i++) {
+      QCOMPARE(pageWord(&a, i), pixelsWord(&a, i));
+      QCOMPARE(pageWord(&b, i), pixelsWord(&b, i));
+   }
+
+   // nothing is left to carry on with
+   QVERIFY(QSettings().value(key).toStringList().isEmpty());
+   OcrReader after;
+   after.setRemembered(true);
+   after.restore();
+   QVERIFY(!after.isBusy());
+
+   // and a reader which may not keep a note carries on with nothing
+   QSettings().setValue(key, both);
+   OcrReader::allowRemembering(false);
+   OcrReader barred;
+   barred.setRemembered(true);
+   barred.restore();
+   QVERIFY(!barred.isBusy());
+   QSettings().remove(key);
 }
 
 
