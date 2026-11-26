@@ -22,6 +22,7 @@ License: GPL-2
 #include <QtTest/QtTest>
 
 #include "backgroundwork.h"
+#include "op.h"
 #include "test_backgroundwork.h"
 
 void TestBackgroundwork::testJobs()
@@ -102,4 +103,46 @@ void TestBackgroundwork::testStop()
    job.requestStop();
    QCOMPARE(asked.count(), 1);
    QCOMPARE(changed.count(), 2);
+}
+
+void TestBackgroundwork::testOperation()
+{
+   Backgroundwork *work = Backgroundwork::instance();
+   int before = work->jobs().size();
+
+   {
+      // an operation is listed under its name, with how far it has got
+      Operation op("Converting", 20, nullptr);
+      QCOMPARE(int(work->jobs().size()), before + 1);
+      Backgroundjob *job = work->jobs().last();
+      QCOMPARE(job->title(), QString("Converting"));
+      QVERIFY(!op.setProgress(5));
+      QCOMPARE(job->percent(), 25);
+      QVERIFY(op.incProgress(5));
+      QCOMPARE(job->percent(), 50);
+      op.setCount(40);
+      QCOMPARE(job->percent(), 25);
+
+      // it cannot be stopped until whatever runs it says that it stops
+      QVERIFY(!job->stoppable());
+      job->requestStop();
+      QVERIFY(!op.cancelled());
+      QVERIFY(!op.setProgress(11));
+
+      op.setCancellable(true);
+      QVERIFY(job->stoppable());
+      job->requestStop();
+      QVERIFY(op.cancelled());
+      QVERIFY(op.setProgress(12));
+      QVERIFY(!op.incProgress(1));
+   }
+   QCOMPARE(int(work->jobs().size()), before);
+
+   // one with no name is not shown to anyone, and cannot be cancelled
+   Operation quiet(QString(), 10, nullptr);
+   QCOMPARE(int(work->jobs().size()), before);
+   quiet.setCancellable(true);
+   QVERIFY(!quiet.cancelled());
+   QVERIFY(!quiet.setProgress(3));
+   QVERIFY(quiet.incProgress(1));
 }

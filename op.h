@@ -31,6 +31,8 @@ class QWidget;
 #include <QString>
 
 
+class Backgroundjob;
+
 class Operation : public QObject
    {
    Q_OBJECT
@@ -44,7 +46,8 @@ public:
    Operation (QString name, int count, QWidget *parent);
    ~Operation ();
 
-   /** set the progress value of the dialog
+   /** set the progress value of the dialog, and let other things run for
+       a moment, which is when the user can ask for it to stop
 
       \returns true if operation was cancelled */
    bool setProgress (int upto);
@@ -58,6 +61,17 @@ public:
 
    /** set the number of steps in the operation */
    void setCount (int count);
+
+   /** say whether whatever runs the operation stops when setProgress()
+       or incProgress() says that it was cancelled. Only then is the user
+       offered a way to stop it, since a button which does nothing is
+       worse than none. An operation cannot be cancelled until this is set
+
+      \param cancellable  true if the operation stops when told to */
+   void setCancellable (bool cancellable);
+
+   //! true once the user has asked for the operation to stop
+   bool cancelled () const;
 
    /**
     * @brief Set the widget to advise of operation progress
@@ -86,6 +100,10 @@ signals:
 private:
    int _maximum;    //!< maximum progress count
    int _upto;       //!< what we are currently up to
+
+   //! the operation as the user sees it among the work going on, or
+   //! nullptr for one with no name, which the user is not told about
+   Backgroundjob *_job = nullptr;
    };
 
 #endif /* OP_H */
