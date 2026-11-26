@@ -539,6 +539,8 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
 
 Filemax::~Filemax ()
    {
+   // let anything reading a page on another thread finish first
+   emit goingAway (this);
    dropChildren ();
    max_free ();
    }

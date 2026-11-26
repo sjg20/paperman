@@ -24,12 +24,16 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #pragma once
 
 #include <functional>
+#include <memory>
 
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QFutureWatcher>
 #include <QImage>
 #include <QList>
+#include <QWaitCondition>
+#include <QSet>
+#include <QMutex>
 #include <QObject>
 #include <QPointer>
 #include <QSize>
@@ -53,9 +57,10 @@ class Ocrtess;
     instead, and let go of as soon as the desktop has one, so that only
     one File ever writes to a stack.
 
-    The engine runs on other threads, a page on each, while each page's
-    image is read and what was read is stored on this one, where the
-    stack's File lives. A
+    The engine runs on other threads, a page on each. Each thread gets
+    its page's picture from the stack's File itself, where the File can
+    be used from more than one thread, so that the display is not held up
+    by it; what was read is stored on this thread, where the File lives. A
     page can be moved, deleted or turned while it is being read, so each
     page is recognised by its image before what was read is stored */
 class OcrReader : public QObject
@@ -233,6 +238,19 @@ private:
       {
       OcrPage page;
       QString error;
+      bool gone = false;    //!< the File went before the page could be got
+      };
+
+   /** Says whether a page's picture may still be got from its File. The
+       picture is made on the thread which reads the page, so that the
+       display is not held up by it; the File lives on this thread, and
+       may be destroyed here at any time. The thread sets 'using_file'
+       while it is in the File; the File's going sets 'gone' and waits for
+       'using_file' to clear, both under _pin_mutex */
+   struct Pin
+      {
+      bool gone = false;         //!< the File is going: keep out of it
+      bool using_file = false;   //!< the thread is in the File now
       };
 
    struct Stack
@@ -253,6 +271,11 @@ private:
       QElapsedTimer timer;  //!< how long the page has taken
       bool dropped = false; //!< the stack was forgotten: keep nothing
       QFutureWatcher<Result> *watcher = nullptr;
+
+      //! the File whose page the thread gets, or nullptr if it was given
+      //! the picture; only to be compared, as it may have been destroyed
+      File *source = nullptr;
+      std::shared_ptr<Pin> pin;   //!< whether that File may be used
       };
 
    //! add a stack to those to read, without starting
@@ -276,6 +299,16 @@ private:
    //! let go of the File opened here, if any
    void closeOwn ();
 
+private slots:
+   /** a File which a thread may be getting a page from is about to be
+       destroyed: wait for any thread which is in it, and keep the rest
+       out of it
+
+      \param file  the File */
+   void fileGoing (File *file);
+
+private:
+
    //! note what is still to read, and tell anything which shows it
    void changed ();
 
@@ -293,6 +326,9 @@ private:
    Finder _finder;                //!< finds the desktop's File for a stack
    File *_own = nullptr;          //!< a File opened here, for _own_path
    QString _own_path;             //!< the stack which _own is
+   QMutex _pin_mutex;             //!< guards every Pin
+   QWaitCondition _pin_done;      //!< a thread has come out of a File
+   QSet<File *> _watched;         //!< the Files whose going we hear of
    bool _next_posted = false;     //!< next() is due to be called again
    bool _paused = false;          //!< no more pages are to be started
    bool _remember = false;        //!< keep a note of the stacks to read

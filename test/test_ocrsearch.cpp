@@ -1,6 +1,8 @@
 #include "test_ocrsearch.h"
 
 #include <memory>
+#include <chrono>
+#include <thread>
 
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
@@ -19,6 +21,9 @@
 #include <QBitArray>
 #include <QScopeGuard>
 #include <QSettings>
+#include <QMutex>
+#include <QSemaphore>
+#include <QThread>
 #include <QSignalSpy>
 #include <QFont>
 #include <QImage>
@@ -949,6 +954,139 @@ void TestOcrSearch::testReaderPauseStop()
    reader.stop();
    reader.remove(a.pathname());
    QVERIFY(!reader.isBusy());
+}
+
+
+/* A max file which notes the thread each page's picture is got on, and
+   can hold a thread inside it. What it notes is kept outside it, since a
+   thread may still be in getImage() while the file is being destroyed */
+class WatchedMax : public Filemax
+{
+public:
+   struct Seen
+   {
+      QMutex mutex;
+      QList<QThread *> threads;     //!< the thread of each call
+      QSemaphore entered;           //!< a call has begun
+      QSemaphore go;                //!< let a held call carry on
+      QAtomicInt hold;              //!< hold each call until 'go'
+      QAtomicInt inside;            //!< how many calls are in progress
+   };
+
+   WatchedMax(const QString &dir, const QString &fname, Seen *seen)
+      : Filemax(dir, fname, nullptr), _seen(seen)
+   {
+   }
+
+   err_info *getImage(int pagenum, bool do_scale, QImage &image, QSize &size,
+                      QSize &trueSize, int &bpp, bool blank) override
+   {
+      Seen *seen = _seen;
+
+      {
+         QMutexLocker locker(&seen->mutex);
+         seen->threads << QThread::currentThread();
+      }
+      seen->inside++;
+      seen->entered.release();
+      if (seen->hold)
+         seen->go.acquire();
+
+      err_info *err = Filemax::getImage(pagenum, do_scale, image, size,
+                                        trueSize, bpp, blank);
+
+      seen->inside--;
+      return err;
+   }
+
+private:
+   Seen *_seen;
+};
+
+
+void TestOcrSearch::testReaderOffThread()
+{
+   QTemporaryDir tmp;
+   const QString dir = tmp.path() + "/";
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "testfile.max"));
+
+   WatchedMax::Seen seen;
+   WatchedMax *max = new WatchedMax(dir, "testfile.max", &seen);
+   QVERIFY(!max->load());
+   int count = max->pagecount();
+   QVERIFY(count >= 3);
+
+   /* each page's picture is got on the thread which reads the page, not
+      on this one, which draws the display */
+   {
+      OcrReader reader;
+      QList<QThread *> engines;
+      QMutex mutex;
+
+      reader.setWorkers(2);
+      reader.setEngine([&](QImage &image, OcrPage &page) {
+         QMutexLocker locker(&mutex);
+
+         engines << QThread::currentThread();
+         return fakeRead(image, page);
+      });
+      QSignalSpy idle(&reader, &OcrReader::idle);
+
+      reader.addFile(max);
+      QVERIFY(idle.wait(10000));
+      QCOMPARE(int(seen.threads.size()), count);
+      for (QThread *thread : seen.threads)
+         QVERIFY(thread != QThread::currentThread());
+      QCOMPARE(int(engines.size()), count);
+      for (int i = 0; i < count; i++)
+         QCOMPARE(pageWord(max, i), pixelsWord(max, i));
+   }
+
+   /* The File can go while a thread is in it, as when its folder is
+      refreshed: destroying it waits for that thread, and the stack is
+      read all the same, from the file itself */
+   for (int i = 0; i < count; i++)
+      QVERIFY(!max->putPageOcr(i, OcrPage()));
+   {
+      QMutexLocker locker(&seen.mutex);
+      seen.threads.clear();
+   }
+   while (seen.entered.tryAcquire())
+      ;
+
+   OcrReader reader;
+   reader.setWorkers(1);
+   reader.setEngine(fakeRead);
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   seen.hold = 1;
+   reader.addFile(max);
+   QVERIFY(seen.entered.tryAcquire(1, 10000));
+   QCOMPARE(int(seen.inside), 1);
+
+   // something else lets the thread carry on, a little later
+   QElapsedTimer timer;
+   std::thread release([&seen] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(300));
+      seen.hold = 0;
+      seen.go.release(100);
+   });
+
+   timer.start();
+   delete max;
+   QVERIFY2(timer.elapsed() >= 250,
+            qPrintable(QString("destroyed after %1ms").arg(timer.elapsed())));
+   QCOMPARE(int(seen.inside), 0);
+   release.join();
+
+   QVERIFY(idle.wait(10000));
+   QVERIFY(!reader.isBusy());
+
+   Filemax again(dir, "testfile.max", nullptr);
+   QVERIFY(!again.load());
+   QCOMPARE(again.pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(&again, i), pixelsWord(&again, i));
 }
 
 
