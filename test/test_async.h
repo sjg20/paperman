@@ -171,6 +171,12 @@ private slots:
    //! fetching every page of a stack, as for printing it
    void testFetchStacks ();
 
+   //! a fetch can be given up from the list of work going on
+   void testFetchStopped ();
+
+   //! changes on their way to a server are listed while they are
+   void testChangesListed ();
+
    /** converting and unfolding a stack on a server which cannot, so the
        desktop does it */
    void testConvertHere ();

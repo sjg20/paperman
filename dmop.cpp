@@ -51,6 +51,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopmodel.h"
 #include "desk.h"
 #include "file.h"
+#include "backgroundwork.h"
 #include "ocr.h"
 #include "ocrpage.h"
 #include "pagecover.h"
@@ -2585,6 +2586,7 @@ void Desktopmodel::queueOp (std::function<void (OpDone done)> op,
          if (!_closing)
             report (err);
          _opBusy = false;
+         showOps ();
 
          // on to the next, though not from inside this one
          QMetaObject::invokeMethod (this, [this] () { runOps (); },
@@ -2597,10 +2599,32 @@ void Desktopmodel::queueOp (std::function<void (OpDone done)> op,
 
 void Desktopmodel::runOps (void)
    {
+   showOps ();
    if (_opBusy || _ops.isEmpty () || _closing)
       return;
    _opBusy = true;
    _ops.dequeue () ();
+   showOps ();
+   }
+
+
+void Desktopmodel::showOps (void)
+   {
+   int waiting = _ops.size ();
+
+   /* Changes go to a server one at a time, and each is something the
+      user did, so they are shown but cannot be dropped: a change which
+      cannot be made gives up by itself when the server does not answer */
+   if (!opsPending () || _closing)
+      {
+      delete _opsJob;
+      _opsJob = nullptr;
+      return;
+      }
+   if (!_opsJob)
+      _opsJob = new Backgroundjob (tr ("Sending changes to the server"), this);
+   _opsJob->setDetail (waiting ? tr ("%1 more waiting").arg (waiting)
+                               : QString ());
    }
 
 
@@ -3965,6 +3989,23 @@ struct Desktopmodel::FetchJob
    bool askedPages = false;   //!< and the pages it lacks
    QMetaObject::Connection conn;
    OpDone done;
+
+   //! the fetch as the user sees it, once it has had to wait for anything
+   QPointer<Backgroundjob> work;
+   bool over = false;         //!< it has reported, one way or the other
+
+   //! report, once, and take the fetch off the list of work going on
+   void finish (Desktopmodel *model, err_info *err)
+      {
+      if (over)
+         return;
+      over = true;
+      QObject::disconnect (conn);
+      if (work)
+         work->deleteLater ();
+      Q_UNUSED (model);
+      done (err);
+      }
    };
 
 
@@ -3982,8 +4023,30 @@ void Desktopmodel::fetchStacksLater (const QModelIndexList &list,
    }
 
 
+void Desktopmodel::fetchWaiting (std::shared_ptr<FetchJob> job, File *f)
+   {
+   /* list it with the work going on, where it can be given up: what has
+      been asked for still comes, but nothing more is, and whatever
+      wanted the stacks is told that it was stopped */
+   if (!job->work)
+      {
+      job->work = new Backgroundjob (tr ("Fetching from the server"), this);
+      job->work->setStoppable (true);
+      connect (job->work.data (), &Backgroundjob::stopAsked, this,
+               [this, job] () {
+         job->finish (this, err_make (ERRFN, ERR_operation_cancelled1,
+                                      "fetch"));
+      });
+      }
+   job->work->setDetail (f->stackLeaf ());
+   job->work->setProgress (job->next, job->stacks.size ());
+   }
+
+
 void Desktopmodel::fetchNext (std::shared_ptr<FetchJob> job)
    {
+   if (job->over)
+      return;
    for (; job->next < job->stacks.size ();
         job->next++, job->askedInfo = false, job->askedPages = false)
       {
@@ -3996,10 +4059,16 @@ void Desktopmodel::fetchNext (std::shared_ptr<FetchJob> job)
       // wait for anything on its way for this stack
       for (const QPersistentModelIndex &other : _pendingContent)
          if (other.isValid () && getFile (QModelIndex (other)) == f)
+            {
+            fetchWaiting (job, f);
             return;
+            }
       for (const auto &other : _pendingPages)
          if (other.first.isValid () && getFile (QModelIndex (other.first)) == f)
+            {
+            fetchWaiting (job, f);
             return;
+            }
 
       err_info *err = NULL;
 
@@ -4009,7 +4078,10 @@ void Desktopmodel::fetchNext (std::shared_ptr<FetchJob> job)
             {
             job->askedInfo = true;
             if (requestContent (ind))
+               {
+               fetchWaiting (job, f);
                return;
+               }
             }
          err = err_make (ERRFN, ERR_remote_fetch_failed1,
                qPrintable (tr ("cannot fetch %1").arg (f->filename ())));
@@ -4028,16 +4100,15 @@ void Desktopmodel::fetchNext (std::shared_ptr<FetchJob> job)
             job->askedPages = true;
             for (int pagenum : lack)
                requestPage (ind, pagenum);
+            fetchWaiting (job, f);
             return;
             }
          err = err_make (ERRFN, ERR_remote_fetch_failed1,
                qPrintable (tr ("cannot fetch page %1 of %2")
                            .arg (lack.first () + 1).arg (f->filename ())));
          }
-      disconnect (job->conn);
-      job->done (err);
+      job->finish (this, err);
       return;
       }
-   disconnect (job->conn);
-   job->done (NULL);
+   job->finish (this, NULL);
    }

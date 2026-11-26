@@ -73,7 +73,10 @@ stay open:
   part-way leaves nothing behind, and a search stopped while the index
   is brought up to date looks through what has been indexed so far.
   A question put to the AI assistant is listed here too, and can be
-  given up. **Stop** is greyed out for work which cannot be stopped.
+  given up, as can the fetching of stacks from a server for printing or
+  sending. Changes on their way to a server are listed to watch: each
+  is something you did, so they are not dropped. **Stop** is greyed out
+  for work which cannot be stopped.
 - Below, the stacks waiting to have their text read, where the reading
   can be paused or stopped.
 
