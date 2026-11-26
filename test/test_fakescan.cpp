@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #endif
 
+#include "activitylog.h"
 #include "desktopmodel.h"
 #include "fakescanner.h"
 #include "desktopview.h"
@@ -492,6 +493,7 @@ struct ScanRun
    QList<QSize> dpis;         //!< and the resolution each was stored at
    QList<bool> blank;         //!< which of them paperman found blank
    QStringList messages;      //!< what the status bar was given meanwhile
+   QList<Activity> activity;  //!< what the record of activity then holds
    };
 
 }
@@ -561,6 +563,7 @@ static void scanStack (ScanRun &run)
    run.titles.clear ();
    run.dpis.clear ();
    QVERIFY (stacks.size () <= 1);
+   QVERIFY (!ActivityLog (path).read (run.activity));
    if (stacks.isEmpty ())
       return;
    Filemax max (path + "/", stacks [0], nullptr);
@@ -679,6 +682,45 @@ void TestFakescan::testScanIntoStack ()
                                      "half and %3 in its foot")
                             .arg (pagenum + 1).arg (dark [0])
                             .arg (dark [1])));
+      }
+}
+
+
+/* A scan is put in the repository's record of activity: the stack, and
+   under it each of its pages */
+void TestFakescan::testScanRecorded ()
+{
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xff, 0xff, 0xff)),
+                                 QImage (), 10));
+   QVERIFY (Fakescan::loadSheet (plainSheet (qRgb (0xe0, 0xe0, 0xe0)),
+                                 QImage (), 10));
+
+   ScanRun run;
+
+   scanStack (run);
+   if (QTest::currentTestFailed ())
+      return;
+   QCOMPARE (run.pages.size (), 2);
+
+   QCOMPARE (int (run.activity.size ()), 3);
+
+   const Activity &scan = run.activity [0];
+
+   QCOMPARE (scan.action, Activity::A_scan);
+   QCOMPARE (scan.who, Activity::W_user);
+   QCOMPARE (scan.count, 2);
+   QVERIFY2 (scan.path.endsWith (".max") && !scan.path.contains ('/'),
+             qPrintable (scan.path));
+   QVERIFY (scan.describe ().contains ("(2 pages)"));
+   for (int pagenum = 0; pagenum < 2; pagenum++)
+      {
+      const Activity &page = run.activity [1 + pagenum];
+
+      QCOMPARE (page.action, Activity::A_scan_page);
+      QCOMPARE (page.group, scan.id);
+      QCOMPARE (page.path, scan.path);
+      QCOMPARE (page.page, pagenum);
+      QCOMPARE (page.note, run.titles [pagenum]);
       }
 }
 

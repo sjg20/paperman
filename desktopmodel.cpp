@@ -715,6 +715,30 @@ QString Desktopmodel::activityRoot (const QString &dir)
    }
 
 
+void Desktopmodel::recordActivity (Activity whole, QList<Activity> parts)
+   {
+   QString root = activityRoot (QFileInfo (whole.path).path ());
+
+   if (root.isEmpty ())
+      return;
+
+   ActivityLog log (root);
+   QDir top (root);
+
+   whole.path = top.relativeFilePath (whole.path);
+   if (log.add (whole))
+      return;
+   for (Activity &part : parts)
+      {
+      part.path = top.relativeFilePath (part.path);
+      part.who = whole.who;
+      part.group = whole.id;
+      if (log.add (part))
+         return;
+      }
+   }
+
+
 QStringList Desktopmodel::listToFilenames (const QModelIndexList &list)
    {
    QModelIndex ind;

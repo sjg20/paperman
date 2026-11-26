@@ -563,6 +563,55 @@ void TestOcrSearch::testReaderFileGone()
 }
 
 
+/* Once a stack has been read as far as it will be, the reader says so,
+   with how many of its pages it read, so that there is one thing to
+   record for a stack and not one for each page */
+void TestOcrSearch::testReaderSaysStackRead()
+{
+   QTemporaryDir tmp;
+   Filemax *max = openStack(testSrc, tmp);
+   QVERIFY(max);
+   int count = max->pagecount();
+   QVERIFY(count >= 3);
+   const QString path = max->pathname();
+
+   // one page has its words already, so is not read
+   OcrPage have;
+   QImage image(10, 10, QImage::Format_Grayscale8);
+   fakeRead(image, have);
+   QVERIFY(!max->putPageOcr(1, have));
+   delete max;
+
+   OcrReader reader;
+   reader.setEngine(fakeRead);
+   QSignalSpy idle(&reader, &OcrReader::idle);
+   QList<QPair<QString, int>> said;
+   connect(&reader, &OcrReader::stackRead, &reader,
+           [&said](const QString &pathname, int pages) {
+      said << qMakePair(pathname, pages);
+   });
+
+   // it is said once, when the last page is done, before the reader rests
+   reader.addPath(path);
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(int(said.size()), 1);
+   QCOMPARE(said[0].first, path);
+   QCOMPARE(said[0].second, count - 1);
+
+   // a stack with nothing left to read says nothing
+   reader.addPath(path);
+   QTRY_VERIFY(!reader.isBusy());
+   QCOMPARE(int(said.size()), 1);
+
+   // nor does one whose pages have no words to keep
+   const QString blank = tmp.path() + "/blank.max";
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", blank));
+   reader.setEngine([](QImage &, OcrPage &) { return QString(); });
+   reader.addPath(blank);
+   QTRY_VERIFY(!reader.isBusy());
+   QCOMPARE(int(said.size()), 1);
+}
+
 void TestOcrSearch::testReaderByPath()
 {
    QTemporaryDir tmp;

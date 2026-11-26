@@ -351,6 +351,8 @@ void OcrReader::stackMoved (const QString &from_path, const QString &to_path)
    for (Job &job : _jobs)
       if (job.path == from)
          job.path = to;
+   if (_kept.contains (from))
+      _kept [to] += _kept.take (from);
    if (_own_path == from)
       closeOwn ();
    changed ();
@@ -612,10 +614,30 @@ void OcrReader::next ()
          }));
       }
    changed ();
+   noteRead ();
    if (!isBusy ())
       {
       closeOwn ();
       emit idle ();
+      }
+   }
+
+
+void OcrReader::noteRead ()
+   {
+   // a stack is done with once it is neither waiting nor being read
+   const QStringList paths = _kept.keys ();
+
+   for (const QString &path : paths)
+      {
+      bool busy = false;
+
+      for (const Stack &stack : _stacks)
+         busy |= stack.path == path;
+      for (const Job &job : _jobs)
+         busy |= job.path == path;
+      if (!busy)
+         emit stackRead (path, _kept.take (path));
       }
    }
 
@@ -666,9 +688,14 @@ void OcrReader::readDone (QFutureWatcher<Result> *watcher)
                    << pagenum + 1 << "of" << job.path << ":"
                    << err->errstr;
 
-      // only the desktop's File has anything showing its pages
-      else if (file != _own)
-         emit pageRead (file, pagenum);
+      else
+         {
+         _kept [job.path]++;
+
+         // only the desktop's File has anything showing its pages
+         if (file != _own)
+            emit pageRead (file, pagenum);
+         }
       }
    next ();
    }

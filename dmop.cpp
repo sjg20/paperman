@@ -1479,7 +1479,15 @@ err_info *Desktopmodel::ocrLocalPage (const QModelIndex &ind, int pagenum,
    CALL (ocr->imageToPage (image, page));
    text = page.text ();
    if (keepsOcr (f))
+      {
+      Activity act;
+
       CALL (f->putPageOcr (pagenum, page));
+      act.action = Activity::A_read;
+      act.path = f->pathname ();
+      act.page = pagenum;
+      recordActivity (act);
+      }
    return NULL;
    }
 

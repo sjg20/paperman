@@ -308,6 +308,15 @@ public:
                keeps no record yet, or it is not a folder being shown */
    QString activityRoot (const QString &dir);
 
+   /** put something which was done, other than by an undo command, in the
+       record of activity: a scan, or the reading of a stack's text
+
+      \param whole  what was done, with the full path of its stack
+      \param parts  entries to go under it, such as a scan's pages, each
+                    with the full path too */
+   void recordActivity (Activity whole,
+                        QList<Activity> parts = QList<Activity> ());
+
    /** builds a filename list from the given model index list. This list
        is a string containing each filename (not full pathname) separated
        by a space. Where the filename includes a space, the filename is

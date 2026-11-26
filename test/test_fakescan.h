@@ -106,6 +106,9 @@ private slots:
    //! Paperman scans a hopper of sheets into a stack, in order
    void testScanIntoStack ();
 
+   //! a scan goes in the record of activity, with its pages under it
+   void testScanRecorded ();
+
    //! scanning into a folder on a server leaves the stack there, sending
    //! little more than the stack itself
    void testScanIntoServer ();
