@@ -5,6 +5,7 @@
 
 #include "test.h"
 #include "../camera.h"
+#include "../ocrreader.h"
 
 #include "test_desktopui.h"
 #include "test_dirmodel.h"
@@ -99,6 +100,11 @@ int test_run(int, char **in_argv, QApplication *,
    /* and from any camera: only the fake ones a test offers are there,
     * so no test opens a camera which something else may be using */
    FakeCamera::use({});
+
+   /* A stack still being read when a test's window closes would be noted
+    * in the settings and read during a later test, changing a file which
+    * that test may be looking at */
+   OcrReader::allowRemembering(false);
 
    // Split "Class::function" into class filter and function filter
    static char filterBuf[256];

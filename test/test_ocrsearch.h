@@ -54,6 +54,9 @@ private slots:
    //! several pages are read at once
    void testReaderWorkers();
 
+   //! stacks still to read are carried on with after a restart
+   void testReaderRemembers();
+
    //! what the user types is always a valid query, matching word starts
    void testMatchQuery();
 

@@ -114,6 +114,79 @@ QStringList OcrReader::pending () const
    }
 
 
+int OcrReader::stacksLeft () const
+   {
+   return pending ().size ();
+   }
+
+
+int OcrReader::pagesLeft () const
+   {
+   int pages = _jobs.size ();
+
+   for (const Stack &stack : _stacks)
+      {
+      int count = stack.pages;
+
+      // one waiting its turn is not opened just to count its pages
+      if (count < 0 && stack.file && stack.file->valid ())
+         count = stack.file->pagecount ();
+      pages += qMax (0, count - stack.next);
+      }
+   return pages;
+   }
+
+
+//! whether a reader may keep a note of its stacks; see allowRemembering()
+static bool remembering_allowed = true;
+
+//! the setting which holds the note
+#define PENDING_KEY "ocr/pending"
+
+void OcrReader::allowRemembering (bool allow)
+   {
+   remembering_allowed = allow;
+   }
+
+
+void OcrReader::setRemembered (bool remember)
+   {
+   _remember = remember;
+   if (_remember && remembering_allowed)
+      _noted = QSettings ().value (PENDING_KEY).toStringList ();
+   }
+
+
+void OcrReader::restore ()
+   {
+   if (!_remember || !remembering_allowed)
+      return;
+
+   const QStringList paths = QSettings ().value (PENDING_KEY).toStringList ();
+
+   for (const QString &path : paths)
+      queue (path, nullptr);
+   next ();
+   }
+
+
+void OcrReader::changed ()
+   {
+   if (_remember && remembering_allowed)
+      {
+      QStringList paths = pending ();
+
+      // this is called for each page, but the stacks seldom change
+      if (paths != _noted)
+         {
+         _noted = paths;
+         QSettings ().setValue (PENDING_KEY, paths);
+         }
+      }
+   emit progress ();
+   }
+
+
 void OcrReader::setFinder (const Finder &finder)
    {
    _finder = finder;
@@ -179,6 +252,7 @@ void OcrReader::stackMoved (const QString &from_path, const QString &to_path)
          job.path = to;
    if (_own_path == from)
       closeOwn ();
+   changed ();
    }
 
 
@@ -260,6 +334,7 @@ void OcrReader::next ()
          qDebug () << "ocr: no engine to read pages:"
                    << (err ? err->errstr : "");
          _stacks.clear ();
+         changed ();
          if (_jobs.isEmpty ())
             emit idle ();
          return;
@@ -300,6 +375,7 @@ void OcrReader::next ()
             if (_next_posted)
                next ();
          });
+         changed ();
          return;
          }
 
@@ -311,6 +387,8 @@ void OcrReader::next ()
          _stacks.removeFirst ();
          continue;
          }
+
+      stack.pages = file->pagecount ();
 
       int pagenum = stack.next++;
       OcrPage have;
@@ -351,6 +429,7 @@ void OcrReader::next ()
          return result;
          }));
       }
+   changed ();
    if (!isBusy ())
       {
       closeOwn ();
