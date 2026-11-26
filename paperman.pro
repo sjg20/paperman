@@ -175,6 +175,7 @@ HEADERS += desktopwidget.h \
  imagetrim.h \
  pagecover.h \
  docfacts.h \
+ activitylog.h \
  backgroundwork.h \
  pagefind.h \
  camera.h \
@@ -291,6 +292,7 @@ SOURCES += desktopwidget.cpp \
  imagetrim.cpp \
  pagecover.cpp \
  docfacts.cpp \
+ activitylog.cpp \
  backgroundwork.cpp \
  pagefind.cpp \
  camera.cpp \
@@ -370,6 +372,7 @@ test {
       test/test_imagetrim.cpp \
       test/test_pagecover.cpp \
       test/test_docfacts.cpp \
+      test/test_activitylog.cpp \
       test/test_backgroundwork.cpp \
       test/test_pagefind.cpp \
       test/test_camera.cpp \
@@ -421,6 +424,7 @@ test {
       test/test_imagetrim.h \
       test/test_pagecover.h \
       test/test_docfacts.h \
+      test/test_activitylog.h \
       test/test_backgroundwork.h \
       test/test_pagefind.h \
       test/test_camera.h \
