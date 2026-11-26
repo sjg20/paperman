@@ -188,6 +188,7 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    connect(_toolbar->match, SIGNAL(textChanged(const QString&)),
            this, SLOT(matchChange(const QString &)));
+   _toolbar->match->installEventFilter (this);
    // Use palette colours so the filter input stays readable in dark themes.
    _toolbar->match->setStyleSheet (
       "QLineEdit { background: palette(base); color: palette(text); }");
@@ -222,6 +223,19 @@ Desktopwidget::Desktopwidget (QWidget *parent)
    _modelconv_assert = new Desktopmodelconv (_contents, _contents_proxy, false);
 
    _view->setModelConv (_modelconv);
+
+   /* the count beside the Find box follows the selection, and the stacks
+      as they come, go and are renamed */
+   connect (_view->selectionModel (), &QItemSelectionModel::selectionChanged,
+            this, &Desktopwidget::showFindCount);
+   connect (_contents_proxy, &QAbstractItemModel::rowsInserted,
+            this, &Desktopwidget::showFindCount);
+   connect (_contents_proxy, &QAbstractItemModel::rowsRemoved,
+            this, &Desktopwidget::showFindCount);
+   connect (_contents_proxy, &QAbstractItemModel::dataChanged,
+            this, &Desktopwidget::showFindCount);
+   connect (_contents_proxy, &QAbstractItemModel::modelReset,
+            this, &Desktopwidget::showFindCount);
 
    _contents->setModelConv (_modelconv_assert);
 
@@ -1221,7 +1235,7 @@ void Desktopwidget::nameSearchLater(const QString& path, const QString& match,
                                     std::function<void(bool ok)> done)
 {
    // Create a 'virtual' maxdesk which holds files from a number different dirs
-   _contents_proxy->setFilterFixedString ("");
+   _toolbar->match->clear ();
 
    QModelIndex root = getRootIndex();
    QString root_path = _model->data(root, Dirmodel::FilePathRole).toString ();
@@ -1354,7 +1368,7 @@ void Desktopwidget::textSearchLater(const QString& path, const QString& text,
    op.setCancellable(true);
    QPointer<Desktopwidget> self(this);
 
-   _contents_proxy->setFilterFixedString("");
+   _toolbar->match->clear ();
    _contents->findTextLater(path, root_path, text, _view->getMeasure(), &op,
                             [self, done](err_info *err,
                                          const QModelIndex &found, int count,
@@ -1403,7 +1417,7 @@ void Desktopwidget::exitSearch()
 
    normalView();
    QModelIndex index = _model->index (_path);
-   _contents_proxy->setFilterFixedString ("");
+   _toolbar->match->clear ();
    QModelIndex root = _model->findRoot (index);
    QString root_path = _model->data (root, Dirmodel::FilePathRole).toString ();
    QModelIndex sind = _contents->showDir(_path, root_path, _view->getMeasure());
@@ -1523,6 +1537,8 @@ void Desktopwidget::dirSelected(const QModelIndex &index, bool allow_undo,
    // if we have are actually changing directory, do so
    if (force_change || path != _contents->getDirPath ())
       {
+      // what was being found was in the folder left behind
+      _toolbar->match->clear ();
       _path = path;
       _contents->changeDir (path, root_path, allow_undo);
       }
@@ -1607,25 +1623,114 @@ void Desktopwidget::scrollToChosen (const QModelIndex &deskind)
 void Desktopwidget::resetFilter()
 {
    _toolbar->match->clear();
-   _toolbar->match->setFocus();
+
+   /* what was found is selected, so leave it in view and let the keys
+      work on it */
+   if (_view->currentIndex ().isValid ())
+      _view->scrollTo (_view->currentIndex ());
+   _view->setFocus();
 }
 
 void Desktopwidget::matchChange(const QString& match)
 {
-   if (!_contents_proxy)
+   _view->setFind (match);
+   qCDebug (logView).noquote () << QString ("view: find '%1' picks out %2 "
+      "stacks").arg (match).arg (_view->found ().size ());
+   findStep (0);
+   showFindCount ();
+}
+
+void Desktopwidget::findStep (int by)
+{
+   const QModelIndexList found = _view->found ();
+
+   if (found.isEmpty ())
       return;
 
-   QModelIndex ind;
+   /* carry on from the stack selected, if it is one of those found;
+      otherwise start at the first, or at the last when going back */
+   QModelIndex current = _view->currentIndex ();
+   int at = _view->selectionModel ()->isSelected (current)
+         ? found.indexOf (current) : -1;
 
-   // update the proxy
-   _contents_proxy->setFilterFixedString (match);
-   qCDebug (logView).noquote () << QString ("view: filter '%1' shows %2 stacks")
-      .arg (match).arg (_contents_proxy->rowCount (_view->rootIndex ()));
+   if (at < 0)
+      at = by < 0 ? found.size () - 1 : 0;
+   else
+      at = (at + by + found.size ()) % found.size ();
+   _view->selectionModel ()->setCurrentIndex (found [at],
+         QItemSelectionModel::ClearAndSelect);
+   _view->scrollTo (found [at]);
+}
 
-   // scroll to the first match
-   ind = _contents_proxy->index(0, 0, _view->rootIndex ());
-   if (ind != QModelIndex ())
-      _view->scrollTo (ind);
+void Desktopwidget::findAll ()
+{
+   const QModelIndexList found = _view->found ();
+   QItemSelection all;
+
+   if (found.isEmpty ())
+      return;
+   for (const QModelIndex &ind : found)
+      all.select (ind, ind);
+   _view->selectionModel ()->setCurrentIndex (found [0],
+         QItemSelectionModel::NoUpdate);
+   _view->selectionModel ()->select (all, QItemSelectionModel::ClearAndSelect);
+}
+
+void Desktopwidget::showFindCount ()
+{
+   QString text;
+
+   if (!_view->find ().isEmpty ())
+      {
+      const QModelIndexList found = _view->found ();
+      const QModelIndexList sel = _view->selectionModel ()->selectedIndexes ();
+      int chosen = 0;
+
+      for (const QModelIndex &ind : sel)
+         chosen += found.contains (ind);
+      if (found.isEmpty ())
+         text = tr ("None");
+      else if (chosen == 1 && sel.size () == 1)
+         text = tr ("%1 of %2").arg (found.indexOf (sel [0]) + 1)
+                               .arg (found.size ());
+      else if (chosen > 1)
+         text = tr ("%1 selected").arg (chosen);
+      else
+         text = tr ("%1 found").arg (found.size ());
+      }
+   _toolbar->matchCount->setText (text);
+}
+
+bool Desktopwidget::eventFilter (QObject *watched, QEvent *event)
+{
+   if (watched != _toolbar->match || event->type () != QEvent::KeyPress)
+      return QSplitter::eventFilter (watched, event);
+
+   QKeyEvent *key = static_cast<QKeyEvent *> (event);
+   Qt::KeyboardModifiers held = key->modifiers () & ~Qt::KeypadModifier;
+
+   switch (key->key ())
+      {
+      case Qt::Key_Return :
+      case Qt::Key_Enter :
+         if (held == Qt::ControlModifier)
+            findAll ();
+         else
+            findStep (held == Qt::ShiftModifier ? -1 : 1);
+         return true;
+      case Qt::Key_F3 :
+         findStep (held == Qt::ShiftModifier ? -1 : 1);
+         return true;
+      case Qt::Key_Down :
+         findStep (1);
+         return true;
+      case Qt::Key_Up :
+         findStep (-1);
+         return true;
+      default :
+         break;
+      }
+   return QSplitter::eventFilter (watched, event);
 }
 
 void Desktopwidget::slotUpdateDone ()

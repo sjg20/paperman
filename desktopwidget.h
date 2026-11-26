@@ -319,7 +319,8 @@ public:
    void addFileToDirmodelCache(const QString &dirPath,
                                const QString &filename);
 protected:
-   //bool eventFilter (QObject *watched_object, QEvent *e);
+   //! the keys which move among the stacks found, typed in the Find box
+   bool eventFilter (QObject *watched, QEvent *event) override;
 
    /** On a first run, share the width out between the panes once there
        is one to share */
@@ -406,11 +407,27 @@ public slots:
    /** indicate that a scan has ended */
    void scanComplete (void);
 
-   /** handle a change in the filter string - we adjust the filter */
+   /** the text in the Find box has changed: pick out the stacks whose
+       names have it in, and select the first, or keep the one selected if
+       it is still one of them */
    void matchChange (const QString &);
 
-   /** handle the reset filter button */
+   /** stop finding, as the Clear button and Esc do: every stack is shown
+       as usual, and the one found stays selected and in view */
    void resetFilter();
+
+   /** go to another of the stacks found, or stay on the one selected
+
+      \param by  1 for the next, -1 for the one before, going round at
+                 either end; 0 to stay, or to start with the first */
+   void findStep (int by);
+
+   //! select every stack found
+   void findAll ();
+
+   /** show, beside the Find box, which of the stacks found is selected and
+       how many there are */
+   void showFindCount ();
 
 private slots:
    /** called when the directory is changed. We refresh the view and move

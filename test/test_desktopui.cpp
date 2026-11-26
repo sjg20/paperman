@@ -813,40 +813,154 @@ void TestDesktopUi::testViewFind()
                qPrintable(order[i].data().toString()));
 }
 
-void TestDesktopUi::testFilterStacks()
+/* Typing in the Find box picks out the stacks whose names have the text
+   in, where they are: none is hidden, so one found is still where it was
+   when finding stops. The keys go from one stack found to the next */
+void TestDesktopUi::testFindStacks()
 {
-   QModelIndex repo_ind;
-   Desktopmodel *model;
    Mainwindow me;
-
-   setupShown(&me, model, repo_ind);
-
+   auto path = setupRepoWithExtra();
    Desktopwidget *desktop = me.getDesktop();
+
+   QVERIFY(!desktop->addDir(path));
+   me.resize(1600, 1000);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
    Desktopview *view = desktop->getView();
-
    QLineEdit *match = desktop->findChild<QLineEdit *>("match");
-   QPushButton *cancel = desktop->findChild<QPushButton *>("cancelFilter");
-   QVERIFY(match);
-   QVERIFY(cancel);
+   QPushButton *clear = desktop->findChild<QPushButton *>("cancelFilter");
+   QLabel *count = desktop->findChild<QLabel *>("matchCount");
+   QVERIFY(match && clear && count);
 
-   // Both stacks are visible to start with
-   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   // four stacks, two of them PDFs and two with 'move' in their names
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 4);
+   auto names = [&](const QModelIndexList &list) {
+      QStringList out;
 
-   // Typing a filter string shows only the matching stack
-   QTest::keyClicks(match, "testpdf");
-   QCOMPARE(view->model()->rowCount(view->rootIndex()), 1);
-   QModelIndex ind = itemIndex(view, 0);
-   QCOMPARE(view->model()->data(ind, Qt::DisplayRole).toString(),
-            "testpdf.pdf");
+      for (const QModelIndex &ind : list)
+         out << ind.data().toString();
+      return out;
+   };
+   auto selected = [&]() {
+      QStringList out = names(view->selectionModel()->selectedIndexes());
 
-   // A filter which matches nothing shows no stacks
+      out.sort();
+      return out;
+   };
+   QCOMPARE(int(view->inOrder().size()), 4);
+   QVERIFY(view->found().isEmpty());
+   QCOMPARE(count->text(), QString());
+
+   // typing picks stacks out, whatever the case, and hides none
+   QTest::keyClicks(match, "MOVE");
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 4);
+   QCOMPARE(view->find(), QString("MOVE"));
+
+   QStringList found = names(view->found());
+   QCOMPARE(int(found.size()), 2);
+   for (const QString &name : found)
+      QVERIFY2(name.startsWith("move"), qPrintable(name));
+
+   // the first found is selected, and the count says which it is
+   QCOMPARE(selected(), QStringList(found[0]));
+   QCOMPARE(count->text(), QString("1 of 2"));
+
+   // Enter goes to the next and round again; Shift+Enter goes back
+   QTest::keyClick(match, Qt::Key_Return);
+   QCOMPARE(selected(), QStringList(found[1]));
+   QCOMPARE(count->text(), QString("2 of 2"));
+   QTest::keyClick(match, Qt::Key_Return);
+   QCOMPARE(selected(), QStringList(found[0]));
+   QTest::keyClick(match, Qt::Key_Return, Qt::ShiftModifier);
+   QCOMPARE(selected(), QStringList(found[1]));
+   QTest::keyClick(match, Qt::Key_F3);
+   QCOMPARE(selected(), QStringList(found[0]));
+   QTest::keyClick(match, Qt::Key_F3, Qt::ShiftModifier);
+   QCOMPARE(selected(), QStringList(found[1]));
+   QTest::keyClick(match, Qt::Key_Up);
+   QCOMPARE(selected(), QStringList(found[0]));
+   QTest::keyClick(match, Qt::Key_Down);
+   QCOMPARE(selected(), QStringList(found[1]));
+   QCOMPARE(match->text(), QString("MOVE"));
+
+   // typing more keeps the stack selected while it is still one found
+   QTest::keyClicks(match, "p");
+   QCOMPARE(names(view->found()), QStringList("movepdf.pdf"));
+   QCOMPARE(selected(), QStringList("movepdf.pdf"));
+   QCOMPARE(count->text(), QString("1 of 1"));
+
+   // text which no stack has says so, and leaves the selection alone
    QTest::keyClicks(match, "zzz");
-   QCOMPARE(view->model()->rowCount(view->rootIndex()), 0);
+   QVERIFY(view->found().isEmpty());
+   QCOMPARE(count->text(), QString("None"));
+   QCOMPARE(selected(), QStringList("movepdf.pdf"));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 4);
 
-   // The cancel button clears the filter and shows everything again
-   QTest::mouseClick(cancel, Qt::LeftButton);
+   /* the count follows a stack chosen by hand: one which is not found,
+      and then none at all */
+   match->setText("move");
+   QCOMPARE(count->text(), QString("2 of 2"));
+   QModelIndex other;
+   for (const QModelIndex &ind : view->inOrder())
+      if (!view->isFound(ind))
+         other = ind;
+   QVERIFY(other.isValid());
+   view->selectionModel()->setCurrentIndex(other,
+         QItemSelectionModel::ClearAndSelect);
+   QCOMPARE(count->text(), QString("2 found"));
+
+   // Enter then starts again from the first
+   QTest::keyClick(match, Qt::Key_Return);
+   QCOMPARE(selected(), QStringList(names(view->found())[0]));
+   QCOMPARE(count->text(), QString("1 of 2"));
+
+   // and it follows the stacks as they are renamed
+   QModelIndex src = view->found()[1];
+   desktop->getModelconv()->indexToSource(src.model(), src);
+   desktop->getModel()->renameStack(src, "elsewhere");
+   QTRY_COMPARE(count->text(), QString("1 of 1"));
+   me.actionUndo->trigger();
+   QTRY_COMPARE(count->text(), QString("1 of 2"));
+   match->clear();
+
+   // Ctrl+Enter selects every stack found, to work on them together
+   QTest::keyClicks(match, "pdf");
+   QTest::keyClick(match, Qt::Key_Return, Qt::ControlModifier);
+   QCOMPARE(selected(), QStringList({"movepdf.pdf", "testpdf.pdf"}));
+   QCOMPARE(count->text(), QString("2 selected"));
+
+   /* Clear stops the finding: every stack is as usual again, with what
+      was found still selected, and the stacks have the keys */
+   QTest::keyClick(match, Qt::Key_Return);
+   QString kept = selected().value(0);
+   QVERIFY(!kept.isEmpty());
+   QTest::mouseClick(clear, Qt::LeftButton);
    QCOMPARE(match->text(), QString());
-   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   QVERIFY(view->find().isEmpty());
+   QCOMPARE(count->text(), QString());
+   QCOMPARE(selected(), QStringList(kept));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 4);
+
+   // Esc in the box does the same
+   QTest::keyClicks(match, "move");
+   QTest::keyClick(match, Qt::Key_Return);
+   kept = selected().value(0);
+   QVERIFY(kept.startsWith("move"));
+   QTest::keyClick(match, Qt::Key_Escape);
+   QTRY_VERIFY(view->find().isEmpty());
+   QCOMPARE(match->text(), QString());
+   QCOMPARE(selected(), QStringList(kept));
+
+   // going to another folder stops it too
+   QTest::keyClicks(match, "test");
+   QVERIFY(!view->find().isEmpty());
+   QModelIndex dir_ind = desktop->findDir(path + "/main");
+   QVERIFY(dir_ind.isValid());
+   desktop->selectDir(dir_ind);
+   QTRY_VERIFY(view->find().isEmpty());
+   QCOMPARE(match->text(), QString());
 }
 
 void TestDesktopUi::testSearchAndLocate()
