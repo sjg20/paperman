@@ -357,6 +357,28 @@ void OcrReader::stackMoved (const QString &from_path, const QString &to_path)
    }
 
 
+void OcrReader::fileGoing (File *file)
+   {
+   QMutexLocker locker (&_pin_mutex);
+
+   _watched.remove (file);
+   for (Job &job : _jobs)
+      if (job.source == file)
+         job.pin->gone = true;
+
+   // a thread which is in the File comes out when it has its picture
+   auto busy = [this, file] () {
+      for (const Job &job : _jobs)
+         if (job.source == file && job.pin->using_file)
+            return true;
+      return false;
+   };
+
+   while (busy ())
+      _pin_done.wait (&_pin_mutex);
+   }
+
+
 void OcrReader::closeOwn ()
    {
    delete _own;
@@ -500,15 +522,37 @@ void OcrReader::next ()
          continue;
 
       QImage image;
-      QSize size, true_size;
-      int bpp;
       Job job;
 
-      if (!markPage (file, pagenum, job.mark)
-          || file->getImage (pagenum, false, image, size, true_size, bpp,
-                             false)
-          || image.isNull ())
+      if (!markPage (file, pagenum, job.mark))
          continue;
+
+      /* Making the picture of a page takes a while, and with several
+         pages read at once it would keep this thread, which draws the
+         display, busy most of the time. A max file can be used from
+         another thread, so the thread which reads the page gets the
+         picture too. Any other type gives its picture here */
+      if (file->type () == File::Type_max)
+         {
+         job.source = file;
+         job.pin = std::make_shared<Pin> ();
+         if (!_watched.contains (file))
+            {
+            connect (file, &File::goingAway, this, &OcrReader::fileGoing,
+                     Qt::DirectConnection);
+            _watched << file;
+            }
+         }
+      else
+         {
+         QSize size, true_size;
+         int bpp;
+
+         if (file->getImage (pagenum, false, image, size, true_size, bpp,
+                             false)
+             || image.isNull ())
+            continue;
+         }
 
       job.path = stack.path;
       job.file = stack.file;
@@ -523,10 +567,46 @@ void OcrReader::next ()
       qCDebug (logOcr).noquote () << QString ("ocr: reading page %1 of %2")
          .arg (pagenum + 1).arg (job.path);
       _jobs << job;
-      watcher->setFuture (QtConcurrent::run (&_pool, [engine, image] () mutable
+      File *source = job.source;
+      std::shared_ptr<Pin> pin = job.pin;
+
+      watcher->setFuture (QtConcurrent::run (&_pool,
+            [this, engine, image, source, pin, pagenum] () mutable
          {
          Result result;
 
+         if (source)
+            {
+            // the File may be going, or gone: it says so through the pin
+            {
+               QMutexLocker locker (&_pin_mutex);
+
+               if (pin->gone)
+                  {
+                  result.gone = true;
+                  return result;
+                  }
+               pin->using_file = true;
+            }
+
+            QSize size, true_size;
+            int bpp;
+            err_info *err = source->getImage (pagenum, false, image, size,
+                                              true_size, bpp, false);
+
+            if (err)
+               result.error = err->errstr;
+            else if (image.isNull ())
+               result.error = "no picture";
+            {
+               QMutexLocker locker (&_pin_mutex);
+
+               pin->using_file = false;
+               _pin_done.wakeAll ();
+            }
+            if (!result.error.isEmpty ())
+               return result;
+            }
          result.error = engine (image, result.page);
          return result;
          }));
@@ -563,6 +643,11 @@ void OcrReader::readDone (QFutureWatcher<Result> *watcher)
 
    if (!file)
       ;  // the stack has gone, or been forgotten
+
+   /* the File went before the page's picture was got, as when the folder
+      is refreshed: the stack is still there, so look through it again */
+   else if (result.gone)
+      queue (job.path, job.file);
    else if (!result.error.isEmpty ())
       qDebug () << "ocr: cannot read page" << pagenum + 1 << "of"
                 << job.path << ":" << result.error;

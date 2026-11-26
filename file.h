@@ -836,6 +836,17 @@ eturns error, or NULL if ok */
 
    static err_info *not_impl (void);
 
+signals:
+   /** the file is about to be destroyed, and is still whole. A type whose
+       pages can be read on another thread emits this at the start of its
+       destructor, so that whatever has such a read going on can finish it
+       first, in a slot connected directly
+
+      \param file  this file */
+   void goingAway (File *file);
+
+public:
+
    /** properties as the text a file keeps: a 'key=value' line for each,
        in the order of their keys
 

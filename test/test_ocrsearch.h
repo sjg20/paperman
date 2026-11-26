@@ -60,6 +60,9 @@ private slots:
    //! reading can be paused, and stacks dropped from it
    void testReaderPauseStop();
 
+   //! each page's picture is got off this thread, safely
+   void testReaderOffThread();
+
    //! what the user types is always a valid query, matching word starts
    void testMatchQuery();
 
