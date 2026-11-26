@@ -111,6 +111,10 @@ Key Source Files
 ``searchserver.cpp``
    Embedded HTTP server for the REST API.
 
+``activitylog.cpp``
+   The record of what is done to the papers in a repository (see
+   :doc:`activity-log`).
+
 ``searchindex.cpp``
    SQLite FTS5 index of the text on the stacks' pages, used by the
    desktop, the command line and the server (see :doc:`text-search`).
