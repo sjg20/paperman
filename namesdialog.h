@@ -26,6 +26,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDialog>
 #include <QStringList>
 
+#include "docfacts.h"
+
 class QLabel;
 class QPushButton;
 class QTableWidget;
@@ -36,7 +38,11 @@ class QTableWidget;
     Each stack is a row with a tick, the name it has and the name
     suggested, which can be changed. A stack with no suggestion says why
     and starts unticked. Only the stacks ticked, with a name which differs
-    from the one they have, are to be renamed */
+    from the one they have, are to be renamed.
+
+    The facts which came with a name are shown beside it: what kind of
+    document it is, who it is from, its date and its amount. They can be
+    changed too, and are kept with each stack which is ticked */
 class Namesdialog : public QDialog
    {
    Q_OBJECT
@@ -52,13 +58,41 @@ public:
    void setNames (const QStringList &current, const QStringList &suggested,
                   const QStringList &notes);
 
+   /** set the facts which came with each name, to be shown beside it and
+       changed if they are wrong. Call this after setNames()
+
+      \param facts  the facts for each stack, empty for one with none */
+   void setFacts (const QList<Docfacts> &facts);
+
+   /** the facts to keep about each stack, as the user leaves things
+
+      \returns the facts for each stack, with what has been changed made
+               fit to keep; empty for a stack which is not ticked */
+   QList<Docfacts> facts () const;
+
+   //! change one of the facts shown for a stack: its column, from col_kind
+   void setFact (int row, int col, const QString &text);
+
+   //! the columns of the table
+   enum
+      {
+      col_current,   //!< the name the stack has, with the tick
+      col_new,       //!< the name suggested
+      col_kind,      //!< what kind of document it is
+      col_from,      //!< who it is from
+      col_date,      //!< its date
+      col_amount,    //!< its main amount, with the currency
+
+      col_count
+      };
+
    /** the name to give each stack, as the user leaves things
 
       \returns a name for each stack, empty for one which is to be left
                as it is */
    QStringList names () const;
 
-   //! how many stacks are to be renamed
+   //! how many stacks are to be given a name, or facts, or both
    int count () const;
 
    //! tick a stack, or not; from 0
@@ -77,6 +111,7 @@ private slots:
 
 private:
    QStringList _current;
+   QList<Docfacts> _facts;    //!< the facts given, before any change
    QTableWidget *_table;
    QLabel *_intro;
    QPushButton *_rename;

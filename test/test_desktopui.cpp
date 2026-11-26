@@ -3513,6 +3513,63 @@ void TestDesktopUi::testNamesDialog()
    dialog.setTicked(1, false);
    QCOMPARE(dialog.count(), 0);
    QVERIFY(!rename->isEnabled());
+
+   /* the facts which came with each name are shown beside it, with the
+      amount and its currency together */
+   Docfacts bill, none;
+
+   bill.type = "bill";
+   bill.from = "Northern Power";
+   bill.date = "2026-03-03";
+   bill.period = "Feb 2026";
+   bill.amount = "184.20";
+   bill.currency = "NZD";
+   bill.summary = "Electricity bill";
+   dialog.setNames(QStringList({"26-Nov-26", "26-Nov-26_1", "26-Nov-26_2"}),
+                   QStringList({"power bill", QString(), "26-Nov-26_2"}),
+                   QStringList({QString(), "no text", QString()}));
+   dialog.setFacts(QList<Docfacts>({bill, none, bill}));
+   QCOMPARE(table->columnCount(), int(Namesdialog::col_count));
+   QCOMPARE(table->item(0, Namesdialog::col_kind)->text(), QString("bill"));
+   QCOMPARE(table->item(0, Namesdialog::col_from)->text(),
+            QString("Northern Power"));
+   QCOMPARE(table->item(0, Namesdialog::col_date)->text(),
+            QString("2026-03-03"));
+   QCOMPARE(table->item(0, Namesdialog::col_amount)->text(),
+            QString("184.20 NZD"));
+   QVERIFY(table->item(0, Namesdialog::col_kind)->toolTip()
+              .contains("Feb 2026"));
+   QCOMPARE(table->item(1, Namesdialog::col_kind)->text(), QString());
+
+   /* a stack which is ticked keeps its facts, as given; one which is not
+      keeps none. A stack with facts but the name it has still counts */
+   QCOMPARE(dialog.facts(), QList<Docfacts>({bill, none, bill}));
+   QCOMPARE(dialog.names(), QStringList({"power bill", QString(), QString()}));
+   QCOMPARE(dialog.count(), 2);
+   dialog.setTicked(2, false);
+   QCOMPARE(dialog.facts(), QList<Docfacts>({bill, none, none}));
+   QCOMPARE(dialog.count(), 1);
+
+   // a fact can be put right, and one which is not in its form is dropped
+   dialog.setFact(0, Namesdialog::col_from, " Southern Power ");
+   dialog.setFact(0, Namesdialog::col_amount, "190 aud");
+   dialog.setFact(0, Namesdialog::col_date, "last March");
+
+   Docfacts changed = bill;
+
+   changed.from = "Southern Power";
+   changed.amount = "190";
+   changed.currency = "AUD";
+   changed.date.clear();
+   QCOMPARE(dialog.facts()[0], changed);
+
+   // what has no column is kept as it was given
+   QCOMPARE(dialog.facts()[0].period, QString("Feb 2026"));
+   QCOMPARE(dialog.facts()[0].summary, QString("Electricity bill"));
+
+   // an amount with no currency loses the one it had
+   dialog.setFact(0, Namesdialog::col_amount, "190");
+   QCOMPARE(dialog.facts()[0].currency, QString());
 }
 
 /* With several stacks selected, a name is asked for each, and all are

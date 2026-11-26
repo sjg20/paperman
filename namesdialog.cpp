@@ -30,16 +30,6 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "namesdialog.h"
 
-//! the columns of the table
-enum
-   {
-   COL_current,   //!< with the tick
-   COL_new,
-
-   COL_count
-   };
-
-
 Namesdialog::Namesdialog (QWidget *parent)
    : QDialog (parent)
    {
@@ -54,16 +44,22 @@ Namesdialog::Namesdialog (QWidget *parent)
    _intro->setWordWrap (true);
    layout->addWidget (_intro);
 
-   _table = new QTableWidget (0, COL_count, this);
+   _table = new QTableWidget (0, col_count, this);
    _table->setObjectName ("names");
    _table->setHorizontalHeaderLabels (QStringList () << tr ("Stack")
-                                                     << tr ("New name"));
+      << tr ("New name") << tr ("Kind") << tr ("From") << tr ("Date")
+      << tr ("Amount"));
    _table->verticalHeader ()->hide ();
    _table->setSelectionMode (QAbstractItemView::NoSelection);
-   _table->horizontalHeader ()->setSectionResizeMode (COL_current,
+   _table->horizontalHeader ()->setSectionResizeMode (col_current,
                                                     QHeaderView::Stretch);
-   _table->horizontalHeader ()->setSectionResizeMode (COL_new,
+   _table->horizontalHeader ()->setSectionResizeMode (col_new,
                                                     QHeaderView::Stretch);
+
+   // the facts are short, so each has the room it needs and no more
+   for (int col = col_kind; col < col_count; col++)
+      _table->horizontalHeader ()->setSectionResizeMode (col,
+                                             QHeaderView::ResizeToContents);
    _table->setTextElideMode (Qt::ElideMiddle);
    layout->addWidget (_table);
 
@@ -77,7 +73,7 @@ Namesdialog::Namesdialog (QWidget *parent)
    connect (box, &QDialogButtonBox::accepted, this, &QDialog::accept);
    connect (box, &QDialogButtonBox::rejected, this, &QDialog::reject);
    connect (_table, &QTableWidget::itemChanged, this, &Namesdialog::changed);
-   resize (640, 400);
+   resize (900, 400);
    changed ();
    }
 
@@ -89,6 +85,7 @@ void Namesdialog::setNames (const QStringList &current,
    QSignalBlocker blocker (_table);
 
    _current = current;
+   _facts.clear ();
    _table->setRowCount (current.size ());
    for (int row = 0; row < current.size (); row++)
       {
@@ -102,8 +99,10 @@ void Namesdialog::setNames (const QStringList &current,
       stack->setToolTip (current [row]);
       if (name.isEmpty ())
          next->setToolTip (notes.value (row));
-      _table->setItem (row, COL_current, stack);
-      _table->setItem (row, COL_new, next);
+      _table->setItem (row, col_current, stack);
+      _table->setItem (row, col_new, next);
+      for (int col = col_kind; col < col_count; col++)
+         _table->setItem (row, col, new QTableWidgetItem ());
 
       // say why there is nothing suggested, where a name would be
       if (name.isEmpty () && !notes.value (row).isEmpty ())
@@ -117,13 +116,87 @@ void Namesdialog::setNames (const QStringList &current,
    }
 
 
+//! an amount and its currency as one piece of text: "184.20 NZD"
+static QString amountText (const Docfacts &facts)
+   {
+   return facts.currency.isEmpty () || facts.amount.isEmpty () ? facts.amount
+         : facts.amount + " " + facts.currency;
+   }
+
+
+void Namesdialog::setFacts (const QList<Docfacts> &facts)
+   {
+   QSignalBlocker blocker (_table);
+
+   _facts = facts;
+   for (int row = 0; row < _table->rowCount (); row++)
+      {
+      Docfacts fact = facts.value (row);
+
+      _table->item (row, col_kind)->setText (fact.type);
+      _table->item (row, col_from)->setText (fact.from);
+      _table->item (row, col_date)->setText (fact.date);
+      _table->item (row, col_amount)->setText (amountText (fact));
+
+      // what does not have a column can still be read
+      QStringList more;
+
+      if (!fact.period.isEmpty ())
+         more << tr ("Covers: %1").arg (fact.period);
+      if (!fact.summary.isEmpty ())
+         more << fact.summary;
+      for (int col = col_kind; col < col_count; col++)
+         _table->item (row, col)->setToolTip (more.join ("\n"));
+      }
+   blocker.unblock ();
+   changed ();
+   }
+
+
+QList<Docfacts> Namesdialog::facts () const
+   {
+   QList<Docfacts> list;
+
+   for (int row = 0; row < _table->rowCount (); row++)
+      {
+      Docfacts fact = _facts.value (row);
+
+      if (!ticked (row))
+         {
+         list << Docfacts ();
+         continue;
+         }
+      fact.type = _table->item (row, col_kind)->text ();
+      fact.from = _table->item (row, col_from)->text ();
+      fact.date = _table->item (row, col_date)->text ();
+
+      // the amount comes first, and anything after a space is its currency
+      QString amount = _table->item (row, col_amount)->text ().simplified ();
+      int space = amount.indexOf (' ');
+
+      fact.amount = space < 0 ? amount : amount.left (space);
+      fact.currency = space < 0 ? QString () : amount.mid (space + 1).toUpper ();
+      fact.clean ();
+      list << fact;
+      }
+   return list;
+   }
+
+
+void Namesdialog::setFact (int row, int col, const QString &text)
+   {
+   if (col >= col_kind && col < col_count)
+      _table->item (row, col)->setText (text);
+   }
+
+
 QStringList Namesdialog::names () const
    {
    QStringList list;
 
    for (int row = 0; row < _table->rowCount (); row++)
       {
-      QString name = _table->item (row, COL_new)->text ().trimmed ();
+      QString name = _table->item (row, col_new)->text ().trimmed ();
 
       if (!ticked (row) || name == _current.value (row))
          name.clear ();
@@ -135,30 +208,33 @@ QStringList Namesdialog::names () const
 
 int Namesdialog::count () const
    {
+   const QStringList name = names ();
+   const QList<Docfacts> fact = facts ();
    int count = 0;
 
-   for (const QString &name : names ())
-      count += !name.isEmpty ();
+   // a stack which keeps its name may still have facts to keep
+   for (int row = 0; row < name.size (); row++)
+      count += !name [row].isEmpty () || !fact.value (row).isEmpty ();
    return count;
    }
 
 
 void Namesdialog::setTicked (int row, bool ticked)
    {
-   _table->item (row, COL_current)->setCheckState (ticked ? Qt::Checked
+   _table->item (row, col_current)->setCheckState (ticked ? Qt::Checked
                                                            : Qt::Unchecked);
    }
 
 
 bool Namesdialog::ticked (int row) const
    {
-   return _table->item (row, COL_current)->checkState () == Qt::Checked;
+   return _table->item (row, col_current)->checkState () == Qt::Checked;
    }
 
 
 void Namesdialog::setName (int row, const QString &name)
    {
-   _table->item (row, COL_new)->setText (name);
+   _table->item (row, col_new)->setText (name);
    }
 
 
