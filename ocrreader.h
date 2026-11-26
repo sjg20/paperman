@@ -130,6 +130,36 @@ public:
    //! the full path of each stack which still has pages to look at
    QStringList pending () const;
 
+   //! a stack which still has pages to look at, for showing to the user
+   struct Waiting
+      {
+      QString path;     //!< the stack's full path
+      int pages;        //!< how many pages it has, or -1 if not known yet
+      int left;         //!< about how many are still to look at, 0 if not known
+      int reading;      //!< how many of its pages are being read now
+      };
+
+   //! the stacks which still have pages to look at, in the order they
+   //! are taken
+   QList<Waiting> waiting () const;
+
+   /** stop starting pages, or carry on. Pages being read are finished
+       and kept. A reader which is paused is still busy, and keeps its
+       note of what is left; it is not paused after a restart
+
+      \param paused  true to pause */
+   void setPaused (bool paused);
+   bool isPaused () const { return _paused; }
+
+   /** forget a stack which is waiting. Its pages already read are kept;
+       those being read are finished with and thrown away
+
+      \param pathname  the stack's full path */
+   void remove (const QString &pathname);
+
+   //! forget every stack which is waiting, as remove() does for one
+   void stop ();
+
    //! how many stacks still have pages to look at
    int stacksLeft () const;
 
@@ -221,6 +251,7 @@ private:
       int pagenum = -1;     //!< the page, from 0
       Mark mark;            //!< how to recognise the page afterwards
       QElapsedTimer timer;  //!< how long the page has taken
+      bool dropped = false; //!< the stack was forgotten: keep nothing
       QFutureWatcher<Result> *watcher = nullptr;
       };
 
@@ -263,6 +294,7 @@ private:
    File *_own = nullptr;          //!< a File opened here, for _own_path
    QString _own_path;             //!< the stack which _own is
    bool _next_posted = false;     //!< next() is due to be called again
+   bool _paused = false;          //!< no more pages are to be started
    bool _remember = false;        //!< keep a note of the stacks to read
    QStringList _noted;            //!< the stacks in the note
    Engine _engine;

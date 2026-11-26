@@ -57,6 +57,9 @@ private slots:
    //! stacks still to read are carried on with after a restart
    void testReaderRemembers();
 
+   //! reading can be paused, and stacks dropped from it
+   void testReaderPauseStop();
+
    //! what the user types is always a valid query, matching word starts
    void testMatchQuery();
 
