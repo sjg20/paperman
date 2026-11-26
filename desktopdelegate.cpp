@@ -568,7 +568,6 @@ bool Desktopdelegate::editorEvent (QEvent * event, QAbstractItemModel *model,
 QWidget *Desktopdelegate::createEditor (QWidget *parent,
          const QStyleOptionViewItem &option, const QModelIndex &index) const
    {
-   printf ("createEditor\n");
    measure_info measure;
 
    measureItem (option, index, measure, 0);
