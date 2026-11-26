@@ -185,12 +185,16 @@ Then right-click a stack and choose **Suggest name**. The name appears in
 the name box: press **Enter** to accept it, change it first, or press
 **Esc** to keep the old name. Undo puts the old name back.
 
-The stack needs text: one scanned before Paperman read text needs
-**Read text (OCR)** first.
+Paperman looks at the stack's first eight pages, since the title of a
+book or a report is often clearer a few pages in than on its cover. If
+few of them have text yet, it reads them first, which takes a few
+seconds. What it reads then is used for the name and not kept: **Read
+text (OCR)** is still what lets the stack be found by what it says.
 
-What is sent is the text of the stack's first two pages and the names of
-up to twenty other stacks in its folder, which show how you name things.
-Nothing is sent unless you choose **Suggest name**.
+What is sent is the text of up to four of those pages, the first ones
+which say anything, and the names of up to twenty other stacks in its
+folder, which show how you name things. Nothing is sent unless you choose
+**Suggest name**.
 
 The model is reached through the ``claude`` command of Claude Code, which
 must be installed and signed in; Paperman holds no key or password. It

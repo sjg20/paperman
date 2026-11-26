@@ -2766,6 +2766,95 @@ void TestDesktopUi::testSuggestSplit()
    QSettings().remove("assistant");
 }
 
+/* A name comes from the first pages which say anything. Pages which say
+   nothing are read first when there is too little to go on, and what is
+   read is sent but not kept. This has a window of its own, so that the
+   only name editor is the one it opens */
+void TestDesktopUi::testSuggestNameReadsPages()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+
+   desktop->_assistant = &assistant;
+   QSettings().remove("assistant");
+   Assistant::setEnabled(true);
+   desktop->updateActions();
+
+   QAtomicInt reads;
+   desktop->_name_engine = [&reads](QImage &image, OcrPage &ocr) {
+      ocr = OcrPage();
+      ocr.size = image.size();
+      ocr.words << OcrWord{QRect(0, 0, 10, 10),
+                           QString("width%1read%2").arg(image.width())
+                              .arg(int(++reads)), 90, 0, 0};
+      return QString();
+   };
+
+   /* every page of the PDF has text, so none is read for its name. The
+      answer is an error, so that no name is offered */
+   QModelIndex ind = model->index("testpdf.pdf", repo_ind);
+   QVERIFY(ind.isValid());
+   desktop->getModelconv()->indexToProxy(model, ind);
+   view->setSelectionRange(ind.row(), 1);
+   backend->_error = "No name this time";
+   desktop->suggestName();
+   QVERIFY(!backend->_prompt.isEmpty());
+   QVERIFY(backend->_prompt.contains("=== Page 1 ===\n"));
+   QCOMPARE(int(reads), 0);
+   QVERIFY(!view->findChild<Desktopeditor *>());
+   backend->_error.clear();
+
+   // the pages of the max stack say nothing, so its first pages are read
+   QModelIndex max_ind = model->index("testfile.max", repo_ind);
+   QVERIFY(max_ind.isValid());
+   File *max = model->getFile(max_ind);
+   QVERIFY(!max->load());
+   int max_pages = max->pagecount();
+   QVERIFY(max_pages >= 2);
+   OcrPage none;
+   QVERIFY(max->getPageOcr(0, none) || none.isEmpty());
+
+   backend->_prompt.clear();
+   backend->_answer["name"] = "Read from pages";
+   ind = max_ind;
+   desktop->getModelconv()->indexToProxy(model, ind);
+   view->setSelectionRange(ind.row(), 1);
+   desktop->suggestName();
+   QVERIFY(backend->_prompt.isEmpty());
+   QTRY_VERIFY(!backend->_prompt.isEmpty());
+   QCOMPARE(int(reads), qMin(max_pages, int(Assistant::name_look_pages)));
+   QVERIFY2(backend->_prompt.contains(QRegularExpression(
+               "=== Page 1 ===\\nwidth\\d+read\\d+\\n")),
+            qPrintable(backend->_prompt));
+   QVERIFY(backend->_prompt.contains("=== Page 2 ===\n"));
+
+   // what was read is not kept in the stack
+   QVERIFY(max->getPageOcr(0, none) || none.isEmpty());
+
+   /* the name is offered, and accepting it renames the stack: looking at
+      its pages has not left the file open, which would stop that on
+      Windows */
+   Desktopeditor *editor = nullptr;
+   QTRY_VERIFY((editor = view->findChild<Desktopeditor *>()));
+   QCOMPARE(editor->text(), QString("Read from pages"));
+   QTest::keyClick(editor, Qt::Key_Return);
+   QTRY_VERIFY(QFile::exists(path + "/Read from pages.max"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+
+   desktop->_name_engine = nullptr;
+   desktop->_assistant = nullptr;
+   QSettings().remove("assistant");
+}
+
 void TestDesktopUi::testDirFilterHidesOtherYears()
 {
    QModelIndex repo_ind;

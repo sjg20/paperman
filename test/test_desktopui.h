@@ -199,6 +199,9 @@ private slots:
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 
+   //! Pages which say nothing are read before a name is asked for
+   void testSuggestNameReadsPages();
+
    //! The assistant's way of dividing a stack is shown, changed and done
    void testSuggestSplit();
 
