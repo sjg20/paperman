@@ -3341,6 +3341,120 @@ void TestDesktopUi::testSuggestNames()
    QSettings().remove("assistant");
 }
 
+/* Names take a while to come, and the user does not sit still: only one
+   lot is asked for at a time, the window of names does not get in the way,
+   and a name for one stack goes in the name box only if nothing has moved
+   on meanwhile */
+void TestDesktopUi::testSuggestNameMovedOn()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+   int stacks = model->rowCount(repo_ind);
+
+   desktop->_assistant = &assistant;
+   QSettings().remove("assistant");
+   Assistant::setEnabled(true);
+   desktop->_name_engine = [](QImage &image, OcrPage &ocr) {
+      ocr = OcrPage();
+      ocr.size = image.size();
+      ocr.words << OcrWord{QRect(0, 0, 10, 10), "words", 90, 0, 0};
+      return QString();
+   };
+   QSignalSpy said(desktop, SIGNAL(newContents(QString)));
+
+   auto select = [&](const QString &fname) {
+      QModelIndex ind = model->index(fname, repo_ind);
+
+      desktop->getModelconv()->indexToProxy(model, ind);
+      view->setSelectionRange(ind.row(), 1);
+   };
+
+   // while names are being asked for, asking again is put off
+   backend->_hold = true;
+   backend->_answer["name"] = "A name";
+   view->setSelectionRange(0, stacks);
+   desktop->suggestName();
+   QTRY_COMPARE(backend->_asked, stacks);
+   desktop->suggestName();
+   QCOMPARE(said.last().at(0).toString(),
+            QString("Names are still being asked for"));
+   QTest::qWait(50);
+   QCOMPARE(backend->_asked, stacks);
+   QVERIFY(!desktop->findChild<Namesdialog *>());
+
+   /* the window of names does not stop anything else being done, and
+      once it has come, names can be asked for again */
+   backend->release();
+   Namesdialog *dialog = nullptr;
+   QTRY_VERIFY((dialog = desktop->findChild<Namesdialog *>()));
+   QVERIFY(dialog->isVisible());
+   QVERIFY(!dialog->isModal());
+   QCOMPARE(dialog->windowModality(), Qt::NonModal);
+   dialog->reject();
+   QTRY_VERIFY(!desktop->findChild<Namesdialog *>());
+
+   /* a name for one stack is not put in the name box if another stack
+      has been selected meanwhile: it is shown in the window, where it
+      can be accepted */
+   backend->_asked = 0;
+   backend->_hold = true;
+   backend->_answer["name"] = "Bank statement";
+   select("testpdf.pdf");
+   desktop->suggestName();
+   QTRY_COMPARE(backend->_asked, 1);
+   select("testfile.max");
+   backend->release();
+   QTRY_VERIFY((dialog = desktop->findChild<Namesdialog *>()));
+   QVERIFY(!view->findChild<Desktopeditor *>());
+   QCOMPARE(dialog->names(), QStringList("Bank statement"));
+   QCOMPARE(dialog->renameText(), QString("&Rename 1 stack"));
+   QCOMPARE(said.last().at(0).toString(),
+            QString("Check the name suggested"));
+   dialog->accept();
+   QTRY_VERIFY(QFile::exists(path + "/Bank statement.pdf"));
+   QVERIFY(QFile::exists(path + "/testfile.max"));
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QTRY_VERIFY(!desktop->findChild<Namesdialog *>());
+
+   /* nor if a name is being typed when the answer comes: what is being
+      typed is left alone */
+   backend->_asked = 0;
+   backend->_hold = true;
+   backend->_answer["name"] = "Second thoughts";
+   select("testpdf.pdf");
+   desktop->suggestName();
+   QTRY_COMPARE(backend->_asked, 1);
+
+   QModelIndex ind = model->index("testpdf.pdf", repo_ind);
+   desktop->getModelconv()->indexToProxy(model, ind);
+   view->renameStack(ind);
+   Desktopeditor *editor = view->findChild<Desktopeditor *>();
+   QVERIFY(editor);
+   QVERIFY(view->editing());
+   QString typed = editor->text();
+   backend->release();
+   QTRY_VERIFY((dialog = desktop->findChild<Namesdialog *>()));
+   QCOMPARE(editor->text(), typed);
+   QCOMPARE(dialog->names(), QStringList("Second thoughts"));
+   dialog->reject();
+   QTest::keyClick(editor, Qt::Key_Escape);
+   QTRY_VERIFY(!desktop->findChild<Namesdialog *>());
+
+   desktop->_name_engine = nullptr;
+   desktop->_assistant = nullptr;
+   QSettings().remove("assistant");
+}
+
 void TestDesktopUi::testDirFilterHidesOtherYears()
 {
    QModelIndex repo_ind;

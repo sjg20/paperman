@@ -217,6 +217,9 @@ private slots:
    //! Several stacks are named together, and the names checked together
    void testSuggestNames();
 
+   //! Names which come after the user has moved on do not get in the way
+   void testSuggestNameMovedOn();
+
    //! The assistant's way of dividing a stack is shown, changed and done
    void testSuggestSplit();
 

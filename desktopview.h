@@ -81,6 +81,9 @@ public:
    QModelIndexList getSelectedListSource (bool multiple = true)
       { return getSelectedList (multiple, true); }
 
+   //! true while a name is being typed in for a stack or a page
+   bool editing () const { return state () == EditingState; }
+
    /** returns the currently selected item, or the first selected if there
        is more than one */
    QModelIndex getSelectedItem (bool sourceModel = false);

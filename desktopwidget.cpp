@@ -2331,44 +2331,7 @@ QStringList Desktopwidget::nameExamples (File *f, const QSet<File *> &skip)
    }
 
 
-void Desktopwidget::suggestName (void)
-   {
-   if (!Assistant::enabled ())
-      return;
-
-   // several stacks are named together, and checked together
-   QModelIndexList list = _view->getSelectedListSource ();
-
-   if (list.size () > 1)
-      {
-      suggestNames (list);
-      return;
-      }
-
-   QModelIndex sind = _view->getSelectedItem (true);
-   File *f = _contents->getFile (sind);
-
-   if (!f)
-      return;
-
-   /* a stack on a server may not all be here, so bring it here first,
-      without waiting; a local one is looked at at once */
-   QPersistentModelIndex stack (sind);
-   QPointer<Desktopwidget> self (this);
-
-   _contents->fetchStacksLater (QModelIndexList () << sind,
-                                [self, stack] (err_info *err) {
-      if (!self || self->_main->complain (err) || !stack.isValid ())
-         return;
-      self->gatherNamePages (stack, [self, stack] (const QStringList &pages) {
-         if (self)
-            self->askName (stack, pages);
-      });
-   });
-   }
-
-
-//! the asking for names for several stacks at once
+//! the asking for names for one stack or several
 struct Desktopwidget::NamesJob
    {
    QList<QPersistentModelIndex> stacks;
@@ -2384,6 +2347,37 @@ struct Desktopwidget::NamesJob
    bool mine = false;      //!< the assistant is ours to delete
    QPointer<Backgroundjob> work;   //!< the asking, as the user sees it
    };
+
+
+void Desktopwidget::suggestName (void)
+   {
+   if (!Assistant::enabled ())
+      return;
+
+   /* one lot of names at a time: a second would bring a second window to
+      check, perhaps with some of the same stacks in it */
+   std::shared_ptr<NamesJob> running = _naming.lock ();
+
+   if (running && !running->over)
+      {
+      emit newContents (tr ("Names are still being asked for"));
+      return;
+      }
+
+   /* one stack or several, the names are asked for in the same way; how
+      they are offered depends on how many there are */
+   QModelIndexList list = _view->getSelectedListSource ();
+
+   if (list.isEmpty ())
+      {
+      QModelIndex sind = _view->getSelectedItem (true);
+
+      if (sind.isValid ())
+         list << sind;
+      }
+   if (!list.isEmpty ())
+      suggestNames (list);
+   }
 
 
 void Desktopwidget::suggestNames (const QModelIndexList &list)
@@ -2406,6 +2400,7 @@ void Desktopwidget::suggestNames (const QModelIndexList &list)
       return;
    job->assistant = _assistant ? _assistant : new Assistant (nullptr, this);
    job->mine = !_assistant;
+   _naming = job;
 
    /* asking takes a few seconds for each stack, so it is listed with the
       work going on, where it can be given up */
@@ -2422,8 +2417,9 @@ void Desktopwidget::suggestNames (const QModelIndexList &list)
          job->assistant->deleteLater ();
       emit newContents (tr ("Stopped"));
    });
-   emit newContents (tr ("Asking the assistant for %1 names...")
-                        .arg (job->stacks.size ()));
+   emit newContents (job->stacks.size () == 1
+      ? tr ("Asking the assistant for a name...")
+      : tr ("Asking the assistant for %1 names...").arg (job->stacks.size ()));
 
    // any on a server are brought here first, without waiting
    QPointer<Desktopwidget> self (this);
@@ -2467,8 +2463,9 @@ void Desktopwidget::nameNext (std::shared_ptr<NamesJob> job)
          job->finished++;
          if (job->work)
             job->work->setProgress (job->finished, job->stacks.size ());
-         emit self->newContents (tr ("Asking the assistant for names: %1 "
-            "of %2").arg (job->finished).arg (job->stacks.size ()));
+         if (job->stacks.size () > 1)
+            emit self->newContents (tr ("Asking the assistant for names: %1 "
+               "of %2").arg (job->finished).arg (job->stacks.size ()));
          self->nameNext (job);
       };
 
@@ -2522,11 +2519,44 @@ void Desktopwidget::showNames (std::shared_ptr<NamesJob> job)
 
       why.removeDuplicates ();
       why.removeAll (QString ());
-      emit newContents (tr ("No names were suggested: %1")
-                           .arg (why.join ("; ")));
+
+      // one stack says what went wrong in full, as there is room to
+      if (job->stacks.size () > 1)
+         emit newContents (tr ("No names were suggested: %1")
+                              .arg (why.join ("; ")));
+      else if (why.value (0) == tr ("no text"))
+         emit newContents (tr ("This stack's first pages have no text to "
+                               "name it from"));
+      else
+         emit newContents (why.value (0));
       return;
       }
 
+   /* The name for one stack is offered in the box where names are typed,
+      to be accepted with Enter, so long as nothing has moved on while it
+      was asked for: the stack is still the one selected, in the folder
+      shown, and no other name is being typed. Otherwise that would take
+      the user away from what they have gone on to */
+   if (job->stacks.size () == 1)
+      {
+      QModelIndex sind = job->stacks [0];
+      QModelIndex ind = sind;
+
+      if (ind.isValid ())
+         _modelconv->indexToProxy (ind.model (), ind);
+      if (ind.isValid () && ind.parent () == _view->rootIndex ()
+          && !_view->editing ()
+          && _view->getSelectedListSource () == QModelIndexList ({sind}))
+         {
+         emit newContents (tr ("Suggested name: press Enter to accept it, "
+                               "or Esc to keep the old one"));
+         _view->renameStack (ind, job->names [0]);
+         return;
+         }
+      }
+
+   /* Otherwise the names are shown in a window, which does not get in
+      the way: whatever is being done can be finished first */
    Namesdialog *dialog = new Namesdialog (this);
 
    dialog->setAttribute (Qt::WA_DeleteOnClose);
@@ -2548,8 +2578,11 @@ void Desktopwidget::showNames (std::shared_ptr<NamesJob> job)
       emit newContents (count == 1 ? tr ("Renamed 1 stack")
                                    : tr ("Renamed %1 stacks").arg (count));
    });
-   emit newContents (tr ("Check the names suggested"));
-   dialog->open ();
+   emit newContents (job->stacks.size () == 1
+                        ? tr ("Check the name suggested")
+                        : tr ("Check the names suggested"));
+   dialog->show ();
+   dialog->raise ();
    }
 
 
@@ -2653,56 +2686,6 @@ void Desktopwidget::gatherNamePages (const QModelIndex &sind,
       emit newContents (tr ("Reading the stack's first pages..."));
    else
       done (pages);
-   }
-
-
-void Desktopwidget::askName (const QModelIndex &sind, const QStringList &pages)
-   {
-   File *f = _contents->getFile (sind);
-   QString text = Assistant::nameText (pages);
-
-   // the stack may have gone while its pages were read
-   if (!sind.isValid () || !f)
-      return;
-   if (text.isEmpty ())
-      {
-      emit newContents (tr ("This stack's first pages have no text to name "
-                            "it from"));
-      return;
-      }
-
-   // the names beside it show how the user names things
-   QStringList examples = nameExamples (f);
-
-   Assistant *assistant = _assistant ? _assistant
-                                     : new Assistant (nullptr, this);
-   bool mine = !_assistant;
-   QPersistentModelIndex stack (sind);
-
-   emit newContents (tr ("Asking the assistant for a name..."));
-   assistant->suggestName (text, examples, this,
-                           [this, stack, assistant, mine] (
-                              const QString &name, const QString &error) {
-      if (mine)
-         assistant->deleteLater ();
-      if (!error.isEmpty ())
-         {
-         emit newContents (error);
-         return;
-         }
-
-      // the stack may have gone, or the folder changed, meanwhile
-      QModelIndex ind = stack;
-
-      if (!ind.isValid ())
-         return;
-      _modelconv->indexToProxy (ind.model (), ind);
-      if (!ind.isValid () || ind.parent () != _view->rootIndex ())
-         return;
-      emit newContents (tr ("Suggested name: press Enter to accept it, "
-                            "or Esc to keep the old one"));
-      _view->renameStack (ind, name);
-   });
    }
 
 
