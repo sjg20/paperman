@@ -34,6 +34,8 @@ pages first (see :doc:`finding`):
   **File > Options**.
 - Stacks scanned before then need **Read text (OCR)**, in a stack's
   right-click menu.
+- After a lot of scanning the reading can be some way behind: the status
+  bar says how many pages are left.
 - In a folder on a server, the server must be run with ``--index``, and
   with ``--read-pages`` to read the pages itself (see :doc:`server`).
 

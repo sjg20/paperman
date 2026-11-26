@@ -193,6 +193,9 @@ private slots:
    //! Test renaming a stack by typing into the item editor
    void testRenameStackViaEditor();
 
+   //! pages are read in the background through a refresh, and it shows
+   void testReadingStatus();
+
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 

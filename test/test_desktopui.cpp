@@ -3,6 +3,9 @@
 #include <QAbstractItemModelTester>
 #include <QClipboard>
 #include <QKeySequence>
+#include <QLabel>
+#include <QMessageBox>
+#include <QSemaphore>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
@@ -24,6 +27,7 @@
 #include "desktopview.h"
 #include "desktopwidget.h"
 #include "ocrpage.h"
+#include "ocrreader.h"
 #include "dirmodel.h"
 #include "filemax.h"
 #include "imagetrim.h"
@@ -2416,6 +2420,128 @@ void TestDesktopUi::testRenameStackViaEditor()
    me.actionUndo->trigger();
    QCOMPARE(model->data(src_ind, Qt::DisplayRole).toString(), "testfile");
    QVERIFY(QFile::exists(path + "/testfile.max"));
+}
+
+/* Scanned pages are read in the background for as long as it takes: a
+   folder which is refreshed gives its stacks new Files, which used to
+   make the reader drop them. What is left to read is shown, and quitting
+   while there is some asks first */
+void TestDesktopUi::testReadingStatus()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   OcrReader *reader = Mainwidget::singleton()->ocrReader();
+   QLabel *status = me.findChild<QLabel *>("readingStatus");
+   QVERIFY(status);
+   QVERIFY(status->isHidden());
+
+   // a stack of a few pages which can keep what is read
+   File *file = nullptr;
+   for (int row = 0; !file && row < model->rowCount(repo_ind); row++) {
+      File *f = model->getFile(model->index(row, 0, repo_ind));
+
+      if (model->keepsOcr(f) && !f->load() && f->pagecount() >= 3)
+         file = f;
+   }
+   QVERIFY(file);
+   const QString path = file->pathname();
+   const QString dir = QFileInfo(path).path();
+   int count = file->pagecount();
+   QCOMPARE(model->fileForPath(path), file);
+   QVERIFY(!model->fileForPath(dir + "/missing.max"));
+
+   // read a page at a time, each when told to
+   QSemaphore started, go;
+   reader->setWorkers(1);
+   reader->setEngine([&](QImage &image, OcrPage &ocr) {
+      started.release();
+      go.acquire();
+      ocr = OcrPage();
+      ocr.size = image.size();
+      ocr.words << OcrWord{QRect(0, 0, 10, 10), "read", 90, 0, 0};
+      return QString();
+   });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
+   auto waitFor = [](QSemaphore &sem) {
+      QElapsedTimer timer;
+
+      timer.start();
+      while (!sem.tryAcquire()) {
+         if (timer.elapsed() > 10000)
+            return false;
+         QTest::qWait(5);
+      }
+      return true;
+   };
+   QSignalSpy idle(reader, &OcrReader::idle);
+
+   reader->addFile(file);
+   QVERIFY(waitFor(started));
+   QVERIFY(!status->isHidden());
+   QCOMPARE(status->text(),
+            QString("Reading text: %1 pages in 1 stack").arg(count));
+
+   // the folder is refreshed, so the stack has another File
+   QPointer<File> old = file;
+   model->refresh(dir);
+   QVERIFY(!old);
+   File *fresh = model->fileForPath(path);
+   QVERIFY(fresh);
+   go.release();
+   QVERIFY(waitFor(started));
+   QCOMPARE(status->text(),
+            QString("Reading text: %1 pages in 1 stack").arg(count - 1));
+
+   /* quitting asks first: the answer is given by whoever is at the
+      screen, here a timer which presses the button named */
+   Mainwindow::allowQuitQuestion(true);
+   auto forbid = qScopeGuard([] { Mainwindow::allowQuitQuestion(false); });
+   QString asked;
+   auto answer = [&me, &asked](const QString &button) {
+      QTimer *timer = new QTimer(&me);
+
+      asked.clear();
+      connect(timer, &QTimer::timeout, &me, [&me, &asked, timer, button] {
+         auto *box = me.findChild<QMessageBox *>("quitReading");
+
+         if (!box || !box->isVisible())
+            return;
+         timer->deleteLater();
+         asked = box->text();
+         for (QAbstractButton *b : box->buttons())
+            if (b->text() == button)
+               b->click();
+      });
+      timer->start(20);
+   };
+
+   answer("Keep reading");
+   QVERIFY(!me.close());
+   QVERIFY(me.isVisible());
+   QCOMPARE(asked, QString("Paperman is still reading the text of scanned "
+                           "pages: %1 pages in 1 stack.").arg(count - 1));
+
+   // the reading goes on, through the stack's new File
+   go.release(1000);
+   QVERIFY(idle.wait(10000));
+   QVERIFY(status->isHidden());
+   fresh = model->fileForPath(path);
+   QVERIFY(fresh);
+   for (int i = 0; i < count; i++) {
+      OcrPage ocr;
+
+      QVERIFY(!fresh->getPageOcr(i, ocr));
+      QCOMPARE(ocr.text(), QString("read"));
+   }
+
+   // with nothing left to read, quitting does not ask
+   asked.clear();
+   QVERIFY(me.close());
+   QVERIFY(asked.isEmpty());
 }
 
 void TestDesktopUi::testSuggestName()

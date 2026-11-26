@@ -26,6 +26,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QtGui>
 #include <QDir>
+#include <QCloseEvent>
+#include <QLabel>
+#include <QLocale>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScreen>
@@ -70,6 +73,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QTimer>
 #include "mainwindow.h"
+#include "ocrreader.h"
 #include "pagewidget.h"
 #include "qscanner.h"
 #include "updatecheck.h"
@@ -123,6 +127,16 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    QSize size = QSize (5000, qMax (20, statusBar ()->fontMetrics ().height ()
                                        + 8));
    statusBar ()->setMaximumSize (size);
+
+   // how much text is still to be read in the background, when any is
+   _reading = new QLabel (this);
+   _reading->setObjectName ("readingStatus");
+   _reading->setToolTip (tr ("Paperman reads the text of scanned pages in "
+      "the background, so that they can be found by what they say"));
+   _reading->hide ();
+   statusBar ()->addPermanentWidget (_reading);
+   connect (_main->ocrReader (), &OcrReader::progress, this,
+            &Mainwindow::readingChanged);
 
    // the connection to a server, if any, is shown on the right
    statusBar ()->addPermanentWidget (_desktop->netStatus ());
@@ -561,8 +575,75 @@ void Mainwindow::saveSettings ()
    }
 
 
+QString Mainwindow::readingLeft () const
+   {
+   OcrReader *reader = _main->ocrReader ();
+   int stacks = reader->stacksLeft (), pages = reader->pagesLeft ();
+   QString in = stacks == 1 ? tr ("1 stack")
+                            : tr ("%1 stacks").arg (QLocale ().toString (stacks));
+
+   // a stack not yet opened has pages too, but how many is not known
+   if (!pages)
+      return in;
+   return tr ("%1 in %2")
+      .arg (pages == 1 ? tr ("1 page")
+                       : tr ("%1 pages").arg (QLocale ().toString (pages)))
+      .arg (in);
+   }
+
+
+void Mainwindow::readingChanged ()
+   {
+   bool busy = _main->ocrReader ()->isBusy ();
+
+   if (busy)
+      _reading->setText (tr ("Reading text: %1").arg (readingLeft ()));
+   _reading->setVisible (busy);
+   }
+
+
+//! whether to ask before quitting; see allowQuitQuestion()
+static bool quit_question_allowed = true;
+
+void Mainwindow::allowQuitQuestion (bool allow)
+   {
+   quit_question_allowed = allow;
+   }
+
+
+bool Mainwindow::okToQuit ()
+   {
+   if (_quit_agreed || !quit_question_allowed
+       || !_main->ocrReader ()->isBusy ())
+      return true;
+
+   QMessageBox box (QMessageBox::Question, tr ("Quit Paperman"),
+      tr ("Paperman is still reading the text of scanned pages: %1.")
+         .arg (readingLeft ()), QMessageBox::NoButton, this);
+
+   box.setObjectName ("quitReading");
+   box.setInformativeText (tr ("It carries on from where it stopped the "
+      "next time Paperman starts."));
+
+   QPushButton *quit = box.addButton (tr ("Quit"), QMessageBox::AcceptRole);
+
+   box.addButton (tr ("Keep reading"), QMessageBox::RejectRole);
+   box.setDefaultButton (quit);
+   box.exec ();
+
+   // quitting closes the window, which must not ask again
+   _quit_agreed = box.clickedButton () == quit;
+   return _quit_agreed;
+   }
+
+
 void Mainwindow::closeEvent(QCloseEvent *event)
    {
+   if (!okToQuit ())
+      {
+      event->ignore ();
+      return;
+      }
    saveSettings ();
    QMainWindow::closeEvent(event);
    }
@@ -591,6 +672,8 @@ void Mainwindow::on_actionPrint_triggered(bool)
 
 void Mainwindow::on_actionExit_triggered(bool)
 {
+   if (!okToQuit ())
+      return;
    saveSettings ();
    qApp->quit ();
 }
