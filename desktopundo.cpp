@@ -993,8 +993,9 @@ void UCDeletePages::undo (void)
 
 UCSplitStack::UCSplitStack (Desktopmodel *model, QModelIndex &ind,
                             const QList<int> &firsts,
-                            const QStringList &names)
-      : Desktopundocmd (model)
+                            const QStringList &names,
+                            const QList<Docfacts> &facts)
+      : Desktopundocmd (model), _facts (facts)
    {
    File *f = model->getFile (ind);
    int pagecount = f ? f->knownPagecount () : 0;
@@ -1044,6 +1045,7 @@ void UCSplitStack::redo (void)
    int first = _first;
    QStringList names = _names;
    QList<pagepos_info> pagepos = _pagepos;
+   QList<Docfacts> facts = _facts;
    auto newnames = _newnames;
 
    queue (dir, [=] (Desktopmodel::OpDone done) {
@@ -1060,7 +1062,22 @@ void UCSplitStack::redo (void)
       // each run starts at the same page, as the one before it has gone
       *newnames = names;
       model->aboutToAdd (parent);
-      model->opUnstackFromStack (ind, newnames, first, pagepos, done);
+      model->opUnstackFromStack (ind, newnames, first, pagepos,
+                                 [=] (err_info *err) {
+         /* each new stack is made with its facts, so that undoing the
+            split is all it takes to be rid of them. A stack which cannot
+            keep facts goes without */
+         for (int i = 0; !err && i < newnames->size (); i++)
+            {
+            QString dirpath = dir;
+            QModelIndex made = model->index (newnames->at (i),
+                                             model->deskFromDirname (dirpath));
+
+            if (made.isValid () && !facts.value (i).isEmpty ())
+               model->opSetFacts (made, facts.value (i));
+            }
+         done (err);
+      });
    });
    }
 
