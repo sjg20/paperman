@@ -58,6 +58,35 @@ void TestAssistant::testNamePrompt()
    QVERIFY(!Assistant::namePrompt(longer, QStringList()).contains("ZZZ"));
 }
 
+void TestAssistant::testNameText()
+{
+   // pages which say nothing are left out, and the rest keep their numbers
+   QStringList pages({"", " Third Edition \n", "", "LEARN THINGS\nThe Easy Way",
+                      "Publisher's list", "Copyright", "Contents"});
+   QString text = Assistant::nameText(pages);
+
+   QCOMPARE(text, QString("=== Page 2 ===\nThird Edition\n\n"
+                          "=== Page 4 ===\nLEARN THINGS\nThe Easy Way\n\n"
+                          "=== Page 5 ===\nPublisher's list\n\n"
+                          "=== Page 6 ===\nCopyright\n\n"));
+
+   // only so many pages are sent, and only the start of a long one
+   QVERIFY(Assistant::name_pages == 4);
+   QVERIFY(!text.contains("Contents"));
+
+   QString longer = QString(Assistant::name_page_chars, 'a') + "ZZZ";
+   text = Assistant::nameText(QStringList({longer, "next"}));
+   QVERIFY(!text.contains("ZZZ"));
+   QVERIFY(text.contains("=== Page 2 ===\nnext"));
+
+   // with nothing said there is nothing to send
+   QVERIFY(Assistant::nameText(QStringList({"", "  ", "\n"})).isEmpty());
+   QVERIFY(Assistant::nameText(QStringList()).isEmpty());
+
+   // the model is told that a cover's title may be missing
+   QVERIFY(Assistant::namePrompt(text, QStringList()).contains("cover"));
+}
+
 void TestAssistant::testCleanName()
 {
    QCOMPARE(Assistant::cleanName("  Power bill\n Mar 2026 "),

@@ -42,6 +42,7 @@ private slots:
    void testNamePrompt();
 
    //! A name is made fit to be a stack's name
+   void testNameText();
    void testCleanName();
 
    //! A name comes back from the backend, cleaned, or the reason for none
