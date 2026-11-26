@@ -106,6 +106,7 @@
     </widget>
     <addaction name="menuArrange"/>
     <addaction name="actionReconnectScanner"/>
+    <addaction name="actionBackground"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -486,6 +487,14 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="actionBackground">
+   <property name="text">
+    <string>&amp;Background work...</string>
+   </property>
+   <property name="toolTip">
+    <string>Show what Paperman is doing in the background, such as reading the text of scanned pages, and pause or stop it</string>
    </property>
   </action>
   <action name="actionFullScreen">

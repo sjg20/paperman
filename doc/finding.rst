@@ -69,6 +69,12 @@ from each page's picture (optical character recognition, or OCR) with
   in 3 stacks*.
   Paperman can be used as usual meanwhile, and a stack still to be read
   can be renamed, moved or have its folder refreshed.
+- Click that, or choose **Tools > Background work**, to see the stacks
+  waiting, in the order they are read. **Pause** holds the reading back
+  while the computer is wanted for something else; **Remove from list**
+  drops the stacks selected; **Stop reading** drops them all. Pages
+  already read keep their text, and **Read text (OCR)** reads the rest
+  of a stack another time.
 - Quitting with pages left asks first. The stacks are not forgotten:
   Paperman carries on with them, from where it stopped, shortly after it
   next starts.

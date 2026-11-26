@@ -93,6 +93,7 @@ RESOURCES = maxview.qrc
 TRANSLATIONS = maxview_en.ts
 
 HEADERS += desktopwidget.h \
+   backgrounddialog.h \
    folderlist.h \
    foldersel.h \
    mainwidget.h \
@@ -203,6 +204,7 @@ HEADERS += desktopwidget.h \
     remotebackend.h
 
 SOURCES += desktopwidget.cpp \
+   backgrounddialog.cpp \
    folderlist.cpp \
    mainwidget.cpp \
    desk.cpp \

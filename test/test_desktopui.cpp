@@ -2,6 +2,7 @@
 
 #include <QAbstractItemModelTester>
 #include <QClipboard>
+#include <QHeaderView>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMessageBox>
@@ -21,6 +22,7 @@
 #include <QtTest/QtTest>
 
 #include "test.h"
+#include "backgrounddialog.h"
 
 #include "desktopdelegate.h"
 #include "desktopmodel.h"
@@ -2437,7 +2439,7 @@ void TestDesktopUi::testReadingStatus()
    setupShown(&me, model, repo_ind);
 
    OcrReader *reader = Mainwidget::singleton()->ocrReader();
-   QLabel *status = me.findChild<QLabel *>("readingStatus");
+   QPushButton *status = me.findChild<QPushButton *>("readingStatus");
    QVERIFY(status);
    QVERIFY(status->isHidden());
 
@@ -2498,6 +2500,60 @@ void TestDesktopUi::testReadingStatus()
    QCOMPARE(status->text(),
             QString("Reading text: %1 pages in 1 stack").arg(count - 1));
 
+   /* pressing the status shows what is waiting, where reading can be
+      paused: the page being read is finished and no more is started */
+   QVERIFY(!me.findChild<Backgrounddialog *>());
+   QTest::mouseClick(status, Qt::LeftButton);
+   Backgrounddialog *work = me.findChild<Backgrounddialog *>();
+   QVERIFY(work);
+   QVERIFY(work->isVisible());
+   QCOMPARE(work->listed(), QStringList(QDir::cleanPath(path)));
+   QCOMPARE(work->summary(),
+            QString("Reading the text of scanned pages: %1 pages in 1 stack "
+                    "left.").arg(count - 1));
+
+   // how many pages are left is shown whole, whatever else is cut short
+   QTableWidget *stacks = work->findChild<QTableWidget *>("stacks");
+   QVERIFY(stacks);
+   QString left = stacks->item(0, 2)->text();
+   QCOMPARE(left, QString("%1, reading now").arg(count - 1));
+   QCOMPARE(stacks->horizontalHeader()->sectionResizeMode(2),
+            QHeaderView::ResizeToContents);
+   QStyleOptionViewItem opt;
+   opt.initFrom(stacks);
+   int needs = stacks->itemDelegate()->sizeHint(opt,
+                           stacks->model()->index(0, 2)).width();
+   QVERIFY2(stacks->columnWidth(2) >= needs,
+            qPrintable(QString("%1 wide, needs %2 for '%3'")
+                          .arg(stacks->columnWidth(2)).arg(needs).arg(left)));
+
+   QPushButton *pause = work->findChild<QPushButton *>("pause");
+   QVERIFY(pause);
+   QCOMPARE(pause->text(), QString("&Pause"));
+   pause->click();
+   QCOMPARE(pause->text(), QString("&Carry on"));
+   QCOMPARE(status->text(),
+            QString("Reading text paused: %1 pages in 1 stack").arg(count - 1));
+   go.release();
+   QTest::qWait(150);
+   QCOMPARE(started.available(), 0);
+   QCOMPARE(status->text(),
+            QString("Reading text paused: %1 pages in 1 stack").arg(count - 2));
+   QCOMPARE(work->summary(),
+            QString("Reading the text of scanned pages is paused: %1 pages "
+                    "in 1 stack left.").arg(count - 2).replace("1 pages",
+                                                                "1 page"));
+   pause->click();
+   QVERIFY(waitFor(started));
+   count--;
+
+   // the Tools menu shows the same window
+   work->close();
+   QVERIFY(!work->isVisible());
+   me.actionBackground->trigger();
+   QVERIFY(work->isVisible());
+   QCOMPARE(me.findChildren<Backgrounddialog *>().size(), 1);
+
    /* quitting asks first: the answer is given by whoever is at the
       screen, here a timer which presses the button named */
    Mainwindow::allowQuitQuestion(true);
@@ -2539,6 +2595,39 @@ void TestDesktopUi::testReadingStatus()
       QVERIFY(!fresh->getPageOcr(i, ocr));
       QCOMPARE(ocr.text(), QString("read"));
    }
+
+   // the window says that nothing is left, and offers nothing to stop
+   QVERIFY(work->listed().isEmpty());
+   QVERIFY(work->summary().contains("Nothing is waiting"));
+   QVERIFY(!work->findChild<QPushButton *>("stop")->isEnabled());
+   QVERIFY(!pause->isEnabled());
+
+   /* a stack put back on the list can be dropped from it again, which
+      leaves nothing to read */
+   OcrPage none;
+   QVERIFY(!fresh->putPageOcr(0, none));
+   reader->setPaused(true);
+   reader->addFile(fresh);
+   QCOMPARE(work->listed(), QStringList(QDir::cleanPath(path)));
+   QVERIFY(!status->isHidden());
+   QPushButton *remove = work->findChild<QPushButton *>("remove");
+   QVERIFY(!remove->isEnabled());
+   work->selectRow(0);
+   QVERIFY(remove->isEnabled());
+   remove->click();
+   QVERIFY(work->listed().isEmpty());
+   QVERIFY(status->isHidden());
+   QVERIFY(!reader->isBusy());
+   reader->setPaused(false);
+
+   // and so can everything at once
+   reader->setPaused(true);
+   reader->addFile(fresh);
+   QVERIFY(work->findChild<QPushButton *>("stop")->isEnabled());
+   work->findChild<QPushButton *>("stop")->click();
+   QVERIFY(work->listed().isEmpty());
+   QVERIFY(!reader->isBusy());
+   reader->setPaused(false);
 
    // with nothing left to read, quitting does not ask
    asked.clear();

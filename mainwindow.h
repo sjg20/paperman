@@ -29,6 +29,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "op.h"
 
 class QProgressBar;
+class QPushButton;
+
+class Backgrounddialog;
 
 class Desktopwidget;
 class Mainwidget;
@@ -168,6 +171,9 @@ public slots:
     virtual void on_actionDirectory_triggered(bool);
     void on_actionFullScreen_triggered(bool);
 
+    //! show the work going on in the background, which can be stopped there
+    void on_actionBackground_triggered(bool);
+
     void welcome ();
 
     /** show a link to a newer version of paperman in the status bar
@@ -218,14 +224,15 @@ private:
     QLabel *_label;
     QLabel *_newer = nullptr;   //!< tells of a newer version, if any
 
-    //! says how much text there is still to read in the background
-    QLabel *_reading = nullptr;
+    //! says how much text there is still to read in the background, and
+    //! opens the window which shows it when pressed
+    QPushButton *_reading = nullptr;
+
+    //! the window showing the work going on in the background, once asked for
+    Backgrounddialog *_background = nullptr;
 
     //! true once the user has agreed to quit while pages are being read
     bool _quit_agreed = false;
-
-    //! how much text there is still to read, as "12 pages in 2 stacks"
-    QString readingLeft () const;
 
     //! show how much text there is still to read, if any
     void readingChanged ();
