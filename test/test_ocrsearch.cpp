@@ -472,6 +472,7 @@ void TestOcrSearch::testReaderPageMoves()
       go.acquire();
       return fakeRead(image, page);
    });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
    QSignalSpy idle(&reader, &OcrReader::idle);
 
    reader.addFile(max.data());
@@ -482,7 +483,9 @@ void TestOcrSearch::testReaderPageMoves()
    QByteArray del_info;
    int del_count = 1;
    QVERIFY(!max->removePages(pages, del_info, del_count));
-   go.release(count * 2);
+   /* each page being read then finds that it has moved and sends the
+      stack round again, so more are read than there are pages */
+   go.release(1000);
 
    QVERIFY(idle.wait(10000));
    QCOMPARE(max->pagecount(), count - 1);
@@ -564,6 +567,7 @@ void TestOcrSearch::testReaderByPath()
 
    OcrReader reader;
    QSemaphore started, go;
+   reader.setWorkers(1);
    reader.setEngine([&](QImage &image, OcrPage &page) {
       started.release();
       go.acquire();
@@ -641,6 +645,7 @@ void TestOcrSearch::testReaderStackMoves()
 
    OcrReader reader;
    QSemaphore started, go;
+   reader.setWorkers(1);
    reader.setEngine([&](QImage &image, OcrPage &page) {
       started.release();
       go.acquire();
@@ -682,6 +687,63 @@ void TestOcrSearch::testReaderStackMoves()
    reader.addPath(moved);
    QVERIFY(idle.count() == 2 || idle.wait(10000));
    QVERIFY(!reader.isBusy());
+}
+
+
+void TestOcrSearch::testReaderWorkers()
+{
+   QTemporaryDir tmp;
+   QScopedPointer<Filemax> max(openStack(testSrc, tmp));
+   QVERIFY(max);
+   int count = max->pagecount();
+   QVERIFY(count >= 4);
+
+   // it reads a few pages at once unless told otherwise
+   OcrReader reader;
+   QVERIFY(reader._workers >= 1 && reader._workers <= 4);
+
+   QSemaphore started, go;
+   QAtomicInt busy, most;
+   reader.setWorkers(3);
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      int now = ++busy;
+      int seen = most;
+
+      while (now > seen && !most.testAndSetOrdered(seen, now))
+         seen = most;
+      started.release();
+      go.acquire();
+      busy--;
+      return fakeRead(image, page);
+   });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
+   QSignalSpy read(&reader, &OcrReader::pageRead);
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   // three pages reach the engine and the fourth waits its turn
+   reader.addFile(max.data());
+   for (int i = 0; i < 3; i++)
+      QVERIFY(waitFor(started));
+   QTest::qWait(100);
+   QCOMPARE(started.available(), 0);
+   QCOMPARE(int(busy), 3);
+
+   // as each is done another starts
+   go.release();
+   QVERIFY(waitFor(started));
+   QTest::qWait(50);
+   QCOMPARE(started.available(), 0);
+
+   go.release(1000);
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(int(most), 3);
+   QCOMPARE(read.count(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(max.data(), i), pixelsWord(max.data(), i));
+
+   // asking for none still reads a page at a time
+   reader.setWorkers(0);
+   QCOMPARE(reader._workers, 1);
 }
 
 

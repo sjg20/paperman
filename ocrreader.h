@@ -33,10 +33,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QObject>
 #include <QPointer>
 #include <QSize>
+#include <QThreadPool>
 
 #include "ocrpage.h"
 
 class File;
+class Ocrtess;
 
 /** Reads the text of stacks' pages in the background, a page at a time,
     and keeps what it reads with each page. Pages which have been read
@@ -51,8 +53,9 @@ class File;
     instead, and let go of as soon as the desktop has one, so that only
     one File ever writes to a stack.
 
-    The engine runs on another thread while the page's image is read and
-    what was read is stored on this one, where the stack's File lives. A
+    The engine runs on other threads, a page on each, while each page's
+    image is read and what was read is stored on this one, where the
+    stack's File lives. A
     page can be moved, deleted or turned while it is being read, so each
     page is recognised by its image before what was read is stored */
 class OcrReader : public QObject
@@ -94,6 +97,12 @@ public:
        a stack is read through that File whenever there is one. With no
        finder, a stack whose File goes is opened here */
    void setFinder (const Finder &finder);
+
+   /** set how many pages are read at once; to begin with it is a few,
+       fewer than the processors there are
+
+      \param workers  how many, at least 1 */
+   void setWorkers (int workers);
 
    //! true while there are pages to read
    bool isBusy () const;
@@ -195,6 +204,9 @@ private:
 
    QList<Stack> _stacks;          //!< the stacks to read, the first now
    QList<Job> _jobs;              //!< the pages being read
+   int _workers;                  //!< how many pages to read at once
+   QThreadPool _pool;             //!< the threads which the engine runs on
+   Ocrtess *_tess = nullptr;      //!< the reader's own engine, if it has one
    Finder _finder;                //!< finds the desktop's File for a stack
    File *_own = nullptr;          //!< a File opened here, for _own_path
    QString _own_path;             //!< the stack which _own is
