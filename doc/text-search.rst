@@ -229,10 +229,10 @@ reads a blank page again each time its stack is queued; the server's
 reader avoids that with its own record.
 
 ``getPageText()`` reads only the text chunk. It does not return the
-words Paperman read, so code which wants "the text of this page" asks
-for the words first and falls back to the text chunk, as
-``stackText()`` in ``searchindex.cpp`` and ``Desktopwidget::pageText()``
-do.
+words Paperman read, so code which wants "the text of this page" calls
+``File::textOfPage()``, which gives the words as text and falls back to
+the text chunk. The index, the assistant and the server's
+``info?text=1`` all use it.
 
 What happens to a page's words when the page changes:
 
@@ -353,9 +353,10 @@ that the next pass reads every stack again.
 What is indexed for a stack
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``stackText()`` opens the stack and takes, for each page, its words as
-plain text, or if it has none, the page's own text: the text chunk of a
-``.max`` page, or a PDF page's text through Poppler. The stack's OCR
+``stackText()`` opens the stack and takes each page's text with
+``File::textOfPage()``: its words as plain text, or if it has none, the
+page's own text, which is the text chunk of a ``.max`` page or a PDF
+page's text through Poppler. The stack's OCR
 annotation, if it has one which the first page's text does not already
 hold, is added to the first page, since it does not say which page it
 came from.
@@ -527,9 +528,6 @@ Things worth knowing before relying on it:
   rows under the old path stay until the index is deleted.
 - **A change is seen by time and size alone.** A stack written with the
   same size and the same modification time is not read again.
-- **The server's** ``info?text=1`` gives each page's text chunk, or a
-  PDF's text, not the words Paperman read, so it is empty for a ``.max``
-  page read by Paperman.
 
 Changing it
 -----------

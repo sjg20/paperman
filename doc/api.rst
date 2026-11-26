@@ -928,10 +928,10 @@ size, its annotations (keyed as for the annotations mutation) and, per
 page, the image size, the size it decodes to (``trueWidth`` and
 ``trueHeight``, which tiling can pad beyond the image), depth, bytes,
 compressed size, modification time, preview size and title.  With
-``?text=1`` each page also carries the text kept with it, which is
-omitted by default because it can be large. For a ``.max`` page this is
-the page's text chunk, not the words Paperman's own OCR reads, so it is
-empty for a page read that way (see :doc:`text-search`).
+``?text=1`` each page also carries its text, which is omitted by default
+because it can be large: the words read from the page by OCR, or else
+the text the file itself has for it, and an empty string for a page with
+neither (see :doc:`text-search`).
 
 .. code:: json
 
