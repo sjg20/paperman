@@ -29,9 +29,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QLocale>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "backgrounddialog.h"
+#include "backgroundwork.h"
 #include "ocrreader.h"
 
 //! the columns of the list
@@ -52,6 +54,46 @@ Backgrounddialog::Backgrounddialog (OcrReader *reader, QWidget *parent)
    setWindowTitle (tr ("Background work"));
 
    QVBoxLayout *layout = new QVBoxLayout (this);
+
+   // the other work going on, which comes and goes
+   _jobs = new QTableWidget (0, 2, this);
+   _jobs->setObjectName ("jobs");
+   _jobs->setHorizontalHeaderLabels (QStringList () << tr ("Work")
+                                                    << tr ("Progress"));
+   _jobs->setSelectionBehavior (QAbstractItemView::SelectRows);
+   _jobs->setSelectionMode (QAbstractItemView::SingleSelection);
+   _jobs->setEditTriggers (QAbstractItemView::NoEditTriggers);
+   _jobs->verticalHeader ()->hide ();
+   _jobs->horizontalHeader ()->setSectionResizeMode (0, QHeaderView::Stretch);
+   _jobs->horizontalHeader ()->setSectionResizeMode (1,
+                                             QHeaderView::ResizeToContents);
+   _jobs->setTextElideMode (Qt::ElideMiddle);
+   _jobs->setMaximumHeight (120);
+
+   QHBoxLayout *jobs_row = new QHBoxLayout;
+
+   _stop_job = new QPushButton (tr ("S&top"), this);
+   _stop_job->setObjectName ("stopJob");
+   _stop_job->setToolTip (tr ("Stop the work selected, if it can be "
+                              "stopped"));
+   jobs_row->addWidget (_jobs, 1);
+   jobs_row->addWidget (_stop_job, 0, Qt::AlignTop);
+   layout->addLayout (jobs_row);
+   connect (_stop_job, &QPushButton::clicked, this,
+            &Backgrounddialog::stopJob);
+   connect (_jobs, &QTableWidget::itemSelectionChanged, this,
+            &Backgrounddialog::refreshJobs);
+
+   /* work says how it is going very often, so show it a few times a
+      second and no more */
+   connect (Backgroundwork::instance (), &Backgroundwork::changed, this,
+            [this] () {
+      if (_jobs_due)
+         return;
+      _jobs_due = true;
+      QTimer::singleShot (jobs_refresh_ms, this,
+                          &Backgrounddialog::refreshJobs);
+   });
 
    _summary = new QLabel (this);
    _summary->setObjectName ("summary");
@@ -112,8 +154,9 @@ Backgrounddialog::Backgrounddialog (OcrReader *reader, QWidget *parent)
       _remove->setEnabled (!_table->selectedItems ().isEmpty ());
    });
    connect (_reader, &OcrReader::progress, this, &Backgrounddialog::refresh);
-   resize (640, 360);
+   resize (640, 420);
    refresh ();
+   refreshJobs ();
    }
 
 
@@ -210,6 +253,105 @@ void Backgrounddialog::refresh ()
    _pause->setEnabled (any || _reader->isPaused ());
    _remove->setEnabled (!_table->selectedItems ().isEmpty ());
    _stop->setEnabled (any);
+   }
+
+
+//! what a job says about how far it has got
+static QString jobProgress (const Backgroundjob *job)
+   {
+   QString text = job->detail ();
+   int percent = job->percent ();
+
+   if (percent >= 0)
+      text = text.isEmpty () ? Backgrounddialog::tr ("%1%").arg (percent)
+         : Backgrounddialog::tr ("%1, %2%").arg (text).arg (percent);
+   if (job->stopRequested ())
+      text = text.isEmpty () ? Backgrounddialog::tr ("stopping")
+         : Backgrounddialog::tr ("%1, stopping").arg (text);
+   return text;
+   }
+
+
+QStringList Backgrounddialog::jobsListed () const
+   {
+   QStringList list;
+
+   for (int row = 0; row < _jobs->rowCount (); row++)
+      list << _jobs->item (row, 0)->text () + ": "
+              + _jobs->item (row, 1)->text ();
+   return list;
+   }
+
+
+void Backgrounddialog::selectJob (int row)
+   {
+   _jobs->selectRow (row);
+   }
+
+
+void Backgrounddialog::refreshJobs ()
+   {
+   const QList<Backgroundjob *> jobs = Backgroundwork::instance ()->jobs ();
+
+   _jobs_due = false;
+
+   // keep the job selected so, as others come and go around it
+   quintptr selected = 0;
+   const QModelIndexList rows = _jobs->selectionModel ()->selectedRows ();
+
+   if (!rows.isEmpty ())
+      selected = _jobs->item (rows [0].row (), 0)->data (Qt::UserRole)
+                    .value<quintptr> ();
+
+   QSignalBlocker blocker (_jobs);
+   const Backgroundjob *chosen = nullptr;
+
+   _jobs->clearSelection ();
+   _jobs->setRowCount (jobs.size ());
+   for (int row = 0; row < jobs.size (); row++)
+      {
+      const Backgroundjob *job = jobs [row];
+      QTableWidgetItem *title = new QTableWidgetItem (job->title ());
+
+      title->setData (Qt::UserRole, QVariant::fromValue (quintptr (job)));
+      title->setToolTip (job->title ());
+      _jobs->setItem (row, 0, title);
+      _jobs->setItem (row, 1, new QTableWidgetItem (jobProgress (job)));
+      if (quintptr (job) == selected)
+         {
+         chosen = job;
+         _jobs->item (row, 0)->setSelected (true);
+         _jobs->item (row, 1)->setSelected (true);
+         }
+      }
+
+   // with only one job there is no doubt which is meant
+   if (!chosen && jobs.size () == 1)
+      chosen = jobs [0];
+   _stop_job->setEnabled (chosen && chosen->stoppable ()
+                          && !chosen->stopRequested ());
+   }
+
+
+void Backgrounddialog::stopJob ()
+   {
+   const QList<Backgroundjob *> jobs = Backgroundwork::instance ()->jobs ();
+   const QModelIndexList rows = _jobs->selectionModel ()->selectedRows ();
+   Backgroundjob *chosen = jobs.size () == 1 ? jobs [0] : nullptr;
+
+   // the job may have finished since it was listed, so look for it
+   if (!rows.isEmpty ())
+      {
+      quintptr selected = _jobs->item (rows [0].row (), 0)
+                             ->data (Qt::UserRole).value<quintptr> ();
+
+      for (Backgroundjob *job : jobs)
+         if (quintptr (job) == selected)
+            chosen = job;
+      }
+   if (chosen)
+      chosen->requestStop ();
+   refreshJobs ();
    }
 
 
