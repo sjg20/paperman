@@ -63,6 +63,7 @@ class OcrReader : public QObject
    Q_OBJECT
 
    friend class TestOcrSearch;
+   friend class TestOps;
 
 public:
    /** reads an image, on the reader's thread
@@ -98,11 +99,30 @@ public:
        finder, a stack whose File goes is opened here */
    void setFinder (const Finder &finder);
 
-   /** set how many pages are read at once; to begin with it is a few,
-       fewer than the processors there are
+   /** set how many pages are read at once; to begin with it is what the
+       settings say (see workers())
 
       \param workers  how many, at least 1 */
    void setWorkers (int workers);
+
+   /** how many pages the settings say to read at once: the number chosen
+       there, or autoWorkers() if none is
+
+      \returns how many, at least 1 */
+   static int workers ();
+
+   /** how many pages are read at once when the settings do not say: half
+       as many as there are processors, and no more than max_auto_workers,
+       since each page's picture is made ready on the thread which the
+       display uses */
+   static int autoWorkers ();
+
+   //! how many the settings say, or 0 if they leave it to autoWorkers()
+   static int workersSetting ();
+   static void setWorkersSetting (int workers);
+
+   //! the most pages read at once unless the settings ask for more
+   static constexpr int max_auto_workers = 16;
 
    //! true while there are pages to read
    bool isBusy () const;

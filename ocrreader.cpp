@@ -40,8 +40,8 @@ OcrReader::OcrReader (QObject *parent)
    : QObject (parent)
    {
    /* a scanner fills a stack far faster than one page at a time can be
-      read, but leave most of the machine for whoever is using it */
-   setWorkers (qBound (1, QThread::idealThreadCount () / 2, 4));
+      read, but leave much of the machine for whoever is using it */
+   setWorkers (workers ());
    }
 
 
@@ -90,6 +90,32 @@ void OcrReader::setWorkers (int workers)
    {
    _workers = qMax (1, workers);
    _pool.setMaxThreadCount (_workers);
+   }
+
+
+int OcrReader::autoWorkers ()
+   {
+   return qBound (1, QThread::idealThreadCount () / 2, int (max_auto_workers));
+   }
+
+
+int OcrReader::workersSetting ()
+   {
+   return qMax (0, QSettings ().value ("ocr/workers", 0).toInt ());
+   }
+
+
+void OcrReader::setWorkersSetting (int workers)
+   {
+   QSettings ().setValue ("ocr/workers", qMax (0, workers));
+   }
+
+
+int OcrReader::workers ()
+   {
+   int chosen = workersSetting ();
+
+   return chosen ? chosen : autoWorkers ();
    }
 
 
