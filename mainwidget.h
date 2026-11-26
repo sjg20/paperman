@@ -182,6 +182,10 @@ public:
    static constexpr int kReopenTries = 5;
    static constexpr int kReopenRetryMs = 2000;
 
+   /** how long after starting to carry on reading the text of the stacks
+       left unread last time, so that start-up is not held up by it */
+   static constexpr int kRestoreDelayMs = 5000;
+
    /**
     * @brief  Find folders in the current repo which match a text string
     * @param  text    Text to match

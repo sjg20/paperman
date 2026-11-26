@@ -67,6 +67,13 @@ public:
    // save window settings for next time (called when closing application)
    void saveSettings ();
 
+   /** allow or forbid asking, on quitting, whether to stop reading the
+       text of scanned pages. Tests forbid it, since nobody is there to
+       answer
+
+      \param allow  true to allow it, which is how things start */
+   static void allowQuitQuestion (bool allow);
+
    // Select whether the 'search' menu-option is available
    void setSearchEnabled(bool enable);
 
@@ -210,6 +217,24 @@ private:
     QProgressBar *_progress;
     QLabel *_label;
     QLabel *_newer = nullptr;   //!< tells of a newer version, if any
+
+    //! says how much text there is still to read in the background
+    QLabel *_reading = nullptr;
+
+    //! true once the user has agreed to quit while pages are being read
+    bool _quit_agreed = false;
+
+    //! how much text there is still to read, as "12 pages in 2 stacks"
+    QString readingLeft () const;
+
+    //! show how much text there is still to read, if any
+    void readingChanged ();
+
+    /** check that it is all right to quit: if pages are still being read
+        in the background, the user is asked
+
+       \returns true to quit */
+    bool okToQuit ();
 
     /** how many operations are running: one shows the progress bar and
         the last one to finish takes it away again, since an operation

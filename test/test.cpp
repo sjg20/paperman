@@ -5,6 +5,7 @@
 
 #include "test.h"
 #include "../camera.h"
+#include "../mainwindow.h"
 #include "../ocrreader.h"
 
 #include "test_desktopui.h"
@@ -105,6 +106,10 @@ int test_run(int, char **in_argv, QApplication *,
     * in the settings and read during a later test, changing a file which
     * that test may be looking at */
    OcrReader::allowRemembering(false);
+
+   /* nor is anyone there to say whether to quit while pages are still
+    * being read */
+   Mainwindow::allowQuitQuestion(false);
 
    // Split "Class::function" into class filter and function filter
    static char filterBuf[256];

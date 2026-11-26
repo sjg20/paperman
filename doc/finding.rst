@@ -61,6 +61,14 @@ from each page's picture (optical character recognition, or OCR) with
 - Once a scan is saved, Paperman reads its pages in the background. The
   option **Read the text of scanned pages (OCR)** in **File > Options**
   turns this off.
+- Reading takes longer than scanning: a second or so for a page, with a
+  few pages read at a time. While there are pages left, the status bar
+  says how many, such as *Reading text: 1,204 pages in 3 stacks*.
+  Paperman can be used as usual meanwhile, and a stack still to be read
+  can be renamed, moved or have its folder refreshed.
+- Quitting with pages left asks first. The stacks are not forgotten:
+  Paperman carries on with them, from where it stopped, shortly after it
+  next starts.
 - Each page keeps its words, with where each one is, in the stack's
   ``.max`` file, so they go with the page when it is stacked, unstacked
   or copied. Turning a page drops its text, which is then read again the

@@ -145,6 +145,21 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _contents = _desktop->getModel ();
    _view = _desktop->getView ();
 
+   /* A stack waiting to be read outlasts the File which the desktop has
+      for it, so the reader asks for that File by the stack's path, is told
+      when a stack moves, and carries on after a restart with what was
+      left. Start-up is left to finish first */
+   _ocr_reader->setFinder ([this] (const QString &pathname) {
+      return _contents->fileForPath (pathname);
+   });
+   connect (_contents, &Desktopmodel::stackMoved, _ocr_reader,
+            &OcrReader::stackMoved);
+   _ocr_reader->setRemembered (true);
+   QTimer::singleShot (kRestoreDelayMs, _ocr_reader, [this] () {
+      if (OcrReader::enabled ())
+         _ocr_reader->restore ();
+   });
+
    connect (_desktop, SIGNAL (showPage (const QModelIndex &)),
       this, SLOT (showPage (const QModelIndex &)));
    connect (_desktop->getModel (),
