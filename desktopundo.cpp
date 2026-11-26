@@ -190,8 +190,8 @@ void UCTrashStacks::undo (void)
 
 
 UCMove::UCMove (Desktopmodel *model, QModelIndexList &list, QModelIndex &parent,
-      QList<QPoint> &oldpos, QList<QPoint> &newpos)
-      : Desktopundocmd (model)
+      QList<QPoint> &oldpos, QList<QPoint> &newpos, bool nudge)
+      : Desktopundocmd (model), _nudge (nudge)
    {
    QModelIndex ind;
 
@@ -201,6 +201,19 @@ UCMove::UCMove (Desktopmodel *model, QModelIndexList &list, QModelIndex &parent,
    _newpos = newpos;
    setText (QApplication::translate("UCMove",
       "Move stacks (%1)").arg (list.size ()));
+   }
+
+
+bool UCMove::mergeWith (const QUndoCommand *command)
+   {
+   const UCMove *other = static_cast<const UCMove *> (command);
+
+   // only a nudge of the very same stacks carries on from this one
+   if (!_nudge || !other->_nudge || other->_dir != _dir
+       || other->_filenames != _filenames)
+      return false;
+   _newpos = other->_newpos;
+   return true;
    }
 
 

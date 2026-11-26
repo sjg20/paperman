@@ -172,6 +172,9 @@ private slots:
    //! a stack dragged a little way moves by that much
    void testShortDrag();
 
+   //! Alt with an arrow key nudges the stacks selected
+   void testNudge();
+
    void testMoveStackOnDesk();
 
    //! A multi-selected group dropped on a folder moves together and

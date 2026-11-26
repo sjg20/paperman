@@ -141,11 +141,25 @@ and the new position to support undo / redo */
 class UCMove : public Desktopundocmd
    {
 public:
+   /**
+      \param nudge   true if this is one of a run of small moves made with
+                     the keys, which are undone together */
    UCMove (Desktopmodel *model, QModelIndexList &list, QModelIndex &parent,
-         QList<QPoint> &oldplist, QList<QPoint> &plist);
+         QList<QPoint> &oldplist, QList<QPoint> &plist, bool nudge = false);
    void redo();
    void undo();
+
+   //! nudges are told apart from other commands by this, to be joined up
+   int id () const override { return _nudge ? nudge_id : -1; }
+
+   /** join a nudge of the same stacks to the one before it, so that a run
+       of them, as from holding a key down, is one step to undo */
+   bool mergeWith (const QUndoCommand *other) override;
+
 private:
+   static constexpr int nudge_id = 1;
+
+   bool _nudge;            //!< one of a run of small moves with the keys
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of filenames to move
    QList<QPoint> _oldpos;  //!< old positions

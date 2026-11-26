@@ -88,8 +88,13 @@ public:
        undone. No stack is moved off the top or the left of the desk
 
       \param delta  how far to move each, in pixels
+      \param nudge  true for a small move with the keys: a run of these is
+                    undone together
       \returns true if any stack moved */
-   bool moveSelectedBy (const QPoint &delta);
+   bool moveSelectedBy (const QPoint &delta, bool nudge = false);
+
+   //! how far Alt with an arrow key moves the stacks selected, in pixels
+   static constexpr int nudge_step = 10;
 
    /** finish a drag of the stacks selected which ends at a point on the
        desk: they move by as far as the pointer has come since the button
@@ -283,6 +288,9 @@ protected:
       of it ends, so that it can be dragged into the pages of the stack
       shown until then */
    void mouseReleaseEvent (QMouseEvent *event) override;
+
+   //! Alt with an arrow key nudges the stacks selected across the desk
+   void keyPressEvent (QKeyEvent *event) override;
    void startDrag (Qt::DropActions supportedActions) override;
 
 protected slots:
