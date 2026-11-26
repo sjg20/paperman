@@ -2141,6 +2141,93 @@ void TestDesktopUi::testShortDrag()
    QVERIFY(!view->moveSelectedBy(QPoint(10, 10)));
 }
 
+/* Alt with an arrow key nudges the stacks selected across the desk, by
+   less than can be dragged. A run of nudges is one step to undo. Turning
+   the pages of a stack has Shift as well, to leave these keys free */
+void TestDesktopUi::testNudge()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopview *view = me.getDesktop()->getView();
+   QModelIndex first = itemIndex(view, 0), second = itemIndex(view, 1);
+   int step = Desktopview::nudge_step;
+   auto place = [&](const QModelIndex &ind) {
+      return view->model()->data(ind, Desktopmodel::Role_position).toPoint();
+   };
+
+   // put a stack well away from the edges, and select it
+   clickItem(view, 0);
+   QVERIFY(view->moveSelectedBy(QPoint(200, 200) - place(first)));
+   QPoint was = place(first), other = place(second);
+   QCOMPARE(was, QPoint(200, 200));
+
+   // each key moves it a step that way, and the other stack stays put
+   QTest::keyClick(view, Qt::Key_Right, Qt::AltModifier);
+   QCOMPARE(place(first), was + QPoint(step, 0));
+   QTest::keyClick(view, Qt::Key_Down, Qt::AltModifier);
+   QCOMPARE(place(first), was + QPoint(step, step));
+   QTest::keyClick(view, Qt::Key_Left, Qt::AltModifier);
+   QTest::keyClick(view, Qt::Key_Left, Qt::AltModifier);
+   QCOMPARE(place(first), was + QPoint(-step, step));
+   QTest::keyClick(view, Qt::Key_Up, Qt::AltModifier);
+   QTest::keyClick(view, Qt::Key_Up, Qt::AltModifier);
+   QCOMPARE(place(first), was + QPoint(-step, -step));
+   QCOMPARE(place(second), other);
+   QTRY_COMPARE(view->visualRect(first).topLeft() - view->visualRect(second).topLeft(),
+                place(first) - place(second));
+
+   // the arrow keys count as keypad keys on some systems
+   QTest::keyClick(view, Qt::Key_Right, Qt::AltModifier | Qt::KeypadModifier);
+   QCOMPARE(place(first), was + QPoint(0, -step));
+
+   // the whole run is undone in one go, back to where it was put
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+
+   // a nudge after something else is a step of its own
+   QTest::keyClick(view, Qt::Key_Right, Qt::AltModifier);
+   QVERIFY(view->moveSelectedBy(QPoint(50, 0)));
+   QTest::keyClick(view, Qt::Key_Right, Qt::AltModifier);
+   QCOMPARE(place(first), was + QPoint(50 + 2 * step, 0));
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was + QPoint(50 + step, 0));
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was + QPoint(step, 0));
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+
+   // several stacks selected are nudged together
+   view->setSelectionRange(0, 2);
+   QTest::keyClick(view, Qt::Key_Down, Qt::AltModifier);
+   QCOMPARE(place(first), was + QPoint(0, step));
+   QCOMPARE(place(second), other + QPoint(0, step));
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+   QCOMPARE(place(second), other);
+
+   // an arrow key alone still moves from stack to stack
+   clickItem(view, 0);
+   QCOMPARE(view->currentIndex(), first);
+   bool first_is_left = view->visualRect(first).left()
+                        < view->visualRect(second).left();
+   QTest::keyClick(view, first_is_left ? Qt::Key_Right : Qt::Key_Left);
+   QCOMPARE(place(first), was);
+
+   // with nothing selected a nudge does nothing
+   view->selectionModel()->clear();
+   QTest::keyClick(view, Qt::Key_Right, Qt::AltModifier);
+   QCOMPARE(place(first), was);
+   QCOMPARE(place(second), other);
+
+   // turning a stack's pages has moved to Alt+Shift with the same keys
+   QCOMPARE(me.actionRleft->shortcut(), QKeySequence("Alt+Shift+Left"));
+   QCOMPARE(me.actionRright->shortcut(), QKeySequence("Alt+Shift+Right"));
+}
+
 void TestDesktopUi::testMoveStackOnDesk()
 {
    QModelIndex repo_ind;

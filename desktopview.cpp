@@ -1018,7 +1018,33 @@ void Desktopview::mousePressEvent (QMouseEvent *event)
    }
 
 
-bool Desktopview::moveSelectedBy (const QPoint &delta)
+void Desktopview::keyPressEvent (QKeyEvent *event)
+   {
+   /* the arrow keys count as keypad keys on some systems, which says
+      nothing about what else is held */
+   Qt::KeyboardModifiers held = event->modifiers () & ~Qt::KeypadModifier;
+   QPoint step;
+
+   switch (event->key ())
+      {
+      case Qt::Key_Left :  step = QPoint (-nudge_step, 0); break;
+      case Qt::Key_Right : step = QPoint (nudge_step, 0); break;
+      case Qt::Key_Up :    step = QPoint (0, -nudge_step); break;
+      case Qt::Key_Down :  step = QPoint (0, nudge_step); break;
+      default : break;
+      }
+   if (held == Qt::AltModifier && !step.isNull ())
+      {
+      // a stack moved by a little, which is hard to do with the mouse
+      moveSelectedBy (step, true);
+      event->accept ();
+      return;
+      }
+   QListView::keyPressEvent (event);
+   }
+
+
+bool Desktopview::moveSelectedBy (const QPoint &delta, bool nudge)
    {
    QAbstractItemModel *model = this->model ();
    QModelIndexList list = getSelectedList (true);
@@ -1044,7 +1070,7 @@ bool Desktopview::moveSelectedBy (const QPoint &delta)
    Desktopmodel *dmodel = _modelconv->getDesktopmodel (model);
 
    _modelconv->listToSource (model, list);
-   dmodel->move (list, rootIndexSource (), oldlist, plist);
+   dmodel->move (list, rootIndexSource (), oldlist, plist, nudge);
    return true;
    }
 

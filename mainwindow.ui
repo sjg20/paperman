@@ -401,7 +401,7 @@
     <string>Rotate each page in the stack left</string>
    </property>
    <property name="shortcut">
-    <string>Alt+Left</string>
+    <string>Alt+Shift+Left</string>
    </property>
    <property name="visible">
     <bool>false</bool>
@@ -421,7 +421,7 @@
     <string>Rotate each page in the stack right</string>
    </property>
    <property name="shortcut">
-    <string>Alt+Right</string>
+    <string>Alt+Shift+Right</string>
    </property>
    <property name="visible">
     <bool>false</bool>

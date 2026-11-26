@@ -130,9 +130,9 @@ Stack toolbar
    * - |stack-next|
      - Select the stack after
    * - |stack-rleft|
-     - Turn every page of the stacks selected to the left (Alt+Left)
+     - Turn every page of the stacks selected to the left (Alt+Shift+Left)
    * - |stack-rright|
-     - Turn every page of them to the right (Alt+Right)
+     - Turn every page of them to the right (Alt+Shift+Right)
    * - |stack-hflip|
      - Flip every page of them from left to right
    * - |stack-vflip|
@@ -153,6 +153,10 @@ book (see `Cropping`_).
 - Click a stack to select it, Ctrl-click to add more, and **Edit > Select
   all** (Ctrl+A) to select every one. The arrow keys move from stack to
   stack.
+- Drag a stack to put it where you want it on the desk. To move the
+  stacks selected by a little, hold Alt and press an arrow key: each
+  press nudges them a short way, and a run of presses is undone
+  together.
 - To pick several with the keyboard, hold Ctrl with the arrow keys: an
   outline moves round a stack's name without selecting it, and
   Ctrl+Space adds that stack to those selected, or takes it away. The

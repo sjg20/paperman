@@ -152,7 +152,7 @@ void Desktopmodel::trashStack (QModelIndex &ind)
 
 
 void Desktopmodel::move (QModelIndexList &list, QModelIndex parent,
-      QList<QPoint> &oldplist, QList<QPoint> &plist)
+      QList<QPoint> &oldplist, QList<QPoint> &plist, bool nudge)
    {
 //    int i;
 
@@ -160,7 +160,7 @@ void Desktopmodel::move (QModelIndexList &list, QModelIndex parent,
 //    for (i = 0; i < list.size (); i++)
 //       qDebug () << "row" << list [i].row () << "oldpos" << oldplist [i] << "newpos" << plist [i];
    _modelconv->assertIsSource (0, &parent, &list);
-   _undo->push (new UCMove (this, list, parent, oldplist, plist));
+   _undo->push (new UCMove (this, list, parent, oldplist, plist, nudge));
    }
 
 

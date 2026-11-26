@@ -610,8 +610,11 @@ public:
       \param list       list of stacks to move
       \param parent     parent desk
       \param oldplist   oldp osition for each stack
-      \param plist      new position for each stack */
-   void move (QModelIndexList &list, QModelIndex parent, QList<QPoint> &oldplist, QList<QPoint> &plist);
+      \param plist      new position for each stack
+      \param nudge      true for one of a run of small moves made with the
+                        keys, which are undone together */
+   void move (QModelIndexList &list, QModelIndex parent, QList<QPoint> &oldplist, QList<QPoint> &plist,
+              bool nudge = false);
 
    /** move a list of files to the given directory. Supports undo
 
