@@ -138,9 +138,13 @@ public:
       {
       int first;       //!< its first page, from 0
       QString name;    //!< a name for it, empty if none was given
+      Docfacts facts;  //!< what its text says about it, which may be nothing
 
       bool operator== (const Doc &other) const
-         { return first == other.first && name == other.name; }
+         {
+         return first == other.first && name == other.name
+            && facts == other.facts;
+         }
       };
 
    //! the most text of a stack's pages which is sent to name it
@@ -211,7 +215,8 @@ public:
       \param examples  names of other stacks in its folder
       \param context   @p done is not called once this has gone
       \param done      called with the documents, in order, the first
-                       starting at page 0; or with none and why */
+                       starting at page 0, each with the facts its text
+                       gives; or with none and why */
    void suggestSplit (const QStringList &pages, const QStringList &examples,
                       QObject *context,
                       std::function<void (const QList<Doc> &docs,
