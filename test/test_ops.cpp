@@ -798,6 +798,52 @@ void TestOps::testConvertStopped()
    QCOMPARE(model->rowCount(repo_ind), rows + 1);
 }
 
+/* Several stacks renamed together are one step to undo */
+void TestOps::testRenameStacks()
+{
+   Mainwindow me;
+
+   auto path = setupRepoWithExtra();
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   QModelIndexList list;
+   list << model->index("testfile.max", repo_ind)
+        << model->index("testpdf.pdf", repo_ind)
+        << model->index("movefile.max", repo_ind)
+        << model->index("movepdf.pdf", repo_ind);
+   for (const QModelIndex &ind : list)
+      QVERIFY(ind.isValid());
+
+   /* one keeps the name it has and one is given none, so two are renamed,
+      each keeping its type */
+   QStringList names({"power bill", "bank statement", "movefile", QString()});
+   QCOMPARE(model->renameStacks(list, names), 2);
+   QTRY_VERIFY(QFile::exists(path + "/power bill.max"));
+   QTRY_VERIFY(QFile::exists(path + "/bank statement.pdf"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/movefile.max"));
+   QVERIFY(QFile::exists(path + "/movepdf.pdf"));
+
+   // one undo puts both names back, and one redo gives them again
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(!QFile::exists(path + "/power bill.max"));
+   QVERIFY(!QFile::exists(path + "/bank statement.pdf"));
+   model->getUndoStack()->redo();
+   QTRY_VERIFY(QFile::exists(path + "/power bill.max"));
+   QTRY_VERIFY(QFile::exists(path + "/bank statement.pdf"));
+
+   // with nothing to do, nothing is done
+   QCOMPARE(model->renameStacks(QModelIndexList(), QStringList()), 0);
+}
+
 void TestOps::testOptionsDialog()
 {
    if (!xmlConfig)

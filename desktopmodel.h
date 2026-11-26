@@ -647,6 +647,14 @@ public:
       \param newname new name for stack, excluding .max extension */
    void renameStack (const QModelIndex &index, QString newname);
 
+   /** rename several stacks, as one step which can be undone
+
+      \param list    the stacks
+      \param names   the new name for each, without its extension; a stack
+                     which has that name already is left alone
+      \returns how many were renamed */
+   int renameStacks (const QModelIndexList &list, const QStringList &names);
+
    /** rename a stack's current page. Supports undo.
 
       \param index   stack containing page to rename

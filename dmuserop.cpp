@@ -328,6 +328,34 @@ void Desktopmodel::renameStack (const QModelIndex &index, QString newname)
    }
 
 
+int Desktopmodel::renameStacks (const QModelIndexList &list,
+                                const QStringList &names)
+   {
+   // a rename can move the rows of the others, so keep hold of each stack
+   QList<QPersistentModelIndex> stacks;
+   QStringList wanted;
+
+   for (int i = 0; i < list.size () && i < names.size (); i++)
+      {
+      File *f = list [i].isValid () ? getFile (list [i]) : nullptr;
+
+      if (!f || names [i].isEmpty () || f->filename () == names [i] + f->ext ())
+         continue;
+      stacks << QPersistentModelIndex (list [i]);
+      wanted << names [i];
+      }
+
+   if (stacks.size () > 1)
+      _undo->beginMacro (tr ("Rename stacks (%1)").arg (stacks.size ()));
+   for (int i = 0; i < stacks.size (); i++)
+      if (stacks [i].isValid ())
+         renameStack (stacks [i], wanted [i]);
+   if (stacks.size () > 1)
+      _undo->endMacro ();
+   return stacks.size ();
+   }
+
+
 void Desktopmodel::transformPage (const QModelIndex &index, int pagenum,
       File::e_transform op)
    {
