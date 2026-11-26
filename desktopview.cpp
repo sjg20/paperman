@@ -412,8 +412,6 @@ void Desktopview::dropEvent (QDropEvent* event)
    if (list.contains (dest))
       dest = QModelIndex ();
 
-   printf ("drop event, dest = %d, %d\n", dest.row (), dropIndicatorPosition ());
-
    // record the old and new positions in case we need them
    QList<QPoint> oldlist, plist;
    foreach (ind, list)
