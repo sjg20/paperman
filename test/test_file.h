@@ -231,6 +231,9 @@ private slots:
    //! keys and values which would break a 'key=value' line are refused
    void testMaxPropsInvalid();
 
+   //! looking for a page's text leaves the file closed, text or none
+   void testMaxPageTextCloses();
+
    //! a stack's own properties stay with it whatever happens to its pages
    void testMaxStackProps();
    void testPdfStackProps();

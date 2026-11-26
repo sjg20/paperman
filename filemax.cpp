@@ -6162,7 +6162,11 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
       }
    bool temp;
 
-   CALL(ensure_open());
+   /* closed again however this returns: a page with no text used to leave
+      the file open, which stops it being renamed on Windows */
+   Open open (this);
+
+   CALL (open.err ());
    CALL (find_page (pagenum, page));
    if (!page->text)
       return NULL;
@@ -6170,7 +6174,6 @@ err_info *Filemax::getPageText (int pagenum, QString &str)
    QByteArray ba (chunk->size, '\0');
    CALL (max_read_data (chunk->start + POS_text_start, (byte *)ba.data (),
             chunk->size - POS_text_start));
-   ensure_closed();
    if (temp)
       {
       chunk_free (*chunk);
