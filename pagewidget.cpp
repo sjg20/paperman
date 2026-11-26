@@ -54,6 +54,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include "err.h"
 #include "desktopmodel.h"
+#include "desktopundo.h"
 #include "mainwidget.h"
 #include "desk.h"
 #include "file.h"
@@ -70,6 +71,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "utils.h"
 #include "ocrpage.h"
 #include "ui_ocrbar.h"
+#include "docfacts.h"
 #include "ui_pageattr.h"
 
 #include "qxmlconfig.h"
@@ -166,6 +168,13 @@ Pagewidget::Pagewidget (Desktopmodelconv *modelconv, QString base, QWidget *pare
       this, SLOT (slotAnnotChanged ()));
    connect (_pageattr->notes, SIGNAL (textChanged ()),
       this, SLOT (slotAnnotChanged ()));
+
+   // a change to a fact about the document needs saving too
+   for (QLineEdit *fact : _pageattr->factsBox->findChildren<QLineEdit *> ())
+      connect (fact, &QLineEdit::textEdited, this, [this] {
+         _facts_edited = true;
+         slotAnnotChanged ();
+      });
 
    QVBoxLayout *layout = new QVBoxLayout (this);
    _splitter = new QSplitter (this);
@@ -316,8 +325,11 @@ void Pagewidget::updatePagetools (void)
    _pageattr->title->setEnabled (have_page);
    _pageattr->keywords->setEnabled (have_page);
    _pageattr->notes->setEnabled (have_page);
+   _pageattr->factsBox->setEnabled (have_page && _keeps_facts);
+   _pageattr->factsNote->setVisible (have_page && !_keeps_facts);
    if (!have_page)
       {
+      showFacts (Docfacts ());
       _pageattr->title->clear ();
       _pageattr->author->clear ();
       _pageattr->keywords->clear ();
@@ -1419,7 +1431,19 @@ void Pagewidget::commit (void)
    _pagemodel->updateAnnot (File::Annot_notes, _pageattr->notes->toPlainText());
    if (!_ocr_page)
       _pagemodel->updateAnnot (File::Annot_ocr, _ocr_edit->toPlainText());
+
+   /* facts which have changed go with the rest as one step, so that one
+      undo takes back all that this saves */
+   Desktopmodel *contents = _model ? _modelconv->getDesktopmodel (_model)
+                                   : nullptr;
+   bool with_facts = contents && _facts_edited && _keeps_facts;
+
+   if (with_facts)
+      contents->getUndoStack ()->beginMacro (tr ("Save stack details"));
    Mainwidget::singleton()->complain(_pagemodel->commit());
+   saveFacts ();
+   if (with_facts)
+      contents->getUndoStack ()->endMacro ();
    updatePagetools ();
    }
 
@@ -1463,6 +1487,90 @@ void Pagewidget::updateAttr (void)
 
    _pageattr->errorMsg->setVisible (!err.isEmpty ());
    _pageattr->errorMsg->setText (err);
+
+   loadFacts ();
+   }
+
+
+void Pagewidget::loadFacts ()
+   {
+   Desktopmodel *contents = _model ? _modelconv->getDesktopmodel (_model)
+                                   : nullptr;
+   QModelIndex sindex = _index;
+
+   if (contents)
+      _modelconv->indexToSource (_model, sindex);
+
+   /* the facts can change behind the form, by an undo or by the
+      assistant: show them as they then are, unless they are being
+      changed here */
+   if (contents != _facts_model)
+      {
+      disconnect (_facts_conn);
+      _facts_model = contents;
+      if (contents)
+         _facts_conn = connect (contents, &QAbstractItemModel::dataChanged,
+                                this,
+                  [this] (const QModelIndex &from, const QModelIndex &to) {
+            QModelIndex shown = _index;
+
+            if (_facts_edited || !_model || !shown.isValid ())
+               return;
+            _modelconv->indexToSource (_model, shown);
+            if (shown.parent () == from.parent () && shown.row () >= from.row ()
+                && shown.row () <= to.row ())
+               loadFacts ();
+         });
+      }
+   _keeps_facts = contents && sindex.isValid ()
+      && contents->keepsFacts (contents->getFile (sindex));
+   showFacts (_keeps_facts ? contents->facts (sindex) : Docfacts ());
+   _pageattr->factsBox->setEnabled (_keeps_facts);
+   _pageattr->factsNote->setVisible (!_keeps_facts);
+   }
+
+
+Docfacts Pagewidget::factsShown () const
+   {
+   Docfacts facts;
+
+   facts.type = _pageattr->factType->text ();
+   facts.from = _pageattr->factFrom->text ();
+   facts.date = _pageattr->factDate->text ();
+   facts.period = _pageattr->factPeriod->text ();
+   facts.amount = _pageattr->factAmount->text ();
+   facts.currency = _pageattr->factCurrency->text ().toUpper ();
+   facts.summary = _pageattr->factSummary->text ();
+   return facts;
+   }
+
+
+void Pagewidget::showFacts (const Docfacts &facts)
+   {
+   _pageattr->factType->setText (facts.type);
+   _pageattr->factFrom->setText (facts.from);
+   _pageattr->factDate->setText (facts.date);
+   _pageattr->factPeriod->setText (facts.period);
+   _pageattr->factAmount->setText (facts.amount);
+   _pageattr->factCurrency->setText (facts.currency);
+   _pageattr->factSummary->setText (facts.summary);
+   _facts_edited = false;
+   }
+
+
+void Pagewidget::saveFacts ()
+   {
+   if (!_facts_edited || !_keeps_facts || !_model || !_index.isValid ())
+      return;
+
+   Desktopmodel *contents = _modelconv->getDesktopmodel (_model);
+   QModelIndex sindex = _index;
+
+   _modelconv->indexToSource (_model, sindex);
+   if (!contents || !sindex.isValid ())
+      return;
+   contents->setFacts (sindex, factsShown ());
+   showFacts (contents->facts (sindex));
    }
 
 

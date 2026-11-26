@@ -10,6 +10,7 @@
 #include "test.h"
 
 #include "desktopmodel.h"
+#include "docfacts.h"
 #include "desktopundo.h"
 #include "imagetrim.h"
 #include "desktopview.h"
@@ -1409,6 +1410,181 @@ void TestPagewidget::testEditAttributesSave()
 
    // Everything is saved, so the save button is disabled again
    QVERIFY(!save->isEnabled());
+}
+
+/* The info form shows the facts kept about the document, and they can be
+   put right there: saved as a step which can be undone, with a fact which
+   is not in its form dropped */
+void TestPagewidget::testEditFacts()
+{
+   Desktopmodel *model;
+   Pagewidget *page;
+   Mainwindow me;
+
+   openTestStack(&me, model, page);
+
+   QGroupBox *box = page->findChild<QGroupBox *>("factsBox");
+   QLabel *note = page->findChild<QLabel *>("factsNote");
+   QLineEdit *type = page->findChild<QLineEdit *>("factType");
+   QLineEdit *from = page->findChild<QLineEdit *>("factFrom");
+   QLineEdit *date = page->findChild<QLineEdit *>("factDate");
+   QLineEdit *period = page->findChild<QLineEdit *>("factPeriod");
+   QLineEdit *amount = page->findChild<QLineEdit *>("factAmount");
+   QLineEdit *currency = page->findChild<QLineEdit *>("factCurrency");
+   QLineEdit *summary = page->findChild<QLineEdit *>("factSummary");
+   QToolButton *save = page->findChild<QToolButton *>("save");
+   QToolButton *revert = page->findChild<QToolButton *>("revert");
+   QVERIFY(box && note && type && from && date && period && amount
+           && currency && summary && save && revert);
+
+   QModelIndex ind;
+   QVERIFY(page->getCurrentIndex(ind, true));
+
+   // a .max stack can keep facts, and has none to start with
+   QVERIFY(box->isEnabled());
+   QVERIFY(note->isHidden());
+   QCOMPARE(type->text(), QString());
+   QVERIFY(model->facts(ind).isEmpty());
+   QVERIFY(!save->isEnabled());
+
+   // typing a fact makes the stack need saving, and nothing is kept yet
+   QTest::keyClicks(type, "bill");
+   QVERIFY(save->isEnabled());
+   QTest::keyClicks(from, "Northern Power");
+   QTest::keyClicks(date, "2026-03-03");
+   QTest::keyClicks(period, "Feb 2026");
+   QTest::keyClicks(amount, "184.20");
+   QTest::keyClicks(currency, "nzd");
+   QTest::keyClicks(summary, "Electricity bill");
+   QVERIFY(model->facts(ind).isEmpty());
+
+   // saving keeps them with the stack
+   QTest::mouseClick(save, Qt::LeftButton);
+   QVERIFY(!save->isEnabled());
+
+   Docfacts kept = model->facts(ind);
+   QCOMPARE(kept.type, QString("bill"));
+   QCOMPARE(kept.from, QString("Northern Power"));
+   QCOMPARE(kept.date, QString("2026-03-03"));
+   QCOMPARE(kept.period, QString("Feb 2026"));
+   QCOMPARE(kept.amount, QString("184.20"));
+   QCOMPARE(kept.currency, QString("NZD"));
+   QCOMPARE(kept.summary, QString("Electricity bill"));
+
+   // and the form shows what is kept
+   QCOMPARE(currency->text(), QString("NZD"));
+
+   /* a fact which is not in its form is dropped, and the form shows that
+      it is gone; the others stay */
+   date->clear();
+   QTest::keyClicks(date, "last March");
+   QTest::mouseClick(save, Qt::LeftButton);
+   QCOMPARE(date->text(), QString());
+   QCOMPARE(model->facts(ind).date, QString());
+   QCOMPARE(model->facts(ind).from, QString("Northern Power"));
+
+   // a change which is given up goes back to what is kept
+   from->clear();
+   QTest::keyClicks(from, "Someone else");
+   QVERIFY(save->isEnabled());
+   QTest::mouseClick(revert, Qt::LeftButton);
+   QCOMPARE(from->text(), QString("Northern Power"));
+   QVERIFY(!save->isEnabled());
+   QCOMPARE(model->facts(ind).from, QString("Northern Power"));
+
+   // saving something else does not write the facts again
+   Desktopundostack *undo = model->getUndoStack();
+   int steps = undo->count();
+   QLineEdit *author = page->findChild<QLineEdit *>("author");
+   QVERIFY(author);
+   QTest::keyClicks(author, "Fred");
+   QTest::mouseClick(save, Qt::LeftButton);
+   QCOMPARE(undo->count(), steps + 1);
+   QVERIFY(undo->undoText() != QString("Save stack details"));
+   undo->undo();
+
+   /* each save of the facts is one step, with whatever else it saved:
+      undo takes the last one back, and the form follows */
+   QCOMPARE(undo->undoText(), QString("Save stack details"));
+   undo->undo();
+   QCOMPARE(model->facts(ind).date, QString("2026-03-03"));
+   QTRY_COMPARE(date->text(), QString("2026-03-03"));
+   undo->undo();
+   QVERIFY(model->facts(ind).isEmpty());
+   QTRY_COMPARE(type->text(), QString());
+   QCOMPARE(undo->index(), 0);
+}
+
+/* A stack whose file has nowhere to keep facts has that part of the info
+   form greyed out, with a note saying which stacks can */
+void TestPagewidget::testFactsNotKept()
+{
+   auto path = setupRepo();
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop();
+
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", path + "/plasma.jpg"));
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+   QTest::qWait(50);
+
+   // show the JPEG stack in the preview pane, then one which keeps facts
+   Desktopview *view = desktop->getView();
+   Pagewidget *page = desktop->findChild<Pagewidget *>();
+   QVERIFY(page);
+
+   QGroupBox *box = page->findChild<QGroupBox *>("factsBox");
+   QLabel *note = page->findChild<QLabel *>("factsNote");
+   QLineEdit *type = page->findChild<QLineEdit *>("factType");
+   QVERIFY(box && note && type);
+
+   auto show = [&](const QString &fname) {
+      QModelIndex ind = model->index(fname, repo_ind);
+
+      if (!ind.isValid())
+         return false;
+      desktop->getModelconv()->indexToProxy(model, ind);
+      view->selectionModel()->setCurrentIndex(ind,
+            QItemSelectionModel::ClearAndSelect);
+
+      QModelIndex shown;
+
+      return QTest::qWaitFor([&] {
+         return page->getCurrentIndex(shown, true)
+            && model->data(shown, Desktopmodel::Role_filename).toString()
+                  == fname;
+      });
+   };
+
+   QVERIFY(show("plasma.jpg"));
+   QTRY_VERIFY(!box->isEnabled());
+   QVERIFY(!note->isHidden());
+   QVERIFY(!model->keepsFacts(model->getFile(model->index("plasma.jpg",
+                                                          repo_ind))));
+
+   QVERIFY(show("testpdf.pdf"));
+   QTRY_VERIFY(box->isEnabled());
+   QVERIFY(note->isHidden());
+
+   // the facts of each stack are shown as it is chosen
+   Docfacts facts;
+
+   facts.type = "letter";
+   QVERIFY(model->setFacts(model->index("testfile.max", repo_ind), facts));
+   QVERIFY(show("testfile.max"));
+   QTRY_COMPARE(type->text(), QString("letter"));
+   QVERIFY(show("testpdf.pdf"));
+   QTRY_COMPARE(type->text(), QString());
+   QVERIFY(show("plasma.jpg"));
+   QTRY_VERIFY(!box->isEnabled());
+   QCOMPARE(type->text(), QString());
 }
 
 void TestPagewidget::testEditAttributesRevert()

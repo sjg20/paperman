@@ -200,7 +200,8 @@ Page toolbar
    * - |page-scanmode|
      - Show each page as it is scanned
    * - |page-infomode|
-     - Show and change the stack's title, author, keywords and notes
+     - Show and change the stack's title, author, keywords and notes,
+       and the facts kept about the document (see :doc:`filing`)
    * - |page-save|
      - Save the changes made to the stack's pages
    * - |page-revert|
