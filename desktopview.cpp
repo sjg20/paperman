@@ -479,12 +479,24 @@ void Desktopview::dropEvent (QDropEvent* event)
    // drag has finished, so there is no drop target now
    dmodel->setDropTarget (QModelIndex ());
 
-   // drop target cannot be a source item
-//    for (int i = 0; i < list.size (); i++)
-//       if (dest == list [i])
-//          dest = QModelIndex ();
+   /* A drag which ends over one of the stacks being dragged, where it was
+      before, is a short move. The list view would take that stack for the
+      thing dropped on and move nothing, so move the stacks here, by as
+      far as the pointer has come */
    if (list.contains (dest))
-      dest = QModelIndex ();
+      {
+#if QT_VERSION >= 0x060000
+      moveDraggedTo (event->position ().toPoint ());
+#else
+      moveDraggedTo (event->pos ());
+#endif
+      stopAutoScroll ();
+      setState (NoState);
+      viewport ()->update ();
+      event->setDropAction (Qt::MoveAction);
+      event->accept ();
+      return;
+      }
 
    // record the old and new positions in case we need them
    QList<QPoint> oldlist, plist;
@@ -1001,7 +1013,47 @@ void Desktopview::mousePressEvent (QMouseEvent *event)
       selectionModel ()->clear ();
    _pressing = event->button () == Qt::LeftButton;
    _heldPreview = false;
+   _press_pos = event->pos () + QPoint (horizontalOffset (), verticalOffset ());
    QListView::mousePressEvent (event);
+   }
+
+
+bool Desktopview::moveSelectedBy (const QPoint &delta)
+   {
+   QAbstractItemModel *model = this->model ();
+   QModelIndexList list = getSelectedList (true);
+   QList<QPoint> oldlist, plist;
+   bool moved = false;
+
+   if (!model || list.isEmpty () || delta.isNull ())
+      return false;
+   for (const QModelIndex &ind : list)
+      {
+      QPoint old = model->data (ind, Desktopmodel::Role_position).toPoint ();
+      QPoint pos = rectForIndex (ind).topLeft () + delta;
+
+      // a stack off the top or the left of the desk cannot be reached
+      pos = QPoint (qMax (0, pos.x ()), qMax (0, pos.y ()));
+      oldlist << old;
+      plist << pos;
+      moved |= pos != old;
+      }
+   if (!moved)
+      return false;
+
+   Desktopmodel *dmodel = _modelconv->getDesktopmodel (model);
+
+   _modelconv->listToSource (model, list);
+   dmodel->move (list, rootIndexSource (), oldlist, plist);
+   return true;
+   }
+
+
+bool Desktopview::moveDraggedTo (const QPoint &pos)
+   {
+   QPoint end = pos + QPoint (horizontalOffset (), verticalOffset ());
+
+   return moveSelectedBy (end - _press_pos);
    }
 
 

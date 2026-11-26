@@ -84,6 +84,21 @@ public:
    //! true while a name is being typed in for a stack or a page
    bool editing () const { return state () == EditingState; }
 
+   /** move the stacks selected across the desk, as one step which can be
+       undone. No stack is moved off the top or the left of the desk
+
+      \param delta  how far to move each, in pixels
+      \returns true if any stack moved */
+   bool moveSelectedBy (const QPoint &delta);
+
+   /** finish a drag of the stacks selected which ends at a point on the
+       desk: they move by as far as the pointer has come since the button
+       went down
+
+      \param pos  where the drag ends, in the view
+      \returns true if any stack moved */
+   bool moveDraggedTo (const QPoint &pos);
+
    /** returns the currently selected item, or the first selected if there
        is more than one */
    QModelIndex getSelectedItem (bool sourceModel = false);
@@ -302,6 +317,9 @@ private:
    QPersistentModelIndex _shown_by_selection;
 
    bool _pressing = false;      //!< true while the left button is down
+
+   //! where on the desk the button last went down, which a drag starts from
+   QPoint _press_pos;
    //! true if the current stack changed while pressed and is yet to be shown
    bool _heldPreview = false;
    QPersistentModelIndex _context_index;    //!< item that context menu was opened on

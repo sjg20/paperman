@@ -2076,6 +2076,71 @@ void TestDesktopUi::testRemoteGroupMoveViaUi()
 }
 
 
+/* A stack dragged only a little way ends up over where it was. The list
+   view takes it for the thing dropped on and moves nothing, so the move
+   is done by how far the pointer has come */
+void TestDesktopUi::testShortDrag()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopview *view = me.getDesktop()->getView();
+   QModelIndex first = itemIndex(view, 0), second = itemIndex(view, 1);
+   auto place = [&](const QModelIndex &ind) {
+      return view->model()->data(ind, Desktopmodel::Role_position).toPoint();
+   };
+
+   // press on a stack, then let go a little way off, still over it
+   QPoint centre = view->visualRect(first).center();
+   QPoint was = place(first), other = place(second);
+
+   QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     centre);
+   QVERIFY(view->moveDraggedTo(centre + QPoint(12, 7)));
+   QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                       centre + QPoint(12, 7));
+   QCOMPARE(place(first), was + QPoint(12, 7));
+   QTRY_COMPARE(view->visualRect(first).topLeft(),
+                view->visualRect(second).topLeft() - other
+                   + was + QPoint(12, 7));
+   QCOMPARE(place(second), other);
+
+   // it is a step which can be undone
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+
+   // a drag which goes nowhere moves nothing
+   QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     view->visualRect(first).center());
+   QVERIFY(!view->moveDraggedTo(view->visualRect(first).center()));
+   QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                       view->visualRect(first).center());
+   QCOMPARE(place(first), was);
+
+   // several stacks selected move together, and come back together
+   view->setSelectionRange(0, 2);
+   QVERIFY(view->moveSelectedBy(QPoint(-5, 20)));
+   QCOMPARE(place(first), QPoint(qMax(0, was.x() - 5), was.y() + 20));
+   QCOMPARE(place(second), QPoint(qMax(0, other.x() - 5), other.y() + 20));
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+   QCOMPARE(place(second), other);
+
+   // no stack goes off the top or the left of the desk
+   QVERIFY(view->moveSelectedBy(QPoint(-100000, -100000)));
+   QCOMPARE(place(first), QPoint(0, 0));
+   QCOMPARE(place(second), QPoint(0, 0));
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+
+   // and with nothing selected there is nothing to move
+   view->selectionModel()->clear();
+   QVERIFY(!view->moveSelectedBy(QPoint(10, 10)));
+}
+
 void TestDesktopUi::testMoveStackOnDesk()
 {
    QModelIndex repo_ind;
