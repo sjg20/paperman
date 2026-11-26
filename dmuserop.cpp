@@ -329,30 +329,88 @@ void Desktopmodel::renameStack (const QModelIndex &index, QString newname)
 
 
 int Desktopmodel::renameStacks (const QModelIndexList &list,
-                                const QStringList &names)
+                                const QStringList &names,
+                                const QList<Docfacts> &facts)
    {
    // a rename can move the rows of the others, so keep hold of each stack
-   QList<QPersistentModelIndex> stacks;
-   QStringList wanted;
+   struct Change
+      {
+      QPersistentModelIndex stack;
+      QString name;        //!< the new name, or empty to keep the old
+      Docfacts facts;      //!< the facts to keep, if 'keep' is set
+      bool keep = false;
+      };
+   QList<Change> changes;
 
-   for (int i = 0; i < list.size () && i < names.size (); i++)
+   for (int i = 0; i < list.size (); i++)
       {
       File *f = list [i].isValid () ? getFile (list [i]) : nullptr;
+      Change change;
 
-      if (!f || names [i].isEmpty () || f->filename () == names [i] + f->ext ())
+      if (!f)
          continue;
-      stacks << QPersistentModelIndex (list [i]);
-      wanted << names [i];
+      change.stack = QPersistentModelIndex (list [i]);
+      if (!names.value (i).isEmpty ()
+          && f->filename () != names [i] + f->ext ())
+         change.name = names [i];
+      if (i < facts.size () && !facts [i].isEmpty () && keepsFacts (f)
+          && facts [i] != this->facts (list [i]))
+         {
+         change.facts = facts [i];
+         change.keep = true;
+         }
+      if (!change.name.isEmpty () || change.keep)
+         changes << change;
       }
 
-   if (stacks.size () > 1)
-      _undo->beginMacro (tr ("Rename stacks (%1)").arg (stacks.size ()));
-   for (int i = 0; i < stacks.size (); i++)
-      if (stacks [i].isValid ())
-         renameStack (stacks [i], wanted [i]);
-   if (stacks.size () > 1)
+   // a stack given a name and facts is two changes, so needs a macro too
+   int steps = 0;
+
+   for (const Change &change : changes)
+      steps += !change.name.isEmpty () + change.keep;
+   if (steps > 1)
+      _undo->beginMacro (changes.size () == 1 ? tr ("Name stack")
+            : tr ("Name stacks (%1)").arg (changes.size ()));
+   for (const Change &change : changes)
+      {
+      if (!change.stack.isValid ())
+         continue;
+      if (!change.name.isEmpty ())
+         renameStack (change.stack, change.name);
+
+      // the facts go to the stack under the name it has now
+      if (change.keep && change.stack.isValid ())
+         setFacts (change.stack, change.facts);
+      }
+   if (steps > 1)
       _undo->endMacro ();
-   return stacks.size ();
+   return changes.size ();
+   }
+
+
+Docfacts Desktopmodel::facts (const QModelIndex &index) const
+   {
+   File *f = index.isValid () ? getFile (index) : nullptr;
+   Docfacts facts;
+
+   if (!keepsFacts (f) || Docfacts::read (f, facts))
+      return Docfacts ();
+   return facts;
+   }
+
+
+bool Desktopmodel::setFacts (const QModelIndex &index, const Docfacts &facts)
+   {
+   _modelconv->assertIsSource (0, &index, 0);
+
+   File *f = index.isValid () ? getFile (index) : nullptr;
+   Docfacts clean = facts;
+
+   clean.clean ();
+   if (!keepsFacts (f) || clean == this->facts (index))
+      return false;
+   _undo->push (new UCStackFacts (this, index, clean));
+   return true;
    }
 
 

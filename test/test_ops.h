@@ -127,6 +127,9 @@ private slots:
    //! a stack's name may hold dots, and keeps them when it is renamed
    void testNameWithDots();
 
+   //! facts are kept in a stack, with undo, and go with a new name
+   void testStackFacts();
+
    //! several stacks renamed together are one step to undo
    void testRenameStacks();
 

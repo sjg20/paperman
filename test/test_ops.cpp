@@ -18,6 +18,8 @@
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "backgroundwork.h"
+#include "docfacts.h"
+#include "filemax.h"
 #include "ocrreader.h"
 #include "options.h"
 #include "printopt.h"
@@ -865,6 +867,119 @@ void TestOps::testNameWithDots()
 
    QStringList made = QDir(path).entryList(QStringList("Invoice 12.03.2026*.max"));
    QCOMPARE(int(made.size()), 1);
+}
+
+/* Facts about a stack's document are kept in its file, as a step which
+   can be undone, and go with a new name as one step */
+void TestOps::testStackFacts()
+{
+   Mainwindow me;
+
+   auto path = setupRepoWithExtra();
+   QVERIFY(QFile::copy(testSrc + "/colour_plasma.jpg", path + "/photo.jpg"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   QModelIndex max = model->index("testfile.max", repo_ind);
+   QModelIndex pdf = model->index("testpdf.pdf", repo_ind);
+   QModelIndex jpg = model->index("photo.jpg", repo_ind);
+   QVERIFY(max.isValid() && pdf.isValid() && jpg.isValid());
+
+   // a max file and a PDF keep facts; a JPEG has nowhere to
+   QVERIFY(model->keepsFacts(model->getFile(max)));
+   QVERIFY(model->keepsFacts(model->getFile(pdf)));
+   QVERIFY(!model->keepsFacts(model->getFile(jpg)));
+   QVERIFY(!model->keepsFacts(nullptr));
+
+   Docfacts bill, statement;
+
+   bill.type = "bill";
+   bill.from = "Northern Power";
+   bill.date = "2026-03-03";
+   bill.amount = "184.20";
+   bill.currency = "NZD";
+   statement.type = "bank statement";
+   statement.from = "Kiwi Bank";
+   statement.date = "2025-07";
+
+   // facts are kept, made fit to keep, and can be undone and redone
+   QVERIFY(model->facts(max).isEmpty());
+
+   Docfacts rough = bill;
+
+   rough.date = "3rd March";
+   rough.from = "  Northern Power \n";
+   QVERIFY(model->setFacts(max, rough));
+
+   Docfacts kept = bill;
+
+   kept.date.clear();
+   QCOMPARE(model->facts(max), kept);
+   QVERIFY(model->setFacts(max, bill));
+   QCOMPARE(model->facts(max), bill);
+
+   // the same again changes nothing, and nor do facts for a JPEG
+   QVERIFY(!model->setFacts(max, bill));
+   QVERIFY(!model->setFacts(jpg, bill));
+   QVERIFY(model->facts(jpg).isEmpty());
+
+   model->getUndoStack()->undo();
+   QCOMPARE(model->facts(max), kept);
+   model->getUndoStack()->undo();
+   QVERIFY(model->facts(max).isEmpty());
+   model->getUndoStack()->redo();
+   model->getUndoStack()->redo();
+   QCOMPARE(model->facts(max), bill);
+
+   // they are in the stack's file, so a fresh look at it finds them
+   {
+      Filemax file(path + "/", "testfile.max", nullptr);
+      Docfacts read;
+
+      QVERIFY(!file.load());
+      QVERIFY(!Docfacts::read(&file, read));
+      QCOMPARE(read, bill);
+   }
+   model->getUndoStack()->undo();
+   model->getUndoStack()->undo();
+   QVERIFY(model->facts(max).isEmpty());
+
+   /* a name and facts together are one step: the max gets both, the PDF
+      facts alone, and the JPEG its name without the facts it cannot keep */
+   QModelIndexList list;
+   list << max << pdf << jpg;
+   QList<Docfacts> facts({bill, statement, bill});
+
+   QCOMPARE(model->renameStacks(list, QStringList({"power bill", QString(),
+                                                   "holiday"}), facts), 3);
+   QTRY_VERIFY(QFile::exists(path + "/power bill.max"));
+   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QTRY_VERIFY(!QFile::exists(path + "/photo.jpg"));
+   QCOMPARE(model->facts(model->index("power bill.max", repo_ind)), bill);
+   QCOMPARE(model->facts(model->index("testpdf.pdf", repo_ind)), statement);
+
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QTRY_VERIFY(QFile::exists(path + "/photo.jpg"));
+   QVERIFY(model->facts(model->index("testfile.max", repo_ind)).isEmpty());
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
+
+   model->getUndoStack()->redo();
+   QTRY_VERIFY(QFile::exists(path + "/power bill.max"));
+   QCOMPARE(model->facts(model->index("power bill.max", repo_ind)), bill);
+   QCOMPARE(model->facts(model->index("testpdf.pdf", repo_ind)), statement);
+
+   // with the names and facts they have already, there is nothing to do
+   list.clear();
+   list << model->index("power bill.max", repo_ind)
+        << model->index("testpdf.pdf", repo_ind);
+   QCOMPARE(model->renameStacks(list, QStringList({"power bill", QString()}),
+                                QList<Docfacts>({bill, statement})), 0);
 }
 
 /* Several stacks renamed together are one step to undo */

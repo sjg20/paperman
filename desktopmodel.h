@@ -62,6 +62,7 @@ struct max_page_info;
 #include "qwidget.h"
 
 #include "desk.h"
+#include "docfacts.h"
 #include "file.h"
 #include "iostats.h"
 
@@ -647,13 +648,45 @@ public:
       \param newname new name for stack, excluding .max extension */
    void renameStack (const QModelIndex &index, QString newname);
 
-   /** rename several stacks, as one step which can be undone
+   /** rename several stacks, and keep facts about them, as one step which
+       can be undone
 
       \param list    the stacks
       \param names   the new name for each, without its extension; a stack
-                     which has that name already is left alone
-      \returns how many were renamed */
-   int renameStacks (const QModelIndexList &list, const QStringList &names);
+                     which has that name already, or is given none, keeps
+                     the name it has
+      \param facts   the facts to keep about each, if any are given: a
+                     stack given none, or which cannot keep them, is left
+                     with those it has
+      \returns how many stacks were changed */
+   int renameStacks (const QModelIndexList &list, const QStringList &names,
+                     const QList<Docfacts> &facts = QList<Docfacts> ());
+
+   /** whether a stack keeps facts about its document: one on this computer,
+       of a type which holds them in its own file. Those of a stack on a
+       server are for the server to keep */
+   bool keepsFacts (File *f) const;
+
+   /** get the facts kept about a stack
+
+      \param index   the stack
+      \returns its facts, empty if it has none or cannot keep any */
+   Docfacts facts (const QModelIndex &index) const;
+
+   /** keep facts about a stack, in place of any it has. Supports undo
+
+      \param index   the stack
+      \param facts   the facts, empty to remove them
+      \returns true if the stack keeps facts and these differ from those it
+               has */
+   bool setFacts (const QModelIndex &index, const Docfacts &facts);
+
+   /** write a stack's facts to its file, for the undo command
+
+      \param index   the stack
+      \param facts   the facts
+      \returns error, or NULL if ok */
+   err_info *opSetFacts (const QModelIndex &index, const Docfacts &facts);
 
    /** rename a stack's current page. Supports undo.
 
