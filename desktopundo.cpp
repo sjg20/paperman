@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QApplication>
 #include <QDebug>
+#include <QDir>
 #include <QFileInfo>
 #include <QUndoCommand>
 
@@ -48,6 +49,10 @@ Desktopundostack::Desktopundostack (QObject *parent)
 
 Desktopundostack::~Desktopundostack ()
    {
+   /* QUndoStack empties itself as it goes, which says that its place has
+      changed. That comes to noteIndex() after what it uses has gone, so
+      empty it here, while this is still whole */
+   clear ();
    }
 
 
@@ -55,10 +60,134 @@ void Desktopundostack::push (QUndoCommand *cmd)
    {
    qCDebug (logUndo).noquote () << QString ("undo: do '%1' (%2 done)")
       .arg (cmd->text ()).arg (index () + 1);
+
+   /* a command which joins the one before it is deleted by the push, so
+      it must be asked nothing afterwards; those are small moves about the
+      desk, which are not recorded */
+   Desktopundocmd *ours = cmd->id () == -1
+         ? dynamic_cast<Desktopundocmd *> (cmd) : nullptr;
+   QString text = cmd->text ();
+
    _pushing = true;
    QUndoStack::push (cmd);
    _pushing = false;
    _index = index ();
+   if (ours)
+      record (ours->activity (), text);
+   if (!_macro_depth)
+      noteDone ();
+   }
+
+
+void Desktopundostack::beginMacro (const QString &text)
+   {
+   if (!_macro_depth++)
+      _macro_text = text;
+   _pushing = true;
+   QUndoStack::beginMacro (text);
+   _pushing = false;
+   }
+
+
+void Desktopundostack::endMacro ()
+   {
+   _pushing = true;
+   QUndoStack::endMacro ();
+   _pushing = false;
+   _index = index ();
+   if (_macro_depth && !--_macro_depth)
+      {
+      _macro_text.clear ();
+      noteDone ();
+      }
+   }
+
+
+void Desktopundostack::record (QList<Activity> acts, const QString &text)
+   {
+   if (acts.isEmpty () || !_model)
+      return;
+
+   /* everything a command does is in one repository, which is found
+      from where the first stack is, or was. A repository on a server
+      keeps no record yet */
+   QString where = acts [0].from.isEmpty () ? acts [0].path : acts [0].from;
+   QString root = _model->activityRoot (QFileInfo (where).path ());
+
+   if (root.isEmpty ())
+      return;
+
+   ActivityLog log (root);
+   QDir top (root);
+   bool grouped = _macro_depth || acts.size () > 1;
+
+   /* several things done as one go under an entry for the whole, which
+      is what an undo of them names. A macro's is made when the first
+      thing in it is recorded, as that is when its repository is known */
+   if (grouped && (!_current.id || _current.root != root))
+      {
+      Activity group;
+
+      group.action = Activity::A_group;
+      group.who = _who;
+      group.note = _macro_depth ? _macro_text : text;
+      group.path = top.relativeFilePath (QFileInfo (where).path ());
+      if (group.path == ".")
+         group.path.clear ();
+      if (log.add (group))
+         return;
+      _current.id = group.id;
+      _current.root = root;
+      _current.text = group.describe ();
+      }
+
+   for (Activity &act : acts)
+      {
+      act.who = _who;
+      act.path = top.relativeFilePath (act.path);
+      if (!act.from.isEmpty ())
+         act.from = top.relativeFilePath (act.from);
+      if (grouped)
+         act.group = _current.id;
+      if (log.add (act))
+         return;
+      if (!grouped)
+         {
+         _current.id = act.id;
+         _current.root = root;
+         _current.text = act.describe ();
+         }
+      }
+   }
+
+
+void Desktopundostack::noteDone ()
+   {
+   /* the command just done is the last on the stack. Anything which
+      was after it, to be done again, has gone */
+   int place = index () - 1;
+
+   if (place >= 0)
+      {
+      _done.resize (place);
+      _done << _current;
+      }
+   _current = Done ();
+   }
+
+
+void Desktopundostack::recordAgain (int index, Activity::e_action action)
+   {
+   Done done = _done.value (index);
+   Activity act;
+
+   if (!done.id)
+      return;
+   act.action = action;
+   act.who = Activity::W_user;
+   act.ref = done.id;
+   act.note = done.text;
+   ActivityLog (done.root).add (act);
    }
 
 
@@ -68,15 +197,24 @@ void Desktopundostack::noteIndex (int index)
    if (_pushing)
       return;
    if (!count ())
+      {
       qCDebug (logUndo).noquote () << "undo: stack cleared";
+      _done.clear ();
+      }
    else if (index < _index)
       for (int i = _index - 1; i >= index; i--)
+         {
          qCDebug (logUndo).noquote () << QString ("undo: undo '%1' (%2 done)")
             .arg (text (i)).arg (i);
+         recordAgain (i, Activity::A_undo);
+         }
    else
       for (int i = _index; i < index; i++)
+         {
          qCDebug (logUndo).noquote () << QString ("undo: redo '%1' (%2 done)")
             .arg (text (i)).arg (i + 1);
+         recordAgain (i, Activity::A_redo);
+         }
    _index = index;
    }
 
@@ -92,6 +230,24 @@ Desktopundocmd::Desktopundocmd (Desktopmodel *model)
 
 Desktopundocmd::~Desktopundocmd ()
    {
+   }
+
+
+QString Desktopundocmd::fullPath (const QString &dir, const QString &name)
+   {
+   return dir.endsWith ('/') || dir.isEmpty () ? dir + name
+                                               : dir + "/" + name;
+   }
+
+
+Activity Desktopundocmd::entry (Activity::e_action action, const QString &dir,
+                                const QString &name)
+   {
+   Activity act;
+
+   act.action = action;
+   act.path = fullPath (dir, name);
+   return act;
    }
 
 
@@ -146,6 +302,29 @@ UCTrashStacks::UCTrashStacks (Desktopmodel *model,
          _files << model->getPosData (ind);
    setText (QApplication::translate(dir.isEmpty () ? "UCDeleteStacks" : "UCMoveStacksToDir",
       dir.isEmpty () ? "Delete stacks (%1)" : "Move stacks to dir (%1)").arg (list.size ()));
+   }
+
+
+QList<Activity> UCTrashStacks::activity () const
+   {
+   QList<Activity> acts;
+
+   for (int i = 0; i < _filenames->size (); i++)
+      {
+      // to the trash, or to another folder, where it may get a new name
+      if (_destdir.isEmpty ())
+         {
+         acts << entry (Activity::A_trash, _dir, _filenames->at (i));
+         continue;
+         }
+
+      Activity act = entry (_copy ? Activity::A_duplicate : Activity::A_move,
+            _destdir, _trashlist->value (i, _filenames->at (i)));
+
+      act.from = fullPath (_dir, _filenames->at (i));
+      acts << act;
+      }
+   return acts;
    }
 
 
@@ -255,6 +434,21 @@ UCDuplicate::UCDuplicate (Desktopmodel *model, QModelIndexList &list,
    }
 
 
+QList<Activity> UCDuplicate::activity () const
+   {
+   QList<Activity> acts;
+
+   for (int i = 0; i < _newnames->size () && i < _filenames.size (); i++)
+      {
+      Activity act = entry (Activity::A_duplicate, _dir, _newnames->at (i));
+
+      act.from = fullPath (_dir, _filenames [i]);
+      acts << act;
+      }
+   return acts;
+   }
+
+
 void UCDuplicate::redo (void)
    {
    Desktopmodel *model = _model;
@@ -320,6 +514,24 @@ UCAddFiles::UCAddFiles (Desktopmodel *model, const QStringList &paths,
             .arg (paths.size ())
       : QApplication::translate ("UCAddFiles", "Add files (%1)")
             .arg (paths.size ()));
+   }
+
+
+QList<Activity> UCAddFiles::activity () const
+   {
+   QList<Activity> acts;
+
+   // into a stack which is there, or each as a stack of its own
+   if (!_destname.isEmpty ())
+      {
+      Activity act = entry (Activity::A_import, _dir, _destname);
+
+      act.count = _count;
+      acts << act;
+      }
+   else for (const QString &name : *_newnames)
+      acts << entry (Activity::A_import, _dir, name);
+   return acts;
    }
 
 
@@ -518,6 +730,21 @@ UCUnfoldBooklet::UCUnfoldBooklet (Desktopmodel *model, QModelIndexList &list,
    }
 
 
+QList<Activity> UCUnfoldBooklet::activity () const
+   {
+   QList<Activity> acts;
+
+   for (int i = 0; i < _newnames->size () && i < _filenames.size (); i++)
+      {
+      Activity act = entry (Activity::A_unfold, _dir, _newnames->at (i));
+
+      act.from = fullPath (_dir, _filenames [i]);
+      acts << act;
+      }
+   return acts;
+   }
+
+
 void UCUnfoldBooklet::redo (void)
    {
    Desktopmodel *model = _model;
@@ -554,6 +781,22 @@ UCUnstackStacks::UCUnstackStacks (Desktopmodel *model, QModelIndexList &list,
    _newnames = std::make_shared<QList<QStringList> > ();
    setText (QApplication::translate("UCUnstackStacks",
       "Unstack stacks (%1)").arg (list.size ()));
+   }
+
+
+QList<Activity> UCUnstackStacks::activity () const
+   {
+   QList<Activity> acts;
+
+   for (int i = 0; i < _newnames->size () && i < _filenames.size (); i++)
+      for (const QString &name : _newnames->at (i))
+         {
+         Activity act = entry (Activity::A_unstack, _dir, name);
+
+         act.from = fullPath (_dir, _filenames [i]);
+         acts << act;
+         }
+   return acts;
    }
 
 
@@ -617,6 +860,16 @@ UCUnstackPage::UCUnstackPage (Desktopmodel *model, QModelIndex &ind,
    _remove = remove;
    setText (QApplication::translate("UCUnstackPage",
       "Unstack page"));
+   }
+
+
+QList<Activity> UCUnstackPage::activity () const
+   {
+   Activity act = entry (Activity::A_unstack, _dir, *_newname);
+
+   act.from = fullPath (_dir, _filename);
+   act.page = *_pagenum;
+   return _newname->isEmpty () ? QList<Activity> () : QList<Activity> () << act;
    }
 
 
@@ -693,6 +946,15 @@ UCDeletePages::UCDeletePages (Desktopmodel *model, QModelIndex &ind, QBitArray &
    }
 
 
+QList<Activity> UCDeletePages::activity () const
+   {
+   Activity act = entry (Activity::A_remove_pages, _dir, _filename);
+
+   act.count = *_count;
+   return QList<Activity> () << act;
+   }
+
+
 void UCDeletePages::redo (void)
    {
    Desktopmodel *model = _model;
@@ -752,6 +1014,25 @@ UCSplitStack::UCSplitStack (Desktopmodel *model, QModelIndex &ind,
       _pagepos << pp;
       }
    setText (QApplication::translate ("UCSplitStack", "Split stack"));
+   }
+
+
+QList<Activity> UCSplitStack::activity () const
+   {
+   QList<Activity> acts;
+   Activity split = entry (Activity::A_split, _dir, _filename);
+
+   // the stack itself, then each stack taken out of it
+   split.count = _newnames->size () + 1;
+   acts << split;
+   for (const QString &name : *_newnames)
+      {
+      Activity act = entry (Activity::A_unstack, _dir, name);
+
+      act.from = fullPath (_dir, _filename);
+      acts << act;
+      }
+   return acts;
    }
 
 
@@ -822,6 +1103,12 @@ UCReorderPages::UCReorderPages (Desktopmodel *model, QModelIndex &ind,
    }
 
 
+QList<Activity> UCReorderPages::activity () const
+   {
+   return QList<Activity> () << entry (Activity::A_reorder, _dir, _filename);
+   }
+
+
 void UCReorderPages::reorder (const QVector<int> &order)
    {
    Desktopmodel *model = _model;
@@ -881,6 +1168,21 @@ UCStackStacks::UCStackStacks (Desktopmodel *model, QModelIndex &dest,
       }
    setText (QApplication::translate("UCStackStacks",
       "Stack pages (%1)").arg (list.size ()));
+   }
+
+
+QList<Activity> UCStackStacks::activity () const
+   {
+   QList<Activity> acts;
+
+   for (const QString &name : _filenames)
+      {
+      Activity act = entry (Activity::A_stack, _dir, _destname);
+
+      act.from = fullPath (_dir, name);
+      acts << act;
+      }
+   return acts;
    }
 
 
@@ -1055,6 +1357,15 @@ UCRenameStack::UCRenameStack (Desktopmodel *model, const QModelIndex &ind, QStri
    }
 
 
+QList<Activity> UCRenameStack::activity () const
+   {
+   Activity act = entry (Activity::A_rename, _dir, _newname);
+
+   act.from = fullPath (_dir, _oldname);
+   return QList<Activity> () << act;
+   }
+
+
 void UCRenameStack::redo (void)
    {
    rename (_oldname, _newname);
@@ -1090,6 +1401,12 @@ UCStackFacts::UCStackFacts (Desktopmodel *model, const QModelIndex &ind,
    _old = model->facts (ind);
    _new = facts;
    setText (QApplication::translate("UCStackFacts", "Set facts"));
+   }
+
+
+QList<Activity> UCStackFacts::activity () const
+   {
+   return QList<Activity> () << entry (Activity::A_facts, _dir, _filename);
    }
 
 
@@ -1132,6 +1449,15 @@ UCTransformPage::UCTransformPage (Desktopmodel *model, const QModelIndex &ind,
    }
 
 
+QList<Activity> UCTransformPage::activity () const
+   {
+   Activity act = entry (Activity::A_turn, _dir, _fname);
+
+   act.page = _pagenum;
+   return QList<Activity> () << act;
+   }
+
+
 void UCTransformPage::redo (void)
    {
    transform (_op);
@@ -1171,6 +1497,15 @@ UCCropPage::UCCropPage (Desktopmodel *model, const QModelIndex &ind,
    _undo = std::make_shared<QByteArray> ();
    setText (QApplication::translate ("UCCropPage",
       pagenum == -1 ? "Crop stack" : "Crop page"));
+   }
+
+
+QList<Activity> UCCropPage::activity () const
+   {
+   Activity act = entry (Activity::A_crop, _dir, _fname);
+
+   act.page = _pagenum;
+   return QList<Activity> () << act;
    }
 
 
@@ -1223,6 +1558,15 @@ UCSetCover::UCSetCover (Desktopmodel *model, const QModelIndex &ind,
    }
 
 
+QList<Activity> UCSetCover::activity () const
+   {
+   Activity act = entry (Activity::A_cover, _dir, _fname);
+
+   act.page = _pagenum;
+   return QList<Activity> () << act;
+   }
+
+
 void UCSetCover::redo (void)
    {
    Desktopmodel *model = _model;
@@ -1271,6 +1615,16 @@ UCRenamePage::UCRenamePage (Desktopmodel *model, const QModelIndex &ind,
    }
 
 
+QList<Activity> UCRenamePage::activity () const
+   {
+   Activity act = entry (Activity::A_rename_page, _dir, _fname);
+
+   act.page = _pagenum;
+   act.note = _newname;
+   return QList<Activity> () << act;
+   }
+
+
 void UCRenamePage::redo (void)
    {
    rename (_newname);
@@ -1315,6 +1669,12 @@ UCUpdateAnnot::UCUpdateAnnot (Desktopmodel *model, const QModelIndex &ind,
       }
    setText (QApplication::translate("UCUpdateAnnot",
       "Update stack summary"));
+   }
+
+
+QList<Activity> UCUpdateAnnot::activity () const
+   {
+   return QList<Activity> () << entry (Activity::A_details, _dir, _fname);
    }
 
 

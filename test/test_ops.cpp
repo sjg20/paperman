@@ -18,6 +18,7 @@
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "backgroundwork.h"
+#include "activitylog.h"
 #include "docfacts.h"
 #include "filemax.h"
 #include "ocrreader.h"
@@ -1399,7 +1400,18 @@ void TestOps::testStackConverts()
    QModelIndex repo_ind = model->index(0, 0, QModelIndex());
    QVERIFY(repo_ind.isValid());
    int rows = model->rowCount(repo_ind);
-   QStringList before = QDir(path).entryList(QDir::Files, QDir::Name);
+   /* the stacks' files, leaving out Paperman's own, which start with a
+      dot and are listed with the rest on Windows */
+   auto stackFiles = [&path]() {
+      QStringList names;
+
+      for (const QString &name : QDir(path).entryList(QDir::Files,
+                                                      QDir::Name))
+         if (!name.startsWith('.'))
+            names << name;
+      return names;
+   };
+   QStringList before = stackFiles();
 
    // Stacked onto each, it is converted and becomes a page, and undo
    // brings the picture back as it was
@@ -1426,7 +1438,7 @@ void TestOps::testStackConverts()
       QCOMPARE(model->getFile(dest)->pagecount(), pages);
       QCOMPARE(model->rowCount(repo_ind), rows);
       QCOMPARE(model->getFile(pic)->pos(), pos);
-      QCOMPARE(QDir(path).entryList(QDir::Files, QDir::Name), before);
+      QCOMPARE(stackFiles(), before);
    }
 }
 
@@ -1730,6 +1742,170 @@ void TestOps::testSplitStack()
       QCOMPARE(images(second), before.mid(1, 2));
       model->getUndoStack()->undo();
       QVERIFY(images(orig) == before);
+   }
+}
+
+/* What is done to the stacks is written in the repository's record of
+   activity, with each stack's path below the top, and so are undo and
+   redo; things done as one step are under an entry for the whole */
+void TestOps::testActivityRecorded()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   QString root = model->deskToDirname(repo_ind);
+   ActivityLog log(root);
+   QList<Activity> acts;
+   auto read = [&]() {
+      QList<Activity> list;
+
+      return log.read(list) ? QList<Activity>() : list;
+   };
+
+   QCOMPARE(QDir(model->activityRoot(root)), QDir(root));
+   QVERIFY(read().isEmpty());
+
+   // one stack renamed is one entry, by the user
+   model->renameStack(model->index("testfile.max", repo_ind), "letter");
+   acts = read();
+   QCOMPARE(int(acts.size()), 1);
+   QCOMPARE(acts[0].action, Activity::A_rename);
+   QCOMPARE(acts[0].who, Activity::W_user);
+   QCOMPARE(acts[0].from, QString("testfile.max"));
+   QCOMPARE(acts[0].path, QString("letter.max"));
+   QCOMPARE(acts[0].group, qint64(0));
+   QCOMPARE(acts[0].describe(),
+            QString("Renamed 'testfile' to 'letter'"));
+
+   // a page is turned
+   model->transformPage(model->index("letter.max", repo_ind), 1,
+                        File::Transform_rotate90);
+   acts = read();
+   QCOMPARE(int(acts.size()), 2);
+   QCOMPARE(acts[1].action, Activity::A_turn);
+   QCOMPARE(acts[1].path, QString("letter.max"));
+   QCOMPARE(acts[1].page, 1);
+
+   // undoing it says which entry was undone, and redoing it likewise
+   model->getUndoStack()->undo();
+   acts = read();
+   QCOMPARE(int(acts.size()), 3);
+   QCOMPARE(acts[2].action, Activity::A_undo);
+   QCOMPARE(acts[2].ref, acts[1].id);
+   QCOMPARE(acts[2].describe(),
+            QString("Undid: Turned page 2 of 'letter'"));
+   model->getUndoStack()->redo();
+   acts = read();
+   QCOMPARE(int(acts.size()), 4);
+   QCOMPARE(acts[3].action, Activity::A_redo);
+   QCOMPARE(acts[3].ref, acts[1].id);
+
+   // two stacks named together, by the assistant, are a group
+   {
+      ActivityBy by(model->getUndoStack(), Activity::W_assistant);
+      QModelIndexList both{model->index("letter.max", repo_ind),
+                           model->index("testpdf.pdf", repo_ind)};
+
+      QCOMPARE(model->renameStacks(both, {"bank letter", "power bill"}), 2);
+   }
+   acts = read();
+   QCOMPARE(int(acts.size()), 7);
+   QCOMPARE(acts[4].action, Activity::A_group);
+   QCOMPARE(acts[4].who, Activity::W_assistant);
+   QCOMPARE(acts[4].note, QString("Name stacks (2)"));
+   QCOMPARE(acts[5].action, Activity::A_rename);
+   QCOMPARE(acts[5].group, acts[4].id);
+   QCOMPARE(acts[5].who, Activity::W_assistant);
+   QCOMPARE(acts[5].path, QString("bank letter.max"));
+   QCOMPARE(acts[6].group, acts[4].id);
+   QCOMPARE(acts[6].path, QString("power bill.pdf"));
+
+   // whoever does the next thing is the user again
+   QCOMPARE(model->getUndoStack()->who(), Activity::W_user);
+
+   // the group is undone as one, naming the group
+   model->getUndoStack()->undo();
+   acts = read();
+   QCOMPARE(int(acts.size()), 8);
+   QCOMPARE(acts[7].action, Activity::A_undo);
+   QCOMPARE(acts[7].ref, acts[4].id);
+   QCOMPARE(acts[7].who, Activity::W_user);
+
+   // from the first entry, the stack is followed to where it is now
+   bool gone;
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone), QString("letter.max"));
+   model->getUndoStack()->redo();
+   acts = read();
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone),
+            QString("bank letter.max"));
+   QVERIFY(!gone);
+
+   // moved to a folder, it is recorded with where it went
+   QModelIndexList list{model->index("bank letter.max", repo_ind)};
+   QString dest = root + "main/";
+   QStringList made;
+   int before = acts.size();
+
+   model->moveToDir(list, repo_ind, dest, made);
+   acts = read();
+   QCOMPARE(int(acts.size()), before + 1);
+   QCOMPARE(acts.last().action, Activity::A_move);
+   QCOMPARE(acts.last().from, QString("bank letter.max"));
+   QCOMPARE(acts.last().path, QString("main/bank letter.max"));
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone),
+            QString("main/bank letter.max"));
+   QVERIFY(QFile::exists(root + ActivityLog::whereNow(acts, 0, gone)));
+
+   // a stack deleted is gone, until that is undone
+   list = QModelIndexList{model->index("power bill.pdf", repo_ind)};
+   model->trashStacks(list, repo_ind);
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_trash);
+   QCOMPARE(acts.last().path, QString("power bill.pdf"));
+   ActivityLog::whereNow(acts, acts.size() - 1, gone);
+   QVERIFY(gone);
+   model->getUndoStack()->undo();
+   acts = read();
+   QCOMPARE(ActivityLog::whereNow(acts, acts.size() - 2, gone),
+            QString("power bill.pdf"));
+   QVERIFY(!gone);
+
+   // dividing a stack gives the stack and each one taken out of it
+   QModelIndex ind = model->index("power bill.pdf", repo_ind);
+   before = acts.size();
+   QVERIFY(model->splitStack(ind, {1, 3}, {"second", "third"}, "first"));
+   acts = read();
+   QCOMPARE(int(acts.size()), before + 5);
+   QCOMPARE(acts[before].action, Activity::A_group);
+   QCOMPARE(acts[before].note, QString("Split stack"));
+   QCOMPARE(acts[before + 1].action, Activity::A_split);
+   QCOMPARE(acts[before + 1].count, 3);
+   QCOMPARE(acts[before + 2].action, Activity::A_unstack);
+   QCOMPARE(acts[before + 2].path, QString("second.pdf"));
+   QCOMPARE(acts[before + 2].from, QString("power bill.pdf"));
+   QCOMPARE(acts[before + 3].path, QString("third.pdf"));
+   QCOMPARE(acts[before + 4].action, Activity::A_rename);
+   QCOMPARE(acts[before + 4].path, QString("first.pdf"));
+   for (int i = 1; i <= 4; i++)
+      QCOMPARE(acts[before + i].group, acts[before].id);
+
+   // a small move about the desk is not recorded
+   before = acts.size();
+   list = QModelIndexList{model->index("first.pdf", repo_ind)};
+   QList<QPoint> from{QPoint(10, 10)}, to{QPoint(30, 10)};
+   model->move(list, repo_ind, from, to);
+   QCOMPARE(int(read().size()), before);
+
+   // every entry has a time, and numbers which only go up
+   acts = read();
+   for (int i = 0; i < acts.size(); i++) {
+      QVERIFY(acts[i].when.isValid());
+      QVERIFY(!i || acts[i].id > acts[i - 1].id);
+      QVERIFY2(!acts[i].describe().isEmpty(),
+               qPrintable(QString::number(i)));
    }
 }
 

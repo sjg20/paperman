@@ -328,6 +328,9 @@ void Desktopmodel::renameStack (const QModelIndex &index, QString newname)
       {
       Docfacts facts = _offered_facts;
 
+      // the name, like the facts, is the assistant's, accepted
+      ActivityBy by (_undo, Activity::W_assistant);
+
       offerFacts (QModelIndex (), Docfacts ());
       renameStacks (QModelIndexList () << index, QStringList (newname),
                     QList<Docfacts> () << facts);

@@ -2691,6 +2691,8 @@ void Desktopwidget::showNames (std::shared_ptr<NamesJob> job)
             keep << facts.value (i);
             }
 
+      // what is accepted here is the assistant's doing
+      ActivityBy by (_contents->getUndoStack (), Activity::W_assistant);
       int count = _contents->renameStacks (list, wanted, keep);
 
       emit newContents (count == 1 ? tr ("Named 1 stack")
@@ -2920,6 +2922,8 @@ void Desktopwidget::askSplit (const QModelIndex &sind)
             firsts << doc.first;
             names << doc.name;
             }
+         ActivityBy by (_contents->getUndoStack (), Activity::W_assistant);
+
          if (!_contents->splitStack (ind, firsts, names, docs [0].name))
             emit newContents (tr ("The stack has changed, so cannot be "
                                   "divided this way"));

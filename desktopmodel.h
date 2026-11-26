@@ -62,6 +62,7 @@ struct max_page_info;
 #include "qwidget.h"
 
 #include "desk.h"
+#include "activitylog.h"
 #include "docfacts.h"
 #include "file.h"
 #include "iostats.h"
@@ -299,6 +300,13 @@ public:
                      its end
        \returns the model index for that directory */
    QModelIndex deskFromDirname (const QString &dir);
+
+   /** find the repository which keeps the record of activity for a folder
+
+      \param dir  the folder, with or without a slash
+      \returns the top of its repository; empty if it is on a server, which
+               keeps no record yet, or it is not a folder being shown */
+   QString activityRoot (const QString &dir);
 
    /** builds a filename list from the given model index list. This list
        is a string containing each filename (not full pathname) separated

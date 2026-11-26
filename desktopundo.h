@@ -28,6 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QModelIndexList>
 #include <QStringList>
 
+#include "activitylog.h"
 #include "docfacts.h"
 #include "err.h"
 
@@ -55,6 +56,20 @@ public:
       \param cmd  the command, which the stack then owns */
    void push (QUndoCommand *cmd);
 
+   /** start and end a run of commands which are undone as one, as
+       QUndoStack does. In the record of activity they are a group, named
+       by @p text */
+   void beginMacro (const QString &text);
+   void endMacro ();
+
+   //! the model whose commands these are, which says which repository a
+   //! folder is in, for the record of activity
+   void setModel (Desktopmodel *model) { _model = model; }
+
+   //! say who the commands pushed from now on are done by
+   void setWho (Activity::e_who who) { _who = who; }
+   Activity::e_who who () const { return _who; }
+
 private:
    /** say which commands have been undone or redone, once the stack has
        moved to a new place
@@ -62,8 +77,50 @@ private:
       \param index  the new place, the number of commands now done */
    void noteIndex (int index);
 
+   //! what the record of activity has for a command on the stack
+   struct Done
+      {
+      qint64 id = 0;    //!< its entry, or its group's; 0 if it has none
+      QString root;     //!< the repository whose record that is in
+      QString text;     //!< what the entry says
+      };
+
+   /** put what a command did in the record of activity
+
+      \param acts  what it did, with full paths, as activity() gives
+      \param text  the command's own text, for a group of several */
+   void record (QList<Activity> acts, const QString &text);
+
+   //! note what the record has for the command just done, at the top
+   void noteDone ();
+
+   //! record that a command was undone, or done again
+   void recordAgain (int index, Activity::e_action action);
+
    int _index;          //!< the place the log last saw the stack at
    bool _pushing;       //!< a command is being pushed, which push() logs
+   Desktopmodel *_model = nullptr;
+   Activity::e_who _who = Activity::W_user;
+   int _macro_depth = 0;      //!< how many macros are open
+   QString _macro_text;       //!< the text of the outermost
+   Done _current;             //!< what is recorded for the command under way
+   QVector<Done> _done;       //!< for each command on the stack, by place
+   };
+
+
+/** says who the commands done while this exists are done by, in the record
+    of activity; whoever it was before is put back when it goes */
+class ActivityBy
+   {
+public:
+   ActivityBy (Desktopundostack *stack, Activity::e_who who)
+         : _stack (stack), _was (stack->who ())
+      { _stack->setWho (who); }
+   ~ActivityBy () { _stack->setWho (_was); }
+
+private:
+   Desktopundostack *_stack;
+   Activity::e_who _was;
    };
 
 
@@ -99,7 +156,24 @@ public:
       \param parent     parent (desk) which will receive the new items */
    void aboutToAdd (QModelIndex parent);
 
+   /** what this command did, for the record of activity: an entry for
+       each stack it changed, with the full path of each. This is asked
+       once the command has been done, so that the names of stacks it made
+       are known. A command which changes no papers gives none */
+   virtual QList<Activity> activity () const { return QList<Activity> (); }
+
 protected:
+   /** make an entry for activity()
+
+      \param action  what was done
+      \param dir     the directory the stack is in
+      \param name    the stack's filename */
+   static Activity entry (Activity::e_action action, const QString &dir,
+                          const QString &name);
+
+   //! the full path of a stack, from its directory and filename
+   static QString fullPath (const QString &dir, const QString &name);
+
    /** sequence number of this undo command. This is allocated globally and
        is unique across all models which use undo/redo */
    int _seq;
@@ -120,6 +194,7 @@ public:
          QModelIndexList &list, QModelIndex &parent, QString destdir, bool copy);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
    /** the names the stacks got in the trash, once moved, which for a
        local desk is at once */
    const QStringList &trashlist () const { return *_trashlist; }
@@ -180,6 +255,7 @@ public:
       File::e_type type, int odd_even = 3);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of filenames to move
@@ -207,6 +283,7 @@ public:
                int pagenum = -1);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QStringList _paths;     //!< the files to add
@@ -234,6 +311,7 @@ public:
       QModelIndex &parent);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of booklet filenames to unfold
@@ -261,6 +339,7 @@ public:
    UCUnstackStacks (Desktopmodel *model, QModelIndexList &list, QModelIndex &parent);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QStringList _filenames; //!< the list of filenames to unstack
@@ -284,6 +363,7 @@ public:
       int pagenum, bool remove);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;        //!< desk directory
    QString _filename;   //!< the filename of the original stack
@@ -312,6 +392,7 @@ public:
                  const QList<int> &firsts, const QStringList &names);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QString _filename;      //!< the filename of the stack divided
@@ -338,6 +419,7 @@ public:
    UCDeletePages (Desktopmodel *model, QModelIndex &ind, QBitArray &pages);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QString _filename;   //!< the filename of the original stack
@@ -360,6 +442,7 @@ public:
                    const QVector<int> &order);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    //! apply @p order to the stack
    void reorder (const QVector<int> &order);
@@ -395,6 +478,7 @@ public:
       QModelIndexList &list, int pagenum, QList<QPoint> *poslist);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;           //!< desk directory
    QString _destdir;           //!< dest desk directory
@@ -458,6 +542,7 @@ public:
    UCRenameStack (Desktopmodel *model, const QModelIndex &ind, QString newname);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    //! rename the stack @p from to @p to
    void rename (const QString &from, const QString &to);
@@ -482,6 +567,7 @@ public:
    UCRenamePage (Desktopmodel *model, const QModelIndex &ind, QString newname);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    //! give the page the name @p name
    void rename (const QString &name);
@@ -512,6 +598,7 @@ public:
                  const Docfacts &facts);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    //! write @p facts to the stack
    void write (const Docfacts &facts);
@@ -536,6 +623,7 @@ public:
          File::e_transform op);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    //! apply @p op to the page
    void transform (File::e_transform op);
@@ -562,6 +650,7 @@ public:
          const QRectF &area);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;       //!< desk directory
    QString _fname;     //!< filename of stack
@@ -588,6 +677,7 @@ public:
          const Pagecover &cover);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    QString _dir;       //!< desk directory
    QString _fname;     //!< filename of stack
@@ -612,6 +702,7 @@ public:
    UCUpdateAnnot (Desktopmodel *model, const QModelIndex &ind, QHash<int, QString> &updates);
    void redo();
    void undo();
+   QList<Activity> activity () const override;
 private:
    //! set the annotations to @p annots
    void update (const QHash<int, QString> &annots);
