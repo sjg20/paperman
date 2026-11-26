@@ -158,6 +158,7 @@ void Desktopundostack::record (QList<Activity> acts, const QString &text)
          _current.text = act.describe ();
          }
       }
+   emit _model->activityRecorded (root);
    }
 
 
@@ -188,6 +189,8 @@ void Desktopundostack::recordAgain (int index, Activity::e_action action)
    act.ref = done.id;
    act.note = done.text;
    ActivityLog (done.root).add (act);
+   if (_model)
+      emit _model->activityRecorded (done.root);
    }
 
 

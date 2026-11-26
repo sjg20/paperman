@@ -2106,6 +2106,12 @@ public:
 signals:
    void newContents (const char *str);
 
+   /** emitted when something has been added to a repository's record of
+       activity
+
+      \param root  the top of the repository */
+   void activityRecorded (const QString &root);
+
    /** emitted when the current directory has changed
 
       \param dirPath    the directory we changed to
