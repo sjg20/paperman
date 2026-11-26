@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 class Assistant;
+class OcrPage;
 class QCheckBox;
 class QFrame;
 class QKeyEventTransition;
@@ -502,7 +503,8 @@ private slots:
    void reversePages (void);
 
    /** ask the AI assistant for a name for the stack selected, from the
-       text of its first pages, and offer it in the rename editor */
+       text of its first pages, and offer it in the rename editor. Pages
+       among them which have not been read are read first */
    void suggestName (void);
 
    /** ask the AI assistant where the stack selected divides into
@@ -743,8 +745,25 @@ private:
    //! the user names things; no more than the assistant uses
    static QStringList nameExamples (File *f);
 
+   /** look at a stack's first pages for a name, reading any which have
+       no text if there is too little to go on, then ask for the name
+
+      \param sind  the stack, which is all here */
+   void nameFromPages (const QModelIndex &sind);
+
+   /** ask the assistant for a stack's name, and offer it
+
+      \param sind   the stack
+      \param pages  what each of its first pages says */
+   void askName (const QModelIndex &sind, const QStringList &pages);
+
    //! the assistant to ask, or nullptr for one made from the settings
    Assistant *_assistant;
+
+   /** reads a page for suggestName(), returning an error message or an
+       empty string, or empty for the usual engine; it is run on another
+       thread */
+   std::function<QString (QImage &image, OcrPage &page)> _name_engine;
    QAction *_act_email, *_act_email_max, *_act_email_pdf;
    QAction *_act_copy;
 //   QAction *_act_send, *_act_deliver_out;

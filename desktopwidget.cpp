@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include <memory>
+
 #include <assert.h>
 
 #include "blockwatch.h"
@@ -31,6 +33,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDialog>
 #include <QEventLoop>
 #include <QPointer>
+#include <QtConcurrent>
+#include <QFutureWatcher>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -78,8 +82,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desk.h"
 #include "file.h"
 #include "ocrpage.h"
+#include "ocr.h"
 #include "mainwidget.h"
 #include "ocrreader.h"
+#include "ocrtess.h"
 #include "searchindex.h"
 #include "mainwindow.h"
 #include "maxview.h"
@@ -2316,24 +2322,135 @@ void Desktopwidget::suggestName (void)
    if (!f || !Assistant::enabled ())
       return;
 
-   // what the first pages say
-   QString text;
+   /* a stack on a server may not all be here, so bring it here first,
+      without waiting; a local one is looked at at once */
+   QPersistentModelIndex stack (sind);
+   QPointer<Desktopwidget> self (this);
+
+   _contents->fetchStacksLater (QModelIndexList () << sind,
+                                [self, stack] (err_info *err) {
+      if (!self || self->_main->complain (err) || !stack.isValid ())
+         return;
+      self->nameFromPages (stack);
+   });
+   }
+
+
+void Desktopwidget::nameFromPages (const QModelIndex &sind)
+   {
+   File *f = _contents->getFile (sind);
+
+   if (!f)
+      return;
+
+   // what the first pages say, and which of them say nothing
+   QStringList pages;
+   QList<int> silent;
+   int count;
 
    f->load ();
-   for (int i = 0; i < f->pagecount () && i < Assistant::name_pages; i++)
+   count = qMin (f->pagecount (), int (Assistant::name_look_pages));
+   for (int i = 0; i < count; i++)
       {
-      QString page = pageText (f, i);
-
-      if (!page.isEmpty ())
-         text += page + "\n\n";
+      pages << pageText (f, i);
+      if (pages.last ().isEmpty ())
+         silent << i;
       }
-   if (text.isEmpty ())
+
+   /* With enough to go on, ask. Otherwise read the pages which say
+      nothing: they may not have been read yet, and the title of a book is
+      often on the third page or so, in type which can be read, when the
+      cover's cannot */
+   std::function<QString (QImage &, OcrPage &)> engine = _name_engine;
+
+   if (count - silent.size () >= Assistant::name_pages)
+      silent.clear ();
+   if (!silent.isEmpty () && !engine)
       {
-      emit newContents (tr ("This stack has no text to name it from: use "
-                            "Read text (OCR) first"));
+      err_info *err;
+
+      /* tesseract is run afresh for each page, so one of our own can read
+         several at once; any other engine is busy with other things */
+      if (dynamic_cast<Ocrtess *> (Ocr::getOcr (err)))
+         {
+         auto tess = std::make_shared<Ocrtess> ();
+
+         engine = [tess] (QImage &image, OcrPage &page)
+            {
+            err_info *err = tess->imageToPage (image, page);
+
+            return err ? QString (err->errstr) : QString ();
+            };
+         }
+      }
+   if (silent.isEmpty () || !engine)
+      {
+      askName (sind, pages);
       return;
       }
 
+   /* what is read is used for the name and not kept: reading the stack
+      in the background, which keeps it, is under way or can be asked for */
+   struct Reading
+      {
+      QPersistentModelIndex stack;
+      QStringList pages;
+      int left = 0;
+      };
+   auto reading = std::make_shared<Reading> ();
+
+   reading->stack = sind;
+   reading->pages = pages;
+   for (int pagenum : silent)
+      {
+      QImage image;
+      QSize size, true_size;
+      int bpp;
+
+      if (f->getImage (pagenum, false, image, size, true_size, bpp, false)
+          || image.isNull ())
+         continue;
+
+      auto *watcher = new QFutureWatcher<QString> (this);
+
+      reading->left++;
+      connect (watcher, &QFutureWatcher<QString>::finished, this,
+               [this, watcher, reading, pagenum] () {
+         reading->pages [pagenum] = watcher->result ();
+         watcher->deleteLater ();
+         if (!--reading->left)
+            askName (reading->stack, reading->pages);
+      });
+      watcher->setFuture (QtConcurrent::run ([engine, image] () mutable {
+         OcrPage page;
+
+         return engine (image, page).isEmpty () ? page.text ().trimmed ()
+                                                : QString ();
+      }));
+      }
+   if (reading->left)
+      emit newContents (tr ("Reading the stack's first pages..."));
+   else
+      askName (sind, pages);
+   }
+
+
+void Desktopwidget::askName (const QModelIndex &sind, const QStringList &pages)
+   {
+   File *f = _contents->getFile (sind);
+   QString text = Assistant::nameText (pages);
+
+   // the stack may have gone while its pages were read
+   if (!sind.isValid () || !f)
+      return;
+   if (text.isEmpty ())
+      {
+      emit newContents (tr ("This stack's first pages have no text to name "
+                            "it from"));
+      return;
+      }
+
+   // the names beside it show how the user names things
    QStringList examples = nameExamples (f);
 
    Assistant *assistant = _assistant ? _assistant
