@@ -193,6 +193,8 @@ public:
                            QMap<QString, QString> &props) override;
    err_info *putPageProps (int pagenum,
                            const QMap<QString, QString> &props) override;
+   err_info *getStackProps (QMap<QString, QString> &props) override;
+   err_info *putStackProps (const QMap<QString, QString> &props) override;
    err_info *findCover (int &pagenum, QString &text) override;
 
    virtual int getSize (void);
@@ -669,6 +671,11 @@ private:
 
    err_info *create_envelope (void);
 
+   /** create or replace the chunk which holds the stack's properties
+
+      \param data  the properties, as they are kept */
+   err_info *create_stack_props (const QByteArray &data);
+
    err_info *create_roswell (page_info &page);
 
    err_info *create_title (page_info &page);
@@ -796,6 +803,7 @@ private:
    int _signature; // file signature
    int _bermuda, _tunguska, _annot, _trail;
    int _envelope;
+   int _stack_props;    //!< position of the stack's properties chunk, or 0
    int _b0, _b4;
    QVector <page_info> _pages;
 //   int _type;   // type of file (FILET_...)

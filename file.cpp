@@ -1121,6 +1121,18 @@ err_info *File::putPageProps (int, const QMap<QString, QString> &)
    }
 
 
+err_info *File::getStackProps (QMap<QString, QString> &)
+   {
+   return not_impl ();
+   }
+
+
+err_info *File::putStackProps (const QMap<QString, QString> &)
+   {
+   return not_impl ();
+   }
+
+
 err_info *File::findCover (int &pagenum, QString &text)
    {
    pagenum = -1;

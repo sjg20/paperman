@@ -231,6 +231,9 @@ private slots:
    //! keys and values which would break a 'key=value' line are refused
    void testMaxPropsInvalid();
 
+   //! a stack's own properties stay with it whatever happens to its pages
+   void testMaxStackProps();
+
    //! a page's cover box turns and mirrors with the page
    void testCoverTransform();
 
