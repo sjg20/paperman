@@ -51,6 +51,9 @@ private slots:
    //! a stack asked for again while it is being read is not read twice
    void testReaderNoDoubleRead();
 
+   //! one page can be given to the reader, and only it is read
+   void testReaderOnePage();
+
    //! a stack is read by its path, through the desktop's File if any
    void testReaderByPath();
 

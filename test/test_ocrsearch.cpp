@@ -660,6 +660,67 @@ void TestOcrSearch::testReaderNoDoubleRead()
       QVERIFY2(!pageWord(max, i).isEmpty(), qPrintable(QString::number(i)));
 }
 
+/* One page of a stack can be given to the reader, as when it has been
+   turned: only that page is read, and the others are not looked at */
+void TestOcrSearch::testReaderOnePage()
+{
+   QTemporaryDir tmp;
+   Filemax *max = openStack(testSrc, tmp);
+   QVERIFY(max);
+   std::unique_ptr<Filemax> owner(max);
+   int count = max->pagecount();
+   QVERIFY(count >= 4);
+
+   OcrReader reader;
+   QList<int> sizes;
+   QAtomicInt calls;
+   reader.setWorkers(1);
+   reader.setEngine([&calls](QImage &image, OcrPage &page) {
+      calls++;
+      return fakeRead(image, page);
+   });
+   QSignalSpy idle(&reader, &OcrReader::idle);
+   QList<int> read;
+   connect(&reader, &OcrReader::pageRead, &reader, [&read](File *, int page) {
+      read << page;
+   });
+
+   // just the page asked for is read, though none of the others has words
+   reader.addPage(max, 2);
+   QVERIFY(reader.isBusy());
+   QCOMPARE(reader.pagesLeft(), 1);
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(int(calls), 1);
+   QCOMPARE(read, QList<int>({2}));
+   QVERIFY(!pageWord(max, 2).isEmpty());
+   QVERIFY(pageWord(max, 1).isEmpty());
+
+   // a page which has its words is left alone, as is one which is not there
+   reader.addPage(max, 2);
+   reader.addPage(max, count + 3);
+   reader.addPage(max, -1);
+   QTRY_VERIFY(!reader.isBusy());
+   QCOMPARE(int(calls), 1);
+
+   // two pages asked for one after the other are both read
+   reader.addPage(max, 0);
+   reader.addPage(max, 3);
+   reader.addPage(max, 3);
+   QTRY_VERIFY(!reader.isBusy());
+   QCOMPARE(int(calls), 3);
+   QCOMPARE(read, QList<int>({2, 0, 3}));
+
+   /* its words dropped, the page is read again; and a stack then asked
+      for as a whole is read as a whole */
+   QVERIFY(!max->putPageOcr(3, OcrPage()));
+   reader.addPage(max, 3);
+   reader.addFile(max);
+   QTRY_VERIFY(!reader.isBusy());
+   QCOMPARE(int(calls), 3 + 1 + (count - 3));
+   for (int i = 0; i < count; i++)
+      QVERIFY2(!pageWord(max, i).isEmpty(), qPrintable(QString::number(i)));
+}
+
 void TestOcrSearch::testReaderByPath()
 {
    QTemporaryDir tmp;

@@ -94,6 +94,15 @@ public:
                    (see File::putPageOcr()) */
    void addFile (File *file);
 
+   /** read one page of a stack: the page is read if it has no words, as
+       after it has been turned or cropped, and the stack's other pages
+       are left alone. A stack which is waiting to be read as a whole
+       takes the page in with the rest
+
+      \param file     the stack
+      \param pagenum  the page, from 0 */
+   void addPage (File *file, int pagenum);
+
    /** read the pages of a stack which have not been read yet, given
        where it is
 
@@ -191,6 +200,17 @@ public:
       \param allow  true to allow it, which is how things start */
    static void allowRemembering (bool allow);
 
+   /** allow or forbid a page to be read again by itself when its picture
+       changes, as when it is turned. Tests forbid it, so that the many
+       which turn a page do not each start a read which changes the file
+       they are looking at
+
+      \param allow  true to allow it, which is how things start */
+   static void allowRereading (bool allow);
+
+   //! whether a page whose picture changes may be read again by itself
+   static bool rereadingAllowed ();
+
 public slots:
    /** a stack has been moved or renamed, so is to be read where it is now
 
@@ -266,6 +286,12 @@ private:
       QPointer<File> file;  //!< the desktop's File for it, while it lasts
       int next = 0;         //!< the first page not yet looked at
       int pages = -1;       //!< how many pages it has, once it is opened
+
+      //! the only pages to look at, when just some were asked for; the
+      //! whole stack is looked through when this is empty and @p some is
+      //! false
+      QList<int> only;
+      bool some = false;    //!< true if only certain pages were asked for
       };
 
    //! a page which the engine is reading
