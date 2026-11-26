@@ -10,6 +10,7 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QSplitter>
+#include <QTableWidget>
 #include <QSettings>
 #include <QToolButton>
 #include <QDir>
@@ -48,6 +49,7 @@
 #include "qxmlconfig.h"
 #include <QScrollBar>
 #include "clientconf.h"
+#include "splitdialog.h"
 #include "test_assistant.h"
 #include "test_desktopui.h"
 #include "test_fakescan.h"
@@ -2608,6 +2610,157 @@ void TestDesktopUi::testSuggestName()
    desktop->suggestName();
    QCOMPARE(said.last().at(0).toString(),
             QString("The assistant could not answer"));
+
+   desktop->_assistant = nullptr;
+   QSettings().remove("assistant");
+}
+
+void TestDesktopUi::testSuggestSplit()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   auto select = [&](const QString &name) {
+      QModelIndex ind = model->index(name, repo_ind);
+
+      desktop->getModelconv()->indexToProxy(model, ind);
+      view->setSelectionRange(ind.row(), 1);
+   };
+   auto answer = [](const QList<QPair<int, QString>> &docs) {
+      QJsonArray arr;
+
+      for (const auto &doc : docs) {
+         QJsonObject obj;
+
+         obj["first_page"] = doc.first;
+         obj["name"] = doc.second;
+         arr << obj;
+      }
+
+      QJsonObject top;
+
+      top["documents"] = arr;
+      return top;
+   };
+
+   // the stack with text on its pages to divide it by
+   QModelIndex ind = model->index("testpdf.pdf", repo_ind);
+   QVERIFY(ind.isValid());
+
+   File *f = model->getFile(ind);
+   QVERIFY(!f->load());
+   int pagecount = f->pagecount();
+   int rows = model->rowCount(repo_ind);
+
+   QVERIFY(pagecount >= 4);
+   select("testpdf.pdf");
+
+   // it is not offered, nor does anything, until it is turned on
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+
+   desktop->_assistant = &assistant;
+   QSettings().remove("assistant");
+   desktop->updateActions();
+   QVERIFY(!desktop->_act_suggest_split->isVisible());
+   desktop->suggestSplit();
+   QVERIFY(backend->_prompt.isEmpty());
+
+   Assistant::setEnabled(true);
+   desktop->updateActions();
+   QVERIFY(desktop->_act_suggest_split->isEnabled());
+
+   // one document is nothing to divide, so nothing is shown
+   QSignalSpy said(desktop, SIGNAL(newContents(QString)));
+
+   backend->_answer = answer({{1, "All of it"}});
+   desktop->suggestSplit();
+   QVERIFY(backend->_prompt.contains(QString("The stack has %1 pages")
+                                        .arg(pagecount)));
+   QVERIFY(backend->_prompt.contains("- testfile\n"));
+   QVERIFY(!desktop->findChild<Splitdialog *>());
+   QVERIFY(said.last().at(0).toString().contains("only one document"));
+
+   // three documents are shown, each with its pages and its name
+   backend->_answer = answer({{1, "Power bill"}, {2, "Bank letter"},
+                              {4, "Rates notice"}});
+   desktop->suggestSplit();
+
+   Splitdialog *dialog = desktop->findChild<Splitdialog *>();
+   QVERIFY(dialog);
+   QCOMPARE(dialog->docs().size(), 3);
+   QCOMPARE(dialog->pagesText(0), QString("1 (1 page)"));
+   QCOMPARE(dialog->pagesText(1), QString("2-3 (2 pages)"));
+
+   // nothing has changed yet, and cancelling leaves it so
+   QCOMPARE(model->rowCount(repo_ind), rows);
+   dialog->reject();
+   QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+   QVERIFY(!desktop->findChild<Splitdialog *>());
+   QCOMPARE(model->rowCount(repo_ind), rows);
+
+   /* asked again, the last document is joined to the one before it, a
+      name is changed, and it is done */
+   select("testpdf.pdf");
+   desktop->suggestSplit();
+   dialog = desktop->findChild<Splitdialog *>();
+   QVERIFY(dialog);
+
+   QPushButton *join = nullptr;
+
+   for (QPushButton *button : dialog->findChildren<QPushButton *>())
+      if (button->text().contains("Join"))
+         join = button;
+   QVERIFY(join);
+   QVERIFY(!join->isEnabled());
+   dialog->selectDoc(2);
+   QVERIFY(join->isEnabled());
+   join->click();
+   QCOMPARE(dialog->docs().size(), 2);
+   QCOMPARE(dialog->pagesText(1),
+            QString("2-%1 (%2 pages)").arg(pagecount).arg(pagecount - 1));
+
+   QTableWidget *table = dialog->findChild<QTableWidget *>();
+   QVERIFY(table);
+   table->item(0, 0)->setText("Electricity: March");
+   QCOMPARE(dialog->docs()[0].name, QString("Electricity March"));
+
+   dialog->accept();
+   QTRY_COMPARE(model->rowCount(repo_ind), rows + 1);
+   QVERIFY(QFile::exists(path + "/Electricity March.pdf"));
+   QVERIFY(QFile::exists(path + "/Bank letter.pdf"));
+   QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
+
+   File *first = model->getFile(model->index("Electricity March.pdf",
+                                             repo_ind));
+   File *second = model->getFile(model->index("Bank letter.pdf", repo_ind));
+   QVERIFY(first && second);
+   QVERIFY(!second->load());
+   QCOMPARE(first->pagecount(), 1);
+   QCOMPARE(second->pagecount(), pagecount - 1);
+
+   // and one undo puts the stack back together, with its name
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QCOMPARE(model->rowCount(repo_ind), rows);
+   QCOMPARE(model->getFile(model->index("testpdf.pdf", repo_ind))
+               ->pagecount(), pagecount);
+
+   // a failure is reported, and shows nothing
+   QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+   backend->_answer = QJsonObject();
+   backend->_error = "The assistant could not answer";
+   select("testpdf.pdf");
+   desktop->suggestSplit();
+   QCOMPARE(said.last().at(0).toString(),
+            QString("The assistant could not answer"));
+   QVERIFY(!desktop->findChild<Splitdialog *>());
 
    desktop->_assistant = nullptr;
    QSettings().remove("assistant");

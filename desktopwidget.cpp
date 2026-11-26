@@ -74,6 +74,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "foldersel.h"
 #include "op.h"
 #include "assistant.h"
+#include "splitdialog.h"
 #include "desk.h"
 #include "file.h"
 #include "ocrpage.h"
@@ -415,6 +416,8 @@ void Desktopwidget::addActions(void)
    addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
    addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
    addAction (_act_suggest_name, "Su&ggest name", SLOT (suggestName ()), "");
+   addAction (_act_suggest_split, "Spli&t into documents...",
+              SLOT (suggestSplit ()), "");
    addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "");
 
    addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
@@ -1667,6 +1670,9 @@ void Desktopwidget::updateActions()
    _act_suggest_name->setVisible (Assistant::enabled ());
    _act_suggest_name->setEnabled (at_least_one
          && !_view->isSelection (Desktopview::SEL_more_than_one));
+   _act_suggest_split->setVisible (Assistant::enabled ());
+   _act_suggest_split->setEnabled (
+      _view->isSelection (Desktopview::SEL_one_multipage));
    _act_read_text->setEnabled (at_least_one);
    _act_duplicate_page->setEnabled (at_least_one);
    _act_duplicate_max->setEnabled (at_least_one);
@@ -1707,6 +1713,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    context_menu->addAction (_act_rename_stack);
    context_menu->addAction (_act_rename_page);
    context_menu->addAction (_act_suggest_name);
+   context_menu->addAction (_act_suggest_split);
    context_menu->addAction (_act_read_text);
 
    QMenu *submenu = context_menu->addMenu (tr ("&Duplicate..."));
@@ -2276,6 +2283,31 @@ void Desktopwidget::renameStack (void)
    }
 
 
+QString Desktopwidget::pageText (File *f, int page)
+   {
+   OcrPage ocr;
+   QString text;
+
+   if (!f->getPageOcr (page, ocr) && !ocr.isEmpty ())
+      text = ocr.text ();
+   else if (f->getPageText (page, text))
+      text.clear ();
+   return text.trimmed ();
+   }
+
+
+QStringList Desktopwidget::nameExamples (File *f)
+   {
+   QStringList examples;
+
+   if (f->desk ())
+      for (File *other : f->desk ()->files ())
+         if (other != f && examples.size () < Assistant::name_examples)
+            examples << other->stackLeaf ();
+   return examples;
+   }
+
+
 void Desktopwidget::suggestName (void)
    {
    QModelIndex sind = _view->getSelectedItem (true);
@@ -2284,21 +2316,16 @@ void Desktopwidget::suggestName (void)
    if (!f || !Assistant::enabled ())
       return;
 
-   // what the first pages say, as OCR read it or as the file holds it
+   // what the first pages say
    QString text;
 
    f->load ();
    for (int i = 0; i < f->pagecount () && i < Assistant::name_pages; i++)
       {
-      OcrPage ocr;
-      QString page;
+      QString page = pageText (f, i);
 
-      if (!f->getPageOcr (i, ocr) && !ocr.isEmpty ())
-         page = ocr.text ();
-      else if (f->getPageText (i, page))
-         page.clear ();
-      if (!page.trimmed ().isEmpty ())
-         text += page.trimmed () + "\n\n";
+      if (!page.isEmpty ())
+         text += page + "\n\n";
       }
    if (text.isEmpty ())
       {
@@ -2307,13 +2334,7 @@ void Desktopwidget::suggestName (void)
       return;
       }
 
-   // the names beside it show how the user names things
-   QStringList examples;
-
-   if (f->desk ())
-      for (File *other : f->desk ()->files ())
-         if (other != f && examples.size () < Assistant::name_examples)
-            examples << other->stackLeaf ();
+   QStringList examples = nameExamples (f);
 
    Assistant *assistant = _assistant ? _assistant
                                      : new Assistant (nullptr, this);
@@ -2343,6 +2364,122 @@ void Desktopwidget::suggestName (void)
       emit newContents (tr ("Suggested name: press Enter to accept it, "
                             "or Esc to keep the old one"));
       _view->renameStack (ind, name);
+   });
+   }
+
+
+void Desktopwidget::suggestSplit (void)
+   {
+   QModelIndex sind = _view->getSelectedItem (true);
+   File *f = _contents->getFile (sind);
+
+   if (!f || !Assistant::enabled ())
+      return;
+
+   /* a stack on a server may not all be here, so bring it here first,
+      without waiting; a local one is asked about at once */
+   QPersistentModelIndex stack (sind);
+   QPointer<Desktopwidget> self (this);
+
+   _contents->fetchStacksLater (QModelIndexList () << sind,
+                                [self, stack] (err_info *err) {
+      if (!self || self->_main->complain (err) || !stack.isValid ())
+         return;
+      self->askSplit (stack);
+   });
+   }
+
+
+void Desktopwidget::askSplit (const QModelIndex &sind)
+   {
+   File *f = _contents->getFile (sind);
+
+   if (!f)
+      return;
+
+   // what each page says: a page with nothing goes with the one before
+   QStringList pages;
+   bool any = false;
+
+   f->load ();
+   for (int i = 0; i < f->pagecount (); i++)
+      {
+      pages << pageText (f, i);
+      any |= !pages.last ().isEmpty ();
+      }
+   if (pages.size () < 2)
+      return;
+   if (!any)
+      {
+      emit newContents (tr ("This stack has no text to divide it by: use "
+                            "Read text (OCR) first"));
+      return;
+      }
+
+   Assistant *assistant = _assistant ? _assistant
+                                     : new Assistant (nullptr, this);
+   bool mine = !_assistant;
+   QPersistentModelIndex stack (sind);
+   int pagecount = pages.size ();
+
+   emit newContents (tr ("Asking the assistant how to divide the stack..."));
+   assistant->suggestSplit (pages, nameExamples (f), this,
+                            [this, stack, assistant, mine, pagecount] (
+                               const QList<Assistant::Doc> &docs,
+                               const QString &error) {
+      if (mine)
+         assistant->deleteLater ();
+      if (!error.isEmpty ())
+         {
+         emit newContents (error);
+         return;
+         }
+
+      // the stack may have gone, or changed, meanwhile
+      File *f = stack.isValid () ? _contents->getFile (stack) : nullptr;
+
+      if (!f || f->pagecount () != pagecount)
+         return;
+      if (docs.size () < 2)
+         {
+         emit newContents (tr ("The assistant found only one document in "
+                               "this stack"));
+         return;
+         }
+
+      // show what it suggests, with the first page of each document
+      Splitdialog *dialog = new Splitdialog (this);
+
+      dialog->setAttribute (Qt::WA_DeleteOnClose);
+      dialog->setDocs (docs, pagecount);
+      for (const Assistant::Doc &doc : docs)
+         {
+         QPixmap pixmap;
+
+         if (!f->getPreviewPixmap (doc.first, pixmap, false)
+             && !pixmap.isNull ())
+            dialog->setThumbnail (doc.first, pixmap);
+         }
+      emit newContents (tr ("The assistant suggests %n document(s)", "",
+                            docs.size ()));
+      connect (dialog, &QDialog::accepted, this, [this, dialog, stack] () {
+         QList<Assistant::Doc> docs = dialog->docs ();
+         QModelIndex ind = stack;
+         QList<int> firsts;
+         QStringList names;
+
+         if (!ind.isValid () || docs.size () < 2)
+            return;
+         for (const Assistant::Doc &doc : docs.mid (1))
+            {
+            firsts << doc.first;
+            names << doc.name;
+            }
+         if (!_contents->splitStack (ind, firsts, names, docs [0].name))
+            emit newContents (tr ("The stack has changed, so cannot be "
+                                  "divided this way"));
+      });
+      dialog->open ();
    });
    }
 

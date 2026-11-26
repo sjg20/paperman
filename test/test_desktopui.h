@@ -199,6 +199,9 @@ private slots:
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 
+   //! The assistant's way of dividing a stack is shown, changed and done
+   void testSuggestSplit();
+
    //! Test the year/month directory filter hides other years
    void testDirFilterHidesOtherYears();
 
