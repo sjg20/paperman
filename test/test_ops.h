@@ -85,6 +85,9 @@ private slots:
    void testStackOnPdf();
    void testStackAtPage();
 
+   //! What is done to stacks is written in the record of activity
+   void testActivityRecorded();
+
    //! Reversing the pages of several stacks, as one step to undo
    void testReversePages();
 

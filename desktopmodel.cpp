@@ -119,6 +119,7 @@ Desktopmodel::Desktopmodel(QObject *parent)
    });
 
    _undo = new Desktopundostack (this);
+   _undo->setModel (this);
    connect (_undo, SIGNAL (undoTextChanged (const QString &)),
       this, SIGNAL (undoTextChanged (const QString &)));
    connect (_undo, SIGNAL (redoTextChanged (const QString &)),
@@ -700,6 +701,17 @@ QModelIndex Desktopmodel::deskFromDirname (const QString &dir)
    bool bare = dir.isEmpty () || dir.endsWith ('/');
 
    return index (bare ? dir : dir + "/", QModelIndex ());
+   }
+
+
+QString Desktopmodel::activityRoot (const QString &dir)
+   {
+   QModelIndex parent = deskFromDirname (dir);
+   Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+
+   if (!desk || desk->isRemote () || isRemoteDir (dir))
+      return QString ();
+   return desk->rootDir ();
    }
 
 
