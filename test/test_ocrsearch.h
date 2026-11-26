@@ -51,6 +51,9 @@ private slots:
    //! a stack which is renamed or moved is read where it has gone
    void testReaderStackMoves();
 
+   //! several pages are read at once
+   void testReaderWorkers();
+
    //! what the user types is always a valid query, matching word starts
    void testMatchQuery();
 

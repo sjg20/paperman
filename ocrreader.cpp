@@ -32,12 +32,16 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "file.h"
 #include "ocr.h"
 #include "ocrreader.h"
+#include "ocrtess.h"
 #include "utils.h"
 
 
 OcrReader::OcrReader (QObject *parent)
    : QObject (parent)
    {
+   /* a scanner fills a stack far faster than one page at a time can be
+      read, but leave most of the machine for whoever is using it */
+   setWorkers (qBound (1, QThread::idealThreadCount () / 2, 4));
    }
 
 
@@ -60,6 +64,7 @@ OcrReader::~OcrReader ()
       delete job.watcher;
       }
    closeOwn ();
+   delete _tess;
    }
 
 
@@ -78,6 +83,13 @@ void OcrReader::setEnabled (bool enable)
 void OcrReader::setEngine (const Engine &engine)
    {
    _engine = engine;
+   }
+
+
+void OcrReader::setWorkers (int workers)
+   {
+   _workers = qMax (1, workers);
+   _pool.setMaxThreadCount (_workers);
    }
 
 
@@ -234,6 +246,7 @@ bool OcrReader::markPage (File *file, int pagenum, Mark &mark)
 void OcrReader::next ()
    {
    Engine engine = _engine;
+   int workers = _workers;
 
    _next_posted = false;
    if (!engine)
@@ -251,6 +264,21 @@ void OcrReader::next ()
             emit idle ();
          return;
          }
+
+      /* tesseract is run afresh for each page, so can read several at
+         once: use one of our own, set to keep out of the way. Any other
+         engine is the one everything shares, a page at a time */
+      if (dynamic_cast<Ocrtess *> (ocr))
+         {
+         if (!_tess)
+            {
+            _tess = new Ocrtess ();
+            _tess->setBackground (true);
+            }
+         ocr = _tess;
+         }
+      else
+         workers = 1;
       engine = [ocr] (QImage &image, OcrPage &page)
          {
          err_info *err = ocr->imageToPage (image, page);
@@ -261,7 +289,7 @@ void OcrReader::next ()
 
    int looked = 0;
 
-   while (_jobs.isEmpty () && !_stacks.isEmpty ())
+   while (_jobs.size () < workers && !_stacks.isEmpty ())
       {
       /* a stack whose pages have mostly been read takes a while to look
          through, so let other things have a turn now and then */
@@ -315,7 +343,7 @@ void OcrReader::next ()
       qCDebug (logOcr).noquote () << QString ("ocr: reading page %1 of %2")
          .arg (pagenum + 1).arg (job.path);
       _jobs << job;
-      watcher->setFuture (QtConcurrent::run ([engine, image] () mutable
+      watcher->setFuture (QtConcurrent::run (&_pool, [engine, image] () mutable
          {
          Result result;
 
