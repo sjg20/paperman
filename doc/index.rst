@@ -50,6 +50,7 @@ The manual is also available as a `PDF
    client-server
    server-internals
    text-search
+   activity-log
    api
    build
    app-develop
