@@ -164,6 +164,7 @@ HEADERS += desktopwidget.h \
  iostats.h \
  updatecheck.h \
  assistant.h \
+ splitdialog.h \
  mailer.h \
  ocr.h \
  file.h \
@@ -274,6 +275,7 @@ SOURCES += desktopwidget.cpp \
  iostats.cpp \
  updatecheck.cpp \
  assistant.cpp \
+ splitdialog.cpp \
  mailer.cpp \
  ocr.cpp \
  dmop.cpp \
