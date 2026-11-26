@@ -323,7 +323,9 @@ void Assistant::suggestSplit (const QStringList &pages,
       "belongs with it, as does a page with no text. Start a new document "
       "only where the text shows one: when unsure, keep pages together. "
       "Follow the style of the other names in the folder, if any are "
-      "given. Use only what the text says. No file extension.";
+      "given. Use only what the text says. No file extension. Give too "
+      "the facts which the text states about each document, to be kept "
+      "with it: leave out any which the text does not give.";
    QJsonObject page_type, name_type, props, doc, docs_type, top, schema;
    int pagecount = pages.size ();
 
@@ -339,6 +341,7 @@ void Assistant::suggestSplit (const QStringList &pages,
    name_type ["type"] = "string";
    props ["first_page"] = page_type;
    props ["name"] = name_type;
+   props ["facts"] = Docfacts::schema ();
    doc ["type"] = "object";
    doc ["properties"] = props;
    doc ["required"] = QJsonArray {"first_page", "name"};
@@ -395,7 +398,7 @@ QString Assistant::splitPrompt (const QStringList &pages,
 QList<Assistant::Doc> Assistant::splitFromAnswer (const QJsonObject &answer,
                                                   int pagecount)
    {
-   QMap<int, QString> starts;
+   QMap<int, Doc> starts;
 
    // in order, with one document at most starting at any page
    for (const QJsonValue &val : answer.value ("documents").toArray ())
@@ -404,16 +407,19 @@ QList<Assistant::Doc> Assistant::splitFromAnswer (const QJsonObject &answer,
       int first = obj.value ("first_page").toInt () - 1;
 
       if (first >= 0 && first < pagecount && !starts.contains (first))
-         starts [first] = cleanName (obj.value ("name").toString ());
+         starts [first] = Doc {first,
+               cleanName (obj.value ("name").toString ()),
+               Docfacts::fromJson (obj.value ("facts").toObject ())};
       }
 
    QList<Doc> docs;
 
-   if (starts.isEmpty ())
-      return docs;
-
    // the pages before the first one given belong to it
-   for (auto it = starts.constBegin (); it != starts.constEnd (); ++it)
-      docs << Doc {docs.isEmpty () ? 0 : it.key (), it.value ()};
+   for (Doc doc : starts)
+      {
+      if (docs.isEmpty ())
+         doc.first = 0;
+      docs << doc;
+      }
    return docs;
    }

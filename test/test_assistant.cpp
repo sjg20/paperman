@@ -238,6 +238,29 @@ void TestAssistant::testSplitFromAnswer()
    docs = Assistant::splitFromAnswer(docsAnswer({{1, "A"}, {2, "??"}}), 5);
    QCOMPARE(docs, (QList<Doc>{{0, "A"}, {1, ""}}));
 
+   /* each document can come with facts, which are made fit to keep; they
+      stay with their document when the answer is out of order */
+   QJsonObject answer = docsAnswer({{3, "Letter"}, {1, "Power bill"}});
+   QJsonArray arr = answer["documents"].toArray();
+   QJsonObject letter = arr[0].toObject(), bill = arr[1].toObject();
+   QJsonObject given;
+
+   given["type"] = "bill";
+   given["from"] = " Northern Power ";
+   given["date"] = "3 March";
+   given["amount"] = 184.2;
+   bill["facts"] = given;
+   answer["documents"] = QJsonArray{letter, bill};
+   docs = Assistant::splitFromAnswer(answer, 5);
+   QCOMPARE(docs.size(), 2);
+   QCOMPARE(docs[0].name, QString("Power bill"));
+   QCOMPARE(docs[0].facts.type, QString("bill"));
+   QCOMPARE(docs[0].facts.from, QString("Northern Power"));
+   QCOMPARE(docs[0].facts.date, QString());
+   QCOMPARE(docs[0].facts.amount, QString("184.20"));
+   QCOMPARE(docs[1].name, QString("Letter"));
+   QVERIFY(docs[1].facts.isEmpty());
+
    // nothing usable gives nothing
    QVERIFY(Assistant::splitFromAnswer(QJsonObject(), 5).isEmpty());
    QVERIFY(Assistant::splitFromAnswer(docsAnswer({{7, "A"}}), 5).isEmpty());
@@ -272,6 +295,15 @@ void TestAssistant::testSuggestSplit()
    QVERIFY(!backend->_system.isEmpty());
    QCOMPARE(backend->_schema.value("required").toArray(),
             QJsonArray{"documents"});
+
+   // each document may have facts, which are asked for but not needed
+   QJsonObject doc = backend->_schema.value("properties").toObject()
+      .value("documents").toObject().value("items").toObject();
+   QCOMPARE(doc.value("properties").toObject().value("facts").toObject(),
+            Docfacts::schema());
+   QCOMPARE(doc.value("required").toArray(),
+            (QJsonArray{"first_page", "name"}));
+   QVERIFY(backend->_system.contains("facts"));
 
    // an answer with no documents is a failure, as is one from the backend
    backend->_answer = QJsonObject();
