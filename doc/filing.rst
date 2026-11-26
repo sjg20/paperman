@@ -51,8 +51,8 @@ with it, or with all the stacks selected:
        separate documents (see `Splitting a pile into documents`_). Shown
        once it is turned on in the options
    * - **Read text (OCR)**
-     - Redo the OCR, reading the text of the stack's pages again (see
-       :doc:`finding`)
+     - Read the text of the stack's pages which have none yet, leaving
+       those already read as they are (see :doc:`finding`)
    * - **Duplicate...**
      - Copy a page, or a stack in another form (see `Duplicating`_)
    * - **Email...**
