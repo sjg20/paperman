@@ -211,6 +211,9 @@ private slots:
    //! Pages which say nothing are read before a name is asked for
    void testSuggestNameReadsPages();
 
+   //! The window for checking names gives back what is to be renamed
+   void testNamesDialog();
+
    //! The assistant's way of dividing a stack is shown, changed and done
    void testSuggestSplit();
 
