@@ -1498,6 +1498,29 @@ bool Desktopmodel::keepsOcr (File *f) const
    }
 
 
+bool Desktopmodel::keepsFacts (File *f) const
+   {
+   return f && !remoteForFile (f)
+      && (f->type () == File::Type_max || f->type () == File::Type_pdf);
+   }
+
+
+err_info *Desktopmodel::opSetFacts (const QModelIndex &index,
+                                    const Docfacts &facts)
+   {
+   File *f = index.isValid () ? getFile (index) : nullptr;
+
+   if (!keepsFacts (f))
+      return File::not_impl ();
+   CALL (f->load ());
+   CALL (Docfacts::write (f, facts));
+
+   // the index copies them when it next looks at the stack
+   emit dataChanged (index, index);
+   return NULL;
+   }
+
+
 err_info *Desktopmodel::findText (const QString &path,
       const QString &rootPath, const QString &text, Measure *meas,
       QModelIndex &found, int &count, Operation *op, bool *complete)

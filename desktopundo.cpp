@@ -1081,6 +1081,44 @@ void UCRenameStack::rename (const QString &from, const QString &to)
    }
 
 
+UCStackFacts::UCStackFacts (Desktopmodel *model, const QModelIndex &ind,
+                            const Docfacts &facts)
+      : Desktopundocmd (model)
+   {
+   _dir = model->deskToDirname (ind.parent ());
+   _filename = model->data (ind, Desktopmodel::Role_filename).toString ();
+   _old = model->facts (ind);
+   _new = facts;
+   setText (QApplication::translate("UCStackFacts", "Set facts"));
+   }
+
+
+void UCStackFacts::redo (void)
+   {
+   write (_new);
+   }
+
+
+void UCStackFacts::undo (void)
+   {
+   write (_old);
+   }
+
+
+void UCStackFacts::write (const Docfacts &facts)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir, filename = _filename;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex ind = model->index (filename, model->deskFromDirname (path));
+
+      done (model->opSetFacts (ind, facts));
+   });
+   }
+
+
 UCTransformPage::UCTransformPage (Desktopmodel *model, const QModelIndex &ind,
       int pagenum, File::e_transform op)
       : Desktopundocmd (model)

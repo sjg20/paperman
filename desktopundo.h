@@ -28,6 +28,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QModelIndexList>
 #include <QStringList>
 
+#include "docfacts.h"
 #include "err.h"
 
 #include <memory>
@@ -494,6 +495,33 @@ private:
 
 
 /** transform (rotate or mirror) a page of a stack */
+
+/** keep facts about a stack's document in its file. We record the facts it
+had and those it is given. To redo we write the new ones, and to undo the
+old ones. The stack is found by its name, which a rename before or after
+this one in the same step may have changed */
+
+class UCStackFacts : public Desktopundocmd
+   {
+public:
+   /**
+      \param model    model to work with
+      \param ind      model index of stack
+      \param facts    the facts to keep about it */
+   UCStackFacts (Desktopmodel *model, const QModelIndex &ind,
+                 const Docfacts &facts);
+   void redo();
+   void undo();
+private:
+   //! write @p facts to the stack
+   void write (const Docfacts &facts);
+
+   QString _dir;        //!< desk directory
+   QString _filename;   //!< the stack
+   Docfacts _old;       //!< the facts it had
+   Docfacts _new;       //!< the facts it is given
+   };
+
 
 class UCTransformPage : public Desktopundocmd
    {
