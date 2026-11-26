@@ -196,6 +196,9 @@ private slots:
    //! pages are read in the background through a refresh, and it shows
    void testReadingStatus();
 
+   //! work which takes a while is listed, and stopped, in one window
+   void testBackgroundJobs();
+
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 

@@ -34,10 +34,14 @@ class OcrReader;
 /** Shows the work which Paperman is doing in the background, and lets it
     be held back or given up.
 
-    For now that is the reading of the text of scanned pages: the stacks
+    At the top is whatever is listed in Backgroundwork: printing,
+    converting, indexing and the like, each with how far it has got, and
+    a button to stop the one selected if it can be stopped.
+
+    Below that is the reading of the text of scanned pages: the stacks
     waiting are listed in the order they are taken, with how many pages
     each has left. Reading can be paused, one stack or several dropped
-    from the list, or all of it stopped. The window follows the reader as
+    from the list, or all of it stopped. The window follows the work as
     it goes, and stays open while Paperman is used */
 class Backgrounddialog : public QDialog
    {
@@ -58,6 +62,13 @@ public:
    //! select the stack in a row of the list, from 0
    void selectRow (int row);
 
+   //! what the list of other work shows, a row for each job as
+   //! "title: how far it has got"
+   QStringList jobsListed () const;
+
+   //! select the job in a row of the list of other work, from 0
+   void selectJob (int row);
+
    /** what is left to read, as "12 pages in 2 stacks"
 
       \param reader  the reader
@@ -74,13 +85,25 @@ public slots:
    //! drop every stack from the list
    void stopAll ();
 
+   //! ask the job selected to stop
+   void stopJob ();
+
 private slots:
    //! show the reader as it is now
    void refresh ();
 
+   //! show the other work as it is now
+   void refreshJobs ();
+
 private:
+   //! how often the list of other work is brought up to date, at most
+   static constexpr int jobs_refresh_ms = 200;
+
    OcrReader *_reader;
    QLabel *_summary;
    QTableWidget *_table;
    QPushButton *_pause, *_remove, *_stop;
+   QTableWidget *_jobs;       //!< the other work going on
+   QPushButton *_stop_job;
+   bool _jobs_due = false;    //!< refreshJobs() is on its way
    };

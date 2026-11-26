@@ -46,7 +46,8 @@ Text pane
    The text read from the page (OCR), for finding it by what it says.
 
 Status bar
-   Along the bottom: about the stack and page selected.
+   Along the bottom: about the stack and page selected, and what
+   Paperman is busy with (see `Work which takes a while`_).
 
 The Page toolbar, Page list, Page viewer and Text pane together make up
 the **Preview pane**, on the right.
@@ -54,6 +55,26 @@ the **Preview pane**, on the right.
 Beside the desktop view there is the **Page view**, which gives the
 whole window to a stack's pages, and the **Scan panel**, a window of its
 own for scanning (see :doc:`scanning`).
+
+Work which takes a while
+------------------------
+
+Printing, converting a stack to another type, unfolding a booklet and
+bringing the text index up to date all take a while for a large stack,
+and show a bar in the status bar as they go. Reading the text of scanned
+pages goes on in the background, and shows a count there (see
+:doc:`finding`).
+
+**Tools > Background work** shows all of this in one window, which can
+stay open:
+
+- At the top, each piece of work under way with how far it has got.
+  Select one and press **Stop** to give it up: a conversion stopped
+  part-way leaves nothing behind, and a search stopped while the index
+  is brought up to date looks through what has been indexed so far.
+  **Stop** is greyed out for work which cannot be stopped.
+- Below, the stacks waiting to have their text read, where the reading
+  can be paused or stopped.
 
 Main toolbar
 ------------

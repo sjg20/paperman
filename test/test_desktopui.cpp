@@ -2635,6 +2635,61 @@ void TestDesktopUi::testReadingStatus()
    QVERIFY(asked.isEmpty());
 }
 
+/* Work which takes a while is listed in the Background work window,
+   with how far it has got, and can be stopped there if it stops when
+   told to */
+void TestDesktopUi::testBackgroundJobs()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+   me.actionBackground->trigger();
+   Backgrounddialog *work = me.findChild<Backgrounddialog *>();
+   QVERIFY(work);
+   QPushButton *stop = work->findChild<QPushButton *>("stopJob");
+   QVERIFY(stop);
+   QVERIFY(work->jobsListed().isEmpty());
+   QVERIFY(!stop->isEnabled());
+
+   {
+      // an operation is listed while it runs, with how far it has got
+      Operation op("Converting things", 10, nullptr);
+      QTRY_COMPARE(work->jobsListed(), QStringList("Converting things: 0%"));
+      op.setProgress(5);
+      QTRY_COMPARE(work->jobsListed(), QStringList("Converting things: 50%"));
+
+      // it cannot be stopped unless whatever runs it stops when told to
+      QVERIFY(!stop->isEnabled());
+      op.setCancellable(true);
+      QTRY_VERIFY(stop->isEnabled());
+      QVERIFY(!op.cancelled());
+      stop->click();
+      QVERIFY(op.cancelled());
+      QVERIFY(!stop->isEnabled());
+      QCOMPARE(work->jobsListed(),
+               QStringList("Converting things: 50%, stopping"));
+
+      // with more than one job, the one selected is the one stopped
+      Operation first("Printing", 4, nullptr), second("Packaging", 0, nullptr);
+      first.setCancellable(true);
+      second.setCancellable(true);
+      QTRY_COMPARE(int(work->jobsListed().size()), 3);
+      QCOMPARE(work->jobsListed()[1], QString("Printing: 0%"));
+      QVERIFY(!stop->isEnabled());
+      work->selectJob(2);
+      QVERIFY(stop->isEnabled());
+      stop->click();
+      QVERIFY(second.cancelled());
+      QVERIFY(!first.cancelled());
+   }
+
+   // and is gone from the list when it finishes
+   QTRY_VERIFY(work->jobsListed().isEmpty());
+   QVERIFY(!stop->isEnabled());
+}
+
 void TestDesktopUi::testSuggestName()
 {
    QModelIndex repo_ind;
