@@ -32,6 +32,8 @@ Anywhere
      - Open the camera panel
    * - **F11**
      - Fill the screen, or go back to a window
+   * - **Ctrl+B**
+     - Show the work going on in the background, to watch or stop it
    * - **Alt+Shift+W**, **Alt+Shift+D**
      - Show the files in your Downloads or Documents folder in the stack
        pane, to file them
@@ -50,6 +52,12 @@ These act on the stacks selected in the stack pane (see :doc:`filing`).
 
    * - Arrow keys
      - Move from stack to stack
+   * - **Ctrl** with an arrow key
+     - Move the outline to the next stack without selecting it
+   * - **Ctrl+Space**
+     - Add the stack with the outline to those selected, or take it away
+   * - **Alt** with an arrow key
+     - Nudge the stacks selected a short way across the desk
    * - **Ctrl+G**
      - Stack: put the stacks selected together into one
    * - **Ctrl+I**
@@ -66,13 +74,28 @@ These act on the stacks selected in the stack pane (see :doc:`filing`).
      - Rename the stack
    * - **Shift+F2**
      - Rename the page shown
-   * - **Alt+Left**, **Alt+Right**
+   * - **Alt+Shift+Left**, **Alt+Shift+Right**
      - Turn every page of the stacks to the left or to the right
    * - **Ctrl+Shift+L**
      - In the results of a search, go to the folder the stack is in
    * - **Esc**
      - Go back to the folder, from the results of a search or from files
        being imported
+
+Processing
+~~~~~~~~~~
+
+.. list-table::
+   :widths: 30 70
+
+   * - **Ctrl+T**
+     - Read the text of the pages which have none yet (OCR)
+   * - **Ctrl+F2**
+     - Ask the assistant for a name for each stack, once it is turned on
+   * - **Ctrl+Shift+U**
+     - Ask the assistant where a stack divides into documents
+   * - **Ctrl+R**
+     - Put the pages of each stack in the opposite order
 
 Duplicating
 ~~~~~~~~~~~
@@ -88,6 +111,10 @@ Duplicating
      - Copy each stack as a PDF
    * - **Ctrl+Shift+J**
      - Copy each page as a JPEG picture
+   * - **Ctrl+Shift+N**, **Ctrl+Shift+O**
+     - Copy just the even pages, or the odd ones, into a new stack
+   * - **Ctrl+Shift+B**
+     - Unfold a booklet scanned two pages to a sheet
 
 Emailing and copying
 ~~~~~~~~~~~~~~~~~~~~
