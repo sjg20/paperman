@@ -1153,6 +1153,19 @@ err_info *File::getPageOcr (int, OcrPage &)
    }
 
 
+QString File::textOfPage (int pagenum)
+   {
+   OcrPage ocr;
+   QString text;
+
+   if (!getPageOcr (pagenum, ocr) && !ocr.isEmpty ())
+      text = ocr.text ();
+   else if (getPageText (pagenum, text))
+      text.clear ();
+   return text.trimmed ();
+   }
+
+
 err_info *File::putPageOcr (int, const OcrPage &)
    {
    return not_impl ();

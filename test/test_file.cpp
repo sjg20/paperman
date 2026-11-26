@@ -1515,6 +1515,34 @@ static QString ocrWord(File *f, int pagenum)
 }
 
 
+/* The text of a page comes from wherever the file keeps it: a PDF's own
+   text, or nothing for a page which has none or does not exist */
+void TestFile::testTextOfPage()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+   QVERIFY(!copyFixture("testpdf.pdf", tmp.path()).isEmpty());
+
+   // a page which has not been read has none
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QCOMPARE(max.textOfPage(0), QString());
+
+   // nor has a page which is not there
+   QCOMPARE(max.textOfPage(max.pagecount()), QString());
+
+   // a PDF cannot give words, so its text is what it has itself
+   Filepdf pdf(dir, "testpdf.pdf", nullptr);
+   QVERIFY(!pdf.load());
+
+   QString own;
+   QVERIFY(!pdf.getPageText(0, own));
+   QVERIFY(!own.trimmed().isEmpty());
+   QCOMPARE(pdf.textOfPage(0), own.trimmed());
+}
+
 void TestFile::testMaxOcr()
 {
    QTemporaryDir tmp;
@@ -1544,6 +1572,13 @@ void TestFile::testMaxOcr()
       OcrPage ocr;
       QVERIFY(!max.getPageOcr(1, ocr));
       QCOMPARE(ocr, ocrFor("page1"));
+
+      /* the page's text is its words, though they are not in the place
+         where getPageText() looks */
+      QString text;
+      QVERIFY(!max.getPageText(1, text));
+      QCOMPARE(text, QString());
+      QCOMPARE(max.textOfPage(1), QString("page1 caf\u00e9"));
 
       // it can be read again, larger, and then forgotten
       OcrPage big = ocrFor("again");

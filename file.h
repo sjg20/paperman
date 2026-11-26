@@ -343,6 +343,16 @@ public:
                returns an error */
    virtual err_info *getPageOcr (int pagenum, OcrPage &page);
 
+   /** the text of a page, however the file keeps it: the words which OCR
+       read from it, or else the text the file itself has for it, such as
+       a PDF's. Anything which wants what a page says should ask this, as
+       getPageText() alone leaves out a page's words
+
+      \param pagenum  the page, from 0
+      \returns the text, with no space around it; empty if the page has
+               none, or it cannot be read */
+   QString textOfPage (int pagenum);
+
    /** keep what was read from a page by OCR with the page
 
       \param pagenum  the page, from 0

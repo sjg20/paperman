@@ -2313,14 +2313,7 @@ void Desktopwidget::renameStack (void)
 
 QString Desktopwidget::pageText (File *f, int page)
    {
-   OcrPage ocr;
-   QString text;
-
-   if (!f->getPageOcr (page, ocr) && !ocr.isEmpty ())
-      text = ocr.text ();
-   else if (f->getPageText (page, text))
-      text.clear ();
-   return text.trimmed ();
+   return f->textOfPage (page);
    }
 
 
