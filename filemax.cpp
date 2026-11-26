@@ -6290,58 +6290,6 @@ err_info *Filemax::putPageOcr (int pagenum, const OcrPage &ocr)
    }
 
 
-/* a page's properties as the text kept in its chunk: a 'key=value' line
-   for each, in the order of their keys */
-static QByteArray props_to_bytes (const QMap<QString, QString> &props)
-   {
-   QString text;
-
-   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
-      text += it.key () + '=' + it.value () + '\n';
-   return text.toUtf8 ();
-   }
-
-
-/* the properties in the text kept in a page's chunk; a line with no '='
-   is ignored */
-static void props_from_bytes (const QByteArray &data,
-                              QMap<QString, QString> &props)
-   {
-   const QStringList lines = QString::fromUtf8 (data).split ('\n',
-                                                Qt::SkipEmptyParts);
-
-   props.clear ();
-   for (const QString &line : lines)
-      {
-      int eq = line.indexOf ('=');
-
-      if (eq > 0)
-         props.insert (line.left (eq), line.mid (eq + 1));
-      }
-   }
-
-
-//! true if 'str' would break a 'key=value' line
-static bool props_breaks_line (const QString &str)
-   {
-   return str.contains ('\n') || str.contains ('\r');
-   }
-
-
-/* check that properties can be kept as a 'key=value' line each
-
-   \returns error for the first which cannot, or NULL if all can */
-static err_info *props_check (const QMap<QString, QString> &props)
-   {
-   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
-      if (it.key ().isEmpty () || it.key ().contains ('=')
-          || props_breaks_line (it.key ()) || props_breaks_line (it.value ()))
-         return err_make (ERRFN, ERR_invalid_page_property1,
-                          qPrintable (it.key ()));
-   return NULL;
-   }
-
-
 err_info *Filemax::getStackProps (QMap<QString, QString> &props)
    {
    QMutexLocker locker (&_file_mutex);
@@ -6362,7 +6310,7 @@ err_info *Filemax::getStackProps (QMap<QString, QString> &props)
    QByteArray ba;
 
    CALL (read_sized_chunk (_stack_props, CT_props, ba));
-   props_from_bytes (ba, props);
+   propsFromBytes (ba, props);
    return NULL;
    }
 
@@ -6371,7 +6319,7 @@ err_info *Filemax::putStackProps (const QMap<QString, QString> &props)
    {
    QMutexLocker locker (&_file_mutex);
 
-   CALL (props_check (props));
+   CALL (propsCheck (props));
    if (isSparse ())
       return not_impl ();
 
@@ -6395,7 +6343,7 @@ err_info *Filemax::putStackProps (const QMap<QString, QString> &props)
       }
    else
       {
-      CALL (create_stack_props (props_to_bytes (props)));
+      CALL (create_stack_props (propsToBytes (props)));
       }
 
    // which writes the header, with where they are now
@@ -6432,7 +6380,7 @@ err_info *Filemax::getPageProps (int pagenum, QMap<QString, QString> &props)
    QByteArray ba;
 
    CALL (read_sized_chunk (page->props, CT_props, ba));
-   props_from_bytes (ba, props);
+   propsFromBytes (ba, props);
    return NULL;
    }
 
@@ -6468,7 +6416,7 @@ err_info *Filemax::findCover (int &pagenum, QString &text)
       QMap<QString, QString> props;
 
       CALL (read_sized_chunk (page->props, CT_props, ba));
-      props_from_bytes (ba, props);
+      propsFromBytes (ba, props);
 
       Pagecover cover = Pagecover::fromProps (props);
 
@@ -6490,7 +6438,7 @@ err_info *Filemax::putPageProps (int pagenum,
 
    page_info *page;
 
-   CALL (props_check (props));
+   CALL (propsCheck (props));
 
    // nothing is written to a stack held a page at a time, as with OCR
    if (isSparse ())
@@ -6514,7 +6462,7 @@ err_info *Filemax::putPageProps (int pagenum,
       }
    else
       {
-      CALL (create_props (*page, props_to_bytes (props)));
+      CALL (create_props (*page, propsToBytes (props)));
       }
    CALL (create_roswell (*page));
    return flush ();

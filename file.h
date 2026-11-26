@@ -836,6 +836,27 @@ eturns error, or NULL if ok */
 
    static err_info *not_impl (void);
 
+   /** properties as the text a file keeps: a 'key=value' line for each,
+       in the order of their keys
+
+      \param props    the properties
+      \returns the text, as UTF-8 */
+   static QByteArray propsToBytes (const QMap<QString, QString> &props);
+
+   /** the properties in the text a file keeps; a line with no '=' is
+       ignored
+
+      \param data     the text, as UTF-8
+      \param props    returns the properties */
+   static void propsFromBytes (const QByteArray &data,
+                               QMap<QString, QString> &props);
+
+   /** check that properties can be kept as a 'key=value' line each
+
+      \param props    the properties
+      \returns error for the first which cannot, or NULL if all can */
+   static err_info *propsCheck (const QMap<QString, QString> &props);
+
    /** makes a copy of a file and puts it in the provided desk. If 'type' is
       Type_other then a bytewise copy will be made, otherwise the file will be
       converted to the supplied type. The leaf of the filename to use it in

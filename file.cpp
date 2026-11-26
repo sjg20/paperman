@@ -1097,6 +1097,51 @@ err_info *File::not_impl (void)
    }
 
 
+QByteArray File::propsToBytes (const QMap<QString, QString> &props)
+   {
+   QString text;
+
+   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+      text += it.key () + '=' + it.value () + '\n';
+   return text.toUtf8 ();
+   }
+
+
+void File::propsFromBytes (const QByteArray &data,
+                           QMap<QString, QString> &props)
+   {
+   const QStringList lines = QString::fromUtf8 (data).split ('\n',
+                                                Qt::SkipEmptyParts);
+
+   props.clear ();
+   for (const QString &line : lines)
+      {
+      int eq = line.indexOf ('=');
+
+      if (eq > 0)
+         props.insert (line.left (eq), line.mid (eq + 1));
+      }
+   }
+
+
+//! true if 'str' would break a 'key=value' line
+static bool props_breaks_line (const QString &str)
+   {
+   return str.contains ('\n') || str.contains ('\r');
+   }
+
+
+err_info *File::propsCheck (const QMap<QString, QString> &props)
+   {
+   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+      if (it.key ().isEmpty () || it.key ().contains ('=')
+          || props_breaks_line (it.key ()) || props_breaks_line (it.value ()))
+         return err_make (ERRFN, ERR_invalid_page_property1,
+                          qPrintable (it.key ()));
+   return NULL;
+   }
+
+
 err_info *File::getPageOcr (int, OcrPage &)
    {
    return not_impl ();
