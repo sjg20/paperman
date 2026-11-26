@@ -91,10 +91,15 @@ typedef struct diritem_info
 
 typedef struct pagepos_info
    {
+   //! where the stack goes; pos_at_end to leave it where the desk puts a
+   //! new stack, after the others
    QPoint pos;
    int pagenum;
    int pagecount;
    } pagepos_info;
+
+//! a position which stands for wherever the desk puts a new stack
+static constexpr QPoint pos_at_end = QPoint (-1, -1);
 
 
 /** implements an item model, which contains a number of thumbnails representing
@@ -112,6 +117,7 @@ class Desktopmodel : public QAbstractItemModel
    friend class UCUnfoldBooklet;
    friend class UCUnstackStacks;
    friend class UCUnstackPage;
+   friend class UCSplitStack;
    friend class UCStackStacks;
    friend class UCChangeDir;
    friend class UCRenameStack;
@@ -565,6 +571,26 @@ public:
        has no way to do it yet */
    bool canReorderPages (const QModelIndex &ind);
 
+   /** divide a stack into several: the pages from each page given, up to
+       the next, come out as a stack of their own, placed after the others
+       in the folder, and those before the first stay. Supports undo, as
+       one step
+
+      Commits any pending scan
+
+      \param ind     the index of the stack
+      \param firsts  the first page of each new stack, from 0, in order;
+                     each after the one before it, and none at page 0
+      \param names   the name for each new stack, without an extension;
+                     one which is empty is named after the stack and its
+                     pages
+      \param name    a new name for the stack itself, which keeps the
+                     pages before the first; empty to leave its name
+      \returns true if the stack is divided, false if it cannot be: the
+                pages given are not as above */
+   bool splitStack (QModelIndex &ind, const QList<int> &firsts,
+                    const QStringList &names, const QString &name);
+
    /** reverse the order of the pages of each stack given, as one step to
        undo. Supports undo
 
@@ -862,7 +888,9 @@ protected:
       number of stacks were stacked into another stack.
 
       \param src    source stack from which to unstack
-      \param newnames   the name of each new stack
+      \param newnames   the name of each new stack; returns the name each
+                        is given, which differs where the one asked for
+                        is taken or is empty
       \param srcpagenum the first source stack page number to unstack
       \param pagepos    information about each new stack
                            ->pagecount   number of pages to unstack

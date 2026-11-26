@@ -1136,6 +1136,57 @@ void TestAsync::testUnstackPage ()
    }
 
 
+void TestAsync::testSplitStack ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   QModelIndex stack = stackIndex ();
+   QModelIndex parent = stack.parent ();
+   int pages = serverPages ("testfile.max");
+
+   QVERIFY (pages >= 4);
+
+   /* a stack not read yet has no page count to check the pages against,
+      so it is brought here first, as the desktop does before asking */
+   bool here = false;
+
+   QVERIFY (!model->splitStack (stack, {1, 3}, {"Second", ""}, "First"));
+   model->fetchStacksLater (QModelIndexList () << stack,
+                            [&] (err_info *err) { here = !err; });
+   QTRY_VERIFY_WITH_TIMEOUT (here, kDelayMs * 30);
+   stack = stackIndex ();
+
+   /* the first page stays, with a new name; the next two are one stack,
+      with the name given, and the rest another, named by the server */
+   QVERIFY (model->splitStack (stack, {1, 3}, {"Second", ""}, "First"));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 30);
+
+   QStringList stacks = serverStacks ();
+
+   QCOMPARE (stacks.size (), 3);
+   QVERIFY (stacks.contains ("First.max"));
+   QVERIFY (stacks.contains ("Second.max"));
+   QVERIFY (!stacks.contains ("testfile.max"));
+   stacks.removeAll ("First.max");
+   stacks.removeAll ("Second.max");
+   QCOMPARE (serverPages ("First.max"), 1);
+   QCOMPARE (serverPages ("Second.max"), 2);
+   QCOMPARE (serverPages (stacks [0]), pages - 3);
+   QTRY_COMPARE (model->rowCount (parent), 3);
+
+   // one undo puts it back together, with its name
+   model->getUndoStack ()->undo ();
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 30);
+   QCOMPARE (serverStacks (), QStringList ({"testfile.max"}));
+   QCOMPARE (serverPages ("testfile.max"), pages);
+   QTRY_COMPARE (model->rowCount (parent), 1);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
 void TestAsync::testUnstackStacks ()
    {
    connectServer ();

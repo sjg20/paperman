@@ -280,6 +280,34 @@ private:
    };
 
 
+/** divide a stack into several, taking each run of pages out into a new
+stack and leaving the pages before the first run where they are.
+
+To redo this, we take each run of pages out, noting the name each new stack
+is given.
+
+To undo, we stack them back, in order, at the page the first run started at */
+
+class UCSplitStack : public Desktopundocmd
+   {
+public:
+   /** \param firsts  the first page of each new stack, from 0, in order
+       \param names   the name to ask for each, without an extension */
+   UCSplitStack (Desktopmodel *model, QModelIndex &ind,
+                 const QList<int> &firsts, const QStringList &names);
+   void redo();
+   void undo();
+private:
+   QString _dir;           //!< desk directory
+   QString _filename;      //!< the filename of the stack divided
+   int _first;             //!< the first page taken out
+   QStringList _names;     //!< the name to ask for each new stack
+   QList<pagepos_info> _pagepos;   //!< how many pages each new stack has
+   //! the filename of each new stack, once made
+   std::shared_ptr<QStringList> _newnames;
+   };
+
+
 /** this deletes a set of pages from a stack, removing then from
 the original stack. We do this by just marking them as deleted, so that undo
 is easy.

@@ -82,7 +82,11 @@ err_info *Desktopmodel::opUnstackFromStack (QModelIndex &src, QStringList &newna
 
       // unstack the right number of pages from the source into a fresh stack
       CALLB (f->unstackItems (srcpagenum, pp.pagecount, true, newname, fnew, row));
-      fnew->setPos (pp.pos);
+
+      // the name asked for may be taken, or be none at all
+      newnames [upto - 1] = fnew->filename ();
+      if (pp.pos != pos_at_end)
+         fnew->setPos (pp.pos);
       fnew->setPagenum (pp.pagenum);
       flist << fnew;
       }
@@ -3288,7 +3292,8 @@ void Desktopmodel::opUnstackFromStack (const QModelIndex &src,
             File *fnew = desk->createFile (desk->dir (), (*newnames) [i]);
 
             desk->newFile (fnew);
-            fnew->setPos (pagepos [i].pos);
+            if (pagepos [i].pos != pos_at_end)
+               fnew->setPos (pagepos [i].pos);
             fnew->setPagenum (pagepos [i].pagenum);
             if (server)
                refreshRemoteThumbnail (desk, server, fnew);

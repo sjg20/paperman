@@ -1334,6 +1334,88 @@ void TestOps::testStackAtPage()
    }
 }
 
+void TestOps::testSplitStack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   // the image of each page of a stack
+   auto images = [&](const QString &name) {
+      File *f = model->getFile(model->index(name, repo_ind));
+      QList<QImage> list;
+
+      if (!f || f->load())
+         return list;
+      for (int i = 0; i < f->pagecount(); i++) {
+         QImage image;
+         QSize size, trueSize;
+         int bpp;
+
+         if (!f->getImage(i, false, image, size, trueSize, bpp, false))
+            list << image;
+      }
+      return list;
+   };
+
+   for (const QString &ext : {QString(".max"), QString(".pdf")}) {
+      QString orig = ext == ".max" ? "testfile.max" : "testpdf.pdf";
+      QString first = "First" + ext, second = "Second 3-5" + ext;
+      QModelIndex ind = model->index(orig, repo_ind);
+      QList<QImage> before = images(orig);
+      int count = before.size();
+      int rows = model->rowCount(repo_ind);
+
+      QVERIFY2(count >= 4, qPrintable(orig));
+
+      // pages which do not leave each stack one of its own are refused
+      QVERIFY(!model->splitStack(ind, {0, 2}, {"a", "b"}, ""));
+      QVERIFY(!model->splitStack(ind, {2, 2}, {"a", "b"}, ""));
+      QVERIFY(!model->splitStack(ind, {2, count}, {"a", "b"}, ""));
+      QVERIFY(!model->splitStack(ind, {2}, {"a", "b"}, ""));
+      QVERIFY(!model->splitStack(ind, {}, {}, ""));
+      QCOMPARE(model->rowCount(repo_ind), rows);
+
+      /* the first page stays, with a new name; the next two are one
+         stack, with the name given (which cannot keep its dot), and the
+         rest another, named after the stack */
+      QVERIFY(model->splitStack(ind, {1, 3}, {"Second 3.5", ""}, "First"));
+      QCOMPARE(model->rowCount(repo_ind), rows + 2);
+      QVERIFY(!model->index(orig, repo_ind).isValid());
+      QVERIFY(model->index(first, repo_ind).isValid());
+
+      QModelIndex second_ind = model->index(second, repo_ind);
+      QVERIFY2(second_ind.isValid(), qPrintable(second));
+
+      // the last is the only one not there before
+      QModelIndex third_ind = model->index(rows + 1, 0, repo_ind);
+      QString third = model->data(third_ind,
+                                  Desktopmodel::Role_filename).toString();
+      QVERIFY2(third.endsWith(ext), qPrintable(third));
+      QCOMPARE(second_ind.row(), rows);
+
+      QCOMPARE(images(first), before.mid(0, 1));
+      QCOMPARE(images(second), before.mid(1, 2));
+      QCOMPARE(images(third), before.mid(3));
+
+      // one undo puts it all back, name and all
+      model->getUndoStack()->undo();
+      QCOMPARE(model->rowCount(repo_ind), rows);
+      QVERIFY(!model->index(first, repo_ind).isValid());
+      QVERIFY(images(orig) == before);
+
+      // and one redo divides it again
+      model->getUndoStack()->redo();
+      QCOMPARE(model->rowCount(repo_ind), rows + 2);
+      QCOMPARE(images(first), before.mid(0, 1));
+      QCOMPARE(images(second), before.mid(1, 2));
+      model->getUndoStack()->undo();
+      QVERIFY(images(orig) == before);
+   }
+}
+
 void TestOps::testReversePages()
 {
    QModelIndex repo_ind;
