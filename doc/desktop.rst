@@ -65,8 +65,8 @@ and show a bar in the status bar as they go. Reading the text of scanned
 pages goes on in the background, and shows a count there (see
 :doc:`finding`).
 
-**Tools > Background work** shows all of this in one window, which can
-stay open:
+**View > Background work** (Ctrl+B) shows all of this in one window,
+which can stay open while Paperman is used:
 
 - At the top, each piece of work under way with how far it has got.
   Select one and press **Stop** to give it up: a conversion stopped

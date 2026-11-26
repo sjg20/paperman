@@ -202,6 +202,9 @@ private slots:
    //! the stack menu is short, and every item in it has a shortcut
    void testStackMenu();
 
+   //! the Background work window is opened from the View menu
+   void testBackgroundInViewMenu();
+
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 
