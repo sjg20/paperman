@@ -351,14 +351,14 @@ file to attach, or with Gmail in your web browser, pasting the file in</string>
        <item>
         <widget class="QCheckBox" name="assistantEnable">
          <property name="text">
-          <string>Use an AI assistant to suggest names for stacks</string>
+          <string>Use an AI assistant to help with filing</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QLabel" name="assistantNote">
          <property name="text">
-          <string>When you ask for a name, Paperman sends the text of the stack's first pages, and the names of other stacks in its folder, to the AI model, through the command below. The model is not on this computer. Nothing is sent unless you ask.</string>
+          <string>When you ask for a name, Paperman sends the text of the stack's first pages to the AI model, through the command below. When you ask to split a stack into documents, it sends the start of the text of every page. Either way it also sends the names of other stacks in the folder. The model is not on this computer. Nothing is sent unless you ask.</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>

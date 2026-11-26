@@ -505,6 +505,12 @@ private slots:
        text of its first pages, and offer it in the rename editor */
    void suggestName (void);
 
+   /** ask the AI assistant where the stack selected divides into
+       documents, as when a pile of post is scanned in one go, and show
+       what it suggests for the user to check. Accepting it divides the
+       stack, as one step to undo */
+   void suggestSplit (void);
+
    // unfold a saddle-stitched booklet into sequential pages
    void unfoldBooklet (void);
 
@@ -718,6 +724,24 @@ private:
    QAction *_act_duplicate_jpeg, *_act_move;
    QAction *_act_read_text;
    QAction *_act_unfold_booklet, *_act_reverse, *_act_suggest_name;
+   QAction *_act_suggest_split;
+
+   /** ask the assistant how to divide a stack, whose pages are all
+       here: see suggestSplit()
+
+      \param sind  the stack, in the source model */
+   void askSplit (const QModelIndex &sind);
+
+   /** get what a page says, as OCR read it or as the file holds it
+
+      \param f     the stack, which is loaded
+      \param page  the page, from 0
+      \returns the text, empty if the page has none */
+   static QString pageText (File *f, int page);
+
+   //! the names of the other stacks in a stack's folder, which show how
+   //! the user names things; no more than the assistant uses
+   static QStringList nameExamples (File *f);
 
    //! the assistant to ask, or nullptr for one made from the settings
    Assistant *_assistant;

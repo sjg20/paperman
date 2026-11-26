@@ -46,6 +46,10 @@ with it, or with all the stacks selected:
    * - **Suggest name**
      - Ask an AI model for a name, from what the pages say (see
        `Suggesting a name`_). Shown once it is turned on in the options
+   * - **Split into documents...**
+     - Ask an AI model where a stack scanned as one pile divides into
+       separate documents (see `Splitting a pile into documents`_). Shown
+       once it is turned on in the options
    * - **Read text (OCR)**
      - Redo the OCR, reading the text of the stack's pages again (see
        :doc:`finding`)
@@ -174,8 +178,8 @@ Suggesting a name
 
 Paperman can ask an AI model for a name, from what the stack's pages say.
 This is off at first, since it sends text from your papers to the model.
-To turn it on, tick **Use an AI assistant to suggest names for stacks**
-in the **Assistant** tab of the options.
+To turn it on, tick **Use an AI assistant to help with filing** in the
+**Assistant** tab of the options.
 
 Then right-click a stack and choose **Suggest name**. The name appears in
 the name box: press **Enter** to accept it, change it first, or press
@@ -193,6 +197,35 @@ must be installed and signed in; Paperman holds no key or password. It
 runs with no tools, so it can only read what it is given and answer. The
 **Command** and **Model** boxes in the same tab change which command is
 run and which model it asks.
+
+Splitting a pile into documents
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The quickest way to scan a day's post is as one pile, which arrives as one
+stack. With the assistant turned on, as above, Paperman can ask the AI
+model where each document in it starts, and what to call it.
+
+Right-click the stack and choose **Split into documents...**. After a few
+moments a window shows what the model suggests: a row for each document,
+with a picture of its first page, its pages and a name. Nothing has
+changed yet. In the window:
+
+- double-click a name to change it
+- select a document and press **Join with previous** where the stack is
+  divided in a place it should not be: its pages go to the document above
+
+Press **Split** to divide the stack, or **Cancel** to leave it alone. The
+first document keeps the stack's place, with its new name, and the others
+appear after the other stacks in the folder. One undo puts the stack back
+together, with its old name.
+
+Every page needs its text, so a stack scanned before Paperman read text
+needs **Read text (OCR)** first. A page with no text stays with the one
+before it. The most pages a stack can have for this is 200.
+
+What is sent is the start of the text of every page of the stack, and the
+names of up to twenty other stacks in its folder. Nothing is sent unless
+you choose **Split into documents...**.
 
 Dates
 -----
