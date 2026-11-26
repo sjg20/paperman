@@ -7,8 +7,8 @@ removed, each time text is read, and each undo. This page describes the
 record for anyone changing the code which writes or reads it.
 
 It is being built in steps. The desktop writes the record, for a
-repository on this computer. A window to look through it, and the
-server's side, come next.
+repository on this computer, and shows it in **View > Activity** (see
+:doc:`desktop`). The server's side comes next.
 
 Where it is kept
 ----------------
@@ -144,3 +144,14 @@ by stack for the background reader, which says when it has finished with
 a stack through ``OcrReader::stackRead()``.
 
 A repository on a server keeps no record yet.
+
+What shows it
+-------------
+
+``Activitydialog`` (``activitydialog.cpp``) reads the newest entries and
+lists them, with a group's entries under it and anything since undone
+greyed. When a line is chosen it finds where the stack is now with
+``whereNow()`` and, if the file is there, asks for it to be shown through
+``Desktopwidget::showStack()``, which goes to the folder, selects the
+stack and turns it to the page, leaving the keyboard with the window.
+``Desktopmodel::activityRecorded()`` tells it when the record has grown.

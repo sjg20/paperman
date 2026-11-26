@@ -1,3 +1,4 @@
+#include <QTreeWidget>
 #include <QApplication>
 #include <QDialog>
 #include <functional>
@@ -26,6 +27,8 @@
 #include <QTimer>
 #include <QtTest/QtTest>
 
+#include "activitylog.h"
+#include "activitydialog.h"
 #include "appearance.h"
 #include "camera.h"
 #include "camerapanel.h"
@@ -683,6 +686,105 @@ void TestScreenshots::testFind ()
    QTest::keyClick (find, Qt::Key_Return);
    settle ();
    save (&me, "find");
+   }
+
+void TestScreenshots::testActivity ()
+   {
+   /* a record made up for the picture, so that it is the same whenever it
+      is taken: a morning's post scanned, named by the assistant and filed */
+   QTemporaryDir repo;
+
+   QVERIFY (repo.isValid ());
+
+   ActivityLog log (repo.path ());
+   QDateTime when (QDate (2026, 10, 20), QTime (9, 12, 0));
+   auto add = [&] (Activity::e_action action, const QString &path,
+                   const QString &from = QString (), qint64 group = 0,
+                   Activity::e_who who = Activity::W_user, int count = 0,
+                   int page = -1, const QString &note = QString ()) {
+      Activity act;
+
+      act.action = action;
+      act.path = path;
+      act.from = from;
+      act.group = group;
+      act.who = who;
+      act.count = count;
+      act.page = page;
+      act.note = note;
+      act.when = when;
+      when = when.addSecs (47);
+      log.add (act);
+      return act.id;
+   };
+
+   qint64 scan = add (Activity::A_scan, "inbox/20_October_2026.max",
+                      QString (), 0, Activity::W_user, 5);
+   for (int i = 0; i < 5; i++)
+      add (Activity::A_scan_page, "inbox/20_October_2026.max", QString (),
+           scan, Activity::W_user, 0, i, QString ("20_October_2026_%1")
+           .arg (i + 1));
+   add (Activity::A_read, "inbox/20_October_2026.max", QString (), 0,
+        Activity::W_reader, 5);
+
+   qint64 split = add (Activity::A_group, "inbox", QString (), 0,
+                       Activity::W_assistant, 0, -1, "Split stack");
+   add (Activity::A_split, "inbox/20_October_2026.max", QString (), split,
+        Activity::W_assistant, 3);
+   add (Activity::A_unstack, "inbox/gas bill.max",
+        "inbox/20_October_2026.max", split, Activity::W_assistant);
+   add (Activity::A_unstack, "inbox/dentist reminder.max",
+        "inbox/20_October_2026.max", split, Activity::W_assistant);
+   add (Activity::A_rename, "inbox/power bill.max",
+        "inbox/20_October_2026.max", split, Activity::W_assistant);
+   add (Activity::A_turn, "inbox/gas bill.max", QString (), 0,
+        Activity::W_user, 0, 0);
+   add (Activity::A_move, "bills/2026/10oct/power bill.max",
+        "inbox/power bill.max");
+   add (Activity::A_move, "bills/2026/10oct/gas bill.max",
+        "inbox/gas bill.max");
+
+   qint64 moved = add (Activity::A_move, "bills/2026/10oct/dentist "
+                       "reminder.max", "inbox/dentist reminder.max");
+   add (Activity::A_undo, QString (), QString (), 0, Activity::W_user, 0, -1,
+        "Moved 'dentist reminder' from inbox to bills/2026/10oct");
+
+   // the undo names the move, as the undo stack has it
+   QList<Activity> acts;
+   QVERIFY (!log.read (acts));
+   QFile file (log.pathname ());
+   QVERIFY (file.open (QIODevice::WriteOnly));
+   acts.last ().ref = moved;
+   for (const Activity &act : acts)
+      file.write (QJsonDocument (act.toJson ()).toJson (
+                     QJsonDocument::Compact) + "\n");
+   file.close ();
+   add (Activity::A_move, "medical/dentist reminder.max",
+        "inbox/dentist reminder.max");
+
+   // the stack chosen for the picture is there, for the window to find
+   QVERIFY (QDir (repo.path ()).mkpath ("bills/2026/10oct"));
+   QFile stack (repo.path () + "/bills/2026/10oct/gas bill.max");
+   QVERIFY (stack.open (QIODevice::WriteOnly));
+   stack.close ();
+
+   Activitydialog dialog;
+
+   dialog.setRoot (repo.path ());
+   dialog.resize (760, 430);
+   dialog.show ();
+   QVERIFY (QTest::qWaitForWindowExposed (&dialog));
+
+   // open the pile's dividing, to show what is under a line, and choose
+   // a line whose stack has since moved
+   QTreeWidget *tree = dialog.findChild<QTreeWidget *> ();
+
+   QVERIFY (tree);
+   QCOMPARE (tree->topLevelItem (6)->text (0), QString ("Split stack"));
+   tree->topLevelItem (6)->setExpanded (true);
+   dialog.choose (6, 1);
+   settle ();
+   save (&dialog, "activity");
    }
 
 void TestScreenshots::testRemovePage ()

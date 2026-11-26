@@ -64,6 +64,10 @@ shots:
     made: test
     test: testPageView
     shows: ['@window', '@papers']
+  activity.png:
+    made: test
+    test: testActivity
+    shows: [activitydialog.cpp, activitylog.cpp]
   search-dialog.png:
     made: test
     test: testSearch
