@@ -49,6 +49,7 @@ The manual is also available as a `PDF
    develop
    client-server
    server-internals
+   text-search
    api
    build
    app-develop

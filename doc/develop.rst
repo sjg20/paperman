@@ -112,7 +112,8 @@ Key Source Files
    Embedded HTTP server for the REST API.
 
 ``searchindex.cpp``
-   SQLite FTS5 index used by the search server.
+   SQLite FTS5 index of the text on the stacks' pages, used by the
+   desktop, the command line and the server (see :doc:`text-search`).
 
 Testing
 -------
