@@ -34,6 +34,8 @@ Anywhere
      - Fill the screen, or go back to a window
    * - **Ctrl+B**
      - Show the work going on in the background, to watch or stop it
+   * - **Ctrl+H**
+     - Show what has been done to the papers, and go to a stack from it
    * - **Alt+Shift+W**, **Alt+Shift+D**
      - Show the files in your Downloads or Documents folder in the stack
        pane, to file them

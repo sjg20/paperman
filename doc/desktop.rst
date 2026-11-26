@@ -80,6 +80,40 @@ which can stay open while Paperman is used:
 - Below, the stacks waiting to have their text read, where the reading
   can be paused or stopped.
 
+What has been done
+------------------
+
+Paperman keeps a record of what is done to the papers in a repository:
+each scan, with its pages; each stack renamed, moved, deleted, stacked or
+split; each page turned, cropped or removed; text being read; and each
+undo. **View > Activity** (Ctrl+H) shows it, in a window which can stay
+open while Paperman is used:
+
+.. image:: images/activity.png
+   :alt: The Activity window, listing a morning's post being scanned, split by the assistant and filed, with the gas bill chosen and a note saying where it is now
+
+- The newest thing is at the top, with who did it: you, the assistant
+  (for a name or a split it suggested and you accepted) or Paperman
+  itself, reading text in the background.
+- Things done as one step are under one line, which opens to show them:
+  the pages of a scan, the stacks named together, the stacks a pile was
+  split into.
+- Something which has since been undone is greyed, and the undo is a
+  line of its own.
+- Choose a line, or move through the list with the arrow keys, and the
+  stack it is about is shown in the main window, selected, and turned to
+  the page if the line is about one. The stack is shown where it is
+  *now*: it is followed through whatever was renamed or moved since, so
+  a line from days ago still leads to it. The note below the list says
+  where that is, or that the stack has since been deleted.
+
+This makes it possible to look back over what was filed, by you or by
+the assistant, and put right anything which went to the wrong place.
+
+The record is kept with the papers, in the repository, so it is the same
+from whichever computer they are used. A repository on a server has no
+record yet, and small moves of a stack about the desk are not recorded.
+
 Main toolbar
 ------------
 

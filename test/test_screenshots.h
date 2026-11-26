@@ -71,6 +71,9 @@ private slots:
    //! Finding stacks in a folder by part of their names
    void testFind();
 
+   //! The Activity window, with what was done to a morning's post
+   void testActivity ();
+
    //! A page marked to be removed, beside one kept
    void testRemovePage();
 
