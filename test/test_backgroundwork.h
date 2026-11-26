@@ -35,4 +35,7 @@ private slots:
 
    //! a job which can be stopped is asked to once
    void testStop();
+
+   //! an operation is a job, and is cancelled when the job is stopped
+   void testOperation();
 };

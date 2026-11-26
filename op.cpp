@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "err.h"
 #include <QCoreApplication>
 
+#include "backgroundwork.h"
 #include "op.h"
 
 //! the widget which needs to know about operation progress
@@ -43,11 +44,20 @@ Operation::Operation (QString name, int count, QWidget *parent)
    }
    emit operationProgress(init, 0, name);
    _upto = 0;
+
+   /* one with a name is work the user may be waiting for, so is listed
+      with the rest of what is going on; a server names none of its own */
+   if (!name.isEmpty ())
+      {
+      _job = new Backgroundjob (name);
+      _job->setProgress (0, _maximum);
+      }
    }
 
 
 Operation::~Operation ()
    {
+   delete _job;
    emit operationProgress(uninit, 0, QString());
    }
 
@@ -55,6 +65,21 @@ Operation::~Operation ()
 void Operation::setCount (int count)
    {
    _maximum = count < 1 ? 1 : count;
+   if (_job)
+      _job->setProgress (_upto, _maximum);
+   }
+
+
+void Operation::setCancellable (bool cancellable)
+   {
+   if (_job)
+      _job->setStoppable (cancellable);
+   }
+
+
+bool Operation::cancelled () const
+   {
+   return _job && _job->stopRequested ();
    }
 
 
@@ -63,18 +88,18 @@ bool Operation::setProgress (int upto)
    _upto = upto;
    int pc = int ((float)upto / _maximum * 100);
 
+   if (_job)
+      _job->setProgress (upto, _maximum);
    emit operationProgress(running, pc, QString());
    QCoreApplication::processEvents ();
 
-   return false;
+   return cancelled ();
    }
 
 
 bool Operation::incProgress (int by)
    {
-   setProgress (_upto + by);
-
-   return true;
+   return !setProgress (_upto + by);
    }
    
 
