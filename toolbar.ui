@@ -274,7 +274,7 @@
         </size>
        </property>
        <property name="text">
-        <string>Filter:</string>
+        <string>Find:</string>
        </property>
       </widget>
      </item>
@@ -287,12 +287,29 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>To quickly filter the stack view, type a few characters from the stack name
-that you are looking for. Everything that does not match will be removed from view.
-To go back, just delete characters from the filter.</string>
+        <string>Type a few characters of the name of the stack you are looking for. The stacks
+whose names have them in are picked out, and the rest are shown faintly, where they are.
+Enter goes to the next one found and Shift+Enter to the one before; Ctrl+Enter selects
+them all; Esc stops, leaving the stack found selected.</string>
        </property>
        <property name="inputMask">
         <string notr="true"/>
+       </property>
+       <property name="text">
+        <string notr="true"/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="matchCount">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>32</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Which of the stacks found is selected, and how many were found</string>
        </property>
        <property name="text">
         <string notr="true"/>
@@ -308,10 +325,10 @@ To go back, just delete characters from the filter.</string>
         </size>
        </property>
        <property name="toolTip">
-        <string>Reset the search string</string>
+        <string>Stop finding: every stack is shown as usual, and the one found stays selected</string>
        </property>
        <property name="text">
-        <string>Cancel filter</string>
+        <string>Clear</string>
        </property>
       </widget>
      </item>

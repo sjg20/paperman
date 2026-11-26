@@ -120,8 +120,8 @@ private slots:
    //! The stack pane marks the stacks found and draws the rest faintly
    void testViewFind();
 
-   //! Test typing in the filter box filters stacks, and cancel restores
-   void testFilterStacks();
+   //! Typing in the Find box picks stacks out without hiding any
+   void testFindStacks();
 
    //! Test searching folders for a stack and locating its folder
    void testSearchAndLocate();
