@@ -42,8 +42,14 @@ private slots:
    //! a page which moves while it is read has its words stored with it
    void testReaderPageMoves();
 
-   //! a stack which goes away while a page is read is let go
-   void testReaderStackGone();
+   //! a stack is still read when the desktop lets go of it
+   void testReaderFileGone();
+
+   //! a stack is read by its path, through the desktop's File if any
+   void testReaderByPath();
+
+   //! a stack which is renamed or moved is read where it has gone
+   void testReaderStackMoves();
 
    //! what the user types is always a valid query, matching word starts
    void testMatchQuery();

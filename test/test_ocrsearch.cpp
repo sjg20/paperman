@@ -15,6 +15,7 @@
 #include "repoindex.h"
 #include "filemax.h"
 #include <QBitArray>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QFont>
 #include <QImage>
@@ -490,11 +491,76 @@ void TestOcrSearch::testReaderPageMoves()
 }
 
 
-void TestOcrSearch::testReaderStackGone()
+/* Wait for a page to reach the engine, letting the reader's events run
+   meanwhile: it starts each page when the one before is done */
+static bool waitFor(QSemaphore &sem, int msecs = 10000)
+{
+   QElapsedTimer timer;
+
+   timer.start();
+   while (!sem.tryAcquire()) {
+      if (timer.elapsed() > msecs)
+         return false;
+      QTest::qWait(5);
+   }
+   return true;
+}
+
+
+void TestOcrSearch::testReaderFileGone()
 {
    QTemporaryDir tmp;
    Filemax *max = openStack(testSrc, tmp);
    QVERIFY(max);
+   int count = max->pagecount();
+   const QString path = max->pathname();
+
+   /* the desktop lets go of the stack while its first page is being read,
+      as when its folder is refreshed: the stack is read all the same */
+   OcrReader reader;
+   QSemaphore started, go;
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      started.release();
+      go.acquire();
+      return fakeRead(image, page);
+   });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
+   QSignalSpy read(&reader, &OcrReader::pageRead);
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   reader.addFile(max);
+   QCOMPARE(reader.pending(), QStringList(path));
+   QVERIFY(started.tryAcquire(1, 10000));
+   delete max;
+   go.release(100);
+
+   QVERIFY(idle.wait(10000));
+   QVERIFY(!reader.isBusy());
+   QVERIFY(reader.pending().isEmpty());
+
+   // nothing was showing the pages, so nothing is told about them
+   QCOMPARE(read.count(), 0);
+
+   // and the reader lets go of the stack when it has finished
+   QVERIFY(!reader._own);
+
+   Filemax again(tmp.path() + "/", "testfile.max", nullptr);
+   QVERIFY(!again.load());
+   QCOMPARE(again.pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(&again, i), pixelsWord(&again, i));
+}
+
+
+void TestOcrSearch::testReaderByPath()
+{
+   QTemporaryDir tmp;
+   Filemax *max = openStack(testSrc, tmp);
+   QVERIFY(max);
+   int count = max->pagecount();
+   QVERIFY(count >= 3);
+   const QString path = max->pathname();
+   delete max;
 
    OcrReader reader;
    QSemaphore started, go;
@@ -503,16 +569,118 @@ void TestOcrSearch::testReaderStackGone()
       go.acquire();
       return fakeRead(image, page);
    });
-   QSignalSpy read(&reader, &OcrReader::pageRead);
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
    QSignalSpy idle(&reader, &OcrReader::idle);
 
+   // which File each page read was said to be in
+   QList<QPair<File *, int>> read;
+   connect(&reader, &OcrReader::pageRead, &reader, [&read](File *f, int page) {
+      read << qMakePair(f, page);
+   });
+
+   // the desktop has no File for the stack at first, then gets one
+   File *desktop = nullptr;
+   int asked = 0;
+   reader.setFinder([&](const QString &pathname) -> File * {
+      asked++;
+      return pathname == path ? desktop : nullptr;
+   });
+
+   // a stack which is not there is dropped, and the next one read
+   reader.addPath(tmp.path() + "/missing.max");
+   reader.addPath(path);
+   QVERIFY(started.tryAcquire(1, 10000));
+   QCOMPARE(reader.pending(), QStringList(path));
+   QVERIFY(asked > 0);
+   QVERIFY(reader._own);
+
+   // the first page is read through the reader's own File
+   go.release();
+   QVERIFY(waitFor(started));
+   QCOMPARE(int(read.size()), 0);
+
+   /* the folder is opened, so the desktop has a File: the reader lets go
+      of its own before anything more is written, and says what it reads */
+   Filemax *shown = new Filemax(tmp.path() + "/", "testfile.max", nullptr);
+   QVERIFY(!shown->load());
+   QCOMPARE(pageWord(shown, 0), pixelsWord(shown, 0));
+   desktop = shown;
+   go.release();
+   QVERIFY(waitFor(started));
+   QVERIFY(!reader._own);
+   QCOMPARE(int(read.size()), 1);
+   QCOMPARE(read[0].first, static_cast<File *>(shown));
+   QCOMPARE(read[0].second, 1);
+   QCOMPARE(pageWord(shown, 1), pixelsWord(shown, 1));
+
+   /* the folder is refreshed, which gives the stack another File, not
+      opened yet; that one is found by the stack's path */
+   Filemax *fresh = new Filemax(tmp.path() + "/", "testfile.max", nullptr);
+   delete shown;
+   QVERIFY(!fresh->valid());
+   desktop = fresh;
+   go.release(100);
+   QVERIFY(idle.wait(10000));
+   QVERIFY(!reader._own);
+   QCOMPARE(int(read.size()), count - 1);
+   QCOMPARE(read.last().first, static_cast<File *>(fresh));
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(fresh, i), pixelsWord(fresh, i));
+   delete fresh;
+}
+
+
+void TestOcrSearch::testReaderStackMoves()
+{
+   QTemporaryDir tmp;
+   Filemax *max = openStack(testSrc, tmp);
+   QVERIFY(max);
+   int count = max->pagecount();
+   const QString dir = tmp.path() + "/";
+   const QString path = max->pathname();
+
+   OcrReader reader;
+   QSemaphore started, go;
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      started.release();
+      go.acquire();
+      return fakeRead(image, page);
+   });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   // a stack renamed through its File is followed
    reader.addFile(max);
    QVERIFY(started.tryAcquire(1, 10000));
-   delete max;
-   go.release(100);
+   QString name = "renamed.max";
+   QVERIFY(!max->rename(name, false));
+   const QString renamed = max->pathname();
+   QVERIFY(renamed != path);
+   go.release();
+   QVERIFY(waitFor(started));
+   QCOMPARE(reader.pending(), QStringList(renamed));
 
+   /* and one moved to another folder, where it has another File or none,
+      is read where it has gone */
+   delete max;
+   QVERIFY(QDir(dir).mkdir("sub"));
+   const QString moved = dir + "sub/moved.max";
+   QVERIFY(QFile::rename(renamed, moved));
+   reader.stackMoved(renamed, moved);
+   QCOMPARE(reader.pending(), QStringList(moved));
+   go.release(100);
    QVERIFY(idle.wait(10000));
-   QCOMPARE(read.count(), 0);
+
+   Filemax again(dir + "sub/", "moved.max", nullptr);
+   QVERIFY(!again.load());
+   QCOMPARE(again.pagecount(), count);
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(&again, i), pixelsWord(&again, i));
+
+   // one which goes altogether is dropped
+   QVERIFY(QFile::remove(moved));
+   reader.addPath(moved);
+   QVERIFY(idle.count() == 2 || idle.wait(10000));
    QVERIFY(!reader.isBusy());
 }
 
