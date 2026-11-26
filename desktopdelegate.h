@@ -50,6 +50,11 @@ public slots:
    void slotEditingFinished ();
 
 protected:
+   /** keep Return and Enter here. A line edit passes them on once it has
+       finished, for a dialog's default button, and the stacks would then
+       get the key: on a Mac, where Return starts the editing of a name,
+       that opens this box again as soon as it has closed */
+   void keyPressEvent(QKeyEvent *event) override;
    void keyReleaseEvent(QKeyEvent *event);
    };
 

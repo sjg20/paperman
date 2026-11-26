@@ -750,6 +750,17 @@ void Desktopeditor::slotEditingFinished (void)
    }
 
 
+void Desktopeditor::keyPressEvent (QKeyEvent *event)
+   {
+   bool finish = event->key () == Qt::Key_Return
+         || event->key () == Qt::Key_Enter;
+
+   QLineEdit::keyPressEvent (event);
+   if (finish)
+      event->accept ();
+   }
+
+
 void Desktopeditor::keyReleaseEvent (QKeyEvent * event)
    {
    QLineEdit::keyReleaseEvent (event);

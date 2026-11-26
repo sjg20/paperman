@@ -2460,6 +2460,51 @@ void TestDesktopUi::testRepositoryAddRemoveUndo()
    QCOMPARE(dirmodel->rowCount(QModelIndex()), before);
 }
 
+/* Return in the box where a name is typed finishes the name and goes no
+   further. Left to itself a line edit passes the key on, and on a Mac the
+   stacks take Return to mean 'edit this name', so the box opened again as
+   soon as it had closed */
+void TestDesktopUi::testRenameReturnStaysPut()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+
+   clickItem(view, 0);
+   view->renameStack(itemIndex(view, 0));
+
+   Desktopeditor *editor = view->findChild<Desktopeditor *>();
+   QVERIFY(editor);
+   editor->selectAll();
+   QTest::keyClicks(editor, "kept");
+
+   // a key the box has no use for is passed on, as it always was
+   QKeyEvent other(QEvent::KeyPress, Qt::Key_F13, Qt::NoModifier);
+
+   other.ignore();
+   QApplication::sendEvent(editor, &other);
+   QVERIFY(!other.isAccepted());
+
+   // Return finishes the name, and is used up by the box
+   QKeyEvent press(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+
+   press.ignore();
+   QApplication::sendEvent(editor, &press);
+   QVERIFY(press.isAccepted());
+
+   // the stack has its new name, and no box for a name is open
+   QTRY_VERIFY(QFile::exists(path + "/kept.max"));
+   QTest::qWait(100);
+   for (Desktopeditor *e : view->findChildren<Desktopeditor *>())
+      QVERIFY2(!e->isVisible(), qPrintable(e->text()));
+}
+
 void TestDesktopUi::testRenameStackViaEditor()
 {
    QModelIndex repo_ind;
