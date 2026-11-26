@@ -45,6 +45,9 @@ private slots:
    //! a stack is still read when the desktop lets go of it
    void testReaderFileGone();
 
+   //! the reader says when a stack is done, and how many pages it read
+   void testReaderSaysStackRead();
+
    //! a stack is read by its path, through the desktop's File if any
    void testReaderByPath();
 

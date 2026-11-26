@@ -152,6 +152,17 @@ Mainwidget::Mainwidget (QWidget *parent, const char *name)
    _ocr_reader->setFinder ([this] (const QString &pathname) {
       return _contents->fileForPath (pathname);
    });
+   // what the reader reads goes in the record of activity, a stack at a time
+   connect (_ocr_reader, &OcrReader::stackRead, this,
+            [this] (const QString &pathname, int pages) {
+      Activity act;
+
+      act.action = Activity::A_read;
+      act.who = Activity::W_reader;
+      act.path = pathname;
+      act.count = pages;
+      _contents->recordActivity (act);
+   });
    connect (_contents, &Desktopmodel::stackMoved, _ocr_reader,
             &OcrReader::stackMoved);
    _ocr_reader->setRemembered (true);
@@ -1135,6 +1146,9 @@ void Mainwidget::slotStackConfirm (void)
          Mainwidget::singleton ()->complain (e);
       });
 
+      if (!err)
+         recordScan (file);
+
       // read the text of the new pages, once the scan is out of the way
       if (!err && OcrReader::enabled () && _contents->keepsOcr (file))
          _ocr_reader->addFile (file);
@@ -1478,6 +1492,9 @@ void Mainwidget::cameraDone (void)
    err_info *err = _camera_scan->finish (&fname, &file, [] (err_info *e) {
       Mainwidget::singleton ()->complain (e);
    });
+
+   if (!err)
+      recordScan (file);
 
    // read the text of the new pages, as for a scan
    if (!err && file && OcrReader::enabled () && _contents->keepsOcr (file))
@@ -2333,3 +2350,29 @@ bool Mainwidget::isScanning()
 {
    return _scanning;
 }
+
+
+void Mainwidget::recordScan (File *file)
+   {
+   if (!file)
+      return;
+
+   Activity scan;
+   QList<Activity> pages;
+
+   // the stack, and under it each of its pages by name
+   scan.action = Activity::A_scan;
+   scan.path = file->pathname ();
+   scan.count = file->pagecount ();
+   for (int i = 0; i < file->pagecount (); i++)
+      {
+      Activity page;
+
+      page.action = Activity::A_scan_page;
+      page.path = scan.path;
+      page.page = i;
+      file->getPageTitle (i, page.note);
+      pages << page;
+      }
+   _contents->recordActivity (scan, pages);
+   }

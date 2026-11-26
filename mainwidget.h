@@ -492,6 +492,10 @@ private slots:
    void slotWarning (QString &str);
 
 private:
+   /** put a stack which has just been scanned, or photographed, in the
+       record of activity, with each of its pages under it */
+   void recordScan (File *file);
+
    /** print a page if it is in range
 
       \param seq     The page number of this page within the whole print job

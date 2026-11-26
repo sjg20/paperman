@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QElapsedTimer>
 #include <QFutureWatcher>
 #include <QImage>
+#include <QHash>
 #include <QList>
 #include <QWaitCondition>
 #include <QSet>
@@ -213,6 +214,12 @@ signals:
       \param pagenum  the page, from 0 */
    void pageRead (File *file, int pagenum);
 
+   /** the reading of a stack is over, for now, with pages read and kept
+
+      \param pathname  the stack
+      \param pages     how many of its pages were read */
+   void stackRead (const QString &pathname, int pages);
+
    //! there is nothing more to read
    void idle ();
 
@@ -277,6 +284,13 @@ private:
       File *source = nullptr;
       std::shared_ptr<Pin> pin;   //!< whether that File may be used
       };
+
+   //! say which stacks have been read as far as they will be for now
+   void noteRead ();
+
+   //! how many pages of each stack have been read and kept, by its path,
+   //! since that was last said
+   QHash<QString, int> _kept;
 
    //! add a stack to those to read, without starting
    void queue (const QString &pathname, File *file);
