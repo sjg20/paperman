@@ -274,6 +274,9 @@ err_info *Desktopmodel::opDuplicateStacks (QModelIndexList &list, QModelIndex pa
       QString (tr ("Convert to %1")).arg (File::typeName (type));
    count = type == File::Type_other ? list.size () : listPagecount (list);
    Operation op (opname, count, 0);
+
+   // a conversion stops between pages; a plain copy is over too soon
+   op.setCancellable (type != File::Type_other);
    foreach (ind, list)
       {
       f = getFile (ind);
@@ -301,6 +304,8 @@ err_info *Desktopmodel::opUnfoldBooklets (QModelIndexList &list,
 
    // each booklet page splits into two, so the work is twice the page count
    Operation op (tr ("Unfold booklet"), 2 * listPagecount (list), 0);
+
+   op.setCancellable (true);
    Desk *rdesk = getDesk (parent);
    RemoteBackend *remote = rdesk
          ? dynamic_cast<RemoteBackend *> (rdesk->backend ()) : nullptr;

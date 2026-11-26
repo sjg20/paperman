@@ -343,7 +343,11 @@ void Mainwidget::saveSettings (void)
 
 bool Mainwidget::complain(err_info *err)
 {
-   if (err)
+   /* the user asked for it to stop, so need not be told that it did by
+      a window which has to be dismissed */
+   if (err && err->errnum == ERR_operation_cancelled1)
+      emit newContents (tr ("Stopped"));
+   else if (err)
       warn ("Paperman", err->errstr);
 
    return err != nullptr;
@@ -2092,6 +2096,9 @@ void Mainwidget::printPages (QModelIndexList &list)
    _pagecount = _opt->countPages ();
    _new_page = false;
    Operation op ("Printing", _pagecount, this);
+
+   // it stops between pages, when asked to
+   op.setCancellable (true);
    QPainter painter;
    if (!painter.begin (_printer))                // paint on printer
       {
