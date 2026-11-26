@@ -176,6 +176,7 @@ HEADERS += desktopwidget.h \
  pagecover.h \
  docfacts.h \
  activitylog.h \
+ activitydialog.h \
  backgroundwork.h \
  pagefind.h \
  camera.h \
@@ -293,6 +294,7 @@ SOURCES += desktopwidget.cpp \
  pagecover.cpp \
  docfacts.cpp \
  activitylog.cpp \
+ activitydialog.cpp \
  backgroundwork.cpp \
  pagefind.cpp \
  camera.cpp \

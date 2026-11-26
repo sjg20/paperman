@@ -87,6 +87,7 @@
     <addaction name="actionFullScreen"/>
     <addaction name="actionDirFilter"/>
     <addaction name="actionBackground"/>
+    <addaction name="actionActivity"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -487,6 +488,17 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="actionActivity">
+   <property name="text">
+    <string>&amp;Activity...</string>
+   </property>
+   <property name="toolTip">
+    <string>Show what has been done to the papers in this repository, in a window which can stay open, and go to a stack from what was done to it</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+H</string>
    </property>
   </action>
   <action name="actionBackground">
