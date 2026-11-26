@@ -22,9 +22,11 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QSettings>
+#include <QThread>
 
 #include "appearance.h"
 #include "mailer.h"
+#include "mainwidget.h"
 #include "ocrreader.h"
 #include "options.h"
 #include "assistant.h"
@@ -102,6 +104,13 @@ void Options::init()
    jpeg->setChecked (xmlConfig->boolValue ("SCAN_USE_JPEG"));
    readText->setChecked (OcrReader::enabled ());
 
+   // none chosen leaves it to Paperman, which the box shows as Automatic
+   readWorkers->setRange (0, qMax (1, QThread::idealThreadCount ()));
+   readWorkers->setValue (qMin (OcrReader::workersSetting (),
+                                readWorkers->maximum ()));
+   readWorkers->setEnabled (readText->isChecked ());
+   connect (readText, &QCheckBox::toggled, readWorkers, &QWidget::setEnabled);
+
    single->setRange (1, 999);
    limit->setChecked (single_val > 0);
    single->setEnabled (single_val > 0);
@@ -145,6 +154,11 @@ void Options::ok_clicked()
 {
    xmlConfig->setBoolValue("SCAN_USE_JPEG" ,jpeg->isChecked ());
    OcrReader::setEnabled (readText->isChecked ());
+   OcrReader::setWorkersSetting (readWorkers->value ());
+
+   // the reader which is running takes this up for the pages it starts next
+   if (_main)
+      _main->ocrReader ()->setWorkers (OcrReader::workers ());
 
    int single_val = limit->isChecked () ? single->value () : 0;
    int stack_val = stackLimit->isChecked () ? stackCount->value () : 0;

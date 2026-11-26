@@ -17,6 +17,7 @@
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "ocrreader.h"
 #include "options.h"
 #include "printopt.h"
 #include "qxmlconfig.h"
@@ -764,6 +765,35 @@ void TestOps::testOptionsDialog()
 
    // Restore the user's setting
    xmlConfig->setBoolValue("SCAN_USE_JPEG", orig);
+
+   /* how many pages are read at once is left to Paperman until a number
+      is chosen, and can only be chosen while pages are read at all */
+   QSettings().remove("ocr");
+   Options opt3(nullptr, nullptr);
+   QVERIFY(opt3.readText->isChecked());
+   QVERIFY(opt3.readWorkers->isEnabled());
+   QCOMPARE(opt3.readWorkers->value(), 0);
+   QCOMPARE(opt3.readWorkers->text(), QString("Automatic"));
+   QCOMPARE(OcrReader::workers(), OcrReader::autoWorkers());
+   QVERIFY(OcrReader::autoWorkers() >= 1
+           && OcrReader::autoWorkers() <= OcrReader::max_auto_workers);
+   QVERIFY(opt3.readWorkers->maximum() >= 1);
+
+   opt3.readWorkers->setValue(1);
+   opt3.ok_clicked();
+   QCOMPARE(OcrReader::workersSetting(), 1);
+   QCOMPARE(OcrReader::workers(), 1);
+
+   // a reader made now reads that many, and the dialog shows the choice
+   OcrReader reader;
+   QCOMPARE(reader._workers, 1);
+   Options opt4(nullptr, nullptr);
+   QCOMPARE(opt4.readWorkers->value(), 1);
+   opt4.readText->setChecked(false);
+   QVERIFY(!opt4.readWorkers->isEnabled());
+   opt4.cancel_clicked();
+   QVERIFY(OcrReader::enabled());
+   QSettings().remove("ocr");
 }
 
 void TestOps::testDeletePdfPages()
