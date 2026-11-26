@@ -129,6 +129,9 @@ private slots:
    //! unstacking a page, and undoing that before the server has answered
    void testUnstackPage ();
 
+   //! dividing a stack on a server into several, with names, and undoing it
+   void testSplitStack ();
+
    //! unstacking a stack, and undoing that before the server has answered
    void testUnstackStacks ();
 

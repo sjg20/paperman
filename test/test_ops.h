@@ -87,6 +87,9 @@ private slots:
 
    //! Reversing the pages of several stacks, as one step to undo
    void testReversePages();
+
+   //! Dividing a stack into several, with names, as one step to undo
+   void testSplitStack();
    void testPagesLeaveSize();
    void testMoveToShownDir();
 

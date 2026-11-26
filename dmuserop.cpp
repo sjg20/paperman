@@ -205,6 +205,44 @@ void Desktopmodel::reorderPages (QModelIndex &ind, const QVector<int> &order)
    }
 
 
+bool Desktopmodel::splitStack (QModelIndex &ind, const QList<int> &firsts,
+                               const QStringList &names, const QString &name)
+   {
+   QModelIndexList list;
+
+   _modelconv->assertIsSource (ind.model (), &ind, 0);
+   list << ind;
+   if (!checkScanStack (list, ind.parent ()))
+      return false;
+
+   File *f = getFile (ind);
+
+   /* a stack not read yet does not know how many pages it has; for one
+      on a server, the server's listing says */
+   if (f && !remoteForFile (f))
+      f->load ();
+   if (!f || firsts.isEmpty () || firsts.size () != names.size ())
+      return false;
+
+   // each new stack needs a page of its own, and so does what is left
+   int prev = 0;
+
+   for (int first : firsts)
+      {
+      if (first <= prev || first >= f->knownPagecount ())
+         return false;
+      prev = first;
+      }
+
+   _undo->beginMacro (tr ("Split stack"));
+   _undo->push (new UCSplitStack (this, ind, firsts, names));
+   if (!name.isEmpty ())
+      renameStack (ind, name);
+   _undo->endMacro ();
+   return true;
+   }
+
+
 int Desktopmodel::reversePages (QModelIndexList &list, QModelIndex parent)
    {
    QModelIndexList stacks;
