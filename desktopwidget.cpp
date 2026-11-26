@@ -1606,11 +1606,18 @@ void Desktopwidget::scrollToChosen (const QModelIndex &deskind)
    // ensure that the correct item is displayed
    // the filename of the required item is held in _scroll_to
    QModelIndex scroll_ind = _contents->index (_scroll_to, deskind);
+   QModelIndex stack = scroll_ind;
+   int page = _scroll_page;
+
    _modelconv->indexToProxy (scroll_ind.model (), scroll_ind);
    _scroll_to = "";  // so we don't do the same next time
+   _scroll_page = -1;
 
    if (scroll_ind != QModelIndex ())
       {
+      // turned to the page asked for, if any, before it is shown
+      if (page >= 0)
+         _contents->showAtPage (stack, page);
       _view->setSelectionRange (scroll_ind.row (), 1);
       _view->scrollTo (scroll_ind);
       }
@@ -2278,6 +2285,30 @@ void Desktopwidget::locateFolder ()
 
       selectDir(ind, true);
       }
+   }
+
+bool Desktopwidget::showStack (const QString &pathname, int page)
+   {
+   QFileInfo fi (pathname);
+   QString dir = fi.absolutePath () + "/";
+   QModelIndex src_ind = _model->index (dir);
+
+   if (!fi.isFile () || !src_ind.isValid ())
+      return false;
+
+   // out of the results of a search, which are not a folder
+   bool results = _toolbar->searchEnabled ();
+
+   normalView ();
+   _scroll_to = fi.fileName ();
+   _scroll_page = page;
+
+   // a folder which is shown already need not be read again
+   if (!results && QDir (_contents->getDirPath ()) == QDir (dir))
+      scrollToChosen (_view->rootIndexSource ());
+   else
+      selectDir (_dir_proxy->mapFromSource (src_ind), true);
+   return true;
    }
 
 void Desktopwidget::doDeleteStacks(bool confirm)
