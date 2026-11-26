@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 
 
+#include <QDateTime>
 #include <QDebug>
 #include <QFile>
 
@@ -185,6 +186,96 @@ static inline void set_crop_box (PdfPage &page, const QRectF &box)
    }
 
 #endif
+
+
+/* The catalog's /PieceInfo is where a PDF keeps data private to a program:
+   a dictionary for each, under its name, holding when it last changed and
+   the data itself. Paperman's holds the stack's properties as text */
+#define PIECE_INFO      "PieceInfo"
+#define PIECE_APP       "Paperman"
+#define PIECE_MODIFIED  "LastModified"
+#define PIECE_PRIVATE   "Private"
+#define PIECE_PROPS     "Props"
+
+//! the document's catalog
+static PdfDictionary &catalog_dict (PdfMemDocument *doc)
+   {
+#ifdef PODOFO_1X
+   return doc->GetCatalog ().GetDictionary ();
+#else
+   return doc->GetCatalog ()->GetDictionary ();
+#endif
+   }
+
+//! look up a key, following a reference to the object it names
+static PdfObject *dict_find (PdfDictionary &dict, const char *key)
+   {
+#ifdef PODOFO_1X
+   return dict.FindKey (key);
+#else
+   return dict.FindKey (PdfName (std::string (key)));
+#endif
+   }
+
+static void dict_remove (PdfDictionary &dict, const char *key)
+   {
+#ifdef PODOFO_1X
+   dict.RemoveKey (key);
+#else
+   dict.RemoveKey (PdfName (std::string (key)));
+#endif
+   }
+
+static bool dict_empty (const PdfDictionary &dict)
+   {
+#ifdef PODOFO_1X
+   return !dict.GetSize ();
+#else
+   return dict.GetKeys ().empty ();
+#endif
+   }
+
+/* find a dictionary held in another
+
+   \param parent   dictionary to look in
+   \param key      key it is under
+   \param create   true to add an empty one if there is none
+   \returns the dictionary, or nullptr if there is none */
+static PdfDictionary *dict_sub (PdfDictionary &parent, const char *key,
+                                bool create)
+   {
+   PdfObject *obj = dict_find (parent, key);
+
+   if (obj && obj->IsDictionary ())
+      return &obj->GetDictionary ();
+   if (!create)
+      return nullptr;
+   parent.AddKey (PdfName (std::string (key)), PdfObject (PdfDictionary ()));
+   obj = dict_find (parent, key);
+   return obj && obj->IsDictionary () ? &obj->GetDictionary () : nullptr;
+   }
+
+//! text as a PDF string, which can hold any character
+static PdfString pdf_string (const QByteArray &utf8)
+   {
+#ifdef PODOFO_1X
+   return PdfString (std::string_view (utf8.constData (), utf8.size ()));
+#else
+   return PdfString ((const pdf_utf8 *)utf8.constData (), utf8.size ());
+#endif
+   }
+
+//! the text of a PDF string, as UTF-8
+static QByteArray pdf_string_text (const PdfString &str)
+   {
+#ifdef PODOFO_1X
+   std::string text (str.GetString ());
+#else
+   std::string text = str.GetStringUtf8 ();
+#endif
+
+   return QByteArray (text.data (), text.size ());
+   }
 
 
 Pdfio::Pdfio (const QString &fname)
@@ -1077,6 +1168,81 @@ err_info *Pdfio::getAnnot (QString type, QString &str)
 #else
    return err_make (ERRFN, ERR_pdf_previewing_requires_poppler);
 #endif
+   }
+
+
+err_info *Pdfio::getStackProps (QMap<QString, QString> &props)
+   {
+   props.clear ();
+   if (!_doc)
+      return err_make (ERRFN, ERR_cannot_read_pdf_file1, qPrintable (_pathname));
+   try
+      {
+      PdfDictionary *dict = dict_sub (catalog_dict (_doc), PIECE_INFO, false);
+
+      if (dict)
+         dict = dict_sub (*dict, PIECE_APP, false);
+      if (dict)
+         dict = dict_sub (*dict, PIECE_PRIVATE, false);
+
+      PdfObject *obj = dict ? dict_find (*dict, PIECE_PROPS) : nullptr;
+
+      if (obj && obj->IsString ())
+         File::propsFromBytes (pdf_string_text (obj->GetString ()), props);
+      }
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+   return NULL;
+   }
+
+
+err_info *Pdfio::putStackProps (const QMap<QString, QString> &props)
+   {
+   QMap<QString, QString> old;
+
+   // writing a PDF writes all of it, so leave it alone if nothing changes
+   CALL (getStackProps (old));
+   if (props == old)
+      return NULL;
+   try
+      {
+      PdfDictionary &cat = catalog_dict (_doc);
+      PdfDictionary *info = dict_sub (cat, PIECE_INFO, true);
+      PdfDictionary *app = info ? dict_sub (*info, PIECE_APP, true) : nullptr;
+      PdfDictionary *priv = app ? dict_sub (*app, PIECE_PRIVATE, true)
+                                : nullptr;
+
+      if (!priv)
+         return err_make (ERRFN, ERR_pdf_creation_error1, PIECE_INFO);
+      if (props.isEmpty ())
+         {
+         // leave nothing behind, but keep what anything else has put there
+         dict_remove (*priv, PIECE_PROPS);
+         if (dict_empty (*priv))
+            dict_remove (*info, PIECE_APP);
+         if (dict_empty (*info))
+            dict_remove (cat, PIECE_INFO);
+         }
+      else
+         {
+         QString when = QDateTime::currentDateTimeUtc ().toString (
+                              "'D:'yyyyMMddHHmmss'Z'");
+
+         priv->AddKey (PdfName (std::string (PIECE_PROPS)),
+                       PdfObject (pdf_string (File::propsToBytes (props))));
+         app->AddKey (PdfName (std::string (PIECE_MODIFIED)),
+                      PdfObject (pdf_string (when.toLatin1 ())));
+         }
+      }
+   catch (const PdfError &eCode)
+      {
+      return make_error (eCode);
+      }
+
+   // write the change and reopen the renderer's view of the file
+   return flush ();
    }
 
 

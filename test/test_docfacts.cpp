@@ -18,12 +18,15 @@ License: GPL-2
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <memory>
+
 #include <QJsonArray>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 
 #include "docfacts.h"
 #include "err.h"
+#include "filejpeg.h"
 #include "filemax.h"
 #include "filepdf.h"
 #include "test_docfacts.h"
@@ -192,53 +195,73 @@ void TestDocfacts::testSchema()
    QCOMPARE(int(props.size()), int(bill().toJson().size()));
 }
 
+void TestDocfacts::testFile_data()
+{
+   QTest::addColumn<QString>("fname");
+
+   QTest::newRow("max") << "testfile.max";
+   QTest::newRow("pdf") << "testpdf.pdf";
+}
+
 void TestDocfacts::testFile()
 {
+   QFETCH(QString, fname);
+
    QTemporaryDir tmp;
    QVERIFY(tmp.isValid());
    const QString dir = tmp.path() + "/";
-   QVERIFY(copyFixture("testfile.max", tmp.path()));
+   QVERIFY(copyFixture(fname, tmp.path()));
+
+   auto open = [&] () -> File * {
+      File *f;
+
+      if (fname.endsWith(".pdf"))
+         f = new Filepdf(dir, fname, nullptr);
+      else
+         f = new Filemax(dir, fname, nullptr);
+      return f->load() ? nullptr : f;
+   };
 
    Docfacts facts;
 
    // a stack has none at first, and a new file sees those it is given
    {
-      Filemax max(dir, "testfile.max", nullptr);
-      QVERIFY(!max.load());
-      QVERIFY(!Docfacts::read(&max, facts));
+      std::unique_ptr<File> f(open());
+      QVERIFY(f);
+      QVERIFY(!Docfacts::read(f.get(), facts));
       QVERIFY(facts.isEmpty());
 
       QMap<QString, QString> props;
       props["other"] = "kept";
-      QVERIFY(!max.putStackProps(props));
-      QVERIFY(!Docfacts::write(&max, bill()));
+      QVERIFY(!f->putStackProps(props));
+      QVERIFY(!Docfacts::write(f.get(), bill()));
    }
    {
-      Filemax max(dir, "testfile.max", nullptr);
-      QVERIFY(!max.load());
-      QVERIFY(!Docfacts::read(&max, facts));
+      std::unique_ptr<File> f(open());
+      QVERIFY(f);
+      QVERIFY(!Docfacts::read(f.get(), facts));
       QCOMPARE(facts, bill());
 
       // they sit beside the stack's other properties
       QMap<QString, QString> props;
-      QVERIFY(!max.getStackProps(props));
+      QVERIFY(!f->getStackProps(props));
       QCOMPARE(props.value("other"), QString("kept"));
       QCOMPARE(props.value("doc.type"), QString("bill"));
 
       // and removing them leaves the others
-      QVERIFY(!Docfacts::write(&max, Docfacts()));
-      QVERIFY(!Docfacts::read(&max, facts));
+      QVERIFY(!Docfacts::write(f.get(), Docfacts()));
+      QVERIFY(!Docfacts::read(f.get(), facts));
       QVERIFY(facts.isEmpty());
-      QVERIFY(!max.getStackProps(props));
+      QVERIFY(!f->getStackProps(props));
       QCOMPARE(int(props.size()), 1);
    }
 
    // a file type with nowhere to keep them says so, and gives none
-   QVERIFY(copyFixture("testpdf.pdf", tmp.path()));
-   Filepdf pdf(dir, "testpdf.pdf", nullptr);
-   QVERIFY(!pdf.load());
+   QVERIFY(copyFixture("colour_plasma.jpg", tmp.path()));
+   Filejpeg jpeg(dir, "colour_plasma.jpg", nullptr);
+   QVERIFY(!jpeg.load());
    facts = bill();
-   QVERIFY(Docfacts::read(&pdf, facts));
+   QVERIFY(Docfacts::read(&jpeg, facts));
    QVERIFY(facts.isEmpty());
-   QVERIFY(Docfacts::write(&pdf, bill()));
+   QVERIFY(Docfacts::write(&jpeg, bill()));
 }

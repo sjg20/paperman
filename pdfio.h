@@ -37,6 +37,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QBitArray>
 #include <QImage>
+#include <QMap>
 #include <QString>
 
 #include "config.h"
@@ -149,6 +150,25 @@ public :
    err_info *getPageText (int pagenum, QString &str);
    err_info *getPageTitle (int pagenum, QString &title);
    err_info *getAnnot (QString type, QString &str);
+
+   /** the properties kept for the document as a whole
+
+      They are held as text in the catalog's /PieceInfo, the place a PDF
+      has for data private to one program, so they stay with the document
+      and are not copied with any of its pages
+
+      \param props    returns the properties, empty if there are none
+      \returns error, or NULL if ok */
+   err_info *getStackProps (QMap<QString, QString> &props);
+
+   /** keep properties for the document as a whole, in place of any it
+       has, and write the file
+
+      The file is left alone if it has these already
+
+      \param props    the properties, or an empty map to remove them
+      \returns error, or NULL if ok */
+   err_info *putStackProps (const QMap<QString, QString> &props);
 
    /** appends a pdf file into another file
 

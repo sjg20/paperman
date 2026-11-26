@@ -233,6 +233,7 @@ private slots:
 
    //! a stack's own properties stay with it whatever happens to its pages
    void testMaxStackProps();
+   void testPdfStackProps();
 
    //! a page's cover box turns and mirrors with the page
    void testCoverTransform();

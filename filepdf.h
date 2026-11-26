@@ -82,6 +82,11 @@ public:
 
    virtual err_info *putEnvelope (QStringList &env);
 
+   err_info *getStackProps (QMap<QString, QString> &props) override;
+
+   /** keeps them in the PDF itself, which is written again in full */
+   err_info *putStackProps (const QMap<QString, QString> &props) override;
+
    virtual err_info *getPageText (int pagenum, QString &str);
 
    /** adds the words as an invisible layer of text on the page, so the
