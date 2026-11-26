@@ -1,5 +1,7 @@
 #include "test_ocrsearch.h"
 
+#include <memory>
+
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
 #include <QDir>
@@ -971,6 +973,205 @@ void TestOcrSearch::testIndexSync()
    QVERIFY(!again.sync(dir));
    QCOMPARE(found(again, "invoice"), QStringList());
    QCOMPARE(found(again, "pears"), QStringList({"a.max:0"}));
+}
+
+
+//! the names of the stacks found by their facts, in the order found
+static QStringList foundFacts(SearchIndex &index, const FactsQuery &query,
+                              int max = 100)
+{
+   QList<FactsResult> results;
+   QStringList out;
+
+   if (index.findFacts(query, results, max))
+      return QStringList("error");
+   for (const FactsResult &res : results)
+      out << QFileInfo(res.filepath).fileName();
+   return out;
+}
+
+/* Keep facts in a stack, as a change made since it was indexed */
+static void keepFacts(const QString &dir, const QString &fname,
+                      const Docfacts &facts, int ageSecs = 0)
+{
+   {
+      std::unique_ptr<File> f(File::createFile(dir, fname, nullptr,
+                                               File::typeFromName(fname)));
+      QVERIFY(!f->load());
+      QVERIFY(!Docfacts::write(f.get(), facts));
+   }
+   QFile file(dir + fname);
+   QVERIFY(file.open(QIODevice::ReadWrite));
+   QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(ageSecs),
+                            QFileDevice::FileModificationTime));
+}
+
+void TestOcrSearch::testIndexFacts()
+{
+   QTemporaryDir tmp;
+   QString dir = tmp.path() + "/";
+   QVERIFY(QDir(dir).mkdir("sub"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "bill.max"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "sub/bank.max"));
+   QVERIFY(QFile::copy(testSrc + "/testpdf.pdf", dir + "roof.pdf"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "plain.max"));
+
+   Docfacts bill, bank, roof, letter;
+
+   bill.type = "bill";
+   bill.from = "Northern Power";
+   bill.date = "2026-03-03";
+   bill.period = "Feb 2026";
+   bill.amount = "184.20";
+   bill.currency = "NZD";
+   bill.summary = "Electricity bill for February 2026";
+   keepFacts(dir, "bill.max", bill);
+
+   bank.type = "bank statement";
+   bank.from = "Kiwi Bank";
+   bank.date = "2025-07";
+   bank.period = "2025-26";
+   keepFacts(dir + "sub/", "bank.max", bank);
+
+   // a PDF's are found too, and nothing typed is taken as a pattern
+   roof.type = "invoice";
+   roof.from = "Roof_Fix 100% Ltd";
+   roof.date = "2025";
+   roof.amount = "2300.00";
+   roof.currency = "NZD";
+   roof.summary = "Roof repairs";
+   keepFacts(dir, "roof.pdf", roof);
+
+   SearchIndex index;
+   QVERIFY(!index.init(dir));
+   QVERIFY(!index.sync(dir));
+
+   // each stack's are a copy of those in its file
+   Docfacts facts;
+   QVERIFY(!index.getFacts(dir + "bill.max", facts));
+   QCOMPARE(facts, bill);
+   QVERIFY(!index.getFacts(dir + "roof.pdf", facts));
+   QCOMPARE(facts, roof);
+   QVERIFY(!index.getFacts(dir + "plain.max", facts));
+   QVERIFY(facts.isEmpty());
+   QVERIFY(!index.getFacts(dir + "missing.max", facts));
+   QVERIFY(facts.isEmpty());
+
+   // with nothing asked for, every stack which has facts, the latest first
+   FactsQuery all;
+   QCOMPARE(foundFacts(index, all),
+            QStringList({"bill.max", "bank.max", "roof.pdf"}));
+   QCOMPARE(foundFacts(index, all, 1), QStringList({"bill.max"}));
+
+   QList<FactsResult> results;
+   QVERIFY(!index.findFacts(all, results));
+   QCOMPARE(int(results.size()), 3);
+   QCOMPARE(results[0].filepath, dir + "bill.max");
+   QCOMPARE(results[0].facts, bill);
+   QCOMPARE(results[1].facts, bank);
+
+   FactsQuery q;
+   q.type = "BILL";
+   QCOMPARE(foundFacts(index, q), QStringList({"bill.max"}));
+   q.type = "statement";    // the whole type, not part of it
+   QCOMPARE(foundFacts(index, q), QStringList());
+
+   q = FactsQuery();
+   q.from = "power";
+   QCOMPARE(foundFacts(index, q), QStringList({"bill.max"}));
+   q.from = "100%";
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+   q.from = "roof_fix";
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+   q.from = "r_of";
+   QCOMPARE(foundFacts(index, q), QStringList());
+   q.from = "%";
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+
+   // a year takes in every date within it
+   q = FactsQuery();
+   q.dateFrom = "2025";
+   q.dateTo = "2025";
+   QCOMPARE(foundFacts(index, q), QStringList({"bank.max", "roof.pdf"}));
+   q.dateFrom = "2025-07";
+   q.dateTo = "2026-03-02";
+   QCOMPARE(foundFacts(index, q), QStringList({"bank.max"}));
+   q = FactsQuery();
+   q.dateFrom = "2026-03-03";
+   QCOMPARE(foundFacts(index, q), QStringList({"bill.max"}));
+   q = FactsQuery();
+   q.dateTo = "2025-06";
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+
+   // amounts are numbers, and a stack with none is left out
+   q = FactsQuery();
+   q.minAmount = "200";
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+   q = FactsQuery();
+   q.maxAmount = "200";
+   QCOMPARE(foundFacts(index, q), QStringList({"bill.max"}));
+   q.minAmount = "184.2";
+   q.currency = "nzd";
+   QCOMPARE(foundFacts(index, q), QStringList({"bill.max"}));
+   q.currency = "AUD";
+   QCOMPARE(foundFacts(index, q), QStringList());
+
+   // words can be in any of the facts which say what the document is
+   q = FactsQuery();
+   q.text = "repairs roof";
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+   q.text = "feb power";
+   QCOMPARE(foundFacts(index, q), QStringList({"bill.max"}));
+   q.text = "feb roof";
+   QCOMPARE(foundFacts(index, q), QStringList());
+
+   q = FactsQuery();
+   q.underDir = dir + "sub";
+   QCOMPARE(foundFacts(index, q), QStringList({"bank.max"}));
+
+   // everything asked for must match
+   q = FactsQuery();
+   q.type = "invoice";
+   q.from = "roof";
+   q.dateFrom = "2025";
+   q.dateTo = "2025";
+   q.minAmount = "1000";
+   q.underDir = dir;
+   QCOMPARE(foundFacts(index, q), QStringList({"roof.pdf"}));
+   q.dateFrom = "2026";
+   q.dateTo = "2026";
+   QCOMPARE(foundFacts(index, q), QStringList());
+
+   // a stack which gets facts is found, after those which have a date
+   letter.type = "letter";
+   keepFacts(dir, "plain.max", letter, 10);
+   QVERIFY(!index.sync(dir));
+   QCOMPARE(foundFacts(index, all),
+            QStringList({"bill.max", "bank.max", "roof.pdf", "plain.max"}));
+
+   // facts which change are copied again, and those removed are dropped
+   bill.amount = "190.00";
+   keepFacts(dir, "bill.max", bill, 20);
+   keepFacts(dir, "roof.pdf", Docfacts(), 20);
+   QVERIFY(!index.syncStack(dir + "bill.max"));
+   QVERIFY(!index.syncStack(dir + "roof.pdf"));
+   QVERIFY(!index.getFacts(dir + "bill.max", facts));
+   QCOMPARE(facts.amount, QString("190.00"));
+   QCOMPARE(foundFacts(index, all),
+            QStringList({"bill.max", "bank.max", "plain.max"}));
+
+   // a stack which goes takes its facts, and the index can be reopened
+   QVERIFY(QFile::remove(dir + "sub/bank.max"));
+   index.close();
+   SearchIndex again;
+   QVERIFY(!again.init(dir));
+   QVERIFY(!again.sync(dir));
+   QCOMPARE(foundFacts(again, all), QStringList({"bill.max", "plain.max"}));
+
+   // nothing is found in an index which is not open
+   again.close();
+   QVERIFY(again.findFacts(all, results));
+   QVERIFY(again.getFacts(dir + "bill.max", facts));
 }
 
 
