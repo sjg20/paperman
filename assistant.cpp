@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTimer>
 
 #include "assistant.h"
+#include "backgroundwork.h"
 
 const char *Assistant::default_command = "claude";
 const char *Assistant::default_model = "claude-opus-5-5";
@@ -129,6 +130,17 @@ void ClaudeCommandBackend::ask (const QString &system, const QString &prompt,
    QObject::connect (timer, &QTimer::timeout, proc, [proc, report] () {
       proc->kill ();
       report (QJsonObject (), QObject::tr ("The assistant took too long"));
+   });
+
+   /* the request is listed with the other work going on for as long as
+      the command runs, where the user can give up on it */
+   Backgroundjob *job = new Backgroundjob (QObject::tr ("Asking the "
+                                                         "assistant"), proc);
+
+   job->setStoppable (true);
+   QObject::connect (job, &Backgroundjob::stopAsked, proc, [proc, report] () {
+      proc->kill ();
+      report (QJsonObject (), QObject::tr ("Stopped asking the assistant"));
    });
 
    proc->start (_command, arguments (system, schema));
