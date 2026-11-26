@@ -110,6 +110,134 @@ void TestAssistant::testSuggestName()
    QCOMPARE(calls, 3);
 }
 
+static QJsonObject docsAnswer(const QList<QPair<int, QString>> &docs)
+{
+   QJsonArray arr;
+
+   for (const auto &doc : docs) {
+      QJsonObject obj;
+
+      obj["first_page"] = doc.first;
+      obj["name"] = doc.second;
+      arr << obj;
+   }
+
+   QJsonObject answer;
+
+   answer["documents"] = arr;
+   return answer;
+}
+
+void TestAssistant::testSplitPrompt()
+{
+   QStringList pages{"Power bill", "", "  Dear Sir  "};
+   QString prompt = Assistant::splitPrompt(pages, {"Water bill Jan 2026"});
+
+   QVERIFY(prompt.contains("- Water bill Jan 2026\n"));
+   QVERIFY(prompt.contains("The stack has 3 pages"));
+   QVERIFY(prompt.contains("=== Page 1 ===\nPower bill\n"));
+   QVERIFY(prompt.contains("=== Page 2 ===\n(no text)\n"));
+   QVERIFY(prompt.contains("=== Page 3 ===\nDear Sir\n"));
+   QVERIFY(prompt.indexOf("Page 1") < prompt.indexOf("Page 2"));
+
+   // only the start of a long page is sent
+   pages[0] = QString(Assistant::split_page_chars, 'a') + "ZZZ";
+   QVERIFY(!Assistant::splitPrompt(pages, QStringList()).contains("ZZZ"));
+
+   /* with many pages each gets less, so that the whole stays within
+      what may be sent, but never less than the least */
+   pages.clear();
+   for (int i = 0; i < Assistant::split_pages; i++)
+      pages << QString(Assistant::split_page_chars, 'b');
+   prompt = Assistant::splitPrompt(pages, QStringList());
+   QVERIFY(prompt.count('b') <= Assistant::split_text_chars);
+   QVERIFY(prompt.count('b') >= Assistant::split_pages
+                                   * Assistant::split_page_min_chars);
+}
+
+void TestAssistant::testSplitFromAnswer()
+{
+   typedef Assistant::Doc Doc;
+   QList<Doc> docs;
+
+   // pages are numbered from 1 in the answer, and from 0 here
+   docs = Assistant::splitFromAnswer(
+      docsAnswer({{1, "Power bill"}, {3, "Letter: bank.pdf"}}), 5);
+   QCOMPARE(docs, (QList<Doc>{{0, "Power bill"}, {2, "Letter bank"}}));
+
+   // out of order, twice at one page and outside the stack
+   docs = Assistant::splitFromAnswer(
+      docsAnswer({{4, "D"}, {1, "A"}, {4, "again"}, {9, "far"}, {0, "no"},
+                  {2, "B"}}), 5);
+   QCOMPARE(docs, (QList<Doc>{{0, "A"}, {1, "B"}, {3, "D"}}));
+
+   // the first document has the pages before it too
+   docs = Assistant::splitFromAnswer(docsAnswer({{2, "A"}, {3, "B"}}), 5);
+   QCOMPARE(docs, (QList<Doc>{{0, "A"}, {2, "B"}}));
+
+   // a document with no usable name is still a document
+   docs = Assistant::splitFromAnswer(docsAnswer({{1, "A"}, {2, "??"}}), 5);
+   QCOMPARE(docs, (QList<Doc>{{0, "A"}, {1, ""}}));
+
+   // nothing usable gives nothing
+   QVERIFY(Assistant::splitFromAnswer(QJsonObject(), 5).isEmpty());
+   QVERIFY(Assistant::splitFromAnswer(docsAnswer({{7, "A"}}), 5).isEmpty());
+}
+
+void TestAssistant::testSuggestSplit()
+{
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+   QList<Assistant::Doc> docs;
+   QString error;
+   int calls = 0;
+   auto done = [&](const QList<Assistant::Doc> &d, const QString &e) {
+      docs = d;
+      error = e;
+      calls++;
+   };
+   QStringList pages{"Power bill", "page 2 of 2", "Dear Sir"};
+
+   backend->_answer = docsAnswer({{1, "Power bill Mar 2026"},
+                                  {3, "Letter from the bank"}});
+   assistant.suggestSplit(pages, {"Water bill Jan 2026"}, this, done);
+   QCOMPARE(calls, 1);
+   QVERIFY(error.isEmpty());
+   QCOMPARE(docs.size(), 2);
+   QCOMPARE(docs[1].first, 2);
+   QCOMPARE(docs[1].name, QString("Letter from the bank"));
+
+   // it was asked for documents, as JSON, with the pages and other names
+   QVERIFY(backend->_prompt.contains("=== Page 3 ===\nDear Sir"));
+   QVERIFY(backend->_prompt.contains("Water bill Jan 2026"));
+   QVERIFY(!backend->_system.isEmpty());
+   QCOMPARE(backend->_schema.value("required").toArray(),
+            QJsonArray{"documents"});
+
+   // an answer with no documents is a failure, as is one from the backend
+   backend->_answer = QJsonObject();
+   assistant.suggestSplit(pages, QStringList(), this, done);
+   QVERIFY(docs.isEmpty());
+   QVERIFY(!error.isEmpty());
+
+   backend->_error = "no network";
+   assistant.suggestSplit(pages, QStringList(), this, done);
+   QVERIFY(docs.isEmpty());
+   QCOMPARE(error, QString("no network"));
+
+   // a stack with too many pages is not sent at all
+   backend->_prompt.clear();
+   backend->_error.clear();
+   pages.clear();
+   for (int i = 0; i <= Assistant::split_pages; i++)
+      pages << "page";
+   assistant.suggestSplit(pages, QStringList(), this, done);
+   QVERIFY(docs.isEmpty());
+   QVERIFY(!error.isEmpty());
+   QVERIFY(backend->_prompt.isEmpty());
+   QCOMPARE(calls, 4);
+}
+
 void TestAssistant::testClaudeCommand()
 {
    ClaudeCommandBackend backend("claude", "claude-opus-5-5");

@@ -23,6 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QMap>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSettings>
@@ -190,8 +191,7 @@ void Assistant::setModel (const QString &model)
    }
 
 
-QString Assistant::namePrompt (const QString &text,
-                               const QStringList &examples)
+QString Assistant::examplesPrompt (const QStringList &examples)
    {
    QString prompt;
 
@@ -203,6 +203,15 @@ QString Assistant::namePrompt (const QString &text,
          prompt += "- " + name + "\n";
       prompt += "\n";
       }
+   return prompt;
+   }
+
+
+QString Assistant::namePrompt (const QString &text,
+                               const QStringList &examples)
+   {
+   QString prompt = examplesPrompt (examples);
+
    prompt += "Text read from the first pages of the document, which may "
              "have mistakes from OCR:\n\n";
    prompt += text.left (name_text_chars);
@@ -253,4 +262,117 @@ void Assistant::suggestName (const QString &text,
       else
          done (name, error);
    });
+   }
+
+
+void Assistant::suggestSplit (const QStringList &pages,
+      const QStringList &examples, QObject *context,
+      std::function<void (const QList<Doc> &docs, const QString &error)> done)
+   {
+   static const char *system =
+      "You sort scanned paper for a personal filing system. A pile of "
+      "separate documents, such as a day's post, is scanned in one go, and "
+      "you are given the text of each page in order. Work out where each "
+      "document starts. Reply with every document in order: the number of "
+      "its first page, and a short, specific name for it: what it is, who "
+      "it is from and the period or date it covers, as far as the text "
+      "says. The first document starts at page 1. A page which carries on "
+      "from the one before (the same sender and subject, a page number "
+      "which follows, a sentence which runs on, the back of a sheet) "
+      "belongs with it, as does a page with no text. Start a new document "
+      "only where the text shows one: when unsure, keep pages together. "
+      "Follow the style of the other names in the folder, if any are "
+      "given. Use only what the text says. No file extension.";
+   QJsonObject page_type, name_type, props, doc, docs_type, top, schema;
+   int pagecount = pages.size ();
+
+   if (pagecount > split_pages)
+      {
+      done (QList<Doc> (), tr ("This stack has too many pages for the "
+                               "assistant to divide (the most is %1)")
+               .arg (split_pages));
+      return;
+      }
+
+   page_type ["type"] = "integer";
+   name_type ["type"] = "string";
+   props ["first_page"] = page_type;
+   props ["name"] = name_type;
+   doc ["type"] = "object";
+   doc ["properties"] = props;
+   doc ["required"] = QJsonArray {"first_page", "name"};
+   doc ["additionalProperties"] = false;
+   docs_type ["type"] = "array";
+   docs_type ["items"] = doc;
+   top ["documents"] = docs_type;
+   schema ["type"] = "object";
+   schema ["properties"] = top;
+   schema ["required"] = QJsonArray {"documents"};
+   schema ["additionalProperties"] = false;
+
+   _backend->ask (system, splitPrompt (pages, examples), schema, context,
+                  [done, pagecount] (const QJsonObject &answer,
+                                     const QString &error) {
+      QList<Doc> docs;
+
+      if (error.isEmpty ())
+         docs = splitFromAnswer (answer, pagecount);
+      if (error.isEmpty () && docs.isEmpty ())
+         done (docs, tr ("The assistant did not say how to divide the "
+                         "stack"));
+      else
+         done (docs, error);
+   });
+   }
+
+
+QString Assistant::splitPrompt (const QStringList &pages,
+                                const QStringList &examples)
+   {
+   QString prompt = examplesPrompt (examples);
+
+   // each page gets an equal share of what may be sent
+   int chars = qBound ((int)split_page_min_chars,
+                       split_text_chars / qMax ((int)pages.size (), 1),
+                       (int)split_page_chars);
+
+   prompt += QString ("The stack has %1 pages. This is the start of the "
+                      "text read from each, which may have mistakes from "
+                      "OCR:\n").arg (pages.size ());
+   for (int i = 0; i < pages.size (); i++)
+      {
+      QString text = pages [i].trimmed ().left (chars);
+
+      prompt += QString ("\n=== Page %1 ===\n").arg (i + 1);
+      prompt += text.isEmpty () ? QString ("(no text)") : text;
+      prompt += "\n";
+      }
+   return prompt;
+   }
+
+
+QList<Assistant::Doc> Assistant::splitFromAnswer (const QJsonObject &answer,
+                                                  int pagecount)
+   {
+   QMap<int, QString> starts;
+
+   // in order, with one document at most starting at any page
+   for (const QJsonValue &val : answer.value ("documents").toArray ())
+      {
+      QJsonObject obj = val.toObject ();
+      int first = obj.value ("first_page").toInt () - 1;
+
+      if (first >= 0 && first < pagecount && !starts.contains (first))
+         starts [first] = cleanName (obj.value ("name").toString ());
+      }
+
+   QList<Doc> docs;
+
+   if (starts.isEmpty ())
+      return docs;
+
+   // the pages before the first one given belong to it
+   for (auto it = starts.constBegin (); it != starts.constEnd (); ++it)
+      docs << Doc {docs.isEmpty () ? 0 : it.key (), it.value ()};
+   return docs;
    }

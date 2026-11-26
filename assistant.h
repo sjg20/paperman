@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #pragma once
 
 #include <QJsonObject>
+#include <QList>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -96,8 +97,9 @@ private:
    };
 
 
-/** Help with filing from an AI model: for now, a name for a stack from
-    what its pages say.
+/** Help with filing from an AI model: a name for a stack from what its
+    pages say, and where a stack scanned as one pile divides into separate
+    documents.
 
     It is off unless turned on in the options, since it sends the text of
     the user's papers to the model. What it suggests is only ever offered:
@@ -128,6 +130,16 @@ public:
 
    static const char *default_command;
    static const char *default_model;
+
+   //! a document found within a stack
+   struct Doc
+      {
+      int first;       //!< its first page, from 0
+      QString name;    //!< a name for it, empty if none was given
+
+      bool operator== (const Doc &other) const
+         { return first == other.first && name == other.name; }
+      };
 
    //! the most text of a stack's pages which is sent to name it
    static constexpr int name_text_chars = 6000;
@@ -160,6 +172,48 @@ public:
       \returns the name, empty if nothing is left of it */
    static QString cleanName (const QString &name);
 
+   //! the most pages a stack may have to be divided into documents
+   static constexpr int split_pages = 200;
+
+   //! the most text sent to divide a stack, shared between its pages
+   static constexpr int split_text_chars = 100000;
+
+   //! the most and least of each page's text which is sent to divide a
+   //! stack: the start of a page is what shows a new document
+   static constexpr int split_page_chars = 1500;
+   static constexpr int split_page_min_chars = 200;
+
+   /** suggest how a stack divides into documents, as when a pile of
+       post is scanned in one go
+
+      \param pages     the text of each of its pages, empty for a page
+                       with none
+      \param examples  names of other stacks in its folder
+      \param context   @p done is not called once this has gone
+      \param done      called with the documents, in order, the first
+                       starting at page 0; or with none and why */
+   void suggestSplit (const QStringList &pages, const QStringList &examples,
+                      QObject *context,
+                      std::function<void (const QList<Doc> &docs,
+                                          const QString &error)> done);
+
+   //! the question which suggestSplit() asks
+   static QString splitPrompt (const QStringList &pages,
+                               const QStringList &examples);
+
+   /** read the documents from the model's answer, making them usable
+       whatever it gave: in order, each starting at a page of its own
+       which the stack has, and the first at page 0
+
+      \param answer     the answer, with pages numbered from 1
+      \param pagecount  number of pages in the stack
+      \returns the documents, empty if the answer holds none */
+   static QList<Doc> splitFromAnswer (const QJsonObject &answer,
+                                      int pagecount);
+
 private:
+   //! the names whose style a new name should follow, as a prompt's start
+   static QString examplesPrompt (const QStringList &examples);
+
    std::unique_ptr<AssistantBackend> _backend;
    };
