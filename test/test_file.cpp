@@ -2036,11 +2036,180 @@ void TestFile::testMaxStackProps()
    QCOMPARE(max.pagecount(), count - 1);
 
    // a file type with nowhere to keep them says so
+   QVERIFY(!copyFixture("colour_plasma.jpg", tmp.path()).isEmpty());
+   Filejpeg jpeg(dir, "colour_plasma.jpg", nullptr);
+   QVERIFY(!jpeg.load());
+   QVERIFY(jpeg.getStackProps(props));
+   QVERIFY(jpeg.putStackProps(propsFor("stack")));
+}
+
+//! everything in a file
+static QByteArray fileBytes(const QString &fname)
+{
+   QFile file(fname);
+
+   return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
+void TestFile::testPdfStackProps()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   const QString fname = dir + "testpdf.pdf";
    QVERIFY(!copyFixture("testpdf.pdf", tmp.path()).isEmpty());
+
+   const QByteArray orig = fileBytes(fname);
+   QVERIFY(!orig.isEmpty());
+
+   QMap<QString, QString> props, big;
+   QString text;
+   int count;
+
+   // a PDF has none at first, and a new file sees those it is given
+   {
+      Filepdf pdf(dir, "testpdf.pdf", nullptr);
+      QVERIFY(!pdf.load());
+      count = pdf.pagecount();
+      QVERIFY(count >= 3);
+      QVERIFY(!pdf.getPageText(0, text));
+      QVERIFY(!text.isEmpty());
+      QVERIFY(!pdf.getStackProps(props));
+      QVERIFY(props.isEmpty());
+
+      // removing what is not there leaves the file as it is
+      QVERIFY(!pdf.putStackProps(QMap<QString, QString>()));
+      QCOMPARE(fileBytes(fname), orig);
+
+      err_info *err = pdf.putStackProps(propsFor("stack"));
+      QVERIFY2(!err, err ? err->errstr : "");
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, propsFor("stack"));
+
+      // the pages are as they were
+      QString after;
+      QCOMPARE(pdf.pagecount(), count);
+      QVERIFY(!pdf.getPageText(0, after));
+      QCOMPARE(after, text);
+   }
+
+   // they are in the place a PDF has for a program's own data
+   QByteArray with = fileBytes(fname);
+   QVERIFY(with.contains("/PieceInfo"));
+   QVERIFY(with.contains("/Paperman"));
+
+   {
+      // a PDF not in use can be asked, and is left that way
+      Filepdf pdf(dir, "testpdf.pdf", nullptr);
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, propsFor("stack"));
+      QVERIFY(!pdf.valid());
+
+      // writing what it has already leaves the file as it is
+      QVERIFY(!pdf.putStackProps(propsFor("stack")));
+      QVERIFY(!pdf.valid());
+      QCOMPARE(fileBytes(fname), with);
+
+      // they can be replaced by more
+      big = propsFor("bigger");
+      for (int i = 0; i < 40; i++)
+         big[QString("key%1").arg(i)] = QString("value \u65e5\u672c %1").arg(i);
+      QVERIFY(!pdf.putStackProps(big));
+      QVERIFY(!pdf.valid());
+   }
+   {
+      Filepdf pdf(dir, "testpdf.pdf", nullptr);
+      QVERIFY(!pdf.load());
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // changes to the stack's pages leave them alone
+      QVERIFY(!pdf.transformPage(0, File::Transform_rotate90));
+
+      OcrPage ocr;
+      ocr.size = QSize(1000, 1400);
+      ocr.words << OcrWord{QRect(100, 200, 300, 50), "added", 90, 0, 0};
+      QVERIFY(!pdf.putPageOcr(1, ocr));
+      QVERIFY(!pdf.flush());
+
+      QBitArray pages(count);
+      pages.setBit(2);
+      QByteArray del_info;
+      int del_count = 1;
+      QVERIFY(!pdf.removePages(pages, del_info, del_count));
+      QCOMPARE(pdf.pagecount(), count - 1);
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // a page taken out does not take them with it
+      Filepdf *dest = new Filepdf(dir, "unstacked.pdf", nullptr);
+      QVERIFY(!dest->create());
+      QVERIFY(!pdf.unstackPages(1, 1, true, dest));
+      QCOMPARE(pdf.pagecount(), count - 2);
+      QVERIFY(!dest->getStackProps(props));
+      QVERIFY(props.isEmpty());
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // nor does a stack put into this one bring its own
+      QVERIFY(!dest->putStackProps(propsFor("other")));
+      QVERIFY(!pdf.stackStack(dest));
+      QCOMPARE(pdf.pagecount(), count - 1);
+      delete dest;
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, big);
+   }
+   {
+      Filepdf pdf(dir, "testpdf.pdf", nullptr);
+      QVERIFY(!pdf.load());
+      QCOMPARE(pdf.pagecount(), count - 1);
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // one which would break a line is refused, and nothing is written
+      QMap<QString, QString> bad = propsFor("bad");
+      bad["two\nlines"] = "value";
+      err_info *err = pdf.putStackProps(bad);
+      QVERIFY(err);
+      QCOMPARE(err->errnum, int(ERR_invalid_page_property1));
+      QVERIFY(!pdf.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // and they can be removed
+      QVERIFY(!pdf.putStackProps(QMap<QString, QString>()));
+      QVERIFY(!pdf.getStackProps(props));
+      QVERIFY(props.isEmpty());
+   }
+
    Filepdf pdf(dir, "testpdf.pdf", nullptr);
    QVERIFY(!pdf.load());
-   QVERIFY(pdf.getStackProps(props));
-   QVERIFY(pdf.putStackProps(propsFor("stack")));
+   QVERIFY(!pdf.getStackProps(props));
+   QVERIFY(props.isEmpty());
+   QCOMPARE(pdf.pagecount(), count - 1);
+
+   // a PDF which Paperman makes keeps them too
+   QVERIFY(!copyFixture("colour_plasma.jpg", tmp.path()).isEmpty());
+   const QByteArray jpeg = fileBytes(dir + "colour_plasma.jpg");
+   const QSize size = QImage::fromData(jpeg).size();
+   QVERIFY(!size.isEmpty());
+
+   Filepdf *made = new Filepdf(dir, "made.pdf", nullptr);
+   QVERIFY(!made->create());
+   QVERIFY(!made->addPageJpeg(jpeg, size.width(), size.height(), true));
+   QVERIFY(!made->flush());
+   QVERIFY(!made->putStackProps(propsFor("made")));
+   delete made;
+
+   Filepdf again(dir, "made.pdf", nullptr);
+   QVERIFY(!again.load());
+   QCOMPARE(again.pagecount(), 1);
+   QVERIFY(!again.getStackProps(props));
+   QCOMPARE(props, propsFor("made"));
+
+   // removing them leaves nothing behind in the file
+   QVERIFY(fileBytes(dir + "made.pdf").contains("/PieceInfo"));
+   QVERIFY(!again.putStackProps(QMap<QString, QString>()));
+   QVERIFY(!fileBytes(dir + "made.pdf").contains("/PieceInfo"));
 }
 
 void TestFile::testMaxPropsInvalid()

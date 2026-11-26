@@ -183,6 +183,38 @@ err_info *Filepdf::putEnvelope (QStringList &)
    }
 
 
+err_info *Filepdf::getStackProps (QMap<QString, QString> &props)
+   {
+   bool loaded = _pdfio && _valid;
+   err_info *err;
+
+   props.clear ();
+   err = load ();
+   if (!err)
+      err = _pdfio->getStackProps (props);
+
+   // one which was not in use goes back to that, so it is not held open
+   if (!loaded)
+      release ();
+   return err;
+   }
+
+
+err_info *Filepdf::putStackProps (const QMap<QString, QString> &props)
+   {
+   bool loaded = _pdfio && _valid;
+   err_info *err;
+
+   CALL (propsCheck (props));
+   err = load ();
+   if (!err)
+      err = _pdfio->putStackProps (props);
+   if (!loaded)
+      release ();
+   return err;
+   }
+
+
 err_info *Filepdf::getPageText (int pagenum, QString &str)
    {
    if (!_pdfio)

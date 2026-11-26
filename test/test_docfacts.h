@@ -43,5 +43,6 @@ private slots:
    void testSchema();
 
    //! facts are kept in a stack's file, beside its other properties
+   void testFile_data();
    void testFile();
 };
