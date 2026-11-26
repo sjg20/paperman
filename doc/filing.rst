@@ -28,9 +28,6 @@ with it, or with all the stacks selected:
      - Take the page shown out of its stack, into a stack of its own
    * - **Unstack all** (Ctrl+U)
      - Split each stack selected into a stack for each page
-   * - **Reverse pages**
-     - Put the pages of each stack selected in the opposite order, as for
-       a pile scanned from the back. Undo puts them back
    * - **Duplicate** (Ctrl+D)
      - Make a copy of each stack selected
    * - **Move to folder** (Ctrl+M)
@@ -43,20 +40,42 @@ with it, or with all the stacks selected:
      - Give the stack a new name
    * - **Rename page** (Shift+F2)
      - Give the page shown a new name
-   * - **Suggest name**
-     - Ask an AI model for a name, from what the pages say (see
-       `Suggesting a name`_). Shown once it is turned on in the options
-   * - **Split into documents...**
-     - Ask an AI model where a stack scanned as one pile divides into
-       separate documents (see `Splitting a pile into documents`_). Shown
-       once it is turned on in the options
-   * - **Read text (OCR)**
-     - Read the text of the stack's pages which have none yet, leaving
-       those already read as they are (see :doc:`finding`)
+   * - **Process...**
+     - Read a stack's text, turn its pages round or have the assistant
+       work on it (see `The Process menu`_)
    * - **Duplicate...**
      - Copy a page, or a stack in another form (see `Duplicating`_)
    * - **Email...**
      - Send the stacks by email
+
+Every item has a shortcut, shown beside it in the menu, which works on
+the stacks selected without opening the menu.
+
+The Process menu
+~~~~~~~~~~~~~~~~
+
+The **Process...** submenu holds the things which work on what is in a
+stack, rather than on where it is or what it is called:
+
+.. image:: images/process-menu.png
+   :alt: The Process submenu
+
+.. list-table::
+   :widths: 35 65
+
+   * - **Read text (OCR)** (Ctrl+T)
+     - Read the text of the stack's pages which have none yet, leaving
+       those already read as they are (see :doc:`finding`)
+   * - **Suggest name** (Ctrl+F2)
+     - Ask an AI model for a name, from what the pages say (see
+       `Suggesting a name`_). Shown once it is turned on in the options
+   * - **Split into documents...** (Ctrl+Shift+U)
+     - Ask an AI model where a stack scanned as one pile divides into
+       separate documents (see `Splitting a pile into documents`_). Shown
+       once it is turned on in the options
+   * - **Reverse pages** (Ctrl+R)
+     - Put the pages of each stack selected in the opposite order, as for
+       a pile scanned from the back. Undo puts them back
 
 Moving stacks
 -------------
@@ -154,11 +173,12 @@ named after it.
    * - **as PDF** (Ctrl+Shift+P)
      - Copy each stack as a PDF, with the text of its pages if it has
        been read
-   * - **even pages only**, **odd pages only**
+   * - **even pages only** (Ctrl+Shift+N), **odd pages only**
+       (Ctrl+Shift+O)
      - Copy just the even or the odd pages into a new stack
    * - **as JPEG** (Ctrl+Shift+J)
      - Copy each page as a JPEG picture
-   * - **Unfold booklet**
+   * - **Unfold booklet** (Ctrl+Shift+B)
      - For a booklet scanned two pages to a sheet: split each page down
        the middle and put the halves in reading order, in a new stack
        named after the original with ``_unfold``
@@ -181,7 +201,8 @@ This is off at first, since it sends text from your papers to the model.
 To turn it on, tick **Use an AI assistant to help with filing** in the
 **Assistant** tab of the options.
 
-Then right-click a stack and choose **Suggest name**. The name appears in
+Then right-click a stack and choose **Process... > Suggest name**, or
+press Ctrl+F2. The name appears in
 the name box: press **Enter** to accept it, change it first, or press
 **Esc** to keep the old name. Undo puts the old name back.
 
@@ -209,7 +230,8 @@ The quickest way to scan a day's post is as one pile, which arrives as one
 stack. With the assistant turned on, as above, Paperman can ask the AI
 model where each document in it starts, and what to call it.
 
-Right-click the stack and choose **Split into documents...**. After a few
+Right-click the stack and choose **Process... > Split into
+documents...**, or press Ctrl+Shift+U. After a few
 moments a window shows what the model suggests: a row for each document,
 with a picture of its first page, its pages and a name. Nothing has
 changed yet. In the window:

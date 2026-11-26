@@ -418,22 +418,26 @@ void Desktopwidget::addActions(void)
    addAction (_act_stack, "&Stack", SLOT(stackPages()), "Ctrl+G");
    addAction (_act_unstack_page, "Unstack &page", SLOT(unstackPage()), "Ctrl+I");
    addAction (_act_unstack_all, "&Unstack all", SLOT(unstackStacks ()), "Ctrl+U");
-   addAction (_act_reverse, "Re&verse pages", SLOT (reversePages ()), "");
+   addAction (_act_reverse, "Re&verse pages", SLOT (reversePages ()), "Ctrl+R");
    addAction (_act_rename_stack, "&Rename stack", SLOT(renameStack ()), "F2");  //"F2,Ctrl+R");
    addAction (_act_rename_page, "Re&name page", SLOT (renamePage ()), "Shift+F2");
-   addAction (_act_suggest_name, "Su&ggest name", SLOT (suggestName ()), "");
+   addAction (_act_suggest_name, "Su&ggest name", SLOT (suggestName ()),
+              "Ctrl+F2");
    addAction (_act_suggest_split, "Spli&t into documents...",
-              SLOT (suggestSplit ()), "");
-   addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "");
+              SLOT (suggestSplit ()), "Ctrl+Shift+U");
+   addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "Ctrl+T");
 
    addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
    addAction (_act_duplicate_max, "as &Max", SLOT (duplicateMax ()), "Ctrl+Shift+D");
    addAction (_act_duplicate_pdf, "as &PDF", SLOT (duplicatePdf ()), "Ctrl+Shift+P");
    //    addAction (_act_duplicate_tiff, "as &Tiff", SLOT (duplicateTiff ()), "Ctrl+Shift+T");
-   addAction (_act_duplicate_odd, "&odd pages only", SLOT (duplicateOdd ()), "");
-   addAction (_act_duplicate_even, "&even pages only", SLOT (duplicateEven ()), "");
+   addAction (_act_duplicate_odd, "&odd pages only", SLOT (duplicateOdd ()),
+              "Ctrl+Shift+O");
+   addAction (_act_duplicate_even, "&even pages only", SLOT (duplicateEven ()),
+              "Ctrl+Shift+N");
    addAction (_act_duplicate_jpeg, "as &JPEG", SLOT (duplicateJpeg ()), "Ctrl+Shift+J");
-   addAction (_act_unfold_booklet, "Unfold &booklet", SLOT (unfoldBooklet ()), "");
+   addAction (_act_unfold_booklet, "Unfold &booklet", SLOT (unfoldBooklet ()),
+              "Ctrl+Shift+B");
 
    addAction (_act_email, "&Files", SLOT (email ()), "Ctrl+E");
    addAction (_act_email_pdf, "as &PDF", SLOT (emailPdf ()), "Ctrl+Shift+E");
@@ -1714,18 +1718,26 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    context_menu->addAction (_act_stack);
    context_menu->addAction (_act_unstack_page);
    context_menu->addAction (_act_unstack_all);
-   context_menu->addAction (_act_reverse);
    context_menu->addAction (_act_duplicate);
 
    context_menu->addAction (_act_move);
    context_menu->addAction (_act_delete);
    context_menu->addAction (_act_rename_stack);
    context_menu->addAction (_act_rename_page);
-   context_menu->addAction (_act_suggest_name);
-   context_menu->addAction (_act_suggest_split);
-   context_menu->addAction (_act_read_text);
 
-   QMenu *submenu = context_menu->addMenu (tr ("&Duplicate..."));
+   /* the things which work on what is in a stack, rather than on where
+      it is or what it is called, have a menu of their own, to keep this
+      one short. Those which the assistant does are there when it is on */
+   context_menu->addSeparator ();
+
+   QMenu *submenu = context_menu->addMenu (tr ("Pr&ocess..."));
+   submenu->setObjectName ("processMenu");
+   submenu->addAction (_act_read_text);
+   submenu->addAction (_act_suggest_name);
+   submenu->addAction (_act_suggest_split);
+   submenu->addAction (_act_reverse);
+
+   submenu = context_menu->addMenu (tr ("&Duplicate..."));
    submenu->addAction (_act_duplicate_page);
    submenu->addAction (_act_duplicate_max);
    submenu->addAction (_act_duplicate_pdf);

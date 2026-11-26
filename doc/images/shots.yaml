@@ -96,6 +96,10 @@ shots:
     made: test
     test: testDuplicateMenu
     shows: [desktopwidget.cpp]
+  process-menu.png:
+    made: test
+    test: testProcessMenu
+    shows: [desktopwidget.cpp]
   folder-menu.png:
     made: test
     test: testFolderMenu

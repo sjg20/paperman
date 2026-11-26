@@ -199,6 +199,9 @@ private slots:
    //! work which takes a while is listed, and stopped, in one window
    void testBackgroundJobs();
 
+   //! the stack menu is short, and every item in it has a shortcut
+   void testStackMenu();
+
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 
