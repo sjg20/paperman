@@ -169,6 +169,9 @@ private slots:
    void testMoveFoundKey();
 
    //! Repositioning a stack on the desk moves it, persists and undoes
+   //! a stack dragged a little way moves by that much
+   void testShortDrag();
+
    void testMoveStackOnDesk();
 
    //! A multi-selected group dropped on a folder moves together and
