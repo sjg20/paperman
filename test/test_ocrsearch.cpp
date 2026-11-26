@@ -701,7 +701,7 @@ void TestOcrSearch::testReaderWorkers()
 
    // it reads a few pages at once unless told otherwise
    OcrReader reader;
-   QVERIFY(reader._workers >= 1 && reader._workers <= 4);
+   QCOMPARE(reader._workers, OcrReader::workers());
 
    QSemaphore started, go;
    QAtomicInt busy, most;
