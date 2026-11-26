@@ -34,14 +34,54 @@
           </widget>
          </item>
          <item>
-          <widget class="QCheckBox" name="readText">
-           <property name="toolTip">
-            <string>Read the text of each page after scanning, so that it can be searched and copied</string>
-           </property>
-           <property name="text">
-            <string>Read the text of scanned pages (OCR)</string>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="readTextLayout">
+           <item>
+            <widget class="QCheckBox" name="readText">
+             <property name="toolTip">
+              <string>Read the text of each page after scanning, so that it can be searched and copied</string>
+             </property>
+             <property name="text">
+              <string>Read the text of scanned pages (OCR)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="readWorkersLabel">
+             <property name="text">
+              <string>Pages read at once:</string>
+             </property>
+             <property name="buddy">
+              <cstring>readWorkers</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="readWorkers">
+             <property name="toolTip">
+              <string>How many pages to read at the same time. More gets through a pile of scans sooner and uses more of the computer while it does</string>
+             </property>
+             <property name="specialValueText">
+              <string>Automatic</string>
+             </property>
+             <property name="minimum">
+              <number>0</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="readTextSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </item>
          <item>
           <layout class="QHBoxLayout">
