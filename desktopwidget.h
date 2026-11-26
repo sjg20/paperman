@@ -265,6 +265,15 @@ public:
     */
    QModelIndex findDir(const QString& dir_path);
 
+   /** go to a stack: show its folder, select it and bring it into view,
+       turned to a page if one is given. The keyboard stays where it is,
+       so that whatever asked can go on to the next
+
+      \param pathname  the stack's full path
+      \param page      the page to turn it to, from 0; -1 to leave it
+      \returns true if its folder is one which can be shown */
+   bool showStack (const QString &pathname, int page = -1);
+
    // Set whether the dir filter is active or not
    void setDirFilter(bool active);
 
@@ -833,6 +842,7 @@ private:
    Desktopmodelconv *_modelconv_assert;   //!< same, but only allows assertions
 
    QString _scroll_to;     //!< filename to scroll to when a new directory is opened
+   int _scroll_page = -1;  //!< the page to turn that stack to, from 0; -1 for none
 
    // Text used for a recursive folder search
    QString _search_text;
