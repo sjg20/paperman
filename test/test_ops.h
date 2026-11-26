@@ -85,6 +85,9 @@ private slots:
    void testStackOnPdf();
    void testStackAtPage();
 
+   //! A page which is turned loses its words and is read again
+   void testTurnedPageReadAgain();
+
    //! What is done to stacks is written in the record of activity
    void testActivityRecorded();
 
