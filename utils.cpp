@@ -722,7 +722,9 @@ QString removeExtension (const QString &fname, QString &ext)
    {
    int pos;
 
-   pos = fname.indexOf ('.');
+   /* the extension starts at the last dot, since a name may hold dots of
+      its own: '4.4BSD manual.max' is a max file called '4.4BSD manual' */
+   pos = fname.lastIndexOf ('.');
    if (pos != -1)
       {
       ext = fname.mid (pos);   // include the .
@@ -800,7 +802,7 @@ QString util_getUnique (QString fname, QString dir, QString ext)
 {
    QFileInfo fi (QDir (dir), fname);
 //    QString ext = fi.suffix ();
-   QString leaf = fi.baseName ();
+   QString leaf = fi.completeBaseName ();
 
    dir += "/";
    leaf = util_findNextFilename (leaf, dir, ext);

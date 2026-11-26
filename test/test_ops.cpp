@@ -798,6 +798,75 @@ void TestOps::testConvertStopped()
    QCOMPARE(model->rowCount(repo_ind), rows + 1);
 }
 
+/* A stack's name may hold dots: only what follows the last one is its
+   extension. A name used to be cut at its first dot, so '4.4BSD manual'
+   became '4' */
+void TestOps::testNameWithDots()
+{
+   Mainwindow me;
+
+   auto path = setupRepo();
+
+   // a PDF which comes with dots in its name
+   QVERIFY(QFile::copy(testSrc + "/testpdf.pdf",
+                       path + "/Invoice 12.03.2026.pdf"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   // it is a PDF, called all of that
+   QModelIndex ind = model->index("Invoice 12.03.2026.pdf", repo_ind);
+   QVERIFY(ind.isValid());
+   File *f = model->getFile(ind);
+   QCOMPARE(f->type(), File::Type_pdf);
+   QCOMPARE(f->stackLeaf(), QString("Invoice 12.03.2026"));
+   QCOMPARE(f->ext(), QString(".pdf"));
+
+   // a max stack given a name with dots keeps all of it, and its type
+   ind = model->index("testfile.max", repo_ind);
+   QVERIFY(ind.isValid());
+   model->renameStack(ind, "4.4BSD Programmer's Manual");
+   QTRY_VERIFY(QFile::exists(path + "/4.4BSD Programmer's Manual.max"));
+   QVERIFY(!QFile::exists(path + "/4.max"));
+   ind = model->index("4.4BSD Programmer's Manual.max", repo_ind);
+   QVERIFY(ind.isValid());
+   f = model->getFile(ind);
+   QCOMPARE(f->type(), File::Type_max);
+   QCOMPARE(f->stackLeaf(), QString("4.4BSD Programmer's Manual"));
+   QCOMPARE(f->ext(), QString(".max"));
+   QCOMPARE(model->data(ind, Qt::DisplayRole).toString(),
+            QString("4.4BSD Programmer's Manual"));
+
+   // it can be renamed again, and each rename undone
+   model->renameStack(ind, "v1.2 notes");
+   QTRY_VERIFY(QFile::exists(path + "/v1.2 notes.max"));
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(QFile::exists(path + "/4.4BSD Programmer's Manual.max"));
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+
+   // a copy is named after all of the name too
+   QModelIndexList list;
+   list << model->index("Invoice 12.03.2026.pdf", repo_ind);
+   QVERIFY(list[0].isValid());
+   model->duplicate(list, repo_ind);
+   QTRY_VERIFY(QFile::exists(path + "/Invoice 12.03.2026_copy.pdf"));
+
+   // a name which another stack starts with is still made different
+   ind = model->index("testfile.max", repo_ind);
+   model->renameStack(ind, "Invoice 12.03.2026");
+   QTRY_VERIFY(!QFile::exists(path + "/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/Invoice 12.max"));
+   QVERIFY(!QFile::exists(path + "/Invoice 12_1.max"));
+
+   QStringList made = QDir(path).entryList(QStringList("Invoice 12.03.2026*.max"));
+   QCOMPARE(int(made.size()), 1);
+}
+
 /* Several stacks renamed together are one step to undo */
 void TestOps::testRenameStacks()
 {
@@ -1495,7 +1564,7 @@ void TestOps::testSplitStack()
 
    for (const QString &ext : {QString(".max"), QString(".pdf")}) {
       QString orig = ext == ".max" ? "testfile.max" : "testpdf.pdf";
-      QString first = "First" + ext, second = "Second 3-5" + ext;
+      QString first = "First" + ext, second = "Second 3.5" + ext;
       QModelIndex ind = model->index(orig, repo_ind);
       QList<QImage> before = images(orig);
       int count = before.size();
@@ -1512,8 +1581,8 @@ void TestOps::testSplitStack()
       QCOMPARE(model->rowCount(repo_ind), rows);
 
       /* the first page stays, with a new name; the next two are one
-         stack, with the name given (which cannot keep its dot), and the
-         rest another, named after the stack */
+         stack, with the name given, dot and all, and the rest another,
+         named after the stack */
       QVERIFY(model->splitStack(ind, {1, 3}, {"Second 3.5", ""}, "First"));
       QCOMPARE(model->rowCount(repo_ind), rows + 2);
       QVERIFY(!model->index(orig, repo_ind).isValid());

@@ -732,12 +732,7 @@ UCSplitStack::UCSplitStack (Desktopmodel *model, QModelIndex &ind,
       {
       int end = i + 1 < firsts.size () ? firsts [i + 1] : pagecount;
       pagepos_info pp;
-      QString name = names.value (i);
-
-      /* the file layer takes a name to end at its first dot, so a name
-         cannot hold one here */
-      name.replace ('.', '-');
-      _names << name;
+      _names << names.value (i);
       pp.pos = pos_at_end;
       pp.pagenum = 0;
       pp.pagecount = end - firsts [i];

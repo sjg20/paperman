@@ -540,6 +540,33 @@ void TestUtils::testPreviewFromJpeg()
    QCOMPARE(csize, 1412);
 }
 
+void TestUtils::testRemoveExtension()
+{
+   QString ext;
+
+   // the extension is what follows the last dot, with the dot
+   QCOMPARE(removeExtension("power bill.max", ext), QString("power bill"));
+   QCOMPARE(ext, QString(".max"));
+   QCOMPARE(removeExtension("4.4BSD manual.max", ext),
+            QString("4.4BSD manual"));
+   QCOMPARE(ext, QString(".max"));
+   QCOMPARE(removeExtension("Invoice 12.03.2026.pdf", ext),
+            QString("Invoice 12.03.2026"));
+   QCOMPARE(ext, QString(".pdf"));
+   QCOMPARE(removeExtension("scan 1.5_p3.jpg", ext), QString("scan 1.5_p3"));
+   QCOMPARE(ext, QString(".jpg"));
+
+   // with no dot there is none
+   QCOMPARE(removeExtension("notes", ext), QString("notes"));
+   QCOMPARE(ext, QString());
+
+   // a name which is only an extension, or ends in a dot
+   QCOMPARE(removeExtension(".paperdesk", ext), QString());
+   QCOMPARE(ext, QString(".paperdesk"));
+   QCOMPARE(removeExtension("draft.", ext), QString("draft"));
+   QCOMPARE(ext, QString("."));
+}
+
 void TestUtils::testUserName()
 {
    /* the user name must be found even with no controlling terminal

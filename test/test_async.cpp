@@ -938,6 +938,36 @@ void TestAsync::testRename ()
    }
 
 
+/* A name with dots in it is kept whole on a server too, and the stack
+   can be renamed again from there */
+void TestAsync::testRenameWithDots ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+
+   model->renameStack (stackIndex (), "4.4BSD manual");
+   QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (serverPath ("4.4BSD manual.max")),
+                             kDelayMs * 10);
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+
+   QModelIndex ind = stackIndex ();
+   File *f = model->getFile (ind);
+
+   QVERIFY (f);
+   QCOMPARE (f->stackLeaf (), QString ("4.4BSD manual"));
+   QCOMPARE (f->ext (), QString (".max"));
+   model->renameStack (ind, "v1.2 notes");
+   QTRY_VERIFY_WITH_TIMEOUT (QFile::exists (serverPath ("v1.2 notes.max")),
+                             kDelayMs * 10);
+   QVERIFY (!QFile::exists (serverPath ("4.4BSD manual.max")));
+   QTRY_VERIFY_WITH_TIMEOUT (!model->opsPending (), kDelayMs * 10);
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
 void TestAsync::testRotate ()
    {
    connectServer ();

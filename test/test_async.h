@@ -102,6 +102,9 @@ private slots:
    //! renaming a stack
    void testRename ();
 
+   //! a name with dots is kept whole on a server
+   void testRenameWithDots ();
+
    //! rotating a page
    void testRotate ();
 
