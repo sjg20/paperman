@@ -203,9 +203,14 @@ To turn it on, tick **Use an AI assistant to help with filing** in the
 **Assistant** tab of the options.
 
 Then right-click a stack and choose **Process... > Suggest name**, or
-press Ctrl+F2. The name appears in
-the name box: press **Enter** to accept it, change it first, or press
-**Esc** to keep the old name. Undo puts the old name back.
+press Ctrl+F2. The name appears in the name box: press **Enter** to
+accept it, change it first, or press **Esc** to keep the old name. Undo
+puts the old name back.
+
+The answer takes a few seconds, and you need not wait for it. If you
+have selected another stack by then, or are typing a name, the name
+suggested is shown in a small window instead, to accept or not when you
+are ready.
 
 Paperman looks at the stack's first eight pages, since the title of a
 book or a report is often clearer a few pages in than on its cover. If
@@ -226,7 +231,9 @@ at a time, then shows them all in one window:
 The other stacks selected are not sent as examples of how you name
 things, since they are the ones waiting for names. While the names are
 being asked for, the work is listed in **View > Background work**,
-where it can be stopped.
+where it can be stopped. The window of names does not stop you doing
+other things, and only one lot of names is asked for at a time: asking
+again before the first lot has come says so, and does nothing.
 
 What is sent is the text of up to four of those pages, the first ones
 which say anything, and the names of up to twenty other stacks in its

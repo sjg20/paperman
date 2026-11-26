@@ -509,7 +509,8 @@ private slots:
        among them which have not been read are read first.
 
        With several stacks selected, ask for a name for each and show
-       them all to be checked before any is renamed */
+       them all to be checked before any is renamed. Only one lot of names
+       is asked for at a time */
    void suggestName (void);
 
    /** ask the AI assistant where the stack selected divides into
@@ -767,20 +768,19 @@ private:
    //! the asking for names for several stacks at once
    struct NamesJob;
 
-   //! ask for a name for each of several stacks, and show them to check
+   //! ask for a name for each of some stacks, and offer the names
    void suggestNames (const QModelIndexList &list);
+
+   //! the asking for names which is going on, if any: one lot at a time
+   std::weak_ptr<NamesJob> _naming;
 
    //! ask about more of the stacks, or show the names once all are in
    void nameNext (std::shared_ptr<NamesJob> job);
 
-   //! show the names suggested, and rename the stacks the user agrees to
+   /** offer the names suggested: for one stack which is still the one
+       selected, in the box where its name is typed; otherwise in a window
+       to check them in, which renames the stacks the user agrees to */
    void showNames (std::shared_ptr<NamesJob> job);
-
-   /** ask the assistant for a stack's name, and offer it
-
-      \param sind   the stack
-      \param pages  what each of its first pages says */
-   void askName (const QModelIndex &sind, const QStringList &pages);
 
    //! the assistant to ask, or nullptr for one made from the settings
    Assistant *_assistant;
