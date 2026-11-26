@@ -193,6 +193,9 @@ private slots:
    //! Test adding and removing a repository, with undo and redo
    void testRepositoryAddRemoveUndo();
 
+   //! Return in the name box finishes the name and goes no further
+   void testRenameReturnStaysPut();
+
    //! Test renaming a stack by typing into the item editor
    void testRenameStackViaEditor();
 
