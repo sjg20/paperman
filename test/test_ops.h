@@ -124,6 +124,9 @@ private slots:
    void testPrintToPdf();
 
    //! Test the options dialog loads and saves scan settings
+   //! a conversion stopped part-way leaves nothing behind
+   void testConvertStopped();
+
    void testOptionsDialog();
 
 private:

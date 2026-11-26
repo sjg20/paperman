@@ -1492,8 +1492,11 @@ err_info *File::duplicateToDesk (Desk *desk, File::e_type type, QString &uniq,
 
    err_info *err = copyTo (fnew, odd_even, op, false, first_page, last_page);
 
-   // if we got no pages, delete the file
-   if (!fnew->valid () || !fnew->pagecount ())
+   /* if we got no pages, delete the file; and when the user stops the
+      conversion, what there is of it is not wanted */
+   bool cancelled = err && err->errnum == ERR_operation_cancelled1;
+
+   if (cancelled || !fnew->valid () || !fnew->pagecount ())
    {
       fnew->remove ();
       delete fnew;
@@ -1609,7 +1612,10 @@ err_info *File::copyTo (File *fnew, int odd_even, Operation &op, bool verbose,
       CALL (addImageAsPage (fnew, image, bpp, out_page_count));
       copied << qMakePair (pagenum, out_page_count);
       out_page_count++;
-      op.incProgress (1);
+
+      // the caller throws away what has been made so far
+      if (!op.incProgress (1))
+         return err_make (ERRFN, ERR_operation_cancelled1, "convert");
       }
    fnew->flush ();
    fnew->load ();
@@ -1801,7 +1807,11 @@ err_info *File::unfoldBookletTo (const QString &pathname, Operation &op,
       err = addImageAsPage (fnew, page, bpp, written++);
       if (err)
          break;
-      op.incProgress (1);
+      if (!op.incProgress (1))
+         {
+         err = err_make (ERRFN, ERR_operation_cancelled1, "unfold");
+         break;
+         }
       }
 
    // if we got no pages, delete the file

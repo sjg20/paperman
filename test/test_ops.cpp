@@ -17,6 +17,7 @@
 #include "dirview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "backgroundwork.h"
 #include "ocrreader.h"
 #include "options.h"
 #include "printopt.h"
@@ -739,6 +740,62 @@ void TestOps::testPrintToPdf()
    delete printed;
 
    QFile::remove(out);
+}
+
+/* A conversion can be stopped from the list of work going on: what has
+   been made so far is thrown away, and nothing is added to the folder */
+void TestOps::testConvertStopped()
+{
+   Mainwindow me;
+
+   auto path = setupRepo();
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+   int rows = model->rowCount(repo_ind);
+
+   QModelIndexList list;
+   list << model->index("testfile.max", repo_ind);
+   QVERIFY(list[0].isValid());
+   QVERIFY(!model->getFile(list[0])->load());
+   QVERIFY(model->getFile(list[0])->pagecount() > 1);
+
+   /* ask for it to stop as soon as it lets other things run, which is
+      after its first page; it is the only work going on */
+   Backgroundwork *work = Backgroundwork::instance();
+   int before = work->jobs().size();
+   QStringList seen;
+   bool asked = false;
+   QSignalSpy said(desktop, SIGNAL(newContents(QString)));
+
+   connect(work, &Backgroundwork::changed, &me, [&] {
+      if (asked || work->jobs().size() <= before)
+         return;
+      Backgroundjob *job = work->jobs().last();
+
+      seen << job->title();
+      if (job->stoppable() && job->percent() > 0) {
+         asked = true;
+         job->requestStop();
+      }
+   });
+   model->duplicatePdf(list, repo_ind);
+   QVERIFY(asked);
+   QVERIFY(seen.contains("Convert to PDF"));
+   QCOMPARE(int(work->jobs().size()), before);
+
+   // nothing was made, and the user is told without a window to dismiss
+   QCOMPARE(model->rowCount(repo_ind), rows);
+   QVERIFY(!QFile::exists(path + "/testfile_copy.pdf"));
+
+   // left alone, the same conversion makes the copy
+   asked = true;
+   model->duplicatePdf(list, repo_ind);
+   QTRY_VERIFY(QFile::exists(path + "/testfile_copy.pdf"));
+   QCOMPARE(model->rowCount(repo_ind), rows + 1);
 }
 
 void TestOps::testOptionsDialog()

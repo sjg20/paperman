@@ -1331,6 +1331,9 @@ void Desktopwidget::textSearchLater(const QString& path, const QString& text,
    QString root_path = _model->data(root, Dirmodel::FilePathRole).toString();
    // only a local index is brought up to date, which is done before this returns
    Operation op(tr("Indexing text"), 0, this);
+
+   // stopping it searches what has been indexed so far
+   op.setCancellable(true);
    QPointer<Desktopwidget> self(this);
 
    _contents_proxy->setFilterFixedString("");
