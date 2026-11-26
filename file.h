@@ -372,6 +372,23 @@ public:
    virtual err_info *putPageProps (int pagenum,
                                    const QMap<QString, QString> &props);
 
+   /** the stack's own properties, kept in its file as text, one
+       'key=value' line for each. They belong to the stack as a whole, not
+       to any page, so stay with it however its pages change
+
+      \param props    returns the properties, empty if the stack has none
+      \returns error, or NULL if ok; a file type which cannot keep them
+               returns an error */
+   virtual err_info *getStackProps (QMap<QString, QString> &props);
+
+   /** keep the stack's own properties in its file, in place of any it has
+
+      The keys and values are limited as for putPageProps()
+
+      \param props    the properties, or an empty map to remove them
+      \returns error, or NULL if ok */
+   virtual err_info *putStackProps (const QMap<QString, QString> &props);
+
    /** gets the total size of a file in bytes. this should include data not
        yet flushed to the filesystem */
    virtual int getSize (void) = 0;

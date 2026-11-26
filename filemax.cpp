@@ -103,6 +103,9 @@ don't have this value */
 // marks the position of a page's properties chunk likewise: "PRP1"
 #define ROSWELL_PROPS_MAGIC 0x31505250
 
+// marks the position of the stack's properties chunk in the header: "SPR1"
+#define STACK_PROPS_MAGIC 0x31525053
+
 
 /*
 picked up again 8/12/04
@@ -304,6 +307,13 @@ enum
 
    /** this is the envelope information, including sender and recipient */
    POS_envelope          = 0xbc,
+
+   /* Paperman's own, after the last of PaperPort's header: the position
+      of the chunk with the stack's properties, after a marker word, as
+      for a page's in its roswell chunk. A header too short to hold them,
+      as in the oldest files, has none */
+   POS_stack_props_magic = 0xc0,
+   POS_stack_props       = 0xc4,
 
    // version A positions
    POSva_page_count      = 0x24,
@@ -517,6 +527,7 @@ Filemax::Filemax (const QString &dir, const QString &filename, Desk *desk)
    max_clear_cache (_scache);
    _bermuda = _tunguska = _annot = _trail = _b0 = _b4 = 0;
    _envelope = 0;
+   _stack_props = 0;
    _chunkid_next = 0;
    _hdr_updated = false;
    _version_a = false;
@@ -2118,6 +2129,8 @@ const char *Filemax::check_chunk (int start)
       return "tunguska";
    if (start == _annot)
       return "annot";
+   if (start == _stack_props)
+      return "stack props";
    if (start == _b0)
       return "b0";
    if (start == _b4)
@@ -2565,6 +2578,12 @@ err_info *Filemax::setup_max (void)
       // do we have an envelope?
       if (_version >= 1)
          _envelope = getword (POS_envelope);
+
+      // and the stack's properties, if Paperman has put any there
+      _stack_props = 0;
+      if (_hdr.size () >= POS_stack_props + 4
+          && getword (POS_stack_props_magic) == STACK_PROPS_MAGIC)
+         _stack_props = getword (POS_stack_props);
       }
    CALL (max_checkerr ());
 
@@ -5038,6 +5057,11 @@ void Filemax::write_max_header (void)
    idata [0xac / 4] = _annot;
    idata [0xb8 / 4] = _trail;
    idata [POS_envelope / 4] = _trail;
+   if (_hdr.size () >= POS_stack_props + 4)
+      {
+      idata [POS_stack_props_magic / 4] = STACK_PROPS_MAGIC;
+      idata [POS_stack_props / 4] = _stack_props;
+      }
    }
 
 /* converts the information in the various chunk->... variables into
@@ -5436,6 +5460,27 @@ err_info *Filemax::create_ocr (page_info &page, const QByteArray &data)
    *(unsigned *)(buf + POS_ocr_size) = data.size ();
    memcpy (buf + POS_ocr_data, data.constData (), data.size ());
    CALL (insert_chunk (chunk, &page.ocr));
+   return NULL;
+   }
+
+
+err_info *Filemax::create_stack_props (const QByteArray &data)
+   {
+   chunk_info chunk;
+   byte *buf;
+
+   // the same kind of chunk as a page's, found from the header instead
+   chunk_init (chunk);
+   chunk.type = CT_props;
+   chunk.size = ALIGN_CHUNK (POS_props_data + data.size ());
+   chunk.textflag = 0;
+   chunk.flags = CHUNKF_props;
+   chunk.titletype = 0;
+   CALL (alloc_chunk_buf (chunk, &buf));
+   add_generic_chunk_header (chunk, buf);
+   *(unsigned *)(buf + POS_props_size) = data.size ();
+   memcpy (buf + POS_props_data, data.constData (), data.size ());
+   CALL (insert_chunk (chunk, &_stack_props));
    return NULL;
    }
 
@@ -6283,6 +6328,81 @@ static bool props_breaks_line (const QString &str)
    }
 
 
+/* check that properties can be kept as a 'key=value' line each
+
+   \returns error for the first which cannot, or NULL if all can */
+static err_info *props_check (const QMap<QString, QString> &props)
+   {
+   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
+      if (it.key ().isEmpty () || it.key ().contains ('=')
+          || props_breaks_line (it.key ()) || props_breaks_line (it.value ()))
+         return err_make (ERRFN, ERR_invalid_page_property1,
+                          qPrintable (it.key ()));
+   return NULL;
+   }
+
+
+err_info *Filemax::getStackProps (QMap<QString, QString> &props)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   props.clear ();
+
+   // a stack held a page at a time has no file of its own to keep them in
+   if (isSparse ())
+      return not_impl ();
+
+   // closed again however this returns, so the file is not held open
+   Open open (this);
+
+   CALL (open.err ());
+   if (!_stack_props)
+      return NULL;
+
+   QByteArray ba;
+
+   CALL (read_sized_chunk (_stack_props, CT_props, ba));
+   props_from_bytes (ba, props);
+   return NULL;
+   }
+
+
+err_info *Filemax::putStackProps (const QMap<QString, QString> &props)
+   {
+   QMutexLocker locker (&_file_mutex);
+
+   CALL (props_check (props));
+   if (isSparse ())
+      return not_impl ();
+
+   load ();
+
+   // dropping the old chunk reads it in first
+   Open open (this);
+
+   CALL (open.err ());
+   CALL (ensure_all_chunks ());
+
+   // the oldest files have no room in the header to say where they are
+   if (_hdr.size () < POS_stack_props + 4)
+      return not_impl ();
+   if (props.isEmpty ())
+      {
+      if (!_stack_props)
+         return NULL;
+      CALL (remove_chunknum (_stack_props));
+      _stack_props = 0;
+      }
+   else
+      {
+      CALL (create_stack_props (props_to_bytes (props)));
+      }
+
+   // which writes the header, with where they are now
+   return flush ();
+   }
+
+
 err_info *Filemax::getPageProps (int pagenum, QMap<QString, QString> &props)
    {
    QMutexLocker locker (&_file_mutex);
@@ -6370,11 +6490,7 @@ err_info *Filemax::putPageProps (int pagenum,
 
    page_info *page;
 
-   for (auto it = props.constBegin (); it != props.constEnd (); ++it)
-      if (it.key ().isEmpty () || it.key ().contains ('=')
-          || props_breaks_line (it.key ()) || props_breaks_line (it.value ()))
-         return err_make (ERRFN, ERR_invalid_page_property1,
-                          qPrintable (it.key ()));
+   CALL (props_check (props));
 
    // nothing is written to a stack held a page at a time, as with OCR
    if (isSparse ())

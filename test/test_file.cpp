@@ -1926,6 +1926,123 @@ void TestFile::testMaxPropsNoMarker()
 }
 
 
+void TestFile::testMaxStackProps()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   QMap<QString, QString> props, big;
+   int count;
+
+   // a stack has none at first, and a new file sees those it is given
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      count = max.pagecount();
+      QVERIFY(count >= 3);
+      QVERIFY(!max.getStackProps(props));
+      QVERIFY(props.isEmpty());
+
+      // looking leaves the file closed, so that it can be moved
+      QVERIFY(!max._fin);
+
+      // removing what is not there is harmless
+      QVERIFY(!max.putStackProps(QMap<QString, QString>()));
+
+      err_info *err = max.putStackProps(propsFor("stack"));
+      QVERIFY2(!err, err ? err->errstr : "");
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, propsFor("stack"));
+   }
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, propsFor("stack"));
+
+      // they are apart from each page's
+      QVERIFY(!max.getPageProps(0, props));
+      QVERIFY(props.isEmpty());
+      QVERIFY(!max.putPageProps(0, propsFor("page0")));
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, propsFor("stack"));
+
+      // they can be replaced by more, which need a bigger chunk
+      big = propsFor("again");
+      for (int i = 0; i < 200; i++)
+         big[QString("key%1").arg(i)] = QString("value %1").arg(i);
+      QVERIFY(!max.putStackProps(big));
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, big);
+      QCOMPARE(propsName(&max, 0), QString("page0"));
+   }
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // changes to the stack's pages and notes leave them alone
+      QBitArray pages(count);
+      pages.setBit(0);
+      QByteArray del_info;
+      int del_count = 1;
+      QVERIFY(!max.removePages(pages, del_info, del_count));
+      QCOMPARE(max.pagecount(), count - 1);
+
+      QHash<int, QString> updates;
+      updates[File::Annot_notes] = "a note";
+      QVERIFY(!max.putAnnot(updates));
+
+      OcrPage ocr;
+      ocr.size = QSize(100, 100);
+      ocr.words << OcrWord{QRect(0, 0, 8, 8), "words", 90, 0, 0};
+      QVERIFY(!max.putPageOcr(0, ocr));
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, big);
+   }
+   {
+      Filemax max(dir, "testfile.max", nullptr);
+      QVERIFY(!max.load());
+      QCOMPARE(max.pagecount(), count - 1);
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, big);
+
+      QString note;
+      QVERIFY(!max.getAnnot(File::Annot_notes, note));
+      QCOMPARE(note, QString("a note"));
+
+      // one which would break a line is refused, and nothing is written
+      QMap<QString, QString> bad = propsFor("bad");
+      bad["two\nlines"] = "value";
+      err_info *err = max.putStackProps(bad);
+      QVERIFY(err);
+      QCOMPARE(err->errnum, int(ERR_invalid_page_property1));
+      QVERIFY(!max.getStackProps(props));
+      QCOMPARE(props, big);
+
+      // and they can be removed
+      QVERIFY(!max.putStackProps(QMap<QString, QString>()));
+      QVERIFY(!max.getStackProps(props));
+      QVERIFY(props.isEmpty());
+   }
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QVERIFY(!max.getStackProps(props));
+   QVERIFY(props.isEmpty());
+   QCOMPARE(max.pagecount(), count - 1);
+
+   // a file type with nowhere to keep them says so
+   QVERIFY(!copyFixture("testpdf.pdf", tmp.path()).isEmpty());
+   Filepdf pdf(dir, "testpdf.pdf", nullptr);
+   QVERIFY(!pdf.load());
+   QVERIFY(pdf.getStackProps(props));
+   QVERIFY(pdf.putStackProps(propsFor("stack")));
+}
+
 void TestFile::testMaxPropsInvalid()
 {
    QTemporaryDir tmp;
