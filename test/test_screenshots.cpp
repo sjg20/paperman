@@ -666,7 +666,7 @@ void TestScreenshots::testMoveToFolder ()
    QVERIFY (seen);
    }
 
-void TestScreenshots::testFilter ()
+void TestScreenshots::testFind ()
    {
    Mainwindow me;
 
@@ -674,13 +674,15 @@ void TestScreenshots::testFilter ()
    if (QTest::currentTestFailed ())
       return;
 
-   QLineEdit *filter =
+   QLineEdit *find =
       me.getDesktop ()->_toolbar->findChild<QLineEdit *> ();
 
-   QVERIFY (filter);
-   QTest::keyClicks (filter, "bill");
+   // the second of the stacks found, to show that the count follows
+   QVERIFY (find);
+   QTest::keyClicks (find, "bill");
+   QTest::keyClick (find, Qt::Key_Return);
    settle ();
-   save (&me, "filter");
+   save (&me, "find");
    }
 
 void TestScreenshots::testRemovePage ()

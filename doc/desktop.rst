@@ -23,8 +23,8 @@ Folder pane
 Stack toolbar
    Above the stacks: move between stacks, turn and flip their pages.
 
-Filter
-   In the stack toolbar: show only the stacks whose names match.
+Find
+   In the stack toolbar: pick out the stacks whose names match.
 
 Stack pane
    In the middle: the stacks in the folder chosen.
@@ -137,9 +137,10 @@ Stack toolbar
      - Flip every page of them from left to right
    * - |stack-vflip|
      - Flip every page of them upside down
-   * - **Filter**
-     - Type a few letters to show only the stacks whose names have them
-       in, and **Cancel filter** to show them all again
+   * - **Find**
+     - Type a few letters to pick out the stacks whose names have them
+       in, with the rest shown faintly; **Enter** goes to the next one
+       found and **Clear** stops (see :doc:`finding`)
 
 Stack pane
 ----------

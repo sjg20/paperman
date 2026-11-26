@@ -45,8 +45,8 @@ as a ``.max`` stack with **Duplicate... > as Max** (Ctrl+Shift+D), then
 read that.
 
 **A stack is missing.** It may be in another folder: search for its
-name from the top of the repository (see :doc:`finding`). Also check
-that the **Filter** box above the stack pane is empty.
+name from the top of the repository (see :doc:`finding`). In its own
+folder, type part of its name in the **Find** box above the stack pane.
 
 Filing
 ------
