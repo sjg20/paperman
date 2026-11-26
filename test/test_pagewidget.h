@@ -101,6 +101,12 @@ private slots:
    //! Test editing stack attributes and saving them
    void testEditAttributesSave();
 
+   //! The info form shows the facts about the document and saves changes
+   void testEditFacts();
+
+   //! The facts part of the info form is greyed out for a JPEG stack
+   void testFactsNotKept();
+
    //! Test that revert discards unsaved attribute edits
    void testEditAttributesRevert();
 

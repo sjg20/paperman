@@ -255,6 +255,15 @@ names.
 - A fact which the text does not give is left out, and a date or an
   amount which is not in a plain form is dropped.
 
+To see a stack's facts later, or to put them right, select the stack and
+press |page-infomode| in the page toolbar. They are under **About the
+document**, below the notes: change any of them, or type them in for a
+stack the assistant has not named, and press |page-save| to keep them.
+The date is written as year-month-day (or just the year and month, or
+the year), the amount as a number and the currency as three letters; one
+which is not in that form is dropped when you save. **Undo** takes the
+change back.
+
 Facts are kept for ``.max`` and PDF stacks on this computer. A JPEG stack
 has nowhere to hold them, and a stack on a server does not keep them yet.
 
@@ -358,3 +367,6 @@ with it:
 
 Folders named for a year and a month, such as ``bills/2026/10oct``, are
 the ones the scan panel suggests (see :doc:`getting-started`).
+
+.. |page-infomode| image:: images/icons/page-infomode.png
+.. |page-save| image:: images/icons/page-save.png

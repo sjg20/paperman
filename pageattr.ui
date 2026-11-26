@@ -150,6 +150,148 @@
      </item>
     </layout>
    </item>
+   <item>
+    <widget class="QGroupBox" name="factsBox">
+     <property name="title">
+      <string>About the document</string>
+     </property>
+     <property name="toolTip">
+      <string>The facts kept with the stack, which papers can be found by</string>
+     </property>
+     <layout class="QVBoxLayout" name="factsLayout">
+      <item>
+       <widget class="QLabel" name="factsNote">
+        <property name="text">
+         <string>Only a .max or PDF stack on this computer can keep these.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="factsGrid">
+       <item row="0" column="0">
+        <widget class="QLabel" name="factTypeLabel">
+         <property name="text">
+          <string>Kind</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="factType">
+         <property name="toolTip">
+          <string>What kind of document it is, in a word or two</string>
+         </property>
+         <property name="placeholderText">
+          <string>bill</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="factFromLabel">
+         <property name="text">
+          <string>From</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="factFrom">
+         <property name="toolTip">
+          <string>Who it is from</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="factDateLabel">
+         <property name="text">
+          <string>Date</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="factDate">
+         <property name="toolTip">
+          <string>The document's own date, as year-month-day, or just the year and month, or the year</string>
+         </property>
+         <property name="placeholderText">
+          <string>2026-03-14</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="factPeriodLabel">
+         <property name="text">
+          <string>Period</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="factPeriod">
+         <property name="toolTip">
+          <string>What it covers, as it would be said</string>
+         </property>
+         <property name="placeholderText">
+          <string>Feb 2026</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="factAmountLabel">
+         <property name="text">
+          <string>Amount</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <layout class="QHBoxLayout" name="factAmountLayout">
+         <item>
+          <widget class="QLineEdit" name="factAmount">
+           <property name="toolTip">
+            <string>The main amount of money in it, as a number</string>
+           </property>
+           <property name="placeholderText">
+            <string>184.20</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="factCurrency">
+           <property name="maximumSize">
+            <size>
+             <width>80</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>The currency of the amount, as three letters</string>
+           </property>
+           <property name="placeholderText">
+            <string>NZD</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="factSummaryLabel">
+         <property name="text">
+          <string>Summary</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QLineEdit" name="factSummary">
+         <property name="toolTip">
+          <string>What it is, in a line</string>
+         </property>
+        </widget>
+       </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

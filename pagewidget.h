@@ -26,10 +26,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QAbstractScrollArea>
 #include <QLabel>
 #include <QModelIndex>
+#include <QPointer>
 #include <QScrollArea>
 #include <QStackedWidget>
 
 
+class Docfacts;
 class File;
 class QAbstractModelIndex;
 class QImage;
@@ -566,6 +568,21 @@ private:
    /** update the annotation text editor with text from the stack */
    void updateAttr (void);
 
+   /** show the facts kept with the stack shown in the info form, which is
+       greyed out for a stack which cannot keep any */
+   void loadFacts ();
+
+   //! the facts about the document, as they are in the info form's boxes
+   Docfacts factsShown () const;
+
+   //! put facts about the document in the info form's boxes
+   void showFacts (const Docfacts &facts);
+
+   /** keep the facts in the info form with the stack shown, if any was
+       changed there, as a step which can be undone; then show what was
+       kept, since a fact which is not in its form is dropped */
+   void saveFacts ();
+
    /** update the ocr text editor with text from the current page */
    void updateOcrText (void);
 
@@ -692,6 +709,10 @@ private:
    bool _scanning;            //!< are we scanning?
    e_mode _prescan_mode;      //!< the mode we were using before we started scanning
    Ui_Pageattr *_pageattr;    //!< page attribute dialogue fields
+   QPointer<QObject> _facts_model;  //!< the model whose facts are shown
+   QMetaObject::Connection _facts_conn;  //!< hears of changes to its stacks
+   bool _keeps_facts = false; //!< true if the stack shown can keep facts
+   bool _facts_edited = false; //!< true if a fact is changed and not saved
    QSplitter *_ocr_split;     //!< ocr / image splitter
    QTextEdit *_ocr_edit;      //!< OCR text editor
    Ui_Ocrbar *_ocr_bar;       //!< OCR toolbar
