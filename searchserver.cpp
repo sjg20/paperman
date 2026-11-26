@@ -1992,11 +1992,10 @@ QByteArray SearchServer::handleStackInfo(const QString &path,
         QString title;
         if (!file->getPageTitle(i, title) && !title.isEmpty())
             page["title"] = title;
-        if (wantText) {
-            QString text;
-            if (!file->getPageText(i, text))
-                page["text"] = text;
-        }
+        /* what the page says: the words read from it, where it has
+           them, which getPageText() alone would leave out */
+        if (wantText)
+            page["text"] = file->textOfPage(i);
         pages.append(page);
     }
 

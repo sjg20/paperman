@@ -209,6 +209,9 @@ private slots:
    //! OCR of a remote stack runs on the server and stores the text
    void testRemoteOcr();
 
+   //! The text with a stack's details has the words read from each page
+   void testInfoTextHasWords();
+
    //! A stack can be fetched a page at a time: /info into info.json
    //! and /pages/N into page-N.max, which a sparse Filemax then reads
    void testRemotePageFetch();

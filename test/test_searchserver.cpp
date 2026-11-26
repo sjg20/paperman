@@ -3470,6 +3470,62 @@ void TestSearchServer::testTransformEndpointErrors()
 }
 
 
+/* The text asked for with a stack's details is what each page says: the
+   words read from it, which a client then has without fetching the page */
+void TestSearchServer::testInfoTextHasWords()
+{
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(copyTestFile("testfile.max", tmpDir.path()) > 0);
+    {
+        Filemax max(tmpDir.path() + "/", "testfile.max", nullptr);
+        OcrPage ocr;
+
+        QVERIFY(!max.load());
+        ocr.size = QSize(2000, 3000);
+        ocr.words << OcrWord{QRect(100, 100, 400, 60), "alpha", 90, 0, 0}
+                  << OcrWord{QRect(600, 100, 400, 60), "beta", 90, 0, 0};
+        QVERIFY(!max.putPageOcr(0, ocr));
+    }
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    QTest::qWait(100);
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    RemoteBackend backend(QUrl(QString("http://localhost:%1").arg(PORT)));
+
+    QVERIFY(!backend.serverId().isEmpty());
+    backend.invalidatePageDir(repo, "testfile.max");   // start clean
+
+    QSignalSpy infoSpy(&backend, &RemoteBackend::stackInfoReady);
+    backend.fetchStackInfoAsync(repo, "testfile.max", true);
+    QVERIFY(infoSpy.wait(5000));
+
+    QString dir = infoSpy.at(0).at(1).toString();
+    QFile info(dir + "/info.json");
+    QVERIFY(info.open(QIODevice::ReadOnly));
+    QJsonArray pages = QJsonDocument::fromJson(info.readAll()).object()
+                          .value("pages").toArray();
+    info.close();
+    QCOMPARE(pages.size(), 5);
+    QCOMPARE(pages.at(0).toObject().value("text").toString(),
+             QString("alpha beta"));
+
+    // a page not read says nothing, which is still an answer
+    QVERIFY(pages.at(1).toObject().contains("text"));
+    QCOMPARE(pages.at(1).toObject().value("text").toString(), QString());
+
+    // so a stack read a page at a time has the words without the page
+    Filemax sp(tmpDir.path() + "/", "sparse.max", nullptr);
+    sp.setPageDir(dir);
+    QVERIFY(!sp.load());
+    QVERIFY(!sp.hasPage(0));
+    QCOMPARE(sp.textOfPage(0), QString("alpha beta"));
+    backend.invalidatePageDir(repo, "testfile.max");
+}
+
 void TestSearchServer::testRemotePageFetch()
 {
     QTemporaryDir tmpDir;

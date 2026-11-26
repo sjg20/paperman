@@ -306,9 +306,8 @@ See :doc:`server` for the ``client.conf`` format.
 
 ``info <repo> <stack> [--text|--json]``
    Show the pages of a stack (size, depth, compressed size, title) and
-   its annotations without fetching any of them; ``--text`` adds the
-   text kept with each page (see :doc:`api`) and ``--json`` prints the
-   server's reply as is.
+   its annotations without fetching any of them; ``--text`` adds each
+   page's text and ``--json`` prints the server's reply as is.
    Needs a server that serves stacks a page at a time.
 
 ``page <repo> <stack> <n> [-o OUT]``
