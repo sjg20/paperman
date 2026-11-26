@@ -35,7 +35,8 @@ The Text Index
 
 With ``--index``, each repository has a ``RepoIndex``, which keeps the
 text of every stack's pages in a SQLite FTS5 index, as the desktop's
-``.paperindex`` does for a local repository (``SearchIndex``). The text
+``.paperindex`` does for a local repository (``SearchIndex``; see
+:doc:`text-search` for how the index is built and searched). The text
 is what OCR read from each page, whether the desktop or the server read
 it, or a PDF's own text. The trash and hidden folders are left out.
 
