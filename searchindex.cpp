@@ -27,7 +27,11 @@ License: GPL-2
    so that an index built before then is built again:
 
    1  each page's words, or a file's own text (an index with no version)
-   2  also the stack's OCR annotation, on the first page */
+   2  also the stack's OCR annotation, on the first page
+
+   The facts about each stack came later, in a table of their own.  No
+   stack has any until something writes them, which changes the stack so
+   that it is read again, so the version stays as it is */
 #define INDEX_VERSION   2
 
 /* how many stacks sync() looks at between commits */
@@ -123,6 +127,23 @@ err_info *SearchIndex::createTable()
       return err_make(ERRFN, ERR_sql_error1, qPrintable(error));
       }
 
+   /* the facts each stack keeps about its document, copied from its file
+      so that they can be asked about together.  The sender's column is
+      not named 'from', which SQL has a use for */
+   if (!query.exec("CREATE TABLE IF NOT EXISTS facts ("
+                   "  filepath TEXT PRIMARY KEY, "
+                   "  type TEXT, "
+                   "  sender TEXT, "
+                   "  date TEXT, "
+                   "  period TEXT, "
+                   "  amount TEXT, "
+                   "  currency TEXT, "
+                   "  summary TEXT)"))
+      {
+      QString error = query.lastError().text();
+      return err_make(ERRFN, ERR_sql_error1, qPrintable(error));
+      }
+
    /* An index built by an older version lacks text which stackText() now
       finds, but sync() only looks again at a stack which changes.  Forget
       everything, so that the next sync() reads every stack again */
@@ -133,6 +154,7 @@ err_info *SearchIndex::createTable()
       {
       if (!query.exec("DELETE FROM ocr_index")
           || !query.exec("DELETE FROM files")
+          || !query.exec("DELETE FROM facts")
           || !query.exec(QString("PRAGMA user_version = %1")
                          .arg(INDEX_VERSION)))
          return err_make(ERRFN, ERR_sql_error1,
@@ -184,15 +206,178 @@ err_info *SearchIndex::removeFile(const QString &filepath)
       return err_make(ERRFN, ERR_index_not_open);
 
    QSqlQuery query(_db);
-   query.prepare("DELETE FROM ocr_index WHERE filepath = ?");
-   query.addBindValue(filepath);
 
-   if (!query.exec())
+   for (const char *table : {"ocr_index", "facts"})
       {
-      QString error = query.lastError().text();
-      return err_make(ERRFN, ERR_sql_error1, qPrintable(error));
+      query.prepare(QString("DELETE FROM %1 WHERE filepath = ?").arg(table));
+      query.addBindValue(filepath);
+      if (!query.exec())
+         {
+         QString error = query.lastError().text();
+         return err_make(ERRFN, ERR_sql_error1, qPrintable(error));
+         }
       }
 
+   return nullptr;
+   }
+
+void SearchIndex::putFacts(const QString &filepath, const Docfacts &facts)
+   {
+   QSqlQuery query(_db);
+
+   if (facts.isEmpty())
+      {
+      query.prepare("DELETE FROM facts WHERE filepath = ?");
+      query.addBindValue(filepath);
+      query.exec();
+      return;
+      }
+   query.prepare("INSERT OR REPLACE INTO facts (filepath, type, sender, date, "
+                 "period, amount, currency, summary) "
+                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+   query.addBindValue(filepath);
+
+   // an empty string, not a null one, which would be NULL to SQLite
+   for (const QString &fact : {facts.type, facts.from, facts.date,
+                               facts.period, facts.amount, facts.currency,
+                               facts.summary})
+      query.addBindValue(fact.isEmpty() ? QString("") : fact);
+   query.exec();
+   }
+
+//! the columns of the facts table which hold a stack's facts, in order
+#define FACTS_COLUMNS \
+   "type, sender, date, period, amount, currency, summary"
+
+//! the facts in a row, whose columns from 'first' are FACTS_COLUMNS
+static Docfacts factsFromRow(const QSqlQuery &query, int first)
+   {
+   Docfacts facts;
+
+   facts.type = query.value(first).toString();
+   facts.from = query.value(first + 1).toString();
+   facts.date = query.value(first + 2).toString();
+   facts.period = query.value(first + 3).toString();
+   facts.amount = query.value(first + 4).toString();
+   facts.currency = query.value(first + 5).toString();
+   facts.summary = query.value(first + 6).toString();
+   return facts;
+   }
+
+err_info *SearchIndex::getFacts(const QString &filepath, Docfacts &facts)
+   {
+   facts = Docfacts();
+   if (!_db.isOpen())
+      return err_make(ERRFN, ERR_index_not_open);
+
+   QSqlQuery query(_db);
+
+   query.prepare("SELECT " FACTS_COLUMNS " FROM facts WHERE filepath = ?");
+   query.addBindValue(filepath);
+   if (!query.exec())
+      return err_make(ERRFN, ERR_sql_error1,
+                      qPrintable(query.lastError().text()));
+   if (query.next())
+      facts = factsFromRow(query, 0);
+   return nullptr;
+   }
+
+//! text as a pattern for LIKE which finds it anywhere, with '\' to escape
+static QString likeAnywhere(QString text)
+   {
+   text.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+   return '%' + text + '%';
+   }
+
+err_info *SearchIndex::findFacts(const FactsQuery &find,
+                                 QList<FactsResult> &results, int maxResults)
+   {
+   results.clear();
+   if (!_db.isOpen())
+      return err_make(ERRFN, ERR_index_not_open);
+
+   QStringList where;
+   QVariantList values;
+
+   if (!find.type.isEmpty())
+      {
+      where << "type = ? COLLATE NOCASE";
+      values << find.type.trimmed();
+      }
+   if (!find.from.isEmpty())
+      {
+      where << "sender LIKE ? ESCAPE '\\'";
+      values << likeAnywhere(find.from.trimmed());
+      }
+   if (!find.currency.isEmpty())
+      {
+      where << "currency = ? COLLATE NOCASE";
+      values << find.currency.trimmed();
+      }
+
+   /* A date is a year, a year and month, or a day, which sort as text in
+      the order of time; '~' sorts after anything a date holds, so a year
+      as the latest takes in every date within it */
+   if (!find.dateFrom.isEmpty())
+      {
+      where << "date != '' AND date >= ?";
+      values << find.dateFrom.trimmed();
+      }
+   if (!find.dateTo.isEmpty())
+      {
+      where << "date != '' AND date <= ?";
+      values << find.dateTo.trimmed() + '~';
+      }
+   if (!find.minAmount.isEmpty())
+      {
+      where << "amount != '' AND CAST(amount AS REAL) >= ?";
+      values << find.minAmount.toDouble();
+      }
+   if (!find.maxAmount.isEmpty())
+      {
+      where << "amount != '' AND CAST(amount AS REAL) <= ?";
+      values << find.maxAmount.toDouble();
+      }
+   for (const QString &word : find.text.split(QRegularExpression("\\s+"),
+                                              Qt::SkipEmptyParts))
+      {
+      where << "(type || ' ' || sender || ' ' || period || ' ' || summary) "
+               "LIKE ? ESCAPE '\\'";
+      values << likeAnywhere(word);
+      }
+   if (!find.underDir.isEmpty())
+      {
+      QString dir = QDir(find.underDir).absolutePath() + "/";
+
+      where << "substr(filepath, 1, length(?)) = ?";
+      values << dir << dir;
+      }
+
+   QString sql = "SELECT filepath, " FACTS_COLUMNS " FROM facts";
+
+   if (!where.isEmpty())
+      sql += " WHERE " + where.join(" AND ");
+
+   // the latest first, and those with no date after all which have one
+   sql += " ORDER BY date = '', date DESC, filepath LIMIT ?";
+
+   QSqlQuery query(_db);
+
+   query.prepare(sql);
+   for (const QVariant &value : values)
+      query.addBindValue(value);
+   query.addBindValue(maxResults);
+   if (!query.exec())
+      return err_make(ERRFN, ERR_sql_error1,
+                      qPrintable(query.lastError().text()));
+   while (query.next())
+      {
+      FactsResult result;
+
+      result.filepath = query.value(0).toString();
+      result.facts = factsFromRow(query, 1);
+      results.append(result);
+      }
    return nullptr;
    }
 
@@ -215,8 +400,11 @@ QString SearchIndex::matchQuery(const QString &text)
 
 /* the text of a stack's pages: what OCR read from each, or else the
    text the file itself has, such as a PDF's.  Text which belongs to the
-   whole stack, such as the OCR annotation, goes with the first page */
-static err_info *stackText(const QString &pathname, QStringList &pages)
+   whole stack, such as the OCR annotation, goes with the first page.
+   The facts the stack keeps about its document are read too, while it
+   is open */
+static err_info *stackText(const QString &pathname, QStringList &pages,
+                           Docfacts &facts)
    {
    QFileInfo fi(pathname);
    QString dir = fi.absolutePath() + "/";
@@ -249,6 +437,10 @@ static err_info *stackText(const QString &pathname, QStringList &pages)
       if (!annot.isEmpty() && !pages[0].contains(annot))
          pages[0] = pages[0].isEmpty() ? annot : pages[0] + "\n" + annot;
       }
+
+   // a stack which cannot keep facts, or has none, gives none
+   if (err || Docfacts::read(file, facts))
+      facts = Docfacts();
    delete file;
    return err;
    }
@@ -257,13 +449,17 @@ static err_info *stackText(const QString &pathname, QStringList &pages)
 void SearchIndex::indexStack(const QString &path, qint64 mtime, qint64 size)
    {
    QStringList pages;
+   Docfacts facts;
    QSqlQuery query(_db);
 
    removeFile(path);
-   if (!stackText(path, pages))
+   if (!stackText(path, pages, facts))
+      {
       for (int i = 0; i < pages.size(); i++)
          if (!pages[i].isEmpty())
             addPage(path, QFileInfo(path).fileName(), i, pages[i]);
+      putFacts(path, facts);
+      }
 
    // a stack which cannot be read is not looked at again until it changes
    query.prepare("INSERT OR REPLACE INTO files (filepath, mtime, size) "

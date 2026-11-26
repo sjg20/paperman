@@ -62,6 +62,7 @@ private slots:
 
    //! the index follows the stacks as their text changes and they go
    void testIndexSync();
+   void testIndexFacts();
 
    //! an index kept away from the stacks can be searched while it is
    //! being written, and brought up to date a stack at a time

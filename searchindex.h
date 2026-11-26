@@ -30,6 +30,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSqlDatabase>
 #include <QList>
 
+#include "docfacts.h"
+
 struct err_info;
 
 /**
@@ -42,6 +44,42 @@ struct SearchResult
    int pagenum;           //!< Page number (0-based)
    QString snippet;       //!< Text snippet showing match context
    double rank;           //!< Search relevance rank
+   };
+
+/** A stack found by the facts kept about it */
+struct FactsResult
+   {
+   QString filepath;      //!< full path to the stack
+   Docfacts facts;        //!< the facts it has
+   };
+
+/** Which stacks to find by their facts
+ *
+ * Each field left empty matches any stack which has facts; those given
+ * must all match
+ */
+struct FactsQuery
+   {
+   QString type;       //!< the kind of document, whatever its case
+   QString from;       //!< part of who it is from
+   QString currency;   //!< the currency of its amount
+
+   /** the earliest and latest date of the document, each a year, a year
+       and month, or a day ("2025", "2025-03"), so that a year for both
+       finds everything dated within it. A stack with no date is left out
+       when either is given */
+   QString dateFrom, dateTo;
+
+   /** the least and most its amount may be, as numbers. A stack with no
+       amount is left out when either is given */
+   QString minAmount, maxAmount;
+
+   //! words which must each be somewhere in its type, sender, period or
+   //! summary
+   QString text;
+
+   //! the directory the stack must be in or below
+   QString underDir;
    };
 
 /**
@@ -116,6 +154,30 @@ public:
     */
    static QString matchQuery(const QString &text);
 
+   /** Get the facts the index has for a stack
+    *
+    * These are a copy of those in the stack's file, as of when it was
+    * last indexed
+    *
+    * \param filepath  Full path to the stack
+    * \param facts     Returns the facts, empty if it has none
+    * \return          error, or NULL if successful
+    */
+   err_info *getFacts(const QString &filepath, Docfacts &facts);
+
+   /** Find stacks by the facts kept about them
+    *
+    * Only stacks which have facts are found, the latest first, with those
+    * which have no date last
+    *
+    * \param query       which stacks to find
+    * \param results     returns the stacks found
+    * \param maxResults  the most to return
+    * \return            error, or NULL if successful
+    */
+   err_info *findFacts(const FactsQuery &query, QList<FactsResult> &results,
+                       int maxResults = 100);
+
    /** Reports progress while bringing the index up to date
     *
     * \param done   how many stacks have been looked at
@@ -171,7 +233,10 @@ private:
    /** Create the FTS5 table if it doesn't exist */
    err_info *createTable();
 
-   /** Index a stack's text afresh, recording its time and size */
+   /** Keep a stack's facts, in place of any the index has for it */
+   void putFacts(const QString &filepath, const Docfacts &facts);
+
+   /** Index a stack's text and facts afresh, recording its time and size */
    void indexStack(const QString &path, qint64 mtime, qint64 size);
    };
 
