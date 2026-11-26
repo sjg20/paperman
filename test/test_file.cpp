@@ -2212,6 +2212,44 @@ void TestFile::testPdfStackProps()
    QVERIFY(!fileBytes(dir + "made.pdf").contains("/PieceInfo"));
 }
 
+/* Looking for the text of a page which has none used to leave the file
+   open, which on Windows stops the stack being renamed */
+void TestFile::testMaxPageTextCloses()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+
+   Filemax max(dir, "testfile.max", nullptr);
+   QVERIFY(!max.load());
+   QVERIFY(!max._fin);
+
+   int count = max.pagecount();
+   int silent = 0;
+
+   QVERIFY(count >= 1);
+   for (int i = 0; i < count; i++) {
+      QString text;
+
+      QVERIFY(!max.getPageText(i, text));
+      silent += text.isEmpty();
+      QVERIFY2(!max._fin, qPrintable(QString("page %1").arg(i)));
+   }
+
+   // the test stack has pages which say nothing, which is the case at issue
+   QVERIFY(silent > 0);
+
+   // asking for a page it does not have closes the file too
+   QString text;
+   QVERIFY(max.getPageText(count, text));
+   QVERIFY(!max._fin);
+
+   QString name = "renamed.max";
+   QVERIFY(!max.rename(name, false));
+   QVERIFY(QFile::exists(dir + "renamed.max"));
+}
+
 void TestFile::testMaxPropsInvalid()
 {
    QTemporaryDir tmp;
