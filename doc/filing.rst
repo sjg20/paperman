@@ -67,8 +67,9 @@ stack, rather than on where it is or what it is called:
      - Read the text of the stack's pages which have none yet, leaving
        those already read as they are (see :doc:`finding`)
    * - **Suggest name** (Ctrl+F2)
-     - Ask an AI model for a name, from what the pages say (see
-       `Suggesting a name`_). Shown once it is turned on in the options
+     - Ask an AI model for a name for each stack selected, from what its
+       pages say (see `Suggesting a name`_). Shown once it is turned on
+       in the options
    * - **Split into documents...** (Ctrl+Shift+U)
      - Ask an AI model where a stack scanned as one pile divides into
        separate documents (see `Splitting a pile into documents`_). Shown
@@ -211,6 +212,21 @@ book or a report is often clearer a few pages in than on its cover. If
 few of them have text yet, it reads them first, which takes a few
 seconds. What it reads then is used for the name and not kept: **Read
 text (OCR)** is still what lets the stack be found by what it says.
+
+With several stacks selected, Paperman asks for a name for each, a few
+at a time, then shows them all in one window:
+
+- Each stack has a tick, the name it has, and the name suggested, which
+  can be changed.
+- A stack which is not ticked keeps its name. One with nothing to name
+  it from says so, and starts unticked.
+- **Rename** renames the stacks ticked, as one step: a single **Undo**
+  puts all the old names back.
+
+The other stacks selected are not sent as examples of how you name
+things, since they are the ones waiting for names. While the names are
+being asked for, the work is listed in **View > Background work**,
+where it can be stopped.
 
 What is sent is the text of up to four of those pages, the first ones
 which say anything, and the names of up to twenty other stacks in its

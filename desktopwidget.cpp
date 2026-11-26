@@ -78,6 +78,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "foldersel.h"
 #include "op.h"
 #include "assistant.h"
+#include "namesdialog.h"
+#include "backgroundwork.h"
 #include "splitdialog.h"
 #include "desk.h"
 #include "file.h"
@@ -1681,8 +1683,7 @@ void Desktopwidget::updateActions()
 
    // the assistant is offered only once it is turned on in the options
    _act_suggest_name->setVisible (Assistant::enabled ());
-   _act_suggest_name->setEnabled (at_least_one
-         && !_view->isSelection (Desktopview::SEL_more_than_one));
+   _act_suggest_name->setEnabled (at_least_one);
    _act_suggest_split->setVisible (Assistant::enabled ());
    _act_suggest_split->setEnabled (
       _view->isSelection (Desktopview::SEL_one_multipage));
@@ -2317,13 +2318,14 @@ QString Desktopwidget::pageText (File *f, int page)
    }
 
 
-QStringList Desktopwidget::nameExamples (File *f)
+QStringList Desktopwidget::nameExamples (File *f, const QSet<File *> &skip)
    {
    QStringList examples;
 
    if (f->desk ())
       for (File *other : f->desk ()->files ())
-         if (other != f && examples.size () < Assistant::name_examples)
+         if (other != f && !skip.contains (other)
+             && examples.size () < Assistant::name_examples)
             examples << other->stackLeaf ();
    return examples;
    }
@@ -2331,10 +2333,22 @@ QStringList Desktopwidget::nameExamples (File *f)
 
 void Desktopwidget::suggestName (void)
    {
+   if (!Assistant::enabled ())
+      return;
+
+   // several stacks are named together, and checked together
+   QModelIndexList list = _view->getSelectedListSource ();
+
+   if (list.size () > 1)
+      {
+      suggestNames (list);
+      return;
+      }
+
    QModelIndex sind = _view->getSelectedItem (true);
    File *f = _contents->getFile (sind);
 
-   if (!f || !Assistant::enabled ())
+   if (!f)
       return;
 
    /* a stack on a server may not all be here, so bring it here first,
@@ -2346,17 +2360,209 @@ void Desktopwidget::suggestName (void)
                                 [self, stack] (err_info *err) {
       if (!self || self->_main->complain (err) || !stack.isValid ())
          return;
-      self->nameFromPages (stack);
+      self->gatherNamePages (stack, [self, stack] (const QStringList &pages) {
+         if (self)
+            self->askName (stack, pages);
+      });
    });
    }
 
 
-void Desktopwidget::nameFromPages (const QModelIndex &sind)
+//! the asking for names for several stacks at once
+struct Desktopwidget::NamesJob
+   {
+   QList<QPersistentModelIndex> stacks;
+   QStringList current;    //!< the name each has
+   QStringList names;      //!< the name suggested for each, if any
+   QStringList notes;      //!< why a stack has no name suggested
+   QSet<File *> files;     //!< the stacks, whose names are no example
+   int next = 0;           //!< the next stack to ask about
+   int running = 0;        //!< how many are being asked about
+   int finished = 0;       //!< how many have an answer, of either kind
+   bool over = false;      //!< the names have been shown, or given up
+   Assistant *assistant = nullptr;
+   bool mine = false;      //!< the assistant is ours to delete
+   QPointer<Backgroundjob> work;   //!< the asking, as the user sees it
+   };
+
+
+void Desktopwidget::suggestNames (const QModelIndexList &list)
+   {
+   auto job = std::make_shared<NamesJob> ();
+
+   for (const QModelIndex &ind : list)
+      {
+      File *f = _contents->getFile (ind);
+
+      if (!f)
+         continue;
+      job->stacks << QPersistentModelIndex (ind);
+      job->current << f->stackLeaf ();
+      job->names << QString ();
+      job->notes << QString ();
+      job->files << f;
+      }
+   if (job->stacks.isEmpty ())
+      return;
+   job->assistant = _assistant ? _assistant : new Assistant (nullptr, this);
+   job->mine = !_assistant;
+
+   /* asking takes a few seconds for each stack, so it is listed with the
+      work going on, where it can be given up */
+   job->work = new Backgroundjob (tr ("Suggesting names"), this);
+   job->work->setStoppable (true);
+   job->work->setProgress (0, job->stacks.size ());
+   connect (job->work.data (), &Backgroundjob::stopAsked, this,
+            [this, job] () {
+      if (job->over)
+         return;
+      job->over = true;
+      job->work->deleteLater ();
+      if (job->mine)
+         job->assistant->deleteLater ();
+      emit newContents (tr ("Stopped"));
+   });
+   emit newContents (tr ("Asking the assistant for %1 names...")
+                        .arg (job->stacks.size ()));
+
+   // any on a server are brought here first, without waiting
+   QPointer<Desktopwidget> self (this);
+
+   _contents->fetchStacksLater (list, [self, job] (err_info *err) {
+      if (!self || job->over)
+         return;
+      if (self->_main->complain (err))
+         {
+         job->over = true;
+         if (job->work)
+            job->work->deleteLater ();
+         if (job->mine)
+            job->assistant->deleteLater ();
+         return;
+         }
+      self->nameNext (job);
+   });
+   }
+
+
+void Desktopwidget::nameNext (std::shared_ptr<NamesJob> job)
+   {
+   QPointer<Desktopwidget> self (this);
+
+   /* An answer can come at once, and bring us back here before this
+      returns, so everything is kept in the job and looked at afresh */
+   while (!job->over && job->running < Assistant::name_parallel
+          && job->next < job->stacks.size ())
+      {
+      int row = job->next++;
+
+      /* called with the stack's answer: its name, or why it has none */
+      auto answered = [self, job, row] (const QString &name,
+                                        const QString &note) {
+         if (!self || job->over)
+            return;
+         job->names [row] = name;
+         job->notes [row] = name.isEmpty () ? note : QString ();
+         job->running--;
+         job->finished++;
+         if (job->work)
+            job->work->setProgress (job->finished, job->stacks.size ());
+         emit self->newContents (tr ("Asking the assistant for names: %1 "
+            "of %2").arg (job->finished).arg (job->stacks.size ()));
+         self->nameNext (job);
+      };
+
+      job->running++;
+      if (!job->stacks [row].isValid ())
+         {
+         answered (QString (), tr ("gone"));
+         continue;
+         }
+      gatherNamePages (job->stacks [row],
+                       [self, job, row, answered] (const QStringList &pages) {
+         QModelIndex sind = job->stacks [row];
+         File *f = self && sind.isValid () ? self->_contents->getFile (sind)
+                                           : nullptr;
+         QString text = Assistant::nameText (pages);
+
+         if (!self || job->over)
+            return;
+         if (!f)
+            answered (QString (), tr ("gone"));
+         else if (text.isEmpty ())
+            answered (QString (), tr ("no text"));
+         else
+            job->assistant->suggestName (text, nameExamples (f, job->files),
+                                         self, answered);
+      });
+      }
+   if (!job->over && job->finished == job->stacks.size ())
+      showNames (job);
+   }
+
+
+void Desktopwidget::showNames (std::shared_ptr<NamesJob> job)
+   {
+   if (job->over)
+      return;
+   job->over = true;
+   if (job->work)
+      job->work->deleteLater ();
+   if (job->mine)
+      job->assistant->deleteLater ();
+
+   // with nothing suggested there is nothing to check: say why
+   bool any = false;
+
+   for (const QString &name : job->names)
+      any |= !name.isEmpty ();
+   if (!any)
+      {
+      QStringList why = job->notes;
+
+      why.removeDuplicates ();
+      why.removeAll (QString ());
+      emit newContents (tr ("No names were suggested: %1")
+                           .arg (why.join ("; ")));
+      return;
+      }
+
+   Namesdialog *dialog = new Namesdialog (this);
+
+   dialog->setAttribute (Qt::WA_DeleteOnClose);
+   dialog->setNames (job->current, job->names, job->notes);
+   connect (dialog, &QDialog::accepted, this, [this, job, dialog] () {
+      const QStringList names = dialog->names ();
+      QModelIndexList list;
+      QStringList wanted;
+
+      for (int i = 0; i < names.size () && i < job->stacks.size (); i++)
+         if (!names [i].isEmpty () && job->stacks [i].isValid ())
+            {
+            list << QModelIndex (job->stacks [i]);
+            wanted << names [i];
+            }
+
+      int count = _contents->renameStacks (list, wanted);
+
+      emit newContents (count == 1 ? tr ("Renamed 1 stack")
+                                   : tr ("Renamed %1 stacks").arg (count));
+   });
+   emit newContents (tr ("Check the names suggested"));
+   dialog->open ();
+   }
+
+
+void Desktopwidget::gatherNamePages (const QModelIndex &sind,
+      std::function<void (const QStringList &pages)> done)
    {
    File *f = _contents->getFile (sind);
 
    if (!f)
+      {
+      done (QStringList ());
       return;
+      }
 
    // what the first pages say, and which of them say nothing
    QStringList pages;
@@ -2400,7 +2606,7 @@ void Desktopwidget::nameFromPages (const QModelIndex &sind)
       }
    if (silent.isEmpty () || !engine)
       {
-      askName (sind, pages);
+      done (pages);
       return;
       }
 
@@ -2430,11 +2636,11 @@ void Desktopwidget::nameFromPages (const QModelIndex &sind)
 
       reading->left++;
       connect (watcher, &QFutureWatcher<QString>::finished, this,
-               [this, watcher, reading, pagenum] () {
+               [watcher, reading, pagenum, done] () {
          reading->pages [pagenum] = watcher->result ();
          watcher->deleteLater ();
          if (!--reading->left)
-            askName (reading->stack, reading->pages);
+            done (reading->pages);
       });
       watcher->setFuture (QtConcurrent::run ([engine, image] () mutable {
          OcrPage page;
@@ -2446,7 +2652,7 @@ void Desktopwidget::nameFromPages (const QModelIndex &sind)
    if (reading->left)
       emit newContents (tr ("Reading the stack's first pages..."));
    else
-      askName (sind, pages);
+      done (pages);
    }
 
 

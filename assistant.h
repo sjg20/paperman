@@ -155,6 +155,9 @@ public:
    //! how many names of other stacks are given, as the style to follow
    static constexpr int name_examples = 20;
 
+   //! how many stacks are asked about at once, when several want names
+   static constexpr int name_parallel = 4;
+
    /** the text to name a stack from: what its first pages say, each under
        its page number, leaving out those which say nothing
 
