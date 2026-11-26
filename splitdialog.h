@@ -37,13 +37,27 @@ class QTableWidget;
     check before anything is done.
 
     Each document is a row with its first page as a picture, its pages and
-    its name. A name can be changed, and a document can be joined to the
-    one before it, where the stack is divided in a place it should not be */
+    its name, and the facts found about it. A name can be changed, and a
+    document can be joined to the one before it, where the stack is divided
+    in a place it should not be: the one before keeps its own facts */
 class Splitdialog : public QDialog
    {
    Q_OBJECT
 
 public:
+   //! the columns of the table
+   enum
+      {
+      col_name,
+      col_pages,
+      col_kind,
+      col_from,
+      col_date,
+      col_amount,
+
+      col_count
+      };
+
    explicit Splitdialog (QWidget *parent = nullptr);
 
    /** set the documents to show

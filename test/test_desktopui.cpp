@@ -3561,9 +3561,28 @@ void TestDesktopUi::testSuggestSplit()
    QVERIFY(!desktop->findChild<Splitdialog *>());
    QVERIFY(said.last().at(0).toString().contains("only one document"));
 
-   // three documents are shown, each with its pages and its name
-   backend->_answer = answer({{1, "Power bill"}, {2, "Bank letter"},
-                              {4, "Rates notice"}});
+   /* three documents are shown, each with its pages and its name, and the
+      facts which came with it */
+   QJsonObject suggested = answer({{1, "Power bill"}, {2, "Bank letter"},
+                                   {4, "Rates notice"}});
+   QJsonArray parts = suggested["documents"].toArray();
+   QStringList kinds{"bill", "letter", "notice"};
+
+   for (int i = 0; i < parts.size(); i++) {
+      QJsonObject part = parts[i].toObject(), given;
+
+      given["type"] = kinds[i];
+      given["from"] = QString("Sender %1").arg(i + 1);
+      if (!i) {
+         given["amount"] = "184.20";
+         given["currency"] = "NZD";
+         given["period"] = "Feb 2026";
+      }
+      part["facts"] = given;
+      parts[i] = part;
+   }
+   suggested["documents"] = parts;
+   backend->_answer = suggested;
    desktop->suggestSplit();
 
    Splitdialog *dialog = desktop->findChild<Splitdialog *>();
@@ -3571,6 +3590,19 @@ void TestDesktopUi::testSuggestSplit()
    QCOMPARE(dialog->docs().size(), 3);
    QCOMPARE(dialog->pagesText(0), QString("1 (1 page)"));
    QCOMPARE(dialog->pagesText(1), QString("2-3 (2 pages)"));
+
+   QTableWidget *shown = dialog->findChild<QTableWidget *>();
+   QVERIFY(shown);
+   QCOMPARE(shown->columnCount(), int(Splitdialog::col_count));
+   QCOMPARE(shown->item(0, Splitdialog::col_kind)->text(), QString("bill"));
+   QCOMPARE(shown->item(0, Splitdialog::col_amount)->text(),
+            QString("184.20 NZD"));
+   QVERIFY(shown->item(0, Splitdialog::col_kind)->toolTip()
+              .contains("Feb 2026"));
+   QCOMPARE(shown->item(2, Splitdialog::col_from)->text(),
+            QString("Sender 3"));
+   QVERIFY(!(shown->item(1, Splitdialog::col_kind)->flags()
+             & Qt::ItemIsEditable));
 
    // nothing has changed yet, and cancelling leaves it so
    QCOMPARE(model->rowCount(repo_ind), rows);
@@ -3611,6 +3643,17 @@ void TestDesktopUi::testSuggestSplit()
    QVERIFY(QFile::exists(path + "/Bank letter.pdf"));
    QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
 
+   /* each stack has the facts of its document: the one renamed keeps
+      its own, and the one joined to keeps its own and not those of the
+      document which joined it */
+   Docfacts kept = model->facts(model->index("Electricity March.pdf",
+                                             repo_ind));
+   QCOMPARE(kept.type, QString("bill"));
+   QCOMPARE(kept.amount, QString("184.20"));
+   kept = model->facts(model->index("Bank letter.pdf", repo_ind));
+   QCOMPARE(kept.type, QString("letter"));
+   QCOMPARE(kept.from, QString("Sender 2"));
+
    File *first = model->getFile(model->index("Electricity March.pdf",
                                              repo_ind));
    File *second = model->getFile(model->index("Bank letter.pdf", repo_ind));
@@ -3625,6 +3668,7 @@ void TestDesktopUi::testSuggestSplit()
    QCOMPARE(model->rowCount(repo_ind), rows);
    QCOMPARE(model->getFile(model->index("testpdf.pdf", repo_ind))
                ->pagecount(), pagecount);
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
 
    // a failure is reported, and shows nothing
    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);

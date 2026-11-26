@@ -2914,17 +2914,21 @@ void Desktopwidget::askSplit (const QModelIndex &sind)
          QModelIndex ind = stack;
          QList<int> firsts;
          QStringList names;
+         QList<Docfacts> facts;
 
          if (!ind.isValid () || docs.size () < 2)
             return;
+         facts << docs [0].facts;
          for (const Assistant::Doc &doc : docs.mid (1))
             {
             firsts << doc.first;
             names << doc.name;
+            facts << doc.facts;
             }
          ActivityBy by (_contents->getUndoStack (), Activity::W_assistant);
 
-         if (!_contents->splitStack (ind, firsts, names, docs [0].name))
+         if (!_contents->splitStack (ind, firsts, names, docs [0].name,
+                                     facts))
             emit newContents (tr ("The stack has changed, so cannot be "
                                   "divided this way"));
       });
