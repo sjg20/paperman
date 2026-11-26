@@ -178,6 +178,13 @@ void jpeg_decode (byte *data, int size, byte * volatile dest, int line_bytes,
             cropped, in which case the JPEG should be stored as it is */
 int jpegCrop (const byte *data, int size, int lo, int hi, QByteArray &out);
 
+/** split a filename into its name and its extension, which starts at the
+    last dot, so that a name may hold dots of its own
+
+   \param fname  the filename, with no directory
+   \param ext    returns the extension, with its dot, or an empty string if
+                 the filename has no dot
+   \returns the filename without the extension */
 QString removeExtension (const QString &fname, QString &ext);
 
 /** JPEG-encode an image tile

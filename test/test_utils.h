@@ -20,6 +20,9 @@ private slots:
    //! what is read and written is counted, in all, by file and by action
    void testIoStats();
 
+   //! a filename's extension starts at its last dot
+   void testRemoveExtension();
+
    void testUserName();
 
    void testTimeStr();

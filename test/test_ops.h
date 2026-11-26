@@ -124,6 +124,9 @@ private slots:
    void testPrintToPdf();
 
    //! Test the options dialog loads and saves scan settings
+   //! a stack's name may hold dots, and keeps them when it is renamed
+   void testNameWithDots();
+
    //! several stacks renamed together are one step to undo
    void testRenameStacks();
 

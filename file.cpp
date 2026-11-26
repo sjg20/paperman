@@ -751,7 +751,9 @@ err_info *File::rename (QString &fname, bool auto_rename)
 
       ext = fi.suffix ();
 
-      name = _desk->findNextFilename (fi.baseName (), QString(), "." + ext);
+      // the name is all of it but the extension, dots included
+      name = _desk->findNextFilename (fi.completeBaseName (), QString(),
+                                      "." + ext);
       if (name.isNull ())
          return err_make (ERRFN, ERR_no_unique_filename1, qPrintable (fname));
       name += "." + ext;
@@ -919,9 +921,12 @@ err_info *File::unstackItems (int pagenum, int pagecount, bool remove,
    // work out new name for file
    QString ext;
 
+   /* the name may come as a filename, as when this is done again after
+      an undo, or as a name alone, which may hold dots of its own: take
+      off only what is the extension of a stack */
    if (fname.isEmpty ())
       fname = pageTitle (pagenum);
-   else
+   else if (typeFromName (fname) != Type_other)
       fname = removeExtension (fname, ext);
    if (fname.isEmpty ())
       fname = pagecount == 1
