@@ -124,6 +124,9 @@ private slots:
    void testPrintToPdf();
 
    //! Test the options dialog loads and saves scan settings
+   //! several stacks renamed together are one step to undo
+   void testRenameStacks();
+
    //! a conversion stopped part-way leaves nothing behind
    void testConvertStopped();
 
