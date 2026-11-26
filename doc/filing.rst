@@ -288,8 +288,9 @@ model where each document in it starts, and what to call it.
 Right-click the stack and choose **Process... > Split into
 documents...**, or press Ctrl+Shift+U. After a few
 moments a window shows what the model suggests: a row for each document,
-with a picture of its first page, its pages and a name. Nothing has
-changed yet. In the window:
+with a picture of its first page, its pages and a name, and what the
+model found about it: its kind, its sender, its date and its amount (see
+`Facts about the document`_). Nothing has changed yet. In the window:
 
 - double-click a name to change it
 - select a document and press **Join with previous** where the stack is
@@ -297,8 +298,11 @@ changed yet. In the window:
 
 Press **Split** to divide the stack, or **Cancel** to leave it alone. The
 first document keeps the stack's place, with its new name, and the others
-appear after the other stacks in the folder. One undo puts the stack back
-together, with its old name.
+appear after the other stacks in the folder. Each keeps the facts found
+about its document, which can be seen and put right afterwards with
+|page-infomode|; a document joined to the one above leaves its own
+behind. One undo puts the stack back together, with its old name and
+without the facts.
 
 Every page needs its text, so a stack scanned before Paperman read text
 needs **Read text (OCR)** first. A page with no text stays with the one

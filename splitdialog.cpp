@@ -33,10 +33,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 enum
    {
-   COL_name,
-   COL_pages,
-
-   COL_count
+   COL_name = Splitdialog::col_name,
+   COL_pages = Splitdialog::col_pages,
+   COL_count = Splitdialog::col_count,
    };
 
 
@@ -51,20 +50,23 @@ Splitdialog::Splitdialog (QWidget *parent)
    QLabel *label = new QLabel (tr ("The assistant suggests dividing this "
       "stack as below. Change any name, or join a document to the one "
       "before it, then press Split. Nothing changes until you do, and it "
-      "can be undone."), this);
+      "can be undone. What it found about each document is kept with it, "
+      "and can be put right afterwards."), this);
 
    label->setWordWrap (true);
    layout->addWidget (label);
 
    _table = new QTableWidget (0, COL_count, this);
-   _table->setHorizontalHeaderLabels ({tr ("Document"), tr ("Pages")});
+   _table->setHorizontalHeaderLabels ({tr ("Document"), tr ("Pages"),
+      tr ("Kind"), tr ("From"), tr ("Date"), tr ("Amount")});
    _table->setSelectionBehavior (QAbstractItemView::SelectRows);
    _table->setSelectionMode (QAbstractItemView::SingleSelection);
    _table->setIconSize (QSize (thumb_width, thumb_height));
    _table->verticalHeader ()->hide ();
    _table->horizontalHeader ()->setSectionResizeMode (COL_name,
                                                      QHeaderView::Stretch);
-   _table->horizontalHeader ()->setSectionResizeMode (COL_pages,
+   for (int col = COL_pages; col < COL_count; col++)
+      _table->horizontalHeader ()->setSectionResizeMode (col,
                                              QHeaderView::ResizeToContents);
    layout->addWidget (_table);
 
@@ -90,7 +92,7 @@ Splitdialog::Splitdialog (QWidget *parent)
             this, SLOT (nameChanged (int, int)));
    connect (_table, SIGNAL (itemSelectionChanged ()),
             this, SLOT (selectionChanged ()));
-   resize (520, 480);
+   resize (860, 480);
    selectionChanged ();
    }
 
@@ -145,6 +147,30 @@ void Splitdialog::fill ()
       pages->setFlags (pages->flags () & ~Qt::ItemIsEditable);
       _table->setItem (i, COL_name, name);
       _table->setItem (i, COL_pages, pages);
+
+      /* the facts are shown to check the document by: they are changed
+         in the stack's details, once it is made */
+      const Docfacts &facts = _docs [i].facts;
+      QString amount = facts.amount;
+      QStringList more;
+
+      if (!amount.isEmpty () && !facts.currency.isEmpty ())
+         amount += " " + facts.currency;
+      if (!facts.period.isEmpty ())
+         more << tr ("Period: %1").arg (facts.period);
+      if (!facts.summary.isEmpty ())
+         more << facts.summary;
+
+      const QString text [] = {facts.type, facts.from, facts.date, amount};
+
+      for (int col = col_kind; col < col_count; col++)
+         {
+         QTableWidgetItem *item = new QTableWidgetItem (text [col - col_kind]);
+
+         item->setFlags (item->flags () & ~Qt::ItemIsEditable);
+         item->setToolTip (more.join ("\n"));
+         _table->setItem (i, col, item);
+         }
       _table->setRowHeight (i, thumb_height + 8);
       }
    _filling = false;
