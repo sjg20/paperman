@@ -22,7 +22,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 #include <QSettings>
+#include <QTimer>
 #include <QtConcurrent>
 
 #include "err.h"
@@ -35,31 +38,28 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 OcrReader::OcrReader (QObject *parent)
    : QObject (parent)
    {
-   connect (&_watcher, &QFutureWatcher<Result>::finished,
-            this, &OcrReader::readDone);
    }
 
 
 OcrReader::~OcrReader ()
    {
    // the engine is given a copy of the image, so it only needs to finish
-   if (_watcher.isRunning ())
+   for (Job &job : _jobs)
       {
-      QElapsedTimer timer;
+      if (job.watcher->isRunning ())
+         {
+         QElapsedTimer timer;
 
-      timer.start ();
-      qCDebug (logOcr).noquote () << QString ("ocr: waiting for page %1 of "
-         "%2 to be read").arg (_pagenum + 1).arg (pathOf (_file));
-      _watcher.waitForFinished ();
-      qCDebug (logOcr).noquote () << QString ("ocr: waited %1ms")
-         .arg (timer.elapsed ());
+         timer.start ();
+         qCDebug (logOcr).noquote () << QString ("ocr: waiting for page %1 "
+            "of %2 to be read").arg (job.pagenum + 1).arg (job.path);
+         job.watcher->waitForFinished ();
+         qCDebug (logOcr).noquote () << QString ("ocr: waited %1ms")
+            .arg (timer.elapsed ());
+         }
+      delete job.watcher;
       }
-   }
-
-
-QString OcrReader::pathOf (File *file)
-   {
-   return file ? file->pathname () : QString ("a stack which has gone");
+   closeOwn ();
    }
 
 
@@ -83,32 +83,141 @@ void OcrReader::setEngine (const Engine &engine)
 
 bool OcrReader::isBusy () const
    {
-   return _file || !_stacks.isEmpty ();
+   return !_jobs.isEmpty () || !_stacks.isEmpty ();
+   }
+
+
+QStringList OcrReader::pending () const
+   {
+   QStringList paths;
+
+   // a page being read may send its stack round again, so count it too
+   for (const Job &job : _jobs)
+      if (!paths.contains (job.path))
+         paths << job.path;
+   for (const Stack &stack : _stacks)
+      if (!paths.contains (stack.path))
+         paths << stack.path;
+   return paths;
+   }
+
+
+void OcrReader::setFinder (const Finder &finder)
+   {
+   _finder = finder;
    }
 
 
 void OcrReader::addFile (File *file)
    {
-   queue (file);
-   if (!_file)
-      next ();
+   if (!file)
+      return;
+   queue (file->pathname (), file);
+   next ();
    }
 
 
-void OcrReader::queue (File *file)
+//! a path in the one form which paths are compared in
+static QString cleanPath (const QString &path)
    {
+   return QDir::cleanPath (path);
+   }
+
+
+void OcrReader::addPath (const QString &pathname)
+   {
+   queue (pathname, nullptr);
+   next ();
+   }
+
+
+void OcrReader::queue (const QString &pathname, File *file)
+   {
+   QString path = cleanPath (pathname);
+
    for (Stack &stack : _stacks)
-      if (stack.file == file)
+      if (stack.path == path)
          {
          // look through it again, since pages may have been added
          stack.next = 0;
+         if (file)
+            stack.file = file;
          return;
          }
 
    Stack stack;
 
+   stack.path = path;
    stack.file = file;
    _stacks << stack;
+   }
+
+
+void OcrReader::stackMoved (const QString &from_path, const QString &to_path)
+   {
+   QString from = cleanPath (from_path), to = cleanPath (to_path);
+
+   /* the File the desktop had for it may have gone with the move; it is
+      found again at its new path */
+   for (Stack &stack : _stacks)
+      if (stack.path == from)
+         stack.path = to;
+   for (Job &job : _jobs)
+      if (job.path == from)
+         job.path = to;
+   if (_own_path == from)
+      closeOwn ();
+   }
+
+
+void OcrReader::closeOwn ()
+   {
+   delete _own;
+   _own = nullptr;
+   _own_path.clear ();
+   }
+
+
+File *OcrReader::fileFor (QString &path, QPointer<File> &file)
+   {
+   // the File knows best where the stack is, since it may be renamed
+   if (file)
+      path = cleanPath (file->pathname ());
+   else if (_finder)
+      file = _finder (path);
+   if (file)
+      {
+      /* only one File may write to a stack, and the desktop now has one */
+      if (_own_path == path)
+         closeOwn ();
+
+      // one which the desktop has not needed yet knows nothing of its pages
+      if (!file->valid () && file->load ())
+         {
+         qCDebug (logOcr) << "ocr: cannot open" << path;
+         return nullptr;
+         }
+      return file;
+      }
+
+   if (_own && _own_path == path)
+      return _own;
+   closeOwn ();
+
+   QFileInfo fi (path);
+
+   if (!fi.isFile ())
+      return nullptr;
+   _own = File::createFile (fi.absolutePath () + "/", fi.fileName (), nullptr,
+                            File::typeFromName (fi.fileName ()));
+   if (!_own || _own->load ())
+      {
+      qCDebug (logOcr) << "ocr: cannot open" << path;
+      closeOwn ();
+      return nullptr;
+      }
+   _own_path = path;
+   return _own;
    }
 
 
@@ -126,6 +235,7 @@ void OcrReader::next ()
    {
    Engine engine = _engine;
 
+   _next_posted = false;
    if (!engine)
       {
       err_info *err;
@@ -137,7 +247,8 @@ void OcrReader::next ()
          qDebug () << "ocr: no engine to read pages:"
                    << (err ? err->errstr : "");
          _stacks.clear ();
-         emit idle ();
+         if (_jobs.isEmpty ())
+            emit idle ();
          return;
          }
       engine = [ocr] (QImage &image, OcrPage &page)
@@ -148,10 +259,24 @@ void OcrReader::next ()
          };
       }
 
-   while (!_stacks.isEmpty ())
+   int looked = 0;
+
+   while (_jobs.isEmpty () && !_stacks.isEmpty ())
       {
+      /* a stack whose pages have mostly been read takes a while to look
+         through, so let other things have a turn now and then */
+      if (looked++ >= look_batch)
+         {
+         _next_posted = true;
+         QTimer::singleShot (0, this, [this] () {
+            if (_next_posted)
+               next ();
+         });
+         return;
+         }
+
       Stack &stack = _stacks.first ();
-      File *file = stack.file;
+      File *file = fileFor (stack.path, stack.file);
 
       if (!file || stack.next >= file->pagecount ())
          {
@@ -169,65 +294,86 @@ void OcrReader::next ()
       QImage image;
       QSize size, true_size;
       int bpp;
-      Mark mark;
+      Job job;
 
-      if (!markPage (file, pagenum, mark)
+      if (!markPage (file, pagenum, job.mark)
           || file->getImage (pagenum, false, image, size, true_size, bpp,
                              false)
           || image.isNull ())
          continue;
 
-      _file = file;
-      _pagenum = pagenum;
-      _mark = mark;
-      _timer.start ();
+      job.path = stack.path;
+      job.file = stack.file;
+      job.pagenum = pagenum;
+      job.timer.start ();
+      job.watcher = new QFutureWatcher<Result> (this);
+
+      QFutureWatcher<Result> *watcher = job.watcher;
+
+      connect (watcher, &QFutureWatcher<Result>::finished, this,
+               [this, watcher] () { readDone (watcher); });
       qCDebug (logOcr).noquote () << QString ("ocr: reading page %1 of %2")
-         .arg (pagenum + 1).arg (file->pathname ());
-      _watcher.setFuture (QtConcurrent::run ([engine, image] () mutable
+         .arg (pagenum + 1).arg (job.path);
+      _jobs << job;
+      watcher->setFuture (QtConcurrent::run ([engine, image] () mutable
          {
          Result result;
 
          result.error = engine (image, result.page);
          return result;
          }));
-      return;
       }
-   emit idle ();
+   if (!isBusy ())
+      {
+      closeOwn ();
+      emit idle ();
+      }
    }
 
 
-void OcrReader::readDone ()
+void OcrReader::readDone (QFutureWatcher<Result> *watcher)
    {
-   Result result = _watcher.result ();
-   File *file = _file;
-   int pagenum = _pagenum;
+   Job job;
+
+   for (int i = 0; i < _jobs.size (); i++)
+      if (_jobs [i].watcher == watcher)
+         job = _jobs.takeAt (i);
+   if (!job.watcher)
+      return;
+
+   Result result = watcher->result ();
+   int pagenum = job.pagenum;
    Mark mark;
 
+   watcher->deleteLater ();
    qCDebug (logOcr).noquote () << QString ("ocr: read page %1 in %2ms, "
-      "%3 words").arg (pagenum + 1).arg (_timer.elapsed ())
+      "%3 words").arg (pagenum + 1).arg (job.timer.elapsed ())
       .arg (result.page.words.size ());
-   _file = nullptr;
-   _pagenum = -1;
+
+   File *file = fileFor (job.path, job.file);
+
    if (!file)
       ;  // the stack has gone
    else if (!result.error.isEmpty ())
       qDebug () << "ocr: cannot read page" << pagenum + 1 << "of"
-                << file->pathname () << ":" << result.error;
+                << job.path << ":" << result.error;
 
    /* if the page has changed, look through the stack again: the pages
       read so far are left alone */
    else if (pagenum >= file->pagecount () || !markPage (file, pagenum, mark)
-            || !(mark == _mark))
-      queue (file);
+            || !(mark == job.mark))
+      queue (job.path, job.file);
    else if (!result.page.isEmpty ())
       {
       err_info *err = file->putPageOcr (pagenum, result.page);
 
       if (err)
          qDebug () << "ocr: cannot keep what was read from page"
-                   << pagenum + 1 << "of" << file->pathname () << ":"
+                   << pagenum + 1 << "of" << job.path << ":"
                    << err->errstr;
-      else
+
+      // only the desktop's File has anything showing its pages
+      else if (file != _own)
          emit pageRead (file, pagenum);
       }
    next ();
