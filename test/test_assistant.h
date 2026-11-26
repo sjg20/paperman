@@ -1,6 +1,7 @@
 #ifndef TEST_ASSISTANT_H
 #define TEST_ASSISTANT_H
 
+#include <functional>
 #include <QObject>
 
 #include "assistant.h"
@@ -16,11 +17,41 @@ public:
       _system = system;
       _prompt = prompt;
       _schema = schema;
+      _asked++;
+
+      // a name for each request in turn, if any are lined up
+      if (!_names.isEmpty())
+         _answer["name"] = _names.takeFirst();
+
+      // held back until release(), as a model which takes its time
+      if (_hold) {
+         QJsonObject answer = _answer;
+         QString error = _error;
+
+         _held << [done, answer, error] { done(answer, error); };
+         return;
+      }
       done(_answer, _error);
    }
 
+   //! give the answers held back
+   void release()
+   {
+      QList<std::function<void ()>> held = _held;
+
+      _held.clear();
+      _hold = false;
+      for (const auto &answer : held)
+         answer();
+   }
+
+   bool _hold = false;     //!< hold answers back until release()
+   QList<std::function<void ()>> _held;
+
    QString _system, _prompt, _error;
    QJsonObject _schema, _answer;
+   QStringList _names;     //!< the name to answer each request with
+   int _asked = 0;         //!< how many requests there have been
 };
 
 /** Tests for the AI assistant, with a backend which stands in for the

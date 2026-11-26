@@ -65,7 +65,9 @@ struct file_info;
 #include <QLabel>
 #include <QUrl>
 
+#include <QSet>
 #include <functional>
+#include <memory>
 
 #include "qsplitter.h"
 #include "qstring.h"
@@ -504,7 +506,10 @@ private slots:
 
    /** ask the AI assistant for a name for the stack selected, from the
        text of its first pages, and offer it in the rename editor. Pages
-       among them which have not been read are read first */
+       among them which have not been read are read first.
+
+       With several stacks selected, ask for a name for each and show
+       them all to be checked before any is renamed */
    void suggestName (void);
 
    /** ask the AI assistant where the stack selected divides into
@@ -741,15 +746,35 @@ private:
       \returns the text, empty if the page has none */
    static QString pageText (File *f, int page);
 
-   //! the names of the other stacks in a stack's folder, which show how
-   //! the user names things; no more than the assistant uses
-   static QStringList nameExamples (File *f);
+   /** the names of the other stacks in a stack's folder, which show how
+       the user names things; no more than the assistant uses
+
+      \param f     the stack
+      \param skip  stacks to leave out, such as others waiting for a name,
+                   whose names show nothing */
+   static QStringList nameExamples (File *f,
+                                    const QSet<File *> &skip = QSet<File *> ());
 
    /** look at a stack's first pages for a name, reading any which have
-       no text if there is too little to go on, then ask for the name
+       no text if there is too little to go on
 
-      \param sind  the stack, which is all here */
-   void nameFromPages (const QModelIndex &sind);
+      \param sind  the stack, which is all here
+      \param done  called with what each of its first pages says, now or
+                   once they have been read */
+   void gatherNamePages (const QModelIndex &sind,
+                         std::function<void (const QStringList &pages)> done);
+
+   //! the asking for names for several stacks at once
+   struct NamesJob;
+
+   //! ask for a name for each of several stacks, and show them to check
+   void suggestNames (const QModelIndexList &list);
+
+   //! ask about more of the stacks, or show the names once all are in
+   void nameNext (std::shared_ptr<NamesJob> job);
+
+   //! show the names suggested, and rename the stacks the user agrees to
+   void showNames (std::shared_ptr<NamesJob> job);
 
    /** ask the assistant for a stack's name, and offer it
 

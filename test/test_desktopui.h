@@ -214,6 +214,9 @@ private slots:
    //! The window for checking names gives back what is to be renamed
    void testNamesDialog();
 
+   //! Several stacks are named together, and the names checked together
+   void testSuggestNames();
+
    //! The assistant's way of dividing a stack is shown, changed and done
    void testSuggestSplit();
 

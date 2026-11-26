@@ -3186,6 +3186,161 @@ void TestDesktopUi::testNamesDialog()
    QVERIFY(!rename->isEnabled());
 }
 
+/* With several stacks selected, a name is asked for each, and all are
+   shown to be checked: a name can be changed, a stack left out, and what
+   is agreed to is renamed as one step */
+void TestDesktopUi::testSuggestNames()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+   int stacks = model->rowCount(repo_ind);
+
+   QVERIFY(stacks >= 2);
+   desktop->_assistant = &assistant;
+   QSettings().remove("assistant");
+   Assistant::setEnabled(true);
+
+   // the pages of the max stack say nothing unless they are read
+   bool readable = false;
+   desktop->_name_engine = [&readable](QImage &image, OcrPage &ocr) {
+      ocr = OcrPage();
+      ocr.size = image.size();
+      if (readable)
+         ocr.words << OcrWord{QRect(0, 0, 10, 10), "words", 90, 0, 0};
+      return QString();
+   };
+
+   // it is offered for several stacks as well as for one
+   view->setSelectionRange(0, stacks);
+   desktop->updateActions();
+   QVERIFY(desktop->_act_suggest_name->isEnabled());
+
+   /* a stack with nothing to go on gets no name and says why; the other
+      stacks being named are not given as examples of how to name things */
+   for (int i = 0; i < stacks; i++)
+      backend->_names << QString("Name %1").arg(i + 1);
+   desktop->suggestName();
+
+   Namesdialog *dialog = nullptr;
+   QTRY_VERIFY((dialog = desktop->findChild<Namesdialog *>()));
+   QVERIFY(dialog->isVisible());
+   QCOMPARE(backend->_asked, stacks - 1);
+   QVERIFY(!backend->_prompt.contains("- testfile\n"));
+   QVERIFY(!backend->_prompt.contains("- testpdf\n"));
+   QVERIFY(!view->findChild<Desktopeditor *>());
+
+   QTableWidget *table = dialog->findChild<QTableWidget *>("names");
+   QVERIFY(table);
+   QCOMPARE(table->rowCount(), stacks);
+
+   int max_row = -1, pdf_row = -1;
+
+   for (int row = 0; row < stacks; row++) {
+      QString stack = table->item(row, 0)->text();
+
+      if (stack.startsWith("testfile"))
+         max_row = row;
+      else if (stack == "testpdf")
+         pdf_row = row;
+   }
+   QVERIFY(max_row >= 0 && pdf_row >= 0);
+   QCOMPARE(table->item(max_row, 0)->text(), QString("testfile (no text)"));
+   QVERIFY(!dialog->ticked(max_row));
+   QVERIFY(dialog->ticked(pdf_row));
+   QCOMPARE(table->item(pdf_row, 1)->text(), QString("Name 1"));
+   QCOMPARE(dialog->count(), stacks - 1);
+
+   // leaving the window renames nothing
+   dialog->reject();
+   QTRY_VERIFY(!desktop->findChild<Namesdialog *>());
+   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
+
+   // with its pages read, every stack has a name suggested
+   readable = true;
+   backend->_names.clear();
+   backend->_asked = 0;
+   for (int i = 0; i < stacks; i++)
+      backend->_names << QString("Paper %1").arg(i + 1);
+   view->setSelectionRange(0, stacks);
+   desktop->suggestName();
+   QTRY_VERIFY((dialog = desktop->findChild<Namesdialog *>()));
+   QCOMPARE(backend->_asked, stacks);
+   QCOMPARE(dialog->count(), stacks);
+   QCOMPARE(dialog->renameText(),
+            QString("&Rename %1 stacks").arg(stacks));
+   table = dialog->findChild<QTableWidget *>("names");
+
+   max_row = pdf_row = -1;
+   for (int row = 0; row < stacks; row++) {
+      if (table->item(row, 0)->text() == "testfile")
+         max_row = row;
+      else if (table->item(row, 0)->text() == "testpdf")
+         pdf_row = row;
+   }
+   QVERIFY(max_row >= 0 && pdf_row >= 0);
+
+   // a name can be changed, and one which is the same as before is left
+   QString max_name = table->item(max_row, 1)->text();
+   QVERIFY(max_name.startsWith("Paper "));
+   dialog->setName(pdf_row, "Chosen by hand");
+   QCOMPARE(dialog->names()[pdf_row], QString("Chosen by hand"));
+   dialog->setName(pdf_row, "testpdf");
+   QCOMPARE(dialog->names()[pdf_row], QString());
+   QCOMPARE(dialog->count(), stacks - 1);
+   dialog->setName(pdf_row, "Chosen by hand");
+
+   // a stack which is not ticked keeps its name
+   for (int row = 0; row < stacks; row++)
+      if (row != max_row && row != pdf_row)
+         dialog->setTicked(row, false);
+   QCOMPARE(dialog->count(), 2);
+   QCOMPARE(dialog->renameText(), QString("&Rename 2 stacks"));
+
+   QPushButton *rename = dialog->findChild<QPushButton *>("rename");
+   QVERIFY(rename && rename->isEnabled());
+   rename->click();
+   QTRY_VERIFY(QFile::exists(path + "/Chosen by hand.pdf"));
+   QTRY_VERIFY(QFile::exists(path + "/" + max_name + ".max"));
+   QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(!QFile::exists(path + "/testfile.max"));
+
+   // and one undo puts the names back
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+
+   // asking can be given up from the list of work going on
+   Backgroundwork *work = Backgroundwork::instance();
+   int before = work->jobs().size();
+   QTRY_VERIFY(!desktop->findChild<Namesdialog *>());
+   backend->_names.clear();
+   backend->_asked = 0;
+   backend->_hold = true;
+   view->setSelectionRange(0, stacks);
+   desktop->suggestName();
+   QTRY_VERIFY(backend->_asked > 0);
+   QCOMPARE(int(work->jobs().size()), before + 1);
+   QCOMPARE(work->jobs().last()->title(), QString("Suggesting names"));
+   work->jobs().last()->requestStop();
+   QTRY_COMPARE(int(work->jobs().size()), before);
+   backend->release();
+   QTest::qWait(100);
+   QVERIFY(!desktop->findChild<Namesdialog *>());
+
+   desktop->_name_engine = nullptr;
+   desktop->_assistant = nullptr;
+   QSettings().remove("assistant");
+}
+
 void TestDesktopUi::testDirFilterHidesOtherYears()
 {
    QModelIndex repo_ind;
