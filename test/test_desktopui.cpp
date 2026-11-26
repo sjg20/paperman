@@ -2800,6 +2800,31 @@ void TestDesktopUi::testStackMenu()
    QCOMPARE(desktop->_act_reverse->shortcut(), QKeySequence("Ctrl+R"));
 }
 
+/* The window showing work in the background is opened from the View
+   menu, or with a key, by those who want to keep it open */
+void TestDesktopUi::testBackgroundInViewMenu()
+{
+   Mainwindow me;
+
+   QVERIFY(me.menuView->actions().contains(me.actionBackground));
+   QVERIFY(!me.menuTools->actions().contains(me.actionBackground));
+   QCOMPARE(me.actionBackground->text(), QString("&Background work..."));
+   QCOMPARE(me.actionBackground->shortcut(), QKeySequence("Ctrl+B"));
+
+   // nothing else in the window has that key
+   for (QAction *action : me.findChildren<QAction *>())
+      if (action != me.actionBackground)
+         QVERIFY2(action->shortcut() != me.actionBackground->shortcut(),
+                  qPrintable(action->text()));
+
+   QVERIFY(!me.findChild<Backgrounddialog *>());
+   me.actionBackground->trigger();
+   Backgrounddialog *work = me.findChild<Backgrounddialog *>();
+   QVERIFY(work);
+   QVERIFY(work->isVisible());
+   work->close();
+}
+
 void TestDesktopUi::testSuggestName()
 {
    QModelIndex repo_ind;
