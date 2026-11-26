@@ -734,8 +734,9 @@ void Desktopmodel::recordActivity (Activity whole, QList<Activity> parts)
       part.who = whole.who;
       part.group = whole.id;
       if (log.add (part))
-         return;
+         break;
       }
+   emit activityRecorded (root);
    }
 
 
