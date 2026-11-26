@@ -606,10 +606,14 @@ public:
                      pages
       \param name    a new name for the stack itself, which keeps the
                      pages before the first; empty to leave its name
+      \param facts   facts to keep with each stack, if not empty: first
+                     those for the stack itself, then for each new stack.
+                     A stack which cannot keep facts gets none
       \returns true if the stack is divided, false if it cannot be: the
                 pages given are not as above */
    bool splitStack (QModelIndex &ind, const QList<int> &firsts,
-                    const QStringList &names, const QString &name);
+                    const QStringList &names, const QString &name,
+                    const QList<Docfacts> &facts = {});
 
    /** reverse the order of the pages of each stack given, as one step to
        undo. Supports undo

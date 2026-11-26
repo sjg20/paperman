@@ -1742,6 +1742,35 @@ void TestOps::testSplitStack()
       QCOMPARE(images(second), before.mid(1, 2));
       model->getUndoStack()->undo();
       QVERIFY(images(orig) == before);
+
+      /* each stack can be given facts as it is made: the stack itself,
+         with or without a new name, and each new one, except where there
+         are none to give */
+      Docfacts bill, letter;
+
+      bill.type = "bill";
+      bill.from = "Northern Power";
+      letter.type = "letter";
+      letter.date = "2026-03";
+      QVERIFY(model->splitStack(ind, {1, 3}, {"Second 3.5", "Third"}, "",
+                                {bill, letter, Docfacts()}));
+      QCOMPARE(model->rowCount(repo_ind), rows + 2);
+      QCOMPARE(model->facts(model->index(orig, repo_ind)), bill);
+      QCOMPARE(model->facts(model->index(second, repo_ind)), letter);
+      QVERIFY(model->facts(model->index("Third" + ext, repo_ind)).isEmpty());
+
+      // one undo puts the stack back with no facts, as it was
+      model->getUndoStack()->undo();
+      QCOMPARE(model->rowCount(repo_ind), rows);
+      QVERIFY(model->facts(model->index(orig, repo_ind)).isEmpty());
+      QVERIFY(images(orig) == before);
+
+      // and a redo gives them all again
+      model->getUndoStack()->redo();
+      QCOMPARE(model->facts(model->index(orig, repo_ind)), bill);
+      QCOMPARE(model->facts(model->index(second, repo_ind)), letter);
+      model->getUndoStack()->undo();
+      QVERIFY(images(orig) == before);
    }
 }
 

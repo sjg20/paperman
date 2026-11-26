@@ -206,7 +206,8 @@ void Desktopmodel::reorderPages (QModelIndex &ind, const QVector<int> &order)
 
 
 bool Desktopmodel::splitStack (QModelIndex &ind, const QList<int> &firsts,
-                               const QStringList &names, const QString &name)
+                               const QStringList &names, const QString &name,
+                               const QList<Docfacts> &facts)
    {
    QModelIndexList list;
 
@@ -234,10 +235,16 @@ bool Desktopmodel::splitStack (QModelIndex &ind, const QList<int> &firsts,
       prev = first;
       }
 
+   /* the stack keeps its own facts along with its new name; those of the
+      new stacks are written as each is made */
+   QPersistentModelIndex stack (ind);
+   Docfacts own = facts.value (0);
+
    _undo->beginMacro (tr ("Split stack"));
-   _undo->push (new UCSplitStack (this, ind, firsts, names));
-   if (!name.isEmpty ())
-      renameStack (ind, name);
+   _undo->push (new UCSplitStack (this, ind, firsts, names, facts.mid (1)));
+   if (!name.isEmpty () || !own.isEmpty ())
+      renameStacks (QModelIndexList () << QModelIndex (stack),
+                    QStringList () << name, QList<Docfacts> () << own);
    _undo->endMacro ();
    return true;
    }

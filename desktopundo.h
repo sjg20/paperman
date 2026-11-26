@@ -387,9 +387,11 @@ class UCSplitStack : public Desktopundocmd
    {
 public:
    /** \param firsts  the first page of each new stack, from 0, in order
-       \param names   the name to ask for each, without an extension */
+       \param names   the name to ask for each, without an extension
+       \param facts   facts to keep with each, where it can keep them */
    UCSplitStack (Desktopmodel *model, QModelIndex &ind,
-                 const QList<int> &firsts, const QStringList &names);
+                 const QList<int> &firsts, const QStringList &names,
+                 const QList<Docfacts> &facts = {});
    void redo();
    void undo();
    QList<Activity> activity () const override;
@@ -398,6 +400,7 @@ private:
    QString _filename;      //!< the filename of the stack divided
    int _first;             //!< the first page taken out
    QStringList _names;     //!< the name to ask for each new stack
+   QList<Docfacts> _facts; //!< the facts to keep with each new stack
    QList<pagepos_info> _pagepos;   //!< how many pages each new stack has
    //! the filename of each new stack, once made
    std::shared_ptr<QStringList> _newnames;
