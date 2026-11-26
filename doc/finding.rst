@@ -82,7 +82,8 @@ from each page's picture (optical character recognition, or OCR) with
   ``.max`` file, so they go with the page when it is stacked, unstacked
   or copied. Turning a page drops its text, which is then read again the
   right way up.
-- **Read text (OCR)**, in a stack's right-click menu, reads stacks scanned
+- **Read text (OCR)** (Ctrl+T), under **Process...** in a stack's
+  right-click menu, reads stacks scanned
   before, or with the option off.
 - The text pane shows the text read from the page shown, and its **OCR**
   button reads that page again (see :doc:`desktop`).

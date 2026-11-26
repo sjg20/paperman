@@ -32,8 +32,8 @@ pages first (see :doc:`finding`):
 - Check that ``tesseract`` is installed (see :doc:`install`).
 - Check that **Read the text of scanned pages (OCR)** is ticked in
   **File > Options**.
-- Stacks scanned before then need **Read text (OCR)**, in a stack's
-  right-click menu.
+- Stacks scanned before then need **Read text (OCR)**, under
+  **Process...** in a stack's right-click menu.
 - After a lot of scanning the reading can be some way behind: the status
   bar says how many pages are left.
 - In a folder on a server, the server must be run with ``--index``, and

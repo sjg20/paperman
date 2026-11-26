@@ -614,6 +614,21 @@ void TestScreenshots::testDuplicateMenu ()
              "duplicate-menu", "Duplicate...");
    }
 
+void TestScreenshots::testProcessMenu ()
+   {
+   Mainwindow me;
+
+   open (&me, "bills/2026/03mar", "power bill.max");
+   if (QTest::currentTestFailed ())
+      return;
+
+   Desktopview *view = me.getDesktop ()->getView ();
+
+   saveMenu (view->viewport (),
+             view->visualRect (view->currentIndex ()).center (),
+             "process-menu", "Process...");
+   }
+
 void TestScreenshots::testFolderMenu ()
    {
    Mainwindow me;

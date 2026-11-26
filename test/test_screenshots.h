@@ -62,6 +62,9 @@ private slots:
    //! The ways of duplicating a stack, from the stack menu
    void testDuplicateMenu();
 
+   //! The things which work on what is in a stack, from the stack menu
+   void testProcessMenu();
+
    //! Moving a stack to another folder, chosen by part of its name
    void testMoveToFolder();
 

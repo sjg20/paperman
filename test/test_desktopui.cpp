@@ -7,6 +7,8 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QSemaphore>
+#include <QMenu>
+#include <QContextMenuEvent>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
@@ -2688,6 +2690,114 @@ void TestDesktopUi::testBackgroundJobs()
    // and is gone from the list when it finishes
    QTRY_VERIFY(work->jobsListed().isEmpty());
    QVERIFY(!stop->isEnabled());
+}
+
+/* The stack menu is kept short: what works on the contents of a stack
+   is in a submenu. Every item has a shortcut, and none is used twice.
+   The Background work window is opened from the View menu */
+void TestDesktopUi::testStackMenu()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+
+   QSettings().remove("assistant");
+   clickItem(view, 0);
+
+   /* the menu waits for a choice in a loop of its own, so look at it and
+      close it from a timer. This gives what it shows, with a submenu's
+      items after its title, in brackets */
+   auto shown = [&]() -> QStringList {
+      QStringList items;
+      bool seen = false;
+      QTimer timer;
+
+      connect(&timer, &QTimer::timeout, &me, [&] {
+         for (QWidget *top : QApplication::topLevelWidgets()) {
+            QMenu *menu = qobject_cast<QMenu *>(top);
+
+            if (!menu || !menu->isVisible())
+               continue;
+            seen = true;
+            for (QAction *action : menu->actions()) {
+               if (action->isSeparator() || !action->isVisible())
+                  continue;
+
+               QString text = action->text().remove('&');
+
+               if (!action->menu()) {
+                  items << text;
+                  continue;
+               }
+
+               QStringList sub;
+
+               for (QAction *child : action->menu()->actions())
+                  if (!child->isSeparator() && child->isVisible())
+                     sub << child->text().remove('&');
+               items << text + " [" + sub.join(", ") + "]";
+            }
+            timer.stop();
+            menu->close();
+            return;
+         }
+      });
+      timer.start(50);
+
+      QPoint pos = view->visualRect(itemIndex(view, 0)).center();
+      QContextMenuEvent event(QContextMenuEvent::Mouse, pos,
+                              view->viewport()->mapToGlobal(pos));
+
+      QApplication::sendEvent(view->viewport(), &event);
+      return seen ? items : QStringList("no menu");
+   };
+
+   QCOMPARE(shown(), QStringList({
+      "Locate folder", "Stack", "Unstack page", "Unstack all", "Duplicate",
+      "Move to folder", "Delete stack", "Rename stack", "Rename page",
+      "Process... [Read text (OCR), Reverse pages]",
+      "Duplicate... [Duplicate page, as Max, as PDF, even pages only, "
+         "odd pages only, as JPEG, Unfold booklet]",
+      "Email... [Files, as Max, as PDF, Copy as PDF]"}));
+
+   // with the assistant on, what it does is under Process too
+   Assistant::setEnabled(true);
+   QVERIFY(shown().contains("Process... [Read text (OCR), Suggest name, "
+                            "Split into documents..., Reverse pages]"));
+   QSettings().remove("assistant");
+
+   // every item has a shortcut, which nothing else in the window has
+   QHash<QString, QStringList> used;
+
+   for (QAction *action : me.findChildren<QAction *>())
+      if (!action->shortcut().isEmpty() && !action->text().isEmpty())
+         used[action->shortcut().toString()] << action->text().remove('&');
+
+   int count = 0;
+
+   for (QAction *action : view->actions()) {
+      if (action->text().isEmpty())
+         continue;
+
+      QString key = action->shortcut().toString();
+      QString name = action->text().remove('&');
+
+      QVERIFY2(!key.isEmpty(), qPrintable(name + " has no shortcut"));
+      QVERIFY2(used.value(key) == QStringList(name),
+               qPrintable(key + " is used by " + used.value(key).join(", ")));
+      count++;
+   }
+   QVERIFY(count >= 20);
+   QCOMPARE(desktop->_act_read_text->shortcut(), QKeySequence("Ctrl+T"));
+   QCOMPARE(desktop->_act_suggest_name->shortcut(), QKeySequence("Ctrl+F2"));
+   QCOMPARE(desktop->_act_suggest_split->shortcut(),
+            QKeySequence("Ctrl+Shift+U"));
+   QCOMPARE(desktop->_act_reverse->shortcut(), QKeySequence("Ctrl+R"));
 }
 
 void TestDesktopUi::testSuggestName()
