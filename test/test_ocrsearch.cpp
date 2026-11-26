@@ -857,6 +857,99 @@ void TestOcrSearch::testReaderRemembers()
 }
 
 
+void TestOcrSearch::testReaderPauseStop()
+{
+   QTemporaryDir tmp;
+   const QString dir = tmp.path() + "/";
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "a.max"));
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "b.max"));
+   Filemax a(dir, "a.max", nullptr), b(dir, "b.max", nullptr);
+   QVERIFY(!a.load());
+   QVERIFY(!b.load());
+   int count = a.pagecount();
+   QVERIFY(count >= 3);
+
+   OcrReader reader;
+   QSemaphore started, go;
+   reader.setWorkers(1);
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      started.release();
+      go.acquire();
+      return fakeRead(image, page);
+   });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
+   QSignalSpy idle(&reader, &OcrReader::idle);
+   QSignalSpy progress(&reader, &OcrReader::progress);
+
+   // what is waiting can be shown, with the stack being read first
+   reader.addFile(&a);
+   reader.addFile(&b);
+   QVERIFY(waitFor(started));
+   QList<OcrReader::Waiting> waiting = reader.waiting();
+   QCOMPARE(int(waiting.size()), 2);
+   QCOMPARE(waiting[0].path, a.pathname());
+   QCOMPARE(waiting[0].pages, count);
+   QCOMPARE(waiting[0].left, count);
+   QCOMPARE(waiting[0].reading, 1);
+   QCOMPARE(waiting[1].path, b.pathname());
+   QCOMPARE(waiting[1].pages, count);
+   QCOMPARE(waiting[1].left, count);
+   QCOMPARE(waiting[1].reading, 0);
+
+   // paused, the page being read is finished and kept, and no more start
+   int before = progress.count();
+   QVERIFY(!reader.isPaused());
+   reader.setPaused(true);
+   QVERIFY(reader.isPaused());
+   QVERIFY(progress.count() > before);
+   go.release();
+   QTRY_COMPARE(pageWord(&a, 0), pixelsWord(&a, 0));
+   QTest::qWait(100);
+   QCOMPARE(started.available(), 0);
+   QVERIFY(reader.isBusy());
+   QCOMPARE(reader.stacksLeft(), 2);
+   QCOMPARE(reader.pagesLeft(), count * 2 - 1);
+   QCOMPARE(idle.count(), 0);
+
+   // and it carries on when told to
+   reader.setPaused(false);
+   QVERIFY(waitFor(started));
+
+   /* a stack can be dropped: the page of it being read is thrown away,
+      and the next stack is started */
+   reader.remove(a.pathname());
+   QCOMPARE(reader.pending(), QStringList(b.pathname()));
+   go.release();
+   QVERIFY(waitFor(started));
+   QCOMPARE(pageWord(&a, 1), QString());
+   QCOMPARE(reader.waiting()[0].reading, 1);
+
+   // stopping drops everything
+   reader.stop();
+   QVERIFY(reader.pending().isEmpty());
+   QCOMPARE(reader.stacksLeft(), 0);
+   QCOMPARE(reader.pagesLeft(), 0);
+   QVERIFY(reader.waiting().isEmpty());
+   go.release();
+   QVERIFY(idle.wait(10000));
+   QVERIFY(!reader.isBusy());
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(&b, i), QString());
+
+   // after which a stack can be read as before
+   reader.addFile(&a);
+   go.release(1000);
+   QVERIFY(idle.wait(10000));
+   for (int i = 0; i < count; i++)
+      QCOMPARE(pageWord(&a, i), pixelsWord(&a, i));
+
+   // stopping with nothing going on does nothing
+   reader.stop();
+   reader.remove(a.pathname());
+   QVERIFY(!reader.isBusy());
+}
+
+
 void TestOcrSearch::testMatchQuery()
 {
    QCOMPARE(SearchIndex::matchQuery(""), QString());

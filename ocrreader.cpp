@@ -119,6 +119,13 @@ int OcrReader::workers ()
    }
 
 
+//! a path in the one form which paths are compared in
+static QString cleanPath (const QString &path)
+   {
+   return QDir::cleanPath (path);
+   }
+
+
 bool OcrReader::isBusy () const
    {
    return !_jobs.isEmpty () || !_stacks.isEmpty ();
@@ -131,12 +138,84 @@ QStringList OcrReader::pending () const
 
    // a page being read may send its stack round again, so count it too
    for (const Job &job : _jobs)
-      if (!paths.contains (job.path))
+      if (!job.dropped && !paths.contains (job.path))
          paths << job.path;
    for (const Stack &stack : _stacks)
       if (!paths.contains (stack.path))
          paths << stack.path;
    return paths;
+   }
+
+
+QList<OcrReader::Waiting> OcrReader::waiting () const
+   {
+   QList<Waiting> list;
+
+   auto find = [&list] (const QString &path) -> Waiting & {
+      for (Waiting &w : list)
+         if (w.path == path)
+            return w;
+      list << Waiting {path, -1, 0, 0};
+      return list.last ();
+   };
+
+   // those with pages being read come first, as in pending()
+   for (const Job &job : _jobs)
+      if (!job.dropped)
+         find (job.path).reading++;
+   for (const Stack &stack : _stacks)
+      {
+      Waiting &w = find (stack.path);
+
+      w.pages = stack.pages;
+      if (w.pages < 0 && stack.file && stack.file->valid ())
+         w.pages = stack.file->pagecount ();
+      w.left = qMax (0, w.pages - stack.next);
+      }
+   for (Waiting &w : list)
+      w.left += w.reading;
+   return list;
+   }
+
+
+void OcrReader::setPaused (bool paused)
+   {
+   if (paused == _paused)
+      return;
+   _paused = paused;
+   qCDebug (logOcr) << "ocr:" << (paused ? "paused" : "carrying on");
+   if (paused)
+      changed ();
+   else
+      next ();
+   }
+
+
+void OcrReader::remove (const QString &pathname)
+   {
+   QString path = cleanPath (pathname);
+
+   for (int i = _stacks.size () - 1; i >= 0; i--)
+      if (_stacks [i].path == path)
+         _stacks.removeAt (i);
+   for (Job &job : _jobs)
+      if (job.path == path)
+         job.dropped = true;
+   if (_own_path == path)
+      closeOwn ();
+
+   // this may leave nothing to do, which next() notices
+   next ();
+   }
+
+
+void OcrReader::stop ()
+   {
+   _stacks.clear ();
+   for (Job &job : _jobs)
+      job.dropped = true;
+   closeOwn ();
+   next ();
    }
 
 
@@ -148,7 +227,10 @@ int OcrReader::stacksLeft () const
 
 int OcrReader::pagesLeft () const
    {
-   int pages = _jobs.size ();
+   int pages = 0;
+
+   for (const Job &job : _jobs)
+      pages += !job.dropped;
 
    for (const Stack &stack : _stacks)
       {
@@ -225,13 +307,6 @@ void OcrReader::addFile (File *file)
       return;
    queue (file->pathname (), file);
    next ();
-   }
-
-
-//! a path in the one form which paths are compared in
-static QString cleanPath (const QString &path)
-   {
-   return QDir::cleanPath (path);
    }
 
 
@@ -390,7 +465,8 @@ void OcrReader::next ()
 
    int looked = 0;
 
-   while (_jobs.size () < workers && !_stacks.isEmpty ())
+   // while paused, the pages being read are finished and no more started
+   while (!_paused && _jobs.size () < workers && !_stacks.isEmpty ())
       {
       /* a stack whose pages have mostly been read takes a while to look
          through, so let other things have a turn now and then */
@@ -483,10 +559,10 @@ void OcrReader::readDone (QFutureWatcher<Result> *watcher)
       "%3 words").arg (pagenum + 1).arg (job.timer.elapsed ())
       .arg (result.page.words.size ());
 
-   File *file = fileFor (job.path, job.file);
+   File *file = job.dropped ? nullptr : fileFor (job.path, job.file);
 
    if (!file)
-      ;  // the stack has gone
+      ;  // the stack has gone, or been forgotten
    else if (!result.error.isEmpty ())
       qDebug () << "ocr: cannot read page" << pagenum + 1 << "of"
                 << job.path << ":" << result.error;
