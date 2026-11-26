@@ -47,6 +47,15 @@ private slots:
    //! A name comes back from the backend, cleaned, or the reason for none
    void testSuggestName();
 
+   //! The question for dividing a stack holds each page's text, in order
+   void testSplitPrompt();
+
+   //! Whatever the model answers, the documents are in order and in range
+   void testSplitFromAnswer();
+
+   //! Documents come back from the backend, or the reason for none
+   void testSuggestSplit();
+
    //! The command runs with no tools and the schema, and its reply is read
    void testClaudeCommand();
 
