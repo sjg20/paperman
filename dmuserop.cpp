@@ -322,9 +322,28 @@ void Desktopmodel::renameStack (const QModelIndex &index, QString newname)
    _modelconv->assertIsSource (0, &index, 0);
    File *f = getFile (index);
 
+   /* facts offered with a name go with it, as one step. They are taken
+      first, since that step comes back here for the name */
+   if (_offered_stack.isValid () && _offered_stack == index)
+      {
+      Docfacts facts = _offered_facts;
+
+      offerFacts (QModelIndex (), Docfacts ());
+      renameStacks (QModelIndexList () << index, QStringList (newname),
+                    QList<Docfacts> () << facts);
+      return;
+      }
+
    newname += f->ext ();
    if (f->filename () != newname)
       _undo->push (new UCRenameStack (this, index, newname));
+   }
+
+
+void Desktopmodel::offerFacts (const QModelIndex &index, const Docfacts &facts)
+   {
+   _offered_stack = index;
+   _offered_facts = facts;
    }
 
 

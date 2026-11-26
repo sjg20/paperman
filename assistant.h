@@ -32,6 +32,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <functional>
 #include <memory>
 
+#include "docfacts.h"
+
 /** Something which answers a question put to an AI model.
 
     The question is text, and the answer is JSON in a shape which the
@@ -172,10 +174,12 @@ public:
       \param examples  names of other stacks in its folder
       \param context   @p done is not called once this has gone
       \param done      called with the name, or with an empty name and why
-                       there is none */
+                       there is none, and with the facts which the text
+                       gives about the document, which may be none */
    void suggestName (const QString &text, const QStringList &examples,
                      QObject *context,
                      std::function<void (const QString &name,
+                                         const Docfacts &facts,
                                          const QString &error)> done);
 
    //! the question which suggestName() asks

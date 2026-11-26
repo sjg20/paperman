@@ -106,9 +106,11 @@ void TestAssistant::testSuggestName()
    FakeBackend *backend = new FakeBackend;
    Assistant assistant(backend);
    QString name, error;
+   Docfacts facts;
    int calls = 0;
-   auto done = [&](const QString &n, const QString &e) {
+   auto done = [&](const QString &n, const Docfacts &f, const QString &e) {
       name = n;
+      facts = f;
       error = e;
       calls++;
    };
@@ -118,6 +120,7 @@ void TestAssistant::testSuggestName()
    QCOMPARE(calls, 1);
    QCOMPARE(name, QString("Power bill Mar 2026"));
    QVERIFY(error.isEmpty());
+   QVERIFY(facts.isEmpty());
 
    // it was asked for a name, as JSON, with the text and the other names
    QVERIFY(backend->_prompt.contains("Tax invoice"));
@@ -126,11 +129,36 @@ void TestAssistant::testSuggestName()
    QCOMPARE(backend->_schema.value("required").toArray(),
             QJsonArray{"name"});
 
-   // a name with nothing left of it is no name
+   // the facts are asked for too, each with what it is, and none is needed
+   QJsonObject asked = backend->_schema.value("properties").toObject()
+                          .value("facts").toObject();
+   QCOMPARE(asked, Docfacts::schema());
+   QVERIFY(backend->_system.contains("facts"));
+
+   // what comes back is made fit to keep: a date not in the form is dropped
+   QJsonObject given;
+   given["type"] = "bill";
+   given["from"] = " Northern Power ";
+   given["date"] = "3 March 2026";
+   given["amount"] = "184.2";
+   given["currency"] = "nzd";
+   backend->_answer["facts"] = given;
+   assistant.suggestName("Tax invoice", QStringList(), this, done);
+   QCOMPARE(facts.type, QString("bill"));
+   QCOMPARE(facts.from, QString("Northern Power"));
+   QCOMPARE(facts.date, QString());
+   QCOMPARE(facts.amount, QString("184.2"));
+   QCOMPARE(facts.currency, QString("NZD"));
+   backend->_answer.remove("facts");
+   calls = 1;
+
+   // a name with nothing left of it is no name, and brings no facts
    backend->_answer["name"] = "??";
+   backend->_answer["facts"] = given;
    assistant.suggestName("Tax invoice", QStringList(), this, done);
    QVERIFY(name.isEmpty());
    QVERIFY(!error.isEmpty());
+   QVERIFY(facts.isEmpty());
 
    // nor is a failure, whose reason is passed on
    backend->_answer = QJsonObject();

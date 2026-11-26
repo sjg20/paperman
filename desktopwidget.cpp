@@ -227,6 +227,12 @@ Desktopwidget::Desktopwidget (QWidget *parent)
 
    _delegate = new Desktopdelegate (_modelconv, this);
    _view->setItemDelegate (_delegate);
+
+   /* facts offered with a name go with the name if it is accepted, which
+      the view sees to before this; either way they lapse when the name box
+      closes */
+   connect (_delegate, &QAbstractItemDelegate::closeEditor, this,
+            &Desktopwidget::nameBoxClosed);
    connect (_delegate, SIGNAL (itemClicked (const QModelIndex &, int)),
          this, SLOT (slotItemClicked (const QModelIndex &, int)));
    connect (_delegate, SIGNAL (itemPreview (const QModelIndex &, int, bool)),
@@ -2337,6 +2343,7 @@ struct Desktopwidget::NamesJob
    QList<QPersistentModelIndex> stacks;
    QStringList current;    //!< the name each has
    QStringList names;      //!< the name suggested for each, if any
+   QList<Docfacts> facts;  //!< the facts which the text gives about each
    QStringList notes;      //!< why a stack has no name suggested
    QSet<File *> files;     //!< the stacks, whose names are no example
    int next = 0;           //!< the next stack to ask about
@@ -2393,6 +2400,7 @@ void Desktopwidget::suggestNames (const QModelIndexList &list)
       job->stacks << QPersistentModelIndex (ind);
       job->current << f->stackLeaf ();
       job->names << QString ();
+      job->facts << Docfacts ();
       job->notes << QString ();
       job->files << f;
       }
@@ -2454,10 +2462,12 @@ void Desktopwidget::nameNext (std::shared_ptr<NamesJob> job)
 
       /* called with the stack's answer: its name, or why it has none */
       auto answered = [self, job, row] (const QString &name,
+                                        const Docfacts &facts,
                                         const QString &note) {
          if (!self || job->over)
             return;
          job->names [row] = name;
+         job->facts [row] = facts;
          job->notes [row] = name.isEmpty () ? note : QString ();
          job->running--;
          job->finished++;
@@ -2472,7 +2482,7 @@ void Desktopwidget::nameNext (std::shared_ptr<NamesJob> job)
       job->running++;
       if (!job->stacks [row].isValid ())
          {
-         answered (QString (), tr ("gone"));
+         answered (QString (), Docfacts (), tr ("gone"));
          continue;
          }
       gatherNamePages (job->stacks [row],
@@ -2485,9 +2495,9 @@ void Desktopwidget::nameNext (std::shared_ptr<NamesJob> job)
          if (!self || job->over)
             return;
          if (!f)
-            answered (QString (), tr ("gone"));
+            answered (QString (), Docfacts (), tr ("gone"));
          else if (text.isEmpty ())
-            answered (QString (), tr ("no text"));
+            answered (QString (), Docfacts (), tr ("no text"));
          else
             job->assistant->suggestName (text, nameExamples (f, job->files),
                                          self, answered);
@@ -2550,6 +2560,10 @@ void Desktopwidget::showNames (std::shared_ptr<NamesJob> job)
          {
          emit newContents (tr ("Suggested name: press Enter to accept it, "
                                "or Esc to keep the old one"));
+
+         /* the facts go with the name: they are kept if the name is
+            accepted, whatever it is changed to, and dropped if it is not */
+         _contents->offerFacts (sind, job->facts [0]);
          _view->renameStack (ind, job->names [0]);
          return;
          }
@@ -2561,28 +2575,40 @@ void Desktopwidget::showNames (std::shared_ptr<NamesJob> job)
 
    dialog->setAttribute (Qt::WA_DeleteOnClose);
    dialog->setNames (job->current, job->names, job->notes);
+   dialog->setFacts (job->facts);
    connect (dialog, &QDialog::accepted, this, [this, job, dialog] () {
       const QStringList names = dialog->names ();
+      const QList<Docfacts> facts = dialog->facts ();
       QModelIndexList list;
       QStringList wanted;
+      QList<Docfacts> keep;
 
+      // a stack which is ticked gets its facts, new name or not
       for (int i = 0; i < names.size () && i < job->stacks.size (); i++)
-         if (!names [i].isEmpty () && job->stacks [i].isValid ())
+         if (job->stacks [i].isValid ()
+             && (!names [i].isEmpty () || !facts.value (i).isEmpty ()))
             {
             list << QModelIndex (job->stacks [i]);
             wanted << names [i];
+            keep << facts.value (i);
             }
 
-      int count = _contents->renameStacks (list, wanted);
+      int count = _contents->renameStacks (list, wanted, keep);
 
-      emit newContents (count == 1 ? tr ("Renamed 1 stack")
-                                   : tr ("Renamed %1 stacks").arg (count));
+      emit newContents (count == 1 ? tr ("Named 1 stack")
+                                   : tr ("Named %1 stacks").arg (count));
    });
    emit newContents (job->stacks.size () == 1
                         ? tr ("Check the name suggested")
                         : tr ("Check the names suggested"));
    dialog->show ();
    dialog->raise ();
+   }
+
+
+void Desktopwidget::nameBoxClosed ()
+   {
+   _contents->offerFacts (QModelIndex (), Docfacts ());
    }
 
 
