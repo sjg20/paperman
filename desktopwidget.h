@@ -21,6 +21,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
  Public License can be found in the /usr/share/common-licenses/GPL file.
 */
 
+#include "docfacts.h"
+
 class Assistant;
 class OcrPage;
 class QCheckBox;
@@ -773,6 +775,12 @@ private:
 
    //! the asking for names which is going on, if any: one lot at a time
    std::weak_ptr<NamesJob> _naming;
+
+private slots:
+   //! the name box has closed: facts offered with a name lapse
+   void nameBoxClosed ();
+
+private:
 
    //! ask about more of the stacks, or show the names once all are in
    void nameNext (std::shared_ptr<NamesJob> job);

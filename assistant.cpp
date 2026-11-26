@@ -268,7 +268,8 @@ QString Assistant::cleanName (const QString &name)
 
 void Assistant::suggestName (const QString &text,
       const QStringList &examples, QObject *context,
-      std::function<void (const QString &name, const QString &error)> done)
+      std::function<void (const QString &name, const Docfacts &facts,
+                          const QString &error)> done)
    {
    static const char *system =
       "You name scanned documents for a personal filing system. Given the "
@@ -278,11 +279,14 @@ void Assistant::suggestName (const QString &text,
       "main title first: take it from whichever page gives it most fully. "
       "Follow the style of the other names in the folder, "
       "if any are given. Use only what the text says: do not guess a "
-      "sender or a date which is not there. No file extension.";
+      "sender or a date which is not there. No file extension. "
+      "Give too the facts which the text states about the document, to be "
+      "kept with it: leave out any which the text does not give.";
    QJsonObject name_type, props, schema;
 
    name_type ["type"] = "string";
    props ["name"] = name_type;
+   props ["facts"] = Docfacts::schema ();
    schema ["type"] = "object";
    schema ["properties"] = props;
    schema ["required"] = QJsonArray {"name"};
@@ -291,11 +295,13 @@ void Assistant::suggestName (const QString &text,
    _backend->ask (system, namePrompt (text, examples), schema, context,
                   [done] (const QJsonObject &answer, const QString &error) {
       QString name = cleanName (answer.value ("name").toString ());
+      Docfacts facts = Docfacts::fromJson (answer.value ("facts").toObject ());
 
       if (error.isEmpty () && name.isEmpty ())
-         done (name, tr ("The assistant did not suggest a name"));
+         done (name, Docfacts (),
+               tr ("The assistant did not suggest a name"));
       else
-         done (name, error);
+         done (name, error.isEmpty () ? facts : Docfacts (), error);
    });
    }
 

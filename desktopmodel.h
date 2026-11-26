@@ -684,6 +684,16 @@ public:
                has */
    bool setFacts (const QModelIndex &index, const Docfacts &facts);
 
+   /** offer facts to go with the next name a stack is given, as when a
+       name suggested with them is put in the name box. Renaming that
+       stack then keeps them too, as one step, even if the name it is given
+       is the one it has. Offering again, to any stack or to none, forgets
+       those offered before
+
+      \param index   the stack, or an invalid index for none
+      \param facts   the facts */
+   void offerFacts (const QModelIndex &index, const Docfacts &facts);
+
    /** write a stack's facts to its file, for the undo command
 
       \param index   the stack
@@ -1767,6 +1777,10 @@ private:
 
    //! the changes on their way to a server, as the user sees them
    Backgroundjob *_opsJob = nullptr;
+
+   //! the stack which facts have been offered to, and the facts
+   QPersistentModelIndex _offered_stack;
+   Docfacts _offered_facts;
 
    //! true while an operation is running
    bool _opBusy = false;

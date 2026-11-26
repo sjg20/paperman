@@ -3191,7 +3191,12 @@ void TestDesktopUi::testSuggestName()
    QVERIFY(desktop->_act_suggest_name->isEnabled());
 
    // the name suggested is in the editor, for the user to accept
+   QJsonObject given;
+
+   given["type"] = "report";
+   given["date"] = "2026";
    backend->_answer["name"] = "Test document 2026";
+   backend->_answer["facts"] = given;
    desktop->suggestName();
    QVERIFY(!backend->_prompt.isEmpty());
    QVERIFY(backend->_prompt.contains("- testfile\n"));
@@ -3201,13 +3206,48 @@ void TestDesktopUi::testSuggestName()
    QCOMPARE(editor->text(), QString("Test document 2026"));
    QVERIFY(QFile::exists(path + "/testpdf.pdf"));
 
+   // the facts which came with the name are not kept until it is accepted
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
+
    QTest::keyClick(editor, Qt::Key_Return);
    QTRY_VERIFY(QFile::exists(path + "/Test document 2026.pdf"));
    QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
 
-   // and undo gives the old name back
+   Docfacts kept = model->facts(model->index("Test document 2026.pdf",
+                                             repo_ind));
+   QCOMPARE(kept.type, QString("report"));
+   QCOMPARE(kept.date, QString("2026"));
+
+   // and one undo gives the old name back, and takes the facts away
    me.actionUndo->trigger();
    QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
+
+   /* facts offered with a name lapse when the name box closes, so a name
+      given later by hand does not bring them */
+   model->offerFacts(model->index("testpdf.pdf", repo_ind), kept);
+   QVERIFY(QMetaObject::invokeMethod(desktop, "nameBoxClosed"));
+   model->renameStack(model->index("testpdf.pdf", repo_ind), "by hand");
+   QTRY_VERIFY(QFile::exists(path + "/by hand.pdf"));
+   QVERIFY(model->facts(model->index("by hand.pdf", repo_ind)).isEmpty());
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+
+   // offered and not withdrawn, they go with the next name, as one step
+   model->offerFacts(model->index("testpdf.pdf", repo_ind), kept);
+   model->renameStack(model->index("testpdf.pdf", repo_ind), "with facts");
+   QTRY_VERIFY(QFile::exists(path + "/with facts.pdf"));
+   QCOMPARE(model->facts(model->index("with facts.pdf", repo_ind)), kept);
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
+
+   // even when the name is the one the stack has
+   model->offerFacts(model->index("testpdf.pdf", repo_ind), kept);
+   model->renameStack(model->index("testpdf.pdf", repo_ind), "testpdf");
+   QCOMPARE(model->facts(model->index("testpdf.pdf", repo_ind)), kept);
+   me.actionUndo->trigger();
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
 
    // a failure is reported, and leaves the name alone
    QSignalSpy said(desktop, SIGNAL(newContents(QString)));
@@ -3650,7 +3690,13 @@ void TestDesktopUi::testSuggestNames()
    QTRY_VERIFY(!desktop->findChild<Namesdialog *>());
    QVERIFY(QFile::exists(path + "/testpdf.pdf"));
 
-   // with its pages read, every stack has a name suggested
+   // with its pages read, every stack has a name suggested, with facts
+   QJsonObject given;
+
+   given["type"] = "letter";
+   given["from"] = "The Council";
+   given["date"] = "2026-05";
+   backend->_answer["facts"] = given;
    readable = true;
    backend->_names.clear();
    backend->_asked = 0;
@@ -3681,7 +3727,9 @@ void TestDesktopUi::testSuggestNames()
    QCOMPARE(dialog->names()[pdf_row], QString("Chosen by hand"));
    dialog->setName(pdf_row, "testpdf");
    QCOMPARE(dialog->names()[pdf_row], QString());
-   QCOMPARE(dialog->count(), stacks - 1);
+
+   // though the stack still has its facts to keep, so it still counts
+   QCOMPARE(dialog->count(), stacks);
    dialog->setName(pdf_row, "Chosen by hand");
 
    // a stack which is not ticked keeps its name
@@ -3691,6 +3739,13 @@ void TestDesktopUi::testSuggestNames()
    QCOMPARE(dialog->count(), 2);
    QCOMPARE(dialog->renameText(), QString("&Rename 2 stacks"));
 
+   // the facts which came with the names are shown, and can be put right
+   QCOMPARE(table->item(pdf_row, Namesdialog::col_kind)->text(),
+            QString("letter"));
+   QCOMPARE(table->item(max_row, Namesdialog::col_from)->text(),
+            QString("The Council"));
+   dialog->setFact(pdf_row, Namesdialog::col_kind, "notice");
+
    QPushButton *rename = dialog->findChild<QPushButton *>("rename");
    QVERIFY(rename && rename->isEnabled());
    rename->click();
@@ -3699,10 +3754,20 @@ void TestDesktopUi::testSuggestNames()
    QVERIFY(!QFile::exists(path + "/testpdf.pdf"));
    QVERIFY(!QFile::exists(path + "/testfile.max"));
 
-   // and one undo puts the names back
+   // each stack renamed has its facts, as they were left in the window
+   Docfacts kept = model->facts(model->index("Chosen by hand.pdf", repo_ind));
+   QCOMPARE(kept.type, QString("notice"));
+   QCOMPARE(kept.from, QString("The Council"));
+   QCOMPARE(kept.date, QString("2026-05"));
+   kept = model->facts(model->index(max_name + ".max", repo_ind));
+   QCOMPARE(kept.type, QString("letter"));
+
+   // and one undo puts the names back, and takes the facts away
    me.actionUndo->trigger();
    QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
    QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QVERIFY(model->facts(model->index("testpdf.pdf", repo_ind)).isEmpty());
+   QVERIFY(model->facts(model->index("testfile.max", repo_ind)).isEmpty());
 
    // asking can be given up from the list of work going on
    Backgroundwork *work = Backgroundwork::instance();

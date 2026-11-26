@@ -235,6 +235,29 @@ where it can be stopped. The window of names does not stop you doing
 other things, and only one lot of names is asked for at a time: asking
 again before the first lot has come says so, and does nothing.
 
+Facts about the document
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+With each name the model also says what the text states about the
+document: what kind it is, who it is from, its date, the period it
+covers, its main amount, and a line saying what it is. Nothing more is
+sent to get them. Paperman keeps them in the stack's own file, so they go
+wherever the stack goes, ready for finding papers by more than their
+names.
+
+- For one stack they are kept when you accept the name with **Enter**,
+  whatever you change the name to, and not if you press **Esc**.
+- For several, the window shows the kind, the sender, the date and the
+  amount beside each name, and each can be put right before **Rename**.
+  A stack which is ticked keeps its facts even if its name stays as it
+  is.
+- **Undo** takes them away again, along with the name.
+- A fact which the text does not give is left out, and a date or an
+  amount which is not in a plain form is dropped.
+
+Facts are kept for ``.max`` and PDF stacks on this computer. A JPEG stack
+has nowhere to hold them, and a stack on a server does not keep them yet.
+
 What is sent is the text of up to four of those pages, the first ones
 which say anything, and the names of up to twenty other stacks in its
 folder, which show how you name things. Nothing is sent unless you choose
