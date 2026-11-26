@@ -25,6 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QAbstractItemDelegate>
 #include <QLineEdit>
 #include <QPersistentModelIndex>
+#include <QStyle>
 
 
 class Desktopmodelconv;
@@ -71,6 +72,20 @@ public:
 
    //! paint the delegate
    void paint (QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+
+   /** whether a stack is drawn with the mark of the keyboard focus. The
+       focus is where the arrow keys have got to, which Ctrl lets move
+       without changing what is selected. It is marked only when that
+       says something: on a stack which is not selected, or on one of
+       several which are. A lone selected stack looks as it always has
+
+      \param state     the state the view gives for the stack
+      \param selected  how many stacks are selected
+      \returns true to draw the mark */
+   static bool showsFocus (QStyle::State state, int selected);
+
+   //! how thick the mark of the keyboard focus is drawn, in pixels
+   static constexpr int focus_width = 2;
 
    //! get a size hint for the delegate
    QSize sizeHint (const QStyleOptionViewItem &option, const QModelIndex &index) const;

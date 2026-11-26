@@ -22,6 +22,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <QAbstractItemView>
 #include <QApplication>
 #include <QDebug>
 #include <QFontMetrics>
@@ -444,6 +445,27 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
          utilStylePalette (style), false, measure.title,
          option.state & QStyle::State_Selected
              ? QPalette::HighlightedText : QPalette::WindowText);
+
+   /* mark the stack which has the keyboard focus, round its name: in the
+      colour of a selection where it is not selected, and of the text
+      where it is, so that it shows against the highlight */
+   const QAbstractItemView *view
+         = qobject_cast<const QAbstractItemView *> (option.widget);
+   int selected = view && view->selectionModel ()
+         ? view->selectionModel ()->selectedIndexes ().size () : 0;
+
+   if (showsFocus (option.state, selected))
+      {
+      QPen pen (utilStylePalette (style).color (
+            option.state & QStyle::State_Selected ? QPalette::WindowText
+                                                  : QPalette::Highlight));
+
+      pen.setWidth (focus_width);
+      painter->setPen (pen);
+      painter->setBrush (Qt::NoBrush);
+      painter->drawRect (measure.titleRect.adjusted (-focus_width,
+            -focus_width, focus_width - 1, focus_width - 1));
+      }
    f.setBold (false);
 #ifdef OUTLINE
    painter->setPen (Qt::red);
@@ -482,6 +504,14 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
    painter->drawRect (measure.rect);
 #endif
    painter->restore ();
+   }
+
+
+bool Desktopdelegate::showsFocus (QStyle::State state, int selected)
+   {
+   if (!(state & QStyle::State_HasFocus))
+      return false;
+   return !(state & QStyle::State_Selected) || selected > 1;
    }
 
 
