@@ -419,9 +419,13 @@ err_info *Desktopmodel::opTrashStacks (QModelIndexList &list, QModelIndex parent
          continue;
       // printf ("   row %d: %p, delete %s\n", ind.row (), f,
                   // f->filename ().toLatin1 ().constData());
+      QString from = f->pathname ();
+
       e = f->move (dest, trashname, copy);
       if (e)
          break;
+      if (!copy)
+         emit stackMoved (from, QDir (dest).filePath (trashname));
       del_list << ind;
 //       removeRow (ind.row (), ind.parent ());
       trashlist << trashname;
@@ -500,6 +504,9 @@ err_info *Desktopmodel::opUntrashStacks (QStringList &trashlist, QModelIndex par
             : desk->moveFromDir (src, trashname, fname, fnew);
       if (e)
          break;
+      if (!copy)
+         emit stackMoved (QDir (src.isEmpty () ? desk->trashdir () : src)
+                             .filePath (trashname), fnew->pathname ());
 
       // if we have position/page number information, restore it
       if (!copy && pagepos)

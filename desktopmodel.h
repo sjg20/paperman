@@ -321,6 +321,14 @@ public:
       \returns a pointer to the file information, or 0 if not valid */
    Desk *getDesk (const QModelIndex &index) const;
 
+   /** finds the File which the model has for a stack, given where the
+       stack is. Only folders which have been shown are looked in
+
+      \param pathname  the stack's full path
+      \returns the File, preferring the one in the stack's own folder to
+               one among the results of a search; nullptr if none */
+   File *fileForPath (const QString &pathname) const;
+
    QString &deskRootDir (QModelIndex index);
 
    pagepos_info getPosData (const QModelIndex &index) const;
@@ -1323,6 +1331,13 @@ signals:
    /** emitted when a stack's structure or a page asked for with
        requestContent() or requestPage() has come, or failed to */
    void contentFetched ();
+
+   /** emitted when a stack on this computer has been moved to another
+       folder, or to or from the trash, which gives it another File
+
+      \param from  the full path it had
+      \param to    the full path it has now */
+   void stackMoved (const QString &from, const QString &to);
    /** indicate that we are about to start scanning into an item
 
       \index   item we are scanning into */
