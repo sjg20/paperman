@@ -205,6 +205,9 @@ private slots:
    //! the Background work window is opened from the View menu
    void testBackgroundInViewMenu();
 
+   //! Ctrl with an arrow key moves the focus, which is marked
+   void testStackFocus();
+
    //! A name from the assistant is offered in the name editor
    void testSuggestName();
 

@@ -153,6 +153,11 @@ book (see `Cropping`_).
 - Click a stack to select it, Ctrl-click to add more, and **Edit > Select
   all** (Ctrl+A) to select every one. The arrow keys move from stack to
   stack.
+- To pick several with the keyboard, hold Ctrl with the arrow keys: an
+  outline moves round a stack's name without selecting it, and
+  Ctrl+Space adds that stack to those selected, or takes it away. The
+  preview stays with what is selected, since that is what a menu item
+  or a shortcut works on.
 - **Tools > Arrange** lines the stacks up by name or by date, or leaves
   them where you put them.
 - Double-click a stack to open it in the page view.

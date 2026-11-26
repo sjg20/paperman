@@ -113,22 +113,71 @@ QModelIndex Desktopview::rootIndexSource (void)
    }
 
 
-void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &)
+QModelIndex Desktopview::previewTarget () const
    {
+   QModelIndex current = currentIndex ();
+   QItemSelectionModel *sel = selectionModel ();
+
+   if (!sel || !sel->hasSelection ())
+      return current;
+   if (current.isValid () && sel->isSelected (current))
+      return current;
+
+   /* the focus is on a stack which is not selected: with one stack
+      selected that is the one to show, and with several the preview
+      stays as it is */
+   const QModelIndexList list = sel->selectedIndexes ();
+
+   return list.size () == 1 ? list [0] : QModelIndex ();
+   }
+
+
+void Desktopview::preview (const QModelIndex &index)
+   {
+   QString str = index.model ()->data (index, Desktopmodel::Role_message).toString ();
+
+   _previewed = index;
+   emit newContents (str);
+   emit itemPreview (index, 0, false);
+   }
+
+
+void Desktopview::currentChanged (const QModelIndex &index, const QModelIndex &previous)
+   {
+   // the stack which the selection changing has just shown, if any
+   QModelIndex just_shown = _shown_by_selection;
+
+   _shown_by_selection = QModelIndex ();
+
+   // the focus mark moves, so both stacks are drawn again
+   if (index.isValid ())
+      update (index);
+   if (previous.isValid ())
+      update (previous);
    if (index == QModelIndex ())
+      {
       emit pageLost (); // no longer displaying a page
-   else
+      return;
+      }
+
+   /* a press may be the start of a drag into the pages of the stack
+      now shown, so that stack stays shown until the button comes up. The
+      press moves the focus before it selects anything, so what to show
+      is worked out then */
+   if (_pressing)
       {
       QString str = index.model ()->data (index, Desktopmodel::Role_message).toString ();
-      emit newContents (str);
 
-      /* a press may be the start of a drag into the pages of the stack
-         now shown, so that stack stays shown until the button comes up */
-      if (_pressing)
-         _heldPreview = true;
-      else
-         emit itemPreview (index, 0, false);
+      emit newContents (str);
+      _heldPreview = true;
+      return;
       }
+
+   /* the focus can move without the selection, which is what Ctrl with an
+      arrow key does: the preview then stays with what is selected. An
+      arrow key alone selects the stack first, which shows it already */
+   if (previewTarget () == index && index != just_shown)
+      preview (index);
    }
 
 
@@ -137,9 +186,12 @@ void Desktopview::showHeldPreview (void)
    if (!_heldPreview)
       return;
    _heldPreview = false;
-   // as when the current stack changes at any other time
-   if (currentIndex ().isValid ())
-      emit itemPreview (currentIndex (), 0, false);
+
+   // as when the stack to show changes at any other time
+   QModelIndex target = previewTarget ();
+
+   if (target.isValid ())
+      preview (target);
    }
 
 
@@ -175,6 +227,28 @@ void Desktopview::selectionChanged(const QItemSelection &sel,
 {
    QListView::selectionChanged(sel, desel);
    emit newSelection();
+
+   // whether the focus is marked depends on how many are selected
+   if (currentIndex ().isValid ())
+      update (currentIndex ());
+
+   /* selecting the stack which has the focus, with Space, changes what
+      is selected without moving the focus: show it, as a click would.
+      While the button is down the preview is held, as for the focus */
+   QModelIndex target = previewTarget ();
+
+   if (!target.isValid () || target == _previewed)
+      return;
+   if (_pressing)
+      {
+      _heldPreview = true;
+      return;
+      }
+   preview (target);
+
+   /* an arrow key selects a stack and then moves the focus to it, which
+      would show it again */
+   _shown_by_selection = target;
 }
 
 void Desktopview::slotIndexesMoved (const QModelIndexList &indexes)

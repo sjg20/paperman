@@ -9,6 +9,8 @@
 #include <QSemaphore>
 #include <QMenu>
 #include <QContextMenuEvent>
+#include <QPainter>
+#include <QItemSelectionModel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
@@ -2825,6 +2827,136 @@ void TestDesktopUi::testBackgroundInViewMenu()
    QVERIFY(work);
    QVERIFY(work->isVisible());
    work->close();
+}
+
+/* Ctrl with an arrow key moves the keyboard focus without changing what
+   is selected, as in any list, so that Ctrl+Space can add the stack it
+   reaches. The focus is marked, and the preview stays with what is
+   selected, since that is what anything done next works on */
+void TestDesktopUi::testStackFocus()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopview *view = me.getDesktop()->getView();
+   QItemSelectionModel *sel = view->selectionModel();
+   QStringList shown;
+
+   connect(view, &Desktopview::itemPreview, &me,
+           [&shown](const QModelIndex &ind, int, bool) {
+      shown << ind.data().toString();
+   });
+
+   auto selected = [&]() {
+      QStringList names;
+
+      for (const QModelIndex &ind : sel->selectedIndexes())
+         names << ind.data().toString();
+      names.sort();
+      return names;
+   };
+
+   // the two stacks, in the order they are across the desk
+   QModelIndex left = itemIndex(view, 0), right = itemIndex(view, 1);
+   if (view->visualRect(left).left() > view->visualRect(right).left())
+      std::swap(left, right);
+   const QString lname = left.data().toString();
+   const QString rname = right.data().toString();
+
+   // a click selects a stack, puts the focus on it and shows it
+   QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     view->visualRect(right).center());
+   QCOMPARE(selected(), QStringList(rname));
+   QCOMPARE(view->currentIndex(), right);
+   QCOMPARE(shown.value(shown.size() - 1), rname);
+
+   // Ctrl with an arrow moves the focus only: the same stack is shown
+   int before = shown.size();
+   QTest::keyClick(view, Qt::Key_Left, Qt::ControlModifier);
+   QCOMPARE(view->currentIndex(), left);
+   QCOMPARE(selected(), QStringList(rname));
+   QCOMPARE(int(shown.size()), before);
+
+   // Ctrl+Space adds the stack with the focus to those selected
+   QTest::keyClick(view, Qt::Key_Space, Qt::ControlModifier);
+   QStringList both({lname, rname});
+   both.sort();
+   QCOMPARE(selected(), both);
+
+   // and takes it away again, leaving the first, which is still shown
+   QTest::keyClick(view, Qt::Key_Space, Qt::ControlModifier);
+   QCOMPARE(selected(), QStringList(rname));
+   QCOMPARE(view->currentIndex(), left);
+   QCOMPARE(shown.value(shown.size() - 1), rname);
+
+   /* Space alone selects the stack with the focus as well, and since it
+      is now selected it is the one shown */
+   QTest::keyClick(view, Qt::Key_Space);
+   QCOMPARE(selected(), both);
+   QCOMPARE(shown.value(shown.size() - 1), lname);
+
+   // a plain arrow moves the selection, the focus and the preview, once
+   before = shown.size();
+   QTest::keyClick(view, Qt::Key_Right);
+   QCOMPARE(selected(), QStringList(rname));
+   QCOMPARE(view->currentIndex(), right);
+   QCOMPARE(int(shown.size()), before + 1);
+   QCOMPARE(shown.last(), rname);
+
+   // and so does a click, which shows the stack when the button comes up
+   before = shown.size();
+   QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     view->visualRect(left).center());
+   QCOMPARE(selected(), QStringList(lname));
+   QCOMPARE(int(shown.size()), before + 1);
+   QCOMPARE(shown.last(), lname);
+   QTest::keyClick(view, Qt::Key_Right);
+   QCOMPARE(selected(), QStringList(rname));
+
+   /* the focus is marked where it says something: on a stack which is not
+      selected, or on one of several which are */
+   QStyle::State focus = QStyle::State_HasFocus | QStyle::State_Enabled;
+   QVERIFY(!Desktopdelegate::showsFocus(focus | QStyle::State_Selected, 1));
+   QVERIFY(Desktopdelegate::showsFocus(focus, 1));
+   QVERIFY(Desktopdelegate::showsFocus(focus, 0));
+   QVERIFY(Desktopdelegate::showsFocus(focus | QStyle::State_Selected, 2));
+   QVERIFY(!Desktopdelegate::showsFocus(QStyle::State_Selected, 2));
+   QVERIFY(!Desktopdelegate::showsFocus(QStyle::State_Enabled, 0));
+
+   /* and it is drawn: with the focus moved to the stack which is not
+      selected, that stack looks different, and the other does not */
+   view->setFocus();
+   QTRY_VERIFY(view->hasFocus());
+   auto look = [&](const QModelIndex &ind) {
+      return view->viewport()->grab(view->visualRect(ind)).toImage();
+   };
+   QCOMPARE(selected(), QStringList(rname));
+   QCOMPARE(view->currentIndex(), right);
+   QImage left_plain = look(left), right_alone = look(right);
+
+   QTest::keyClick(view, Qt::Key_Left, Qt::ControlModifier);
+   QCOMPARE(view->currentIndex(), left);
+   QVERIFY(look(left) != left_plain);
+   QCOMPARE(look(right), right_alone);
+
+   // back on the lone selected stack, both look as they did
+   QTest::keyClick(view, Qt::Key_Right, Qt::ControlModifier);
+   QCOMPARE(view->currentIndex(), right);
+   QCOMPARE(look(left), left_plain);
+   QCOMPARE(look(right), right_alone);
+
+   // with both selected, the one with the focus is marked
+   QTest::keyClick(view, Qt::Key_Left, Qt::ControlModifier);
+   QTest::keyClick(view, Qt::Key_Space, Qt::ControlModifier);
+   QCOMPARE(selected(), both);
+   QImage left_focus = look(left);
+   QTest::keyClick(view, Qt::Key_Right, Qt::ControlModifier);
+   QCOMPARE(view->currentIndex(), right);
+   QVERIFY(look(left) != left_focus);
+   QVERIFY(look(right) != right_alone);
 }
 
 void TestDesktopUi::testSuggestName()

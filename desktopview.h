@@ -280,6 +280,24 @@ private:
    void showHeldPreview (void);
 
 private:
+   /** the stack which the preview should show: the one with the keyboard
+       focus if it is selected, or else the only one selected. Moving the
+       focus alone, with Ctrl and an arrow key, leaves the preview with
+       what is selected, since that is what anything done next works on
+
+      \returns the stack, or an invalid index to leave the preview as it is */
+   QModelIndex previewTarget () const;
+
+   //! show a stack in the preview, and say so in the status bar
+   void preview (const QModelIndex &index);
+
+   //! the stack last shown in the preview by preview()
+   QPersistentModelIndex _previewed;
+
+   //! the stack which a change of selection has just shown, until the
+   //! focus next moves
+   QPersistentModelIndex _shown_by_selection;
+
    bool _pressing = false;      //!< true while the left button is down
    //! true if the current stack changed while pressed and is yet to be shown
    bool _heldPreview = false;
