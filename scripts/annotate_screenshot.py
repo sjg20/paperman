@@ -44,7 +44,7 @@ LABELS = {
         ('menu', 'Menu bar', 'top', (0.1, 0.5), False),
         ('toolbar', 'Main toolbar', 'top', (0.6, 0.5), True),
         ('stack-tools', 'Stack toolbar', 'top', (0.4, 0.5), False),
-        ('filter', 'Filter', 'top', (0.5, 0.5), False),
+        ('filter', 'Find', 'top', (0.5, 0.5), False),
         ('page-tools', 'Page toolbar', 'top', (0.5, 0.5), False),
         ('folders', 'Folder pane', 'in', (0.5, 0.75), True),
         ('stack', 'Stack', 'in', (0.5, 1.0), True, (0.281, 0.48)),

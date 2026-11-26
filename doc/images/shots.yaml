@@ -108,9 +108,9 @@ shots:
     made: test
     test: testMoveToFolder
     shows: ['@folders', '@papers']
-  filter.png:
+  find.png:
     made: test
-    test: testFilter
+    test: testFind
     shows: ['@window', '@papers']
   page-remove-labelled.png:
     made: test

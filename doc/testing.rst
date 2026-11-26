@@ -6,7 +6,7 @@ directory model, search server, and OCR indexing.
 
 Two suites drive the application through real UI events rather than calling
 operations directly: ``TestDesktopUi`` covers desktop interactions (clicking
-and double-clicking stacks, toolbar navigation, filtering, folder search and
+and double-clicking stacks, toolbar navigation, finding, folder search and
 the directory tree) and ``TestPagewidget`` covers the page view (thumbnail
 selection, zoom and display rotation). These run the ``Mainwindow`` with the
 offscreen platform plugin and use ``QTest`` mouse and keyboard events, so

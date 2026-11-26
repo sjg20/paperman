@@ -97,6 +97,23 @@ Processing
    * - **Ctrl+R**
      - Put the pages of each stack in the opposite order
 
+Finding
+~~~~~~~
+
+These work in the **Find** box above the stack pane (see :doc:`finding`).
+
+.. list-table::
+   :widths: 30 70
+
+   * - **Enter**, **F3**, **Down**
+     - Go to the next stack found
+   * - **Shift+Enter**, **Shift+F3**, **Up**
+     - Go to the one before
+   * - **Ctrl+Enter**
+     - Select every stack found
+   * - **Esc**
+     - Stop finding, leaving the stack found selected
+
 Duplicating
 ~~~~~~~~~~~
 

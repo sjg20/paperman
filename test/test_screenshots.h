@@ -68,8 +68,8 @@ private slots:
    //! Moving a stack to another folder, chosen by part of its name
    void testMoveToFolder();
 
-   //! The stacks of a folder, filtered by name
-   void testFilter();
+   //! Finding stacks in a folder by part of their names
+   void testFind();
 
    //! A page marked to be removed, beside one kept
    void testRemovePage();

@@ -3,15 +3,32 @@ Finding
 
 Paperman finds stacks by their names and by the words on their pages.
 
-The filter
-----------
+Finding a stack in its folder
+-----------------------------
 
 To pick a stack out of a busy folder, type part of its name in the
-**Filter** box above the stack pane. Only the stacks whose names have
-those letters in them are shown; **Cancel filter** shows them all again.
+**Find** box above the stack pane. The stacks whose names have those
+letters in them are marked, and the rest are shown faintly. Every stack
+stays where it is, so a stack found is still in the same place when you
+have finished.
 
-.. image:: images/filter.png
-   :alt: A month's bills filtered by typing bill, showing the power, gas and water bills
+.. image:: images/find.png
+   :alt: A month's bills with bill typed in the Find box: the power, gas and water bills are marked, the gas bill is selected and the other stacks are faint
+
+The first stack found is selected, and shown in the preview pane. The
+count beside the box says which one it is and how many there are, such as
+*2 of 3*, or *None* if no name has the letters in.
+
+- **Enter** (or **F3**, or the down arrow) goes to the next stack found,
+  and **Shift+Enter** (**Shift+F3**, or the up arrow) to the one before.
+  After the last comes the first again.
+- **Ctrl+Enter** selects every stack found, to move, stack or delete them
+  together.
+- **Esc**, or the **Clear** button, stops finding: the stacks are all
+  shown as usual, the one found is still selected and in view, and the
+  keyboard works on it.
+
+Going to another folder stops the finding too.
 
 Searching
 ---------
