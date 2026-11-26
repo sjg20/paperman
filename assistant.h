@@ -144,11 +144,24 @@ public:
    //! the most text of a stack's pages which is sent to name it
    static constexpr int name_text_chars = 6000;
 
-   //! how many pages of a stack are looked at to name it
-   static constexpr int name_pages = 2;
+   /** how many of a stack's first pages are looked at to name it; how
+       many of those which say something are sent; and the most text of
+       each. A cover's title is often in type which OCR cannot read, and
+       the page after it blank, so the title is found a few pages in */
+   static constexpr int name_look_pages = 8;
+   static constexpr int name_pages = 4;
+   static constexpr int name_page_chars = 2000;
 
    //! how many names of other stacks are given, as the style to follow
    static constexpr int name_examples = 20;
+
+   /** the text to name a stack from: what its first pages say, each under
+       its page number, leaving out those which say nothing
+
+      \param pages  what each of the stack's first pages says, from the
+                    first; an empty string for one which says nothing
+      \returns the text, empty if no page says anything */
+   static QString nameText (const QStringList &pages);
 
    /** suggest a name for a stack
 

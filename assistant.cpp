@@ -213,9 +213,30 @@ QString Assistant::namePrompt (const QString &text,
    QString prompt = examplesPrompt (examples);
 
    prompt += "Text read from the first pages of the document, which may "
-             "have mistakes from OCR:\n\n";
+             "have mistakes from OCR. Large or decorative type, as on a "
+             "cover, is often missing from it, so a later page may give a "
+             "title more fully than the first:\n\n";
    prompt += text.left (name_text_chars);
    return prompt;
+   }
+
+
+QString Assistant::nameText (const QStringList &pages)
+   {
+   QString text;
+   int used = 0;
+
+   for (int i = 0; i < pages.size () && used < name_pages; i++)
+      {
+      QString page = pages [i].trimmed ();
+
+      if (page.isEmpty ())
+         continue;
+      text += QString ("=== Page %1 ===\n%2\n\n").arg (i + 1)
+                 .arg (page.left (name_page_chars));
+      used++;
+      }
+   return text;
    }
 
 
@@ -241,7 +262,9 @@ void Assistant::suggestName (const QString &text,
       "You name scanned documents for a personal filing system. Given the "
       "text of a document, reply with a short, specific name for it: what "
       "it is, who it is from and the period or date it covers, as far as "
-      "the text says. Follow the style of the other names in the folder, "
+      "the text says. A book or a report is named by its title, in full, "
+      "main title first: take it from whichever page gives it most fully. "
+      "Follow the style of the other names in the folder, "
       "if any are given. Use only what the text says: do not guess a "
       "sender or a date which is not there. No file extension.";
    QJsonObject name_type, props, schema;
