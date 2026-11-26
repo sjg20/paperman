@@ -36,6 +36,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "desktopdelegate.h"
 #include "utils.h"
 #include "desktopmodel.h"
+#include "desktopview.h"
 
 
 /*
@@ -416,6 +417,16 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
    measureItem (option, index, measure, &offset);
    painter->save ();
 
+   /* while stacks are being found by name, those which are not it are
+      drawn faintly, where they are, so that what is found stands out but
+      nothing moves */
+   const Desktopview *finder = qobject_cast<const Desktopview *> (option.widget);
+   bool finding = finder && !finder->find ().isEmpty ();
+   bool is_found = finding && finder->isFound (index);
+
+   if (finding && !is_found)
+      painter->setOpacity (faint_opacity);
+
 // #define OUTLINE
    QStyle *style = QApplication::style();
 
@@ -441,6 +452,15 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
       }
    if (option.state & QStyle::State_Selected)
       painter->fillRect (measure.titleRect, utilStylePalette (style).color(QPalette::Highlight));
+
+   // a stack found has its name marked, more lightly than a selection
+   else if (is_found)
+      {
+      QColor mark = utilStylePalette (style).color (QPalette::Highlight);
+
+      mark.setAlpha (found_alpha);
+      painter->fillRect (measure.titleRect, mark);
+      }
    style->drawItemText (painter, measure.titleRect, Qt::AlignHCenter,
          utilStylePalette (style), false, measure.title,
          option.state & QStyle::State_Selected

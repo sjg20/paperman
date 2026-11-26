@@ -1161,6 +1161,73 @@ void Desktopview::startDrag (Qt::DropActions supportedActions)
 
 
 
+void Desktopview::setFind (const QString &text)
+   {
+   if (text == _find)
+      return;
+   _find = text;
+   viewport ()->update ();
+   }
+
+
+bool Desktopview::isFound (const QModelIndex &index) const
+   {
+   return !_find.isEmpty () && index.isValid ()
+      && index.data (Qt::DisplayRole).toString ().contains (_find,
+                                                    Qt::CaseInsensitive);
+   }
+
+
+QModelIndexList Desktopview::inOrder () const
+   {
+   QModelIndexList list;
+
+   if (!model ())
+      return list;
+
+   QModelIndex root = rootIndex ();
+   QList<QPair<QRect, QModelIndex>> items;
+
+   for (int row = 0; row < model ()->rowCount (root); row++)
+      {
+      QModelIndex ind = model ()->index (row, 0, root);
+
+      if (!isIndexHidden (ind))
+         items << qMakePair (rectForIndex (ind), ind);
+      }
+
+   /* stacks are put where the user likes, so a row is those whose tops are
+      within half a stack's height of each other */
+   std::sort (items.begin (), items.end (),
+              [] (const QPair<QRect, QModelIndex> &a,
+                  const QPair<QRect, QModelIndex> &b) {
+      int slack = qMin (a.first.height (), b.first.height ()) / 2;
+
+      if (qAbs (a.first.top () - b.first.top ()) > slack)
+         return a.first.top () < b.first.top ();
+      if (a.first.left () != b.first.left ())
+         return a.first.left () < b.first.left ();
+      return a.second.row () < b.second.row ();
+   });
+   for (const auto &item : items)
+      list << item.second;
+   return list;
+   }
+
+
+QModelIndexList Desktopview::found () const
+   {
+   QModelIndexList list;
+
+   if (_find.isEmpty ())
+      return list;
+   for (const QModelIndex &ind : inOrder ())
+      if (isFound (ind))
+         list << ind;
+   return list;
+   }
+
+
 QModelIndex Desktopview::moveCursor (CursorAction action,
                                      Qt::KeyboardModifiers modifiers)
    {

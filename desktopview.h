@@ -81,6 +81,26 @@ public:
    QModelIndexList getSelectedListSource (bool multiple = true)
       { return getSelectedList (multiple, true); }
 
+   /** set the text which stacks are being found by. The stacks whose
+       names have it in, whatever its case, are picked out where they are,
+       and the rest are drawn faintly; none is hidden
+
+      \param text  the text, or empty to find nothing and draw all as usual */
+   void setFind (const QString &text);
+
+   //! the text which stacks are being found by, empty if none
+   QString find () const { return _find; }
+
+   //! true if a stack's name has the text being found in it
+   bool isFound (const QModelIndex &index) const;
+
+   //! every stack shown, in the order they are read: across the desk,
+   //! then down
+   QModelIndexList inOrder () const;
+
+   //! the stacks found, in that order; none when nothing is being found
+   QModelIndexList found () const;
+
    //! true while a name is being typed in for a stack or a page
    bool editing () const { return state () == EditingState; }
 
@@ -323,6 +343,8 @@ private:
    //! the stack which a change of selection has just shown, until the
    //! focus next moves
    QPersistentModelIndex _shown_by_selection;
+
+   QString _find;               //!< the text stacks are being found by
 
    bool _pressing = false;      //!< true while the left button is down
 
