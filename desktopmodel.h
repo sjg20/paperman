@@ -44,6 +44,8 @@ class QFontMetrics;
 
 class Desk;
 class Desktopitem;
+class Backgroundjob;
+
 class Desktopmodelconv;
 class Desktopundostack;
 class Filepage;
@@ -1704,6 +1706,9 @@ private:
    //! fetch what the next stack lacks, or finish once none does
    void fetchNext (std::shared_ptr<FetchJob> job);
 
+   //! a fetch is waiting for @p f: show it with the work going on
+   void fetchWaiting (std::shared_ptr<FetchJob> job, File *f);
+
    //! move the next stack of @p job, or finish it
    void trashNext (std::shared_ptr<TrashJob> job);
 
@@ -1712,6 +1717,12 @@ private:
 
    //! operations waiting their turn; see queueOp()
    QQueue<std::function<void ()> > _ops;
+
+   //! show how many changes are on their way to a server, if any
+   void showOps (void);
+
+   //! the changes on their way to a server, as the user sees them
+   Backgroundjob *_opsJob = nullptr;
 
    //! true while an operation is running
    bool _opBusy = false;

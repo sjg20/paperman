@@ -14,6 +14,7 @@ License: GPL-2
 #include <QtConcurrent>
 #include <QtTest/QtTest>
 
+#include "backgroundwork.h"
 #include "test.h"
 
 #include "../backendstats.h"
@@ -1866,6 +1867,106 @@ void TestAsync::testFetchStacks ()
    QVERIFY2 (!err, err ? err->errstr : "");
    for (int pagenum = 0; pagenum < 5; pagenum++)
       QVERIFY (model->pageHere (stack, pagenum));
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+/* A fetch from a server is listed with the work going on, and can be
+   given up there: whatever wanted the stacks is told it was stopped */
+void TestAsync::testFetchStopped ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   Backgroundwork *work = Backgroundwork::instance ();
+   QModelIndex stack = stackIndex ();
+   bool done = false;
+   int errnum = 0;
+
+   auto fetching = [work] () -> Backgroundjob * {
+      for (Backgroundjob *job : work->jobs ())
+         if (job->title () == "Fetching from the server")
+            return job;
+      return nullptr;
+   };
+
+   QVERIFY (!fetching ());
+   QVERIFY (!model->pageHere (stack, 4));
+   model->fetchStacksLater (QModelIndexList () << stack, [&] (err_info *e) {
+      errnum = e ? e->errnum : 0;
+      done = true;
+   });
+   QVERIFY (!done);
+
+   Backgroundjob *job = fetching ();
+
+   QVERIFY (job);
+   QVERIFY (job->stoppable ());
+   QVERIFY (!job->detail ().isEmpty ());
+   job->requestStop ();
+   QVERIFY (done);
+   QCOMPARE (errnum, int (ERR_operation_cancelled1));
+   QTRY_VERIFY (!fetching ());
+
+   // what had been asked for still comes, and is not reported again
+   done = false;
+   QTest::qWait (kDelayMs * 3);
+   QVERIFY (!done);
+
+   // a fetch left alone finishes, and goes from the list
+   model->fetchStacksLater (QModelIndexList () << stack, [&] (err_info *e) {
+      errnum = e ? e->errnum : 0;
+      done = true;
+   });
+   QTRY_VERIFY_WITH_TIMEOUT (done, kDelayMs * 20);
+   QCOMPARE (errnum, 0);
+   QTRY_VERIFY (!fetching ());
+   CHECK_ASYNC (check, nullptr);
+   }
+
+
+/* Changes on their way to a server are listed while they are, to watch:
+   each is something the user did, so they cannot be dropped */
+void TestAsync::testChangesListed ()
+   {
+   connectServer ();
+   openFolder ();
+
+   AsyncCheck check;
+   Desktopmodel *model = _desktop->getModel ();
+   Backgroundwork *work = Backgroundwork::instance ();
+
+   auto sending = [work] () -> Backgroundjob * {
+      for (Backgroundjob *job : work->jobs ())
+         if (job->title () == "Sending changes to the server")
+            return job;
+      return nullptr;
+   };
+
+   QVERIFY (!sending ());
+   QVERIFY (!model->opsPending ());
+
+   int reported = 0;
+
+   for (int i = 0; i < 3; i++)
+      model->queueOp ([] (Desktopmodel::OpDone done) {
+         QTimer::singleShot (kDelayMs / 5, [done] () { done (NULL); });
+      }, [&reported] (err_info *) { reported++; }, true);
+   QVERIFY (model->opsPending ());
+
+   Backgroundjob *job = sending ();
+
+   QVERIFY (job);
+   QVERIFY (!job->stoppable ());
+   QCOMPARE (job->detail (), QString ("2 more waiting"));
+   QTRY_COMPARE (reported, 2);
+   QVERIFY (sending ());
+   QCOMPARE (sending ()->detail (), QString ());
+   QTRY_COMPARE (reported, 3);
+   QTRY_VERIFY (!model->opsPending ());
+   QVERIFY (!sending ());
    CHECK_ASYNC (check, nullptr);
    }
 
