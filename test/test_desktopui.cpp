@@ -25,6 +25,7 @@
 #include <QUrlQuery>
 #include <QtTest/QtTest>
 
+#include "activitydialog.h"
 #include "test.h"
 #include "backgrounddialog.h"
 #include "backgroundwork.h"
@@ -961,6 +962,124 @@ void TestDesktopUi::testFindStacks()
    desktop->selectDir(dir_ind);
    QTRY_VERIFY(view->find().isEmpty());
    QCOMPARE(match->text(), QString());
+}
+
+/* The Activity window lists what has been done, the newest first, and
+   choosing a line shows the stack it is about where that stack is now */
+void TestDesktopUi::testActivityWindow()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString root = model->deskToDirname(repo_ind);
+   auto selected = [&]() {
+      QStringList out;
+
+      for (const QModelIndex &ind : view->selectionModel()->selectedIndexes())
+         out << ind.data(Desktopmodel::Role_filename).toString();
+      out.sort();
+      return out;
+   };
+   auto shown = [&]() { return QDir(model->getDirPath()); };
+
+   // with nothing done yet, the window says so
+   me.actionActivity->trigger();
+   Activitydialog *dialog = me.findChild<Activitydialog *>();
+   QVERIFY(dialog);
+   QCOMPARE(QDir(dialog->root()), QDir(root));
+   QVERIFY(dialog->listed().isEmpty());
+
+   // a stack is renamed, and another moved to a folder
+   model->renameStack(model->index("testfile.max", repo_ind), "letter");
+   QModelIndexList list{model->index("testpdf.pdf", repo_ind)};
+   QString dest = root + "main/";
+   QStringList made;
+   model->moveToDir(list, repo_ind, dest, made);
+
+   // the window follows, with the newest at the top
+   QTRY_COMPARE(int(dialog->listed().size()), 2);
+   QCOMPARE(dialog->listed(), QStringList({
+      "Moved 'testpdf.pdf' from the top folder to main",
+      "Renamed 'testfile' to 'letter'"}));
+   QVERIFY(!dialog->isUndone(0));
+
+   // choosing the move shows the stack where it went
+   dialog->choose(0);
+   QTRY_COMPARE(shown(), QDir(dest));
+   QTRY_COMPARE(selected(), QStringList("testpdf.pdf"));
+   QCOMPARE(dialog->status(), QString("'testpdf.pdf' is now in main."));
+
+   // and the rename, the stack under the name it has now
+   dialog->choose(1);
+   QTRY_COMPARE(shown(), QDir(root));
+   QTRY_COMPARE(selected(), QStringList("letter.max"));
+   QCOMPARE(dialog->status(),
+            QString("'letter' is now in the top folder."));
+
+   /* the move is undone: that is a line of its own, the move is marked,
+      and choosing either shows the stack back where it was */
+   model->getUndoStack()->undo();
+   QTRY_COMPARE(int(dialog->listed().size()), 3);
+   QVERIFY(dialog->listed()[0].startsWith("Undid: Moved 'testpdf.pdf'"));
+   QCOMPARE(dialog->listed()[1],
+            QString("Moved 'testpdf.pdf' from the top folder to main "
+                    "(undone)"));
+   QVERIFY(dialog->isUndone(1));
+   QVERIFY(!dialog->isUndone(2));
+   dialog->choose(1);
+   QTRY_COMPARE(selected(), QStringList("testpdf.pdf"));
+   QCOMPARE(shown(), QDir(root));
+   dialog->choose(0);
+   QCOMPARE(dialog->status(),
+            QString("'testpdf.pdf' is now in the top folder."));
+
+   // two named together are under one line, which opens to show them
+   QModelIndexList both{model->index("letter.max", repo_ind),
+                        model->index("testpdf.pdf", repo_ind)};
+   QCOMPARE(model->renameStacks(both, {"bank letter", "power bill"}), 2);
+   QTRY_COMPARE(int(dialog->listed().size()), 4);
+   QCOMPARE(dialog->listed()[0], QString("Name stacks (2)"));
+   QCOMPARE(dialog->listedUnder(0), QStringList({
+      "Renamed 'letter' to 'bank letter'",
+      "Renamed 'testpdf.pdf' to 'power bill.pdf'"}));
+
+   // the line for the whole goes to the first, and each to its own
+   dialog->choose(0);
+   QTRY_COMPARE(selected(), QStringList("bank letter.max"));
+   dialog->choose(0, 1);
+   QTRY_COMPARE(selected(), QStringList("power bill.pdf"));
+
+   // the first rename of all still leads to the stack as it is now
+   dialog->choose(3);
+   QTRY_COMPARE(selected(), QStringList("bank letter.max"));
+
+   // a page which was turned is shown at that page
+   model->transformPage(model->index("bank letter.max", repo_ind), 2,
+                        File::Transform_rotate90);
+   QTRY_COMPARE(dialog->listed()[0],
+                QString("Turned page 3 of 'bank letter'"));
+   dialog->choose(4);   // away, to the first rename again
+   dialog->choose(0);
+   QTRY_COMPARE(model->data(model->index("bank letter.max", repo_ind),
+                            Desktopmodel::Role_pagenum).toInt(), 2);
+
+   // a stack which is deleted cannot be shown, and the window says so
+   list = QModelIndexList{model->index("power bill.pdf", repo_ind)};
+   model->trashStacks(list, repo_ind);
+   QTRY_COMPARE(dialog->listed()[0], QString("Deleted 'power bill.pdf'"));
+   dialog->choose(1);
+   QTRY_COMPARE(selected(), QStringList("bank letter.max"));
+   dialog->choose(0);
+   QVERIFY(dialog->status().contains("has since been deleted"));
+   QCOMPARE(selected(), QStringList("bank letter.max"));
+
+   // the window keeps the keyboard, to go on down the list
+   QVERIFY(!view->hasFocus());
 }
 
 void TestDesktopUi::testSearchAndLocate()

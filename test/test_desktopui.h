@@ -123,6 +123,9 @@ private slots:
    //! Typing in the Find box picks stacks out without hiding any
    void testFindStacks();
 
+   //! The Activity window lists what was done and goes to each stack
+   void testActivityWindow();
+
    //! Test searching folders for a stack and locating its folder
    void testSearchAndLocate();
 

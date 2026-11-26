@@ -59,6 +59,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qstatusbar.h"
 #include "qstring.h"
 
+#include "activitydialog.h"
 #include "backgrounddialog.h"
 #include "blockwatch.h"
 #include "camera.h"
@@ -602,6 +603,37 @@ void Mainwindow::on_actionBackground_triggered (bool)
    _background->show ();
    _background->raise ();
    _background->activateWindow ();
+   }
+
+
+void Mainwindow::on_actionActivity_triggered (bool)
+   {
+   Desktopwidget *desktop = _main->getDesktop ();
+   Desktopmodel *model = desktop->getModel ();
+
+   if (!_activity)
+      {
+      _activity = new Activitydialog (this);
+      connect (_activity, &Activitydialog::stackChosen, desktop,
+               [desktop] (const QString &pathname, int page) {
+         desktop->showStack (pathname, page);
+      });
+
+      // it follows the record as it grows, and the repository shown
+      connect (model, &Desktopmodel::activityRecorded, _activity,
+               [this] (const QString &root) {
+         if (QDir (root) == QDir (_activity->root ()))
+            _activity->refresh ();
+      });
+      connect (model, &Desktopmodel::dirChanged, _activity,
+               [this, model] (QString &dirPath, QModelIndex &) {
+         _activity->setRoot (model->activityRoot (dirPath));
+      });
+      }
+   _activity->setRoot (model->activityRoot (model->getDirPath ()));
+   _activity->show ();
+   _activity->raise ();
+   _activity->activateWindow ();
    }
 
 

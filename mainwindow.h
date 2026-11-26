@@ -31,6 +31,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 class QProgressBar;
 class QPushButton;
 
+class Activitydialog;
 class Backgrounddialog;
 
 class Desktopwidget;
@@ -173,6 +174,7 @@ public slots:
 
     //! show the work going on in the background, which can be stopped there
     void on_actionBackground_triggered(bool);
+    void on_actionActivity_triggered(bool);
 
     void welcome ();
 
@@ -230,6 +232,7 @@ private:
 
     //! the window showing the work going on in the background, once asked for
     Backgrounddialog *_background = nullptr;
+    Activitydialog *_activity = nullptr;   //!< the window of what was done
 
     //! true once the user has agreed to quit while pages are being read
     bool _quit_agreed = false;
