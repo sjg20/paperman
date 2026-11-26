@@ -94,6 +94,7 @@ TRANSLATIONS = maxview_en.ts
 
 HEADERS += desktopwidget.h \
    backgrounddialog.h \
+   namesdialog.h \
    folderlist.h \
    foldersel.h \
    mainwidget.h \
@@ -206,6 +207,7 @@ HEADERS += desktopwidget.h \
 
 SOURCES += desktopwidget.cpp \
    backgrounddialog.cpp \
+   namesdialog.cpp \
    folderlist.cpp \
    mainwidget.cpp \
    desk.cpp \

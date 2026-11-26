@@ -25,6 +25,8 @@
 
 #include "test.h"
 #include "backgrounddialog.h"
+#include "backgroundwork.h"
+#include "namesdialog.h"
 
 #include "desktopdelegate.h"
 #include "desktopmodel.h"
@@ -3132,6 +3134,56 @@ void TestDesktopUi::testSuggestNameReadsPages()
    desktop->_name_engine = nullptr;
    desktop->_assistant = nullptr;
    QSettings().remove("assistant");
+}
+
+/* The window for checking suggested names gives back only what is to
+   be done: the stacks ticked, with a name which is not the one they have */
+void TestDesktopUi::testNamesDialog()
+{
+   Namesdialog dialog;
+   QTableWidget *table = dialog.findChild<QTableWidget *>("names");
+   QPushButton *rename = dialog.findChild<QPushButton *>("rename");
+
+   QVERIFY(table && rename);
+   QVERIFY(!rename->isEnabled());
+   QCOMPARE(dialog.renameText(), QString("&Rename 0 stacks"));
+
+   dialog.setNames(QStringList({"26-Nov-26", "26-Nov-26_1", "26-Nov-26_2"}),
+                   QStringList({"power bill", QString(), "26-Nov-26_2"}),
+                   QStringList({QString(), "no text", QString()}));
+   QCOMPARE(table->rowCount(), 3);
+
+   // a stack with a name is ticked; one with none says why and is not
+   QVERIFY(dialog.ticked(0));
+   QVERIFY(!dialog.ticked(1));
+   QCOMPARE(table->item(0, 0)->text(), QString("26-Nov-26"));
+   QCOMPARE(table->item(0, 1)->text(), QString("power bill"));
+   QCOMPARE(table->item(1, 0)->text(), QString("26-Nov-26_1 (no text)"));
+   QCOMPARE(table->item(1, 1)->text(), QString());
+
+   // the name a stack has cannot be changed here, only the new one
+   QVERIFY(!(table->item(0, 0)->flags() & Qt::ItemIsEditable));
+   QVERIFY(table->item(0, 1)->flags() & Qt::ItemIsEditable);
+
+   // a name the same as the stack has is nothing to do
+   QCOMPARE(dialog.names(), QStringList({"power bill", QString(), QString()}));
+   QCOMPARE(dialog.count(), 1);
+   QCOMPARE(dialog.renameText(), QString("&Rename 1 stack"));
+   QVERIFY(rename->isEnabled());
+
+   // a name typed for a stack counts once the stack is ticked
+   dialog.setName(1, "  water bill ");
+   QCOMPARE(dialog.count(), 1);
+   dialog.setTicked(1, true);
+   QCOMPARE(dialog.names(),
+            QStringList({"power bill", "water bill", QString()}));
+   QCOMPARE(dialog.renameText(), QString("&Rename 2 stacks"));
+
+   // and with nothing ticked there is nothing to rename
+   dialog.setTicked(0, false);
+   dialog.setTicked(1, false);
+   QCOMPARE(dialog.count(), 0);
+   QVERIFY(!rename->isEnabled());
 }
 
 void TestDesktopUi::testDirFilterHidesOtherYears()
