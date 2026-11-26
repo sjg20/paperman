@@ -18,6 +18,7 @@
 #include "test_utils.h"
 #include "test_imagetrim.h"
 #include "test_pagecover.h"
+#include "test_docfacts.h"
 #include "test_pagefind.h"
 #include "test_camera.h"
 #include "test_searchserver.h"
@@ -38,6 +39,7 @@
 static TestUtils TEST_UTILS("utils");
 static TestImagetrim TEST_IMAGETRIM("imagetrim");
 static TestPagecover TEST_PAGECOVER("pagecover");
+static TestDocfacts TEST_DOCFACTS("docfacts");
 static TestPagefind TEST_PAGEFIND("pagefind");
 static TestOps TEST_OPS("ops");
 static TestDesktopUi TEST_DESKTOPUI("desktopui");
