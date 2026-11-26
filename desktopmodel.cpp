@@ -42,6 +42,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QScopeGuard>
 #include <QEventLoop>
 #include <QFile>
+#include <QDir>
 #include <QFileInfo>
 #include <QIcon>
 #include <QKeyEvent>
@@ -525,6 +526,30 @@ QModelIndex Desktopmodel::parent(const QModelIndex &item) const
 
    // otherwise parent is the root index
    return QModelIndex ();
+   }
+
+
+File *Desktopmodel::fileForPath (const QString &pathname) const
+   {
+   QString path = QDir::cleanPath (pathname);
+   QFileInfo fi (path);
+   QString dir = fi.path () + "/", name = fi.fileName ();
+   File *other = nullptr;
+
+   for (Desk *desk : _desks)
+      for (int i = 0; i < desk->fileCount (); i++)
+         {
+         File *f = desk->getFile (i);
+
+         // this is asked often, so look at the name before the whole path
+         if (!f || f->filename () != name
+             || QDir::cleanPath (f->pathname ()) != path)
+            continue;
+         if (desk->dir () == dir)
+            return f;
+         other = f;
+         }
+   return other;
    }
 
 

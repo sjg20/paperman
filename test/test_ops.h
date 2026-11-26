@@ -76,6 +76,9 @@ private slots:
    //! Test creating a dir inside a directory not in the cache
    void testCreateDirInNewParent();
 
+   //! The model says where a stack went when it moves
+   void testStackMoved();
+
    //! Test moving a file to a different directory
    void testMoveToDir();
    void testStackConverts();

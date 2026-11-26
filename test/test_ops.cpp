@@ -1388,6 +1388,83 @@ void TestOps::testReversePages()
       QVERIFY2(images(names[s]) == before[s], qPrintable(names[s]));
 }
 
+/* A stack which moves gets another File, so the model says where it
+   went, for anything which knows the stack by where it is */
+void TestOps::testStackMoved()
+{
+   Mainwindow me;
+
+   auto path = QDir::cleanPath(setupRepoWithExtra());
+   Desktopwidget *desktop = me.getDesktop();
+   QVERIFY(!desktop->addDir(path));
+
+   Desktopmodel *model = desktop->getModel();
+   QModelIndex repo_ind = model->index(0, 0, QModelIndex());
+   QVERIFY(repo_ind.isValid());
+
+   QList<QPair<QString, QString>> moves;
+   connect(model, &Desktopmodel::stackMoved, model,
+           [&moves](const QString &from, const QString &to) {
+      moves << qMakePair(QDir::cleanPath(from), QDir::cleanPath(to));
+   });
+
+   QString sub = path + "/moved";
+   QModelIndex dirIndex;
+   QVERIFY(desktop->newDir(sub, dirIndex));
+
+   // a stack's File is found by where the stack is
+   const QString here = path + "/movefile.max";
+   const QString there = sub + "/movefile.max";
+   QModelIndex ind = model->index("movefile.max", repo_ind);
+   QVERIFY(ind.isValid());
+   QCOMPARE(model->fileForPath(here), model->getFile(ind));
+   QVERIFY(!model->fileForPath(there));
+
+   // moving it to another folder says so, and so does undoing that
+   QModelIndexList list;
+   QString dest = sub + "/";
+   QStringList trash;
+   list << ind;
+   model->moveToDir(list, repo_ind, dest, trash);
+   QTRY_COMPARE(int(moves.size()), 1);
+   QCOMPARE(moves[0].first, here);
+   QCOMPARE(moves[0].second, there);
+   QVERIFY(QFile::exists(there));
+   QVERIFY(!model->fileForPath(here));
+
+   model->getUndoStack()->undo();
+   QTRY_COMPARE(int(moves.size()), 2);
+   QCOMPARE(moves[1].first, there);
+   QCOMPARE(moves[1].second, here);
+   QVERIFY(QFile::exists(here));
+   QVERIFY(model->fileForPath(here));
+
+   // deleting it moves it to the trash, and undoing brings it back
+   list.clear();
+   list << model->index("movefile.max", repo_ind);
+   QVERIFY(list[0].isValid());
+   model->trashStacks(list, repo_ind);
+   QTRY_COMPARE(int(moves.size()), 3);
+   QCOMPARE(moves[2].first, here);
+   QString trashed = moves[2].second;
+   QVERIFY(trashed != here);
+   QVERIFY(QFile::exists(trashed));
+   QVERIFY(!QFile::exists(here));
+
+   model->getUndoStack()->undo();
+   QTRY_COMPARE(int(moves.size()), 4);
+   QCOMPARE(moves[3].first, trashed);
+   QCOMPARE(moves[3].second, here);
+   QVERIFY(QFile::exists(here));
+
+   // a copy leaves the stack where it is, so nothing is said
+   list.clear();
+   list << model->index("movefile.max", repo_ind);
+   model->moveToDir(list, repo_ind, dest, trash, true);
+   QTRY_VERIFY(QFile::exists(there));
+   QCOMPARE(int(moves.size()), 4);
+}
+
 void TestOps::testMoveToDir()
 {
    Mainwindow me;
