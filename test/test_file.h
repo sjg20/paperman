@@ -218,6 +218,9 @@ private slots:
    //! that have arrived, and "not loaded yet" for the ones that have not
    void testSparseStack();
 
+   //! A page's text is its words, or else what the file itself has
+   void testTextOfPage();
+
    //! what OCR read from a page stays with it through each page operation
    void testMaxOcr();
 

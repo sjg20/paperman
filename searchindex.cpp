@@ -414,16 +414,7 @@ static err_info *stackText(const QString &pathname, QStringList &pages,
 
    pages.clear();
    for (int i = 0; !err && i < file->pagecount(); i++)
-      {
-      OcrPage ocr;
-      QString text;
-
-      if (!file->getPageOcr(i, ocr) && !ocr.isEmpty())
-         text = ocr.text();
-      else
-         file->getPageText(i, text);
-      pages << text.trimmed();
-      }
+      pages << file->textOfPage(i);
 
    /* Before pages kept their own words, OCR put what it read into the
       stack's OCR annotation, and that is still where text typed into the
