@@ -22,6 +22,8 @@ public:
       // a name for each request in turn, if any are lined up
       if (!_names.isEmpty())
          _answer["name"] = _names.takeFirst();
+      if (!_folders.isEmpty())
+         _answer["folder"] = _folders.takeFirst();
 
       // held back until release(), as a model which takes its time
       if (_hold) {
@@ -51,6 +53,7 @@ public:
    QString _system, _prompt, _error;
    QJsonObject _schema, _answer;
    QStringList _names;     //!< the name to answer each request with
+   QStringList _folders;   //!< the folder to answer each request with
    int _asked = 0;         //!< how many requests there have been
 };
 
@@ -80,6 +83,9 @@ private slots:
    void testSuggestName();
 
    //! The question for dividing a stack holds each page's text, in order
+   //! a folder is asked for from those offered, and only one of those taken
+   void testSuggestFolder();
+
    void testSplitPrompt();
 
    //! Whatever the model answers, the documents are in order and in range

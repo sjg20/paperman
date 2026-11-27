@@ -306,6 +306,83 @@ void Assistant::suggestName (const QString &text,
    }
 
 
+QString Assistant::folderPrompt (const QString &text, const QString &name,
+                                 const QStringList &folders,
+                                 const QString &today)
+   {
+   QString prompt = "Folders the document can be filed in:\n";
+
+   for (const QString &folder : folders)
+      prompt += "- " + folder + "\n";
+   prompt += QString ("\nToday is %1.\n").arg (today);
+   if (!name.isEmpty ())
+      prompt += QString ("The document is called: %1\n").arg (name);
+   prompt += "\nText read from the first pages of the document, which may "
+             "have mistakes from OCR:\n\n";
+   prompt += text.left (name_text_chars);
+   return prompt;
+   }
+
+
+void Assistant::suggestFolder (const QString &text, const QString &name,
+      const QStringList &folders, const QString &today, QObject *context,
+      std::function<void (const QString &folder, const QString &error)> done)
+   {
+   static const char *system =
+      "You file scanned documents for a personal filing system. Given the "
+      "text of a document and the folders it can go in, reply with the one "
+      "folder it belongs in, written exactly as it is listed. Go by what "
+      "the document is and who it is from, and, where folders are named "
+      "for a year or a month, by the date of the document or the period "
+      "it covers, not by today's date. If no folder listed fits, reply "
+      "with an empty string: do not make one up, and do not pick one "
+      "merely because something must be picked.";
+   QJsonObject folder_type, props, schema;
+
+   if (folders.isEmpty ())
+      {
+      done (QString (), tr ("There are no folders to file it in"));
+      return;
+      }
+   if (folders.size () > folder_max)
+      {
+      done (QString (), tr ("There are too many folders to choose between "
+                            "(%1; the most is %2)").arg (folders.size ())
+                           .arg (folder_max));
+      return;
+      }
+
+   folder_type ["type"] = "string";
+   props ["folder"] = folder_type;
+   schema ["type"] = "object";
+   schema ["properties"] = props;
+   schema ["required"] = QJsonArray {"folder"};
+   schema ["additionalProperties"] = false;
+
+   _backend->ask (system, folderPrompt (text, name, folders, today), schema,
+                  context,
+                  [done, folders] (const QJsonObject &answer,
+                                   const QString &error) {
+      QString folder = answer.value ("folder").toString ().trimmed ();
+
+      // a slash at either end is neither here nor there
+      while (folder.startsWith ('/'))
+         folder.remove (0, 1);
+      while (folder.endsWith ('/'))
+         folder.chop (1);
+      if (!error.isEmpty ())
+         done (QString (), error);
+
+      // one which is not on the list is no answer, however likely
+      else if (!folder.isEmpty () && !folders.contains (folder))
+         done (QString (), tr ("The assistant named a folder which is not "
+                               "there: %1").arg (folder));
+      else
+         done (folder, QString ());
+   });
+   }
+
+
 void Assistant::suggestSplit (const QStringList &pages,
       const QStringList &examples, QObject *context,
       std::function<void (const QList<Doc> &docs, const QString &error)> done)
