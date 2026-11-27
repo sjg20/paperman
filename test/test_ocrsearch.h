@@ -48,6 +48,9 @@ private slots:
    //! the reader says when a stack is done, and how many pages it read
    void testReaderSaysStackRead();
 
+   //! a stack asked for again while it is being read is not read twice
+   void testReaderNoDoubleRead();
+
    //! a stack is read by its path, through the desktop's File if any
    void testReaderByPath();
 
