@@ -2321,6 +2321,75 @@ bool Desktopwidget::showStack (const QString &pathname, int page)
    return true;
    }
 
+QString Desktopwidget::putBack (const QList<QPair<QString, QString>> &moves)
+   {
+   QString error;
+   QString last;
+
+   _contents->getUndoStack ()->beginMacro (tr ("Put back"));
+   for (const auto &move : moves)
+      {
+      QFileInfo now (move.first), was (move.second);
+      QString name = Activity::displayName (move.first);
+
+      if (was.exists ())
+         error = tr ("There is already a stack called '%1' in %2")
+                    .arg (was.fileName (), was.absolutePath ());
+      else if (!was.dir ().exists ())
+         error = tr ("The folder %1 is no longer there")
+                    .arg (was.absolutePath ());
+
+      // the stack's folder has to be shown for the stack to be worked on
+      else if (!showStack (move.first))
+         error = tr ("'%1' cannot be found").arg (name);
+      if (!error.isEmpty ())
+         break;
+
+      QModelIndex parent = _view->rootIndexSource ();
+      QModelIndex ind = _contents->index (now.fileName (), parent);
+
+      if (!ind.isValid ())
+         {
+         error = tr ("'%1' cannot be found").arg (name);
+         break;
+         }
+
+      // the name it had, and then the folder it was in
+      if (was.fileName () != now.fileName ())
+         {
+         _contents->renameStack (ind, was.completeBaseName ());
+         ind = _contents->index (was.fileName (), parent);
+         if (!ind.isValid ())
+            {
+            error = tr ("'%1' could not be given its name back").arg (name);
+            break;
+            }
+         }
+      if (QDir (was.absolutePath ()) != QDir (now.absolutePath ()))
+         {
+         QModelIndexList list;
+         QString dir = was.absolutePath () + "/";
+         QStringList made;
+
+         list << ind;
+         _contents->moveToDir (list, parent, dir, made);
+         }
+      if (!was.exists ())
+         {
+         error = tr ("'%1' could not be put back").arg (name);
+         break;
+         }
+      last = move.second;
+      }
+   _contents->getUndoStack ()->endMacro ();
+
+   // leave the last one put back showing, where it now is
+   if (!last.isEmpty ())
+      showStack (last);
+   return error;
+   }
+
+
 void Desktopwidget::doDeleteStacks(bool confirm)
 {
    QModelIndexList list = _view->getSelectedListSource ();
