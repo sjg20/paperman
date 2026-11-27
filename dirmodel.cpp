@@ -638,6 +638,7 @@ QModelIndex Dirmodel::mkdir(const QModelIndex &par, const QString &name,
         return QModelIndex(); // nothing happened
 
     utilSetDirGroup(dir.filePath(name));
+    recordFolder(Activity::A_folder_new, dir.filePath(name));
     item->refreshCache(path, op);
 
     // Invalidate this node's children so they get re-scanned
@@ -693,6 +694,48 @@ bool Dirmodel::mkdirLater(const QString &path, QObject *context,
 }
 
 
+void Dirmodel::recordFolder (Activity::e_action action, const QString &path,
+                             const QString &from)
+{
+   /* The same folder can be reached by more than one path, through a
+      link, so paths are compared as they really are. A folder which has
+      just been moved is no longer at the path it had, so it is the folder
+      above it which is looked up */
+   auto real = [] (const QString &pathname) {
+      QFileInfo fi (QDir::cleanPath (pathname));
+      QString above = QFileInfo (fi.path ()).canonicalFilePath ();
+
+      return above.isEmpty () ? fi.filePath ()
+                              : above + "/" + fi.fileName ();
+   };
+
+   /* the repository is the one whose top the folder is under. For a move
+      it is the one the folder came from: a folder moved to another
+      repository is recorded where it left */
+   QString where = real (from.isEmpty () ? path : from);
+
+   for (const QString &root : localRoots ()) {
+      QString top = QFileInfo (root).canonicalFilePath ();
+
+      if (top.isEmpty () || !where.startsWith (top + "/"))
+         continue;
+
+      QDir dir (top);
+      Activity act;
+
+      act.action = action;
+      act.path = dir.relativeFilePath (real (path));
+      if (!from.isEmpty ())
+         act.from = dir.relativeFilePath (where);
+
+      // said with the top as the repository is known, for those listening
+      if (!ActivityLog (top).add (act))
+         emit activityRecorded (QDir::cleanPath (root));
+      return;
+   }
+}
+
+
 err_info *Dirmodel::moveDir (QString src, QString dst)
 {
    QString leaf;
@@ -717,6 +760,7 @@ err_info *Dirmodel::moveDir (QString src, QString dst)
 
    if (!dir.rename (src, dst))
       return err_make (ERRFN, ERR_could_not_rename_dir1, dst.toLatin1 ().constData());
+   recordFolder (Activity::A_folder_move, dst, src);
    return NULL;
 }
 

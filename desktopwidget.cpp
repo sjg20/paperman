@@ -1056,7 +1056,11 @@ void Desktopwidget::renameDir ()
       path.truncate (path.length () - oldName.length () - 1);
       fullPath = path + "/" + text;
       if (dir.rename (path + "/" + oldName, fullPath))
+         {
+         _model->recordFolder (Activity::A_folder_move, fullPath,
+                               path + "/" + oldName);
          _model->refresh(src_parent);
+         }
 //          _dir->refreshItemRename (text);  // indicates current item has new children
       else
          QMessageBox::warning (0, "Paperman", "Could not rename directory");

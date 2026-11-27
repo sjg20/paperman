@@ -30,6 +30,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <functional>
 #include <memory>
 
+#include "activitylog.h"
 #include "backend.h"
 
 class Operation;
@@ -600,8 +601,25 @@ private slots:
    void onBrowseAsyncReady(quint64 token,
                            const DirectoryListing &listing);
 
+public:
+   /** put something done to a folder in the record of activity of its
+       repository. Nothing is recorded for a folder on a server, which
+       keeps no record yet, or one outside every repository
+
+      \param action  what was done
+      \param path    the folder's full path, as it now is
+      \param from    its full path before, if it was renamed or moved */
+   void recordFolder (Activity::e_action action, const QString &path,
+                      const QString &from = QString ());
+
 signals:
    void droppedOnFolder (const QMimeData *data, QString &path);
+
+   /** emitted when something has been added to a repository's record of
+       activity
+
+      \param root  the top of the repository */
+   void activityRecorded (const QString &root);
 
    /** Emitted when a backend call fails while expanding a folder.
     *  @c path is the absolute path of the folder we tried to expand;
