@@ -38,7 +38,8 @@ static const char *const action_name [Activity::A_count] = {
    "", "group", "scan", "scan-page", "import", "rename", "move", "trash",
    "duplicate", "stack", "unstack", "split", "remove-pages", "reorder",
    "turn", "crop", "cover", "rename-page", "facts", "details", "read",
-   "unfold", "folder-new", "folder-move", "other", "undo", "redo",
+   "unfold", "folder-new", "folder-move", "other", "restore", "undo",
+   "redo",
 };
 
 static const char *const who_name [Activity::W_count] = {
@@ -75,6 +76,8 @@ QJsonObject Activity::toJson () const
       obj ["n"] = count;
    if (!note.isEmpty ())
       obj ["note"] = note;
+   if (!kept.isEmpty ())
+      obj ["kept"] = kept;
    return obj;
    }
 
@@ -105,6 +108,7 @@ bool Activity::fromJson (const QJsonObject &obj, Activity &act)
    act.page = obj.value ("page").toInt (-1);
    act.count = obj.value ("n").toInt ();
    act.note = obj.value ("note").toString ();
+   act.kept = obj.value ("kept").toString ();
    return true;
    }
 
@@ -114,7 +118,7 @@ bool Activity::operator== (const Activity &other) const
    return id == other.id && group == other.group && ref == other.ref
       && when == other.when && who == other.who && action == other.action
       && path == other.path && from == other.from && page == other.page
-      && count == other.count && note == other.note;
+      && count == other.count && note == other.note && kept == other.kept;
    }
 
 
@@ -220,6 +224,8 @@ QString Activity::describe () const
          return tr ("Moved the folder %1 to %2").arg (from).arg (path);
       case A_other :
          return name.isEmpty () ? note : QString ("%1: '%2'").arg (note, name);
+      case A_restore :
+         return tr ("Put back '%1', which had been deleted").arg (name);
       case A_undo :
          return tr ("Undid: %1").arg (note);
       case A_redo :
@@ -369,6 +375,11 @@ QString ActivityLog::whereNow (const QList<Activity> &acts, int at,
          case Activity::A_trash :
             if (act.path == path)
                gone = forwards;
+            break;
+         case Activity::A_restore :
+            // a stack brought back from the trash is where it was again
+            if (act.path == path)
+               gone = !forwards;
             break;
          case Activity::A_stack :
             // the stack put onto another is no more; the other stays
