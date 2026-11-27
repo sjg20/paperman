@@ -53,6 +53,7 @@ The manual is also available as a `PDF
    activity-log
    api
    build
+   web
    app-develop
    releasing
    code-signing
