@@ -50,6 +50,10 @@ static const int AtRole = Qt::UserRole;
 // true if the entry of a line has since been undone
 static const int UndoneRole = Qt::UserRole + 1;
 
+// the number of a line's entry, by which it is found again when the
+// entries are read afresh
+static const int IdRole = Qt::UserRole + 2;
+
 
 Activitydialog::Activitydialog (QWidget *parent)
       : QDialog (parent)
@@ -136,10 +140,44 @@ void Activitydialog::setRoot (const QString &root)
    {
    QString top = root.isEmpty () ? QString () : QDir (root).absolutePath ();
 
-   if (top == _root)
+   if (top == _root && !_server)
       return;
    _root = top;
+   _server = false;
+   _fetch = nullptr;
    reload ();
+   }
+
+
+void Activitydialog::setServer (const QString &root,
+                                std::function<void (Fetched done)> fetch)
+   {
+   QString top = root;
+
+   while (top.endsWith ('/'))
+      top.chop (1);
+
+   // the same repository again needs no more than what a refresh does
+   bool same = _server && top == _root;
+
+   _root = top;
+   _server = true;
+   _fetch = fetch;
+   if (!same)
+      reload ();
+   }
+
+
+void Activitydialog::serverGrown ()
+   {
+   if (_server)
+      refresh ();
+   }
+
+
+QString Activitydialog::explanation () const
+   {
+   return _none->isHidden () ? QString () : _none->text ();
    }
 
 
@@ -185,6 +223,7 @@ QTreeWidgetItem *Activitydialog::lineFor (int at,
    line->setToolTip (COL_when, QLocale ().toString (act.when.toLocalTime (),
                                                     QLocale::LongFormat));
    line->setData (COL_what, AtRole, at);
+   line->setData (COL_what, IdRole, act.id);
    line->setData (COL_what, UndoneRole, gone);
    if (gone)
       for (int col = 0; col < COL_count; col++)
@@ -196,16 +235,45 @@ QTreeWidgetItem *Activitydialog::lineFor (int at,
 
 void Activitydialog::reload ()
    {
-   // keep the line chosen, by its entry, if it is still there
-   QTreeWidgetItem *current = _tree->currentItem ();
-   qint64 chosen = current ? _acts.value (current->data (COL_what,
-                                             AtRole).toInt ()).id : 0;
    err_info *err = nullptr;
 
    _timer->stop ();
+
+   /* a record on a server comes when the server answers, which may be
+      after another has been asked for: only the latest answer is shown */
+   if (_server)
+      {
+      int asked = ++_asked;
+
+      if (!_fetch)
+         {
+         _acts.clear ();
+         showEntries (tr ("this server keeps no record: it needs a newer "
+                          "paperman-server"));
+         return;
+         }
+      _fetch ([this, asked] (const QList<Activity> &acts,
+                             const QString &error) {
+         if (asked != _asked)
+            return;
+         _acts = acts.mid (qMax (0, int (acts.size ()) - max_entries));
+         showEntries (error);
+      });
+      return;
+      }
    _acts.clear ();
    if (!_root.isEmpty ())
       err = ActivityLog (_root).read (_acts, max_entries);
+   showEntries (err ? QString (err->errstr) : QString ());
+   }
+
+
+void Activitydialog::showEntries (const QString &error)
+   {
+   // keep the line chosen, by its entry, if it is still there
+   QTreeWidgetItem *current = _tree->currentItem ();
+   qint64 chosen = current ? current->data (COL_what, IdRole).toLongLong ()
+                           : 0;
 
    /* what has been undone, and not done again since: the last word on
       each entry is what counts */
@@ -280,11 +348,10 @@ void Activitydialog::reload ()
    QString why;
 
    if (_root.isEmpty ())
-      why = tr ("The folder shown is not in a repository on this computer, "
-                "so there is no record of activity to show.");
-   else if (err)
-      why = tr ("The record of activity cannot be read: %1")
-               .arg (err->errstr);
+      why = tr ("The folder shown is not in a repository, so there is no "
+                "record of activity to show.");
+   else if (!error.isEmpty ())
+      why = tr ("The record of activity cannot be read: %1").arg (error);
    else if (_acts.isEmpty ())
       why = tr ("Nothing has been recorded here yet. What is done to the "
                 "stacks from now on is listed here.");
@@ -351,7 +418,7 @@ QList<Activitydialog::Move> Activitydialog::putBackMoves () const
    QList<Move> moves;
    int at = chosenEntry ();
 
-   if (at < 0 || _undone.contains (_acts [at].id)
+   if (at < 0 || _server || _undone.contains (_acts [at].id)
        || _undone.contains (_acts [at].group))
       return moves;
 
@@ -460,7 +527,8 @@ void Activitydialog::lineChosen ()
 
    bool gone;
    QString path = ActivityLog::whereNow (_acts, at, gone);
-   QString pathname = QDir (_root).absoluteFilePath (path);
+   QString pathname = _server ? _root + "/" + path
+                              : QDir (_root).absoluteFilePath (path);
    QString name = Activity::displayName (path);
    QString dir = QFileInfo (path).path ();
 
@@ -470,7 +538,7 @@ void Activitydialog::lineChosen ()
    // a line about a folder leads to the folder
    if (_acts [at].isFolder ())
       {
-      if (!QFileInfo (pathname).isDir ())
+      if (!_server && !QFileInfo (pathname).isDir ())
          _where->setText (tr ("The folder %1 is no longer there.").arg (path));
       else
          {
@@ -482,7 +550,7 @@ void Activitydialog::lineChosen ()
    if (gone)
       _where->setText (tr ("'%1' has since been deleted, or put into "
                            "another stack.").arg (name));
-   else if (!QFileInfo (pathname).isFile ())
+   else if (!_server && !QFileInfo (pathname).isFile ())
       _where->setText (tr ("'%1' is no longer in %2: it may have been "
                            "changed outside Paperman.").arg (name, dir));
    else

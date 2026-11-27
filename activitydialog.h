@@ -20,6 +20,8 @@ License: GPL-2
 
 #pragma once
 
+#include <functional>
+
 #include <QDialog>
 #include <QList>
 #include <QPair>
@@ -63,6 +65,27 @@ public:
 
    //! the top of the repository whose record is shown
    QString root () const { return _root; }
+
+   //! gives the entries of a record kept elsewhere, oldest first, or says
+   //! why they cannot be had
+   typedef std::function<void (const QList<Activity> &acts,
+                               const QString &error)> Fetched;
+
+   /** show the record of a repository on a server
+
+      \param root   the top of the repository, as the folder tree names
+                    it
+      \param fetch  called to fetch the newest entries; it calls back
+                    with them, which may be later. With none, the server
+                    keeps no record, and the window says so */
+   void setServer (const QString &root,
+                   std::function<void (Fetched done)> fetch);
+
+   //! true if the record shown is one kept on a server
+   bool onServer () const { return _server; }
+
+   //! what the window says in place of a list, when it has none to show
+   QString explanation () const;
 
    //! what each line at the top level says, newest first
    QStringList listed () const;
@@ -108,6 +131,9 @@ public slots:
    //! read the record again now
    void reload ();
 
+   //! a server's record has grown: read it again if one is shown
+   void serverGrown ();
+
 signals:
    /** a line has been chosen whose stack is still there
 
@@ -146,7 +172,16 @@ private:
       \returns the name it has there, empty if it is not there */
    QString keptName (const Activity &act) const;
 
+   /** show entries: the tree, what has been undone, and why there is
+       nothing if there is nothing
+
+      \param error  why the record could not be had, empty if it was */
+   void showEntries (const QString &error);
+
    QString _root;
+   bool _server = false;      //!< the record is kept on a server
+   std::function<void (Fetched done)> _fetch;   //!< fetches it from there
+   int _asked = 0;            //!< counts fetches, to tell the latest reply
    QList<Activity> _acts;        //!< the entries shown, oldest first
    QTreeWidget *_tree;
    QLabel *_where;               //!< says where the stack chosen is now
