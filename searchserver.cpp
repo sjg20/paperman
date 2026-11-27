@@ -2919,8 +2919,9 @@ QByteArray SearchServer::handleMakeFolder(const QString &path,
 
     QString full = root + "/" + parts.join('/');
     QFileInfo existing(full);
+    bool there = existing.exists();
 
-    if (existing.exists() && !existing.isDir())
+    if (there && !existing.isDir())
         return buildHttpResponse(409, "Conflict", "application/json",
                                  buildJsonResponse(false, "",
                                      "A file is in the way: " + folder));
@@ -2930,6 +2931,15 @@ QByteArray SearchServer::handleMakeFolder(const QString &path,
                                  buildJsonResponse(false, "",
                                      "Cannot make folder: " + folder));
     utilSetDirGroup(full);
+
+    // a folder which was not there is in the record, as the desktop's are
+    if (!there) {
+        StackDetail detail;
+
+        detail.action = Activity::A_folder_new;
+        recordActivity(repoName, "folder", parts.join('/'), QString(),
+                       detail);
+    }
 
     /* a repository nested with this one lists its folders again, the
        next time it is asked for them */
