@@ -59,6 +59,7 @@ HEADERS += builddate.h \
     ocrpage.h \
     pagecover.h \
     docfacts.h \
+    activitylog.h \
     backgroundwork.h \
     zip.h \
     zip_p.h \
@@ -95,6 +96,7 @@ SOURCES += searchserver.cpp \
     ocrpage.cpp \
     pagecover.cpp \
     docfacts.cpp \
+    activitylog.cpp \
     backgroundwork.cpp \
     zip.cpp
 
