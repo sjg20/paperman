@@ -220,6 +220,14 @@ public:
      *  Call before start() */
     void setTextIndex(bool on) { _textIndex = on; }
 
+    /** Serve the desktop built for a browser from a directory, under
+     *  /app/, with the headers such a page needs. It can then use this
+     *  server as the site it came from. Call before start()
+     *
+     *  @param dir  the directory holding paperman.html and the files
+     *              beside it; empty to serve none */
+    void setWebDir(const QString &dir) { _webDir = dir; }
+
     /** Close a client's connection once it has been idle for @p ms,
      *  between requests or before the first; 30 seconds by default */
     void setIdleTimeout(int ms) { _idleMs = ms; }
@@ -826,6 +834,7 @@ private:
     QHash<QString, RepoReader *> _readers;  //!< by repository name
 
     bool _textIndex = false;         //!< see setTextIndex()
+    QString _webDir;                 //!< see setWebDir()
     qint64 _maxRepoBytes = 0;        //!< see setMaxRepoBytes()
     QElapsedTimer _lastRequest;      //!< see msSinceRequest()
     int _idleMs = 30000;             //!< see setIdleTimeout()
@@ -955,6 +964,12 @@ private:
     QByteArray handleActivity(const QString &path,
                               const QHash<QString, QString> &params,
                               const QString &authedUser);
+
+    /** Handle GET /app/...: a file of the desktop built for a browser.
+     *  The files are public, as the page has to load before anyone can
+     *  log in */
+    QByteArray handleWeb(const QString &path,
+                         const QHash<QString, QString> &params);
 
     TokenStore _tokens{TokenStore::defaultPath()};  //!< Bearer tokens, kept
                             //!< across restarts

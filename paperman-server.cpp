@@ -106,6 +106,8 @@ void printUsage(const char *progName)
               << "  -C, --no-cache       Skip building file cache at startup\n"
               << "  -i, --index          Keep an index of the text on the pages,\n"
               << "                       so that clients can search it\n"
+              << "  -w, --web <dir>      Serve the desktop built for a browser,\n"
+              << "                       which is in <dir>, at /app/\n"
               << "  -r, --read-pages <n> Read the pages of every stack in the\n"
               << "                       background (OCR), n stacks at a time,\n"
               << "                       keeping the words with the pages\n"
@@ -323,6 +325,7 @@ int main(int argc, char *argv[])
     bool skipCache = false;
     int readWorkers = 0;
     bool textIndex = false;
+    QString webDir;
     QString demoDir;
     QString demoPassword;
     DemoServer::Limits demoLimits;
@@ -350,6 +353,14 @@ int main(int argc, char *argv[])
         }
         else if (args[i] == "-i" || args[i] == "--index") {
             textIndex = true;
+        }
+        else if (args[i] == "-w" || args[i] == "--web") {
+            if (i + 1 >= args.size() || !QFileInfo(args[i + 1]).isDir()) {
+                std::cerr << "Error: --web needs the directory which holds "
+                             "the desktop built for a browser" << std::endl;
+                return 1;
+            }
+            webDir = QFileInfo(args[++i]).absoluteFilePath();
         }
         else if (args[i] == "-r" || args[i] == "--read-pages") {
             bool ok = false;
@@ -462,6 +473,7 @@ int main(int argc, char *argv[])
     SearchServer server(repositoryPaths, port, nullptr, skipCache);
     server.setReadPages(readWorkers);
     server.setTextIndex(textIndex);
+    server.setWebDir(webDir);
     if (!server.start()) {
         std::cerr << "Error: Failed to start server" << std::endl;
         return 1;

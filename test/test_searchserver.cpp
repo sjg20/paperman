@@ -4147,6 +4147,108 @@ void TestSearchServer::testServerActivity()
     QVERIFY(got.isEmpty());
 }
 
+/* The server can serve the desktop built for a browser, with the headers
+   such a page needs, to anyone, and compressed where it has a copy */
+void TestSearchServer::testServesWebApp()
+{
+    QTemporaryDir repoDir, webDir;
+    QVERIFY(repoDir.isValid() && webDir.isValid());
+
+    auto put = [&](const QString &name, const QByteArray &data) {
+        QFile file(webDir.path() + "/" + name);
+
+        return file.open(QIODevice::WriteOnly)
+            && file.write(data) == data.size();
+    };
+    QByteArray program(5000, 'w'), packed = qCompress(program);
+
+    QVERIFY(put("paperman.html", "<html>the page</html>"));
+    QVERIFY(put("paperman.js", "var loader;"));
+    QVERIFY(put("paperman.wasm", program));
+    QVERIFY(put("paperman.wasm.gz", packed));
+    QVERIFY(put(".secret", "hidden"));
+    QVERIFY(QDir(webDir.path()).mkdir("sub"));
+    QVERIFY(put("sub/inner.js", "inner"));
+
+    auto ask = [](const QString &path, const QByteArray &headers = "") {
+        return sendRaw("GET " + path.toUtf8() + " HTTP/1.1\r\n"
+                       "Host: localhost\r\n" + headers
+                       + "Connection: close\r\n\r\n", PORT, 5000);
+    };
+
+    {
+        // a server which is not asked to serves no page
+        SearchServer server(repoDir.path(), PORT);
+        QVERIFY(server.start());
+        auto stop = qScopeGuard([&] { server.stop(); });
+
+        QVERIFY(!ask("/app/").header.contains(" 200 "));
+        QVERIFY(!QJsonDocument::fromJson(get("/v1/status").body).object()
+                    .value("features").toArray().contains("web"));
+    }
+
+    SearchServer server(repoDir.path(), PORT);
+    server.setWebDir(webDir.path());
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    QVERIFY(QJsonDocument::fromJson(get("/v1/status").body).object()
+                .value("features").toArray().contains("web"));
+
+    // the page, with what tells the browser to keep it apart from others
+    auto resp = ask("/app/");
+    QVERIFY2(resp.ok(), qPrintable(resp.header));
+    QCOMPARE(resp.body, QByteArray("<html>the page</html>"));
+    QVERIFY(resp.header.contains("Content-Type: text/html"));
+    QVERIFY(resp.header.contains(
+               "Cross-Origin-Opener-Policy: same-origin"));
+    QVERIFY(resp.header.contains(
+               "Cross-Origin-Embedder-Policy: require-corp"));
+    QVERIFY(resp.header.contains("Cache-Control: no-cache"));
+
+    // without the slash, the browser is sent to where the files are found
+    resp = ask("/app");
+    QVERIFY2(resp.header.contains(" 301 "), qPrintable(resp.header));
+    QVERIFY(resp.header.contains("Location: /app/"));
+
+    // each file by name, with its type
+    resp = ask("/app/paperman.js");
+    QVERIFY(resp.ok());
+    QCOMPARE(resp.body, QByteArray("var loader;"));
+    QVERIFY(resp.header.contains("Content-Type: text/javascript"));
+
+    // the program as it is, to a browser which does not take compression
+    resp = ask("/app/paperman.wasm");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.header.contains("Content-Type: application/wasm"));
+    QVERIFY(!resp.header.contains("Content-Encoding"));
+    QCOMPARE(resp.body, program);
+
+    // and the compressed copy to one which does
+    resp = ask("/app/paperman.wasm", "Accept-Encoding: gzip, deflate\r\n");
+    QVERIFY(resp.ok());
+    QVERIFY(resp.header.contains("Content-Encoding: gzip"));
+    QVERIFY(resp.header.contains("Content-Type: application/wasm"));
+    QCOMPARE(resp.body, packed);
+
+    // a file with no compressed copy comes as it is, whatever is taken
+    resp = ask("/app/paperman.js", "Accept-Encoding: gzip\r\n");
+    QVERIFY(resp.ok());
+    QVERIFY(!resp.header.contains("Content-Encoding"));
+
+    // nothing hidden, nothing below, nothing outside, nothing missing
+    for (const char *path : {"/app/.secret", "/app/sub/inner.js",
+                             "/app/../paperman.html", "/app/%2e%2e/x",
+                             "/app/missing.js", "/app/sub"}) {
+        resp = ask(path);
+        QVERIFY2(resp.header.contains(" 404 "),
+                 qPrintable(QString("%1: %2").arg(path, resp.header)));
+    }
+
+    // the rest of the server answers as before
+    QVERIFY(get("/v1/status").ok());
+}
+
 void TestSearchServer::testServerSearchesText()
 {
     // the index goes in the redirected data directory

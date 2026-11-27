@@ -243,6 +243,8 @@ QJsonObject SearchServer::statusObject() const
     features.append("makeFolders");
     features.append("layout");
     features.append("activity");
+    if (!_webDir.isEmpty())
+        features.append("web");
     if (!_indexes.isEmpty())
         features.append("textSearch");
     if (!_readers.isEmpty())
@@ -783,6 +785,8 @@ void SearchServer::parseRequest(const QString &request, QString &method,
                 params["__if_none_match__"] = headerValue;
             } else if (headerName.toLower() == "x-client-id") {
                 params["__client_id__"] = headerValue;
+            } else if (headerName.toLower() == "accept-encoding") {
+                params["__accept_encoding__"] = headerValue;
             }
         }
     }
@@ -833,6 +837,12 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
         return buildHttpResponse(405, "Method Not Allowed", "text/plain",
                                 QString("Only GET and POST requests are supported"));
     }
+
+    /* The desktop built for a browser is served to anyone: the page has
+       to load before it can log in, and holds nothing of the papers */
+    if (!_webDir.isEmpty() && method == "GET"
+        && (path == "/app" || path.startsWith("/app/")))
+        return handleWeb(path, params);
 
     /* Identify the caller.  authedUser is non-empty when a bearer token
      * resolved to a known user; that controls per-user repo gating
@@ -3294,6 +3304,80 @@ QByteArray SearchServer::handleActivity(const QString &path,
     return buildHttpResponse(200, "OK", "application/json",
                              QString::fromUtf8(QJsonDocument(out).toJson(
                                  QJsonDocument::Compact)));
+}
+
+
+QByteArray SearchServer::handleWeb(const QString &path,
+                                   const QHash<QString, QString> &params)
+{
+    /* a page which uses threads must be kept apart from other sites,
+       which these ask the browser to do; and a browser keeps the files,
+       so have it ask each time whether they have changed */
+    static const QByteArray kHeaders =
+        "Cross-Origin-Opener-Policy: same-origin\r\n"
+        "Cross-Origin-Embedder-Policy: require-corp\r\n"
+        "Cross-Origin-Resource-Policy: same-origin\r\n"
+        "Cache-Control: no-cache\r\n";
+    auto reply = [](int code, const QByteArray &text, const QByteArray &type,
+                    const QByteArray &body, const QByteArray &more) {
+        QByteArray response = "HTTP/1.1 " + QByteArray::number(code) + " "
+            + text + "\r\n";
+
+        response += "Content-Type: " + type + "\r\n";
+        response += "Content-Length: " + QByteArray::number(body.size())
+            + "\r\n";
+        response += kHeaders + more + "\r\n" + body;
+        return response;
+    };
+
+    // the files are found from the page by name, so it must end in a slash
+    if (path == "/app")
+        return reply(301, "Moved Permanently", "text/plain", "",
+                     "Location: /app/\r\n");
+
+    QString name = QUrl::fromPercentEncoding(path.mid(5).toUtf8());
+
+    if (name.isEmpty())
+        name = QFile::exists(_webDir + "/index.html") ? "index.html"
+                                                       : "paperman.html";
+
+    // only the files in the directory itself, and none which is hidden
+    QFileInfo fi(_webDir + "/" + name);
+
+    if (name.contains('/') || name.contains('\\') || name.startsWith('.')
+        || !fi.isFile())
+        return reply(404, "Not Found", "text/plain", "Not found", "");
+
+    static const QHash<QString, QByteArray> kTypes = {
+        {"html", "text/html; charset=utf-8"},
+        {"js", "text/javascript"},
+        {"wasm", "application/wasm"},
+        {"svg", "image/svg+xml"},
+        {"png", "image/png"},
+        {"ico", "image/x-icon"},
+        {"css", "text/css"},
+        {"json", "application/json"},
+    };
+    QByteArray type = kTypes.value(fi.suffix().toLower(),
+                                   "application/octet-stream");
+
+    /* the program is large and shrinks to a third, so send a copy which
+       was compressed beforehand to a browser which takes one */
+    QString pathname = fi.filePath();
+    QByteArray more;
+
+    if (params.value("__accept_encoding__").contains("gzip")
+        && QFile::exists(pathname + ".gz")) {
+        pathname += ".gz";
+        more = "Content-Encoding: gzip\r\nVary: Accept-Encoding\r\n";
+    }
+
+    QFile file(pathname);
+
+    if (!file.open(QIODevice::ReadOnly))
+        return reply(500, "Internal Server Error", "text/plain",
+                     "Cannot read the file", "");
+    return reply(200, "OK", type, file.readAll(), more);
 }
 
 

@@ -45,6 +45,8 @@ Options
    clients can search it; see `Searching Text`_
 -  ``-r, --read-pages <n>`` - Read the pages of every stack in the
    background (OCR), ``n`` stacks at a time; see `Reading Pages`_
+-  ``-w, --web <dir>`` - Serve the desktop built for a browser, which
+   is in ``<dir>``; see `Serving the Desktop to a Browser`_
 -  ``-h, --help`` - Show help message
 
 For example, on port 9000, reading and indexing the text:
@@ -89,6 +91,32 @@ as stacks change.
 
 Together with ``--read-pages``, this finds stacks which nobody has
 opened.
+
+Serving the Desktop to a Browser
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Paperman's desktop can be built to run in a web browser (WebAssembly).
+With ``--web <dir>``, where ``<dir>`` holds that build (``paperman.html``
+and the files beside it), the server serves it at ``/app/``: open
+``http://<server>:<port>/app/`` in a browser. The page and the server
+are then one site, so the page can use the server it came from with no
+more set-up, and the server lists ``web`` among its features.
+
+-  From another machine the page has to be fetched over HTTPS. A browser
+   lets a page use threads only where it counts the page as secure,
+   which is HTTPS or ``localhost``, and without them the page stays at
+   "Loading...". The server does not do HTTPS itself: see
+   :doc:`deployment` for a web server in front of it which does.
+-  The files are served to anyone, since the page has to load before
+   anyone can log in. They hold nothing of the papers.
+-  They are sent with the headers which a page using threads needs to
+   be kept apart from other sites, and the browser is told to check each
+   time whether they have changed.
+-  The program is large. If a file has a copy beside it with ``.gz``
+   added to its name, made with ``gzip -k``, that is sent to a browser
+   which takes compressed files, at about a third of the size.
+-  Only the files in ``<dir>`` itself are served: none in folders below
+   it, and none whose name starts with a dot.
 
 Users
 -----
