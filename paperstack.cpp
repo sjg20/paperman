@@ -674,7 +674,7 @@ static boolean fill_input_buffer (j_decompress_ptr cinfo)
    {
    UNUSED (cinfo);
    // we have no more data to give!
-   return false;
+   return FALSE;
    }
 
 
@@ -849,7 +849,7 @@ void PPage::continueJpeg ()
    switch (_state)
       {
       case State_read_header:
-         if (jpeg_read_header (&_cinfo, true) == JPEG_SUSPENDED)
+         if (jpeg_read_header (&_cinfo, TRUE) == JPEG_SUSPENDED)
             break;
 
          /* The page was made ready for the window the scanner was
