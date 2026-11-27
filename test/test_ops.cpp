@@ -5,6 +5,7 @@
 #include <QtTest/QtTest>
 #include <QDir>
 
+#include "pagecover.h"
 #include "../utils.h"
 #include "test.h"
 
@@ -1852,7 +1853,7 @@ void TestOps::testActivityRecorded()
    QCOMPARE(acts[2].action, Activity::A_undo);
    QCOMPARE(acts[2].ref, acts[1].id);
    QCOMPARE(acts[2].describe(),
-            QString("Undid: Turned page 2 of 'letter'"));
+            QString("Undid: Turned page 2 of 'letter' to the right"));
    model->getUndoStack()->redo();
    acts = read();
    QCOMPARE(int(acts.size()), 4);
@@ -2000,6 +2001,242 @@ void TestOps::testActivityRecorded()
       QVERIFY2(!acts[i].describe().isEmpty(),
                qPrintable(QString::number(i)));
    }
+}
+
+
+/* Each entry says exactly what was changed, which is what is needed to
+   tell what happened and to put it back: the pages a stack brought or
+   took, which pages went, which way a page was turned, what a name or a
+   detail was before */
+void TestOps::testActivityDetail()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   getTestRepo(&me, model, repo_ind);
+
+   QString root = model->deskToDirname(repo_ind);
+   ActivityLog log(root);
+   QList<Activity> acts;
+   auto read = [&]() {
+      QList<Activity> list;
+
+      return log.read(list) ? QList<Activity>() : list;
+   };
+   auto stack = [&](const QString &name) {
+      return model->index(name, repo_ind);
+   };
+   auto ints = [](const QJsonValue &value) {
+      QList<int> out;
+
+      for (const QJsonValue &v : value.toArray())
+         out << v.toInt();
+      return out;
+   };
+
+   // a page turned says which way
+   model->transformPage(stack("testfile.max"), 1, File::Transform_rotate270);
+   acts = read();
+   QCOMPARE(acts.last().more.value("turn").toString(), QString("rotate270"));
+   QCOMPARE(acts.last().describe(),
+            QString("Turned page 2 of 'testfile' to the left"));
+
+   // pages removed are named
+   QBitArray pages(5);
+   QModelIndex ind = stack("testfile.max");
+
+   pages.setBit(1);
+   pages.setBit(3);
+   model->deletePages(ind, pages);
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_remove_pages);
+   QCOMPARE(acts.last().count, 2);
+   QCOMPARE(ints(acts.last().more.value("pages")), QList<int>({1, 3}));
+   QCOMPARE(acts.last().describe(),
+            QString("Removed pages 2 and 4 from 'testfile'"));
+
+   // a new order is kept: the old number of each page, in its new place
+   ind = stack("testfile.max");
+   model->reorderPages(ind, {2, 0, 1});
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_reorder);
+   QCOMPARE(ints(acts.last().more.value("order")), QList<int>({2, 0, 1}));
+
+   // a page named says what it was called
+   ind = stack("testfile.max");
+   QVERIFY(model->setData(ind, 0, Desktopmodel::Role_pagenum));
+   QString old = model->data(ind, Desktopmodel::Role_pagename).toString();
+   model->renamePage(ind, "cover sheet");
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_rename_page);
+   QCOMPARE(acts.last().note, QString("cover sheet"));
+   QCOMPARE(acts.last().more.value("was").toString(), old);
+
+   // details changed say which, and what each was and is
+   QHash<int, QString> updates;
+
+   updates[File::Annot_title] = "Statement";
+   updates[File::Annot_notes] = "to be paid";
+   ind = stack("testfile.max");
+   model->updateAnnot(ind, updates);
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_details);
+   QCOMPARE(acts.last().more.value("now").toObject().value("title")
+               .toString(), QString("Statement"));
+   QCOMPARE(acts.last().more.value("now").toObject().value("notes")
+               .toString(), QString("to be paid"));
+   QVERIFY(acts.last().more.value("was").toObject().contains("title"));
+   QCOMPARE(acts.last().describe(),
+            QString("Changed the notes and title of 'testfile'"));
+   updates.clear();
+   updates[File::Annot_title] = "Bank statement";
+   model->updateAnnot(ind, updates);
+   acts = read();
+   QCOMPARE(acts.last().more.value("was").toObject().value("title")
+               .toString(), QString("Statement"));
+   QCOMPARE(acts.last().describe(),
+            QString("Changed the title of 'testfile'"));
+
+   // facts changed say which, and what each was and is
+   Docfacts facts;
+
+   facts.amount = "12.50";
+   facts.date = "2026-03-04";
+   QVERIFY(model->setFacts(stack("testfile.max"), facts));
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_facts);
+   QCOMPARE(acts.last().more.value("now").toObject().value("amount")
+               .toString(), QString("12.50"));
+   QVERIFY(!acts.last().more.contains("was"));
+   facts.amount = "13.50";
+   QVERIFY(model->setFacts(stack("testfile.max"), facts));
+   acts = read();
+   QCOMPARE(acts.last().more.value("was").toObject().value("amount")
+               .toString(), QString("12.50"));
+   QCOMPARE(acts.last().more.value("now").toObject().keys(),
+            QStringList("amount"));
+   QCOMPARE(acts.last().describe(),
+            QString("Changed the facts about 'testfile': amount"));
+
+   // a crop says what part of the page was kept
+   model->cropPage(stack("testfile.max"), 0, QRectF(0.125, 0.25, 0.5, 0.625));
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_crop);
+   QCOMPARE(acts.last().page, 0);
+   QJsonArray box = acts.last().more.value("box").toArray();
+   QCOMPARE(int(box.size()), 4);
+   QCOMPARE(box.at(0).toDouble(), 0.125);
+   QCOMPARE(box.at(1).toDouble(), 0.25);
+   QCOMPARE(box.at(2).toDouble(), 0.5);
+   QCOMPARE(box.at(3).toDouble(), 0.625);
+
+   /* a cover says what it is, and what cover another page had; clearing
+      it says so */
+   model->setCover(stack("testfile.max"), 1, Pagecover::wholePage());
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_cover);
+   QCOMPARE(acts.last().page, 1);
+   QString cover = acts.last().more.value("cover").toString();
+   QVERIFY(!cover.isEmpty());
+   QVERIFY(!acts.last().more.contains("was"));
+   QCOMPARE(acts.last().describe(),
+            QString("Set the cover of 'testfile' on page 2"));
+   model->setCover(stack("testfile.max"), 0, Pagecover::wholePage());
+   acts = read();
+   QCOMPARE(acts.last().more.value("was").toObject().value("1").toString(),
+            cover);
+   model->setCover(stack("testfile.max"), 0, Pagecover());
+   acts = read();
+   QCOMPARE(acts.last().more.value("cover").toString(), QString());
+   QCOMPARE(acts.last().describe(),
+            QString("Cleared the cover of 'testfile'"));
+
+   /* one page taken out says which, and whether it was only copied;
+      the stack has three pages at this point */
+   ind = stack("testfile.max");
+   int before = read().size();
+   model->unstackPage(ind, 1, false);
+   acts = read();
+   QCOMPARE(int(acts.size()), before + 1);
+   QCOMPARE(acts.last().action, Activity::A_unstack);
+   QCOMPARE(acts.last().page, 1);
+   QCOMPARE(acts.last().count, 1);
+   QVERIFY(acts.last().more.value("copy").toBool());
+   QString copy = acts.last().path;
+   QCOMPARE(acts.last().describe(),
+            QString("Copied page 2 of 'testfile' as '%1'")
+               .arg(Activity::displayName(copy)));
+   ind = stack("testfile.max");
+   model->unstackPage(ind, 2, true);
+   acts = read();
+   QCOMPARE(acts.last().page, 2);
+   QVERIFY(!acts.last().more.contains("copy"));
+   QString taken = acts.last().path;
+   QCOMPARE(acts.last().describe(),
+            QString("Took page 3 out of 'testfile' as '%1'")
+               .arg(Activity::displayName(taken)));
+
+   /* a stack put onto another says how many pages it brought and where
+      they went: here the two pages left, with one page after them */
+   QModelIndexList list{stack(taken)};
+
+   QCOMPARE(model->getFile(stack("testfile.max"))->pagecount(), 2);
+   QVERIFY(!model->stackItems(stack("testfile.max"), list, nullptr, 2));
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_stack);
+   QCOMPARE(acts.last().from, taken);
+   QCOMPARE(acts.last().path, QString("testfile.max"));
+   QCOMPARE(acts.last().count, 1);
+   QCOMPARE(acts.last().page, 2);
+   QCOMPARE(model->getFile(stack("testfile.max"))->pagecount(), 3);
+   QCOMPARE(acts.last().describe(),
+            QString("Stacked '%1' (1 page) onto 'testfile'")
+               .arg(Activity::displayName(taken)));
+
+   // a stack divided says which pages each new stack took
+   before = acts.size();
+   ind = stack("testpdf.pdf");
+   QVERIFY(model->splitStack(ind, {1, 3}, {"second", "third"}, QString()));
+   acts = read();
+
+   QList<Activity> took;
+
+   for (int i = before; i < acts.size(); i++)
+      if (acts[i].action == Activity::A_unstack)
+         took << acts[i];
+   QCOMPARE(int(took.size()), 2);
+   QCOMPARE(took[0].page, 1);
+   QCOMPARE(took[0].count, 2);
+   QCOMPARE(took[1].page, 3);
+   QCOMPARE(took[1].count, 2);
+   QCOMPARE(took[0].describe(),
+            QString("Took pages 2 to 3 out of 'testpdf.pdf' as "
+                    "'second.pdf'"));
+
+   // every page taken out of a stack says which each one is
+   before = acts.size();
+   list = QModelIndexList{stack("third.pdf")};
+   QVERIFY(!model->unstackStacks(list, repo_ind));
+   acts = read();
+   QCOMPARE(int(acts.size()), before + 1);
+   QCOMPARE(acts.last().action, Activity::A_unstack);
+   QCOMPARE(acts.last().from, QString("third.pdf"));
+   QCOMPARE(acts.last().page, 0);
+   QCOMPARE(acts.last().count, 1);
+
+   // a file brought in says where it came from
+   QString file = testSrc + "/colour_plasma.jpg";
+
+   model->addFiles(QStringList(file), repo_ind, QPoint(300, 200));
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_import);
+   QCOMPARE(acts.last().more.value("from").toArray().at(0).toString(),
+            file);
+
+   // what was kept is read back as it was written
+   QList<Activity> again = read();
+   QCOMPARE(again, acts);
 }
 
 /* A page which is turned or cropped loses its words, since they are no

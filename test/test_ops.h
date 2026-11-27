@@ -90,6 +90,7 @@ private slots:
 
    //! What is done to stacks is written in the record of activity
    void testActivityRecorded();
+   void testActivityDetail();
 
    //! Reversing the pages of several stacks, as one step to undo
    void testReversePages();

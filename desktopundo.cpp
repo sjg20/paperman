@@ -22,6 +22,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 */
 
 
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QApplication>
 #include <QDebug>
 #include <QDir>
@@ -592,10 +594,18 @@ QList<Activity> UCAddFiles::activity () const
       Activity act = entry (Activity::A_import, _dir, _destname);
 
       act.count = _count;
+      act.more ["from"] = QJsonArray::fromStringList (_paths);
       acts << act;
       }
-   else for (const QString &name : *_newnames)
-      acts << entry (Activity::A_import, _dir, name);
+   else for (int i = 0; i < _newnames->size (); i++)
+      {
+      Activity act = entry (Activity::A_import, _dir, _newnames->at (i));
+
+      // each file makes a stack, so each stack has the file it came from
+      if (_newnames->size () == _paths.size ())
+         act.more ["from"] = QJsonArray::fromStringList ({_paths [i]});
+      acts << act;
+      }
    return acts;
    }
 
@@ -854,13 +864,20 @@ QList<Activity> UCUnstackStacks::activity () const
    QList<Activity> acts;
 
    for (int i = 0; i < _newnames->size () && i < _filenames.size (); i++)
-      for (const QString &name : _newnames->at (i))
+      {
+      const QStringList &names = _newnames->at (i);
+
+      // the pages are taken off the front, one at a time, in order
+      for (int page = 0; page < names.size (); page++)
          {
-         Activity act = entry (Activity::A_unstack, _dir, name);
+         Activity act = entry (Activity::A_unstack, _dir, names [page]);
 
          act.from = fullPath (_dir, _filenames [i]);
+         act.page = page;
+         act.count = 1;
          acts << act;
          }
+      }
    return acts;
    }
 
@@ -934,6 +951,9 @@ QList<Activity> UCUnstackPage::activity () const
 
    act.from = fullPath (_dir, _filename);
    act.page = *_pagenum;
+   act.count = 1;
+   if (!_remove)
+      act.more ["copy"] = true;
    return _newname->isEmpty () ? QList<Activity> () : QList<Activity> () << act;
    }
 
@@ -1014,8 +1034,13 @@ UCDeletePages::UCDeletePages (Desktopmodel *model, QModelIndex &ind, QBitArray &
 QList<Activity> UCDeletePages::activity () const
    {
    Activity act = entry (Activity::A_remove_pages, _dir, _filename);
+   QJsonArray pages;
 
+   for (int i = 0; i < _pages.size (); i++)
+      if (_pages.testBit (i))
+         pages << i;
    act.count = *_count;
+   act.more ["pages"] = pages;
    return QList<Activity> () << act;
    }
 
@@ -1091,11 +1116,17 @@ QList<Activity> UCSplitStack::activity () const
    // the stack itself, then each stack taken out of it
    split.count = _newnames->size () + 1;
    acts << split;
-   for (const QString &name : *_newnames)
-      {
-      Activity act = entry (Activity::A_unstack, _dir, name);
+   int page = _first;
 
+   for (int i = 0; i < _newnames->size (); i++)
+      {
+      Activity act = entry (Activity::A_unstack, _dir, _newnames->at (i));
+
+      // the pages it took, as they were numbered before the split
       act.from = fullPath (_dir, _filename);
+      act.page = page;
+      act.count = _pagepos.value (i).pagecount;
+      page += act.count;
       acts << act;
       }
    return acts;
@@ -1187,7 +1218,13 @@ UCReorderPages::UCReorderPages (Desktopmodel *model, QModelIndex &ind,
 
 QList<Activity> UCReorderPages::activity () const
    {
-   return QList<Activity> () << entry (Activity::A_reorder, _dir, _filename);
+   Activity act = entry (Activity::A_reorder, _dir, _filename);
+   QJsonArray order;
+
+   for (int old : _order)
+      order << old;
+   act.more ["order"] = order;
+   return QList<Activity> () << act;
    }
 
 
@@ -1257,11 +1294,21 @@ QList<Activity> UCStackStacks::activity () const
    {
    QList<Activity> acts;
 
-   for (const QString &name : _filenames)
+   int page = *_pagenum;
+
+   for (int i = 0; i < _filenames.size (); i++)
       {
       Activity act = entry (Activity::A_stack, _dir, _destname);
 
-      act.from = fullPath (_dir, name);
+      /* how many pages it brought, and where the first of them is in the
+         stack it went onto: each goes in after the one before */
+      act.from = fullPath (_dir, _filenames [i]);
+      act.count = _pagepos.value (i).pagecount;
+      if (page >= 0)
+         {
+         act.page = page;
+         page += act.count;
+         }
       acts << act;
       }
    return acts;
@@ -1488,7 +1535,22 @@ UCStackFacts::UCStackFacts (Desktopmodel *model, const QModelIndex &ind,
 
 QList<Activity> UCStackFacts::activity () const
    {
-   return QList<Activity> () << entry (Activity::A_facts, _dir, _filename);
+   Activity act = entry (Activity::A_facts, _dir, _filename);
+   QJsonObject was = _old.toJson (), now = _new.toJson ();
+   QJsonObject before, after;
+
+   // only the facts which differ, with what each was and now is
+   for (const QString &key : was.keys ())
+      if (was.value (key) != now.value (key))
+         before [key] = was.value (key);
+   for (const QString &key : now.keys ())
+      if (was.value (key) != now.value (key))
+         after [key] = now.value (key);
+   if (!before.isEmpty ())
+      act.more ["was"] = before;
+   if (!after.isEmpty ())
+      act.more ["now"] = after;
+   return QList<Activity> () << act;
    }
 
 
@@ -1536,6 +1598,7 @@ QList<Activity> UCTransformPage::activity () const
    Activity act = entry (Activity::A_turn, _dir, _fname);
 
    act.page = _pagenum;
+   act.more ["turn"] = Activity::turnName (_op);
    return QList<Activity> () << act;
    }
 
@@ -1587,6 +1650,8 @@ QList<Activity> UCCropPage::activity () const
    Activity act = entry (Activity::A_crop, _dir, _fname);
 
    act.page = _pagenum;
+   act.more ["box"] = QJsonArray {_area.left (), _area.top (),
+                                  _area.width (), _area.height ()};
    return QList<Activity> () << act;
    }
 
@@ -1643,8 +1708,20 @@ UCSetCover::UCSetCover (Desktopmodel *model, const QModelIndex &ind,
 QList<Activity> UCSetCover::activity () const
    {
    Activity act = entry (Activity::A_cover, _dir, _fname);
+   QJsonObject was;
 
+   // the cover it is given, and the one any page had before
    act.page = _pagenum;
+   act.more ["cover"] = _cover;
+   for (auto it = _old->constBegin (); it != _old->constEnd (); ++it)
+      {
+      QString cover = it.value ().value (Pagecover::key);
+
+      if (!cover.isEmpty ())
+         was [QString::number (it.key ())] = cover;
+      }
+   if (!was.isEmpty ())
+      act.more ["was"] = was;
    return QList<Activity> () << act;
    }
 
@@ -1703,6 +1780,8 @@ QList<Activity> UCRenamePage::activity () const
 
    act.page = _pagenum;
    act.note = _newname;
+   if (!_oldname.isEmpty ())
+      act.more ["was"] = _oldname;
    return QList<Activity> () << act;
    }
 
@@ -1756,7 +1835,39 @@ UCUpdateAnnot::UCUpdateAnnot (Desktopmodel *model, const QModelIndex &ind,
 
 QList<Activity> UCUpdateAnnot::activity () const
    {
-   return QList<Activity> () << entry (Activity::A_details, _dir, _fname);
+   static const QHash<int, QString> names = {
+      {File::Annot_title, "title"}, {File::Annot_author, "author"},
+      {File::Annot_keywords, "keywords"}, {File::Annot_notes, "notes"},
+      {File::Annot_ocr, "text"},
+   };
+   Activity act = entry (Activity::A_details, _dir, _fname);
+   QJsonObject was, now;
+   QStringList fields;
+
+   for (auto it = _new.constBegin (); it != _new.constEnd (); ++it)
+      {
+      QString name = names.value (it.key ());
+      QString old = _old.value (it.key ());
+
+      if (name.isEmpty () || old == it.value ())
+         continue;
+      fields << name;
+
+      // the text read from a stack's pages is too long to keep twice
+      if (it.key () == File::Annot_ocr)
+         continue;
+      was [name] = old;
+      now [name] = it.value ();
+      }
+   fields.sort ();
+   if (!fields.isEmpty ())
+      act.more ["fields"] = QJsonArray::fromStringList (fields);
+   if (!was.isEmpty ())
+      {
+      act.more ["was"] = was;
+      act.more ["now"] = now;
+      }
+   return QList<Activity> () << act;
    }
 
 
