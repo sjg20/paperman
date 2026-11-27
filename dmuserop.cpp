@@ -142,6 +142,21 @@ void Desktopmodel::trashStacks (QModelIndexList &list, QModelIndex parent)
    }
 
 
+QString Desktopmodel::restoreStack (const QModelIndex &parent,
+      const QString &trashname, const QString &filename, qint64 deleted)
+   {
+   UCRestoreStack *op = new UCRestoreStack (this, parent, trashname,
+                                            filename, deleted);
+
+   _undo->push (op);
+
+   // a desk on this computer has it at once, under the name it now has
+   QString name = op->filename ();
+
+   return index (name, parent).isValid () ? name : QString ();
+   }
+
+
 void Desktopmodel::trashStack (QModelIndex &ind)
    {
    QModelIndexList list;

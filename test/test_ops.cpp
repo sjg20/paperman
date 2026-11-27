@@ -1897,10 +1897,47 @@ void TestOps::testActivityRecorded()
    QCOMPARE(acts.last().path, QString("power bill.pdf"));
    ActivityLog::whereNow(acts, acts.size() - 1, gone);
    QVERIFY(gone);
+
+   // the entry has the name it has in the trash, where it is
+   QString kept = acts.last().kept;
+   QString trash = root + ActivityLog::trashName() + "/";
+   QCOMPARE(kept, QString("power bill.pdf"));
+   QVERIFY(QFile::exists(trash + kept));
    model->getUndoStack()->undo();
    acts = read();
    QCOMPARE(ActivityLog::whereNow(acts, acts.size() - 2, gone),
             QString("power bill.pdf"));
+   QVERIFY(!gone);
+
+   /* deleted again, it can be brought back from the trash by that name,
+      which is recorded against the entry which deleted it; and undoing
+      that deletes it again */
+   list = QModelIndexList{model->index("power bill.pdf", repo_ind)};
+   model->trashStacks(list, repo_ind);
+   acts = read();
+   int deleted = acts.size() - 1;
+   QCOMPARE(acts[deleted].action, Activity::A_trash);
+   QCOMPARE(model->restoreStack(repo_ind, acts[deleted].kept,
+                                "power bill.pdf", acts[deleted].id),
+            QString("power bill.pdf"));
+   QVERIFY(QFile::exists(root + "power bill.pdf"));
+   QVERIFY(!QFile::exists(trash + kept));
+   acts = read();
+   QCOMPARE(acts.last().action, Activity::A_restore);
+   QCOMPARE(acts.last().path, QString("power bill.pdf"));
+   QCOMPARE(acts.last().ref, acts[deleted].id);
+   ActivityLog::whereNow(acts, deleted, gone);
+   QVERIFY(!gone);
+   model->getUndoStack()->undo();
+   QVERIFY(!QFile::exists(root + "power bill.pdf"));
+   QVERIFY(QFile::exists(trash + kept));
+   acts = read();
+   ActivityLog::whereNow(acts, deleted, gone);
+   QVERIFY(gone);
+   model->getUndoStack()->redo();
+   QVERIFY(QFile::exists(root + "power bill.pdf"));
+   acts = read();
+   ActivityLog::whereNow(acts, deleted, gone);
    QVERIFY(!gone);
 
    // dividing a stack gives the stack and each one taken out of it

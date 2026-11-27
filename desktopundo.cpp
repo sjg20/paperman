@@ -317,7 +317,11 @@ QList<Activity> UCTrashStacks::activity () const
       // to the trash, or to another folder, where it may get a new name
       if (_destdir.isEmpty ())
          {
-         acts << entry (Activity::A_trash, _dir, _filenames->at (i));
+         Activity act = entry (Activity::A_trash, _dir, _filenames->at (i));
+
+         // its name there, so that it can be found and put back
+         act.kept = _trashlist->value (i);
+         acts << act;
          continue;
          }
 
@@ -367,6 +371,64 @@ void UCTrashStacks::undo (void)
 
       model->opUntrashStacks (*trashlist, parent, filenames, files, true,
                               destdir, copy, done);
+   });
+   }
+
+
+UCRestoreStack::UCRestoreStack (Desktopmodel *model,
+      const QModelIndex &parent, const QString &trashname,
+      const QString &filename, qint64 deleted)
+      : Desktopundocmd (model), _deleted (deleted)
+   {
+   _dir = model->deskToDirname (parent);
+   _filenames = std::make_shared<QStringList> (filename);
+   _trashlist = std::make_shared<QStringList> (trashname);
+   setText (QApplication::translate ("UCRestoreStack", "Put back stack"));
+   }
+
+
+QList<Activity> UCRestoreStack::activity () const
+   {
+   Activity act = entry (Activity::A_restore, _dir, _filenames->value (0));
+
+   act.ref = _deleted;
+   return {act};
+   }
+
+
+void UCRestoreStack::redo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   auto filenames = _filenames;
+   auto trashlist = _trashlist;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+
+      // it goes where the desk puts a new stack
+      model->opUntrashStacks (*trashlist, parent, filenames,
+                              QList<pagepos_info> (), false, QString (),
+                              false, done);
+   });
+   }
+
+
+void UCRestoreStack::undo (void)
+   {
+   Desktopmodel *model = _model;
+   QString dir = _dir;
+   auto filenames = _filenames;
+   auto trashlist = _trashlist;
+
+   queue (dir, [=] (Desktopmodel::OpDone done) {
+      QString path = dir;
+      QModelIndex parent = model->deskFromDirname (path);
+      QModelIndexList list = model->listFromFilenames (*filenames, parent);
+
+      trashlist->clear ();
+      model->opTrashStacks (list, parent, trashlist, QString (), false, done);
    });
    }
 
