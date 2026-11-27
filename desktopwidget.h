@@ -120,6 +120,17 @@ public:
    void addRemoteServer(const QUrl &baseUrl,
                         std::function<void (const QString &error)> done);
 
+   /** Tell whether a request failed for want of a login: the server asks
+    *  for one and the token kept, if any, was refused. How that is said
+    *  depends on where it comes from: "HTTP 401" from the code which
+    *  waits for a reply, "Host requires authentication" from Qt, the
+    *  server's own "Invalid or missing credentials", or just the
+    *  "Unauthorized" of the reply, which is all a browser passes on
+    *
+    *  @param message  the error
+    *  @returns true if it is one of those, so a login should be asked for */
+   static bool isAuthError(const QString &message);
+
    /** Show a modal username/password dialog for @p baseUrl and
     *  return the entered credentials.  Returns false if the user
     *  cancels or leaves a field blank. */
