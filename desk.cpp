@@ -52,7 +52,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "remotebackend.h"
 #include "filemax.h"
 #include "fileother.h"
+#ifndef CONFIG_no_pdf
 #include "filepdf.h"
+#endif
 #include "measure.h"
 #include "paperstack.h"
 #include "utils.h"

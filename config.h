@@ -57,7 +57,9 @@ details */
 
 
 /** define this to use the poppler library, which allows display of PDF files */
+#ifndef CONFIG_no_pdf
 #define CONFIG_use_poppler
+#endif
 
 
 
