@@ -401,6 +401,18 @@ void TestActivityLog::testWhereNowFolders()
    QCOMPARE(ActivityLog::whereNow(acts, 0, gone),
             QString("archive/bills/year 2026"));
 
+   /* a folder is followed by itself too, from any entry: this is where
+      a stack would be put back to, if it left the folder at that entry */
+   QCOMPARE(ActivityLog::folderNow(acts, 1, "bills/2026/03mar"),
+            QString("archive/bills/year 2026/03mar"));
+   QCOMPARE(ActivityLog::folderNow(acts, 3, "bills/year 2026"),
+            QString("archive/bills/year 2026"));
+   QCOMPARE(ActivityLog::folderNow(acts, 4, "archive/bills"),
+            QString("archive/bills"));
+   QCOMPARE(ActivityLog::folderNow(acts, 0, ""), QString(""));
+   QCOMPARE(ActivityLog::folderNow(acts, 0, "bills/2026x"),
+            QString("archive/bills/2026x"));
+
    // an entry made after the moves starts from where things then are
    QCOMPARE(ActivityLog::whereNow(acts, 5, gone),
             QString("archive/bills/year 2026/03mar/electric.max"));

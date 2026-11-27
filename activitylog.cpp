@@ -305,6 +305,26 @@ err_info *ActivityLog::read (QList<Activity> &acts, int max) const
    }
 
 
+QString ActivityLog::folderNow (const QList<Activity> &acts, int at,
+                                const QString &dir)
+   {
+   QString path = dir;
+
+   for (int i = qMax (at + 1, 0); i < acts.size (); i++)
+      {
+      const Activity &act = acts [i];
+
+      if (act.action != Activity::A_folder_move)
+         continue;
+      if (path == act.from)
+         path = act.path;
+      else if (path.startsWith (act.from + "/"))
+         path = act.path + path.mid (act.from.size ());
+      }
+   return path;
+   }
+
+
 QString ActivityLog::whereNow (const QList<Activity> &acts, int at,
                                bool &gone)
    {
