@@ -362,8 +362,13 @@ void SearchServer::startReaders()
                 [this, name](const QString &relPath, int pages) {
                     qInfo() << "SearchServer: read" << pages << "pages of"
                             << relPath;
+                    StackDetail detail;
+
+                    detail.action = Activity::A_read;
+                    detail.who = Activity::W_reader;
+                    detail.count = pages;
                     notifyStackEvent(name, "annotations", relPath, "",
-                                     QString());
+                                     QString(), detail);
                 });
         if (!reader->start(&error)) {
             qWarning() << "SearchServer: cannot read the pages of" << root
@@ -1414,8 +1419,11 @@ QByteArray SearchServer::handleTransform(const QString &path,
     /* The file's mtime has changed, so cached thumbnails and pages
        (whose cache keys include the mtime) will miss and be re-rendered
        on the next request; no explicit cache invalidation is needed. */
+    StackDetail detail;
+
+    detail.page = page >= 1 ? page - 1 : -1;
     notifyStackEvent(target.repoName, "transform", target.filePath, "",
-                     params.value("__client_id__"));
+                     params.value("__client_id__"), detail);
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -1701,8 +1709,12 @@ QByteArray SearchServer::handleRenamePage(const QString &path,
     delete file;
 
     _log.log(ServerLog::ServeFile, target.filePath + " page renamed");
+    StackDetail detail;
+
+    detail.page = page - 1;
+    detail.note = newName;
     notifyStackEvent(target.repoName, "renamePage", target.filePath, "",
-                     params.value("__client_id__"));
+                     params.value("__client_id__"), detail);
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -2186,8 +2198,13 @@ QByteArray SearchServer::handleOcrPage(const QString &path,
     delete file;
 
     _log.log(ServerLog::ServeFile, target.filePath + " ocr");
+
+    StackDetail detail;
+
+    detail.action = Activity::A_read;
+    detail.page = page - 1;
     notifyStackEvent(target.repoName, "annotations", target.filePath, "",
-                     params.value("__client_id__"));
+                     params.value("__client_id__"), detail);
     QJsonObject out;
     out["success"] = true;
     out["text"] = text;
@@ -2328,8 +2345,11 @@ QByteArray SearchServer::handleDeletePages(const QString &path,
     _pageUndos[undoId] = undo;
 
     _log.log(ServerLog::ServeFile, target.filePath + " pages deleted");
+    StackDetail detail;
+
+    detail.count = count;
     notifyStackEvent(target.repoName, "pagesDeleted", target.filePath, "",
-                     params.value("__client_id__"));
+                     params.value("__client_id__"), detail);
     QJsonObject out;
     out["success"] = true;
     out["undoId"] = undoId;
@@ -2462,8 +2482,12 @@ QByteArray SearchServer::handleCrop(const QString &path,
     _cropUndos[undoId] = undo;
 
     _log.log(ServerLog::ServeFile, target.filePath + " cropped");
+
+    StackDetail detail;
+
+    detail.page = page >= 1 ? page - 1 : -1;
     notifyStackEvent(target.repoName, "crop", target.filePath, "",
-                     params.value("__client_id__"));
+                     params.value("__client_id__"), detail);
     QJsonObject out;
     out["success"] = true;
     out["undoId"] = undoId;
@@ -2693,8 +2717,12 @@ QByteArray SearchServer::handleStack(const QString &path,
                                  buildJsonResponse(false, "", err->errstr));
 
     _log.log(ServerLog::ServeFile, target.filePath + " stacked");
+    StackDetail detail;
+
+    for (const StackTarget &src : sources)
+        detail.from << src.filePath;
     notifyStackEvent(target.repoName, "stack", target.filePath, "",
-                     params.value("__client_id__"));
+                     params.value("__client_id__"), detail);
     return buildHttpResponse(200, "OK", "application/json",
                              buildJsonResponse(true, "", ""));
 }
@@ -3393,10 +3421,83 @@ void SearchServer::relayStackEvent(const QString &repoName, const QString &op,
 }
 
 
+void SearchServer::recordActivity(const QString &repoName, const QString &op,
+                                  const QString &path, const QString &newPath,
+                                  const StackDetail &detail)
+{
+    static const QHash<QString, Activity::e_action> kActions = {
+        {"transform", Activity::A_turn},
+        {"rename", Activity::A_rename},
+        {"move", Activity::A_move},
+        {"delete", Activity::A_trash},
+        {"renamePage", Activity::A_rename_page},
+        {"annotations", Activity::A_details},
+        {"pagesDeleted", Activity::A_remove_pages},
+        {"pagesRestored", Activity::A_other},
+        {"crop", Activity::A_crop},
+        {"unstack", Activity::A_unstack},
+        {"stack", Activity::A_stack},
+        {"upload", Activity::A_import},
+        {"duplicate", Activity::A_duplicate},
+    };
+    QString root = _backend->rootPathForName(repoName);
+    Activity act;
+
+    act.action = detail.action != Activity::A_none ? detail.action
+                                                   : kActions.value(op);
+
+    /* the server's own files, such as a folder's layout, are not papers */
+    if (root.isEmpty() || act.action == Activity::A_none
+        || QFileInfo(newPath.isEmpty() ? path : newPath).fileName()
+              .startsWith('.'))
+        return;
+
+    act.who = detail.who;
+    act.page = detail.page;
+    act.count = detail.count;
+    act.note = detail.note;
+    act.path = path;
+    if (op == "pagesRestored")
+        act.note = QStringLiteral("Brought back removed pages");
+
+    /* a stack which is renamed, moved, copied or taken out of another is
+       recorded where it now is, with where it was or came from */
+    if (!newPath.isEmpty() && (op == "rename" || op == "move"
+                               || op == "unstack" || op == "duplicate")) {
+        act.path = newPath;
+        act.from = path;
+    } else if (op == "upload" && !newPath.isEmpty()) {
+        act.path = newPath;
+    }
+
+    ActivityLog log(root);
+
+    // each stack put into another is an entry, as the desktop records it
+    if (act.action == Activity::A_stack && !detail.from.isEmpty()) {
+        for (const QString &from : detail.from) {
+            act.from = from;
+            log.add(act);
+        }
+        return;
+    }
+    log.add(act);
+}
+
+
 void SearchServer::notifyStackEvent(const QString &repoName,
                                     const QString &op, const QString &path,
                                     const QString &name,
                                     const QString &clientId)
+{
+    notifyStackEvent(repoName, op, path, name, clientId, StackDetail());
+}
+
+
+void SearchServer::notifyStackEvent(const QString &repoName,
+                                    const QString &op, const QString &path,
+                                    const QString &name,
+                                    const QString &clientId,
+                                    const StackDetail &detail)
 {
     /* A move also gives the stack's new path, and a rename, unstack and
        so on the name of a stack in the same folder */
@@ -3419,6 +3520,7 @@ void SearchServer::notifyStackEvent(const QString &repoName,
     touchStack(repoName, path);
     if (!newPath.isEmpty())
         touchStack(repoName, newPath);
+    recordActivity(repoName, op, path, newPath, detail);
 
     sendStackEvent(repoName, op, path, name, clientId);
     relayStackEvent(repoName, op, path, newPath, name, clientId);

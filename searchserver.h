@@ -32,6 +32,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #ifndef __searchserver_h
 #define __searchserver_h
 
+#include "activitylog.h"
 #include "backend.h"
 #include "cachedfile.h"
 #include "localbackend.h"
@@ -1021,9 +1022,39 @@ private:
      * @param clientId  X-Client-Id of the originating request, echoed
      *                  so that client can ignore its own change
      */
+    /** more about a change to a stack than notifyStackEvent()'s clients
+     *  need, for the record of activity */
+    struct StackDetail {
+        int page = -1;      //!< the page it was done to, from 0; -1 if none
+        int count = 0;      //!< how many pages it covers, 0 if not said
+        QStringList from;   //!< what it was made from: stacks put into it
+        QString note;       //!< anything more, such as a page's new name
+        //! who did it, when it was not a client
+        Activity::e_who who = Activity::W_user;
+        //! what it was, where the event's name does not say
+        Activity::e_action action = Activity::A_none;
+    };
+
+    /** put a change to a stack in its repository's record of activity
+     *
+     *  @param repoName  the repository
+     *  @param op        the change, as notifyStackEvent() names it
+     *  @param path      the stack's path in the repository
+     *  @param newPath   its new path, or that of the stack made from it
+     *  @param detail    more about it */
+    void recordActivity(const QString &repoName, const QString &op,
+                        const QString &path, const QString &newPath,
+                        const StackDetail &detail);
+
     void notifyStackEvent(const QString &repoName, const QString &op,
                           const QString &path, const QString &name,
                           const QString &clientId);
+
+    //! the same, with more about the change for the record of activity
+    void notifyStackEvent(const QString &repoName, const QString &op,
+                          const QString &path, const QString &name,
+                          const QString &clientId,
+                          const StackDetail &detail);
 
     /** One SSE subscriber */
     struct EventClient {
