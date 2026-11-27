@@ -534,16 +534,12 @@ QList<err_info> Desktopwidget::addRepositories(const QStringList& dirs)
 }
 
 
-/* A request fails because the server requires authentication and our
- * cached token (if any) was rejected.  The HTTP layer surfaces this
- * either as a raw "HTTP 401" string from RemoteBackend::waitForReply
- * or as the server's "Host requires authentication" / "Invalid or
- * missing credentials" prose; treat either as login-needed. */
-static bool isAuthError(const QString &message)
+bool Desktopwidget::isAuthError(const QString &message)
 {
    return message.contains("401")
        || message.contains("authentication", Qt::CaseInsensitive)
-       || message.contains("credentials", Qt::CaseInsensitive);
+       || message.contains("credentials", Qt::CaseInsensitive)
+       || message.contains("unauthorized", Qt::CaseInsensitive);
 }
 
 

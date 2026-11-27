@@ -5828,6 +5828,23 @@ void TestDesktopUi::testDropMarker()
 }
 
 
+/* A server which wants a login says so in several ways, depending on
+   what passes the refusal on: each of them is taken as a reason to ask
+   for a name and password, and nothing else is */
+void TestDesktopUi::testLoginNeeded()
+{
+   for (const char *message : {
+           "HTTP 401", "Host requires authentication",
+           "Invalid or missing credentials",
+           // a browser passes on only the words of the reply
+           "Unauthorized", "unauthorized"})
+      QVERIFY2(Desktopwidget::isAuthError(message), message);
+   for (const char *message : {
+           "", "Connection refused", "Not Found", "HTTP 404", "HTTP 500",
+           "Repository not found: papers", "the server cannot search"})
+      QVERIFY2(!Desktopwidget::isAuthError(message), message);
+}
+
 void TestDesktopUi::testAddServer()
 {
    QTemporaryDir serverDir, configDir;
