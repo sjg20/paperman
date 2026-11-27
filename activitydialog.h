@@ -82,14 +82,13 @@ public:
    //! what the line below the list says about the stack chosen
    QString status () const;
 
-   //! a stack to put back: where it is now, and where it goes, both as
-   //! full paths
-   typedef QPair<QString, QString> Move;
+   //! a stack to put back
+   typedef PutBack Move;
 
    /** what Put back would do for the line chosen: each stack which the
-       line, or the lines under it, renamed or moved, and which is still
-       there to put back. None if the line is not about such a thing, or
-       has been undone */
+       line, or the lines under it, renamed, moved or deleted, and which is
+       still there to put back. None if the line is not about such a
+       thing, or has been undone */
    QList<Move> putBackMoves () const;
 
    //! show only what one person did: Activity::e_who, or -1 for everyone
@@ -97,6 +96,10 @@ public:
 
    //! the most entries shown, counted from the newest
    static constexpr int max_entries = 5000;
+
+   //! how far apart, in seconds, an entry for a deleted stack and the
+   //! arrival of a stack in the trash may be for them to be the same thing
+   static constexpr int trash_slack = 10;
 
 public slots:
    //! read the record again, soon; several calls close together read once
@@ -136,6 +139,12 @@ private:
 
    //! the line for an entry
    QTreeWidgetItem *lineFor (int at, const QSet<qint64> &undone) const;
+
+   /** find a deleted stack in the trash
+
+      \param act  the entry which deleted it
+      \returns the name it has there, empty if it is not there */
+   QString keptName (const Activity &act) const;
 
    QString _root;
    QList<Activity> _acts;        //!< the entries shown, oldest first

@@ -106,8 +106,9 @@ Activitydialog::Activitydialog (QWidget *parent)
    _put_back->setObjectName ("putBack");
    _put_back->setAutoDefault (false);
    _put_back->setToolTip (tr ("Put the stack back where it was, and as it "
-      "was named, before the line chosen was done. For a line with others "
-      "under it, each of their stacks is put back. This is a step like any "
+      "was named, before the line chosen was done. A stack which was "
+      "deleted comes back from the trash. For a line with others under "
+      "it, each of their stacks is put back. This is a step like any "
       "other, which can be undone"));
    row->addWidget (_put_back);
    layout->addLayout (row);
@@ -210,13 +211,37 @@ void Activitydialog::reload ()
       each entry is what counts */
    QSet<qint64> &undone = _undone;
 
+   /* a deleted stack which is put back is a deletion undone. Putting it
+      back can itself be undone, by itself or within a group, and then
+      the stack is deleted again */
+   auto restores = [&] (qint64 id, bool put_back) {
+      for (const Activity &act : _acts)
+         {
+         if (act.action != Activity::A_restore || !act.ref
+             || (act.id != id && act.group != id))
+            continue;
+         if (put_back)
+            undone << act.ref;
+         else
+            undone.remove (act.ref);
+         }
+   };
+
    undone.clear ();
    for (const Activity &act : _acts)
       {
-      if (act.action == Activity::A_undo)
+      if (act.action == Activity::A_restore && act.ref)
          undone << act.ref;
+      else if (act.action == Activity::A_undo)
+         {
+         undone << act.ref;
+         restores (act.ref, false);
+         }
       else if (act.action == Activity::A_redo)
+         {
          undone.remove (act.ref);
+         restores (act.ref, true);
+         }
       }
 
    QHash<qint64, QTreeWidgetItem *> lines;
@@ -293,6 +318,34 @@ int Activitydialog::chosenEntry () const
    }
 
 
+QString Activitydialog::keptName (const Activity &act) const
+   {
+   QDir trash (QDir (_root).absoluteFilePath (ActivityLog::trashName ()));
+   QString kept = act.kept;
+
+   /* an entry from before the name was recorded: the stack is taken to
+      have kept its name, if one of that name went into the trash at the
+      time the entry was written. One deleted earlier, or since, under
+      the same name is not it. Windows does not say when a file arrived,
+      so there such an entry cannot be matched */
+   if (kept.isEmpty ())
+      {
+#ifdef Q_OS_WIN
+      return QString ();
+#endif
+      QFileInfo fi (trash.absoluteFilePath (act.path.section ('/', -1)));
+      QDateTime moved = fi.metadataChangeTime ();
+
+      if (!fi.isFile () || !moved.isValid () || !act.when.isValid ()
+          || qAbs (moved.secsTo (act.when)) > trash_slack)
+         return QString ();
+      return fi.fileName ();
+      }
+   return QFileInfo (trash.absoluteFilePath (kept)).isFile () ? kept
+                                                               : QString ();
+   }
+
+
 QList<Activitydialog::Move> Activitydialog::putBackMoves () const
    {
    QList<Move> moves;
@@ -323,6 +376,24 @@ QList<Activitydialog::Move> Activitydialog::putBackMoves () const
       {
       const Activity &act = _acts [i];
 
+      if (act.action == Activity::A_trash)
+         {
+         /* from the trash, to the folder it was in, as that folder is
+            now, under the name it had */
+         QString kept = keptName (act);
+         QString dir = act.path.contains ('/')
+               ? act.path.section ('/', 0, -2) : QString ();
+         QString was = ActivityLog::folderNow (_acts, i, dir);
+
+         was = top.absoluteFilePath ((was.isEmpty () ? QString () : was + "/")
+                                     + act.path.section ('/', -1));
+         if (kept.isEmpty () || QFileInfo::exists (was)
+             || !QFileInfo (was).dir ().exists ())
+            continue;
+         moves << Move (top.absoluteFilePath (ActivityLog::trashName ()
+                                              + "/" + kept), was, act.id);
+         continue;
+         }
       if (act.action != Activity::A_rename && act.action != Activity::A_move)
          continue;
 

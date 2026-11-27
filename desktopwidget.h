@@ -275,13 +275,14 @@ public:
    bool showStack (const QString &pathname, int page = -1);
 
    /** put stacks back where they were: each is given the name it had and
-       moved to the folder it was in, all as one step which can be undone
+       moved to the folder it was in, and one which was deleted is brought
+       back from the trash, all as one step which can be undone
 
       \param moves  for each stack, its full path now and the full path
                     it is to have
       \returns empty if all were put back; otherwise why the first which
                could not be was not, with those before it done */
-   QString putBack (const QList<QPair<QString, QString>> &moves);
+   QString putBack (const QList<struct PutBack> &moves);
 
    // Set whether the dir filter is active or not
    void setDirFilter(bool active);
