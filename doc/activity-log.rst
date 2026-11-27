@@ -66,7 +66,10 @@ An entry
    * - ``in``
      - The ``id`` of the entry this one belongs under
    * - ``ref``
-     - For an undo or a redo, the ``id`` of the entry it is about
+     - For an undo or a redo, the ``id`` of the entry it is about; for a
+       ``restore``, of the entry which deleted the stack
+   * - ``kept``
+     - For a ``trash``, the name the stack has in the repository's trash
 
 A key with nothing to say is left out. A line which cannot be read, or
 whose ``do`` is not known, is passed over, so a newer Paperman can add
@@ -85,7 +88,11 @@ The values of ``do``, which must never change once used:
    * - ``rename``, ``move``
      - A stack was given a new name, or moved to another folder
    * - ``trash``
-     - A stack was deleted; ``path`` is where it was
+     - A stack was deleted; ``path`` is where it was, and ``kept`` its
+       name in the trash
+   * - ``restore``
+     - A deleted stack was put back from the trash; ``path`` is where
+       it now is
    * - ``duplicate``
      - A copy of a stack was made, here or in another folder
    * - ``stack``, ``unstack``, ``split``
@@ -122,7 +129,8 @@ a ``folder-move`` takes everything under the folder it names, however
 far down, to the same place under the folder's new path; an undo works
 the entry it names backwards, and a redo forwards, with a group's entries
 taken together; and a ``trash``, or a ``stack`` onto another, means that
-it has gone. An entry about a folder is followed in the same way, to
+it has gone, until a ``restore`` at its path brings it back. An entry
+about a folder is followed in the same way, to
 where that folder is now. This is how an entry from days ago
 leads to the stack as it is today.
 

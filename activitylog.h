@@ -48,7 +48,7 @@ struct Activity
       A_rename,      //!< a stack was given a new name
       A_move,        //!< a stack was moved to another folder
       A_trash,       //!< a stack was moved to the trash; its path is where
-                     //!< it was
+                     //!< it was, and 'kept' its name in the trash
       A_duplicate,   //!< a copy of a stack was made
       A_stack,       //!< stacks were put together into one
       A_unstack,     //!< pages were taken out into stacks of their own
@@ -67,6 +67,9 @@ struct Activity
       A_folder_move, //!< a folder was renamed, or moved into another; its
                      //!< path and where it was before are folders
       A_other,       //!< something else, said in the note
+      A_restore,     //!< a deleted stack was put back from the trash; its
+                     //!< path is where it now is, and its ref the entry
+                     //!< which deleted it
       A_undo,        //!< an earlier entry was undone
       A_redo,        //!< an entry which was undone was done again
 
@@ -101,6 +104,10 @@ struct Activity
    int page = -1;       //!< the page it was done to, from 0; -1 if not one
    int count = 0;       //!< how many pages or stacks it covers, 0 if not said
    QString note;        //!< anything more, in words: a new page name, say
+
+   //! for a stack moved to the trash, the name it has there, by which it
+   //! can be brought back
+   QString kept;
 
    //! the entry in the form it is kept in: one JSON object
    QJsonObject toJson () const;
@@ -177,6 +184,10 @@ public:
                about it leaves it. For an entry about a folder this is the
                folder, which is followed in the same way */
    static QString whereNow (const QList<Activity> &acts, int at, bool &gone);
+
+   /** the folder, at the top of a repository, which holds its deleted
+       stacks */
+   static QString trashName () { return QStringLiteral (".maxview-trash"); }
 
    /** find where a folder is now, by following the moves of it, and of
        the folders above it, which come after an entry

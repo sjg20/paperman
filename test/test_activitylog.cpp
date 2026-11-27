@@ -54,7 +54,7 @@ void TestActivityLog::testJson()
    QCOMPARE(obj.value("t").toString(), QString("2026-03-04T05:06:07.089Z"));
    QCOMPARE(obj.value("path").toString(), QString("bills/power bill.max"));
    QCOMPARE(obj.value("from").toString(), QString("bills/scan1.max"));
-   for (const char *key : {"in", "ref", "page", "n", "note"})
+   for (const char *key : {"in", "ref", "page", "n", "note", "kept"})
       QVERIFY2(!obj.contains(key), key);
 
    // and it comes back as it was, large number and all
@@ -68,6 +68,7 @@ void TestActivityLog::testJson()
    act.page = 0;
    act.count = 3;
    act.note = "a \"quoted\" caf\u00e9";
+   act.kept = "power bill_1.max";
    act.action = Activity::A_scan_page;
    act.who = Activity::W_reader;
    QVERIFY(Activity::fromJson(act.toJson(), back));
@@ -234,6 +235,9 @@ void TestActivityLog::testDescribe()
    // a PDF keeps its extension, as it does on the desk
    act = entry(Activity::A_trash, "bills/statement.PDF");
    QCOMPARE(act.describe(), QString("Deleted 'statement.PDF'"));
+   act = entry(Activity::A_restore, "bills/statement.PDF");
+   QCOMPARE(act.describe(),
+            QString("Put back 'statement.PDF', which had been deleted"));
    QCOMPARE(Activity::displayName("a/b/power bill.max"),
             QString("power bill"));
    QCOMPARE(Activity::displayName("3.5 inch.MAX"), QString("3.5 inch"));
@@ -332,6 +336,23 @@ void TestActivityLog::testWhereNow()
    add(Activity::A_undo, "", "", trashed);                           // 10
    ActivityLog::whereNow(acts, 0, gone);
    QVERIFY(!gone);
+   ActivityLog::whereNow(acts, 9, gone);
+   QVERIFY(!gone);
+
+   /* deleted again, it is put back from the trash, long after: it is
+      there again, until that is undone, and done again */
+   add(Activity::A_redo, "", "", trashed);
+   ActivityLog::whereNow(acts, 0, gone);
+   QVERIFY(gone);
+   qint64 back = add(Activity::A_restore, "bills/bill.max", "", trashed);
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone), QString("bills/bill.max"));
+   QVERIFY(!gone);
+   QCOMPARE(ActivityLog::whereNow(acts, 9, gone), QString("bills/bill.max"));
+   QVERIFY(!gone);
+   add(Activity::A_undo, "", "", back);
+   ActivityLog::whereNow(acts, 9, gone);
+   QVERIFY(gone);
+   add(Activity::A_redo, "", "", back);
    ActivityLog::whereNow(acts, 9, gone);
    QVERIFY(!gone);
 
