@@ -126,6 +126,9 @@ private slots:
    //! The Activity window lists what was done and goes to each stack
    void testActivityWindow();
 
+   //! Put back in the Activity window, and showing one person's doings
+   void testActivityPutBack();
+
    //! Test searching folders for a stack and locating its folder
    void testSearchAndLocate();
 

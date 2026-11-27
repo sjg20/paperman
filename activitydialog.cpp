@@ -18,11 +18,15 @@ License: GPL-2
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <algorithm>
+
+#include <QComboBox>
 #include <QDir>
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLocale>
+#include <QPushButton>
 #include <QSet>
 #include <QTimer>
 #include <QTreeWidget>
@@ -83,6 +87,38 @@ Activitydialog::Activitydialog (QWidget *parent)
    _where->setObjectName ("where");
    _where->setWordWrap (true);
    layout->addWidget (_where);
+
+   // whose doings to show, and a way to put right the line chosen
+   QHBoxLayout *row = new QHBoxLayout;
+
+   _show = new QComboBox (this);
+   _show->setObjectName ("show");
+   _show->addItem (tr ("Everything"), -1);
+   _show->addItem (tr ("What you did"), int (Activity::W_user));
+   _show->addItem (tr ("What the assistant did"),
+                   int (Activity::W_assistant));
+   _show->addItem (tr ("What Paperman did"), int (Activity::W_reader));
+   _show->setToolTip (tr ("Show only what one of these did"));
+   row->addWidget (new QLabel (tr ("Show:"), this));
+   row->addWidget (_show);
+   row->addStretch ();
+   _put_back = new QPushButton (tr ("&Put back"), this);
+   _put_back->setObjectName ("putBack");
+   _put_back->setAutoDefault (false);
+   _put_back->setToolTip (tr ("Put the stack back where it was, and as it "
+      "was named, before the line chosen was done. For a line with others "
+      "under it, each of their stacks is put back. This is a step like any "
+      "other, which can be undone"));
+   row->addWidget (_put_back);
+   layout->addLayout (row);
+   connect (_show, QOverload<int>::of (&QComboBox::currentIndexChanged), this,
+            [this] (int index) { setWho (_show->itemData (index).toInt ()); });
+   connect (_put_back, &QPushButton::clicked, this, [this] () {
+      QList<Move> moves = putBackMoves ();
+
+      if (!moves.isEmpty ())
+         emit putBackWanted (moves);
+   });
 
    _timer = new QTimer (this);
    _timer->setSingleShot (true);
@@ -172,8 +208,9 @@ void Activitydialog::reload ()
 
    /* what has been undone, and not done again since: the last word on
       each entry is what counts */
-   QSet<qint64> undone;
+   QSet<qint64> &undone = _undone;
 
+   undone.clear ();
    for (const Activity &act : _acts)
       {
       if (act.action == Activity::A_undo)
@@ -190,6 +227,14 @@ void Activitydialog::reload ()
    for (int at = 0; at < _acts.size (); at++)
       {
       const Activity &act = _acts [at];
+
+      /* only one person's doings, if asked: a line under another is
+         shown with the one it is under */
+      if (_who >= 0 && !act.group && int (act.who) != _who)
+         continue;
+      if (act.group && !lines.contains (act.group))
+         continue;
+
       QTreeWidgetItem *line = lineFor (at, undone);
 
       // under its group, in order; or at the top, the newest first
@@ -222,6 +267,88 @@ void Activitydialog::reload ()
    _none->setVisible (!why.isEmpty ());
    if (!again)
       _where->clear ();
+   updatePutBack ();
+   }
+
+
+void Activitydialog::setWho (int who)
+   {
+   int index = _show->findData (who);
+
+   if (who == _who)
+      return;
+   _who = who;
+   if (index >= 0 && index != _show->currentIndex ())
+      _show->setCurrentIndex (index);
+   reload ();
+   }
+
+
+int Activitydialog::chosenEntry () const
+   {
+   QTreeWidgetItem *line = _tree->currentItem ();
+   int at = line ? line->data (COL_what, AtRole).toInt () : -1;
+
+   return at >= 0 && at < _acts.size () ? at : -1;
+   }
+
+
+QList<Activitydialog::Move> Activitydialog::putBackMoves () const
+   {
+   QList<Move> moves;
+   int at = chosenEntry ();
+
+   if (at < 0 || _undone.contains (_acts [at].id)
+       || _undone.contains (_acts [at].group))
+      return moves;
+
+   // the line itself, or for one with others under it, each of those
+   QList<int> which;
+
+   if (_acts [at].action == Activity::A_group)
+      {
+      for (int i = at + 1; i < _acts.size (); i++)
+         if (_acts [i].group == _acts [at].id)
+            which << i;
+      }
+   else
+      which << at;
+
+   // the last thing done is the first put back
+   std::reverse (which.begin (), which.end ());
+
+   QDir top (_root);
+
+   for (int i : which)
+      {
+      const Activity &act = _acts [i];
+
+      if (act.action != Activity::A_rename && act.action != Activity::A_move)
+         continue;
+
+      /* from where the stack is now, to where it was: in the folder it
+         was in, as that folder is now, under the name it had */
+      bool gone;
+      QString now = ActivityLog::whereNow (_acts, i, gone);
+      QString dir = act.from.contains ('/') ? act.from.section ('/', 0, -2)
+                                            : QString ();
+      QString was = ActivityLog::folderNow (_acts, i, dir);
+
+      was = (was.isEmpty () ? QString () : was + "/")
+               + act.from.section ('/', -1);
+      if (gone || now == was || !QFileInfo (top.absoluteFilePath (now)).isFile ()
+          || QFileInfo::exists (top.absoluteFilePath (was))
+          || !QFileInfo (top.absoluteFilePath (was)).dir ().exists ())
+         continue;
+      moves << Move (top.absoluteFilePath (now), top.absoluteFilePath (was));
+      }
+   return moves;
+   }
+
+
+void Activitydialog::updatePutBack ()
+   {
+   _put_back->setEnabled (!putBackMoves ().isEmpty ());
    }
 
 
@@ -230,6 +357,7 @@ void Activitydialog::lineChosen ()
    QTreeWidgetItem *line = _tree->currentItem ();
 
    _where->clear ();
+   updatePutBack ();
    if (!line)
       return;
 

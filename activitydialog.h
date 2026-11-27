@@ -22,11 +22,15 @@ License: GPL-2
 
 #include <QDialog>
 #include <QList>
+#include <QPair>
+#include <QSet>
 #include <QString>
 
 #include "activitylog.h"
 
+class QComboBox;
 class QLabel;
+class QPushButton;
 class QTimer;
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -78,6 +82,19 @@ public:
    //! what the line below the list says about the stack chosen
    QString status () const;
 
+   //! a stack to put back: where it is now, and where it goes, both as
+   //! full paths
+   typedef QPair<QString, QString> Move;
+
+   /** what Put back would do for the line chosen: each stack which the
+       line, or the lines under it, renamed or moved, and which is still
+       there to put back. None if the line is not about such a thing, or
+       has been undone */
+   QList<Move> putBackMoves () const;
+
+   //! show only what one person did: Activity::e_who, or -1 for everyone
+   void setWho (int who);
+
    //! the most entries shown, counted from the newest
    static constexpr int max_entries = 5000;
 
@@ -95,6 +112,12 @@ signals:
       \param page      the page the line is about, from 0; -1 if none */
    void stackChosen (const QString &pathname, int page);
 
+   /** Put back has been pressed: each stack is to go from where it is to
+       where it was before the line chosen was done, as one step
+
+      \param moves  the stacks, in the order to do them */
+   void putBackWanted (const QList<Activitydialog::Move> &moves);
+
    /** a line about a folder has been chosen, and the folder is still there
 
       \param pathname  the folder's full path, as it is now */
@@ -105,6 +128,12 @@ private slots:
    void lineChosen ();
 
 private:
+   //! the entry of the line chosen, as a place in _acts; -1 if none
+   int chosenEntry () const;
+
+   //! allow Put back when the line chosen has something to put back
+   void updatePutBack ();
+
    //! the line for an entry
    QTreeWidgetItem *lineFor (int at, const QSet<qint64> &undone) const;
 
@@ -113,5 +142,9 @@ private:
    QTreeWidget *_tree;
    QLabel *_where;               //!< says where the stack chosen is now
    QLabel *_none;                //!< says why there is nothing to show
+   QPushButton *_put_back;       //!< puts back what the line chosen did
+   QComboBox *_show;             //!< chooses whose doings are shown
+   QSet<qint64> _undone;         //!< the entries since undone
+   int _who = -1;                //!< whose doings are shown; -1 for all
    QTimer *_timer;               //!< puts off a refresh a little
    };
