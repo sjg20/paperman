@@ -138,6 +138,26 @@ struct Activity
    };
 
 
+/** a stack to put back: where it is now, and where it goes, both as full
+paths. One which was deleted is in its repository's trash, and has the
+entry which deleted it */
+struct PutBack
+   {
+   PutBack () {}
+   PutBack (const QString &now, const QString &was, qint64 deleted = 0)
+      : now (now), was (was), deleted (deleted) {}
+   bool operator== (const PutBack &other) const
+      {
+      return now == other.now && was == other.was
+         && deleted == other.deleted;
+      }
+
+   QString now;         //!< where the stack is
+   QString was;         //!< where it is to go
+   qint64 deleted = 0;  //!< the entry which deleted it; 0 if it was not
+   };
+
+
 /** the record of what has been done to the papers in a repository
 
 It is a file at the top of the repository, so that it goes where the papers

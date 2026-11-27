@@ -1257,6 +1257,166 @@ void TestDesktopUi::testActivityPutBack()
    QCOMPARE(int(dialog->listed().size()), all);
 }
 
+
+/* A stack which was deleted is in the trash, and Put back brings it back
+   to where it was, however long ago it was deleted */
+void TestDesktopUi::testActivityPutBackDeleted()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString root = model->deskToDirname(repo_ind);
+   QString trash = root + ".maxview-trash/";
+   auto selected = [&]() {
+      QStringList out;
+
+      for (const QModelIndex &ind : view->selectionModel()->selectedIndexes())
+         out << ind.data(Desktopmodel::Role_filename).toString();
+      out.sort();
+      return out;
+   };
+   auto rootIndex = [&]() { return model->deskFromDirname(root); };
+
+   me.actionActivity->trigger();
+   Activitydialog *dialog = me.findChild<Activitydialog *>();
+   QVERIFY(dialog);
+   QPushButton *put_back = dialog->findChild<QPushButton *>("putBack");
+   QVERIFY(put_back);
+
+   // a stack is deleted: it is in the trash, and the line says it is gone
+   QModelIndexList list{model->index("testfile.max", repo_ind)};
+   model->trashStacks(list, repo_ind);
+   QTRY_COMPARE(dialog->listed(), QStringList("Deleted 'testfile'"));
+   QVERIFY(!QFile::exists(root + "testfile.max"));
+   QVERIFY(QFile::exists(trash + "testfile.max"));
+   dialog->choose(0);
+   QVERIFY(dialog->status().contains("has since been deleted"));
+
+   // it can be put back, from the trash to where it was
+   QList<Activitydialog::Move> moves = dialog->putBackMoves();
+   QCOMPARE(int(moves.size()), 1);
+   QCOMPARE(moves[0].now, trash + "testfile.max");
+   QCOMPARE(moves[0].was, root + "testfile.max");
+   QVERIFY(moves[0].deleted);
+   QVERIFY(put_back->isEnabled());
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "testfile.max"));
+   QVERIFY(!QFile::exists(trash + "testfile.max"));
+   QTRY_COMPARE(selected(), QStringList("testfile.max"));
+
+   // that is a step in the list, and the deletion is marked as undone
+   QTRY_COMPARE(dialog->listed(), QStringList({
+      "Put back", "Deleted 'testfile' (undone)"}));
+   QCOMPARE(dialog->listedUnder(0),
+            QStringList("Put back 'testfile', which had been deleted"));
+   QVERIFY(dialog->isUndone(1));
+
+   // either line now leads to the stack, and there is nothing to put back
+   view->selectionModel()->clear();
+   dialog->choose(1);
+   QTRY_COMPARE(selected(), QStringList("testfile.max"));
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+
+   // undoing the step deletes the stack again, so it can be put back again
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(!QFile::exists(root + "testfile.max"));
+   QVERIFY(QFile::exists(trash + "testfile.max"));
+   QTRY_COMPARE(int(dialog->listed().size()), 3);
+   QVERIFY(dialog->listed()[0].startsWith("Undid:"));
+   QCOMPARE(dialog->listed()[2], QString("Deleted 'testfile'"));
+   QVERIFY(!dialog->isUndone(2));
+   dialog->choose(2);
+   QCOMPARE(int(dialog->putBackMoves().size()), 1);
+
+   // but not while another stack has its name
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", root + "testfile.max"));
+   dialog->choose(1);
+   dialog->choose(2);
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+   QVERIFY(QFile::remove(root + "testfile.max"));
+
+   // doing the step again brings it back, and marks the deletion again
+   model->getUndoStack()->redo();
+   QTRY_VERIFY(QFile::exists(root + "testfile.max"));
+   QTRY_COMPARE(int(dialog->listed().size()), 4);
+   QVERIFY(dialog->isUndone(3));
+
+   // two deleted together are one line, which brings both back
+   QModelIndexList both{model->index("testpdf.pdf", rootIndex()),
+                        model->index("testfile.max", rootIndex())};
+   model->trashStacks(both, rootIndex());
+   QTRY_COMPARE(dialog->listed()[0], QString("Delete stacks (2)"));
+   QVERIFY(!QFile::exists(root + "testfile.max"));
+   QVERIFY(!QFile::exists(root + "testpdf.pdf"));
+   dialog->choose(0);
+   QCOMPARE(int(dialog->putBackMoves().size()), 2);
+   int steps = model->getUndoStack()->index();
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "testfile.max"));
+   QTRY_VERIFY(QFile::exists(root + "testpdf.pdf"));
+   QCOMPARE(model->getUndoStack()->index(), steps + 1);
+   QTRY_COMPARE(int(dialog->listedUnder(0).size()), 2);
+
+   // one of the two alone can be put back, from its own line
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(!QFile::exists(root + "testpdf.pdf"));
+   QTRY_VERIFY(dialog->listed()[0].startsWith("Undid:"));
+   int row = dialog->listed().indexOf("Delete stacks (2)");
+   QVERIFY(row > 0);
+   QStringList under = dialog->listedUnder(row);
+   int pdf = under.indexOf("Deleted 'testpdf.pdf'");
+   QVERIFY(pdf >= 0);
+   dialog->choose(row, pdf);
+   moves = dialog->putBackMoves();
+   QCOMPARE(int(moves.size()), 1);
+   QCOMPARE(moves[0].was, root + "testpdf.pdf");
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "testpdf.pdf"));
+   QVERIFY(!QFile::exists(root + "testfile.max"));
+
+   /* an entry written before the trash name was kept: a stack of that
+      name which went into the trash when the entry was written is taken
+      to be it. Windows does not say when a file arrived, so there it is
+      not offered */
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", trash + "old.max"));
+   Activity act;
+   act.action = Activity::A_trash;
+   act.path = "old.max";
+   QVERIFY(!ActivityLog(root).add(act));
+   dialog->reload();
+   QCOMPARE(dialog->listed()[0], QString("Deleted 'old'"));
+   dialog->choose(0);
+   moves = dialog->putBackMoves();
+#ifdef Q_OS_WIN
+   QVERIFY(moves.isEmpty());
+#else
+   QCOMPARE(int(moves.size()), 1);
+   QCOMPARE(moves[0].now, trash + "old.max");
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "old.max"));
+#endif
+
+   // but one which was there long before, or since, is not
+   QVERIFY(QFile::copy(testSrc + "/testfile.max", trash + "older.max"));
+   act = Activity();
+   act.action = Activity::A_trash;
+   act.path = "older.max";
+   act.when = QDateTime::currentDateTimeUtc().addSecs(-3600);
+   QVERIFY(!ActivityLog(root).add(act));
+   dialog->reload();
+   QCOMPARE(dialog->listed()[0], QString("Deleted 'older'"));
+   dialog->choose(0);
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+}
+
 void TestDesktopUi::testSearchAndLocate()
 {
    QModelIndex repo_ind;

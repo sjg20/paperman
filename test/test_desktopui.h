@@ -128,6 +128,7 @@ private slots:
 
    //! Put back in the Activity window, and showing one person's doings
    void testActivityPutBack();
+   void testActivityPutBackDeleted();
 
    //! Test searching folders for a stack and locating its folder
    void testSearchAndLocate();

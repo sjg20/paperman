@@ -199,3 +199,14 @@ where it was: the entry's ``from``, in the folder as that is now
 (``ActivityLog::folderNow()``). ``Desktopwidget::putBack()`` then renames
 and moves each stack through the model, within one undo macro, so it is
 recorded as a group like anything else and can be undone.
+
+A line which deleted a stack is put back from the trash, which is the
+folder ``.maxview-trash`` at the top of the repository, where the stack
+has the name the entry kept. ``Desktopmodel::restoreStack()`` moves it
+to the folder it was in, as that folder is now, with an undo command of
+its own (``UCRestoreStack``) whose undo deletes it again. That is
+recorded as a ``restore``, and the window shows the deletion as undone
+while it stands. An entry written before ``kept`` existed is matched
+with a stack of the same name in the trash only if it arrived there
+within a few seconds of the entry, which Windows does not tell, so
+there such an entry is not matched.

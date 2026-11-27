@@ -110,15 +110,17 @@ open while Paperman is used:
 
 - **Put back** returns the stack to where it was, and as it was named,
   before the line chosen was done: a stack which was renamed gets its
-  old name, and one which was moved goes back to the folder it left. It
-  works from where the stack is now, so a line from several steps ago
+  old name, one which was moved goes back to the folder it left, and one
+  which was deleted comes back from the trash to the folder it was in.
+  It works from where the stack is now, so a line from several steps ago
   takes it back past everything since. For a line with others under it,
   such as the names the assistant gave to a batch of stacks, every one of
   them is put back. This works however long ago the thing was done, long
   after **Edit > Undo** has forgotten it, and is itself a step which can
   be undone. The button is greyed when there is nothing to put back: the
-  line did not rename or move anything, it has been undone, or the name
-  is now taken by another stack.
+  line did not rename, move or delete anything, it has been undone, the
+  name is now taken by another stack, or a deleted stack is no longer in
+  the trash.
 - **Show** cuts the list down to what you did, what the assistant did,
   or what Paperman did by itself.
 

@@ -2321,7 +2321,7 @@ bool Desktopwidget::showStack (const QString &pathname, int page)
    return true;
    }
 
-QString Desktopwidget::putBack (const QList<QPair<QString, QString>> &moves)
+QString Desktopwidget::putBack (const QList<PutBack> &moves)
    {
    QString error;
    QString last;
@@ -2329,8 +2329,8 @@ QString Desktopwidget::putBack (const QList<QPair<QString, QString>> &moves)
    _contents->getUndoStack ()->beginMacro (tr ("Put back"));
    for (const auto &move : moves)
       {
-      QFileInfo now (move.first), was (move.second);
-      QString name = Activity::displayName (move.first);
+      QFileInfo now (move.now), was (move.was);
+      QString name = Activity::displayName (move.was);
 
       if (was.exists ())
          error = tr ("There is already a stack called '%1' in %2")
@@ -2338,12 +2338,43 @@ QString Desktopwidget::putBack (const QList<QPair<QString, QString>> &moves)
       else if (!was.dir ().exists ())
          error = tr ("The folder %1 is no longer there")
                     .arg (was.absolutePath ());
-
-      // the stack's folder has to be shown for the stack to be worked on
-      else if (!showStack (move.first))
-         error = tr ("'%1' cannot be found").arg (name);
       if (!error.isEmpty ())
          break;
+
+      /* a deleted stack comes back from the trash, to the folder it was
+         in, which has to be the one shown */
+      if (move.deleted)
+         {
+         QModelIndex dir = _model->index (was.absolutePath () + "/");
+
+         if (!now.isFile () || !dir.isValid ())
+            {
+            error = tr ("'%1' is no longer in the trash").arg (name);
+            break;
+            }
+         normalView ();
+         if (QDir (_contents->getDirPath ()) != was.dir ())
+            selectDir (_dir_proxy->mapFromSource (dir), true);
+
+         QString got = _contents->restoreStack (_view->rootIndexSource (),
+               now.fileName (), was.fileName (), move.deleted);
+
+         if (got.isEmpty ())
+            {
+            error = tr ("'%1' could not be put back").arg (name);
+            break;
+            }
+         last = was.absolutePath () + "/" + got;
+         continue;
+         }
+
+      // the stack's folder has to be shown for the stack to be worked on
+      name = Activity::displayName (move.now);
+      if (!showStack (move.now))
+         {
+         error = tr ("'%1' cannot be found").arg (name);
+         break;
+         }
 
       QModelIndex parent = _view->rootIndexSource ();
       QModelIndex ind = _contents->index (now.fileName (), parent);
@@ -2379,7 +2410,7 @@ QString Desktopwidget::putBack (const QList<QPair<QString, QString>> &moves)
          error = tr ("'%1' could not be put back").arg (name);
          break;
          }
-      last = move.second;
+      last = move.was;
       }
    _contents->getUndoStack ()->endMacro ();
 
