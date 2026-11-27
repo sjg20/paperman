@@ -2906,6 +2906,55 @@ void TestDesktopUi::testRemoteGroupMoveViaUi()
 }
 
 
+/* The line below a stack, with the arrows and the page number, is as
+   tall as its text. It used to be as tall as the arrows whatever the
+   font, so with a large font, as a browser has, the number was cut off */
+void TestDesktopUi::testPageNumberFits()
+{
+   // never less than the arrows, and as much as the font from there
+   QCOMPARE(Desktopdelegate::pageLineHeight(0), Desktopdelegate::arrow_size);
+   QCOMPARE(Desktopdelegate::pageLineHeight(Desktopdelegate::arrow_size - 3),
+            int(Desktopdelegate::arrow_size));
+   QCOMPARE(Desktopdelegate::pageLineHeight(31), 31);
+
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopview *view = me.getDesktop()->getView();
+   QModelIndex stack = itemIndex(view, 0);
+
+   // a stack of several pages has a name, a page name and the page line
+   QVERIFY(stack.data(Desktopmodel::Role_pagecount).toInt() > 1);
+   auto height = [&](int pixels, int &bold, int &plain) {
+      QStyleOptionViewItem opt;
+      QFont font = view->font();
+
+      font.setPixelSize(pixels);
+      opt.font = font;
+      opt.rect = view->visualRect(stack);
+      plain = QFontMetrics(font).height();
+      font.setBold(true);
+      bold = QFontMetrics(font).height();
+      return view->itemDelegate()->sizeHint(opt, stack).height();
+   };
+   int small_bold, small_plain, large_bold, large_plain;
+   int small = height(10, small_bold, small_plain);
+   int large = height(40, large_bold, large_plain);
+
+   /* in a font so much larger the stack grows by what all three lines
+      grow by: the name, in bold, and the page name and the page line */
+   QVERIFY(large_plain > Desktopdelegate::arrow_size);
+   QVERIFY2(large - small >= (large_bold - small_bold)
+               + (large_plain - small_plain)
+               + (large_plain - Desktopdelegate::pageLineHeight(small_plain)),
+            qPrintable(QString("%1 to %2, fonts %3/%4 to %5/%6").arg(small)
+                          .arg(large).arg(small_bold).arg(small_plain)
+                          .arg(large_bold).arg(large_plain)));
+}
+
 /* A stack dragged only a little way ends up over where it was. The list
    view takes it for the thing dropped on and moves nothing, so the move
    is done by how far the pointer has come */

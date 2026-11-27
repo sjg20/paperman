@@ -89,6 +89,17 @@ public:
       \returns true to draw the mark */
    static bool showsFocus (QStyle::State state, int selected);
 
+   //! the size of the arrows which turn a stack's pages, in pixels
+   static constexpr int arrow_size = 14;
+
+   /** how tall the line below a stack is, which has the arrows and the
+       page number between them: enough for the arrows, and for the text
+       however large the font
+
+      \param font_height  the height of the font the number is drawn in
+      \returns the line's height in pixels */
+   static int pageLineHeight (int font_height);
+
    //! how thick the mark of the keyboard focus is drawn, in pixels
    static constexpr int focus_width = 2;
 
