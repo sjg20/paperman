@@ -54,6 +54,12 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "myt4.h"
 #include "mytif_fax3.h"
 
+// the fax code below uses these BSD names, which not every C library has
+#ifdef __EMSCRIPTEN__
+typedef unsigned char u_char;
+typedef unsigned int u_int;
+#endif
+
 #include <unistd.h>
 
 #include "sys/stat.h"
