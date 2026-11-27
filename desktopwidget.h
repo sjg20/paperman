@@ -131,11 +131,15 @@ public:
     *  @returns true if it is one of those, so a login should be asked for */
    static bool isAuthError(const QString &message);
 
-   /** Show a modal username/password dialog for @p baseUrl and
-    *  return the entered credentials.  Returns false if the user
-    *  cancels or leaves a field blank. */
-   bool promptForCredentials(const QUrl &baseUrl,
-                             QString &user, QString &password);
+   /** Show a username/password box for @p baseUrl, without waiting for
+    *  the answer.
+    *
+    *  @param baseUrl  the server to log in to
+    *  @param done     called when the box is closed: @c ok is false if
+    *                  the user cancels or leaves a field blank */
+   void askForCredentials(const QUrl &baseUrl,
+         std::function<void (bool ok, const QString &user,
+                             const QString &password)> done);
 
 private slots:
    /** BackendStats::changed handler.  Throttles updates to the

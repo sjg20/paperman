@@ -554,54 +554,73 @@ void Desktopwidget::addRemoteServer(const QUrl &baseUrl,
       }
 
       /* No cached token, or the cached one expired (server restart
-       * wipes the in-memory token store).  Prompt for credentials and
-       * retry. */
-      QString user, password;
-      if (!promptForCredentials(baseUrl, user, password)) {
-         done(QStringLiteral("login cancelled"));
-         return;
-      }
-      _model->loginToServer(baseUrl, user, password, [this, baseUrl, done](
-                                                        const QString &err) {
-         if (!err.isEmpty()) {
-            done(QString("login failed: %1").arg(err));
+       * wipes the in-memory token store).  Ask for credentials and
+       * retry.  This is the reply to a request, so the question must
+       * not be waited for here: see askForCredentials() */
+      askForCredentials(baseUrl, [this, baseUrl, done](
+                                    bool ok, const QString &user,
+                                    const QString &password) {
+         if (!ok) {
+            done(QStringLiteral("login cancelled"));
             return;
          }
-         _model->addRemoteRepository(baseUrl, done);
+         _model->loginToServer(baseUrl, user, password,
+                               [this, baseUrl, done](const QString &err) {
+            if (!err.isEmpty()) {
+               done(QString("login failed: %1").arg(err));
+               return;
+            }
+            _model->addRemoteRepository(baseUrl, done);
+         });
       });
    });
 }
 
 
-bool Desktopwidget::promptForCredentials(const QUrl &baseUrl,
-                                         QString &user,
-                                         QString &password)
+void Desktopwidget::askForCredentials(const QUrl &baseUrl,
+      std::function<void (bool ok, const QString &user,
+                          const QString &password)> done)
 {
-   QDialog dlg(this);
-   dlg.setWindowTitle(QString("Log in to %1").arg(baseUrl.authority()));
+   /* The box is shown and this returns: the answer comes later, when a
+      button is pressed.  A box which waits for its answer runs an event
+      loop of its own, and this is called from the reply to a request,
+      inside which a browser cannot run one */
+   QDialog *dlg = new QDialog(this);
 
-   auto *userEdit = new QLineEdit(&dlg);
+   dlg->setObjectName("login");
+   dlg->setAttribute(Qt::WA_DeleteOnClose);
+   dlg->setWindowModality(Qt::WindowModal);
+   dlg->setWindowTitle(QString("Log in to %1").arg(baseUrl.authority()));
+
+   auto *userEdit = new QLineEdit(dlg);
+   userEdit->setObjectName("user");
    userEdit->setPlaceholderText("username");
-   auto *passEdit = new QLineEdit(&dlg);
+   auto *passEdit = new QLineEdit(dlg);
+   passEdit->setObjectName("password");
    passEdit->setEchoMode(QLineEdit::Password);
    passEdit->setPlaceholderText("password");
 
    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok
                                             | QDialogButtonBox::Cancel,
-                                        &dlg);
-   connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-   connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+                                        dlg);
+   connect(buttons, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+   connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
 
-   auto *form = new QFormLayout(&dlg);
+   auto *form = new QFormLayout(dlg);
    form->addRow("User:", userEdit);
    form->addRow("Password:", passEdit);
    form->addRow(buttons);
 
-   if (dlg.exec() != QDialog::Accepted)
-      return false;
-   user = userEdit->text();
-   password = passEdit->text();
-   return !user.isEmpty() && !password.isEmpty();
+   // a name and a password are both needed: with either missing, give up
+   connect(dlg, &QDialog::finished, this,
+           [done, userEdit, passEdit](int result) {
+      QString user = userEdit->text();
+      QString password = passEdit->text();
+
+      done(result == QDialog::Accepted && !user.isEmpty()
+              && !password.isEmpty(), user, password);
+   });
+   dlg->open();
 }
 
 

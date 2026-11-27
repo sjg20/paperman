@@ -1,5 +1,6 @@
 #include <functional>
 
+#include <QDialog>
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QNetworkAccessManager>
@@ -28,6 +29,7 @@
 #include <QUrlQuery>
 #include <QtTest/QtTest>
 
+#include "userstore.h"
 #include "foldersdialog.h"
 #include "activitydialog.h"
 #include "remotebackend.h"
@@ -5827,6 +5829,108 @@ void TestDesktopUi::testDropMarker()
    QCOMPARE(line.y1(), rect(wrap).top());
 }
 
+
+/* A server which wants a login gets a box asking for a name and
+   password. The box does not hold up whatever showed it: the papers are
+   shown once it is answered, and cancelling it says so */
+void TestDesktopUi::testLoginBox()
+{
+   QStandardPaths::setTestModeEnabled(true);
+   auto restoreStdPaths = qScopeGuard([] {
+      QStandardPaths::setTestModeEnabled(false);
+   });
+   QString cfgRoot = QStandardPaths::writableLocation(
+                         QStandardPaths::GenericConfigLocation);
+   QFile::remove(cfgRoot + "/paperman-server/users.json");
+   QDir(cfgRoot + "/paperman").removeRecursively();
+   auto forget = qScopeGuard([cfgRoot] {
+      QFile::remove(cfgRoot + "/paperman-server/users.json");
+      QDir(cfgRoot + "/paperman").removeRecursively();
+   });
+
+   {
+      UserStore store;
+      QVERIFY(store.addUser("alice", "letmein"));
+   }
+
+   QTemporaryDir serverDir;
+   QVERIFY(serverDir.isValid());
+   QString repoRoot = serverDir.path() + "/papers";
+   QVERIFY(QDir().mkpath(repoRoot + "/banks"));
+
+   const quint16 port = 9887;
+   SearchServer server(repoRoot, port);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+   QTest::qWait(100);
+
+   Mainwindow me;
+   Desktopwidget *desktop = me.getDesktop();
+   QUrl url(QString("http://localhost:%1").arg(port));
+   QString root = url.toString() + "/papers";
+   auto box = [&]() { return desktop->findChild<QDialog *>("login"); };
+   auto fill = [&](const QString &user, const QString &password) {
+      box()->findChild<QLineEdit *>("user")->setText(user);
+      box()->findChild<QLineEdit *>("password")->setText(password);
+   };
+
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+   // the server asks who is there: the box comes up, and nothing waits
+   QString result = "pending";
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      result = error;
+   });
+   QTRY_VERIFY(box());
+   QTRY_VERIFY(box()->isVisible());
+   QCOMPARE(result, QString("pending"));
+   QCOMPARE(box()->windowTitle(), QString("Log in to localhost:%1").arg(port));
+   QCOMPARE(box()->findChild<QLineEdit *>("password")->echoMode(),
+            QLineEdit::Password);
+
+   // cancelled, it says so, and no papers are shown
+   box()->reject();
+   QTRY_COMPARE(result, QString("login cancelled"));
+   QVERIFY(!desktop->findDir(root).isValid());
+   QTRY_VERIFY(!box());
+
+   // with a field left empty it is the same
+   result = "pending";
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      result = error;
+   });
+   QTRY_VERIFY(box());
+   fill("alice", QString());
+   box()->accept();
+   QTRY_COMPARE(result, QString("login cancelled"));
+   QTRY_VERIFY(!box());
+
+   // the wrong password is refused, with why
+   result = "pending";
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      result = error;
+   });
+   QTRY_VERIFY(box());
+   fill("alice", "wrong");
+   box()->accept();
+   QTRY_VERIFY_WITH_TIMEOUT(result != "pending", 10000);
+   QVERIFY2(result.startsWith("login failed"), qPrintable(result));
+   QVERIFY(!desktop->findDir(root).isValid());
+   QTRY_VERIFY(!box());
+
+   // and the right one shows the server's papers
+   result = "pending";
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      result = error;
+   });
+   QTRY_VERIFY(box());
+   fill("alice", "letmein");
+   box()->accept();
+   QTRY_COMPARE_WITH_TIMEOUT(result, QString(), 10000);
+   QVERIFY(desktop->findDir(root).isValid());
+   QTRY_VERIFY(!box());
+}
 
 /* A server which wants a login says so in several ways, depending on
    what passes the refusal on: each of them is taken as a reason to ask
