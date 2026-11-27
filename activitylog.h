@@ -178,6 +178,17 @@ public:
                folder, which is followed in the same way */
    static QString whereNow (const QList<Activity> &acts, int at, bool &gone);
 
+   /** find where a folder is now, by following the moves of it, and of
+       the folders above it, which come after an entry
+
+      \param acts  the entries, oldest first
+      \param at    the entry to start after
+      \param dir   the folder's path below the top of the repository, as
+                   it was at that entry; empty for the top itself
+      \returns its path now */
+   static QString folderNow (const QList<Activity> &acts, int at,
+                             const QString &dir);
+
    /** say whether entries are recorded at all, which they are unless this
        is turned off, as tests which count the files in a folder do */
    static void setEnabled (bool enable);
