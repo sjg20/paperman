@@ -259,6 +259,7 @@ private slots:
    //! File > Add server attaches a server and remembers it, once
    void testAddServer();
    void testLoginNeeded();
+   void testLoginBox();
 
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the
