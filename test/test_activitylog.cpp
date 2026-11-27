@@ -19,6 +19,7 @@ License: GPL-2
 */
 
 #include <QJsonDocument>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 
@@ -426,4 +427,23 @@ void TestActivityLog::testDisabled()
    ActivityLog::setEnabled(true);
    QVERIFY(!log.add(act));
    QVERIFY(QFile::exists(log.pathname()));
+
+   /* the user can ask for no record to be kept: nothing more is written,
+      and what is there is left and can be read */
+   QList<Activity> acts;
+   QVERIFY(ActivityLog::kept());
+   ActivityLog::setKept(false);
+   auto keep = qScopeGuard([] { QSettings().remove("activity"); });
+   QVERIFY(!ActivityLog::kept());
+   Activity more = entry(Activity::A_turn, "a.max");
+   QVERIFY(!log.add(more));
+   QVERIFY(more.id > act.id);
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 1);
+
+   // and it starts again when they ask for one
+   ActivityLog::setKept(true);
+   QVERIFY(!log.add(more));
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 2);
 }

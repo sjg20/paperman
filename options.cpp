@@ -24,6 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QSettings>
 #include <QThread>
 
+#include "activitylog.h"
 #include "appearance.h"
 #include "mailer.h"
 #include "mainwidget.h"
@@ -103,6 +104,7 @@ void Options::init()
 
    jpeg->setChecked (xmlConfig->boolValue ("SCAN_USE_JPEG"));
    readText->setChecked (OcrReader::enabled ());
+   keepActivity->setChecked (ActivityLog::kept ());
 
    // none chosen leaves it to Paperman, which the box shows as Automatic
    readWorkers->setRange (0, qMax (1, QThread::idealThreadCount ()));
@@ -154,6 +156,7 @@ void Options::ok_clicked()
 {
    xmlConfig->setBoolValue("SCAN_USE_JPEG" ,jpeg->isChecked ());
    OcrReader::setEnabled (readText->isChecked ());
+   ActivityLog::setKept (keepActivity->isChecked ());
    OcrReader::setWorkersSetting (readWorkers->value ());
 
    // the reader which is running takes this up for the pages it starts next

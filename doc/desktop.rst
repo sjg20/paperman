@@ -112,9 +112,11 @@ This makes it possible to look back over what was filed, by you or by
 the assistant, and put right anything which went to the wrong place.
 
 The record is kept with the papers, in the repository, so it is the same
-from whichever computer they are used. A server keeps a record for the
-repositories it holds, but the window does not show it yet. Small moves
-of a stack about the desk are not recorded.
+from whichever computer they are used. To keep none, untick **Keep a
+record of what is done to the papers** in **File > Options**, *Files*:
+nothing more is written, and what is there already stays. A server
+keeps a record for the repositories it holds, but the window does not
+show it yet. Small moves of a stack about the desk are not recorded.
 
 Main toolbar
 ------------
