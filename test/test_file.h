@@ -218,6 +218,9 @@ private slots:
    //! that have arrived, and "not loaded yet" for the ones that have not
    void testSparseStack();
 
+   //! The desk leaves out files whose names start with a dot
+   void testDeskSkipsDotFiles();
+
    //! A page's text is its words, or else what the file itself has
    void testTextOfPage();
 

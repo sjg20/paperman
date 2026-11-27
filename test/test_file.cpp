@@ -1517,6 +1517,35 @@ static QString ocrWord(File *f, int pagenum)
 
 /* The text of a page comes from wherever the file keeps it: a PDF's own
    text, or nothing for a page which has none or does not exist */
+/* A file whose name starts with a dot is not a stack: it is one of
+   Paperman's own files, or hidden. Where a dot does not hide a file, as on
+   Windows, the desk must leave these out for itself */
+void TestFile::testDeskSkipsDotFiles()
+{
+   QTemporaryDir tmp;
+   QVERIFY(tmp.isValid());
+   const QString dir = tmp.path() + "/";
+   QVERIFY(!copyFixture("testfile.max", tmp.path()).isEmpty());
+   for (const char *name : {".paperlog", ".paperindex", ".hidden.max"}) {
+      QFile file(dir + name);
+
+      QVERIFY(file.open(QIODevice::WriteOnly));
+      file.write("x");
+   }
+
+   // however the folder is listed, only the stack is on the desk
+   Desk desk(dir, dir);
+   int pos;
+
+   desk.addMatches(dir, {".paperlog", ".paperindex", ".hidden.max",
+                         "testfile.max"}, nullptr);
+   QVERIFY(desk.findFile("testfile.max", pos));
+   QVERIFY(!desk.findFile(".paperlog", pos));
+   QVERIFY(!desk.findFile(".paperindex", pos));
+   QVERIFY(!desk.findFile(".hidden.max", pos));
+   QCOMPARE(desk.fileCount(), 1);
+}
+
 void TestFile::testTextOfPage()
 {
    QTemporaryDir tmp;
