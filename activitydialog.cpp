@@ -267,6 +267,19 @@ void Activitydialog::lineChosen ()
 
    if (dir == "." || dir.isEmpty ())
       dir = tr ("the top folder");
+
+   // a line about a folder leads to the folder
+   if (_acts [at].isFolder ())
+      {
+      if (!QFileInfo (pathname).isDir ())
+         _where->setText (tr ("The folder %1 is no longer there.").arg (path));
+      else
+         {
+         _where->setText (tr ("The folder is now %1.").arg (path));
+         emit folderChosen (pathname);
+         }
+      return;
+      }
    if (gone)
       _where->setText (tr ("'%1' has since been deleted, or put into "
                            "another stack.").arg (name));

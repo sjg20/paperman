@@ -619,12 +619,24 @@ void Mainwindow::on_actionActivity_triggered (bool)
          desktop->showStack (pathname, page);
       });
 
-      // it follows the record as it grows, and the repository shown
-      connect (model, &Desktopmodel::activityRecorded, _activity,
-               [this] (const QString &root) {
+      connect (_activity, &Activitydialog::folderChosen, desktop,
+               [desktop] (const QString &pathname) {
+         QModelIndex ind = desktop->findDir (pathname);
+
+         if (ind.isValid ())
+            desktop->selectDir (ind);
+      });
+
+      /* it follows the record as it grows, with what is done to stacks
+         and to folders, and the repository shown */
+      auto grown = [this] (const QString &root) {
          if (QDir (root) == QDir (_activity->root ()))
             _activity->refresh ();
-      });
+      };
+
+      connect (model, &Desktopmodel::activityRecorded, _activity, grown);
+      connect (desktop->getDirmodel (), &Dirmodel::activityRecorded,
+               _activity, grown);
       connect (model, &Desktopmodel::dirChanged, _activity,
                [this, model] (QString &dirPath, QModelIndex &) {
          _activity->setRoot (model->activityRoot (dirPath));

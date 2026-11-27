@@ -1080,6 +1080,29 @@ void TestDesktopUi::testActivityWindow()
 
    // the window keeps the keyboard, to go on down the list
    QVERIFY(!view->hasFocus());
+
+   /* the stack is moved to a folder, and then the folder is renamed: the
+      lines about the stack still lead to it, in the folder as it now is */
+   list = QModelIndexList{model->index("bank letter.max", repo_ind)};
+   model->moveToDir(list, repo_ind, dest, made);
+   QTRY_COMPARE(dialog->listed()[0],
+                QString("Moved 'bank letter' from the top folder to main"));
+   QVERIFY(QDir().rename(root + "main", root + "papers"));
+   desktop->getDirmodel()->recordFolder(Activity::A_folder_move,
+                                        root + "papers", root + "main");
+   desktop->getDirmodel()->refresh(desktop->getDirmodel()->index(root));
+   QTRY_COMPARE(dialog->listed()[0],
+                QString("Renamed the folder main to 'papers'"));
+   dialog->choose(1);
+   QTRY_COMPARE(shown(), QDir(root + "papers"));
+   QTRY_COMPARE(selected(), QStringList("bank letter.max"));
+   QCOMPARE(dialog->status(), QString("'bank letter' is now in papers."));
+
+   // and the line about the folder leads to the folder
+   dialog->choose(2);   // away
+   dialog->choose(0);
+   QCOMPARE(dialog->status(), QString("The folder is now papers."));
+   QTRY_COMPARE(shown(), QDir(root + "papers"));
 }
 
 void TestDesktopUi::testSearchAndLocate()

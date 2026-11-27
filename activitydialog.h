@@ -95,6 +95,11 @@ signals:
       \param page      the page the line is about, from 0; -1 if none */
    void stackChosen (const QString &pathname, int page);
 
+   /** a line about a folder has been chosen, and the folder is still there
+
+      \param pathname  the folder's full path, as it is now */
+   void folderChosen (const QString &pathname);
+
 private slots:
    //! show where the stack of the line chosen is now, and ask for it
    void lineChosen ();

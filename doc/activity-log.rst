@@ -103,6 +103,9 @@ The values of ``do``, which must never change once used:
        from ``n`` pages of a stack
    * - ``unfold``
      - A booklet was unfolded
+   * - ``folder-new``, ``folder-move``
+     - A folder was made, or was renamed or moved into another. Here
+       ``path``, and ``from`` for a move, are folders
    * - ``group``
      - Several things were done as one step: they are the entries under
        it
@@ -115,9 +118,12 @@ Following a stack
 An entry gives a stack's path at the time. To find where that stack is
 now, ``ActivityLog::whereNow()`` follows the entries after it: a rename
 or a move whose ``from`` is the stack's path takes it to its ``path``;
-an undo works the entry it names backwards, and a redo forwards, with a
-group's entries taken together; and a ``trash``, or a ``stack`` onto
-another, means that it has gone. This is how an entry from days ago
+a ``folder-move`` takes everything under the folder it names, however
+far down, to the same place under the folder's new path; an undo works
+the entry it names backwards, and a redo forwards, with a group's entries
+taken together; and a ``trash``, or a ``stack`` onto another, means that
+it has gone. An entry about a folder is followed in the same way, to
+where that folder is now. This is how an entry from days ago
 leads to the stack as it is today.
 
 What writes it
@@ -142,6 +148,12 @@ through ``Desktopmodel::recordActivity()``: a scan, with its pages, when
 it is saved; and the reading of text, by page for the **OCR** button and
 by stack for the background reader, which says when it has finished with
 a stack through ``OcrReader::stackRead()``.
+
+Folders are not changed through undo commands either. ``Dirmodel``
+records a folder being made, and one being moved by dragging it onto
+another, through ``Dirmodel::recordFolder()``, which the desktop also
+calls when a folder is renamed. Without these a stack could not be
+followed once a folder above it had a new name.
 
 A repository on a server keeps no record yet.
 
