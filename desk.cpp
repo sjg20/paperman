@@ -1028,6 +1028,13 @@ void Desk::addFile(const QString& fname, const QString& dir, Measure *meas)
 //   if (file->fileName ().right (4) != ".max")
 //      return;
 
+   /* a file whose name starts with a dot is one of Paperman's own, such
+      as the desk file, the text index and the record of activity, or is
+      hidden for some other reason. A folder's listing leaves these out
+      where a dot hides a file, but not on Windows, where it does not */
+   if (fname.startsWith ('.'))
+      return;
+
    // ignore maxdesk.ini and ppthumbs.ptn as these are special files
    if (fname.indexOf("maxdesk.ini", 0, Qt::CaseInsensitive) != -1
        || fname.indexOf("paperportsave.reg", 0,
