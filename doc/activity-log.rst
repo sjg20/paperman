@@ -8,7 +8,9 @@ record for anyone changing the code which writes or reads it.
 
 It is being built in steps. The desktop writes the record, for a
 repository on this computer, and shows it in **View > Activity** (see
-:doc:`desktop`). The server's side comes next.
+:doc:`desktop`). ``paperman-server`` writes it for the repositories it
+holds, and gives it to clients; the desktop does not yet show a server's
+record.
 
 Where it is kept
 ----------------
@@ -155,7 +157,22 @@ another, through ``Dirmodel::recordFolder()``, which the desktop also
 calls when a folder is renamed. Without these a stack could not be
 followed once a folder above it had a new name.
 
-A repository on a server keeps no record yet.
+On a server
+~~~~~~~~~~~
+
+``paperman-server`` writes the same file, at the top of each repository
+it holds. Every change it makes to a stack passes through
+``SearchServer::notifyStackEvent()``, which tells clients of it, so that
+is where ``recordActivity()`` writes the entry. The route which made the
+change adds what it knows which the event does not carry, such as the
+page, through ``StackDetail``. What the server's own reader reads is
+marked as the reader's.
+
+The server does not link an undo to the entry it undoes: a client which
+undoes a rename asks for another rename, which is what is recorded.
+
+``GET /v1/repos/{repo}/activity`` gives the newest entries (see
+:doc:`api`).
 
 What shows it
 -------------

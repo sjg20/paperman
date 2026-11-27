@@ -949,6 +949,13 @@ private:
                                 const QHash<QString, QString> &params,
                                 const QString &authedUser);
 
+    /** Handle GET /v1/repos/{repo}/activity: the newest entries of the
+     *  repository's record of activity, oldest first, as they are kept.
+     *  @c max is how many (100 if not given, 5000 at most) */
+    QByteArray handleActivity(const QString &path,
+                              const QHash<QString, QString> &params,
+                              const QString &authedUser);
+
     TokenStore _tokens{TokenStore::defaultPath()};  //!< Bearer tokens, kept
                             //!< across restarts
 

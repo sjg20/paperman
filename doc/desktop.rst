@@ -112,8 +112,9 @@ This makes it possible to look back over what was filed, by you or by
 the assistant, and put right anything which went to the wrong place.
 
 The record is kept with the papers, in the repository, so it is the same
-from whichever computer they are used. A repository on a server has no
-record yet, and small moves of a stack about the desk are not recorded.
+from whichever computer they are used. A server keeps a record for the
+repositories it holds, but the window does not show it yet. Small moves
+of a stack about the desk are not recorded.
 
 Main toolbar
 ------------

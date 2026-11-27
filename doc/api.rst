@@ -1058,6 +1058,40 @@ so a client can move the stacks itself.  ``op`` and ``path`` are there for
 a client which takes every frame as a ``stackChanged``: it sees the
 folder's ``.paperdesk`` change, and fetches it again.
 
+11. Activity (v1)
+~~~~~~~~~~~~~~~~~
+
+The server keeps a record of what is done to the stacks of each
+repository through it: renames, moves, deletes, stacking and unstacking,
+pages turned, cropped, removed and named, uploads, copies, and text being
+read. It lists ``activity`` in the ``features`` array of
+``GET /v1/status``.
+
+**Endpoint**: ``GET /v1/repos/{repo}/activity``
+
+**Parameters**:
+
+-  ``max`` (optional): how many entries to return, counted from the
+   newest; 100 by default and at most 5000
+
+The entries, oldest first, each as it is kept in the record (see
+:doc:`activity-log` for what each key means):
+
+.. code:: json
+
+   {
+     "success": true,
+     "entries": [
+       {"id": 1795732200123000, "t": "2026-11-26T22:30:00.123Z",
+        "who": "user", "do": "rename",
+        "path": "bills/power bill.max", "from": "bills/scan1.max"}
+     ]
+   }
+
+A stack's ``path`` is as it was when the entry was made. To find where
+the stack is now, follow the entries after it, as the page above
+describes. A repository which the server does not hold is a 404.
+
 --------------
 
 Security Considerations
