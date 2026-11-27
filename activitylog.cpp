@@ -38,7 +38,7 @@ static const char *const action_name [Activity::A_count] = {
    "", "group", "scan", "scan-page", "import", "rename", "move", "trash",
    "duplicate", "stack", "unstack", "split", "remove-pages", "reorder",
    "turn", "crop", "cover", "rename-page", "facts", "details", "read",
-   "unfold", "other", "undo", "redo",
+   "unfold", "folder-new", "folder-move", "other", "undo", "redo",
 };
 
 static const char *const who_name [Activity::W_count] = {
@@ -210,6 +210,14 @@ QString Activity::describe () const
             : tr ("Read the text of %1 pages of '%2'").arg (count).arg (name);
       case A_unfold :
          return tr ("Unfolded '%1'").arg (name);
+      case A_folder_new :
+         return tr ("Made the folder %1").arg (path);
+      case A_folder_move :
+         // in the same place it has a new name; elsewhere, it has moved
+         if (folder (from) == folder (path))
+            return tr ("Renamed the folder %1 to '%2'").arg (from)
+               .arg (path.section ('/', -1));
+         return tr ("Moved the folder %1 to %2").arg (from).arg (path);
       case A_other :
          return name.isEmpty () ? note : QString ("%1: '%2'").arg (note, name);
       case A_undo :
@@ -325,6 +333,19 @@ QString ActivityLog::whereNow (const QList<Activity> &acts, int at,
             else if (!forwards && act.path == path)
                path = act.from;
             break;
+         case Activity::A_folder_move :
+            {
+            /* everything in the folder goes with it, and the folder
+               itself if that is what is being followed */
+            QString was = forwards ? act.from : act.path;
+            QString now = forwards ? act.path : act.from;
+
+            if (path == was)
+               path = now;
+            else if (path.startsWith (was + "/"))
+               path = now + path.mid (was.size ());
+            break;
+            }
          case Activity::A_trash :
             if (act.path == path)
                gone = forwards;

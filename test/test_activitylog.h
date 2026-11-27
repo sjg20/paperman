@@ -44,6 +44,9 @@ private slots:
    //! a stack is followed through renames, moves, undo and redo
    void testWhereNow();
 
+   //! a stack is followed when a folder above it is renamed or moved
+   void testWhereNowFolders();
+
    //! with the log turned off, nothing is written
    void testDisabled();
 };
