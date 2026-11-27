@@ -1,5 +1,7 @@
+#include <QSignalSpy>
 #include <QtTest/QtTest>
 
+#include "activitylog.h"
 #include "test.h"
 #include "utils.h"
 
@@ -95,6 +97,74 @@ void TestDirmodel::testAddDir()
    QModelIndex chk_a = model->index(_tempDir->path() + "/main/one/new-dira");
    QCOMPARE(model->data(chk_a, Qt::DisplayRole).toString(), "new-dira");
    QCOMPARE(model->data(new_b, Qt::DisplayRole).toString(), "new-dirb");
+}
+
+/* Making a folder, and moving or renaming one, goes in the record of
+   activity of the repository it is in, with paths below the top */
+void TestDirmodel::testFolderActivity()
+{
+   Dirmodel *model = setupModel();
+   QString top = _tempDir->path() + "/main";
+   ActivityLog log(top);
+   QList<Activity> acts;
+   QSignalSpy grown(model, &Dirmodel::activityRecorded);
+
+   QModelIndex one = model->index(top + "/one");
+   QVERIFY(one.isValid());
+   QVERIFY(model->mkdir(one, "new", 0).isValid());
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 1);
+   QCOMPARE(acts[0].action, Activity::A_folder_new);
+   QCOMPARE(acts[0].path, QString("one/new"));
+   QCOMPARE(acts[0].from, QString());
+   QCOMPARE(int(grown.size()), 1);
+   QCOMPARE(QDir(grown[0][0].toString()), QDir(top));
+
+   // moved into another folder, it is recorded with where it was
+   QVERIFY(!model->moveDir(top + "/one/new", top + "/two"));
+   QVERIFY(QDir(top + "/two/new").exists());
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 2);
+   QCOMPARE(acts[1].action, Activity::A_folder_move);
+   QCOMPARE(acts[1].from, QString("one/new"));
+   QCOMPARE(acts[1].path, QString("two/new"));
+   QCOMPARE(acts[1].describe(),
+            QString("Moved the folder one/new to two/new"));
+   QCOMPARE(int(grown.size()), 2);
+
+   // the first entry still leads to the folder
+   bool gone;
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone), QString("two/new"));
+
+   // a move which fails is not recorded
+   QVERIFY(model->moveDir(top + "/one/missing", top + "/two"));
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 2);
+
+   // nor is a folder which is in no repository
+   model->recordFolder(Activity::A_folder_new, _tempDir->path() + "/x/y");
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 2);
+   QCOMPARE(int(grown.size()), 2);
+
+#ifndef Q_OS_WIN
+   /* a folder reached through a link is still known to be in its
+      repository, as a temporary folder is on some systems */
+   QString link = _tempDir->path() + "/by-link";
+
+   QVERIFY(QFile::link(top, link));
+
+   // the tests' own clearing up cannot take a link away
+   auto unlink = qScopeGuard([&link] { QFile::remove(link); });
+   QVERIFY(!model->moveDir(link + "/two/new", link + "/one"));
+   QVERIFY(QDir(top + "/one/new").exists());
+   QVERIFY(!log.read(acts));
+   QCOMPARE(int(acts.size()), 3);
+   QCOMPARE(acts[2].from, QString("two/new"));
+   QCOMPARE(acts[2].path, QString("one/new"));
+   QCOMPARE(int(grown.size()), 3);
+   QCOMPARE(QDir(grown[2][0].toString()), QDir(top));
+#endif
 }
 
 void TestDirmodel::testCacheFiles()
