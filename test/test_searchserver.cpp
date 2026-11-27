@@ -4105,6 +4105,19 @@ void TestSearchServer::testServerActivity()
     ActivityLog::whereNow(acts, 0, gone);
     QVERIFY(gone);
 
+    /* a folder which is made is recorded, as the desktop records its
+       own, but not one which was there already */
+    resp = postJson(base + "/folders", R"({"path":"letters/2026"})");
+    QVERIFY2(resp.ok(), qPrintable(resp.header + resp.body));
+    resp = postJson(base + "/folders", R"({"path":"bills"})");
+    QVERIFY2(resp.ok(), qPrintable(resp.header + resp.body));
+    acts = entries();
+    QCOMPARE(int(acts.size()), 5);
+    QCOMPARE(acts[4].action, Activity::A_folder_new);
+    QCOMPARE(acts[4].path, QString("letters/2026"));
+    QVERIFY(acts[4].isFolder());
+    QCOMPARE(acts[4].describe(), QString("Made the folder letters/2026"));
+
     // a repository which is not there has no record
     resp = get("/v1/repos/nowhere/activity");
     QVERIFY2(resp.header.contains(" 404 "), qPrintable(resp.header));

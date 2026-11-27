@@ -232,7 +232,8 @@ it holds. Every change it makes to a stack passes through
 is where ``recordActivity()`` writes the entry. The route which made the
 change adds what it knows which the event does not carry, such as the
 page, through ``StackDetail``. What the server's own reader reads is
-marked as the reader's.
+marked as the reader's. A folder which the server makes is recorded by
+the route which makes it.
 
 The server does not link an undo to the entry it undoes: a client which
 undoes a rename asks for another rename, which is what is recorded.
