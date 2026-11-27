@@ -26,7 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QDir>
 #include <QFile>
 #include <QImage>
-#include <QProcess>
+#include "wasm/noprocess.h"
 
 #include <QFileInfo>
 

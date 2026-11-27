@@ -23,7 +23,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <QApplication>
 #include <QDebug>
-#include <QProcess>
+#include "wasm/noprocess.h"
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStyle>

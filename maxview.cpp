@@ -40,7 +40,7 @@ C           copy        scan and print to default printer, save to 'photocopy' f
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QImage>
-#include <QProcess>
+#include "wasm/noprocess.h"
 #include <QTemporaryDir>
 #include <QSettings>
 #include <QTemporaryDir>

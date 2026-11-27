@@ -24,7 +24,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMap>
-#include <QProcess>
+#include "wasm/noprocess.h"
 #include <QRegularExpression>
 #include <QSettings>
 #include <QTimer>

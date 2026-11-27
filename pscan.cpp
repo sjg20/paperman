@@ -25,7 +25,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QProcess>
+#include "wasm/noprocess.h"
 #include <QScrollBar>
 #include <QSettings>
 #include <QShortcut>
