@@ -183,6 +183,7 @@ private slots:
    //! a stack dragged a little way moves by that much
    void testShortDrag();
    void testPageNumberFits();
+   void testRemotePageCounts();
 
    //! Alt with an arrow key nudges the stacks selected
    void testNudge();

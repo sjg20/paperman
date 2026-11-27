@@ -1562,10 +1562,35 @@ private:
    void listRemoteDesk(Desk *desk, class RemoteBackend *remote, Measure *meas,
                        bool replace, bool wait);
 
+   /** Ask a server again, a little later, for the page counts which its
+    *  listing of a folder left out. A server which has not yet counted
+    *  the pages of a folder's stacks lists them without, and counts them
+    *  for the next to ask: without this, a stack has no page controls
+    *  until it is clicked or the folder is listed again
+    *
+    *  @param desk     the desk, already in the model
+    *  @param remote   its backend
+    *  @param attempt  which time of asking this is, from 0 */
+   void askPageCountsLater(Desk *desk, class RemoteBackend *remote,
+                           int attempt);
+
+   /** Take the page counts from a later listing of a folder for the
+    *  stacks which lack them
+    *
+    *  @param desk     the desk
+    *  @param listing  the listing
+    *  @returns how many stacks still have no count */
+   int takePageCounts(Desk *desk, const struct DirectoryListing &listing);
+
    //! desks of folders on a server still being listed
    QSet<Desk *> _listing;
 
 public:
+   /** how long to wait before each time of asking a server again for
+    *  page counts, in milliseconds: as many times as there are entries.
+    *  A test makes these short */
+   static QList<int> page_count_delays;
+
    //! true if @p deskind is a folder on a server still being listed
    bool isListing (const QModelIndex &deskind) const;
 

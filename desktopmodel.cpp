@@ -23,6 +23,8 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #include <assert.h>
 
+#include <QPointer>
+#include <QTimer>
 #include <QElapsedTimer>
 
 #include "config.h"
@@ -1916,6 +1918,68 @@ QModelIndex Desktopmodel::showDir(QString dirPath, QString rootPath,
    }
 
 
+QList<int> Desktopmodel::page_count_delays = {3000, 8000, 20000};
+
+void Desktopmodel::askPageCountsLater(Desk *desk, RemoteBackend *remote,
+                                      int attempt)
+{
+   if (attempt >= page_count_delays.size())
+      return;
+
+   QString dirPath = desk->dir();
+   QPointer<RemoteBackend> server(remote);
+
+   QTimer::singleShot(page_count_delays[attempt], this,
+                      [this, desk, server, dirPath, attempt]() {
+      // the desk may have gone meanwhile, or another taken its place
+      if (_closing || !server || !_desks.contains(desk)
+          || desk->dir() != dirPath)
+         return;
+      server->browseDirectory(desk->repoName(), desk->remoteRelDir(), this,
+                              [this, desk, server, dirPath, attempt](
+                                 const DirectoryListing &listing) {
+         if (_closing || !server || !_desks.contains(desk)
+             || desk->dir() != dirPath || !listing.ok)
+            return;
+         if (takePageCounts(desk, listing))
+            askPageCountsLater(desk, server, attempt + 1);
+      });
+   });
+}
+
+
+int Desktopmodel::takePageCounts(Desk *desk, const DirectoryListing &listing)
+{
+   QModelIndex parent = index(_desks.indexOf(desk), 0, QModelIndex());
+   int missing = 0;
+
+   for (const DirectoryEntry &e : listing.entries) {
+      int pos;
+      File *f = e.isDir ? nullptr : desk->findFile(e.name, pos);
+
+      if (!f || File::typeFromName(e.name) == File::Type_other)
+         continue;
+      if (!e.pages) {
+         // not counted yet: but one which has been read needs no count
+         if (!f->knownPagecount())
+            missing++;
+         continue;
+      }
+      if (f->knownPagecount())
+         continue;      // it has one, from being read or listed
+      f->setListedPagecount(e.pages);
+
+      // the stack is drawn again, now with its page controls
+      if (pos >= 0 && pos < desk->rowCount()) {
+         _minor_change = true;
+         buildItem(index(pos, 0, parent));
+         _minor_change = false;
+      }
+   }
+   return missing;
+}
+
+
 void Desktopmodel::listRemoteDesk(Desk *desk, RemoteBackend *remote,
                                   Measure *meas, bool replace, bool wait)
 {
@@ -1974,6 +2038,15 @@ void Desktopmodel::listRemoteDesk(Desk *desk, RemoteBackend *remote,
          emit dataChanged(index(0, 0, ind), index(old - 1, 0, ind),
                           {Role_position, Qt::DisplayRole});
       scheduleRemoteThumbnails(desk, remote, desk->repoName(), rel);
+
+      /* the server leaves out the page counts it has yet to work out:
+         ask for those again once it has had time to */
+      for (const DirectoryEntry &e : state->listing.entries)
+         if (!e.isDir && !e.pages
+             && File::typeFromName(e.name) != File::Type_other) {
+            askPageCountsLater(desk, remote, 0);
+            break;
+         }
       if (!replace)
          emit deskListed(ind);
    };
