@@ -69,6 +69,9 @@ private slots:
 
    //! the server keeps an index of the text on the pages of its stacks,
    //! up to date as they change, and clients can search it
+   //! the server records what is done to its stacks, and serves the record
+   void testServerActivity();
+
    void testServerSearchesText();
 
    //! a search's desk holds a remote repository's stacks, from several

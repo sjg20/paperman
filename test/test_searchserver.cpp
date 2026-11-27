@@ -13,6 +13,7 @@
 #include <QSignalSpy>
 #include <QStandardPaths>
 
+#include "activitylog.h"
 #include "../backendstats.h"
 #include "../clientconf.h"
 
@@ -3999,6 +4000,115 @@ void TestSearchServer::testServerReadsPages()
     plain.stop();
 }
 
+
+/* The server keeps a record of what is done to the stacks it holds, in the
+   repository, and gives it to those who ask */
+void TestSearchServer::testServerActivity()
+{
+    // no users, as other tests here may leave, so no logging in
+    QStandardPaths::setTestModeEnabled(true);
+    auto restoreStdPaths = qScopeGuard([] {
+        QStandardPaths::setTestModeEnabled(false);
+    });
+    QFile::remove(QStandardPaths::writableLocation(
+                      QStandardPaths::GenericConfigLocation)
+                  + "/paperman-server/users.json");
+
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    QString dir = tmpDir.path() + "/";
+    QString repo = QFileInfo(tmpDir.path()).fileName();
+    QVERIFY(QDir(dir).mkdir("bills"));
+    QVERIFY(QFile::copy(testSrc + "/testfile.max", dir + "scan.max"));
+    QString base = QString("/v1/repos/%1").arg(repo);
+
+    SearchServer server(tmpDir.path(), PORT);
+    QVERIFY(server.start());
+    auto stop = qScopeGuard([&] { server.stop(); });
+
+    auto entries = [&](const QString &query = QString()) {
+        auto resp = get(base + "/activity" + query);
+        QList<Activity> acts;
+
+        for (const QJsonValue &v : QJsonDocument::fromJson(resp.body)
+                .object().value("entries").toArray()) {
+            Activity act;
+
+            if (Activity::fromJson(v.toObject(), act))
+                acts << act;
+        }
+        return acts;
+    };
+
+    // the server says it keeps a record, which is empty to start with
+    QJsonObject status = QJsonDocument::fromJson(get("/v1/status").body)
+                            .object();
+    QVERIFY(status.value("features").toArray().contains("activity"));
+    auto resp = get(base + "/activity");
+    QVERIFY2(resp.ok(), qPrintable(resp.header));
+    QVERIFY(QJsonDocument::fromJson(resp.body).object().value("success")
+                .toBool());
+    QVERIFY(entries().isEmpty());
+
+    // a stack is renamed, has a page turned, and is moved to a folder
+    resp = postJson(base + "/stacks/scan.max/rename",
+                    R"({"newName":"power bill.max"})");
+    QVERIFY2(resp.ok(), qPrintable(resp.header));
+    resp = postJson(base + "/stacks/power%20bill.max/transform",
+                    R"({"page":2,"op":"rotate90"})");
+    QVERIFY2(resp.ok(), qPrintable(resp.header + resp.body));
+    resp = postJson(base + "/stacks/power%20bill.max/move",
+                    R"({"destDir":"bills"})");
+    QVERIFY2(resp.ok(), qPrintable(resp.header + resp.body));
+    QVERIFY(QFile::exists(dir + "bills/power bill.max"));
+
+    // each is in the record, oldest first, as the desktop would write it
+    QList<Activity> acts = entries();
+    QCOMPARE(int(acts.size()), 3);
+    QCOMPARE(acts[0].action, Activity::A_rename);
+    QCOMPARE(acts[0].from, QString("scan.max"));
+    QCOMPARE(acts[0].path, QString("power bill.max"));
+    QCOMPARE(acts[0].who, Activity::W_user);
+    QVERIFY(acts[0].when.isValid());
+    QCOMPARE(acts[1].action, Activity::A_turn);
+    QCOMPARE(acts[1].path, QString("power bill.max"));
+    QCOMPARE(acts[1].page, 1);
+    QCOMPARE(acts[2].action, Activity::A_move);
+    QCOMPARE(acts[2].from, QString("power bill.max"));
+    QCOMPARE(acts[2].path, QString("bills/power bill.max"));
+    QCOMPARE(acts[2].describe(),
+             QString("Moved 'power bill' from the top folder to bills"));
+
+    // so the first entry leads to the stack where it now is
+    bool gone;
+    QCOMPARE(ActivityLog::whereNow(acts, 0, gone),
+             QString("bills/power bill.max"));
+    QVERIFY(!gone);
+
+    // it is kept in the repository, where the desktop keeps its own
+    QList<Activity> kept;
+    QVERIFY(!ActivityLog(tmpDir.path()).read(kept));
+    QCOMPARE(kept, acts);
+
+    // only the newest can be asked for
+    acts = entries("?max=1");
+    QCOMPARE(int(acts.size()), 1);
+    QCOMPARE(acts[0].action, Activity::A_move);
+
+    // a deleted stack is recorded, and is then gone
+    resp = postJson(base + "/stacks/bills/power%20bill.max/delete", "{}");
+    QVERIFY2(resp.ok(), qPrintable(resp.header + resp.body));
+    acts = entries();
+    QCOMPARE(int(acts.size()), 4);
+    QCOMPARE(acts[3].action, Activity::A_trash);
+    QCOMPARE(acts[3].path, QString("bills/power bill.max"));
+    ActivityLog::whereNow(acts, 0, gone);
+    QVERIFY(gone);
+
+    // a repository which is not there has no record
+    resp = get("/v1/repos/nowhere/activity");
+    QVERIFY2(resp.header.contains(" 404 "), qPrintable(resp.header));
+}
 
 void TestSearchServer::testServerSearchesText()
 {

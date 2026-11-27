@@ -242,6 +242,7 @@ QJsonObject SearchServer::statusObject() const
     features.append("folders");
     features.append("makeFolders");
     features.append("layout");
+    features.append("activity");
     if (!_indexes.isEmpty())
         features.append("textSearch");
     if (!_readers.isEmpty())
@@ -1216,6 +1217,10 @@ QByteArray SearchServer::handleRequest(const QString &method, const QString &pat
     else if (path.startsWith("/v1/repos/") && path.endsWith("/search")
              && !path.contains("/stacks/")) {
         return handleTextSearch(path, params, authedUser);
+    }
+    else if (path.startsWith("/v1/repos/") && path.endsWith("/activity")
+             && !path.contains("/stacks/")) {
+        return handleActivity(path, params, authedUser);
     }
     else if (path.startsWith("/v1/repos/") && path.endsWith("/folders")
              && !path.contains("/stacks/")) {
@@ -3229,6 +3234,53 @@ QByteArray SearchServer::handleTextSearch(const QString &path,
     out["results"] = results;
     // false while the index is first being built, so may lack stacks
     out["complete"] = index->status().ready;
+    return buildHttpResponse(200, "OK", "application/json",
+                             QString::fromUtf8(QJsonDocument(out).toJson(
+                                 QJsonDocument::Compact)));
+}
+
+
+QByteArray SearchServer::handleActivity(const QString &path,
+                                        const QHash<QString, QString> &params,
+                                        const QString &authedUser)
+{
+    QString rest = path;
+    rest.remove(0, QStringLiteral("/v1/repos/").size());
+    rest.chop(QStringLiteral("/activity").size());
+    QString repoName = QUrl::fromPercentEncoding(rest.toUtf8());
+
+    if (!authedUser.isEmpty() && !_users.repoAllowed(authedUser, repoName))
+        return buildHttpResponse(403, "Forbidden", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "User not permitted to access repository: "
+                                     + repoName));
+
+    QString root = _backend->rootPathForName(repoName);
+    if (root.isEmpty())
+        return buildHttpResponse(404, "Not Found", "application/json",
+                                 buildJsonResponse(false, "",
+                                     "Repository not found: " + repoName));
+
+    bool ok;
+    int max = params.value("max").toInt(&ok);
+    if (!ok || max < 1)
+        max = 100;
+    max = qMin(max, 5000);
+
+    QList<Activity> acts;
+    err_info *err = ActivityLog(root).read(acts, max);
+    if (err)
+        return buildHttpResponse(500, "Internal Server Error",
+                                 "application/json",
+                                 buildJsonResponse(false, "", err->errstr));
+
+    QJsonArray entries;
+    for (const Activity &act : acts)
+        entries.append(act.toJson());
+
+    QJsonObject out;
+    out["success"] = true;
+    out["entries"] = entries;
     return buildHttpResponse(200, "OK", "application/json",
                              QString::fromUtf8(QJsonDocument(out).toJson(
                                  QJsonDocument::Compact)));
