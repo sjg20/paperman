@@ -44,7 +44,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <QTimer>
 #include <QJsonObject>
 #include <QMimeData>
-#include <QProcess>
+#include "wasm/noprocess.h"
 #include <QUrl>
 
 #include "blockwatch.h"

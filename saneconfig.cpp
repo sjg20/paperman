@@ -15,7 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <QProcess>
+#include "wasm/noprocess.h"
 #include <QVariant>
 
 #include "saneconfig.h"

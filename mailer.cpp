@@ -42,7 +42,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #elif defined(Q_OS_MACOS)
 bool mailerComposeMac (const QString &file, const QString &subject);
 #else
-#include <QProcess>
+#include "wasm/noprocess.h"
 #endif
 
 QUrl *Mailer::url_capture;

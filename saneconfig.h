@@ -26,7 +26,7 @@
   *@author Michael Herder
   */
 
-class QProcess;
+#include "wasm/noprocess.h"
 
 class SaneConfig : public QObject
 {
