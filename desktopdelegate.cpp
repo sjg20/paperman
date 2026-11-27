@@ -130,10 +130,16 @@ Desktopdelegate::Desktopdelegate (Desktopmodelconv *modelconv, QObject * parent)
    connect (_timer, SIGNAL(timeout()), this, SLOT(autoRepeatTimeout()));
    if (!pleft)
       {
-      pleft = new QPixmap (utilIconPixmap ("left", 14));
-      pright = new QPixmap (utilIconPixmap ("right", 14));
+      pleft = new QPixmap (utilIconPixmap ("left", arrow_size));
+      pright = new QPixmap (utilIconPixmap ("right", arrow_size));
       pages = new QPixmap (utilIconPixmap ("pages", 48));
       }
+   }
+
+
+int Desktopdelegate::pageLineHeight (int font_height)
+   {
+   return qMax (arrow_size, font_height);
    }
 
 
@@ -286,7 +292,7 @@ void sizeHintChanged ( const QModelIndex & index ) */
             false, widest);
       measure.pagenumRect.setWidth (measure.pagenumRect.width () + 8 +
             + pleft->width () + pright->width ());
-      measure.pagenumRect.setHeight (pleft->height ());
+      measure.pagenumRect.setHeight (pageLineHeight (fm.height ()));
 
       // if we don't have information about the max title rect, we can fill it in
       // after all, it is just calculated above
@@ -507,12 +513,15 @@ void Desktopdelegate::paint (QPainter *painter, const QStyleOptionViewItem &opti
          the item is */
       QRect rect = measure.pagenumRect;
 
-      painter->drawPixmap (rect.x (), rect.y (), *pleft);
-      painter->drawPixmap (rect.right () - pright->width (), rect.y (), *pright);
+      // the arrows are in the middle of the line, however tall the text
+      int arrow_y = rect.y () + (rect.height () - pleft->height ()) / 2;
+
+      painter->drawPixmap (rect.x (), arrow_y, *pleft);
+      painter->drawPixmap (rect.right () - pright->width (), arrow_y, *pright);
 
       rect.adjust (pleft->width (), 0, -pright->width (), 0);
 
-      style->drawItemText (painter, rect, Qt::AlignHCenter,
+      style->drawItemText (painter, rect, Qt::AlignHCenter | Qt::AlignVCenter,
             utilStylePalette (style), false, measure.pagestr, QPalette::WindowText);
 #ifdef OUTLINE
       painter->setPen (Qt::blue);
