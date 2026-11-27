@@ -247,6 +247,18 @@ void TestActivityLog::testDescribe()
    act.note = "Renamed 'a' to 'b'";
    QCOMPARE(act.describe(), QString("Undid: Renamed 'a' to 'b'"));
 
+   // a folder is named by its whole path, and renamed or moved
+   act = entry(Activity::A_folder_new, "bills/2027");
+   QCOMPARE(act.describe(), QString("Made the folder bills/2027"));
+   QVERIFY(act.isFolder());
+   act = entry(Activity::A_folder_move, "bills/2026 old", "bills/2026");
+   QCOMPARE(act.describe(),
+            QString("Renamed the folder bills/2026 to '2026 old'"));
+   act = entry(Activity::A_folder_move, "archive/2026", "bills/2026");
+   QCOMPARE(act.describe(),
+            QString("Moved the folder bills/2026 to archive/2026"));
+   QVERIFY(!entry(Activity::A_rename, "a.max", "b.max").isFolder());
+
    // every action says something
    for (int i = Activity::A_none + 1; i < Activity::A_count; i++) {
       act = entry(Activity::e_action(i), "dir/a.max", "dir/b.max");
@@ -341,6 +353,57 @@ void TestActivityLog::testWhereNow()
    QVERIFY(gone);
    QCOMPARE(ActivityLog::whereNow(acts, 0, gone), QString("bills/gas.max"));
    QVERIFY(!gone);
+}
+
+/* A stack is followed when the folder it is in, or one above that, is
+   renamed or moved, and so is a folder */
+void TestActivityLog::testWhereNowFolders()
+{
+   QList<Activity> acts;
+   qint64 id = 100;
+   auto add = [&](Activity::e_action action, const QString &path,
+                  const QString &from = QString(), qint64 ref = 0) {
+      Activity act = entry(action, path, from);
+
+      act.id = id++;
+      act.ref = ref;
+      acts << act;
+      return act.id;
+   };
+   bool gone;
+
+   add(Activity::A_folder_new, "bills/2026");                        // 0
+   add(Activity::A_scan, "bills/2026/03mar/power.max");              // 1
+   add(Activity::A_scan, "bills/2026x/other.max");                   // 2
+   add(Activity::A_folder_move, "bills/year 2026", "bills/2026");    // 3
+
+   // what is in the folder goes with it, and so does the folder
+   QCOMPARE(ActivityLog::whereNow(acts, 1, gone),
+            QString("bills/year 2026/03mar/power.max"));
+   QVERIFY(!gone);
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone), QString("bills/year 2026"));
+   QCOMPARE(ActivityLog::whereNow(acts, 3, gone), QString("bills/year 2026"));
+
+   // a folder whose name only starts the same is left alone
+   QCOMPARE(ActivityLog::whereNow(acts, 2, gone),
+            QString("bills/2026x/other.max"));
+
+   // a folder above it is moved, and then the stack is renamed
+   add(Activity::A_folder_move, "archive/bills", "bills");           // 4
+   QCOMPARE(ActivityLog::whereNow(acts, 1, gone),
+            QString("archive/bills/year 2026/03mar/power.max"));
+   QCOMPARE(ActivityLog::whereNow(acts, 2, gone),
+            QString("archive/bills/2026x/other.max"));
+   add(Activity::A_rename, "archive/bills/year 2026/03mar/electric.max",
+       "archive/bills/year 2026/03mar/power.max");                   // 5
+   QCOMPARE(ActivityLog::whereNow(acts, 1, gone),
+            QString("archive/bills/year 2026/03mar/electric.max"));
+   QCOMPARE(ActivityLog::whereNow(acts, 0, gone),
+            QString("archive/bills/year 2026"));
+
+   // an entry made after the moves starts from where things then are
+   QCOMPARE(ActivityLog::whereNow(acts, 5, gone),
+            QString("archive/bills/year 2026/03mar/electric.max"));
 }
 
 void TestActivityLog::testDisabled()

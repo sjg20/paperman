@@ -63,6 +63,9 @@ struct Activity
       A_details,     //!< a stack's title, author, keywords or notes changed
       A_read,        //!< the text of pages was read (OCR)
       A_unfold,      //!< a booklet was unfolded
+      A_folder_new,  //!< a folder was made; its path is the folder
+      A_folder_move, //!< a folder was renamed, or moved into another; its
+                     //!< path and where it was before are folders
       A_other,       //!< something else, said in the note
       A_undo,        //!< an earlier entry was undone
       A_redo,        //!< an entry which was undone was done again
@@ -112,6 +115,10 @@ struct Activity
 
    //! the word an action is kept as
    static QString actionName (e_action action);
+
+   //! true if this is about a folder, and its path is one, not a stack
+   bool isFolder () const
+      { return action == A_folder_new || action == A_folder_move; }
 
    //! what was done, in a line for the user: "Renamed 'a' to 'b'"
    QString describe () const;
@@ -167,7 +174,8 @@ public:
       \param gone  returns true if it has since gone: to the trash, or
                    into another stack
       \returns its path below the top of the repository, as the last entry
-               about it leaves it */
+               about it leaves it. For an entry about a folder this is the
+               folder, which is followed in the same way */
    static QString whereNow (const QList<Activity> &acts, int at, bool &gone);
 
    /** say whether entries are recorded at all, which they are unless this
