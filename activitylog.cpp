@@ -25,6 +25,7 @@ License: GPL-2
 #include <QFile>
 #include <QHash>
 #include <QJsonDocument>
+#include <QSettings>
 
 #include "activitylog.h"
 #include "err.h"
@@ -255,6 +256,21 @@ bool ActivityLog::enabled ()
    }
 
 
+//! the setting which says whether the user wants a record kept
+#define KEPT_KEY "activity/record"
+
+bool ActivityLog::kept ()
+   {
+   return QSettings ().value (KEPT_KEY, true).toBool ();
+   }
+
+
+void ActivityLog::setKept (bool keep)
+   {
+   QSettings ().setValue (KEPT_KEY, keep);
+   }
+
+
 err_info *ActivityLog::add (Activity &act)
    {
    /* numbers go up with the time, so that entries sort as they happened
@@ -270,7 +286,7 @@ err_info *ActivityLog::add (Activity &act)
    act.id = id;
    if (!act.when.isValid ())
       act.when = now;
-   if (!log_enabled)
+   if (!log_enabled || !kept ())
       return NULL;
 
    QFile file (_pathname);

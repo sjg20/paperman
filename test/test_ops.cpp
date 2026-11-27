@@ -1055,6 +1055,32 @@ void TestOps::testOptionsDialog()
    // Restore the user's setting
    xmlConfig->setBoolValue("SCAN_USE_JPEG", orig);
 
+   /* a record of activity is kept unless the box is unticked, which is
+      remembered */
+   QSettings().remove("activity");
+   {
+      Options first(nullptr, nullptr);
+
+      QVERIFY(first.keepActivity->isChecked());
+      first.keepActivity->setChecked(false);
+      first.cancel_clicked();
+      QVERIFY(ActivityLog::kept());
+
+      Options second(nullptr, nullptr);
+
+      second.keepActivity->setChecked(false);
+      second.ok_clicked();
+      QVERIFY(!ActivityLog::kept());
+
+      Options third(nullptr, nullptr);
+
+      QVERIFY(!third.keepActivity->isChecked());
+      third.keepActivity->setChecked(true);
+      third.ok_clicked();
+      QVERIFY(ActivityLog::kept());
+      QSettings().remove("activity");
+   }
+
    /* how many pages are read at once is left to Paperman until a number
       is chosen, and can only be chosen while pages are read at all */
    QSettings().remove("ocr");

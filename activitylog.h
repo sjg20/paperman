@@ -225,6 +225,12 @@ public:
    static void setEnabled (bool enable);
    static bool enabled ();
 
+   /** whether the user wants a record kept, from the settings: it is kept
+       unless they have said not. With it off nothing more is written; a
+       record which is there already is left, and can still be read */
+   static bool kept ();
+   static void setKept (bool keep);
+
 private:
    QString _pathname;
    };

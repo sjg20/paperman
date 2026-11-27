@@ -24,6 +24,9 @@ on a network filesystem, where a database is not.
 It records what Paperman does, and is not what makes anything happen.
 Deleting it loses the history and nothing else.
 
+The desktop writes nothing while the ``activity/record`` setting is off,
+which is the box in the options. Reading is not affected.
+
 ``ActivityLog`` (``activitylog.cpp``) reads and writes it, and has no
 need of the rest of the desktop.
 

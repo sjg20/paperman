@@ -283,6 +283,16 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
+        <widget class="QCheckBox" name="keepActivity">
+         <property name="toolTip">
+          <string>Write down each thing done to the papers of a repository on this computer, in a file kept with them, so that it can be looked back over in View &gt; Activity. Turning this off stops anything more being written; what is there already is kept</string>
+         </property>
+         <property name="text">
+          <string>Keep a record of what is done to the papers</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
           <widget class="QLabel" name="label">
