@@ -46,14 +46,16 @@ QMAKE_CFLAGS += -fno-omit-frame-pointer
 # Put paperman's own symbols in the dynamic table, so that a stack
 # printed by the program itself names the functions on it rather than
 # just their addresses
-!win32: QMAKE_LFLAGS += -rdynamic
+!win32:!wasm: QMAKE_LFLAGS += -rdynamic
 
 #QMAKE_LFLAGS += -static
 
 equals(QT_MAJOR_VERSION, 6) {
   QT += statemachine
-  LIBS += -lpoppler-qt6
-  INCLUDEPATH += /usr/include/poppler/qt6
+  !wasm {
+    LIBS += -lpoppler-qt6
+    INCLUDEPATH += /usr/include/poppler/qt6
+  }
 }
 equals(QT_MAJOR_VERSION, 5) {
   LIBS += -lpoppler-qt5
@@ -63,8 +65,10 @@ equals(QT_MAJOR_VERSION, 5) {
 # libraries for omnipage
 #LIBS += -lkernelapi -Wl,-rpath-link,$$OCRLIBPATH,-rpath,$$OCRLIBPATH
 
-LIBS += -lpodofo
-LIBS += -ltiff -ljpeg -lz
+!wasm {
+    LIBS += -lpodofo
+    LIBS += -ltiff -ljpeg -lz
+}
 
 # There is no libsane on Windows: build against the bundled SANE headers
 # and a SANE front end for TWAIN scanners. dlsym() is only used to look up
@@ -73,6 +77,34 @@ win32 {
     INCLUDEPATH += win32
     SOURCES += win32/twainsane.cpp
     LIBS += -luser32 -lole32 -lshell32
+} else:wasm {
+    # A browser. There is no scanner library, so build against the bundled
+    # SANE headers, with a stand-in which has no scanners. JPEG and zlib
+    # come with Emscripten; libtiff, which .max pages need, is built for
+    # it and found through WASM_SYSROOT. There are no PDF libraries, so
+    # PDF stacks are left out (CONFIG_no_pdf)
+    # (searched after the system's own headers, as that directory also
+    # has stand-ins for Unix headers which Windows lacks)
+    QMAKE_CFLAGS += -idirafter $$PWD/win32
+    QMAKE_CXXFLAGS += -idirafter $$PWD/win32
+    SOURCES += wasm/nosane.cpp
+    DEFINES += CONFIG_no_pdf
+
+    # nor can a browser run another program: this stands in for one which
+    # can never be started
+    HEADERS += wasm/noprocess.h
+    WASM_SYSROOT = $$(WASM_SYSROOT)
+    isEmpty(WASM_SYSROOT): error("Set WASM_SYSROOT to where libtiff for the browser is installed")
+    INCLUDEPATH += $$WASM_SYSROOT/include
+    LIBS += -L$$WASM_SYSROOT/lib -ltiff
+    QMAKE_CFLAGS += -sUSE_ZLIB=1 -sUSE_LIBJPEG=1
+    QMAKE_CXXFLAGS += -sUSE_ZLIB=1 -sUSE_LIBJPEG=1
+    QMAKE_LFLAGS += -sUSE_ZLIB=1 -sUSE_LIBJPEG=1
+
+    # dialogs which wait for an answer, and the loops which wait for the
+    # server, stop where they are until something happens, which a browser
+    # allows only with this
+    QMAKE_LFLAGS += -sASYNCIFY -Os
 } else {
     LIBS += -lsane -ldl
 }
@@ -546,3 +578,9 @@ dox.commands = doxygen Doxyfile; \
     test -d doxydoc/html/images || mkdir doxydoc/html/images; \
     cp documentation/images/* doxydoc/html/images
 dox.depends =
+
+# a browser has no PDF libraries: see above
+wasm {
+    SOURCES -= filepdf.cpp pdfio.cpp
+    HEADERS -= filepdf.h pdfio.h
+}
