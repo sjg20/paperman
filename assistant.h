@@ -196,6 +196,32 @@ public:
       \returns the name, empty if nothing is left of it */
    static QString cleanName (const QString &name);
 
+   //! the most folders which are offered for a stack to be filed in
+   static constexpr int folder_max = 400;
+
+   /** suggest which folder a stack belongs in
+
+      \param text      the text of its first pages, as for a name
+      \param name      the name the stack has, which may say what it is
+      \param folders   the folders it could go in, each as its path below
+                       the top of the repository
+      \param today     today's date, as year-month-day, since folders are
+                       often named for a year or a month
+      \param context   @p done is not called once this has gone
+      \param done      called with one of @p folders; or with an empty
+                       folder and no error if the model finds that none
+                       fits; or with an empty folder and why there is none */
+   void suggestFolder (const QString &text, const QString &name,
+                       const QStringList &folders, const QString &today,
+                       QObject *context,
+                       std::function<void (const QString &folder,
+                                           const QString &error)> done);
+
+   //! the question which suggestFolder() asks
+   static QString folderPrompt (const QString &text, const QString &name,
+                                const QStringList &folders,
+                                const QString &today);
+
    //! the most pages a stack may have to be divided into documents
    static constexpr int split_pages = 200;
 

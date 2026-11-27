@@ -187,6 +187,82 @@ static QJsonObject docsAnswer(const QList<QPair<int, QString>> &docs)
    return answer;
 }
 
+void TestAssistant::testSuggestFolder()
+{
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+   QString folder, error;
+   int calls = 0;
+   auto done = [&](const QString &f, const QString &e) {
+      folder = f;
+      error = e;
+      calls++;
+   };
+   QStringList folders{"bills/2026/03mar", "bills/2026/04apr", "medical",
+                       "letters"};
+
+   backend->_answer["folder"] = "bills/2026/03mar";
+   assistant.suggestFolder("Tax invoice for March", "power bill", folders,
+                           "2026-04-02", this, done);
+   QCOMPARE(calls, 1);
+   QCOMPARE(folder, QString("bills/2026/03mar"));
+   QVERIFY(error.isEmpty());
+
+   // it was given the folders, the date, the name and the text, as JSON
+   for (const QString &f : folders)
+      QVERIFY2(backend->_prompt.contains("- " + f + "\n"), qPrintable(f));
+   QVERIFY(backend->_prompt.contains("Today is 2026-04-02"));
+   QVERIFY(backend->_prompt.contains("called: power bill"));
+   QVERIFY(backend->_prompt.contains("Tax invoice for March"));
+   QVERIFY(backend->_system.contains("exactly as it is listed"));
+   QCOMPARE(backend->_schema.value("required").toArray(),
+            QJsonArray{"folder"});
+
+   // a slash at either end is put up with
+   backend->_answer["folder"] = "/medical/";
+   assistant.suggestFolder("Dear patient", "", folders, "2026-04-02", this,
+                           done);
+   QCOMPARE(folder, QString("medical"));
+   QVERIFY(error.isEmpty());
+   QVERIFY(!backend->_prompt.contains("called:"));
+
+   // none fitting is an answer, and not a failure
+   backend->_answer["folder"] = "";
+   assistant.suggestFolder("Something", "", folders, "2026-04-02", this,
+                           done);
+   QCOMPARE(folder, QString());
+   QVERIFY(error.isEmpty());
+
+   // a folder which is not on the list is refused
+   backend->_answer["folder"] = "bills/2026/05may";
+   assistant.suggestFolder("Something", "", folders, "2026-04-02", this,
+                           done);
+   QCOMPARE(folder, QString());
+   QVERIFY(error.contains("bills/2026/05may"));
+
+   // a failure from the backend is passed on
+   backend->_error = "no network";
+   assistant.suggestFolder("Something", "", folders, "2026-04-02", this,
+                           done);
+   QCOMPARE(folder, QString());
+   QCOMPARE(error, QString("no network"));
+
+   // with no folders, or too many, nothing is sent
+   backend->_error.clear();
+   backend->_prompt.clear();
+   assistant.suggestFolder("Something", "", QStringList(), "2026-04-02",
+                           this, done);
+   QVERIFY(!error.isEmpty());
+
+   QStringList many;
+   for (int i = 0; i <= Assistant::folder_max; i++)
+      many << QString("folder%1").arg(i);
+   assistant.suggestFolder("Something", "", many, "2026-04-02", this, done);
+   QVERIFY(!error.isEmpty());
+   QVERIFY(backend->_prompt.isEmpty());
+   QCOMPARE(calls, 7);
+}
+
 void TestAssistant::testSplitPrompt()
 {
    QStringList pages{"Power bill", "", "  Dear Sir  "};
