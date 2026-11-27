@@ -24,6 +24,10 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/val.h>
+#endif
+
 #include <QtGui>
 #include <QDir>
 #include <QCloseEvent>
@@ -97,6 +101,11 @@ Mainwindow::Mainwindow(QWidget* parent, const char* name, Qt::WindowFlags fl)
    _operations = 0;
    _label = 0;
    setupUi(this);
+
+#ifdef Q_OS_WASM
+   // a browser has no folders of its own to keep papers in
+   actionAddRepository->setVisible (false);
+#endif
    utilSetIcons(this);
 
    scanPanelShown(false);
@@ -827,6 +836,24 @@ bool Mainwindow::needsRepository (void)
 
 void Mainwindow::offerRepository (const QString &dir)
    {
+#ifdef Q_OS_WASM
+   /* In a browser there are no folders to keep papers in: they are on
+      the server which the page came from, so show that server's papers.
+      It is remembered, like any other, and is there the next time */
+   Q_UNUSED (dir);
+   if (needsRepository ())
+      {
+      QString origin = QString::fromStdString (
+         emscripten::val::global ("location") ["origin"].as<std::string> ());
+
+      addServer (origin, [this, origin] (const QString &error) {
+         if (!error.isEmpty ())
+            QMessageBox::warning (this, "Paperman",
+               tr ("Cannot show the papers on %1: %2").arg (origin, error));
+      });
+      }
+   return;
+#endif
    QSettings qs;
 
    if (!needsRepository () || qs.value ("offeredRepository").toBool ())
