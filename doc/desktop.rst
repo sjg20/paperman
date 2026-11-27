@@ -85,8 +85,8 @@ What has been done
 
 Paperman keeps a record of what is done to the papers in a repository:
 each scan, with its pages; each stack renamed, moved, deleted, stacked or
-split; each page turned, cropped or removed; text being read; and each
-undo. **View > Activity** (Ctrl+H) shows it, in a window which can stay
+split; each page turned, cropped or removed; text being read; each folder
+made, renamed or moved; and each undo. **View > Activity** (Ctrl+H) shows it, in a window which can stay
 open while Paperman is used:
 
 .. image:: images/activity.png
@@ -103,8 +103,9 @@ open while Paperman is used:
 - Choose a line, or move through the list with the arrow keys, and the
   stack it is about is shown in the main window, selected, and turned to
   the page if the line is about one. The stack is shown where it is
-  *now*: it is followed through whatever was renamed or moved since, so
-  a line from days ago still leads to it. The note below the list says
+  *now*: it is followed through whatever was renamed or moved since,
+  folders included, so a line from days ago still leads to it. A line
+  about a folder shows that folder. The note below the list says
   where that is, or that the stack has since been deleted.
 
 This makes it possible to look back over what was filed, by you or by
