@@ -764,6 +764,7 @@ void TestScreenshots::testActivity ()
 
    // the stack chosen for the picture is there, for the window to find
    QVERIFY (QDir (repo.path ()).mkpath ("bills/2026/10oct"));
+   QVERIFY (QDir (repo.path ()).mkpath ("inbox"));
    QFile stack (repo.path () + "/bills/2026/10oct/gas bill.max");
    QVERIFY (stack.open (QIODevice::WriteOnly));
    stack.close ();
@@ -776,13 +777,14 @@ void TestScreenshots::testActivity ()
    QVERIFY (QTest::qWaitForWindowExposed (&dialog));
 
    // open the pile's dividing, to show what is under a line, and choose
-   // a line whose stack has since moved
+   // a line whose stack can be put back
    QTreeWidget *tree = dialog.findChild<QTreeWidget *> ();
 
    QVERIFY (tree);
    QCOMPARE (tree->topLevelItem (6)->text (0), QString ("Split stack"));
    tree->topLevelItem (6)->setExpanded (true);
-   dialog.choose (6, 1);
+   dialog.choose (3);
+   QCOMPARE (int (dialog.putBackMoves ().size ()), 1);
    settle ();
    save (&dialog, "activity");
    }
