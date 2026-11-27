@@ -167,3 +167,10 @@ greyed. When a line is chosen it finds where the stack is now with
 ``Desktopwidget::showStack()``, which goes to the folder, selects the
 stack and turns it to the page, leaving the keyboard with the window.
 ``Desktopmodel::activityRecorded()`` tells it when the record has grown.
+
+**Put back** works out, for the line chosen or each line under it which
+renamed or moved a stack, where the stack is now (``whereNow()``) and
+where it was: the entry's ``from``, in the folder as that is now
+(``ActivityLog::folderNow()``). ``Desktopwidget::putBack()`` then renames
+and moves each stack through the model, within one undo macro, so it is
+recorded as a group like anything else and can be undone.
