@@ -4108,6 +4108,30 @@ void TestSearchServer::testServerActivity()
     // a repository which is not there has no record
     resp = get("/v1/repos/nowhere/activity");
     QVERIFY2(resp.header.contains(" 404 "), qPrintable(resp.header));
+
+    // the desktop's client fetches the same entries, or says why not
+    RemoteBackend client(QUrl(QString("http://localhost:%1").arg(PORT)));
+    auto fetch = [&](const QString &name, int max, QList<Activity> &got) {
+        QString error = "none yet";
+
+        client.fetchActivity(name, max, &client,
+                             [&](const QString &err,
+                                 const QList<Activity> &list) {
+            error = err;
+            got = list;
+        });
+        if (!QTest::qWaitFor([&] { return error != "none yet"; }, 5000))
+            return QString("no reply");
+        return error;
+    };
+    QList<Activity> got;
+
+    QCOMPARE(fetch(repo, 100, got), QString());
+    QCOMPARE(got, acts);
+    QCOMPARE(fetch(repo, 2, got), QString());
+    QCOMPARE(got, acts.mid(acts.size() - 2));
+    QVERIFY(!fetch("nowhere", 100, got).isEmpty());
+    QVERIFY(got.isEmpty());
 }
 
 void TestSearchServer::testServerSearchesText()

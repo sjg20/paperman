@@ -5,6 +5,7 @@ License: GPL-2
 #ifndef REMOTEBACKEND_H
 #define REMOTEBACKEND_H
 
+#include "activitylog.h"
 #include "backend.h"
 
 #include <QJsonObject>
@@ -186,6 +187,21 @@ public:
     void searchText(const QString &repo, const QString &text,
                     const QString &dir, int maxHits, QObject *context,
                     TextDone done);
+
+    //! Whether the server keeps a record of what is done to its stacks
+    bool hasActivity() const { return _features.contains(QStringLiteral("activity")); }
+
+    /** Fetch the newest entries of a repository's record of activity
+     *
+     *  @param repo     the repository
+     *  @param max      the most entries to fetch, counted from the newest
+     *  @param context  @p done is not called once this has gone
+     *  @param done     called with the entries, oldest first, or with why
+     *                  they could not be had */
+    using ActivityDone = std::function<void(const QString &error,
+                                            const QList<Activity> &acts)>;
+    void fetchActivity(const QString &repo, int max, QObject *context,
+                       ActivityDone done);
 
     /** Search the names of a repository's stacks for @p text, which may
      *  be any part of a name, ignoring case
@@ -653,6 +669,10 @@ signals:
 
     /** One page's file is in place (fetchPageAsync); empty on failure. */
     void pageReady(quint64 token, const QString &pagePath);
+
+    /** The server has announced a change to a stack of @p repo, made
+     *  by this client or another, so its record of activity has grown */
+    void recordGrown(const QString &repo);
 
     /** A change made by another client arrived on the event stream */
     void stackEvent(const QString &repo, const QString &op,
