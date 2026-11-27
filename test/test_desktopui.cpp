@@ -1106,6 +1106,157 @@ void TestDesktopUi::testActivityWindow()
    QTRY_COMPARE(shown(), QDir(root + "papers"));
 }
 
+/* Put back, in the Activity window, returns a stack to where it was, and
+   as it was named, before the line chosen was done; and the window can
+   show only what one person did */
+void TestDesktopUi::testActivityPutBack()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString root = model->deskToDirname(repo_ind);
+   QString dest = root + "main/";
+   auto selected = [&]() {
+      QStringList out;
+
+      for (const QModelIndex &ind : view->selectionModel()->selectedIndexes())
+         out << ind.data(Desktopmodel::Role_filename).toString();
+      out.sort();
+      return out;
+   };
+   auto rootIndex = [&]() { return model->deskFromDirname(root); };
+
+   me.actionActivity->trigger();
+   Activitydialog *dialog = me.findChild<Activitydialog *>();
+   QVERIFY(dialog);
+   QPushButton *put_back = dialog->findChild<QPushButton *>("putBack");
+   QVERIFY(put_back);
+   QVERIFY(!put_back->isEnabled());
+
+   // a stack is renamed, turned, and then moved to a folder
+   model->renameStack(model->index("testfile.max", repo_ind), "letter");
+   model->transformPage(model->index("letter.max", repo_ind), 0,
+                        File::Transform_rotate90);
+   QModelIndexList list{model->index("letter.max", repo_ind)};
+   QStringList made;
+   model->moveToDir(list, repo_ind, dest, made);
+   QTRY_COMPARE(int(dialog->listed().size()), 3);
+   QVERIFY(QFile::exists(dest + "letter.max"));
+
+   // a line which neither renamed nor moved anything has nothing to put back
+   dialog->choose(1);
+   QVERIFY(dialog->listed()[1].startsWith("Turned page 1"));
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+
+   // the move can be put back: the stack returns to the folder it left
+   dialog->choose(0);
+   QCOMPARE(dialog->putBackMoves(), QList<Activitydialog::Move>(
+      {Activitydialog::Move(dest + "letter.max", root + "letter.max")}));
+   QVERIFY(put_back->isEnabled());
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "letter.max"));
+   QVERIFY(!QFile::exists(dest + "letter.max"));
+   QTRY_COMPARE(selected(), QStringList("letter.max"));
+   QCOMPARE(QDir(model->getDirPath()), QDir(root));
+
+   // that is a step of its own in the list, with what it did under it
+   QTRY_COMPARE(dialog->listed()[0], QString("Put back"));
+   QCOMPARE(dialog->listedUnder(0),
+            QStringList("Moved 'letter' from main to the top folder"));
+
+   // and can be undone like any other, with one undo
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(QFile::exists(dest + "letter.max"));
+   QVERIFY(!QFile::exists(root + "letter.max"));
+
+   /* from the rename, the first thing done, it goes back to the name and
+      the folder it had then, in one step */
+   QTRY_VERIFY(dialog->listed()[0].startsWith("Undid:"));
+   int rename_row = dialog->listed().size() - 1;
+   QCOMPARE(dialog->listed()[rename_row],
+            QString("Renamed 'testfile' to 'letter'"));
+   dialog->choose(rename_row);
+   QCOMPARE(dialog->putBackMoves(), QList<Activitydialog::Move>(
+      {Activitydialog::Move(dest + "letter.max", root + "testfile.max")}));
+   int steps = model->getUndoStack()->index();
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "testfile.max"));
+   QVERIFY(!QFile::exists(dest + "letter.max"));
+   QCOMPARE(model->getUndoStack()->index(), steps + 1);
+   QTRY_COMPARE(dialog->listedUnder(0), QStringList({
+      "Renamed 'letter' to 'testfile'",
+      "Moved 'testfile' from main to the top folder"}));
+
+   // with the stack back where the line left it, there is nothing to do
+   dialog->choose(dialog->listed().size() - 1);
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+
+   /* names the assistant gave to two stacks are one line, which puts
+      both back */
+   {
+      ActivityBy by(model->getUndoStack(), Activity::W_assistant);
+      QModelIndexList both{model->index("testfile.max", rootIndex()),
+                           model->index("testpdf.pdf", rootIndex())};
+
+      QCOMPARE(model->renameStacks(both, {"bank letter", "power bill"}), 2);
+   }
+   QTRY_COMPARE(dialog->listed()[0], QString("Name stacks (2)"));
+   dialog->choose(0);
+   QCOMPARE(int(dialog->putBackMoves().size()), 2);
+   put_back->click();
+   QTRY_VERIFY(QFile::exists(root + "testfile.max"));
+   QVERIFY(QFile::exists(root + "testpdf.pdf"));
+   QVERIFY(!QFile::exists(root + "bank letter.max"));
+   QVERIFY(!QFile::exists(root + "power bill.pdf"));
+
+   // one of the two alone can be put back, from its own line
+   model->getUndoStack()->undo();
+   QTRY_VERIFY(QFile::exists(root + "power bill.pdf"));
+   QTRY_VERIFY(dialog->listed()[0].startsWith("Undid:"));
+   int names_row = dialog->listed().indexOf("Name stacks (2)");
+   QVERIFY(names_row > 0);
+   dialog->choose(names_row, 1);
+   QCOMPARE(dialog->putBackMoves(), QList<Activitydialog::Move>(
+      {Activitydialog::Move(root + "power bill.pdf", root + "testpdf.pdf")}));
+
+   // a stack which would land on another is not offered
+   QVERIFY(QFile::copy(root + "power bill.pdf", root + "testpdf.pdf"));
+   dialog->choose(names_row, 0);
+   dialog->choose(names_row, 1);
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+   QVERIFY(QFile::remove(root + "testpdf.pdf"));
+
+   // nor is something which has been undone
+   int undone_row = -1;
+   for (int i = 0; i < dialog->listed().size() && undone_row < 0; i++)
+      if (dialog->isUndone(i))
+         undone_row = i;
+   QVERIFY(undone_row >= 0);
+   dialog->choose(undone_row);
+   QVERIFY(dialog->putBackMoves().isEmpty());
+
+   // the list can be cut down to what the assistant did, and back
+   int all = dialog->listed().size();
+   QComboBox *show = dialog->findChild<QComboBox *>("show");
+   QVERIFY(show);
+   dialog->setWho(Activity::W_assistant);
+   QCOMPARE(dialog->listed(), QStringList("Name stacks (2)"));
+   QCOMPARE(int(dialog->listedUnder(0).size()), 2);
+   QCOMPARE(show->currentText(), QString("What the assistant did"));
+   dialog->setWho(Activity::W_reader);
+   QVERIFY(dialog->listed().isEmpty());
+   show->setCurrentIndex(0);
+   QCOMPARE(int(dialog->listed().size()), all);
+}
+
 void TestDesktopUi::testSearchAndLocate()
 {
    QModelIndex repo_ind;

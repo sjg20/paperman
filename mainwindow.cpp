@@ -619,6 +619,13 @@ void Mainwindow::on_actionActivity_triggered (bool)
          desktop->showStack (pathname, page);
       });
 
+      connect (_activity, &Activitydialog::putBackWanted, desktop,
+               [this, desktop] (const QList<Activitydialog::Move> &moves) {
+         QString error = desktop->putBack (moves);
+
+         if (!error.isEmpty ())
+            QMessageBox::warning (_activity, tr ("Paperman"), error);
+      });
       connect (_activity, &Activitydialog::folderChosen, desktop,
                [desktop] (const QString &pathname) {
          QModelIndex ind = desktop->findDir (pathname);
