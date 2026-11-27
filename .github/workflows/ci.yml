@@ -515,11 +515,30 @@ jobs:
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "{\"BUILD_DATE\":\"$(date '+%a %d %b %H:%M:%S %Z %Y')\"}" > app/dart-defines.json
 
+      # Gradle fetches some packages afresh on every run, and the server
+      # it gets them from turns requests away now and then ("429 Too Many
+      # Requests"). Flutter says when a build fails for that reason, so try
+      # again then, and only then: any other failure fails at once.
       - name: Build release APK
         run: |
-          cd app && flutter build apk \
-            --build-name="$APP_VERSION" \
-            --dart-define-from-file=dart-defines.json
+          set -o pipefail
+          cd app
+          for attempt in 1 2 3 4; do
+            if flutter build apk \
+                --build-name="$APP_VERSION" \
+                --dart-define-from-file=dart-defines.json 2>&1 |
+                tee build-apk.log; then
+              exit 0
+            fi
+            if [ "$attempt" = 4 ] ||
+                ! grep -q "error while downloading artifacts" build-apk.log
+            then
+              exit 1
+            fi
+            echo "::warning::The APK build could not download a package" \
+              "(attempt $attempt): trying again in a minute"
+            sleep 60
+          done
 
       - name: Install Linux desktop dependencies
         run: |
