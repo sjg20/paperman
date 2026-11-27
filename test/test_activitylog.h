@@ -40,6 +40,7 @@ private slots:
 
    //! each kind of entry says what was done in a line
    void testDescribe();
+   void testDescribeDetail();
 
    //! a stack is followed through renames, moves, undo and redo
    void testWhereNow();

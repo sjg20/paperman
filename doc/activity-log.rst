@@ -63,9 +63,13 @@ An entry
      - Where the stack was before, for a rename or a move; or what it
        was made from, for a copy or a stack taken out of another
    * - ``page``
-     - The page it was done to, from 0, if it was done to one page
+     - The page it was done to, from 0, if it was done to one page; or
+       the first of the pages it covers
    * - ``n``
      - How many pages or stacks it covers
+   * - ``more``
+     - Exactly what was changed, where the other keys cannot say: an
+       object whose keys go by ``do``, see `What exactly changed`_
    * - ``note``
      - Anything more, in words: a page's new name, or the name of a group
    * - ``in``
@@ -123,6 +127,57 @@ The values of ``do``, which must never change once used:
        it
    * - ``undo``, ``redo``
      - The entry named by ``ref`` was undone, or done again
+
+What exactly changed
+--------------------
+
+An entry is meant to say enough to tell what happened, and to put it
+back. For most things the path, ``from``, ``page`` and ``n`` do that.
+Where they cannot, the rest is in ``more``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - ``do``
+     - What says it
+   * - ``stack``
+     - ``n`` is how many pages the stack brought, and ``page`` where the
+       first of them is in the stack it went onto
+   * - ``unstack``
+     - ``page`` and ``n`` are the pages the new stack took, as they were
+       numbered before. ``more.copy`` is true if they were copied, and so
+       are still in the stack they came from. A ``split`` has one of
+       these for each stack taken out
+   * - ``remove-pages``
+     - ``more.pages``: the pages removed
+   * - ``reorder``
+     - ``more.order``: the old number of each page, in its new place
+   * - ``turn``
+     - ``more.turn``: ``rotate90`` (to the right), ``rotate180``,
+       ``rotate270``, ``hflip`` (left to right) or ``vflip``
+   * - ``crop``
+     - ``more.box``: the part kept, as left, top, width and height, each
+       a proportion of the page. All zero means each page was fitted to
+       what is on it
+   * - ``cover``
+     - ``more.cover``: the part of the page which is the cover, empty if
+       the cover was cleared; ``more.was``: the cover any page had before,
+       by page number
+   * - ``rename-page``
+     - ``note`` is the new name, and ``more.was`` the old one
+   * - ``facts``
+     - ``more.was`` and ``more.now``: each fact which changed, before and
+       after. One which was not known before is only in ``now``
+   * - ``details``
+     - ``more.fields``: which of ``title``, ``author``, ``keywords``,
+       ``notes`` and ``text`` changed; ``more.was`` and ``more.now``: what
+       each was and is, except ``text``, which is too long to keep twice
+   * - ``import``
+     - ``more.from``: the files brought in
+
+Every key of ``more`` is optional. Entries written before it existed have
+none, and ``Activity::describe()`` words those without.
 
 Following a stack
 -----------------

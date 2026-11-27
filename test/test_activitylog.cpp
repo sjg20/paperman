@@ -18,6 +18,8 @@ License: GPL-2
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+#include <QJsonObject>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -55,7 +57,7 @@ void TestActivityLog::testJson()
    QCOMPARE(obj.value("t").toString(), QString("2026-03-04T05:06:07.089Z"));
    QCOMPARE(obj.value("path").toString(), QString("bills/power bill.max"));
    QCOMPARE(obj.value("from").toString(), QString("bills/scan1.max"));
-   for (const char *key : {"in", "ref", "page", "n", "note", "kept"})
+   for (const char *key : {"in", "ref", "page", "n", "note", "kept", "more"})
       QVERIFY2(!obj.contains(key), key);
 
    // and it comes back as it was, large number and all
@@ -70,6 +72,8 @@ void TestActivityLog::testJson()
    act.count = 3;
    act.note = "a \"quoted\" caf\u00e9";
    act.kept = "power bill_1.max";
+   act.more["pages"] = QJsonArray{1, 3};
+   act.more["was"] = QJsonObject{{"title", "Old \"title\""}};
    act.action = Activity::A_scan_page;
    act.who = Activity::W_reader;
    QVERIFY(Activity::fromJson(act.toJson(), back));
@@ -200,6 +204,99 @@ void TestActivityLog::testDamaged()
    QCOMPARE(int(acts.size()), 2);
    QCOMPARE(acts[0], first);
    QCOMPARE(acts[1], second);
+}
+
+/* Where an entry says exactly what changed, it is worded with that; one
+   which does not, as an older Paperman wrote it, is worded without */
+void TestActivityLog::testDescribeDetail()
+{
+   Activity act = entry(Activity::A_turn, "bills/gas.max");
+
+   act.page = 1;
+   QCOMPARE(act.describe(), QString("Turned page 2 of 'gas'"));
+   const QStringList ways = {
+      "rotate90", "to the right", "rotate270", "to the left",
+      "rotate180", "upside down"};
+   for (int i = 0; i < ways.size(); i += 2) {
+      act.more["turn"] = ways[i];
+      QCOMPARE(act.describe(),
+               QString("Turned page 2 of 'gas' %1").arg(ways[i + 1]));
+   }
+   act.more["turn"] = "hflip";
+   QCOMPARE(act.describe(), QString("Flipped page 2 of 'gas' left to right"));
+   act.more["turn"] = "vflip";
+   act.page = -1;
+   QCOMPARE(act.describe(),
+            QString("Flipped the pages of 'gas' top to bottom"));
+   for (int op = 0; op < 5; op++)
+      QVERIFY(!Activity::turnName(op).isEmpty());
+   QCOMPARE(Activity::turnName(0), QString("rotate90"));
+   QCOMPARE(Activity::turnName(4), QString("vflip"));
+   QCOMPARE(Activity::turnName(5), QString());
+
+   // pages removed are named, unless there are too many to say
+   act = entry(Activity::A_remove_pages, "gas.max");
+   act.count = 3;
+   QCOMPARE(act.describe(), QString("Removed 3 pages from 'gas'"));
+   act.more["pages"] = QJsonArray{4};
+   QCOMPARE(act.describe(), QString("Removed page 5 from 'gas'"));
+   act.more["pages"] = QJsonArray{0, 2, 5};
+   QCOMPARE(act.describe(), QString("Removed pages 1, 3 and 6 from 'gas'"));
+   act.more["pages"] = QJsonArray{0, 1, 2, 3, 4, 5, 6, 7, 8};
+   act.count = 9;
+   QCOMPARE(act.describe(), QString("Removed 9 pages from 'gas'"));
+
+   // a stack put onto another, with the pages it brought
+   act = entry(Activity::A_stack, "gas.max", "scan3.max");
+   QCOMPARE(act.describe(), QString("Stacked 'scan3' onto 'gas'"));
+   act.count = 1;
+   QCOMPARE(act.describe(), QString("Stacked 'scan3' (1 page) onto 'gas'"));
+   act.count = 4;
+   QCOMPARE(act.describe(), QString("Stacked 'scan3' (4 pages) onto 'gas'"));
+
+   // pages taken out, or copied out
+   act = entry(Activity::A_unstack, "p2.max", "gas.max");
+   QCOMPARE(act.describe(), QString("Took 'p2' out of 'gas'"));
+   act.page = 1;
+   act.count = 1;
+   QCOMPARE(act.describe(), QString("Took page 2 out of 'gas' as 'p2'"));
+   act.count = 3;
+   QCOMPARE(act.describe(), QString("Took pages 2 to 4 out of 'gas' as 'p2'"));
+   act.more["copy"] = true;
+   QCOMPARE(act.describe(), QString("Copied pages 2 to 4 of 'gas' as 'p2'"));
+
+   // a page's name, with the one it had
+   act = entry(Activity::A_rename_page, "gas.max");
+   act.page = 0;
+   act.note = "front";
+   QCOMPARE(act.describe(), QString("Named page 1 of 'gas' 'front'"));
+   act.more["was"] = "Page 1";
+   QCOMPARE(act.describe(),
+            QString("Renamed page 1 of 'gas' from 'Page 1' to 'front'"));
+
+   // a cover set or cleared
+   act = entry(Activity::A_cover, "gas.max");
+   act.page = 2;
+   QCOMPARE(act.describe(), QString("Changed the cover of 'gas'"));
+   act.more["cover"] = "0,0,1,1";
+   QCOMPARE(act.describe(), QString("Set the cover of 'gas' on page 3"));
+   act.more["cover"] = "";
+   QCOMPARE(act.describe(), QString("Cleared the cover of 'gas'"));
+
+   // which details and which facts
+   act = entry(Activity::A_details, "gas.max");
+   QCOMPARE(act.describe(), QString("Changed the details of 'gas'"));
+   act.more["fields"] = QJsonArray{"title"};
+   QCOMPARE(act.describe(), QString("Changed the title of 'gas'"));
+   act.more["fields"] = QJsonArray{"author", "notes", "title"};
+   QCOMPARE(act.describe(),
+            QString("Changed the author, notes and title of 'gas'"));
+   act = entry(Activity::A_facts, "gas.max");
+   QCOMPARE(act.describe(), QString("Changed the facts about 'gas'"));
+   act.more["was"] = QJsonObject{{"amount", "12.50"}};
+   act.more["now"] = QJsonObject{{"amount", "13.50"}, {"date", "2026-03-04"}};
+   QCOMPARE(act.describe(),
+            QString("Changed the facts about 'gas': amount, date"));
 }
 
 void TestActivityLog::testDescribe()

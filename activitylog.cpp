@@ -24,6 +24,7 @@ License: GPL-2
 #include <QDir>
 #include <QFile>
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QSettings>
 
@@ -79,6 +80,8 @@ QJsonObject Activity::toJson () const
       obj ["note"] = note;
    if (!kept.isEmpty ())
       obj ["kept"] = kept;
+   if (!more.isEmpty ())
+      obj ["more"] = more;
    return obj;
    }
 
@@ -110,6 +113,7 @@ bool Activity::fromJson (const QJsonObject &obj, Activity &act)
    act.count = obj.value ("n").toInt ();
    act.note = obj.value ("note").toString ();
    act.kept = obj.value ("kept").toString ();
+   act.more = obj.value ("more").toObject ();
    return true;
    }
 
@@ -119,7 +123,8 @@ bool Activity::operator== (const Activity &other) const
    return id == other.id && group == other.group && ref == other.ref
       && when == other.when && who == other.who && action == other.action
       && path == other.path && from == other.from && page == other.page
-      && count == other.count && note == other.note && kept == other.kept;
+      && count == other.count && note == other.note && kept == other.kept
+      && more == other.more;
    }
 
 
@@ -151,6 +156,47 @@ static QString folder (const QString &path)
    }
 
 
+QString Activity::turnName (int transform)
+   {
+   static const char *const name [] = {
+      "rotate90", "rotate180", "rotate270", "hflip", "vflip",
+   };
+
+   return transform >= 0 && transform < int (sizeof (name) / sizeof (name [0]))
+      ? name [transform] : "";
+   }
+
+
+// page numbers as the user counts them, in words: "2", "2 and 3", "2, 3 and 5"
+static QString pageList (const QJsonArray &pages)
+   {
+   QStringList nums;
+
+   for (const QJsonValue &v : pages)
+      nums << QString::number (v.toInt () + 1);
+   if (nums.size () < 2)
+      return nums.join (QString ());
+
+   QString last = nums.takeLast ();
+
+   return QCoreApplication::translate ("Activity", "%1 and %2")
+      .arg (nums.join (", "), last);
+   }
+
+
+// several things in words: "title", "title and notes", "a, b and c"
+static QString wordList (QStringList words)
+   {
+   if (words.size () < 2)
+      return words.join (QString ());
+
+   QString last = words.takeLast ();
+
+   return QCoreApplication::translate ("Activity", "%1 and %2")
+      .arg (words.join (", "), last);
+   }
+
+
 QString Activity::describe () const
    {
    auto tr = [] (const char *text) {
@@ -158,6 +204,11 @@ QString Activity::describe () const
    };
    QString name = leaf (path);
    QString pagestr = QString::number (page + 1);
+
+   // a run of pages, as the user counts them
+   QString pages = count > 1
+      ? tr ("pages %1 to %2").arg (page + 1).arg (page + count)
+      : tr ("page %1").arg (page + 1);
 
    switch (action)
       {
@@ -181,32 +232,107 @@ QString Activity::describe () const
       case A_duplicate :
          return tr ("Copied '%1' as '%2'").arg (leaf (from)).arg (name);
       case A_stack :
+         // with how many pages it brought, when that is known
+         if (count == 1)
+            return tr ("Stacked '%1' (1 page) onto '%2'").arg (leaf (from))
+               .arg (name);
+         if (count > 1)
+            return tr ("Stacked '%1' (%2 pages) onto '%3'").arg (leaf (from))
+               .arg (count).arg (name);
          return tr ("Stacked '%1' onto '%2'").arg (leaf (from)).arg (name);
       case A_unstack :
+         // with the pages it took, when they are known
+         if (page >= 0 && more.value ("copy").toBool ())
+            return tr ("Copied %1 of '%2' as '%3'").arg (pages)
+               .arg (leaf (from)).arg (name);
+         if (page >= 0)
+            return tr ("Took %1 out of '%2' as '%3'").arg (pages)
+               .arg (leaf (from)).arg (name);
          return tr ("Took '%1' out of '%2'").arg (name).arg (leaf (from));
       case A_split :
          return count ? tr ("Split '%1' into %2 stacks").arg (name).arg (count)
             : tr ("Split '%1'").arg (name);
       case A_remove_pages :
+         {
+         // which pages, when they are known and not too many to say
+         QJsonArray which = more.value ("pages").toArray ();
+
+         if (which.size () == 1)
+            return tr ("Removed page %1 from '%2'").arg (pageList (which))
+               .arg (name);
+         if (which.size () > 1 && which.size () <= 8)
+            return tr ("Removed pages %1 from '%2'").arg (pageList (which))
+               .arg (name);
          return count == 1 ? tr ("Removed a page from '%1'").arg (name)
             : tr ("Removed %1 pages from '%2'").arg (count).arg (name);
+         }
       case A_reorder :
          return tr ("Put the pages of '%1' in another order").arg (name);
       case A_turn :
+         {
+         // which way, when that is known
+         QString turn = more.value ("turn").toString ();
+         QString what = page < 0 ? tr ("the pages of '%1'").arg (name)
+            : tr ("page %1 of '%2'").arg (pagestr).arg (name);
+
+         if (turn == "rotate90")
+            return tr ("Turned %1 to the right").arg (what);
+         if (turn == "rotate270")
+            return tr ("Turned %1 to the left").arg (what);
+         if (turn == "rotate180")
+            return tr ("Turned %1 upside down").arg (what);
+         if (turn == "hflip")
+            return tr ("Flipped %1 left to right").arg (what);
+         if (turn == "vflip")
+            return tr ("Flipped %1 top to bottom").arg (what);
          return page < 0 ? tr ("Turned the pages of '%1'").arg (name)
             : tr ("Turned page %1 of '%2'").arg (pagestr).arg (name);
+         }
       case A_crop :
          return page < 0 ? tr ("Cropped the pages of '%1'").arg (name)
             : tr ("Cropped page %1 of '%2'").arg (pagestr).arg (name);
       case A_cover :
+         // set or cleared, when that is known
+         if (more.contains ("cover"))
+            return more.value ("cover").toString ().isEmpty ()
+               ? tr ("Cleared the cover of '%1'").arg (name)
+               : tr ("Set the cover of '%1' on page %2").arg (name)
+                    .arg (pagestr);
          return tr ("Changed the cover of '%1'").arg (name);
       case A_rename_page :
+         // from what, when that is known
+         if (!more.value ("was").toString ().isEmpty ())
+            return tr ("Renamed page %1 of '%2' from '%3' to '%4'")
+               .arg (pagestr).arg (name).arg (more.value ("was").toString ())
+               .arg (note);
          return tr ("Named page %1 of '%2' '%3'").arg (pagestr).arg (name)
             .arg (note);
       case A_facts :
+         {
+         // which of them, when that is known
+         QStringList keys = more.value ("now").toObject ().keys ();
+
+         for (const QString &key : more.value ("was").toObject ().keys ())
+            if (!keys.contains (key))
+               keys << key;
+         keys.sort ();
+         if (!keys.isEmpty ())
+            return tr ("Changed the facts about '%1': %2").arg (name)
+               .arg (keys.join (", "));
          return tr ("Changed the facts about '%1'").arg (name);
+         }
       case A_details :
+         {
+         // which of them, when that is known
+         QStringList fields;
+
+         for (const QJsonValue &v : more.value ("fields").toArray ())
+            fields << v.toString ();
+         if (!fields.isEmpty ())
+            return tr ("Changed the %1 of '%2'").arg (wordList (fields))
+               .arg (name);
          return tr ("Changed the details of '%1'").arg (name);
+         }
       case A_read :
          if (page >= 0)
             return tr ("Read the text of page %1 of '%2'").arg (pagestr)
