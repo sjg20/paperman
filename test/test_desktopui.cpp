@@ -2955,6 +2955,58 @@ void TestDesktopUi::testPageNumberFits()
                           .arg(large_bold).arg(large_plain)));
 }
 
+/* Go to folder (Ctrl+F) and Search folders (Ctrl+S) open with the box
+   to type into ready for typing, not the OK button nor the choice of what
+   to search for */
+void TestDesktopUi::testBoxFocus()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+
+   // look at what has the keyboard once the box is up, then close it
+   auto typingInto = [&](std::function<void()> open) {
+      QString name = "nothing";
+
+      QTimer::singleShot(0, [&]() {
+         QDialog *box = nullptr;
+
+         // the box which is up, given a moment to settle
+         for (int tries = 0; !box && tries < 100; tries++) {
+            QTest::qWait(20);
+            for (QWidget *w : QApplication::topLevelWidgets())
+               if (qobject_cast<QDialog *>(w) && w->isVisible())
+                  box = qobject_cast<QDialog *>(w);
+         }
+         if (!box) {
+            name = "no box";
+            return;
+         }
+         QTest::qWait(50);
+         QWidget *focus = QApplication::focusWidget();
+
+         name = focus && box->isAncestorOf(focus) ? focus->objectName()
+                                                  : QString("outside");
+         if (auto *edit = qobject_cast<QLineEdit *>(focus))
+            QTest::keyClicks(edit, "ab");
+         if (auto *edit = qobject_cast<QLineEdit *>(focus))
+            name += ":" + edit->text().right(2);
+         box->reject();
+      });
+      open();
+      return name;
+   };
+
+   QCOMPARE(typingInto([&]() { desktop->goToFolder(); }),
+            QString("folderName:ab"));
+   QCOMPARE(typingInto([&]() { desktop->searchInFolders(); }),
+            QString("stackName:ab"));
+}
+
 /* A stack dragged only a little way ends up over where it was. The list
    view takes it for the thing dropped on and moves nothing, so the move
    is done by how far the pointer has come */

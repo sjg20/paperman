@@ -141,6 +141,12 @@ public:
          std::function<void (bool ok, const QString &user,
                              const QString &password)> done);
 
+   /** Give a box in a window the keyboard once the window is shown, so
+    *  that typing goes into it straight away
+    *
+    *  @param box  the box, in a window about to be shown */
+   static void focusWhenShown(QWidget *box);
+
 private slots:
    /** BackendStats::changed handler.  Throttles updates to the
     *  toolbar label to at most one per second: the first change in

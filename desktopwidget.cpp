@@ -1296,6 +1296,19 @@ void Desktopwidget::nameSearchLater(const QString& path, const QString& match,
         matches.size(), true);
 }
 
+void Desktopwidget::focusWhenShown(QWidget *box)
+{
+   /* Set before the window is shown, the focus can go elsewhere as it
+      opens: a box with buttons gives it to the default one. So give it
+      once the window is up, and make the window the one with the
+      keyboard. What is selected in the box stays as it is */
+   QTimer::singleShot(0, box, [box]() {
+      box->window()->activateWindow();
+      box->setFocus(Qt::OtherFocusReason);
+   });
+}
+
+
 void Desktopwidget::searchInFolders()
 {
    Ui::Search ui;
@@ -1323,6 +1336,7 @@ void Desktopwidget::searchInFolders()
    QString path = _model->filePath(src_ind);
 
    ui.folderPath->setText(path);
+   focusWhenShown(ui.stackName);
    diag.show();
    if (!diag.exec()) {
       _toolbar->setFilterEnabled(true);
@@ -2232,7 +2246,7 @@ Gotofolder::Gotofolder(QWidget *parent)
    connect(buttons, &QDialogButtonBox::rejected, this, &Gotofolder::reject);
    layout->addWidget(buttons);
    resize(400, 250);
-   folderName->setFocus();
+   Desktopwidget::focusWhenShown(folderName);
 }
 
 
