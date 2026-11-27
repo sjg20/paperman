@@ -109,6 +109,35 @@ struct Activity
    //! can be brought back
    QString kept;
 
+   /** exactly what was changed, for the things which the fields above
+       cannot say. What it holds goes by the action:
+
+         unstack        "copy": true if the page was copied, and so is
+                        still in the stack it came from
+         remove-pages   "pages": the pages removed, each numbered from 0
+         reorder        "order": the old number of each page, in its new
+                        place
+         turn           "turn": rotate90, rotate180, rotate270, hflip or
+                        vflip
+         crop           "box": the part kept, as [left, top, width, height]
+         cover          "cover": the cover's text, empty if it was cleared;
+                        "was": the cover each page had, by page number
+         rename-page    "was": the name the page had
+         facts          "was" and "now": the facts which changed, before
+                        and after
+         details        "was" and "now": the details which changed, before
+                        and after, by name: title, author, keywords, notes;
+                        "fields": the names of all which changed
+         import         "from": the files brought in
+
+       Every key is optional: an entry written by an older Paperman, or by
+       something which does not know, has none */
+   QJsonObject more;
+
+   //! the word for a way of turning a page, as 'more' holds it: one of
+   //! File::e_transform, given as a number
+   static QString turnName (int transform);
+
    //! the entry in the form it is kept in: one JSON object
    QJsonObject toJson () const;
 
