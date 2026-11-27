@@ -523,6 +523,17 @@ void OcrReader::next ()
       if (file->getPageOcr (pagenum, have) || !have.isEmpty ())
          continue;
 
+      /* a stack can be looked through again while some of its pages are
+         still being read, and those have no words yet: leave them to the
+         read which is under way, and do not start another */
+      bool reading = false;
+
+      for (const Job &job : _jobs)
+         reading |= !job.dropped && job.pagenum == pagenum
+            && job.path == stack.path;
+      if (reading)
+         continue;
+
       QImage image;
       Job job;
 

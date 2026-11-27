@@ -612,6 +612,54 @@ void TestOcrSearch::testReaderSaysStackRead()
    QCOMPARE(int(said.size()), 1);
 }
 
+/* A stack which is asked for again while its pages are being read is not
+   read twice over: a page with a read under way is left to it */
+void TestOcrSearch::testReaderNoDoubleRead()
+{
+   QTemporaryDir tmp;
+   Filemax *max = openStack(testSrc, tmp);
+   QVERIFY(max);
+   std::unique_ptr<Filemax> owner(max);
+   int count = max->pagecount();
+   QVERIFY(count >= 3);
+
+   // enough workers for every page at once, and some to spare
+   OcrReader reader;
+   QSemaphore started, go;
+   QAtomicInt calls;
+   reader.setWorkers(count + 3);
+   reader.setEngine([&](QImage &image, OcrPage &page) {
+      calls++;
+      started.release();
+      go.acquire();
+      return fakeRead(image, page);
+   });
+   auto letGo = qScopeGuard([&go] { go.release(1000); });
+   QSignalSpy idle(&reader, &OcrReader::idle);
+
+   // every page is being read, and none has its words yet
+   reader.addFile(max);
+   for (int i = 0; i < count; i++)
+      QVERIFY(waitFor(started));
+   QCOMPARE(int(calls), count);
+   QCOMPARE(reader.pagesLeft(), count);
+
+   /* asked for again, with workers free, no page is started a second
+      time, and the count of what is left does not grow */
+   reader.addFile(max);
+   reader.addFile(max);
+   QTest::qWait(100);
+   QCOMPARE(int(calls), count);
+   QCOMPARE(reader.pagesLeft(), count);
+
+   // each page is read once, and has its words
+   go.release(count);
+   QVERIFY(idle.wait(10000));
+   QCOMPARE(int(calls), count);
+   for (int i = 0; i < count; i++)
+      QVERIFY2(!pageWord(max, i).isEmpty(), qPrintable(QString::number(i)));
+}
+
 void TestOcrSearch::testReaderByPath()
 {
    QTemporaryDir tmp;
