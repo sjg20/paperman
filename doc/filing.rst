@@ -74,6 +74,10 @@ stack, rather than on where it is or what it is called:
      - Ask an AI model where a stack scanned as one pile divides into
        separate documents (see `Splitting a pile into documents`_). Shown
        once it is turned on in the options
+   * - **Suggest folder...** (Ctrl+F3)
+     - Ask an AI model which folder each stack selected belongs in, and
+       move them once you have checked (see `Suggesting a folder`_).
+       Shown once it is turned on in the options
    * - **Reverse pages** (Ctrl+R)
      - Put the pages of each stack selected in the opposite order, as for
        a pile scanned from the back. Undo puts them back
@@ -311,6 +315,42 @@ before it. The most pages a stack can have for this is 200.
 What is sent is the start of the text of every page of the stack, and the
 names of up to twenty other stacks in its folder. Nothing is sent unless
 you choose **Split into documents...**.
+
+Suggesting a folder
+~~~~~~~~~~~~~~~~~~~
+
+Once stacks have names, they need filing. With the assistant turned on,
+as above, Paperman can ask the AI model which folder each belongs in.
+
+Select the stacks, right-click and choose **Process... > Suggest
+folder...**, or press Ctrl+F3. After a few moments a window lists each
+stack with the folder suggested for it. Nothing has moved yet. In the
+window:
+
+- untick a stack to leave it where it is
+- double-click a folder to change it: as you type, the folders with
+  those letters anywhere in their paths are offered
+- a stack for which the model found no folder to fit says so, and starts
+  unticked; give it a folder and tick it to move it too
+
+Press **Move** to file the stacks ticked, or **Cancel** to leave them
+all. The window can be left open while you do other things.
+
+The folders to choose from are the ones the scan panel offers: every
+folder in the repository, leaving out those named for another year or
+month than this one (see :doc:`getting-started`). The model can only
+pick one of those: a folder it invents is refused. A stack is filed by
+what it is and who it is from, and, among folders named for months, by
+the document's own date.
+
+The stacks are moved as one step, which **Edit > Undo** takes back. In
+**View > Activity** the step is listed as the assistant's, with each
+stack under it, and each leads to the stack where it now is (see
+:doc:`desktop`).
+
+What is sent for each stack is the text of its first pages, as for a
+name, with the stack's name, today's date and the names of the folders
+offered. Nothing is sent unless you choose **Suggest folder...**.
 
 Dates
 -----

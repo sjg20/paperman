@@ -78,6 +78,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "foldersel.h"
 #include "op.h"
 #include "assistant.h"
+#include "foldersdialog.h"
 #include "namesdialog.h"
 #include "backgroundwork.h"
 #include "splitdialog.h"
@@ -447,6 +448,8 @@ void Desktopwidget::addActions(void)
               "Ctrl+F2");
    addAction (_act_suggest_split, "Spli&t into documents...",
               SLOT (suggestSplit ()), "Ctrl+Shift+U");
+   addAction (_act_suggest_folder, "Suggest &folder...",
+              SLOT (suggestFolder ()), "Ctrl+F3");
    addAction (_act_read_text, "Read te&xt (OCR)", SLOT (readText ()), "Ctrl+T");
 
    addAction (_act_duplicate_page, "Duplicate p&age", SLOT (duplicatePage ()), "Ctrl+Shift+I");
@@ -1806,6 +1809,8 @@ void Desktopwidget::updateActions()
    // the assistant is offered only once it is turned on in the options
    _act_suggest_name->setVisible (Assistant::enabled ());
    _act_suggest_name->setEnabled (at_least_one);
+   _act_suggest_folder->setVisible (Assistant::enabled ());
+   _act_suggest_folder->setEnabled (at_least_one);
    _act_suggest_split->setVisible (Assistant::enabled ());
    _act_suggest_split->setEnabled (
       _view->isSelection (Desktopview::SEL_one_multipage));
@@ -1858,6 +1863,7 @@ void Desktopwidget::slotPopupMenu (QModelIndex &index)
    submenu->addAction (_act_read_text);
    submenu->addAction (_act_suggest_name);
    submenu->addAction (_act_suggest_split);
+   submenu->addAction (_act_suggest_folder);
    submenu->addAction (_act_reverse);
 
    submenu = context_menu->addMenu (tr ("&Duplicate..."));
@@ -2638,6 +2644,276 @@ void Desktopwidget::nameNext (std::shared_ptr<NamesJob> job)
       }
    if (!job->over && job->finished == job->stacks.size ())
       showNames (job);
+   }
+
+
+//! the asking for folders for several stacks, kept while it goes on
+struct Desktopwidget::FoldersJob
+   {
+   QList<QPersistentModelIndex> stacks;
+   QStringList names;      //!< the name each has
+   QStringList folders;    //!< the folder suggested for each, if any
+   QStringList notes;      //!< why a stack has no folder suggested
+   QStringList offered;    //!< the folders there are to choose from
+   QString root;           //!< the top of the repository, with no slash
+   QString current;        //!< the folder the stacks are in, below the top
+   int next = 0;           //!< the next stack to ask about
+   int running = 0;        //!< how many are being asked about
+   int finished = 0;       //!< how many have an answer, of either kind
+   bool over = false;      //!< the folders have been shown, or given up
+   Assistant *assistant = nullptr;
+   bool mine = false;      //!< the assistant is ours to delete
+   QPointer<Backgroundjob> work;   //!< the asking, as the user sees it
+   };
+
+
+void Desktopwidget::suggestFolder (void)
+   {
+   if (!Assistant::enabled ())
+      return;
+
+   // one lot at a time, as for names
+   std::shared_ptr<FoldersJob> running = _filing.lock ();
+
+   if (running && !running->over)
+      {
+      emit newContents (tr ("Folders are still being asked for"));
+      return;
+      }
+
+   QModelIndexList list = _view->getSelectedListSource ();
+
+   if (list.isEmpty ())
+      {
+      QModelIndex sind = _view->getSelectedItem (true);
+
+      if (sind.isValid ())
+         list << sind;
+      }
+   if (list.isEmpty ())
+      return;
+
+   /* the folders to choose from are those offered when scanning: every
+      folder, leaving out the ones named for another year or month */
+   auto job = std::make_shared<FoldersJob> ();
+   QStringList missing;
+   QString root;
+
+   job->offered = findFolders (QString (), root, missing);
+   while (root.endsWith ('/'))
+      root.chop (1);
+   job->root = root;
+   if (job->offered.isEmpty ())
+      {
+      emit newContents (tr ("There are no folders here to file stacks in"));
+      return;
+      }
+   if (job->offered.size () > Assistant::folder_max)
+      {
+      emit newContents (tr ("There are too many folders for the assistant "
+         "to choose between (%1; the most is %2)").arg (job->offered.size ())
+         .arg (int (Assistant::folder_max)));
+      return;
+      }
+
+   QString dir = QDir::cleanPath (_contents->getDirPath ());
+
+   job->current = dir.startsWith (root + "/") ? dir.mid (root.size () + 1)
+                                              : QString ();
+   for (const QModelIndex &ind : list)
+      {
+      File *f = _contents->getFile (ind);
+
+      if (!f)
+         continue;
+      job->stacks << QPersistentModelIndex (ind);
+      job->names << f->stackLeaf ();
+      job->folders << QString ();
+      job->notes << QString ();
+      }
+   if (job->stacks.isEmpty ())
+      return;
+   job->assistant = _assistant ? _assistant : new Assistant (nullptr, this);
+   job->mine = !_assistant;
+   _filing = job;
+
+   job->work = new Backgroundjob (tr ("Suggesting folders"), this);
+   job->work->setStoppable (true);
+   job->work->setProgress (0, job->stacks.size ());
+   connect (job->work.data (), &Backgroundjob::stopAsked, this,
+            [this, job] () {
+      if (job->over)
+         return;
+      job->over = true;
+      job->work->deleteLater ();
+      if (job->mine)
+         job->assistant->deleteLater ();
+      emit newContents (tr ("Stopped"));
+   });
+   emit newContents (job->stacks.size () == 1
+      ? tr ("Asking the assistant for a folder...")
+      : tr ("Asking the assistant for %1 folders...")
+           .arg (job->stacks.size ()));
+
+   // any on a server are brought here first, without waiting
+   QPointer<Desktopwidget> self (this);
+
+   _contents->fetchStacksLater (list, [self, job] (err_info *err) {
+      if (!self || job->over)
+         return;
+      if (self->_main->complain (err))
+         {
+         job->over = true;
+         if (job->work)
+            job->work->deleteLater ();
+         if (job->mine)
+            job->assistant->deleteLater ();
+         return;
+         }
+      self->folderNext (job);
+   });
+   }
+
+
+void Desktopwidget::folderNext (std::shared_ptr<FoldersJob> job)
+   {
+   QPointer<Desktopwidget> self (this);
+   QString today = QDate::currentDate ().toString (Qt::ISODate);
+
+   // as nameNext(): an answer can come at once and bring us back here
+   while (!job->over && job->running < Assistant::name_parallel
+          && job->next < job->stacks.size ())
+      {
+      int row = job->next++;
+      auto answered = [self, job, row] (const QString &folder,
+                                        const QString &note) {
+         if (!self || job->over)
+            return;
+         job->folders [row] = folder;
+         job->notes [row] = !folder.isEmpty () ? QString ()
+            : note.isEmpty () ? tr ("none fits") : note;
+         job->running--;
+         job->finished++;
+         if (job->work)
+            job->work->setProgress (job->finished, job->stacks.size ());
+         if (job->stacks.size () > 1)
+            emit self->newContents (tr ("Asking the assistant for folders: "
+               "%1 of %2").arg (job->finished).arg (job->stacks.size ()));
+         self->folderNext (job);
+      };
+
+      job->running++;
+      if (!job->stacks [row].isValid ())
+         {
+         answered (QString (), tr ("gone"));
+         continue;
+         }
+
+      // the same text as a name is asked for from
+      gatherNamePages (job->stacks [row],
+                       [self, job, row, answered, today] (
+                          const QStringList &pages) {
+         QString text = Assistant::nameText (pages);
+
+         if (!self || job->over)
+            return;
+         if (!job->stacks [row].isValid ())
+            answered (QString (), tr ("gone"));
+         else if (text.isEmpty ())
+            answered (QString (), tr ("no text"));
+         else
+            job->assistant->suggestFolder (text, job->names [row],
+                                           job->offered, today, self,
+                                           answered);
+      });
+      }
+   if (!job->over && job->finished == job->stacks.size ())
+      showFolders (job);
+   }
+
+
+void Desktopwidget::showFolders (std::shared_ptr<FoldersJob> job)
+   {
+   if (job->over)
+      return;
+   job->over = true;
+   if (job->work)
+      job->work->deleteLater ();
+   if (job->mine)
+      job->assistant->deleteLater ();
+
+   // with nothing suggested there is nothing to check: say why
+   bool any = false;
+
+   for (const QString &folder : job->folders)
+      any |= !folder.isEmpty ();
+   if (!any)
+      {
+      QStringList why = job->notes;
+
+      why.removeDuplicates ();
+      why.removeAll (QString ());
+      emit newContents (tr ("No folder was suggested: %1")
+                           .arg (why.join ("; ")));
+      return;
+      }
+
+   /* the window does not stop anything else being done: it is there to
+      be checked when the user is ready */
+   Foldersdialog *dialog = new Foldersdialog (this);
+
+   dialog->setAttribute (Qt::WA_DeleteOnClose);
+   dialog->setFolders (job->offered, job->current);
+   dialog->setStacks (job->names, job->folders, job->notes);
+   emit newContents (tr ("The assistant suggests folders for %n stack(s)",
+                         "", job->folders.size () - job->folders.count (
+                                                        QString ())));
+   connect (dialog, &QDialog::accepted, this, [this, dialog, job] () {
+      fileStacks (job, dialog->folders ());
+   });
+   dialog->show ();
+   }
+
+
+void Desktopwidget::fileStacks (std::shared_ptr<FoldersJob> job,
+                                const QStringList &folders)
+   {
+   /* the stacks for each folder go together. They are found again by
+      where they now are, as the first lot to go changes where the rest
+      are in the list */
+   QMap<QString, QList<QPersistentModelIndex>> lots;
+   int count = 0;
+
+   for (int row = 0; row < job->stacks.size (); row++)
+      if (!folders.value (row).isEmpty () && job->stacks [row].isValid ())
+         lots [folders [row]] << job->stacks [row];
+   if (lots.isEmpty ())
+      return;
+
+   ActivityBy by (_contents->getUndoStack (), Activity::W_assistant);
+   int total = 0;
+
+   for (const auto &lot : lots)
+      total += lot.size ();
+   _contents->getUndoStack ()->beginMacro (
+      total == 1 ? tr ("File stack") : tr ("File stacks (%1)").arg (total));
+   for (auto it = lots.constBegin (); it != lots.constEnd (); ++it)
+      {
+      QModelIndexList list;
+      QString dir = job->root + "/" + it.key () + "/";
+      QStringList made;
+
+      for (const QPersistentModelIndex &stack : it.value ())
+         if (stack.isValid ())
+            list << QModelIndex (stack);
+      if (list.isEmpty ())
+         continue;
+      _contents->moveToDir (list, list [0].parent (), dir, made);
+      count += list.size ();
+      }
+   _contents->getUndoStack ()->endMacro ();
+   emit newContents (count == 1 ? tr ("Filed 1 stack")
+                                : tr ("Filed %1 stacks").arg (count));
    }
 
 

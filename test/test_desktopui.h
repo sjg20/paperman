@@ -233,6 +233,9 @@ private slots:
    void testNamesDialog();
 
    //! Several stacks are named together, and the names checked together
+   //! Folders are suggested for stacks, checked, and the stacks moved
+   void testSuggestFolder();
+
    void testSuggestNames();
 
    //! Names which come after the user has moved on do not get in the way

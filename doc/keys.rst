@@ -96,6 +96,8 @@ Processing
      - Ask the assistant for a name for each stack, once it is turned on
    * - **Ctrl+Shift+U**
      - Ask the assistant where a stack divides into documents
+   * - **Ctrl+F3**
+     - Ask the assistant which folder each stack belongs in
    * - **Ctrl+R**
      - Put the pages of each stack in the opposite order
 
