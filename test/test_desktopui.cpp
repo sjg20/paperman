@@ -1,5 +1,8 @@
 #include <functional>
 
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QNetworkAccessManager>
 #include <QAbstractItemModelTester>
 #include <QClipboard>
 #include <QHeaderView>
@@ -27,6 +30,7 @@
 
 #include "foldersdialog.h"
 #include "activitydialog.h"
+#include "remotebackend.h"
 #include "test.h"
 #include "backgrounddialog.h"
 #include "backgroundwork.h"
@@ -1109,6 +1113,152 @@ void TestDesktopUi::testActivityWindow()
 /* Put back, in the Activity window, returns a stack to where it was, and
    as it was named, before the line chosen was done; and the window can
    show only what one person did */
+/* A folder on a server has its record kept by the server, which the
+   window shows, following what this desktop and others do there */
+void TestDesktopUi::testActivityServer()
+{
+   Mainwindow me;
+   auto path = setupRepo();
+
+   SearchServer server(path, 9886);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+   QTest::qWait(100);
+   QUrl url("http://localhost:9886");
+   QString repo = QFileInfo(path).fileName();
+   QString root = url.toString() + "/" + repo;
+
+   // with a repository on this computer as well
+   QTemporaryDir here;
+   QVERIFY(here.isValid());
+   QVERIFY(QFile::copy(testSrc + "/testfile.max",
+                       here.path() + "/own.max"));
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopmodel *model = desktop->getModel();
+   Desktopview *view = desktop->getView();
+   QVERIFY(!desktop->addDir(here.path()));
+   bool attached = false;
+   QString err;
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      err = error;
+      attached = true;
+   });
+   QTRY_VERIFY(attached);
+   QVERIFY2(err.isEmpty(), qPrintable(err));
+
+   me.resize(1024, 768);
+   me.show();
+   QVERIFY(QTest::qWaitForWindowExposed(&me));
+
+   // the window is opened while a folder on this computer is shown
+   me.actionActivity->trigger();
+   Activitydialog *dialog = me.findChild<Activitydialog *>();
+   QVERIFY(dialog);
+   QVERIFY(!dialog->onServer());
+   QString local = dialog->root();
+   QCOMPARE(QDir(local), QDir(here.path()));
+
+   // the server's repository is shown: its record is the server's
+   QModelIndex repo_dir = desktop->findDir(root);
+   QVERIFY(repo_dir.isValid());
+   desktop->selectDir(repo_dir);
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   QTRY_VERIFY(dialog->onServer());
+   QCOMPARE(dialog->root(), root);
+   QTRY_COMPARE(dialog->explanation(),
+                QString("Nothing has been recorded here yet. What is done "
+                        "to the stacks from now on is listed here."));
+   QVERIFY(dialog->listed().isEmpty());
+   desktop->_dir->expand(repo_dir);
+   QTRY_VERIFY(desktop->findDir(root + "/main").isValid());
+
+   auto selected = [&]() {
+      QStringList out;
+
+      for (const QModelIndex &ind : view->selectionModel()->selectedIndexes())
+         out << ind.data(Desktopmodel::Role_filename).toString();
+      out.sort();
+      return out;
+   };
+
+   // a stack is renamed from here: the server records it, and it shows
+   QModelIndex parent = view->rootIndexSource();
+   model->renameStack(model->index("testfile.max", parent), "letter");
+   QTRY_COMPARE(dialog->listed(),
+                QStringList("Renamed 'testfile' to 'letter'"));
+   QVERIFY(dialog->explanation().isEmpty());
+
+   // someone else moves the other stack to a folder, and that shows too
+   QNetworkAccessManager nam;
+   QNetworkRequest req(QUrl(root.left(root.lastIndexOf('/')) + "/v1/repos/"
+                            + repo + "/stacks/testpdf.pdf/move"));
+   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+   QNetworkReply *reply = nam.post(req, QByteArray(R"({"destDir":"main"})"));
+   QTRY_VERIFY(reply->isFinished());
+   QVERIFY2(reply->error() == QNetworkReply::NoError,
+            qPrintable(reply->errorString()));
+   reply->deleteLater();
+   QTRY_COMPARE(int(dialog->listed().size()), 2);
+   QCOMPARE(dialog->listed()[0],
+            QString("Moved 'testpdf.pdf' from the top folder to main"));
+
+   // choosing the move goes to the stack, in its folder on the server
+   dialog->choose(0);
+   auto shown = [&]() {
+      QString dir = model->getDirPath();
+
+      while (dir.endsWith('/'))
+         dir.chop(1);
+      return dir;
+   };
+   QTRY_COMPARE(shown(), root + "/main");
+   QTRY_COMPARE(selected(), QStringList("testpdf.pdf"));
+   QCOMPARE(dialog->status(), QString("'testpdf.pdf' is now in main."));
+
+   // and the rename, to the stack under its new name
+   dialog->choose(1);
+   QTRY_COMPARE(shown(), root);
+   QTRY_COMPARE(selected(), QStringList("letter.max"));
+
+   // putting back is for papers on this computer
+   QPushButton *put_back = dialog->findChild<QPushButton *>("putBack");
+   QVERIFY(put_back);
+   QVERIFY(dialog->putBackMoves().isEmpty());
+   QVERIFY(!put_back->isEnabled());
+
+   // a folder on this computer has its own record again, and back
+   QModelIndex local_dir = desktop->findDir(local);
+   QVERIFY(local_dir.isValid());
+   desktop->selectDir(local_dir);
+   QTRY_VERIFY(!dialog->onServer());
+   QCOMPARE(dialog->root(), local);
+   QVERIFY(dialog->listed().isEmpty());
+   desktop->selectDir(desktop->findDir(root));
+   QTRY_VERIFY(dialog->onServer());
+   QTRY_COMPARE(int(dialog->listed().size()), 2);
+
+   // a server too old to keep a record is said to be
+   QString top, name;
+   RemoteBackend *remote = model->activityServer(root, top, name);
+   QVERIFY(remote);
+   QCOMPARE(top, root + "/");
+   QCOMPARE(name, repo);
+   QStringList features = remote->features();
+   QStringList old = features;
+   old.removeAll("activity");
+   remote->setFeatures(old);
+   desktop->selectDir(local_dir);
+   QTRY_VERIFY(!dialog->onServer());
+   desktop->selectDir(desktop->findDir(root));
+   QTRY_VERIFY(dialog->onServer());
+   QTRY_VERIFY2(dialog->explanation().contains("this server keeps no record"),
+                qPrintable(dialog->explanation()));
+   QVERIFY(dialog->listed().isEmpty());
+   remote->setFeatures(features);
+}
+
+
 void TestDesktopUi::testActivityPutBack()
 {
    QModelIndex repo_ind;
