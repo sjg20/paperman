@@ -5932,6 +5932,39 @@ void TestDesktopUi::testLoginBox()
    QTRY_VERIFY(!box());
 }
 
+/* In a browser, the keys of Paperman's shortcuts are kept from the
+   browser, which would otherwise act on them too, as Ctrl+F opening its
+   own Find bar. They are named as a page sees them; keys which the
+   browser does nothing with, and which are needed for typing, are not */
+void TestDesktopUi::testBrowserKeys()
+{
+   QList<QKeySequence> seqs = {
+      QKeySequence("Ctrl+F"), QKeySequence("Ctrl+Shift+U"),
+      QKeySequence("Alt+Left"), QKeySequence("F3"), QKeySequence("Ctrl+F2"),
+      QKeySequence("Ctrl+1"),
+      // typing keys, an unnamed key and a chord are left alone
+      QKeySequence("Delete"), QKeySequence("Shift+R"), QKeySequence("A"),
+      QKeySequence("Left"), QKeySequence("Ctrl+Delete"),
+      QKeySequence("Ctrl+K, Ctrl+C"),
+      // and one which is there twice is named once
+      QKeySequence("Ctrl+F")};
+
+   QCOMPARE(Mainwindow::browserKeys(seqs), QStringList({
+      "C-KeyF", "CS-KeyU", "A-ArrowLeft", "-F3", "C-F2", "C-Digit1"}));
+
+   /* the window's own include Find, and Alt+Left, which moves a stack
+      and which a browser takes for going back a page; none is a key
+      needed for typing */
+   Mainwindow me;
+   QStringList keys = me.keysToKeep();
+
+   QVERIFY2(keys.contains("C-KeyF"), qPrintable(keys.join(' ')));
+   QVERIFY2(keys.contains("A-ArrowLeft"), qPrintable(keys.join(' ')));
+   for (const QString &key : keys)
+      QVERIFY2(!key.startsWith('-') || key.startsWith("-F"),
+               qPrintable(key));
+}
+
 /* A server which wants a login says so in several ways, depending on
    what passes the refusal on: each of them is taken as a reason to ask
    for a name and password, and nothing else is */

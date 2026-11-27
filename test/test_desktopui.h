@@ -260,6 +260,7 @@ private slots:
    void testAddServer();
    void testLoginNeeded();
    void testLoginBox();
+   void testBrowserKeys();
 
 private:
    /** Set up a repo in a shown Mainwindow, returning the model and the

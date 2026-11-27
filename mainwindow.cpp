@@ -26,6 +26,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/val.h>
+#include <emscripten/em_js.h>
 #endif
 
 #include <QtGui>
@@ -78,6 +79,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "dirmodel.h"
 #include "mainwidget.h"
 
+#include <QShortcut>
 #include <QTimer>
 #include "mainwindow.h"
 #include "ocrreader.h"
@@ -834,9 +836,118 @@ bool Mainwindow::needsRepository (void)
    return !_hasServers && !_desktop->getDirmodel ()->rowCount (QModelIndex ());
    }
 
+QStringList Mainwindow::browserKeys (const QList<QKeySequence> &seqs)
+   {
+   QStringList out;
+
+   for (const QKeySequence &seq : seqs)
+      {
+      if (seq.count () != 1)
+         continue;   // a chord of keys, which a page cannot catch
+
+#if QT_VERSION >= 0x060000
+      QKeyCombination comb = seq [0];
+      Qt::KeyboardModifiers mods = comb.keyboardModifiers ();
+      int key = comb.key ();
+#else
+      int whole = seq [0];
+      Qt::KeyboardModifiers mods (whole & Qt::KeyboardModifierMask);
+      int key = whole & ~Qt::KeyboardModifierMask;
+#endif
+      QString code;
+
+      if (key >= Qt::Key_A && key <= Qt::Key_Z)
+         code = QString ("Key%1").arg (QChar ('A' + key - Qt::Key_A));
+      else if (key >= Qt::Key_0 && key <= Qt::Key_9)
+         code = QString ("Digit%1").arg (key - Qt::Key_0);
+      else if (key >= Qt::Key_F1 && key <= Qt::Key_F12)
+         code = QString ("F%1").arg (key - Qt::Key_F1 + 1);
+      else if (key == Qt::Key_Left)
+         code = "ArrowLeft";     // Alt+Left goes back a page, say
+      else if (key == Qt::Key_Right)
+         code = "ArrowRight";
+      else if (key == Qt::Key_Up)
+         code = "ArrowUp";
+      else if (key == Qt::Key_Down)
+         code = "ArrowDown";
+      else if (key == Qt::Key_Home)
+         code = "Home";
+      else if (key == Qt::Key_End)
+         code = "End";
+      else
+         continue;
+
+      bool fkey = code.startsWith ('F') && code.size () <= 3;
+
+      if (!fkey && !(mods & (Qt::ControlModifier | Qt::AltModifier
+                             | Qt::MetaModifier)))
+         continue;
+
+      QString held;
+
+      if (mods & (Qt::ControlModifier | Qt::MetaModifier))
+         held += 'C';
+      if (mods & Qt::AltModifier)
+         held += 'A';
+      if (mods & Qt::ShiftModifier)
+         held += 'S';
+
+      QString name = held + "-" + code;
+
+      if (!out.contains (name))
+         out << name;
+      }
+   return out;
+   }
+
+
+QStringList Mainwindow::keysToKeep ()
+   {
+   QList<QKeySequence> seqs;
+
+   for (QAction *act : findChildren<QAction *> ())
+      seqs << act->shortcuts ();
+   for (QShortcut *sc : findChildren<QShortcut *> ())
+      seqs << sc->key ();
+
+   // the desk nudges stacks with Alt and the arrows, which are no action
+   for (int key : {Qt::Key_Left, Qt::Key_Right, Qt::Key_Up, Qt::Key_Down})
+      seqs << QKeySequence (Qt::ALT | key);
+   return browserKeys (seqs);
+   }
+
+
+#ifdef Q_OS_WASM
+/* Keep the keys named from the browser: it sees each key before the page
+   does, and does what it does with it as well, such as opening its own
+   Find bar for Ctrl+F. Telling it the key is dealt with stops that, and
+   the page still gets the key. A few, such as Ctrl+W and Ctrl+T, the
+   browser does not give up */
+EM_JS (void, keep_keys_from_browser, (const char *names), {
+   const keep = new Set (UTF8ToString (names).split (" "));
+
+   window.addEventListener ("keydown", (ev) => {
+      let held = "";
+
+      if (ev.ctrlKey || ev.metaKey)
+         held += "C";
+      if (ev.altKey)
+         held += "A";
+      if (ev.shiftKey)
+         held += "S";
+      if (keep.has (held + "-" + ev.code))
+         ev.preventDefault ();
+   }, true);
+});
+#endif
+
+
 void Mainwindow::offerRepository (const QString &dir)
    {
 #ifdef Q_OS_WASM
+   // the shortcuts are in place by now: keep their keys from the browser
+   keep_keys_from_browser (keysToKeep ().join (' ').toUtf8 ().constData ());
+
    /* In a browser there are no folders to keep papers in: they are on
       the server which the page came from, so show that server's papers.
       It is remembered, like any other, and is there the next time */
