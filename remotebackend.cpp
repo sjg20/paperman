@@ -1074,6 +1074,38 @@ bool RemoteBackend::uploadFile(const QString &repo, const QString &path,
 }
 
 
+void RemoteBackend::fetchActivity(const QString &repo, int max,
+                                  QObject *context, ActivityDone done)
+{
+   whenFinished(startGet("/v1/repos/"
+                         + QString::fromUtf8(QUrl::toPercentEncoding(repo))
+                         + "/activity?max=" + QString::number(max),
+                         QString(), kWorkTimeoutMs),
+                context, [done](const Result &result) {
+      QJsonObject obj = result.json();
+      QList<Activity> acts;
+
+      if (!result.ok || !obj.value("success").toBool()) {
+         QString why = obj.value("error").toString();
+
+         if (why.isEmpty())
+            why = result.error.isEmpty()
+                  ? QStringLiteral("the server gave no record") : result.error;
+         done(why, acts);
+         return;
+      }
+      for (const QJsonValue &v : obj.value("entries").toArray()) {
+         Activity act;
+
+         // an entry of a kind this version does not know is passed over
+         if (Activity::fromJson(v.toObject(), act))
+            acts << act;
+      }
+      done(QString(), acts);
+   });
+}
+
+
 void RemoteBackend::searchText(const QString &repo, const QString &text,
                                const QString &dir, int maxHits,
                                QObject *context, TextDone done)
@@ -1348,6 +1380,11 @@ void RemoteBackend::startEventStream(const QString &repo)
              if (!doc.isObject())
                 continue;
              QJsonObject o = doc.object();
+
+             /* the server has recorded a change by now, ours or not,
+                which is all that one who shows its record needs */
+             if (!frame.startsWith("event: layoutChanged"))
+                emit recordGrown(o.value("repo").toString(repo));
              if (o.value("origin").toString() == _clientId)
                 continue;      // our own change, already applied
              if (frame.startsWith("event: layoutChanged")) {
