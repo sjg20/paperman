@@ -78,6 +78,24 @@ public:
       \param allow  true to allow it, which is how things start */
    static void allowQuitQuestion (bool allow);
 
+   /** the keys which Paperman's shortcuts use and which a browser also
+       has a use for, so that a page can keep them from the browser
+
+      \param seqs  the shortcuts
+      \returns each key with modifiers, as a page sees it: the letters of
+               the modifiers held (C for Ctrl or Command, A for Alt, S for
+               Shift), a dash, then the browser's code for the key, such
+               as 'C-KeyF', 'A-ArrowLeft' or '-F3'. Only letters, digits,
+               function keys, arrows, Home and End are named. Keys with
+               no Ctrl or Alt, other than the function keys, are left
+               out, since they are needed for typing and moving about */
+   static QStringList browserKeys (const QList<QKeySequence> &seqs);
+
+   /** the keys of this window's shortcuts, and of the other keys it acts
+       on, which a browser also has a use for, named as browserKeys()
+       names them */
+   QStringList keysToKeep ();
+
    // Select whether the 'search' menu-option is available
    void setSearchEnabled(bool enable);
 
