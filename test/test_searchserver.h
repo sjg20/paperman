@@ -67,11 +67,14 @@ private slots:
    //! it straight away
    void testServerReadsPages();
 
-   //! the server keeps an index of the text on the pages of its stacks,
-   //! up to date as they change, and clients can search it
    //! the server records what is done to its stacks, and serves the record
    void testServerActivity();
 
+   //! the server serves the desktop built for a browser, at /app/
+   void testServesWebApp();
+
+   //! the server keeps an index of the text on the pages of its stacks,
+   //! up to date as they change, and clients can search it
    void testServerSearchesText();
 
    //! a search's desk holds a remote repository's stacks, from several
