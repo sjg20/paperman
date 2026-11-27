@@ -486,14 +486,10 @@ void Desktopview::dropEvent (QDropEvent* event)
    if (list.contains (dest))
       {
 #if QT_VERSION >= 0x060000
-      moveDraggedTo (event->position ().toPoint ());
+      event->setDropAction (shortDrop (event->position ().toPoint ()));
 #else
-      moveDraggedTo (event->pos ());
+      event->setDropAction (shortDrop (event->pos ()));
 #endif
-      stopAutoScroll ();
-      setState (NoState);
-      viewport ()->update ();
-      event->setDropAction (Qt::MoveAction);
       event->accept ();
       return;
       }
@@ -1072,6 +1068,21 @@ bool Desktopview::moveSelectedBy (const QPoint &delta, bool nudge)
    _modelconv->listToSource (model, list);
    dmodel->move (list, rootIndexSource (), oldlist, plist, nudge);
    return true;
+   }
+
+
+Qt::DropAction Desktopview::shortDrop (const QPoint &pos)
+   {
+   moveDraggedTo (pos);
+   stopAutoScroll ();
+   setState (NoState);
+   viewport ()->update ();
+
+   /* the stacks have been moved here. Had the drag ended as a move, the
+      list view would take them to have gone somewhere else and remove
+      them from the folder shown, although they are still in it. So it
+      ends as a copy, as it does when the list view moves them itself */
+   return Qt::CopyAction;
    }
 
 

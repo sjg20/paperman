@@ -2478,6 +2478,20 @@ void TestDesktopUi::testShortDrag()
    me.actionUndo->trigger();
    QCOMPARE(place(first), was);
 
+   /* a real drag which ends there moves the stack the same way. It must
+      not end as a move: the list view takes what a drag moved to have
+      gone, and removes it from the folder, so the stack would vanish and
+      the step could not be undone */
+   QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                     centre);
+   QCOMPARE(view->shortDrop(centre + QPoint(12, 7)), Qt::CopyAction);
+   QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                       centre + QPoint(12, 7));
+   QCOMPARE(place(first), was + QPoint(12, 7));
+   QCOMPARE(view->model()->rowCount(view->rootIndex()), 2);
+   me.actionUndo->trigger();
+   QCOMPARE(place(first), was);
+
    // a drag which goes nowhere moves nothing
    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier,
                      view->visualRect(first).center());

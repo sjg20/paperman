@@ -124,6 +124,14 @@ public:
       \returns true if any stack moved */
    bool moveDraggedTo (const QPoint &pos);
 
+   /** finish a drag which ends over one of the stacks dragged, which is a
+       short move: move them, and say how the drag is to end
+
+      \param pos  where the drag ends, in the view
+      \returns the action to end the drag with. It is never a move, since
+               the list view removes from the folder what a drag moved */
+   Qt::DropAction shortDrop (const QPoint &pos);
+
    /** returns the currently selected item, or the first selected if there
        is more than one */
    QModelIndex getSelectedItem (bool sourceModel = false);
