@@ -1063,7 +1063,7 @@ void TestDesktopUi::testActivityWindow()
    model->transformPage(model->index("bank letter.max", repo_ind), 2,
                         File::Transform_rotate90);
    QTRY_COMPARE(dialog->listed()[0],
-                QString("Turned page 3 of 'bank letter'"));
+                QString("Turned page 3 of 'bank letter' to the right"));
    dialog->choose(4);   // away, to the first rename again
    dialog->choose(0);
    QTRY_COMPARE(model->data(model->index("bank letter.max", repo_ind),
