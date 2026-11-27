@@ -715,6 +715,23 @@ QString Desktopmodel::activityRoot (const QString &dir)
    }
 
 
+RemoteBackend *Desktopmodel::activityServer (const QString &dir,
+                                             QString &root, QString &repo)
+   {
+   QModelIndex parent = deskFromDirname (dir);
+   Desk *desk = parent.isValid () ? getDesk (parent) : nullptr;
+   RemoteBackend *remote = desk
+         ? dynamic_cast<RemoteBackend *> (desk->backend ()) : nullptr;
+
+   if (remote)
+      {
+      root = desk->rootDir ();
+      repo = desk->repoName ();
+      }
+   return remote;
+   }
+
+
 void Desktopmodel::recordActivity (Activity whole, QList<Activity> parts)
    {
    QString root = activityRoot (QFileInfo (whole.path).path ());

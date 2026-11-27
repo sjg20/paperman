@@ -130,9 +130,14 @@ the assistant, and put right anything which went to the wrong place.
 The record is kept with the papers, in the repository, so it is the same
 from whichever computer they are used. To keep none, untick **Keep a
 record of what is done to the papers** in **File > Options**, *Files*:
-nothing more is written, and what is there already stays. A server
-keeps a record for the repositories it holds, but the window does not
-show it yet. Small moves of a stack about the desk are not recorded.
+nothing more is written, and what is there already stays. Small moves
+of a stack about the desk are not recorded.
+
+For a folder on a server, the window shows the record which the server
+keeps, with what everyone who uses that server has done there, and
+follows it as they do more. Choosing a line goes to the stack as it
+does for one on this computer. **Put back** does not yet work on a
+server's stacks, and a server too old to keep a record is said to be.
 
 Main toolbar
 ------------

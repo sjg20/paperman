@@ -60,6 +60,7 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "qstring.h"
 
 #include "activitydialog.h"
+#include "remotebackend.h"
 #include "backgrounddialog.h"
 #include "blockwatch.h"
 #include "camera.h"
@@ -645,14 +646,54 @@ void Mainwindow::on_actionActivity_triggered (bool)
       connect (desktop->getDirmodel (), &Dirmodel::activityRecorded,
                _activity, grown);
       connect (model, &Desktopmodel::dirChanged, _activity,
-               [this, model] (QString &dirPath, QModelIndex &) {
-         _activity->setRoot (model->activityRoot (dirPath));
+               [this] (QString &dirPath, QModelIndex &) {
+         showActivityFor (dirPath);
       });
       }
-   _activity->setRoot (model->activityRoot (model->getDirPath ()));
+   showActivityFor (model->getDirPath ());
    _activity->show ();
    _activity->raise ();
    _activity->activateWindow ();
+   }
+
+
+void Mainwindow::showActivityFor (const QString &dir)
+   {
+   Desktopmodel *model = _main->getDesktop ()->getModel ();
+   QString root, repo;
+   RemoteBackend *remote = model->activityServer (dir, root, repo);
+
+   if (!_activity)
+      return;
+   if (!remote)
+      {
+      _activity->setRoot (model->activityRoot (dir));
+      return;
+      }
+
+   /* a folder on a server: the server keeps the record, if it is new
+      enough to, and says when a stack changes, by whoever's doing */
+   QPointer<RemoteBackend> server (remote);
+   std::function<void (Activitydialog::Fetched)> fetch;
+
+   if (remote->hasActivity ())
+      fetch = [this, server, repo] (Activitydialog::Fetched done) {
+         if (!server)
+            {
+            done (QList<Activity> (), tr ("the server has gone"));
+            return;
+            }
+         server->fetchActivity (repo, Activitydialog::max_entries, _activity,
+                                [done] (const QString &error,
+                                        const QList<Activity> &acts) {
+            done (acts, error);
+         });
+      };
+   _activity->setServer (root, fetch);
+
+   // made once for each server, however often its folders are shown
+   connect (remote, &RemoteBackend::recordGrown, _activity,
+            &Activitydialog::serverGrown, Qt::UniqueConnection);
    }
 
 

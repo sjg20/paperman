@@ -234,6 +234,10 @@ private:
     Backgrounddialog *_background = nullptr;
     Activitydialog *_activity = nullptr;   //!< the window of what was done
 
+    /** have the Activity window show the record for a folder: the one in
+        its repository, or its server's */
+    void showActivityFor (const QString &dir);
+
     //! true once the user has agreed to quit while pages are being read
     bool _quit_agreed = false;
 

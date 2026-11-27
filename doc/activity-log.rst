@@ -9,8 +9,8 @@ record for anyone changing the code which writes or reads it.
 It is being built in steps. The desktop writes the record, for a
 repository on this computer, and shows it in **View > Activity** (see
 :doc:`desktop`). ``paperman-server`` writes it for the repositories it
-holds, and gives it to clients; the desktop does not yet show a server's
-record.
+holds, and gives it to clients; the desktop shows that in the same
+window.
 
 Where it is kept
 ----------------
@@ -195,6 +195,16 @@ greyed. When a line is chosen it finds where the stack is now with
 ``Desktopwidget::showStack()``, which goes to the folder, selects the
 stack and turns it to the page, leaving the keyboard with the window.
 ``Desktopmodel::activityRecorded()`` tells it when the record has grown.
+
+For a folder on a server, ``Mainwindow::showActivityFor()`` gives the
+window a function which fetches the entries instead
+(``Activitydialog::setServer()``), which is
+``RemoteBackend::fetchActivity()``. The answer comes later, and only the
+answer to the latest request is shown. ``RemoteBackend::recordGrown()``
+says when the server has announced a change, this client's own included,
+by which time it is in the record. A stack on a server is not a file
+here to look for, so the window trusts ``whereNow()`` and the folder
+shown says if the stack is not there.
 
 **Put back** works out, for the line chosen or each line under it which
 renamed or moved a stack, where the stack is now (``whereNow()``) and

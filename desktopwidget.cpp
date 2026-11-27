@@ -2299,22 +2299,36 @@ void Desktopwidget::locateFolder ()
 
 bool Desktopwidget::showStack (const QString &pathname, int page)
    {
+   /* a stack on a server is named by the server's address and is no
+      file here, so its path is taken apart as text and it is trusted to
+      be there: its folder says if it is not, once listed */
+   bool remote = Dirmodel::isServerPath (pathname);
    QFileInfo fi (pathname);
-   QString dir = fi.absolutePath () + "/";
+   int slash = pathname.lastIndexOf ('/');
+   QString dir = remote ? pathname.left (slash + 1)
+                        : fi.absolutePath () + "/";
+   QString name = remote ? pathname.mid (slash + 1) : fi.fileName ();
    QModelIndex src_ind = _model->index (dir);
 
-   if (!fi.isFile () || !src_ind.isValid ())
+   if ((!remote && !fi.isFile ()) || name.isEmpty () || !src_ind.isValid ())
       return false;
 
    // out of the results of a search, which are not a folder
    bool results = _toolbar->searchEnabled ();
 
    normalView ();
-   _scroll_to = fi.fileName ();
+   _scroll_to = name;
    _scroll_page = page;
 
    // a folder which is shown already need not be read again
-   if (!results && QDir (_contents->getDirPath ()) == QDir (dir))
+   QString shown = _contents->getDirPath ();
+
+   if (remote && !shown.endsWith ('/'))
+      shown += '/';
+
+   bool same = remote ? shown == dir : QDir (shown) == QDir (dir);
+
+   if (!results && same)
       scrollToChosen (_view->rootIndexSource ());
    else
       selectDir (_dir_proxy->mapFromSource (src_ind), true);

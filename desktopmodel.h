@@ -309,6 +309,16 @@ public:
                keeps no record yet, or it is not a folder being shown */
    QString activityRoot (const QString &dir);
 
+   /** find the server which keeps the record of activity for a folder
+
+      \param dir   the folder, with or without a slash
+      \param root  returns the top of its repository, as the folder tree
+                   names it
+      \param repo  returns the repository's name on the server
+      \returns the server, or nullptr if the folder is not on one */
+   class RemoteBackend *activityServer (const QString &dir, QString &root,
+                                        QString &repo);
+
    /** put something which was done, other than by an undo command, in the
        record of activity: a scan, or the reading of a stack's text
 
