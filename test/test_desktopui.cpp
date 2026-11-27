@@ -25,6 +25,7 @@
 #include <QUrlQuery>
 #include <QtTest/QtTest>
 
+#include "foldersdialog.h"
 #include "activitydialog.h"
 #include "test.h"
 #include "backgrounddialog.h"
@@ -3335,7 +3336,8 @@ void TestDesktopUi::testStackMenu()
    // with the assistant on, what it does is under Process too
    Assistant::setEnabled(true);
    QVERIFY(shown().contains("Process... [Read text (OCR), Suggest name, "
-                            "Split into documents..., Reverse pages]"));
+                            "Split into documents..., Suggest folder..., "
+                            "Reverse pages]"));
    QSettings().remove("assistant");
 
    // every item has a shortcut, which nothing else in the window has
@@ -4025,6 +4027,157 @@ void TestDesktopUi::testNamesDialog()
 /* With several stacks selected, a name is asked for each, and all are
    shown to be checked: a name can be changed, a stack left out, and what
    is agreed to is renamed as one step */
+/* The assistant suggests a folder for each stack selected, from those
+   there are; the suggestions are checked in a window, and the stacks then
+   moved as one step, which the record of activity gives to the assistant */
+void TestDesktopUi::testSuggestFolder()
+{
+   QModelIndex repo_ind;
+   Desktopmodel *model;
+   Mainwindow me;
+
+   setupShown(&me, model, repo_ind);
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   QString path = desktop->getSelectedPath();
+   FakeBackend *backend = new FakeBackend;
+   Assistant assistant(backend);
+   int stacks = model->rowCount(repo_ind);
+
+   QCOMPARE(stacks, 2);
+   desktop->_assistant = &assistant;
+   QSettings().remove("assistant");
+
+   // it is not offered, nor does anything, until it is turned on
+   view->setSelectionRange(0, stacks);
+   desktop->updateActions();
+   QVERIFY(!desktop->_act_suggest_folder->isVisible());
+   desktop->suggestFolder();
+   QVERIFY(backend->_prompt.isEmpty());
+
+   Assistant::setEnabled(true);
+   desktop->updateActions();
+   QVERIFY(desktop->_act_suggest_folder->isEnabled());
+
+   // every page says something, as after its text has been read
+   desktop->_name_engine = [](QImage &image, OcrPage &ocr) {
+      ocr = OcrPage();
+      ocr.size = image.size();
+      ocr.words << OcrWord{QRect(0, 0, 10, 10), "words", 90, 0, 0};
+      return QString();
+   };
+
+   /* one stack gets a folder; for the other the assistant names one which
+      is not there, which is refused */
+   backend->_folders << "main/one" << "nowhere/at/all";
+   desktop->suggestFolder();
+
+   Foldersdialog *dialog = nullptr;
+   QTRY_VERIFY((dialog = desktop->findChild<Foldersdialog *>()));
+   QVERIFY(dialog->isVisible());
+   QCOMPARE(backend->_asked, stacks);
+
+   // it was given the folders there are, and the stack's name and text
+   for (const char *folder : {"main", "main/one", "main/one/a", "wibble1"})
+      QVERIFY2(backend->_prompt.contains(QString("- %1\n").arg(folder)),
+               folder);
+   QVERIFY(backend->_prompt.contains("The document is called:"));
+   QVERIFY(backend->_prompt.contains("Today is "));
+
+   QTableWidget *table = dialog->findChild<QTableWidget *>("folders");
+   QVERIFY(table);
+   QCOMPARE(table->rowCount(), stacks);
+
+   int with = dialog->ticked(0) ? 0 : 1, without = 1 - with;
+   QVERIFY(dialog->ticked(with));
+   QVERIFY(!dialog->ticked(without));
+   QCOMPARE(table->item(with, Foldersdialog::col_folder)->text(),
+            QString("main/one"));
+   QVERIFY(table->item(without, Foldersdialog::col_stack)->text()
+              .contains("not there"));
+   QCOMPARE(dialog->count(), 1);
+   QCOMPARE(dialog->moveText(), QString("&Move 1 stack"));
+
+   // nothing has moved, and leaving the window moves nothing
+   QVERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QVERIFY(QFile::exists(path + "/testfile.max"));
+   dialog->reject();
+   QTRY_VERIFY(!desktop->findChild<Foldersdialog *>());
+   QCOMPARE(model->rowCount(repo_ind), stacks);
+
+   /* asked again, the folder for the second is put in by hand: one which
+      is not there counts for nothing, the folder the stacks are in is no
+      move, and one which is there is taken */
+   view->setSelectionRange(0, stacks);
+   backend->_folders << "main/one" << "";
+   desktop->suggestFolder();
+   QTRY_VERIFY((dialog = desktop->findChild<Foldersdialog *>()));
+   table = dialog->findChild<QTableWidget *>("folders");
+   with = dialog->ticked(0) ? 0 : 1;
+   without = 1 - with;
+   QVERIFY(table->item(without, Foldersdialog::col_stack)->text()
+              .contains("none fits"));
+   dialog->setTicked(without, true);
+   dialog->setFolder(without, "not/a/folder");
+   QCOMPARE(dialog->count(), 1);
+   dialog->setFolder(without, "");
+   QCOMPARE(dialog->count(), 1);
+   dialog->setFolder(without, "wibble2/");
+   QCOMPARE(dialog->count(), 2);
+   QCOMPARE(dialog->moveText(), QString("&Move 2 stacks"));
+
+   QString moved = table->item(with, Foldersdialog::col_stack)->text();
+   QString other = table->item(without, Foldersdialog::col_stack)->text();
+   other = other.section(" (", 0, 0);
+
+   QPushButton *move = dialog->findChild<QPushButton *>("move");
+   QVERIFY(move && move->isEnabled());
+   move->click();
+
+   auto fileOf = [&](const QString &name) {
+      return name == "testpdf" ? QString("testpdf.pdf") : name + ".max";
+   };
+   QTRY_VERIFY(QFile::exists(path + "/main/one/" + fileOf(moved)));
+   QTRY_VERIFY(QFile::exists(path + "/wibble2/" + fileOf(other)));
+   QVERIFY(!QFile::exists(path + "/" + fileOf(moved)));
+   QVERIFY(!QFile::exists(path + "/" + fileOf(other)));
+   QCOMPARE(model->rowCount(repo_ind), 0);
+
+   // the record of activity has it as one step, the assistant's
+   QList<Activity> acts;
+   QVERIFY(!ActivityLog(path).read(acts));
+   QCOMPARE(int(acts.size()), 3);
+   QCOMPARE(acts[0].action, Activity::A_group);
+   QCOMPARE(acts[0].note, QString("File stacks (2)"));
+   QCOMPARE(acts[0].who, Activity::W_assistant);
+   for (int i = 1; i <= 2; i++) {
+      QCOMPARE(acts[i].action, Activity::A_move);
+      QCOMPARE(acts[i].who, Activity::W_assistant);
+      QCOMPARE(acts[i].group, acts[0].id);
+   }
+
+   // and one undo brings both back
+   me.actionUndo->trigger();
+   QTRY_VERIFY(QFile::exists(path + "/testpdf.pdf"));
+   QTRY_VERIFY(QFile::exists(path + "/testfile.max"));
+   QVERIFY(!QFile::exists(path + "/main/one/" + fileOf(moved)));
+
+   // a failure is said, and shows no window
+   QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+   QSignalSpy said(desktop, SIGNAL(newContents(QString)));
+   QTRY_COMPARE(model->rowCount(repo_ind), stacks);
+   view->setSelectionRange(0, 1);
+   backend->_error = "The assistant could not answer";
+   desktop->suggestFolder();
+   QTRY_VERIFY(said.last().at(0).toString().contains(
+                  "The assistant could not answer"));
+   QVERIFY(!desktop->findChild<Foldersdialog *>());
+
+   desktop->_assistant = nullptr;
+   QSettings().remove("assistant");
+}
+
 void TestDesktopUi::testSuggestNames()
 {
    QModelIndex repo_ind;

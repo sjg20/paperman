@@ -547,6 +547,11 @@ private slots:
        stack, as one step to undo */
    void suggestSplit (void);
 
+   /** ask the assistant which folder each of the stacks selected belongs
+       in, and show what it suggests in a window, to be checked, before
+       anything is moved */
+   void suggestFolder (void);
+
    // unfold a saddle-stitched booklet into sequential pages
    void unfoldBooklet (void);
 
@@ -760,7 +765,7 @@ private:
    QAction *_act_duplicate_jpeg, *_act_move;
    QAction *_act_read_text;
    QAction *_act_unfold_booklet, *_act_reverse, *_act_suggest_name;
-   QAction *_act_suggest_split;
+   QAction *_act_suggest_split, *_act_suggest_folder;
 
    /** ask the assistant how to divide a stack, whose pages are all
        here: see suggestSplit()
@@ -815,6 +820,26 @@ private:
        selected, in the box where its name is typed; otherwise in a window
        to check them in, which renames the stacks the user agrees to */
    void showNames (std::shared_ptr<NamesJob> job);
+
+   //! folders being asked for, for several stacks: see suggestFolder()
+   struct FoldersJob;
+
+   //! the folders being asked for, if any are: only one lot at a time
+   std::weak_ptr<FoldersJob> _filing;
+
+   //! ask about the next stacks of a job, a few at a time
+   void folderNext (std::shared_ptr<FoldersJob> job);
+
+   //! show the folders suggested, once every stack has an answer
+   void showFolders (std::shared_ptr<FoldersJob> job);
+
+   /** move stacks to the folders chosen for them, as one step to undo,
+       marked in the record of activity as the assistant's
+
+      \param job      the stacks
+      \param folders  the folder for each, empty for one which stays */
+   void fileStacks (std::shared_ptr<FoldersJob> job,
+                    const QStringList &folders);
 
    //! the assistant to ask, or nullptr for one made from the settings
    Assistant *_assistant;
