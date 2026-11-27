@@ -210,6 +210,38 @@ private:
    };
 
 
+/** bring a stack back from the trash, long after it was deleted, when
+the command which deleted it has been forgotten. This is that command's
+undo: we record the name the stack has in the trash and the name it is to
+have, and undoing it moves the stack to the trash again */
+
+class UCRestoreStack : public Desktopundocmd
+   {
+public:
+   /** \param model      the model
+       \param parent     the folder the stack is to go back to
+       \param trashname  the name it has in the trash
+       \param filename   the name it is to have
+       \param deleted    the entry in the record of activity which deleted
+                         it, 0 if not known */
+   UCRestoreStack (Desktopmodel *model, const QModelIndex &parent,
+                   const QString &trashname, const QString &filename,
+                   qint64 deleted);
+   void redo();
+   void undo();
+   QList<Activity> activity () const override;
+   //! the name the stack came back with
+   QString filename () const { return _filenames->value (0); }
+private:
+   QString _dir;           //!< desk directory
+   //! the name the stack has, updated if it has to change
+   std::shared_ptr<QStringList> _filenames;
+   //! the name it has in the trash, updated when it goes back there
+   std::shared_ptr<QStringList> _trashlist;
+   qint64 _deleted;        //!< the entry which deleted it
+   };
+
+
 /** move a group of stacks. We record the filenames of the deleted items
 since the model indexes may change. We also record the original position
 and the new position to support undo / redo */

@@ -115,6 +115,7 @@ class Desktopmodel : public QAbstractItemModel
 
    // allow the undo classes to access our state and in particular the opXXX functions
    friend class UCTrashStacks;
+   friend class UCRestoreStack;
    friend class UCMove;
    friend class UCDuplicate;
    friend class UCAddFiles;
@@ -522,6 +523,18 @@ public:
       \param parent  parent desk
       \returns      error, or NULL if none */
    void trashStacks (QModelIndexList &list, QModelIndex parent);
+
+   /** bring a stack back from the trash to a folder. Supports undo
+
+      \param parent     the folder it is to go to, in the repository whose
+                        trash it is in
+      \param trashname  the name it has in the trash
+      \param filename   the name it is to have
+      \param deleted    the entry in the record of activity which deleted
+                        it, 0 if not known
+      \returns the name it has, empty if it could not be brought back */
+   QString restoreStack (const QModelIndex &parent, const QString &trashname,
+                         const QString &filename, qint64 deleted);
 
    /** conveniece function similar to the above
 
