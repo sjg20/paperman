@@ -49,7 +49,9 @@ X-Comment: On Debian GNU/Linux systems, the complete text of the GNU General
 #include "imageadjust.h"
 #include "filemax.h"
 #include "fileother.h"
+#ifndef CONFIG_no_pdf
 #include "filepdf.h"
+#endif
 #ifndef QT_NO_WIDGETS
 #include "mainwindow.h"
 #include "maxview.h"
@@ -338,7 +340,12 @@ File *File::createFile (const QString &dir, const QString fname, Desk *desk, e_t
          break;
 
       case Type_pdf :
+#ifdef CONFIG_no_pdf
+         // built with no PDF libraries: it is there, but cannot be opened
+         f = new Fileother (dir, fname, desk);
+#else
          f = new Filepdf (dir, fname, desk);
+#endif
          break;
 
       case Type_jpeg :
