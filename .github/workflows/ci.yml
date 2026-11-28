@@ -184,6 +184,11 @@ jobs:
             mingw-w64-ucrt-x86_64-python-reportlab
             mingw-w64-ucrt-x86_64-tesseract-data-eng
 
+      # MSYS2 updates its packages one at a time, and now and then one does
+      # not work with Paperman for a while: see the script
+      - name: Put right packages which do not work
+        run: scripts/msys2_fix_packages.sh
+
       - name: Build desktop app
         run: qmake6 paperman.pro CONFIG+=test -o Makefile.win && make -k -f Makefile.win -j$(nproc)
 
@@ -251,6 +256,11 @@ jobs:
             mingw-w64-clang-aarch64-libjpeg-turbo
             mingw-w64-clang-aarch64-zlib
             mingw-w64-clang-aarch64-poppler
+
+      # MSYS2 updates its packages one at a time, and now and then one does
+      # not work with Paperman for a while: see the script
+      - name: Put right packages which do not work
+        run: scripts/msys2_fix_packages.sh
 
       # MSYS2's pkg-config here has no .exe suffix, so qmake, which is not
       # an MSYS2 program, cannot run it: have it run pkgconf, which it is

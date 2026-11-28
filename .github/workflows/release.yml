@@ -99,6 +99,11 @@ jobs:
             ${{ matrix.pkg }}-zlib
             ${{ matrix.pkg }}-poppler
 
+      # MSYS2 updates its packages one at a time, and now and then one does
+      # not work with Paperman for a while: see the script
+      - name: Put right packages which do not work
+        run: scripts/msys2_fix_packages.sh
+
       # the Clang toolchain keeps objdump and strip here
       - name: Install the LLVM tools
         if: matrix.arch == 'arm64'
