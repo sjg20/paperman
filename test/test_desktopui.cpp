@@ -2955,6 +2955,62 @@ void TestDesktopUi::testPageNumberFits()
                           .arg(large_bold).arg(large_plain)));
 }
 
+/* A server which has not yet counted the pages of a folder's stacks
+   lists them without, and counts them for the next to ask. The desktop
+   asks again, so that each stack gets its page controls without being
+   clicked */
+void TestDesktopUi::testRemotePageCounts()
+{
+   QList<int> delays = Desktopmodel::page_count_delays;
+   auto restore = qScopeGuard([delays] {
+      Desktopmodel::page_count_delays = delays;
+   });
+   Desktopmodel::page_count_delays = {200, 400, 800, 1600};
+
+   Mainwindow me;
+   auto path = setupRepo();
+
+   // a fresh server, which has counted nothing yet
+   SearchServer server(path, 9888);
+   QVERIFY(server.start());
+   auto stop = qScopeGuard([&] { server.stop(); });
+   QTest::qWait(100);
+   QUrl url("http://localhost:9888");
+   QString root = url.toString() + "/" + QFileInfo(path).fileName();
+
+   Desktopwidget *desktop = me.getDesktop();
+   Desktopview *view = desktop->getView();
+   bool attached = false;
+   QString err;
+   desktop->addRemoteServer(url, [&](const QString &error) {
+      err = error;
+      attached = true;
+   });
+   QTRY_VERIFY(attached);
+   QVERIFY2(err.isEmpty(), qPrintable(err));
+
+   QModelIndex repo_dir = desktop->findDir(root);
+   QVERIFY(repo_dir.isValid());
+   desktop->selectDir(repo_dir);
+   QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
+
+   /* the .max stack comes to have its page count, with nothing clicked
+      (a PDF on a server counts itself as one page until it is read, so
+      it is not looked at here) */
+   auto count = [&]() {
+      for (int row = 0; row < view->model()->rowCount(view->rootIndex());
+           row++) {
+         QModelIndex ind = itemIndex(view, row);
+
+         if (ind.data(Desktopmodel::Role_filename).toString()
+             == "testfile.max")
+            return ind.data(Desktopmodel::Role_pagecount).toInt();
+      }
+      return -1;
+   };
+   QTRY_COMPARE_WITH_TIMEOUT(count(), 5, 10000);
+}
+
 /* A stack dragged only a little way ends up over where it was. The list
    view takes it for the thing dropped on and moves nothing, so the move
    is done by how far the pointer has come */
