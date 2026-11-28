@@ -182,6 +182,7 @@ private slots:
    //! Repositioning a stack on the desk moves it, persists and undoes
    //! a stack dragged a little way moves by that much
    void testShortDrag();
+   void testBoxFocus();
    void testPageNumberFits();
 
    //! Alt with an arrow key nudges the stacks selected
